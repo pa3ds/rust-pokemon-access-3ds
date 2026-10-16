@@ -9,7 +9,6 @@ use indexmap::IndexMap;
 
 use crate::core::config::Navigation;
 use crate::core::pathfind::{self, Cell, Leg};
-use crate::games::common::field::chunk::ANY_FLOOR;
 use crate::games::common::field::ground::{
     CUT, Ground, IceRoom, Of, ROCK_SMASH, SOLID, STRENGTH, SURF, WATERFALL, WHOLE,
 };
@@ -508,9 +507,19 @@ fn aimed(
     if kept.is_empty() { goals } else { kept }
 }
 
-/// Whether a way found ends at the thing: on one of `goals`, and on a stacked ground on the
-/// thing's floor there, not the floor over it (`Ground.walked`). `path[-1]` raises on an empty
-/// path as Python's index does.
+/// Where a way to `item` across `ground` ends: its cells, or beside it, and beside a big
+/// boulder a side it is pushed from, `push` where it can be pushed so (`_sides`, `_aimed`).
+fn aims(
+    ground: &Ground,
+    item: &Interactable,
+    push: Option<&str>,
+) -> Result<IndexMap<Cell, Option<&'static str>>> {
+    Ok(aimed(ground.goals(item)?, &sides(item, push)))
+}
+
+/// Whether a way found ends at the thing: on one of `goals`, on the floor it was walked to
+/// there (`Ground.walked`, `Ground.ends_at`). `path[-1]` raises on an empty path as Python's
+/// index does.
 fn reached(
     ground: &Ground,
     item: &Interactable,
@@ -526,12 +535,24 @@ fn reached(
     if !goals.contains_key(&end) {
         return Ok(false);
     }
-    if !ground.stacked {
-        return Ok(true);
-    }
     let walked = ground.walked(path)?;
-    let at = ground.floor_at(end, item.height)?;
-    Ok(at.is_some_and(|at| at == ANY_FLOOR || at == walked[walked.len() - 1]))
+    ground.ends_at(item, end, walked[walked.len() - 1])
+}
+
+/// The way P finds to a thing, before it is said (`Guide._way`).
+struct Way {
+    /// The ground it was found on.
+    ground: Ground,
+    goals: IndexMap<Cell, Option<&'static str>>,
+    path: Option<Vec<Cell>>,
+    /// The height that ground's decks are walked at.
+    height: Option<f64>,
+    /// Whether it ends short of the thing.
+    short: bool,
+    /// Whether it ends clearing a room of thin ice, the way on.
+    ice: bool,
+    /// The heights a way past somebody standing in it is looked for at (`Guide._up_to`).
+    levels: Vec<Option<f64>>,
 }
 
 /// How far along `path` the cell nearest `cell` is, when one is within `slack` cells of it
@@ -706,13 +727,17 @@ impl Guide {
 
     /// The keys of the things listed in `where` that Shift and P finds a way to, ending at
     /// them and not short of them: every one where no way is found on this ground (Sun's, the
-    /// rails', the sky). One walk out from the player over the ground with HMs, at the player's
-    /// height and at each other deck's, as Shift and P tries them, on a stacked ground a floor at
-    /// a time, ending on the thing's own (`_reached`); the rotating doors' arms are not followed,
-    /// so what lies past them is taken to be reached. Orion's, 2026-10-11: in Team Magma's
-    /// Hideout the list held every teleporter of the place, most of them in rooms the player was
-    /// not in. Walked a cell at a time, any floor of it, Victory Road's stacked 1F kept all 13
-    /// things listed, 8 of them short of Shift and P's reach (movie47, spike A).
+    /// rails', the sky). Judged as Shift and P judges its own way, with the same pieces: the
+    /// same grounds in turn (`_grounds`), the same cells at each thing, a side a big boulder is
+    /// pushed from (`_aims`), the same moves from floor to floor (`Ground.reached`, one walk out
+    /// to every thing at once where Shift and P searches for one), the same end at it
+    /// (`Ground.ends_at`), and over thin ice Shift and P's own way (`_way`). Only the rotating
+    /// doors are not followed, so what lies past them is kept (`Ground.reached`).
+    ///
+    /// Orion's, 2026-10-11: in Team Magma's Hideout the list held every teleporter of the place,
+    /// most of them in rooms the player was not in. Walked a cell at a time, any floor of it,
+    /// Victory Road's stacked 1F kept all 13 things listed, 8 of them short of Shift and P's
+    /// reach (movie47, spike 215).
     pub fn reachable(&self, r#where: &Field) -> Result<HashSet<Key>> {
         let everything: HashSet<Key> = r#where
             .interactables
@@ -733,40 +758,30 @@ impl Guide {
         {
             return Ok(keys.clone());
         }
-        let ground = self.ground(r#where, true, None)?;
         let mut out: HashSet<Key> = HashSet::new();
+        let grounds = self
+            .grounds(r#where, true, None)?
+            .collect::<Result<Vec<(Ground, Option<f64>)>>>()?;
         // ponytail: a walk over the whole matrix each time the player has moved, 0.9 s on one of
         // 8 by 8 chunks and tens of milliseconds in a cave; keep it while they stay where it
         // reached, if a route's wait is heard.
-        let levels: Vec<Option<f64>> = std::iter::once(None)
-            .chain(ground.decks.iter().map(|&deck| Some(deck)))
-            .collect();
-        for level in levels {
-            let other;
-            let walked = match level {
-                None => &ground,
-                Some(level) => {
-                    other = self.ground(r#where, true, Some(level))?;
-                    &other
-                }
-            };
+        for (ground, _) in &grounds {
             let mut goals: Vec<(&Interactable, IndexMap<Cell, Option<&'static str>>)> = Vec::new();
             for item in &r#where.interactables {
                 if !out.contains(&item.key()) {
-                    goals.push((item, walked.goals(item)?));
+                    goals.push((item, aims(ground, item, None)?));
                 }
             }
-            let aims: Vec<Cell> = goals
+            let cells: Vec<Cell> = goals
                 .iter()
                 .flat_map(|(_, cells)| cells.keys().copied())
                 .collect();
-            let reached = walked.reached(r#where.cell, &aims)?;
+            let reached = ground.reached(r#where.cell, &cells)?;
             for (item, cells) in &goals {
                 let mut any = false;
                 'cells: for &cell in cells.keys() {
-                    for floor in reached.get(&cell).into_iter().flatten() {
-                        let at = walked.floor_at(cell, item.height)?;
-                        if at.is_some_and(|at| at == ANY_FLOOR || floor.contains(&at)) {
+                    for &floor in reached.get(&cell).into_iter().flatten() {
+                        if ground.ends_at(item, cell, floor)? {
                             any = true;
                             break 'cells;
                         }
@@ -777,8 +792,106 @@ impl Guide {
                 }
             }
         }
+        if !grounds[0].0.ice.is_empty() {
+            // A way over thin ice steps on every tile once, which no walk out follows.
+            let mut over: HashSet<Key> = HashSet::new();
+            for item in &r#where.interactables {
+                if !out.contains(&item.key())
+                    && let Some(way) = self.way(r#where, item, true, "", None, None)?
+                    && !way.short
+                {
+                    over.insert(item.key());
+                }
+            }
+            out.extend(over);
+        }
         *self.reached.borrow_mut() = Some((asked, out.clone()));
         Ok(out)
+    }
+
+    /// The way from where the player stands to `item`, as `to` says it and `reachable`
+    /// judges it, or None off the rails the game has loaded. Found on each ground in turn until
+    /// one ends at the thing (`_grounds`), to its cells, a side a big boulder is pushed from
+    /// (`_aims`), and where it falls short, over a room of thin ice instead, which clears it
+    /// (`_over_ice`).
+    ///
+    /// Python's `heading`, `height` and `push` default to "", None and None.
+    fn way(
+        &self,
+        r#where: &Field,
+        item: &Interactable,
+        hm: bool,
+        heading: &str,
+        height: Option<f64>,
+        push: Option<&str>,
+    ) -> Result<Option<Way>> {
+        let mut height = height;
+        let mut grounds = self.grounds(r#where, hm, height)?;
+        let (mut ground, _) = grounds.next().expect("the first ground is always there")?;
+        if r#where.on_rail && ground.corridor.is_none() {
+            return Ok(None);
+        }
+        let mut goals = aims(&ground, item, push)?;
+        let mut path = ground.find(r#where.cell, &goals, heading, Some(item), true, None)?;
+        let levels: Vec<Option<f64>> = std::iter::once(height)
+            .chain(ground.decks.iter().map(|&deck| Some(deck)))
+            .collect();
+        if !reached(&ground, item, &goals, &path)? {
+            for other in grounds {
+                let (other, deck) = other?;
+                let aim = aims(&other, item, push)?;
+                let found = other.find(r#where.cell, &aim, heading, Some(item), false, None)?;
+                if let Some(found) = found {
+                    ground = other;
+                    goals = aim;
+                    path = Some(found);
+                    height = deck;
+                    break;
+                }
+            }
+        }
+        let mut short = !reached(&ground, item, &goals, &path)?;
+        let over = if short {
+            over_ice(r#where, &ground, &path, heading)?
+        } else {
+            None
+        };
+        let ice = over.is_some();
+        if let Some(over) = over {
+            path = Some(over);
+            short = false;
+        }
+        Ok(Some(Way {
+            ground,
+            goals,
+            path,
+            height,
+            short,
+            ice,
+            levels,
+        }))
+    }
+
+    /// The grounds a way is looked for on, in turn, with the height each one's decks are
+    /// walked at: `height` or the player's own, then each other deck's (spike 159).
+    ///
+    /// Python's generator makes its first ground at its first `next`, which every caller asks
+    /// for at once; the others, as Python's, only as they are asked for.
+    fn grounds<'a>(
+        &'a self,
+        r#where: &'a Field,
+        hm: bool,
+        height: Option<f64>,
+    ) -> Result<impl Iterator<Item = Result<(Ground, Option<f64>)>> + 'a> {
+        // ponytail: where the ground is not stacked, a whole map's decks walked at one height, so
+        // a way that goes under a deck and later onto it is not found; a stacked one finds it.
+        let ground = self.ground(r#where, hm, height)?;
+        let decks = ground.decks.clone();
+        Ok(std::iter::once(Ok((ground, height))).chain(
+            decks
+                .into_iter()
+                .map(move |deck| Ok((self.ground(r#where, hm, Some(deck))?, Some(deck)))),
+        ))
     }
 
     /// Find the way from where the player stands to `item`, say it, and follow the player
@@ -834,9 +947,7 @@ impl Guide {
             say(&text);
             return Ok(());
         }
-        let mut height = height;
-        let mut ground = self.ground(r#where, hm, height)?;
-        if r#where.on_rail && ground.corridor.is_none() {
+        let Some(way) = self.way(r#where, item, hm, heading, height, push)? else {
             // Off the rails the game has loaded, the walls are not known, and the chunks there
             // mark every cell a wall: a way found on them would be nonsense.
             let text = format!(
@@ -845,43 +956,17 @@ impl Guide {
             );
             say(&text);
             return Ok(());
-        }
+        };
+        let Way {
+            mut ground,
+            goals,
+            mut path,
+            mut height,
+            short,
+            ice,
+            levels,
+        } = way;
         let sides = sides(item, push);
-        let mut goals = aimed(ground.goals(item)?, &sides);
-        let mut path = ground.find(r#where.cell, &goals, heading, Some(item), true, None)?;
-        // ponytail: where the ground is not stacked, a whole map's decks walked at one height, so
-        // a way that goes under a deck and later onto it is not found; a stacked one finds it.
-        let levels: Vec<Option<f64>> = std::iter::once(height)
-            .chain(ground.decks.iter().map(|&deck| Some(deck)))
-            .collect();
-        let decks = if !reached(&ground, item, &goals, &path)? {
-            ground.decks.clone()
-        } else {
-            Vec::new()
-        };
-        for deck in decks {
-            let other = self.ground(r#where, hm, Some(deck))?;
-            let aim = aimed(other.goals(item)?, &sides);
-            let found = other.find(r#where.cell, &aim, heading, Some(item), false, None)?;
-            if let Some(found) = found {
-                ground = other;
-                goals = aim;
-                path = Some(found);
-                height = Some(deck);
-                break;
-            }
-        }
-        let mut short = !reached(&ground, item, &goals, &path)?;
-        let over = if short {
-            over_ice(r#where, &ground, &path, heading)?
-        } else {
-            None
-        };
-        let ice = over.is_some();
-        if let Some(over) = over {
-            path = Some(over);
-            short = false;
-        }
         if short {
             let at = match &held {
                 Some(held) if held.borrow().key == item.key() => held.borrow().at(r#where.cell)?,

@@ -388,22 +388,17 @@ pub fn find(
             }
         }
         let carried = carry(cell)?;
-        moves(
+        onward(
             cell,
+            turned,
             &can_walk,
             &r#box,
             &down,
             &over,
             &joined,
             &carry,
-            &mut |direction, step, steps| {
-                let after = match through {
-                    Some(through) if steps != 2 => through(turned, cell, step)?,
-                    _ => Some(turned.clone()),
-                };
-                let Some(after) = after else {
-                    return Ok(());
-                };
+            *through,
+            &mut |direction, step, steps, after| {
                 let onward: State = (step, direction, after);
                 // Python's `going != direction != carried`: both inequalities, chained.
                 let turn = if !going.is_empty() && going != direction && carried != Some(direction)
@@ -477,6 +472,43 @@ fn moves(
     Ok(())
 }
 
+/// Each move a search takes from `cell` with `turned`, `find`'s and `reached`'s alike: its
+/// way, where it lands, how many cells on, and the turns after it (`through`), as they were
+/// over a jump; a move `through` refuses is not taken.
+#[allow(clippy::too_many_arguments)]
+fn onward(
+    cell: Cell,
+    turned: &[i64],
+    can_walk: &dyn Fn(Cell) -> Result<bool>,
+    r#box: &Box,
+    down: &dyn Fn(Cell) -> Result<Option<&'static str>>,
+    over: &dyn Fn(Cell) -> Result<bool>,
+    joined: &dyn Fn(Cell, Cell) -> Result<bool>,
+    carry: &dyn Fn(Cell) -> Result<Option<&'static str>>,
+    through: Option<&dyn Fn(&[i64], Cell, Cell) -> Result<Option<Turns>>>,
+    each: &mut dyn FnMut(&'static str, Cell, i64, Turns) -> Result<()>,
+) -> Result<()> {
+    moves(
+        cell,
+        can_walk,
+        r#box,
+        down,
+        over,
+        joined,
+        carry,
+        &mut |direction, step, steps| {
+            let after = match through {
+                Some(through) if steps != 2 => through(turned, cell, step)?,
+                _ => Some(turned.to_vec()),
+            };
+            if let Some(after) = after {
+                each(direction, step, steps, after)?;
+            }
+            Ok(())
+        },
+    )
+}
+
 /// `reached`'s keyword arguments, each as the Python defaults it.
 #[derive(Default)]
 pub struct Reach<'a> {
@@ -545,22 +577,18 @@ pub fn reached(
         if cell != start && !walk(cell)? {
             continue;
         }
-        moves(
+        onward(
             cell,
+            &turned,
             &can_walk,
             &r#box,
             &down,
             &over,
             &joined,
             &carry,
-            &mut |_, step, steps| {
-                let after = match options.through {
-                    Some(through) if steps != 2 => through(&turned, cell, step)?,
-                    _ => Some(turned.clone()),
-                };
-                if let Some(after) = after
-                    && out.entry(step).or_default().insert(after.clone())
-                {
+            options.through,
+            &mut |_, step, _, after| {
+                if out.entry(step).or_default().insert(after.clone()) {
                     todo.push((step, after));
                 }
                 Ok(())

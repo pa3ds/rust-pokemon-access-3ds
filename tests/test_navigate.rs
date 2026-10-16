@@ -1985,6 +1985,28 @@ fn test_ctrl_p_hides_what_shift_p_finds_no_way_to_and_shows_it_again() {
     );
 }
 
+/// Shift and P goes to a side a big boulder is pushed from, and this one, moved north or east,
+/// is pushed from inside the pen alone: its north side, on the street, is no way to it, and
+/// Ctrl and P hides it as Shift and P falls short of it.
+#[test]
+fn test_ctrl_p_hides_a_big_boulder_whose_push_sides_shift_p_finds_no_way_to() {
+    let mut rig = navigator(Want {
+        blocked: pen(None),
+        ..on(loose())
+    });
+    rig.press_key("shift+p");
+    rig.press_key("ctrl+p");
+    rig.press(ITEM_READ);
+    assert_eq!(
+        said(&rig.backend),
+        [
+            "5 east, 1 south, then can't continue, object in the way",
+            "unreachable hidden",
+            "nothing here"
+        ]
+    );
+}
+
 /// Seafloor Cavern (movie36): a boulder pushed the wrong way can shut the way it was pushed to
 /// open, so Shift and P goes round one however far that is (Orion, 2026-10-11).
 #[test]
@@ -2561,6 +2583,51 @@ fn test_a_way_shut_beyond_thin_ice_goes_over_every_tile_and_clears_it() {
         ],
     );
     assert_eq!(last(&rig.backend), "ice cleared, sign, 1 west 5 north");
+}
+
+/// Shift and P to the sign past the shut corridor goes over the ice and clears it, so Ctrl
+/// and P keeps the sign, though no step reaches it before the room is cleared.
+#[test]
+fn test_ctrl_p_keeps_what_shift_p_reaches_by_clearing_thin_ice() {
+    let sign = Interactable {
+        source: place_source(FURNITURE_SOURCE, 0).unwrap(),
+        ..Interactable::new("signs", "sign", (96, 165))
+    };
+    let mut ways: HashSet<Cell> = (95..98)
+        .flat_map(|x| (170..173).map(move |z| (x, z)))
+        .collect();
+    ways.extend([
+        (95, 173),
+        (95, 174),
+        (95, 175),
+        (96, 169),
+        (96, 168),
+        (96, 166),
+    ]);
+    let walls: Vec<Cell> = (80..120)
+        .flat_map(|x| (160..200).map(move |z| (x, z)))
+        .filter(|cell| !ways.contains(cell))
+        .collect();
+    let mut rig = navigator(Want {
+        blocked: walls,
+        ..on(Field {
+            interactables: vec![sign],
+            ..Field::new(0x1BC, (95, 175))
+        })
+    });
+    *rig.field.ice.borrow_mut() = vec![IceRoom::new(
+        (95, 170),
+        (3, 3),
+        254.0,
+        vec![0, 0, 0, 0, 2, 0, 0, 0, 0],
+        vec![(95, 170), (96, 170), (97, 170)],
+    )];
+    rig.press_key("ctrl+p");
+    rig.press(ITEM_READ);
+    assert_eq!(
+        said(&rig.backend),
+        ["unreachable hidden", "sign, 1 of 1, 1 east 10 north"]
+    );
 }
 
 /// Spike 160: Fortree City's invisible Kecleon stands in the one way to the Gym, and the way as
