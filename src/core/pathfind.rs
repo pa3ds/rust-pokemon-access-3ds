@@ -485,18 +485,21 @@ pub struct Reach<'a> {
     pub over: Option<&'a dyn Fn(Cell) -> Result<bool>>,
     pub ends: Option<&'a dyn Fn(Cell) -> Result<bool>>,
     pub carry: Option<&'a dyn Fn(Cell) -> Result<Option<&'static str>>>,
+    pub turns: Turns,
+    pub through: Option<&'a dyn Fn(&[i64], Cell, Cell) -> Result<Option<Turns>>>,
 }
 
-/// Every cell inside `box` a way from `start` can end on, by `find`'s moves: a cell that can
-/// be walked, or one of `ends`, which a way may step into and not on from, as `find` steps into
-/// a goal it would walk round on the way to anything else. What `find` would reach from `start`,
-/// found once for every goal at a time.
+/// Every cell inside `box` a way from `start` can end on, by `find`'s moves, with each state
+/// of `turns` it can be reached in (`through`, as `find` has them): a cell that can be walked, or
+/// one of `ends`, which a way may step into and not on from, as `find` steps into a goal it would
+/// walk round on the way to anything else. What `find` would reach from `start`, found once for
+/// every goal at a time.
 pub fn reached(
     start: Cell,
     walkable: &dyn Fn(Cell) -> Result<bool>,
     r#box: Box,
     options: &Reach,
-) -> Result<HashSet<Cell>> {
+) -> Result<IndexMap<Cell, HashSet<Turns>>> {
     let down_cache: Cached<Cell, Option<&'static str>> = Cached::new();
     let walk_cache: Cached<Cell, bool> = Cached::new();
     let walked_cache: Cached<Cell, bool> = Cached::new();
@@ -532,11 +535,12 @@ pub fn reached(
         Some(joined) => joined(cell, step),
         None => Ok(true),
     };
-    let mut out: HashSet<Cell> = HashSet::from([start]);
-    let mut todo: Vec<Cell> = vec![start];
+    let mut out: IndexMap<Cell, HashSet<Turns>> =
+        IndexMap::from([(start, HashSet::from([options.turns.clone()]))]);
+    let mut todo: Vec<(Cell, Turns)> = vec![(start, options.turns.clone())];
     let mut at = 0;
     while at < todo.len() {
-        let cell = todo[at];
+        let (cell, turned) = todo[at].clone();
         at += 1;
         if cell != start && !walk(cell)? {
             continue;
@@ -549,9 +553,15 @@ pub fn reached(
             &over,
             &joined,
             &carry,
-            &mut |_, step, _| {
-                if out.insert(step) {
-                    todo.push(step);
+            &mut |_, step, steps| {
+                let after = match options.through {
+                    Some(through) if steps != 2 => through(&turned, cell, step)?,
+                    _ => Some(turned.clone()),
+                };
+                if let Some(after) = after
+                    && out.entry(step).or_default().insert(after.clone())
+                {
+                    todo.push((step, after));
                 }
                 Ok(())
             },

@@ -1224,8 +1224,23 @@ impl Ground {
     }
 
     /// Every cell a way from `start` across this ground can end on, in the box round it and
-    /// `aims` (`pathfind.reached`).
-    pub fn reached(&self, start: Cell, aims: &[Cell]) -> Result<HashSet<Cell>> {
+    /// `aims`, with the floors it is reached on: on a stacked ground `(floor,)` each, the
+    /// player's first, as a search walks them (`climb`), and `()` on any other
+    /// (`pathfind.reached`). The rotating doors' arms are not followed.
+    pub fn reached(
+        &self,
+        start: Cell,
+        aims: &[Cell],
+    ) -> Result<IndexMap<Cell, HashSet<pathfind::Turns>>> {
+        let through = |turns: &[i64], cell: Cell, step: Cell| {
+            let floor = self.climb(turns[0], cell, step)?;
+            Ok(floor.map(|floor| vec![floor]))
+        };
+        let turns = if self.stacked {
+            vec![self.floor(start, self.level)?]
+        } else {
+            Vec::new()
+        };
         let r#box = if aims.is_empty() {
             self.r#box(start, [start])?
         } else {
@@ -1246,6 +1261,8 @@ impl Ground {
                 over: Some(&over),
                 ends: Some(&open),
                 carry: Some(&carry),
+                turns,
+                through: if self.stacked { Some(&through) } else { None },
             },
         )
     }

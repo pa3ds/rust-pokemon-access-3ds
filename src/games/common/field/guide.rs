@@ -707,10 +707,12 @@ impl Guide {
     /// The keys of the things listed in `where` that Shift and P finds a way to, ending at
     /// them and not short of them: every one where no way is found on this ground (Sun's, the
     /// rails', the sky). One walk out from the player over the ground with HMs, at the player's
-    /// height and at each other deck's, as Shift and P tries them; the rotating doors' arms and
-    /// which floor of a stacked ground a step is on are not followed, so what lies past them is
-    /// taken to be reached. Orion's, 2026-10-11: in Team Magma's Hideout the list held every
-    /// teleporter of the place, most of them in rooms the player was not in.
+    /// height and at each other deck's, as Shift and P tries them, on a stacked ground a floor at
+    /// a time, ending on the thing's own (`_reached`); the rotating doors' arms are not followed,
+    /// so what lies past them is taken to be reached. Orion's, 2026-10-11: in Team Magma's
+    /// Hideout the list held every teleporter of the place, most of them in rooms the player was
+    /// not in. Walked a cell at a time, any floor of it, Victory Road's stacked 1F kept all 13
+    /// things listed, 8 of them short of Shift and P's reach (movie47, spike A).
     pub fn reachable(&self, r#where: &Field) -> Result<HashSet<Key>> {
         let everything: HashSet<Key> = r#where
             .interactables
@@ -748,20 +750,30 @@ impl Guide {
                     &other
                 }
             };
-            let mut goals: IndexMap<Key, IndexMap<Cell, Option<&'static str>>> = IndexMap::new();
+            let mut goals: Vec<(&Interactable, IndexMap<Cell, Option<&'static str>>)> = Vec::new();
             for item in &r#where.interactables {
                 if !out.contains(&item.key()) {
-                    goals.insert(item.key(), walked.goals(item)?);
+                    goals.push((item, walked.goals(item)?));
                 }
             }
             let aims: Vec<Cell> = goals
-                .values()
-                .flat_map(|cells| cells.keys().copied())
+                .iter()
+                .flat_map(|(_, cells)| cells.keys().copied())
                 .collect();
             let reached = walked.reached(r#where.cell, &aims)?;
-            for (key, cells) in goals {
-                if cells.keys().any(|cell| reached.contains(cell)) {
-                    out.insert(key);
+            for (item, cells) in &goals {
+                let mut any = false;
+                'cells: for &cell in cells.keys() {
+                    for floor in reached.get(&cell).into_iter().flatten() {
+                        let at = walked.floor_at(cell, item.height)?;
+                        if at.is_some_and(|at| at == ANY_FLOOR || floor.contains(&at)) {
+                            any = true;
+                            break 'cells;
+                        }
+                    }
+                }
+                if any {
+                    out.insert(item.key());
                 }
             }
         }

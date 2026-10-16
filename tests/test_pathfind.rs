@@ -85,7 +85,10 @@ fn test_reached_is_where_find_goes_a_ledge_down_and_never_up() {
         },
     )
     .unwrap();
-    assert_eq!(below, HashSet::from([(0, 2), (1, 2), (2, 2), (3, 2)]));
+    assert_eq!(
+        below.keys().copied().collect::<HashSet<Cell>>(),
+        HashSet::from([(0, 2), (1, 2), (2, 2), (3, 2)])
+    );
     let above = reached(
         (0, 0),
         &*walkable,
@@ -97,7 +100,7 @@ fn test_reached_is_where_find_goes_a_ledge_down_and_never_up() {
     )
     .unwrap();
     assert_eq!(
-        above,
+        above.keys().copied().collect::<HashSet<Cell>>(),
         HashSet::from([
             (0, 0),
             (1, 0),
@@ -388,7 +391,10 @@ fn test_a_current_carries_the_player_its_way_until_that_way_is_shut() {
                 ..Reach::default()
             }
         )
-        .unwrap(),
+        .unwrap()
+        .keys()
+        .copied()
+        .collect::<HashSet<Cell>>(),
         expected
     );
 }

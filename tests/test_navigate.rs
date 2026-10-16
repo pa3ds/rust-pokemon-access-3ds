@@ -2387,6 +2387,51 @@ fn test_a_ladder_climbs_from_one_floor_onto_another() {
     assert_eq!(last(&rig.backend), "7 east");
 }
 
+/// movie47 (Orion, 2026-10-15): in Victory Road, a stacked ground, Ctrl and P hid none of the
+/// 8 things Shift and P fell short of, its walk taking a step onto any floor of a cell. Outside
+/// Sky Pillar Zinnia's terrace stands 108 over the player's, and is hidden until the stair up to
+/// it is there (spike 193).
+#[test]
+fn test_ctrl_p_hides_what_is_on_a_floor_no_step_climbs_to() {
+    let zinnia = Interactable {
+        source: 0x08D269E8,
+        move_model: true,
+        height: Some(216.0),
+        ..Interactable::new("people", "person", (105, 174))
+    };
+    let mut rig = navigator(on(Field {
+        interactables: vec![zinnia],
+        ..Field::new(0xB0, (98, 175))
+    }));
+    {
+        let mut floors = rig.field.floors.borrow_mut();
+        for x in 96..101 {
+            floors.insert((x, 175), (Some(108.0), None));
+        }
+        for x in 101..106 {
+            floors.insert((x, 175), (None, Some(216.0)));
+        }
+        floors.insert((105, 174), (None, Some(216.0)));
+    }
+    rig.field.level.set(Some(108.0));
+    rig.press_key("ctrl+p");
+    rig.press(ITEM_READ);
+    rig.field.ladders.borrow_mut().extend([
+        (((100, 175), (101, 175)), (108.0, 216.0)),
+        (((101, 175), (100, 175)), (216.0, 108.0)),
+    ]);
+    walk_to(&rig, (99, 175));
+    rig.press(ITEM_READ);
+    assert_eq!(
+        said(&rig.backend),
+        [
+            "unreachable hidden",
+            "nothing here",
+            "person, 1 of 1, 6 east 1 north"
+        ]
+    );
+}
+
 /// Fortree City's bridge at 103 ends on a platform at 103, and under its last cell the ground
 /// is open with no height. P went onto the platform and back onto the ground under the bridge,
 /// "8 east, 2 west, 9 north" (omega_ruby_tree-city-regression.ctm, 2026-10-06).
