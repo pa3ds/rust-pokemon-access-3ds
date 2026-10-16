@@ -13,9 +13,10 @@ use indexmap::IndexMap;
 
 use crate::games::gen6::game::{Data, Game};
 use crate::games::gen6::rom::layout::{RomLayout, TownFacilities, owned};
+use crate::games::xy::intro::{IntroReader, looks};
 
 /// Words the game does not say itself, a folder a language: `sprites.toml`, X's fallback names
-/// for the people on its maps (spike 108).
+/// for the people on its maps (spike 108), and `looks.toml`, its opening's choices (spike 216).
 ///
 /// The files are `include_str!`ed, so the binary carries them: `Game.data` is this table in place
 /// of Python's `Path(__file__).parent / "data"`.
@@ -28,6 +29,9 @@ pub const DATA: Data = &[
     ("es", include_str!("data/es/sprites.toml")),
     ("ko", include_str!("data/ko/sprites.toml")),
 ];
+
+/// Each language's `looks.toml` from the same folder, where there is one (`intro::looks`).
+pub const LOOKS: Data = &[("en", include_str!("data/en/looks.toml"))];
 
 pub const X: i64 = 0x0004000000055D00;
 pub const Y: i64 = 0x0004000000055E00;
@@ -181,5 +185,12 @@ pub const DRAWN: i64 = 0x890;
 /// X and Y as the gen 6 readers read them.
 pub fn game() -> &'static Game {
     static GAME: OnceLock<Game> = OnceLock::new();
-    GAME.get_or_init(|| Game::new("X and Y", [X, Y], DATA, rom().clone(), DRAWN))
+    GAME.get_or_init(|| Game {
+        opening: Some(|memory, language| {
+            Box::new(IntroReader::new(memory, looks(LOOKS, language)))
+        }),
+        ..Game::new("X and Y", [X, Y], DATA, rom().clone(), DRAWN)
+    })
 }
+
+pub mod intro;

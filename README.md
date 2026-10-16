@@ -35,6 +35,10 @@ to install.
 - **The Trainer Passport's photos** in Sun and Moon: each photo described in pa3ds's own words
   as the cursor moves to it ("Boy, fair skin, blond hair, blue eyes, ..."), since the game shows
   the photos and never names them.
+- **X and Y's opening**: the boy and the girl in their mirrors, then the three looks of the
+  one you chose, each described in pa3ds's own words as the cursor moves to it ("Boy, fair
+  skin, short black hair, ..."; "Brown skin, dark grey-black hair in a short bob, ..."), since
+  the game draws them and never names them. The words are English in every language for now.
 - **Battles**: the battle text, and each side's Pokémon with its name, gender, level and HP. Your
   HP is said exactly; the enemy's as a percentage, because a bar is all the game shows.
 - **The PC Box, the party, the Bag and the Pokédex**, including the habitat map.

@@ -49,7 +49,7 @@ use crate::games::gen6::field::dowsing::Lights;
 use crate::games::gen6::field::reader::{FieldReader, MOVE_MODEL_CLASS};
 use crate::games::gen6::field::speaker::SpeakerReader;
 use crate::games::gen6::field::{camera, mapblock, talk};
-use crate::games::gen6::game::{ConditionsReader, Game, OwnApp, StandingsReader};
+use crate::games::gen6::game::{ConditionsReader, Game, OpeningReader, OwnApp, StandingsReader};
 use crate::games::gen6::gflheap;
 use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::rom::textures;
@@ -232,6 +232,8 @@ pub struct Gen6Profile {
     pub habitat: RefCell<HabitatReader>,
     /// An Extra: the conditions the game draws as a star, said as numbers (ADR-0017).
     pub conditions: Option<RefCell<Box<dyn ConditionsReader>>>,
+    /// X's opening draws its boy or girl and their looks as models, with no word (spike 216).
+    pub opening: Option<RefCell<Box<dyn OpeningReader>>>,
     /// (work, root) of every layout whose files have been looked for since an app started.
     archived: RefCell<HashSet<(i64, i64)>>,
     /// The zone the player was last polled in.
@@ -685,6 +687,10 @@ impl Gen6Profile {
             }
             _ => None,
         };
+        // X's opening draws its boy or girl and their looks as models, with no word (spike 216).
+        let opening = game
+            .opening
+            .map(|make| RefCell::new(make(memory.clone(), &text.language)));
         // The rival is a work object in RAM and a name in the ROM, and so are some doors' buildings:
         // the game's own word, behind whatever the player has called them and ahead of pa3ds's.
         let sprite: GameSprite = {
@@ -741,6 +747,7 @@ impl Gen6Profile {
             scenes,
             habitat: RefCell::new(habitat),
             conditions,
+            opening,
             archived: RefCell::new(HashSet::new()),
             zone: Cell::new(None),
             unheard: RefCell::new(HashSet::new()),
@@ -1004,6 +1011,20 @@ impl Gen6Profile {
             self.announcements
                 .borrow_mut()
                 .focus(focus, "choice", heard);
+        }
+        let process = self.apps.borrow().process;
+        if let Some(opening) = &self.opening
+            && let Some(process) = process
+            && self.apps.borrow().running.as_deref() == Some(opening.borrow().app())
+        {
+            let focus = phase(&*self.memory, "opening", || {
+                opening.borrow_mut().poll(process)
+            })?;
+            if let Some(focus) = focus {
+                self.announcements
+                    .borrow_mut()
+                    .focus(&focus, "opening", false);
+            }
         }
         Ok(screen_polled)
     }

@@ -15,6 +15,7 @@ use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
 use crate::core::speech::Speech;
 use crate::core::toml;
+use crate::games::common::announce::Focus;
 use crate::games::common::field::things::Field;
 use crate::games::common::layout::Layouts;
 use crate::games::common::layout_file::LayoutFiles;
@@ -63,6 +64,17 @@ pub trait StandingsReader {
     /// The player's standing, or everyone else's; None out of a competition. Python's `pauses`
     /// defaults to False.
     fn said(&self, player: bool, pauses: bool) -> Result<Option<String>>;
+}
+
+/// The choices an opening draws without a layout, said by the game's own package: X's boy or
+/// girl and their three looks, models with no word on them (`xy.intro`).
+pub trait OpeningReader {
+    /// The class of the process the choices are made in (`apps.RunningApp`).
+    fn app(&self) -> &'static str;
+
+    /// The choice under the cursor, read through the process, when it has just opened or
+    /// moved; else None.
+    fn poll(&mut self, process: i64) -> Result<Option<Focus>>;
 }
 
 /// A Pokémon's contest conditions, an Extra, said where only one game draws them: ORAS's
@@ -130,6 +142,8 @@ pub type ConditionsFactory = fn(
     Log,
     bool,
 ) -> Box<dyn ConditionsReader>;
+/// `Callable[[Memory, str], OpeningReader]`.
+pub type OpeningFactory = fn(Rc<dyn Memory>, &str) -> Box<dyn OpeningReader>;
 
 /// One game as the gen 6 readers read it.
 ///
@@ -216,6 +230,10 @@ pub struct Game {
     /// The reader of a Pokémon's contest conditions, built as the Extra is turned on, or None in
     /// a game that draws none: ORAS's (`oras.screens.conditions`).
     pub conditions: Option<ConditionsFactory>,
+    /// The reader of the choices its opening draws without a layout, built from the memory and
+    /// the player's language, or None where the opening's choices are layouts, as ORAS's are: X's
+    /// (`xy.intro`).
+    pub opening: Option<OpeningFactory>,
 }
 
 impl Game {
@@ -254,6 +272,7 @@ impl Game {
             warps: IndexMap::new(),
             standings: None,
             conditions: None,
+            opening: None,
         }
     }
 

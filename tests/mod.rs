@@ -65,3 +65,4 @@ mod test_touch_targets;
 mod test_townmap;
 mod test_training;
 mod test_window;
+mod test_xy_intro;
