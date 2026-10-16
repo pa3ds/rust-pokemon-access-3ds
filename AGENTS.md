@@ -122,13 +122,26 @@ Nothing runs the checks on push, so run them before anything reaches the default
 `cargo test --lib`, `cargo clippy --all-targets` with no warnings, `cargo fmt --check` and
 `python tools/sync.py tests`.
 
+## Releases
+
+`/release` (`.claude/skills/release/SKILL.md`) cuts one from `main`: it writes the player-facing
+changes since the last `v*` tag into `CHANGELOG.md`, sets `version` in `Cargo.toml`, commits
+`chore(release): v<version>` and tags it. Pushing the tag is publishing:
+`.github/workflows/release.yml` builds the zip and makes the GitHub release, its description the
+changelog's section, and every packaged pa3ds.exe offers it to its player on the next start.
+
+That update check is `src/update.rs`, the port's own like `src/tape.rs`, with no Python
+counterpart. It runs only in a build `tools/package.ps1` made (`PA3DS_RELEASE`), and never under
+`--silent`, so `cargo run` and an agent's session never see its dialog.
+
 ## The README is the player's manual
 
 [README.md](README.md) is what a player reads, and it ships in the release zip: the games, what is
 said, setup, the default keys, every setting, the Azahar settings pa3ds writes. Upstream's README
 is the same manual for the Python pa3ds (Orion, 2026-10-06); a sync that changes it changes this
-one to match, in the same commit, but for running `pa3ds.exe` where upstream runs uv. It names no
-ADR, finding or spike, except in its section for developers.
+one to match, in the same commit, but for running `pa3ds.exe` where upstream runs uv, and for
+its Updating section, which only the port has. It names no ADR, finding or spike, except in its
+section for developers.
 
 ## Runbooks
 

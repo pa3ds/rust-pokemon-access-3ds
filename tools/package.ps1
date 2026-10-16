@@ -39,6 +39,8 @@ $name = "pa3ds-$version-windows"
 if (-not $SkipTests) {
     Invoke-Checked "tests" { cargo test --lib --locked }
 }
+# Only a packaged pa3ds checks GitHub for a newer release when it starts (src/update.rs).
+$env:PA3DS_RELEASE = "1"
 Invoke-Checked "release build" { cargo build --release --locked --bin pa3ds }
 
 $release = Join-Path $root "target\release"

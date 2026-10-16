@@ -1,0 +1,50 @@
+# Pushing a version tag (`/release` does, `.claude/skills/release/SKILL.md`) builds the release zip
+# on Windows and publishes it as that tag's GitHub release, its description the tag's section of
+# CHANGELOG.md. Every pa3ds.exe offers the newest release to its player when it starts
+# (`src/update.rs`).
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  # Run on a branch, it builds the zip as an artifact and publishes nothing.
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Prism's C23 needs CMake 4.2 or newer; Visual Studio's own is 3.31.
+      - name: CMake
+        run: |
+          python -m pip install "cmake>=4.2"
+          python -c "import cmake; print(cmake.CMAKE_BIN_DIR)" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+      - name: The tag names Cargo.toml's version
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          version=$(grep -m1 '^version = ' Cargo.toml | cut -d'"' -f2)
+          [ "v$version" = "$GITHUB_REF_NAME" ] || { echo "Cargo.toml says $version, the tag $GITHUB_REF_NAME"; exit 1; }
+      # /release ran the tests before tagging.
+      - name: Package
+        run: powershell -ExecutionPolicy Bypass -File tools\package.ps1 -SkipTests
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=${GITHUB_REF_NAME#v}
+          awk -v v="[$version]" '/^## /{ if (p) exit; p = index($0, v) > 0; next } p' CHANGELOG.md > notes.md
+          [ -s notes.md ] || { echo "CHANGELOG.md has no section for $version"; exit 1; }
+          gh release create "$GITHUB_REF_NAME" "target/package/pa3ds-$version-windows.zip" \
+            --title "pa3ds $version" --notes-file notes.md --verify-tag
+      - uses: actions/upload-artifact@v4
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        with:
+          name: package
+          path: target/package/*.zip

@@ -353,7 +353,7 @@ pa3ds's. To share them, send the file. A place is written map, kind and number, 
 ## Your files
 
 Everything that is yours is in the `user` folder beside `pa3ds.exe`. Copy that folder to keep it
-all when you move or update pa3ds.
+all when you move pa3ds. Updating keeps it where it is.
 
 - `config.toml`: settings.
 - `keys.toml`: keys.
@@ -361,6 +361,17 @@ all when you move or update pa3ds.
 - `logs\`: what pa3ds did and said in each of the last ten runs. `pa3ds.log` is the latest run,
   `pa3ds.1.log` the one before, up to `pa3ds.9.log`.
 - `cache\`: what pa3ds worked out from your ROM. Safe to delete; it is built again.
+
+## Updating
+
+When pa3ds starts, it checks for a newer version. If there is one, a window asks whether to
+update. Yes downloads it, replaces `pa3ds.exe`, this manual and the licences in pa3ds's folder,
+and starts the new pa3ds; your `user` folder is kept. No starts the version you have, and pa3ds
+asks again on its next start. Without an internet connection pa3ds starts as usual.
+
+What changed in each version is on the
+[releases page](https://github.com/pa3ds/rust-pokemon-access-3ds/releases), and in
+`CHANGELOG.md` in the source.
 
 ## When something goes wrong
 
@@ -410,4 +421,10 @@ powershell -ExecutionPolicy Bypass -File tools\package.ps1
 ```
 
 (or `tools\package.bat`, which runs the same), which runs the tests, builds the release, checks it starts, and writes
-`target\package\pa3ds-<version>-windows.zip`.
+`target\package\pa3ds-<version>-windows.zip`. Only a pa3ds built this way checks for updates;
+`cargo build` makes one that does not.
+
+A release is cut with `/release` in Claude Code (`.claude/skills/release/SKILL.md`): it writes what
+changed for players into `CHANGELOG.md`, sets the version, and tags it. Pushing a `v<version>` tag
+builds the zip on GitHub and publishes it as that version's release
+(`.github/workflows/release.yml`).
