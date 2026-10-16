@@ -258,6 +258,52 @@ text = "Magma glows to the north."
     Ok(())
 }
 
+/// Omega Ruby's opening (OR_character-desc.ctm): the professor's lines come before the player
+/// stands in any zone, and the last beat waits for the truck, where the field begins.
+#[test]
+fn test_a_line_in_no_zone_is_said_before_the_player_is_anywhere() -> Result<()> {
+    let file = r#"
+[[scene]]
+after = "text:118:60"
+[[scene.beat]]
+text = "The doors swing wide."
+[[scene.beat]]
+zone = 0x18f
+text = "You stand in the truck."
+"#;
+    let lines: IndexMap<(i64, i64), Vec<u8>> = IndexMap::from([(
+        (118, 60),
+        line(&[Part::Text("Come see me in my Pokémon Lab!")]),
+    )]);
+    let (log, logged) = logging();
+    let scenes = load(
+        Some(file),
+        &|archive: &str, file: i64, number: i64| {
+            Ok(if archive == "text" {
+                lines.get(&(file, number)).cloned()
+            } else {
+                None
+            })
+        },
+        &|_: &str, _: i64| None,
+        &log,
+        None,
+    )?;
+    assert!(logged.borrow().is_empty());
+    let said: RefCell<Vec<String>> = RefCell::new(Vec::new());
+    let mut reader = Scenes::with_monotonic(scenes);
+    let mut say = |text: &str| said.borrow_mut().push(text.to_string());
+    reader.heard(0, "Come see me in my Pokémon Lab!", Some(0x10), &mut say);
+    assert!(said.borrow().is_empty());
+    reader.heard(0, "Come see me in my Pokémon Lab!", None, &mut say);
+    reader.arrived(0x18F, &mut say);
+    assert_eq!(
+        *said.borrow(),
+        ["The doors swing wide.", "You stand in the truck."]
+    );
+    Ok(())
+}
+
 /// Sun numbers its demos, 55 Kukui's call and 6 the chase after it (Khai, sun_1.ctm,
 /// 2026-09-30): the chase is described from Sun's own file as it starts, a beat as each second
 /// comes, and the arrival after it once the field has come, in Route 1's zone 0x0.

@@ -64,6 +64,28 @@ impl CursorReader {
         pictures: Option<Pictures>,
         buttons: IndexMap<String, String>,
     ) -> Self {
+        CursorReader::with_textures(
+            layouts,
+            names,
+            files,
+            cursor_panes,
+            pictures,
+            buttons,
+            IndexMap::new(),
+        )
+    }
+
+    /// `with`, and `textures`: pa3ds's own words for a choice's picture, by its texture's name:
+    /// Omega Ruby's boy and girl.
+    pub fn with_textures(
+        layouts: Rc<Layouts>,
+        names: Rc<ClassNames>,
+        files: Option<Rc<LayoutFiles>>,
+        cursor_panes: bool,
+        pictures: Option<Pictures>,
+        buttons: IndexMap<String, String>,
+        textures: IndexMap<String, String>,
+    ) -> Self {
         let panes = Rc::new(Panes::new(layouts, files, pictures, cursor_panes));
         let said = Rc::new(Said::default());
         CursorReader {
@@ -72,7 +94,7 @@ impl CursorReader {
             cursor_panes: CursorPanes::new(panes.clone(), said.clone(), buttons),
             keys: KeyCursors::new(panes.clone(), said.clone()),
             frames: MovedFrames::new(panes.clone(), said.clone()),
-            choices: ChoiceFrames::new(panes.clone(), said.clone()),
+            choices: ChoiceFrames::new(panes.clone(), said.clone(), textures),
             lists: ListCursors::new(panes.clone(), said.clone()),
             pointers: Pointers::new(panes.clone(), said.clone()),
             panes,

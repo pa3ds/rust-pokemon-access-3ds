@@ -51,6 +51,10 @@ pub const DATA: Data = &[
 /// (`games.common.scenes.FILE`).
 pub const SCENES: Data = &[("en", include_str!("data/en/scenes.toml"))];
 
+/// Each language's `pictures.toml` from the same folder, where there is one
+/// (`games.common.pictures.PICTURES_FILE`).
+pub const PICTURES: Data = &[("en", include_str!("data/en/pictures.toml"))];
+
 pub const OMEGA_RUBY: i64 = 0x000400000011C400;
 pub const ALPHA_SAPPHIRE: i64 = 0x000400000011C500;
 
@@ -793,6 +797,7 @@ pub fn game() -> &'static Game {
         elevators: ELEVATORS.collect(),
         player_looks: PLAYER_LOOKS.collect(),
         scenes: SCENES,
+        pictures: PICTURES,
         stairs: HashSet::from([SOOTOPOLIS_GYM]),
         apps: vec![Soaring::of],
         warps: warps().clone(),

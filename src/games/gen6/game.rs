@@ -160,6 +160,10 @@ pub struct Game {
     /// Its descriptions of scenes, a `scenes.toml` a language from the same folder as `data`
     /// (`games.common.scenes`): Python reads `data / language / "scenes.toml"`.
     pub scenes: Data,
+    /// Its words for the pictures the game draws and never names, a `pictures.toml` a language
+    /// from the same folder as `data` (`games.common.pictures.described`): Python reads
+    /// `data / language / "pictures.toml"`.
+    pub pictures: Data,
     /// Where its ROM keeps the game's own words (`archives`).
     pub rom: RomLayout,
     /// Where a move model keeps the sprite it is drawn with (`mmodel.drawn_as`).
@@ -251,6 +255,7 @@ impl Game {
             titles: titles.into_iter().collect(),
             data,
             scenes: &[],
+            pictures: &[],
             rom,
             drawn,
             hidden: None,

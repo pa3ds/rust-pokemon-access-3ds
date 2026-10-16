@@ -1,7 +1,8 @@
 # What Omega Ruby and Alpha Sapphire show without words, in pa3ds's own words, said under
 # [pa3ds.ui] descriptions.
 #
-# A scene follows a line of the game's text in a zone: `story:402:30` is the story text's file 402,
+# A scene follows a line of the game's text in a zone, or in none before the player has arrived
+# anywhere, as in the opening: `story:402:30` is the story text's file 402,
 # line 30, the same line in every language, and `text:147:67` the rest of the game's text
 # (`games.common.scenes`). Its beats are said one after another: a beat with `demo` waits for a
 # scene of the game's own to start, one with `zone` for the player to arrive there, then `at`
@@ -16,6 +17,75 @@
 # Each scene was described from screenshots of a replay (spike 203, Omega Ruby's
 # movie40_groudon_awakens and movie41_cave_of_origin, and Alpha Sapphire's movie2_cave_of_origin);
 # the seconds are from the moment its demo or line came there.
+
+# The opening, before the player is anywhere, so in no zone: the professor's lines are the rest of
+# the game's text, file 118, and the stretches between them where he says nothing are described
+# (OR_character-desc.ctm, 2026-10-15).
+#
+# "And this...is what we call a POKéMON.", then 12 s without a word.
+[[scene]]
+after = "text:118:42"
+
+[[scene.beat]]
+at = 1
+text = "{pokemon:298} appears beside the professor: small, round and blue, with big round ears and a blue ball on the end of its tail."
+
+[[scene.beat]]
+at = 5
+text = "The picture pulls back. The professor is on the little screen of a yellow handheld with a carrying handle, lying in the dark back of a moving truck among bunk beds, cardboard boxes and a plush mouse doll."
+
+[[scene.beat]]
+at = 10
+text = "Outside, the truck's brown back doors rattle along a dirt road through a sunny forest."
+
+# "...But that's enough about me!", then 21 s without a word.
+[[scene]]
+after = "text:118:48"
+
+[[scene.beat]]
+at = 1
+text = "{pokemon:357} beats its broad leaf wings and flies off between the trees. The view sinks down into tall grass."
+
+[[scene.beat]]
+at = 9
+text = "A {pokemon:278} sweeps up out of the treetops on long, thin white wings, and a small dark bird climbs after it into the blue sky."
+
+[[scene.beat]]
+at = 15
+text = "They fly up into the sun, and its light floods everything white."
+
+[[scene.beat]]
+at = 18
+text = "Back in the dark truck, a bright line of light shines between the closed doors onto the handheld, where the professor waits on the screen."
+
+# "...You're the one who's moving to Littleroot Town, where I live!", then 8 s without a word. The
+# same words are line 56 too, and either matches.
+[[scene]]
+after = "text:118:55"
+
+[[scene.beat]]
+text = "On the handheld's screen you are shown from behind, then you turn round to face the front with a smile."
+
+[[scene.beat]]
+at = 4
+text = "The screen changes to a map of the region: green islands in a blue sea, its towns marked in red."
+
+[[scene.beat]]
+at = 7
+text = "The handheld is set down, and the dark truck rumbles on."
+
+# "...Come see me in my Pokémon Lab!", then 11 s without a word until the player stands in the
+# truck, zone 0x18f.
+[[scene]]
+after = "text:118:60"
+
+[[scene.beat]]
+at = 2
+text = "The truck's back doors swing wide, and daylight pours in until everything is white."
+
+[[scene.beat]]
+zone = 0x18f
+text = "The light fades. You stand in the back of the parked truck among cardboard boxes and furniture, with sunlight spilling in through the open doors."
 
 # Seafloor Cavern, zone 0x6f: Archie's "Augh... You...", after Maxie's battle and before Groudon
 # wakes, a demo of 65 s.

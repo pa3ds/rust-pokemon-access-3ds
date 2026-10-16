@@ -278,6 +278,25 @@ pub fn buttons(text: Option<&str>) -> IndexMap<String, String> {
     toml::strings(toml::read_text(text).get("buttons"))
 }
 
+/// pa3ds's own words for a choice's picture, by its texture's name less `.bclim`, from
+/// `data/<language>/pictures.toml`, or the English where the language has none yet: Omega
+/// Ruby's boy and girl, which the game draws and never names.
+///
+/// Python reads the files at a folder's paths; the binary carries them, so this takes the
+/// game's table of them, a file a language (`Game.pictures`).
+pub fn described(data: &[(&str, &str)], language: &str) -> IndexMap<String, String> {
+    let file = |language: &str| {
+        data.iter()
+            .find(|(held, _)| *held == language)
+            .map(|(_, file)| *file)
+    };
+    let found = toml::strings(toml::read_text(file(language)).get("textures"));
+    if !found.is_empty() {
+        return found;
+    }
+    toml::strings(toml::read_text(file("en")).get("textures"))
+}
+
 /// The sign of a Box mark's texture, or None for any other texture.
 pub fn mark(texture: &str) -> Option<&'static str> {
     let stem = match texture.rsplit_once('.') {

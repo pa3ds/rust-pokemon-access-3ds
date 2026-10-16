@@ -8,7 +8,8 @@
 //! (`app::field_demo::Proc`, which keeps nothing saying which), or the player arriving in a zone;
 //! then `at` seconds on. A scene waiting for a demo or a zone is let go when the player arrives
 //! anywhere else, as after losing a battle in it. A scene with no line is said each time the player
-//! arrives in its zone: a room whose way on nothing shows but the room itself.
+//! arrives in its zone: a room whose way on nothing shows but the room itself. A line with no zone
+//! is said before the player has arrived anywhere: the opening's.
 //!
 //! Omega Ruby and Alpha Sapphire play their own scenes in rooms of their own, twin zones of one
 //! layout (Seafloor Cavern's 0x6f and 0x6e), but some lines are said in a zone both share, as
@@ -124,10 +125,11 @@ pub type Word<'a> = &'a dyn Fn(&str, i64) -> Option<String>;
 
 /// The scenes of a file, each with the line it follows out of the ROM and its names in the
 /// game's own words. A line is `story:402:30`, the story text's file 402 and its line 30, or
-/// `text:147:67` out of the rest of the game's text; a scene with none is said on arriving in its
-/// zone, or as its demo starts, `demo = 6`, where the game numbers them. A scene whose line or
-/// names the ROM does not have is left out, and logged. A scene with a `title` is the running
-/// `title`'s alone: one version's, said at a line in a zone the other version shares.
+/// `text:147:67` out of the rest of the game's text, in its zone or, with none, before the player
+/// is anywhere; a scene with no line is said on arriving in its zone, or as its demo starts,
+/// `demo = 6`, where the game numbers them. A scene whose line or names the ROM does not have is
+/// left out, and logged. A scene with a `title` is the running `title`'s alone: one version's,
+/// said at a line in a zone the other version shares.
 ///
 /// Python reads the file at a path; the binary carries it, so this takes its text, None where
 /// the game has no file in the language, as `toml.read` of a missing file is nothing.
@@ -168,7 +170,7 @@ pub fn load(
             .collect();
         let kept: Vec<Beat> = beats.iter().flatten().cloned().collect();
         if (!after.is_empty() && page.is_none())
-            || (demo.is_none() && zone.is_none())
+            || (demo.is_none() && after.is_empty() && zone.is_none())
             || kept.is_empty()
             || kept.len() < beats.len()
         {

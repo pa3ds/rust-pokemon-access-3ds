@@ -1376,10 +1376,10 @@ struct Chooser {
 
 impl Chooser {
     fn new() -> Chooser {
-        Chooser::with(false)
+        Chooser::with(false, IndexMap::new())
     }
 
-    fn with(words_in_girl: bool) -> Chooser {
+    fn with(words_in_girl: bool, textures: IndexMap<String, String>) -> Chooser {
         let memory = FakeMemory::new();
         let classes = FakeClasses::new(memory.clone());
         let picture = classes.add(lyt::PICTURE_CLASS);
@@ -1481,7 +1481,16 @@ impl Chooser {
             .write(CHOOSER_FILE, &layout_archive(sections));
         let files = Rc::new(LayoutFiles::new(chooser.memory.clone()));
         files.add_archive(CHOOSER_FILE).unwrap();
-        chooser.reader = reader_with_files(&chooser.fake, &chooser.memory, &files);
+        chooser.reader = CursorReader::with_textures(
+            chooser.fake.layouts.clone(),
+            names_of(&chooser.memory),
+            Some(files),
+            false,
+            None,
+            IndexMap::new(),
+            textures,
+        )
+        .into();
         chooser
     }
 
@@ -1525,6 +1534,34 @@ fn test_a_frame_sliding_onto_the_other_choice_says_it_once_it_is_there() {
     assert_eq!(chooser.heard(), said(&[(&["male"], false)]));
 }
 
+/// The user, 2026-10-15: the boy and the girl said as "Boy, ..." and "Girl, ...", as X's
+/// are, not as "male" and "female".
+#[test]
+fn test_a_choice_whose_portrait_pa3ds_describes_says_the_description_whole() {
+    let mut chooser = Chooser::with(
+        false,
+        IndexMap::from([
+            (
+                "intro_male".to_string(),
+                "Boy, brown hair, black hat".to_string(),
+            ),
+            (
+                "intro_famale".to_string(),
+                "Girl, brown hair, red bandana".to_string(),
+            ),
+        ]),
+    );
+    assert_eq!(
+        chooser.heard(),
+        said(&[(&["Boy, brown hair, black hat"], true)])
+    );
+    chooser.place(chooser.cursor, GIRL);
+    assert_eq!(
+        chooser.heard(),
+        said(&[(&["Girl, brown hair, red bandana"], false)])
+    );
+}
+
 /// Each portrait has a frame of its own, at its group's place, that never moves.
 #[test]
 fn test_a_frame_round_its_own_choice_is_not_a_cursor() {
@@ -1535,7 +1572,7 @@ fn test_a_frame_round_its_own_choice_is_not_a_cursor() {
 
 #[test]
 fn test_a_choice_with_words_says_its_words() {
-    let mut chooser = Chooser::with(true);
+    let mut chooser = Chooser::with(true, IndexMap::new());
     chooser.heard();
     chooser.place(chooser.cursor, GIRL);
     assert_eq!(chooser.heard(), said(&[(&["May"], false)]));

@@ -35,7 +35,7 @@ use crate::games::common::field::things::{
 };
 use crate::games::common::layout::Layouts;
 use crate::games::common::layout_file::{LayoutFile, LayoutFiles};
-use crate::games::common::pictures::CAUGHT;
+use crate::games::common::pictures::{CAUGHT, described};
 use crate::games::common::scenes::{Scenes, load as load_scenes};
 use crate::games::common::screen::{Pictures, ScreenPoll, ScreenText, ScreenTextReader};
 use crate::games::common::screen_announce::ScreenAnnouncer;
@@ -353,13 +353,15 @@ impl Gen6Profile {
             text.plain.clone(),
         )));
         let files = Rc::new(LayoutFiles::new(memory.clone()));
-        let cursors = CursorReader::with(
+        // Omega Ruby's boy and girl are portraits the game never names, said in pa3ds's words.
+        let cursors = CursorReader::with_textures(
             layouts.clone(),
             names.clone(),
             Some(files.clone()),
             false,
             named_by_image,
             IndexMap::new(),
+            described(game.pictures, &text.language),
         );
         let battlers = Rc::new(Battlers::new(memory.clone(), names.clone()));
         let gauges = Rc::new(Gauges::new(memory.clone(), names.clone()));
