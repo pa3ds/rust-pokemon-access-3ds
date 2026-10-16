@@ -44,7 +44,7 @@ commit (`git show <sha>`) before deciding.
 
 ## 4. Write the section
 
-Add it to `CHANGELOG.md` above the newest section, below the introduction:
+Add it to `CHANGELOG.md` above the newest section, below the `# Changelog` heading:
 
 ```
 ## [0.2.0] - 2026-10-16

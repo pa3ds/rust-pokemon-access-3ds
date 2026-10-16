@@ -8,6 +8,7 @@ target\package\pa3ds-<version>-windows.zip holding:
 
   pa3ds.exe          the program, with Prism (which reaches the player's screen reader) built in
   README.md          the player's manual
+  CHANGELOG.md       what changed for players in each release
   LICENSE            pa3ds's licence
   licenses\prism\    Prism's licence and those of the libraries built into it: Prism is under the
                      MPL 2.0, which asks that its licence go wherever its code goes
@@ -56,7 +57,7 @@ if (Test-Path $zip) { Remove-Item -Force $zip }
 New-Item -ItemType Directory -Force (Join-Path $stage "licenses\prism") | Out-Null
 
 Copy-Item (Join-Path $release "pa3ds.exe") $stage
-Copy-Item README.md, LICENSE $stage
+Copy-Item README.md, CHANGELOG.md, LICENSE $stage
 $prism = Join-Path $root "vendor\prism"
 Copy-Item (Join-Path $prism "LICENSE"), (Join-Path $prism "NOTICE") (Join-Path $stage "licenses\prism")
 Copy-Item -Recurse (Join-Path $prism "LICENSES") (Join-Path $stage "licenses\prism\LICENSES")

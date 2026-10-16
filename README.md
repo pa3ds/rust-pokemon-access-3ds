@@ -365,13 +365,13 @@ all when you move pa3ds. Updating keeps it where it is.
 ## Updating
 
 When pa3ds starts, it checks for a newer version. If there is one, a window asks whether to
-update. Yes downloads it, replaces `pa3ds.exe`, this manual and the licences in pa3ds's folder,
-and starts the new pa3ds; your `user` folder is kept. No starts the version you have, and pa3ds
-asks again on its next start. Without an internet connection pa3ds starts as usual.
+update. Yes downloads it, replaces `pa3ds.exe`, this manual, `CHANGELOG.md` and the licences in
+pa3ds's folder, and starts the new pa3ds; your `user` folder is kept. No starts the version you
+have, and pa3ds asks again on its next start. Without an internet connection pa3ds starts as
+usual.
 
-What changed in each version is on the
-[releases page](https://github.com/pa3ds/rust-pokemon-access-3ds/releases), and in
-`CHANGELOG.md` in the source.
+What changed in each version is in `CHANGELOG.md` beside `pa3ds.exe`, and on the
+[releases page](https://github.com/pa3ds/rust-pokemon-access-3ds/releases).
 
 ## When something goes wrong
 
