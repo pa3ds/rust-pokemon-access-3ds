@@ -373,6 +373,9 @@ pub struct Field {
     /// Whether the player can walk now: not while another screen runs over a map still loaded,
     /// where the list is still read but P finds no way (Orion, 2026-10-12).
     pub walkable: bool,
+    /// How high the player stands in the world, as `Interactable.height` says a thing does: 18 to
+    /// a cell's width in gen 6. None where it is not read: in Sun.
+    pub height: Option<f64>,
 }
 
 impl Default for Field {
@@ -390,6 +393,7 @@ impl Default for Field {
             steer: None,
             place: None,
             walkable: true,
+            height: None,
         }
     }
 }

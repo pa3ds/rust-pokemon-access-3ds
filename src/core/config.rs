@@ -139,6 +139,7 @@ pub struct Navigation {
     pub guide_to_hidden: bool,
     pub track_boulders: bool,
     pub hide_door_signs: bool,
+    pub show_y: bool,
 }
 
 impl Default for Navigation {
@@ -150,6 +151,7 @@ impl Default for Navigation {
             guide_to_hidden: true,
             track_boulders: false,
             hide_door_signs: true,
+            show_y: false,
         }
     }
 }
@@ -163,6 +165,7 @@ impl Table for Navigation {
             ("guide_to_hidden", Value::Bool(self.guide_to_hidden)),
             ("track_boulders", Value::Bool(self.track_boulders)),
             ("hide_door_signs", Value::Bool(self.hide_door_signs)),
+            ("show_y", Value::Bool(self.show_y)),
         ]
     }
 
@@ -174,6 +177,7 @@ impl Table for Navigation {
             ("guide_to_hidden", Value::Bool(value)) => self.guide_to_hidden = value,
             ("track_boulders", Value::Bool(value)) => self.track_boulders = value,
             ("hide_door_signs", Value::Bool(value)) => self.hide_door_signs = value,
+            ("show_y", Value::Bool(value)) => self.show_y = value,
             _ => {}
         }
     }
@@ -214,7 +218,7 @@ fn defaults(name: &str) -> Vec<(&'static str, Value)> {
 }
 
 /// What each setting does, as the file's comment above it says it.
-pub const EXPLAINED: [(&str, &str); 14] = [
+pub const EXPLAINED: [(&str, &str); 15] = [
     (
         "pa3ds.keys",
         "answer pa3ds's keys and bind Azahar's buttons, as keys.toml says",
@@ -279,6 +283,12 @@ pub const EXPLAINED: [(&str, &str); 14] = [
         "pa3ds.navigation.hide_door_signs",
         "leave a sign out of the list when all it says is the name of a door beside it, as \
          Mauville Hills' \"Apt. 13 Wattson's Home\"; a sign that says more, as a Gym's does, stays",
+    ),
+    (
+        "pa3ds.navigation.show_y",
+        "say how high as well, as y after x and z, when C says where you stand and shift and C \
+         where the thing chosen is: \"x 71, z 35, y 20\"; in the game's own units, 18 to a \
+         square's width, and left out where pa3ds does not know it, as in Sun and Moon",
     ),
     (
         "pa3ds.extras.conditions",

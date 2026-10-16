@@ -48,12 +48,13 @@ use indexmap::IndexMap;
 use crate::core::config::Navigation;
 use crate::core::dialog::Asker;
 use crate::core::names::Names;
+use crate::core::pathfind::Cell;
 use crate::core::speech::{Category, Speech};
 use crate::games::common::field::guide::{Clock, FieldSource, Guide, Key};
 use crate::games::common::field::keys::{
     Bindings, CATEGORY_NEXT, CATEGORY_PREVIOUS, COORDINATES, DEFAULT_BINDINGS, DIRECTIONS, EAST,
-    ENEMY_SIDE, HIDE_UNREACHABLE, ITEM_NEXT, ITEM_PREVIOUS, LIST, MODE_TOGGLE, MODES, NORTH,
-    OUR_SIDE, PATH_NEXT, PATH_PREVIOUS, PATHFIND, PATHFIND_HM, PATHFIND_OFF, RENAME,
+    ENEMY_SIDE, HIDE_UNREACHABLE, ITEM_COORDINATES, ITEM_NEXT, ITEM_PREVIOUS, LIST, MODE_TOGGLE,
+    MODES, NORTH, OUR_SIDE, PATH_NEXT, PATH_PREVIOUS, PATHFIND, PATHFIND_HM, PATHFIND_OFF, RENAME,
     RENAME_SPEAKER, SOUTH, TOUCH, WEST,
 };
 use crate::games::common::field::things::Naming as Named;
@@ -472,10 +473,20 @@ impl Navigator {
             return Ok(());
         };
         if action == COORDINATES {
-            self.say(&format!("x {}, z {}", r#where.cell.0, r#where.cell.1));
+            let said = coordinates(&[r#where.cell], r#where.height, self.wording.show_y)?;
+            self.say(&said);
             return Ok(());
         }
         let r#where = self.field.interactables(&r#where)?;
+        if action == ITEM_COORDINATES {
+            let item = self.chosen_item(&r#where)?;
+            let said = match item {
+                None => "nothing here".to_string(),
+                Some(item) => coordinates(&item.cells(), item.height, self.wording.show_y)?,
+            };
+            self.say(&said);
+            return Ok(());
+        }
         if action == RENAME {
             return self.rename(&r#where);
         }
@@ -933,6 +944,35 @@ fn moveable(ways: &[(&str, bool)]) -> String {
         } else {
             said[..said.len() - 1].join(", ") + " or " + &said[said.len() - 1]
         }
+}
+
+/// Where `cells` are, "x 94, z 171", an axis they span by its first and last, "x 80 to 119";
+/// with `show_y`, how high too, last, "x 94, z 171, y 36", where it is known: the flat
+/// axes, then the height, as length, width and height go (Orion, 2026-10-15).
+fn coordinates(cells: &[Cell], height: Option<f64>, show_y: bool) -> Result<String> {
+    fn span(values: &[i64]) -> String {
+        let (low, high) = (values.iter().min().unwrap(), values.iter().max().unwrap());
+        if low == high {
+            format!("{low}")
+        } else {
+            format!("{low} to {high}")
+        }
+    }
+
+    let mut parts = vec![
+        format!(
+            "x {}",
+            span(&cells.iter().map(|&(x, _)| x).collect::<Vec<_>>())
+        ),
+        format!(
+            "z {}",
+            span(&cells.iter().map(|&(_, z)| z).collect::<Vec<_>>())
+        ),
+    ];
+    if let (true, Some(height)) = (show_y, height) {
+        parts.push(format!("y {}", py::round(height)?));
+    }
+    Ok(parts.join(", "))
 }
 
 /// `called` with the place it leads to after it, unless it already says it.

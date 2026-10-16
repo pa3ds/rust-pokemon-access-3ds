@@ -199,7 +199,8 @@ when the map comes back. Touch mode and the battle's keys work throughout.
 | `Shift+R` | Say the enemy's side of the battle again. In a contest's appeals, everyone else's place, in order. Each entrant is named from the first round's appeals on, or once you have moved the cursor onto their portrait. |
 | `Shift+K` | Give the chosen thing a name of your own. |
 | `Shift+J` | Give whoever spoke last a name of your own. |
-| `C` | Say the square you are standing on, as two numbers: "x 381, z 117". x grows going east and z going south. |
+| `C` | Say the square you are standing on, as two numbers: "x 381, z 117". x grows going east and z going south. With `show_y` on, how high you stand as well (see [Settings](#settings)). |
+| `Shift+C` | Say the squares of the chosen thing the same way: "x 62, z 29". Something more than one square wide or deep says its first and last: "x 80 to 119, z 159". |
 
 **List mode** walks the whole list, nearest first.
 
@@ -291,6 +292,7 @@ overwritten. Each setting has a comment in the file saying what it does.
 | `guide_to_hidden` | `true` | When a DexNav search finds the Pokémon you searched for, or the DexNav finds one by itself while it is open and you are in touch mode, find the way to it as P does, and keep P on it. One found while the AreaNav is open is left alone. |
 | `track_boulders` | `false` | Say how far a big boulder has moved from where its room starts it, so you know which you have pushed: "big boulder, 2 east, moved 1 north". Nothing is added for one that has not moved. Off by default, since the game shows where each boulder is but never where it started. |
 | `hide_door_signs` | `true` | Leave a sign out of the list when all it says is the name of a door beside it, which the door is already called: Mauville Hills' "Apt. 13 Wattson's Home". A sign that says more, as a Gym's does with its leader, stays. |
+| `show_y` | `false` | `C` and `Shift+C` say how high as well, as y after x and z: "x 71, z 35, y 20". y is in the game's own units, 18 to a square's width, so two things 18 apart stand a square's width apart in height. It is left out where pa3ds does not know a thing's height, as for a sign, and in Sun and Moon. |
 | **`[pa3ds.extras]`** | | Extras: see [below](#extras). |
 | `conditions` | `false` | Say a Pokémon's contest conditions as numbers on its summary and in the Pokéblock Case: "Conditions Coolness 116 Beauty 70 Cuteness 70 Cleverness 70 Toughness 70". |
 | **`[azahar]`** | | Azahar's own settings: see [above](#azahar-settings-pa3ds-needs). |

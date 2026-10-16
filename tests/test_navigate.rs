@@ -19,9 +19,9 @@ use crate::games::common::field::ground::{
 use crate::games::common::field::guide::{FieldSource, Guidance};
 use crate::games::common::field::keys::{
     CATEGORY_NEXT, CATEGORY_PREVIOUS, COORDINATES, DEFAULT_BINDINGS, DIRECTION, EAST, ENEMY_SIDE,
-    ITEM_NEXT, ITEM_PREVIOUS, ITEM_READ, LIST, MODE_TOGGLE, NORTH, OUR_SIDE, PATH_NEXT,
-    PATH_PREVIOUS, PATHFIND, PATHFIND_HM, PATHFIND_OFF, RENAME, RENAME_SPEAKER, SOUTH, TOUCH, WEST,
-    bound_keys,
+    ITEM_COORDINATES, ITEM_NEXT, ITEM_PREVIOUS, ITEM_READ, LIST, MODE_TOGGLE, NORTH, OUR_SIDE,
+    PATH_NEXT, PATH_PREVIOUS, PATHFIND, PATHFIND_HM, PATHFIND_OFF, RENAME, RENAME_SPEAKER, SOUTH,
+    TOUCH, WEST, bound_keys,
 };
 use crate::games::common::field::navigate::{DoorSign, LeadsTo, Navigator, Options, Sides, Street};
 use crate::games::common::field::things::{
@@ -769,6 +769,69 @@ fn test_c_says_the_players_cell_and_off_the_map_no_map() {
     assert_eq!(
         [said(&rig.backend), said(&off.backend)].concat(),
         ["x 94, z 172", "x 94, z 180", "no map"]
+    );
+}
+
+/// Orion, 2026-10-15: the cells of the thing the keys are on, as C says the player's, for
+/// picturing the map; an edge 40 cells wide by the cells it spans.
+#[test]
+fn test_shift_c_says_where_the_chosen_thing_is_by_the_cells_it_spans() {
+    let mut rig = navigator(Want {
+        exits: true,
+        ..Want::default()
+    });
+    rig.press_key("shift+c");
+    rig.press(ITEM_NEXT);
+    rig.press_key("shift+c");
+    assert_eq!(
+        said(&rig.backend),
+        [
+            "x 94, z 171",
+            "edge, 2 of 2, 13 north",
+            "x 80 to 119, z 159"
+        ]
+    );
+}
+
+/// `[pa3ds.navigation] show_y`: y after x and z, in the game's own units, rounded, for the
+/// player and for a thing whose height is read; none where it is not, as for a sign. Last,
+/// as length, width and height go (Orion, 2026-10-15).
+#[test]
+fn test_show_y_says_how_high_the_player_and_the_thing_stand_where_known() {
+    let door = Interactable {
+        zone: Some(0xDF),
+        source: 0,
+        height: Some(36.4),
+        ..Interactable::new("exits", "door", (94, 171))
+    };
+    let sign = Interactable {
+        source: 0,
+        ..Interactable::new("signs", "sign", (97, 171))
+    };
+    let r#where = Field {
+        interactables: vec![door, sign],
+        height: Some(20.0),
+        ..Field::new(0x6, (94, 172))
+    };
+    let mut rig = navigator(Want {
+        navigation: Some(Navigation {
+            show_y: true,
+            ..Navigation::default()
+        }),
+        ..on(r#where)
+    });
+    rig.press(COORDINATES);
+    rig.press_key("shift+c");
+    rig.press(ITEM_NEXT);
+    rig.press_key("shift+c");
+    assert_eq!(
+        said(&rig.backend),
+        [
+            "x 94, z 172, y 20",
+            "x 94, z 171, y 36",
+            "sign, 2 of 2, 3 east 1 north",
+            "x 97, z 171"
+        ]
     );
 }
 
@@ -2869,7 +2932,7 @@ fn test_the_users_keys_map_to_the_actions() {
         .collect();
     expected.extend(
         [
-            "shift+k", "shift+j", "shift+p", "alt+p", "ctrl+p", "shift+r", "enter",
+            "shift+k", "shift+j", "shift+p", "alt+p", "ctrl+p", "shift+r", "shift+c", "enter",
         ]
         .map(str::to_string),
     );
@@ -2904,6 +2967,7 @@ fn test_the_users_keys_map_to_the_actions() {
     }
     for mode in [LIST, DIRECTION, TOUCH] {
         assert_eq!(bound(mode, "c"), COORDINATES, "{mode}");
+        assert_eq!(bound(mode, "shift+c"), ITEM_COORDINATES, "{mode}");
         assert_eq!(bound(mode, "alt+p"), PATHFIND_OFF, "{mode}");
     }
 }

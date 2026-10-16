@@ -95,6 +95,11 @@ pub const ENEMY_SIDE: &str = "enemy side";
 /// place again, and for telling a spike where something is (the user, 2026-10-10).
 pub const COORDINATES: &str = "coordinates";
 
+/// Say the cells of the thing the navigation keys are on, as `COORDINATES` says the player's,
+/// "x 62, z 29", and an axis a thing spans by its first and last, "x 80 to 119, z 159": for
+/// picturing the map (Orion, 2026-10-15). `[pa3ds.navigation] show_y` adds how high, to both.
+pub const ITEM_COORDINATES: &str = "item coordinates";
+
 /// What the keys file says above an action's key, where its name does not say it all. The
 /// horde's order is Orion's, heard by fainting the bottom left Zigzagoon and the fifth going to 0%
 /// (movie16, 2026-10-01): the enemy side is said by battle position (`gen6.screens.battle`).
@@ -138,8 +143,9 @@ fn keys(pairs: &[(&str, &str)]) -> IndexMap<String, String> {
 /// battle again and shift and R the enemy's (2026-09-29). The apostrophe steps on to touch mode
 /// after direction mode (Orion, 2026-10-02; it was shift and T for a day), where J and L walk the
 /// bottom screen's buttons, I and O a row at a time, K says the one chosen again and Enter taps it.
-/// C says the player's cell and alt and P stops guiding (2026-10-10). All of these are the player's
-/// to change in `<pa3ds>\user\keys.toml`.
+/// C says the player's cell and alt and P stops guiding (2026-10-10), and shift and C the cells of
+/// the thing chosen (Orion, 2026-10-15). All of these are the player's to change in
+/// `<pa3ds>\user\keys.toml`.
 pub static DEFAULT_BINDINGS: LazyLock<Bindings> = LazyLock::new(|| {
     IndexMap::from([
         (
@@ -164,6 +170,7 @@ pub static DEFAULT_BINDINGS: LazyLock<Bindings> = LazyLock::new(|| {
                 ("r", OUR_SIDE),
                 ("shift+r", ENEMY_SIDE),
                 ("c", COORDINATES),
+                ("shift+c", ITEM_COORDINATES),
             ]),
         ),
         (
@@ -187,6 +194,7 @@ pub static DEFAULT_BINDINGS: LazyLock<Bindings> = LazyLock::new(|| {
                 ("r", OUR_SIDE),
                 ("shift+r", ENEMY_SIDE),
                 ("c", COORDINATES),
+                ("shift+c", ITEM_COORDINATES),
             ]),
         ),
         (
@@ -212,6 +220,7 @@ pub static DEFAULT_BINDINGS: LazyLock<Bindings> = LazyLock::new(|| {
                 ("r", OUR_SIDE),
                 ("shift+r", ENEMY_SIDE),
                 ("c", COORDINATES),
+                ("shift+c", ITEM_COORDINATES),
             ]),
         ),
     ])

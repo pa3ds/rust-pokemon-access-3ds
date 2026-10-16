@@ -584,6 +584,7 @@ impl FieldReader {
                 on_bike: bike,
                 place: Some(mmodel::place(&head)?),
                 surfing: mmodel::surfing(&head)?,
+                height: self.height.get(),
                 ..Field::new(zone, cell)
             }));
         }
@@ -592,6 +593,7 @@ impl FieldReader {
             return Ok(Some(Field {
                 on_rail: true,
                 on_bike: bike,
+                height: self.height.get(),
                 ..Field::new(zone, cell)
             }));
         };
@@ -604,6 +606,7 @@ impl FieldReader {
             heading,
             bearing,
             on_bike: bike,
+            height: self.height.get(),
             ..Field::new(zone, at)
         }))
     }
