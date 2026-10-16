@@ -205,7 +205,7 @@ pub static DEFAULT_BINDINGS: LazyLock<Bindings> = LazyLock::new(|| {
                 ("i", ROW_PREVIOUS),
                 ("o", ROW_NEXT),
                 ("k", ITEM_READ),
-                ("enter", TAP),
+                ("u", TAP),
                 ("[", CATEGORY_PREVIOUS),
                 ("]", CATEGORY_NEXT),
                 ("'", MODE_TOGGLE),

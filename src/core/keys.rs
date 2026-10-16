@@ -71,7 +71,7 @@ pub const DOWN: i64 = 0x8000;
 /// The process whose window the keys are answered in front of.
 pub const EMULATOR: &str = window::EMULATOR;
 
-/// Keys named by a word, as the keys file writes them: Enter taps in touch mode.
+/// Keys named by a word, as the keys file writes them, so Enter can be bound.
 pub const NAMED: [(i64, &str); 1] = [(0x0D, "enter")];
 
 /// The OEM virtual keys by the character each carries on a US layout. Windows numbers these

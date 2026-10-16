@@ -233,7 +233,7 @@ when the map comes back. Touch mode and the battle's keys work throughout.
 | `J` and `L` | Previous and next button. |
 | `I` and `O` | Previous and next row. |
 | `K` | The chosen button again. |
-| `Enter` | Tap the chosen button. |
+| `U` | Tap the chosen button. |
 
 The categories are all, exits, signs, obstacles, people, items, berries, ash, bike, currents and
 pokémon; while soaring, towns, routes, landmarks and mirage spots. A category with nothing in it

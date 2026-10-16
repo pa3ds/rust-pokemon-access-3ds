@@ -2926,13 +2926,13 @@ fn test_the_users_keys_map_to_the_actions() {
             "{mode}"
         );
     }
-    let mut expected: HashSet<String> = "iojlk[];'prc,."
+    let mut expected: HashSet<String> = "iojlk[];'prc,.u"
         .chars()
         .map(|key| key.to_string())
         .collect();
     expected.extend(
         [
-            "shift+k", "shift+j", "shift+p", "alt+p", "ctrl+p", "shift+r", "shift+c", "enter",
+            "shift+k", "shift+j", "shift+p", "alt+p", "ctrl+p", "shift+r", "shift+c",
         ]
         .map(str::to_string),
     );
@@ -2945,7 +2945,7 @@ fn test_the_users_keys_map_to_the_actions() {
         );
     }
     assert_eq!(
-        ["j", "l", "i", "o", "k", "enter"].map(|key| bound(TOUCH, key)),
+        ["j", "l", "i", "o", "k", "u"].map(|key| bound(TOUCH, key)),
         [
             ITEM_PREVIOUS,
             ITEM_NEXT,
