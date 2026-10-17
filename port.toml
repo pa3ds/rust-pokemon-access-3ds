@@ -1,7 +1,7 @@
 # The Python pa3ds this port matches (tools/sync.py). `upstream` is the commit of
 # https://github.com/pa3ds/pokemon-access-3ds whose src/ and tests/ the port has caught
 # up with; `python tools/sync.py status` lists what has changed upstream since.
-upstream = "5c1efa0e20003157c509cd31a9607184d44474c2"
+upstream = "282c0c5cb99d232c09b9c5368453e1a7bdb39289"
 
 # Python tests with no Rust counterpart, each with the reason. Key: "<test file>::<test name>".
 [untestable]
