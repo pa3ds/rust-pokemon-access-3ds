@@ -181,6 +181,38 @@ pub fn append<S: AsRef<str>>(text: &str, name: &str, lines: &[S]) -> String {
     rows.join("\n") + "\n"
 }
 
+/// `text` with `line` in place of the one setting `key` in the table `name`: the one in use,
+/// or else the first commented out. None when the table has neither, for `append`. Nothing else
+/// in the text changes, line endings included.
+pub fn replace(text: &str, name: &str, key: &str, line: &str) -> Option<String> {
+    let mut rows: Vec<String> = py::splitlines_keepends(text)
+        .into_iter()
+        .map(String::from)
+        .collect();
+    let sets = |row: &str| entry(row).is_some_and(|(found, _)| found == key);
+    let mut current = String::new();
+    let mut chosen: Option<usize> = None;
+    for (index, row) in rows.iter().enumerate() {
+        // Python's `$` matches before a line's ending and the `regex` crate's does not.
+        if let Some(found) = header(py::rstrip(row)) {
+            current = found;
+        } else if current == name {
+            let bare = py::strip(row);
+            if sets(bare) {
+                chosen = Some(index);
+                break;
+            }
+            if chosen.is_none() && sets(bare.strip_prefix('#').unwrap_or(bare)) {
+                chosen = Some(index);
+            }
+        }
+    }
+    let chosen = chosen?;
+    let ending = &rows[chosen][rows[chosen].trim_end_matches(['\r', '\n']).len()..];
+    rows[chosen] = format!("{line}{ending}");
+    Some(rows.concat())
+}
+
 /// `read` of a file the binary carries, by its text: None where the game has no such file, as a
 /// missing file reads as nothing.
 pub fn read_text(text: Option<&str>) -> IndexMap<String, Value> {

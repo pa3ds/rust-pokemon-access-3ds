@@ -5,6 +5,8 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::core::config::{self, General, Navigation, Table, Ui, Value};
+use crate::core::toml as toml_text;
+use crate::py;
 
 /// pytest's `tmp_path`: a folder of this test's own, gone when the test is.
 struct TmpPath(PathBuf);
@@ -335,5 +337,100 @@ fn test_files_that_are_not_utf_8_read_as_nothing() {
             .notes
             .iter()
             .any(|note| note.contains("could not be read"))
+    );
+}
+
+/// `Path.read_text(encoding="utf-8")`, which reads with universal newlines.
+fn read_text(path: &Path) -> String {
+    read(path).replace("\r\n", "\n").replace('\r', "\n")
+}
+
+fn quoted(folder: &Path) -> String {
+    toml_text::quote(&py::path_str(folder))
+}
+
+#[test]
+fn test_a_portable_azahar_s_folder_is_where_its_settings_are_patched() {
+    let tmp_path = TmpPath::new();
+    let folder = tmp_path.join("Azahar");
+    let ini = folder.join("user").join("config").join("qt-config.ini");
+    fs::create_dir_all(ini.parent().unwrap()).unwrap();
+    fs::write(&ini, emulator_text()).unwrap();
+    let home = tmp_path.join("home");
+    fs::create_dir(&home).unwrap();
+    fs::write(
+        home.join("config.toml"),
+        format!("[pa3ds]\nazahar_folder = {}\n", quoted(&folder)),
+    )
+    .unwrap();
+    let settings = config::prepare(Some(&home), None, true, false).unwrap();
+    assert_eq!(settings.emulator, ini);
+    assert!(read(&ini).contains("enable_rpc_server=true\r\n"));
+    assert_eq!(settings.said, "Azahar settings applied");
+}
+
+#[test]
+fn test_choosing_a_folder_sets_it_and_changes_nothing_else() {
+    let tmp_path = TmpPath::new();
+    let home = tmp_path.join("home");
+    prepare(&home, &tmp_path.join("none.ini"), false);
+    let path = home.join("config.toml");
+    let before = read_text(&path);
+    let first = tmp_path.join("Azahar One");
+    assert!(config::remember_azahar(&first, Some(&home)).unwrap());
+    assert_eq!(
+        read_text(&path),
+        before.replace(
+            "azahar_folder = \"\"",
+            &format!("azahar_folder = {}", quoted(&first))
+        )
+    );
+    let second = PathBuf::from(r#"C:\Games\Azahar "2""#);
+    assert!(config::remember_azahar(&second, Some(&home)).unwrap());
+    assert_eq!(
+        read_text(&path),
+        before.replace(
+            "azahar_folder = \"\"",
+            &format!("azahar_folder = {}", quoted(&second))
+        )
+    );
+    assert_eq!(
+        prepare(&home, &tmp_path.join("none.ini"), false)
+            .general
+            .azahar_folder,
+        py::path_str(&second)
+    );
+}
+
+#[test]
+fn test_choosing_a_folder_brings_back_a_line_commented_out() {
+    let tmp_path = TmpPath::new();
+    let home = tmp_path.join("home");
+    fs::create_dir(&home).unwrap();
+    fs::write(
+        home.join("config.toml"),
+        "[pa3ds]\nkeys = true\n# azahar_folder = \"\"\n\n[pa3ds.ui]\npauses = true\n",
+    )
+    .unwrap();
+    assert!(config::remember_azahar(&tmp_path, Some(&home)).unwrap());
+    assert_eq!(
+        read_text(&home.join("config.toml")),
+        format!(
+            "[pa3ds]\nkeys = true\nazahar_folder = {}\n\n[pa3ds.ui]\npauses = true\n",
+            quoted(&tmp_path)
+        )
+    );
+}
+
+#[test]
+fn test_a_folder_is_not_kept_in_a_file_that_will_not_parse() {
+    let tmp_path = TmpPath::new();
+    let home = tmp_path.join("home");
+    fs::create_dir(&home).unwrap();
+    fs::write(home.join("config.toml"), "[pa3ds.ui]\npauses = yes\n").unwrap();
+    assert!(!config::remember_azahar(&tmp_path, Some(&home)).unwrap());
+    assert_eq!(
+        read_text(&home.join("config.toml")),
+        "[pa3ds.ui]\npauses = yes\n"
     );
 }

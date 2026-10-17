@@ -7,7 +7,8 @@
 //! 2026-10-17). The keys file is filled in the same way (`pa3ds.core.keyfile`), and stays a file of
 //! its own. Its tables:
 //!
-//! - **`[pa3ds]`**: whether pa3ds answers its keys, and how often it reads the game.
+//! - **`[pa3ds]`**: whether pa3ds answers its keys, how often it reads the game, and the folder of a
+//!   portable Azahar, whose `user\config` holds the `qt-config.ini` patched rather than AppData's.
 //! - **`[pa3ds.ui]`**: how menus, lists and screens are said.
 //! - **`[pa3ds.navigation]`**: how the map's list and the way to a thing are said.
 //! - **`[pa3ds.extras]`**: what the game shows in a way pa3ds cannot read, said from its numbers.
@@ -61,6 +62,7 @@ pub trait Table: Default {
 pub struct General {
     pub keys: bool,
     pub poll_rate: f64,
+    pub azahar_folder: String,
 }
 
 impl Default for General {
@@ -68,6 +70,7 @@ impl Default for General {
         General {
             keys: true,
             poll_rate: 60.0,
+            azahar_folder: String::new(),
         }
     }
 }
@@ -77,6 +80,7 @@ impl Table for General {
         vec![
             ("keys", Value::Bool(self.keys)),
             ("poll_rate", Value::Float(self.poll_rate)),
+            ("azahar_folder", Value::Str(self.azahar_folder.clone())),
         ]
     }
 
@@ -85,6 +89,7 @@ impl Table for General {
             ("keys", Value::Bool(value)) => self.keys = value,
             ("poll_rate", Value::Int(value)) => self.poll_rate = value as f64,
             ("poll_rate", Value::Float(value)) => self.poll_rate = value,
+            ("azahar_folder", Value::Str(value)) => self.azahar_folder = value,
             _ => {}
         }
     }
@@ -223,7 +228,7 @@ fn defaults(name: &str) -> Vec<(&'static str, Value)> {
 }
 
 /// What each setting does, as the file's comment above it says it.
-pub const EXPLAINED: [(&str, &str); 15] = [
+pub const EXPLAINED: [(&str, &str); 16] = [
     (
         "pa3ds.keys",
         "answer pa3ds's keys and bind Azahar's buttons, as keys.toml says",
@@ -232,6 +237,12 @@ pub const EXPLAINED: [(&str, &str); 15] = [
         "pa3ds.poll_rate",
         "how many times a second to read the game: 60, the game's own frame rate; 30 for a slower \
          machine",
+    ),
+    (
+        "pa3ds.azahar_folder",
+        "the folder a portable Azahar is in, the one with azahar.exe and a user folder; empty for \
+         an Azahar installed in the usual way, whose settings are in AppData. pa3ds fills it in \
+         when you choose the folder it asks for",
     ),
     (
         "pa3ds.ui.pauses",
@@ -379,6 +390,9 @@ pub struct Config {
     /// Whether `said` is something the player must do: before Azahar has pa3ds's settings, or
     /// before their settings file is read at all.
     pub warning: bool,
+    /// The `qt-config.ini` this run patched, or would have: the portable Azahar's when
+    /// `azahar_folder` names one.
+    pub emulator: PathBuf,
 }
 
 /// `<pa3ds>/user/config.toml`, or under `home` instead.
@@ -758,7 +772,7 @@ pub fn prepare(
 
     let mut saved = String::new();
     let config = match emulator {
-        None => keyfile::emulator_config()?,
+        None => keyfile::emulator_config(&general.azahar_folder)?,
         Some(emulator) => emulator.to_path_buf(),
     };
     if !wanted.is_empty() {
@@ -794,5 +808,23 @@ pub fn prepare(
         notes,
         said,
         warning: !problem.is_empty() || matches!(saved.as_str(), "waiting" | "missing"),
+        emulator: config,
     })
+}
+
+/// Set `azahar_folder` in the settings file to `folder`, as the player asked by choosing it:
+/// on its line, commented out or not, or else added to `[pa3ds]`. Nothing else in the file
+/// changes. False when the file cannot be read or written.
+pub fn remember_azahar(folder: &Path, home: Option<&Path>) -> Result<bool> {
+    let path = config_path(home)?;
+    let (text, _, problem) = toml::load(&path);
+    if !problem.is_empty() {
+        return Ok(false);
+    }
+    let line = format!("azahar_folder = {}", toml::quote(&py::path_str(folder)));
+    let changed = toml::replace(&text, "pa3ds", "azahar_folder", &line);
+    toml::write(
+        &path,
+        &changed.unwrap_or_else(|| toml::append(&text, "pa3ds", &[line])),
+    )
 }

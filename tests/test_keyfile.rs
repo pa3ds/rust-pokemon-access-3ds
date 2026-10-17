@@ -746,6 +746,37 @@ fn test_a_missing_emulator_config_is_said_and_nothing_else_stops() {
     assert_eq!(keys.said, "");
 }
 
+#[test]
+fn test_a_portable_azahar_is_the_folder_with_azahar_exe_and_a_user_folder() {
+    let tmp_path = TmpPath::new();
+    fs::write(tmp_path.join("azahar.exe"), b"").unwrap();
+    assert!(keyfile::portable(&tmp_path).is_err());
+    fs::create_dir(tmp_path.join("user")).unwrap();
+    assert_eq!(keyfile::portable(&tmp_path), Ok(tmp_path.to_path_buf()));
+    assert_eq!(
+        keyfile::portable(&tmp_path.join("user")),
+        Ok(tmp_path.to_path_buf())
+    );
+    assert_eq!(
+        keyfile::emulator_config(&crate::py::path_str(&tmp_path)).unwrap(),
+        tmp_path.join("user").join("config").join("qt-config.ini")
+    );
+}
+
+#[test]
+fn test_a_folder_that_is_not_a_portable_azahar_says_why() {
+    let tmp_path = TmpPath::new();
+    let empty = tmp_path.join("empty");
+    fs::create_dir(&empty).unwrap();
+    assert!(
+        keyfile::portable(&empty)
+            .unwrap_err()
+            .contains("no azahar.exe")
+    );
+    fs::write(empty.join("azahar.exe"), b"").unwrap();
+    assert!(keyfile::portable(&empty).unwrap_err().contains("AppData"));
+}
+
 // ---------------------------------------------------------------- modifiers
 
 #[test]

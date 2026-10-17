@@ -87,9 +87,8 @@ pub struct Session {
 /// and the settings its readers read by (`app.Settings`).
 ///
 /// Python's defaults are `DEFAULT_BINDINGS`, `Ui()`, `Navigation()`, `Extras()`, `"en"`, no
-/// `names_home`, no
-/// `rom`, a `sweep_chunk` of 512, and no `tap` or `tones`: [`Setup::new`] has them, and the rest is
-/// set with `Setup { language, ..Setup::new(process, log) }`.
+/// `names_home`, no `rom`, no `emulator`, a `sweep_chunk` of 512, and no `tap` or `tones`:
+/// [`Setup::new`] has them, and the rest is set with `Setup { language, ..Setup::new(process, log) }`.
 #[derive(Clone)]
 pub struct Setup {
     pub process: Process,
@@ -101,6 +100,8 @@ pub struct Setup {
     pub language: String,
     pub names_home: Option<PathBuf>,
     pub rom: Option<PathBuf>,
+    /// Azahar's `qt-config.ini`, where `rom_path` finds the ROMs it opened; None is AppData's.
+    pub emulator: Option<PathBuf>,
     pub sweep_chunk: i64,
     /// Tap the touch screen at a pixel, saying why not where it cannot (`pa3ds.core.touch`); None
     /// where pa3ds takes no keys, as in a replay.
@@ -124,6 +125,7 @@ impl Setup {
             language: "en".to_string(),
             names_home: None,
             rom: None,
+            emulator: None,
             sweep_chunk: 512,
             tap: None,
             slide: None,
@@ -138,7 +140,11 @@ impl Setup {
         }
         // `read_text(encoding="utf-8", errors="replace")`, which also turns a CRLF into a LF:
         // `azahar_roms` splits the text into lines, so the difference is never seen.
-        let config = match keyfile::emulator_config().and_then(|config| {
+        let emulator = match &self.emulator {
+            Some(emulator) => Ok(emulator.clone()),
+            None => keyfile::emulator_config(""),
+        };
+        let config = match emulator.and_then(|config| {
             let bytes = std::fs::read(config)?;
             Ok(String::from_utf8_lossy(&bytes).into_owned())
         }) {

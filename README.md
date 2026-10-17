@@ -135,8 +135,9 @@ not read.
 ## What you need
 
 - Windows.
-- Azahar, installed. A portable Azahar (with a `user` folder beside `azahar.exe`) is not set up
-  by pa3ds yet: see [Known problems](#known-problems).
+- Azahar, installed, or a portable Azahar (with a `user` folder beside `azahar.exe`). For a
+  portable one pa3ds asks for its folder the first time, as described under
+  [Setting up](#setting-up).
 - Your own Pokémon game, dumped from your own 3DS. pa3ds reads place names, building names, the
   rival's name, and what to call the people and Pokémon on the map from the ROM file. This works only with a **decrypted** ROM (`.3ds` or `.cci`).
   With an encrypted one the game still plays and pa3ds still reads it, but some of those names
@@ -176,13 +177,23 @@ settings back over the file when it closes. If pa3ds says "close Azahar and star
 apply its settings", do exactly that. If it says "Azahar's settings were not found", start Azahar
 once, close it, and start pa3ds again.
 
+With a portable Azahar, whose settings are beside `azahar.exe` and not in AppData, pa3ds cannot
+find them by itself. When it starts with Azahar closed and finds no settings, it opens a window
+titled "Azahar's settings were not found. Choose the folder azahar.exe is in, or cancel if Azahar
+is installed". Choose the folder holding `azahar.exe` and the `user` folder. pa3ds records it as
+`azahar_folder` in `user\config.toml`, changes that Azahar's settings in the same start, and uses
+that folder from then on without asking. If the folder you choose is not a portable Azahar, the
+window opens again with the reason. Cancel it if Azahar is installed the usual way and has not
+been started yet.
+
 pa3ds is quiet while another window is in front of Azahar. It still says its own messages and
 answers its own keys.
 
 ## Azahar settings pa3ds needs
 
-pa3ds writes these into Azahar's `qt-config.ini` (in `%APPDATA%\Azahar\config`). They come from
-the `[azahar]` table of `user\config.toml`, so you can change them there.
+pa3ds writes these into Azahar's `qt-config.ini`: in `%APPDATA%\Azahar\config`, or in
+`user\config` beside `azahar.exe` for a portable Azahar, the folder `azahar_folder` names. They
+come from the `[azahar]` table of `user\config.toml`, so you can change them there.
 
 | Setting | Value | Why |
 |---|---|---|
@@ -315,6 +326,7 @@ line you have. Each setting has a comment in the file saying what it does.
 | **`[pa3ds]`** | | |
 | `keys` | `true` | Answer pa3ds's keys and rebind Azahar's buttons as `keys.toml` says. |
 | `poll_rate` | `60` | How many times a second pa3ds reads the game. 30 for a slower machine. |
+| `azahar_folder` | `""` | The folder a portable Azahar is in, the one with `azahar.exe` and a `user` folder. Empty for an Azahar installed the usual way, whose settings are in AppData. pa3ds fills it in when you choose the folder it asks for. |
 | **`[pa3ds.ui]`** | | |
 | `pauses` | `false` | Pause between pieces of screen text said together: "OT: Raiden". |
 | `interrupt` | `false` | Cut off speech when a menu's cursor moves, instead of queueing. pa3ds's own keys always cut off speech. |
@@ -419,10 +431,6 @@ were doing.
 
 ## Known problems
 
-- **A portable Azahar is not set up by pa3ds.** pa3ds changes only the settings in
-  `%APPDATA%\Azahar`. With a portable Azahar, set the settings in
-  [the table above](#azahar-settings-pa3ds-needs) yourself, in `user\config\qt-config.ini` beside
-  `azahar.exe`, while Azahar is closed.
 - **Some touch-screen apps are not fully read yet**: the PokéNav's DexNav, and the PlayNav's apps
   once they open: Pokémon-Amie, Super Training and the PSS. In Pokémon-Amie the Pokémon has
   not been seen to come when stroked, and its Poké Puffs, minigames and way out have not been

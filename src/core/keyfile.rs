@@ -38,6 +38,10 @@
 //!   and writes the rest back untouched — a stick rebuilt from scratch would drop the annotations
 //!   Azahar keeps beside each direction.
 //!
+//! Where `qt-config.ini` is: `%APPDATA%\Azahar\config`, or `user\config` beside `azahar.exe` for a
+//! portable Azahar, which Azahar is whenever it finds a `user` folder there. A player with a
+//! portable one names its folder in `[pa3ds] azahar_folder` (`emulator_config`, `portable`).
+//!
 //! Azahar saves `qt-config.ini` over whatever is there when it closes
 //! (`GMainWindow::closeEvent`), so a patch written while it runs is lost. pa3ds patches at every
 //! start while Azahar is closed; with Azahar open it writes nothing and says to close it and start
@@ -289,15 +293,46 @@ fn home() -> Result<PathBuf> {
     }
 }
 
-/// `%APPDATA%\Azahar\config\qt-config.ini`, where the player's own Azahar keeps its
-/// settings. The rig's fork keeps its own beside the executable and is never patched from
-/// here.
-pub fn emulator_config() -> Result<PathBuf> {
+/// Azahar's `qt-config.ini`: `<folder>\user\config` for a portable Azahar the player named
+/// (`[pa3ds] azahar_folder`), which Azahar uses when a `user` folder is beside its executable,
+/// and otherwise `%APPDATA%\Azahar\config`, where the player's own Azahar keeps its settings.
+/// The rig's fork keeps its own beside the executable and is never named here unless a player
+/// chooses it.
+pub fn emulator_config(folder: &str) -> Result<PathBuf> {
+    if !folder.is_empty() {
+        return Ok(py::to_path(folder)
+            .join("user")
+            .join("config")
+            .join("qt-config.ini"));
+    }
     let root = match std::env::var_os("APPDATA").filter(|root| !root.is_empty()) {
         Some(root) => PathBuf::from(root),
         None => home()?,
     };
     Ok(root.join("Azahar").join("config").join("qt-config.ini"))
+}
+
+/// The folder of a portable Azahar for a folder the player chose, or why it is not one. The
+/// folder holding `azahar.exe` will do, and so will its `user` folder.
+pub fn portable(chosen: &Path) -> std::result::Result<PathBuf, String> {
+    let is_user = chosen
+        .file_name()
+        .is_some_and(|name| name.to_string_lossy().to_lowercase() == "user");
+    let folder = match chosen.parent() {
+        Some(parent) if is_user => parent,
+        _ => chosen,
+    };
+    if !folder.join("azahar.exe").is_file() {
+        return Err(format!("{} has no azahar.exe in it", py::path_str(folder)));
+    }
+    if !folder.join("user").is_dir() {
+        return Err(format!(
+            "{} has no user folder beside its azahar.exe, so this Azahar keeps its settings in \
+             AppData and not beside it",
+            py::path_str(folder)
+        ));
+    }
+    Ok(folder.to_path_buf())
 }
 
 // ---------------------------------------------------------------- parameter packages
@@ -1216,7 +1251,7 @@ pub fn prepare(
 ) -> Result<Keys> {
     let path = keys_path(home)?;
     let config = match config {
-        None => emulator_config()?,
+        None => emulator_config("")?,
         Some(config) => config.to_path_buf(),
     };
     let mut notes: Vec<String> = Vec::new();

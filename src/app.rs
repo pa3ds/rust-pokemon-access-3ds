@@ -97,6 +97,9 @@ pub struct Settings {
     /// ready" is "pa3ds restarted", interrupting, so a player who restarted a pa3ds that had hung
     /// hears that it took, in whatever window they are in (Orion, 2026-10-17).
     pub restarted: bool,
+    /// Azahar's `qt-config.ini`, where it lists the ROMs it has opened (`config.Config.emulator`).
+    /// None is the one in AppData.
+    pub emulator: Option<PathBuf>,
 }
 
 impl Default for Settings {
@@ -119,6 +122,7 @@ impl Default for Settings {
             rom: None,
             captures: None,
             restarted: false,
+            emulator: None,
         }
     }
 }
@@ -545,6 +549,7 @@ fn session(
             language: settings.language.clone(),
             names_home: settings.names_home.clone(),
             rom: settings.rom.clone(),
+            emulator: settings.emulator.clone(),
             sweep_chunk: settings.sweep_chunk,
             tap: touching.clone().map(|touching| {
                 Rc::new(move |x: i64, y: i64| touching.tap(x, y))
