@@ -97,6 +97,18 @@ pub const CLIMB: f64 = 18.0;
 /// A ledge is blocked, and the player's cell goes from before it to after it in one move.
 pub const LEDGES: [(i64, &str); 4] = [(0x74, NORTH), (0x75, SOUTH), (0x73, WEST), (0x72, EAST)];
 
+/// A jumping stone's kind: a pillar in one of X's mud pits, blocked, that the player hops onto
+/// from another stone or a `LAUNCH` two cells away in a line, over the mud between, and off it the
+/// same way, each hop one move. On Route 8 they hopped from (544, 745) to (546, 745), on to (552,
+/// 745) and back, and north from (548, 745) to (548, 741) (x_route-8-3.ctm, spike 235). X has 70
+/// stones in 9 chunk files, ORAS none. The stones touching only at a corner, as Route 8's two sets
+/// do, are not hopped between here: no recording has the player do it.
+pub const STONE: i64 = 0x92;
+
+/// The kind of the open cells at a mud pit's edge that hops onto its stones start and end on,
+/// walked onto and off as any floor: 27 of them in X's chunks.
+pub const LAUNCH: i64 = 0x93;
+
 /// A counter's kind: the Pokémon Center's, the Poké Mart's. The game talks across one, to the
 /// thing in the cell beyond it: the field DLL's function at `0x007175a8` reads the kind of the cell
 /// the player faces, and where the executable's test at `0x00403004` says it is this one, looks two

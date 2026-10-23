@@ -61,6 +61,11 @@ const FALLS: i64 = 0x3F180003;
 const SOUTH_SLOPE: i64 = 0x6C000020;
 /// Route 132's current, which carried the player west (movie43, spike 208).
 const WEST_CURRENT: i64 = 0x951A0002;
+/// A jumping stone in X's Route 8 mud pit, hopped onto two cells at a time (x_route-8-3.ctm,
+/// spike 235).
+const STONE: i64 = 0x92000021;
+/// Where the hops onto the stones start and end, at the pit's edge.
+const LAUNCH: i64 = 0x93000020;
 
 /// What `FakeField.ground` is run through before it is handed over: Python's tests replace the
 /// method itself, which Rust cannot do to a value behind a trait.
@@ -96,6 +101,8 @@ struct FakeField {
     /// A stacked ground's ladders, each step with the heights it leaves and lands at.
     ladders: RefCell<IndexMap<(Cell, Cell), (f64, f64)>>,
     ice: RefCell<Vec<IceRoom>>,
+    stones: RefCell<HashSet<Cell>>,
+    launches: RefCell<HashSet<Cell>>,
     visit: Slot<Option<(i64, i64)>>,
     edit: RefCell<Option<Edit>>,
 }
@@ -125,6 +132,8 @@ impl FakeField {
             level: Slot::new(None),
             ladders: RefCell::new(IndexMap::new()),
             ice: RefCell::new(Vec::new()),
+            stones: RefCell::new(HashSet::new()),
+            launches: RefCell::new(HashSet::new()),
             visit: Slot::new(Some((0x08D209B8, 0x6))),
             edit: RefCell::new(None),
         }
@@ -175,6 +184,8 @@ impl FieldSource for FakeField {
         let shore = self.shore.borrow();
         let falls = self.falls.borrow();
         let currents = self.currents.borrow();
+        let stones = self.stones.borrow();
+        let launches = self.launches.borrow();
         let words: Vec<i64> = cells
             .iter()
             .map(|cell| {
@@ -192,6 +203,10 @@ impl FieldSource for FakeField {
                     SHORE
                 } else if falls.contains(cell) {
                     FALLS
+                } else if stones.contains(cell) {
+                    STONE
+                } else if launches.contains(cell) {
+                    LAUNCH
                 } else if blocked.contains(cell) && !opened.contains(cell) {
                     BLOCKED
                 } else {
@@ -1511,6 +1526,50 @@ fn test_shift_p_jumps_the_shore_onto_the_water_and_off_it() {
     });
     rig.press(PATHFIND);
     assert_eq!(last(&rig.backend), "2 south");
+}
+
+/// X's Route 8 (x_route-8-3.ctm, spike 235): a mud pit's stones are blocked in the cell table, and
+/// the player hops from the launch at the pit's edge onto one two cells on, over the mud, then from
+/// stone to stone and onto the launch on the far side, each hop one move. P took the pit for a
+/// wall, "can't continue".
+#[test]
+fn test_p_hops_across_a_mud_pit_from_stone_to_stone() {
+    let across = Field {
+        interactables: vec![Interactable {
+            source: 0x08D1E9A8,
+            ..Interactable::new("people", "person", (101, 175))
+        }],
+        ..Field::new(street().zone, (90, 175))
+    };
+    let mut blocked: Vec<Cell> = (92..99)
+        .flat_map(|x| (160..200).map(move |z| (x, z)))
+        .collect();
+    blocked.push((101, 175));
+    let mut rig = navigator(Want {
+        blocked,
+        ..on(across)
+    });
+    let stones: HashSet<Cell> = [(93, 175), (95, 175), (97, 175)].into_iter().collect();
+    *rig.field.stones.borrow_mut() = stones.clone();
+    *rig.field.launches.borrow_mut() = [(91, 175), (99, 175)].into_iter().collect();
+    rig.press(PATHFIND);
+    let way = guidance(&rig);
+    assert_eq!(last(&rig.backend), "10 east");
+    let path = path_of(&way);
+    assert!(stones.iter().all(|stone| path.contains(stone)) && path.iter().all(|c| c.1 == 175));
+    step(
+        &mut rig,
+        &[(91, 175), (93, 175), (95, 175), (97, 175), (99, 175)],
+    );
+    assert!(
+        Rc::ptr_eq(
+            way.as_ref().unwrap(),
+            rig.nav.guide.guidance.as_ref().unwrap()
+        ),
+        "each hop is on the way"
+    );
+    step(&mut rig, &[(100, 175)]);
+    assert_eq!(last(&rig.backend), "person, 1 east");
 }
 
 /// Ever Grande City: the waterfall is a row of blocked water, and Waterfall carries the player up

@@ -79,6 +79,9 @@ steps past the corner of a wall. Where that would stop you, `P` first says which
 `P` and `Shift+P` ride a current as one step of the way, and find the way again if one carries
 you off it.
 
+**Jumping stones.** In Pokémon X, `P` crosses a mud pit by its stones: each press of the way hops
+you two squares, onto the next stone.
+
 **Big boulders** say which ways they can be pushed from where they stand, or "immoveable". Hold
 the way for a moment to push one a square. Push one into a hole and both leave the list.
 

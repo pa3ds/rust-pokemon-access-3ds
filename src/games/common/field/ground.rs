@@ -10,7 +10,7 @@ use indexmap::{IndexMap, IndexSet};
 
 use crate::core::pathfind::{self, Box, Cell, EAST, NORTH, SOUTH, WEST};
 use crate::games::common::field::chunk::{
-    ANY_FLOOR, BLOCKED, BOARD, CHUNK, CLIMB, COUNTER, Chunk, SHORE,
+    ANY_FLOOR, BLOCKED, BOARD, CHUNK, CLIMB, COUNTER, Chunk, LAUNCH, SHORE, STONE,
 };
 use crate::games::common::field::things::{
     Field, Interactable, POKEMON, TRIGGER_SOURCE, WARP_SOURCE,
@@ -660,8 +660,10 @@ impl Ground {
         let Some(chunk) = self.chunk(cell)? else {
             return Ok(true);
         };
-        Ok((chunk.walkable(cell)? || self.filled.contains(&cell))
-            && (self.surf || !chunk.water(cell)?))
+        Ok(
+            (chunk.walkable(cell)? || self.filled.contains(&cell) || chunk.kind(cell)? == STONE)
+                && (self.surf || !chunk.water(cell)?),
+        )
     }
 
     /// On a stacked ground, each floor open in the cell, by its place among its chunk's floors,
@@ -862,10 +864,37 @@ impl Ground {
         }
     }
 
-    /// Whether the cell is blocked but jumped over either way: the shore, and a waterfall on
-    /// a ground with HMs, climbed with Waterfall and gone down with nothing.
+    /// Whether the cell is blocked but jumped over either way: the shore, a waterfall on a
+    /// ground with HMs, climbed with Waterfall and gone down with nothing, and a mud pit's mud
+    /// between two of its stones in a line, hopped over (`STONE`).
     pub fn over(&self, cell: Cell) -> Result<bool> {
-        Ok(self.shore(cell)? || (self.hm && self.falls.contains_key(&cell)))
+        Ok(self.shore(cell)? || (self.hm && self.falls.contains_key(&cell)) || self.mud(cell)?)
+    }
+
+    fn mud(&self, cell: Cell) -> Result<bool> {
+        let (x, z) = cell;
+        for (a, b) in [((x - 1, z), (x + 1, z)), ((x, z - 1), (x, z + 1))] {
+            if self.hopped(a)? && self.hopped(b)? {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    /// Whether a hop over a mud pit starts or ends on the cell: a stone or a launch.
+    fn hopped(&self, cell: Cell) -> Result<bool> {
+        let chunk = if self.corridor.is_some() {
+            None
+        } else {
+            self.chunk(cell)?
+        };
+        match chunk {
+            Some(chunk) => {
+                let kind = chunk.kind(cell)?;
+                Ok(kind == STONE || kind == LAUNCH)
+            }
+            None => Ok(false),
+        }
     }
 
     /// Whether the move from `cell` to `step` is onto, off or over a waterfall going up: a
