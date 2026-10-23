@@ -2,7 +2,7 @@
 
 use std::path::{Path, PathBuf};
 
-use super::fake_rom::{TmpDir, lz11_literals, rom_image, rom_image_with};
+use super::fake_rom::{TmpDir, lz11_literals, rom_image, rom_image_named, rom_image_with};
 use crate::core::rom::{self, Rom};
 use crate::py::{self, Kind};
 
@@ -38,6 +38,37 @@ fn test_files_are_read_by_their_path() {
         assert_eq!(opened.read(name).unwrap(), *data);
     }
     assert!(opened.read("a/9/9/9").unwrap_err().is(Kind::RomError));
+}
+
+/// ADR-0038: the title screen's logo is said as the game's own name, out of the ROM.
+#[test]
+fn test_the_game_names_itself_in_its_smdh_in_the_players_language() {
+    let tmp_path = TmpDir::new();
+    let image = rom_image_named(
+        &[("top", b"t")],
+        OMEGA_RUBY,
+        &[
+            "ポケットモンスター オメガルビー",
+            "Pokémon Omega Ruby",
+            "Pokémon Rubis Oméga",
+        ],
+    );
+    let opened = Rom::new(&write(tmp_path.path(), "or.3ds", &image)).unwrap();
+    assert_eq!(
+        opened.title("fr").unwrap().as_deref(),
+        Some("Pokémon Rubis Oméga")
+    );
+    assert_eq!(
+        opened.title("ko").unwrap().as_deref(),
+        Some("Pokémon Omega Ruby")
+    );
+    let bare = Rom::new(&write(
+        tmp_path.path(),
+        "bare.3ds",
+        &rom_image(&[("top", b"t")], OMEGA_RUBY),
+    ))
+    .unwrap();
+    assert_eq!(bare.title("en").unwrap(), None);
 }
 
 /// The player's Alpha Sapphire on this machine is one: pa3ds needs keys to read it, and will

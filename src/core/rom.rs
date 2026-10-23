@@ -19,7 +19,10 @@
 //! ```text
 //! NCSD    +0x100 "NCSD"   +0x120 eight partitions of (u32 offset, u32 size), in 0x200 units
 //! NCCH    +0x100 "NCCH"   +0x118 u64 program id   +0x18f flags, bit 2 of which is "no crypto"
-//!         +0x1b0 the RomFS's offset and size, in 0x200 units
+//!         +0x1a0 the ExeFS's offset, in 0x200 units    +0x1b0 the RomFS's offset and size
+//! ExeFS   +0x00 ten entries of (8-byte name, u32 offset, u32 size), the files from +0x200;
+//!         `icon` is the SMDH: +0x00 "SMDH", +0x08 sixteen titles of 0x200 bytes, a language
+//!         each (`SMDH_LANGUAGES`), each from its short name, UTF-16, 0x80 bytes
 //! IVFC    +0x00 "IVFC"    +0x08 the master hash's size   +0x4c level 3's block size, as a shift
 //! level 3 follows the master hash, aligned to that block: +0x00 its header's length (0x28), then
 //!         the directory and file metadata and where the files' data starts
@@ -53,6 +56,14 @@ pub const LEVEL3_HEADER: i64 = 0x28;
 /// An empty link in the RomFS's metadata.
 pub const NONE: i64 = 0xFFFFFFFF;
 pub const LZ11: i64 = 0x11;
+pub const SMDH_MAGIC: &[u8] = b"SMDH";
+pub const SMDH_TITLES: i64 = 0x08;
+pub const SMDH_TITLE: i64 = 0x200;
+pub const SMDH_SHORT: i64 = 0x80;
+/// The language of each of the SMDH's titles, in its order.
+pub const SMDH_LANGUAGES: [&str; 12] = [
+    "ja", "en", "fr", "de", "it", "es", "zh-CN", "ko", "nl", "pt", "ru", "zh-TW",
+];
 /// What an NCSD image is called. A CIA is an installer, not an image, and is not read.
 pub const EXTENSIONS: [&str; 2] = [".3ds", ".cci"];
 
@@ -122,6 +133,70 @@ impl Rom {
             ));
         };
         self.read_part(path, 0, entry.size)
+    }
+
+    /// What the game calls itself in a language, its SMDH's short name, "Pokémon Omega
+    /// Ruby"; English's where the language has none, and None where the ROM has no SMDH.
+    pub fn title(&self, language: &str) -> Result<Option<String>> {
+        let smdh = match self.smdh() {
+            Ok(Some(smdh)) => smdh,
+            Ok(None) => return Ok(None),
+            Err(error) if error.is(Kind::OsError) || error.is(Kind::StructError) => {
+                return Ok(None);
+            }
+            Err(error) => return Err(error),
+        };
+        if py::slice(&smdh, 0, 4) != SMDH_MAGIC {
+            return Ok(None);
+        }
+        // `dict.fromkeys((language, "en"))`.
+        let wanted: &[&str] = if language == "en" {
+            &["en"]
+        } else {
+            &[language, "en"]
+        };
+        for wanted in wanted {
+            if let Some(index) = SMDH_LANGUAGES.iter().position(|one| one == wanted) {
+                let at = SMDH_TITLES + index as i64 * SMDH_TITLE;
+                let decoded = decode_utf16le_ignore(py::slice(&smdh, at, at + SMDH_SHORT));
+                let said = decoded.split('\0').next().unwrap_or_default();
+                if !py::strip(said).is_empty() {
+                    return Ok(Some(py::split(said).join(" ")));
+                }
+            }
+        }
+        Ok(None)
+    }
+
+    /// The body of `title`'s `try`: the SMDH's bytes, or None where the ExeFS has no `icon`.
+    fn smdh(&self) -> Result<Option<Vec<u8>>> {
+        let mut file = &self.file;
+        seek(&mut file, 0)?;
+        let partition = binary::u32(&read(&mut file, UNIT)?, 0x120)? * UNIT;
+        seek(&mut file, partition)?;
+        let exefs = partition + binary::u32(&read(&mut file, UNIT)?, 0x1A0)? * UNIT;
+        seek(&mut file, exefs)?;
+        let head = read(&mut file, UNIT)?;
+        let mut icon = None;
+        for at in (0..0xA0).step_by(0x10) {
+            let name = py::slice(&head, at, at + 8);
+            let end = name
+                .iter()
+                .rposition(|&byte| byte != 0)
+                .map_or(0, |last| last + 1);
+            if &name[..end] == b"icon" {
+                icon = Some(binary::u32(&head, at + 8)?);
+                break;
+            }
+        }
+        let Some(icon) = icon else {
+            return Ok(None);
+        };
+        seek(&mut file, exefs + UNIT + icon)?;
+        Ok(Some(read(
+            &mut file,
+            SMDH_TITLES + SMDH_LANGUAGES.len() as i64 * SMDH_TITLE,
+        )?))
     }
 
     /// `size` bytes of one file from `start`. Sun's map archive is 62 MB and a map block
@@ -562,6 +637,19 @@ fn read<R: Read>(rom: &mut R, size: i64) -> Result<Vec<u8>> {
     let mut data = Vec::new();
     rom.take(size as u64).read_to_end(&mut data)?;
     Ok(data)
+}
+
+/// `bytes.decode("utf-16-le", "ignore")`: a lone surrogate, or an odd byte at the end, is left
+/// out. `py` has only "replace" and "strict".
+fn decode_utf16le_ignore(data: &[u8]) -> String {
+    let units = data
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .map(|pair| u16::from_le_bytes(*pair));
+    char::decode_utf16(units)
+        .filter_map(|unit| unit.ok())
+        .collect()
 }
 
 /// A little-endian u32 out of bytes a `struct.unpack_from` already took, as an int.

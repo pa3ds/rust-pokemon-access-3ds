@@ -23,10 +23,10 @@
 # Alpha Sapphire's scene_granite_cave_mural, 2026-10-19); the seconds are from the moment its
 # demo, line, arrival or trigger came there.
 
-# Omega Ruby's intro and title screen, before the player is anywhere, each scene said as the app
+# Each version's intro and title screen, before the player is anywhere, each scene said as the app
 # that plays it starts and let go as another starts: A skips the intro straight to the title
 # screen, and the rest of it goes unsaid. Seconds are from the app's start, by the game's own
-# frames (spike A, or_intro_and_title_screen, 2026-10-21).
+# frames (spike 236, or_intro_and_title_screen, 2026-10-21).
 #
 # The intro's first part, the forest, Latios and the boy on his bike, played on the field's engine.
 [[scene]]
@@ -102,6 +102,80 @@ id = "or-title-logo"
 [[scene.beat]]
 at = 8.5
 id = "or-title"
+
+# Alpha Sapphire's, the same intro to the second with Latias for Latios, then a movie of
+# Team Aqua and Kyogre, and its own title screen (as_intro_and_title_screen).
+[[scene]]
+app = "app::field_demo::Proc"
+title = 0x000400000011C500
+
+[[scene.beat]]
+at = 1
+id = "as-intro-forest"
+
+[[scene.beat]]
+at = 10.5
+id = "as-intro-drops"
+
+[[scene.beat]]
+at = 16.5
+id = "as-intro-credit"
+
+[[scene.beat]]
+at = 20.5
+id = "as-intro-volcano"
+
+[[scene.beat]]
+at = 22.7
+id = "as-intro-latias"
+
+[[scene.beat]]
+at = 24.8
+id = "as-intro-island"
+
+[[scene.beat]]
+at = 31.6
+id = "as-intro-bike"
+
+[[scene.beat]]
+at = 35.5
+id = "as-intro-loop"
+
+[[scene.beat]]
+at = 40.5
+id = "as-intro-face"
+
+[[scene]]
+app = "movie::MovieProc"
+title = 0x000400000011C500
+
+[[scene.beat]]
+at = 1
+id = "as-intro-movie-1"
+
+[[scene.beat]]
+at = 6
+id = "as-intro-movie-2"
+
+[[scene.beat]]
+at = 8.2
+id = "as-intro-movie-3"
+
+[[scene.beat]]
+at = 11
+id = "as-intro-movie-4"
+
+[[scene]]
+app = "title::TitleProc"
+title = 0x000400000011C500
+
+[[scene.beat]]
+at = 1
+id = "as-title-logo"
+
+[[scene.beat]]
+at = 9.5
+id = "as-title"
 
 # The opening, before the player is anywhere, so in no zone: the professor's lines are the rest of
 # the game's text, file 118, and the stretches between them where he says nothing are described

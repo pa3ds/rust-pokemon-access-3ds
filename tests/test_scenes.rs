@@ -669,7 +669,7 @@ battle-3 = You and { YOURS(4) } are nowhere.
 }
 
 /// ADR-0038: Omega Ruby's intro is two apps before the title screen, and A skips straight to the
-/// title screen (spike A): what the skipped app had left to say goes unsaid.
+/// title screen (spike 236): what the skipped app had left to say goes unsaid.
 #[test]
 fn test_a_scene_of_an_app_is_said_as_it_starts_and_let_go_as_another_starts() -> Result<()> {
     let tmp_path = TmpDir::new();
@@ -736,8 +736,40 @@ id = "line-2"
     Ok(())
 }
 
+/// ADR-0038: the title screen's logo is the game's own name out of its ROM, and its prompt a
+/// picture's words, as `pictures.ftl` calls it or as its texture's name says (spike 236).
+#[test]
+fn test_words_drawn_as_pictures_are_said_as_the_picture_and_the_rom_name_them() -> Result<()> {
+    let tmp_path = TmpDir::new();
+    let english = tmp_path.path().join("data").join("oras").join("en");
+    fs::create_dir_all(&english).unwrap();
+    fs::write(
+        english.join("pictures.ftl"),
+        "texture-push_start = Press Start\n",
+    )
+    .unwrap();
+    let (scenes, words) = described(
+        tmp_path.path(),
+        "[[scene]]\napp = \"title::TitleProc\"\n[[scene.beat]]\nid = \"title\"\n",
+        "title = { GAME() }. { PICTURE(\"push_start\") }, { PICTURE(\"gf_logo\") }.\n",
+        &[],
+        &[(("game", 0), "Pokémon Omega Ruby")],
+        None,
+        &quiet(),
+        None,
+    )?;
+    let mut said: Vec<String> = Vec::new();
+    Scenes::with_monotonic(scenes, said_of(&words)).started(
+        "title::TitleProc",
+        None,
+        &mut |text: &str| said.push(text.to_string()),
+    )?;
+    assert_eq!(said, ["Pokémon Omega Ruby. Press Start, gf logo."]);
+    Ok(())
+}
+
 /// ADR-0038: a paused emulator holds a scene's beats, and the wall clock stands in only while the
-/// game's count is not to be had or leaps (spike A).
+/// game's count is not to be had or leaps (spike 236).
 #[test]
 fn test_a_beat_is_timed_by_the_games_frames_where_they_can_be_read() -> Result<()> {
     let count: Rc<Cell<Option<i64>>> = Rc::new(Cell::new(Some(1000)));

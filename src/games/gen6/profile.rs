@@ -1887,11 +1887,14 @@ fn recall(
 }
 
 /// The game's own word for what a description names, `{ POKEMON(383) }` a Pokémon by its
-/// number, or None.
+/// number and `{ GAME() }` the game itself, or None.
 fn word_of(text: Rc<GameText>) -> Word {
     Rc::new(move |kind: &str, number: i64| {
         if kind == "place" {
             return text.place(number);
+        }
+        if kind == "game" {
+            return text.title.clone();
         }
         let said: &[String] = match kind {
             "pokemon" => &text.species,

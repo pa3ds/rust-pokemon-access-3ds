@@ -2,7 +2,7 @@
 //!
 //! The input device manager, `gfl::ui::CTR_DeviceManager`, is built as the game boots and kept
 //! through every app, and what it points at counts the frames the game has read its buttons in, 60
-//! a second from boot (spike A):
+//! a second from boot (spike 236):
 //!
 //! ```text
 //! manager  +0x0c -> the input's work

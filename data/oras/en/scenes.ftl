@@ -5,7 +5,9 @@
 ###
 ### A name the game shows is never written here: `{ POKEMON(383) }` is the game's own word out of
 ### the player's ROM, as are `{ TRAINER(235) }`, `{ ITEM(534) }`, `{ PLACE(198) }`, and a whole line
-### of the game's text drawn as a picture, `{ TEXT(123, 91) }`. `{ MEMORY(24) }` is the Pokémon the
+### of the game's text drawn as a picture, `{ TEXT(123, 91) }`, and the game's own name, `{ GAME() }`.
+### Words drawn as a picture no line holds are the picture's words in `pictures.ftl`, by its
+### texture, `{ PICTURE("push_start") }`. `{ MEMORY(24) }` is the Pokémon the
 ### player's own save keeps for the credits' 24th moment, in the form it keeps, and a beat naming one
 ### the save has not kept is left out. `{ YOURS(24) }` is the same Pokémon as the player's own: the
 ### nickname they gave it, or `scene-yours` below with its name in. Someone the game never names is
@@ -19,13 +21,14 @@
 scene-yours = your { $pokemon }
 
 # Omega Ruby's intro, from boot to the title screen, and the title screen
-# (or_intro_and_title_screen, spike A). The studio's credit, the game's name and the title
-# screen's prompt are pictures with no line in the game's text, so none is written here.
+# (or_intro_and_title_screen, spike 236). The studio's credit and the title screen's prompt are
+# pictures with no line in the game's text, said as `pictures.ftl` calls them, `{ PICTURE(...) }`;
+# the logo is the game's name, as its ROM calls it, `{ GAME() }`.
 #
 # The intro's first part, on the field's engine.
 or-intro-forest = A { POKEMON(267) } flutters among tall, dewy leaves. Below lies a small, dark pond in the forest, two small Pokémon peeking in at its edge.
 or-intro-drops = The view sinks to the water. A drop of dew falls from a leaf tip, and rings spread across the pond.
-or-intro-credit = The credit of the studio that made the game fades in over the water.
+or-intro-credit = Words fade in over the water: { PICTURE("presented_by") } { PICTURE("gf_logo") }.
 or-intro-volcano = The view rises through the plants. Beyond the forest stand two mountains under a blue sky, one a smoking volcano.
 or-intro-latios = { POKEMON(381) } swoops past low over the trees and climbs away into the sky. A flash of white.
 or-intro-island = High over the sea, { POKEMON(381) } glides past an island: a brown volcano glowing red at its crater, a yellow field of ash, green forest. It dives away in a streak of mist.
@@ -41,7 +44,29 @@ or-intro-movie-4 = Against an orange sky, the black shape of { POKEMON(383) }, a
 
 # The title screen.
 or-title-logo = The title screen. The Pokémon logo shines out of the dark among shards of red crystal, then bursts into white light.
-or-title = Under the logo, the game's name burns in red letters over a sunburst of flames, and a line of words blinks in a bar along the bottom, waiting for a button. On the bottom screen, { POKEMON(383) } looms out of smoke and embers, then fades back.
+or-title = The logo reads { GAME() }, burning in gold and red over a sunburst of flames. Along the bottom, blinking: { PICTURE("push_start") }. On the bottom screen, { POKEMON(383) } looms out of smoke and embers, then fades back.
+
+# Alpha Sapphire's intro, the same as Omega Ruby's but for Latias in Latios's place, and the same
+# boy on a girl's save (as_intro_and_title_screen); the rest of its beats are Omega Ruby's words.
+as-intro-forest = { or-intro-forest }
+as-intro-drops = { or-intro-drops }
+as-intro-credit = { or-intro-credit }
+as-intro-volcano = { or-intro-volcano }
+as-intro-latias = { POKEMON(380) } swoops past low over the trees and climbs away into the sky. A flash of white.
+as-intro-island = High over the sea, { POKEMON(380) } glides past an island: a brown volcano glowing red at its crater, a yellow field of ash, green forest. It dives away in a streak of mist.
+as-intro-bike = { or-intro-bike }
+as-intro-loop = He looks up. { POKEMON(380) } loops through the sky above him and streaks away. He closes his eyes and smiles.
+as-intro-face = { or-intro-face }
+
+# Its movie: Team Aqua's side where Omega Ruby's shows Team Magma's.
+as-intro-movie-1 = A { ITEM(4) }, drawn in strokes of paint, rushes at you. Then quick flashes: { POKEMON(319) } leaping from dark water, { POKEMON(323) } in a ring of fire, { POKEMON(382) } floating on the sea as storm clouds gather, and rain lashing a dark sea.
+as-intro-movie-2 = { or-intro-movie-2 }
+as-intro-movie-3 = { TRAINER(178) }, a dark shape in the deep among rising bubbles, then laughing as he grips his collar. Then { TRAINER(557) }, in a cave of carved walls.
+as-intro-movie-4 = Against deep blue, the black shape of { POKEMON(382) }, a light burning at its heart. A sign like the letter alpha forms in water, blue drops swirl round it, and white light floods in.
+
+# Its title screen.
+as-title-logo = The title screen. The Pokémon logo shines out of the dark among shards of blue crystal, then bursts into white light.
+as-title = The logo reads { GAME() }, glowing in gold and blue over shimmering light. Along the bottom, blinking: { PICTURE("push_start") }. On the bottom screen, { POKEMON(382) } swims through bubbles in the deep, its markings glowing white.
 
 # The opening, before the player is anywhere: the professor's lines are the rest of the game's
 # text, file 118, and the stretches between them where he says nothing are described

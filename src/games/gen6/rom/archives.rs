@@ -349,6 +349,8 @@ pub struct GameText {
     /// (zone, a furniture record's script) -> the game's shared script it runs
     /// (`plates.shared_furniture`).
     pub shared: IndexMap<(i64, i64), i64>,
+    /// What the game calls itself, "Pokémon Omega Ruby", out of the ROM's SMDH (`Rom.title`).
+    pub title: Option<String>,
 }
 
 /// `Callable[[int], Sequence[bytes]]`: a text archive's file as its lines (`lines_of`).
@@ -394,6 +396,7 @@ impl PartialEq for GameText {
             && self.items == other.items
             && self.door_signs == other.door_signs
             && self.shared == other.shared
+            && self.title == other.title
     }
 }
 
@@ -440,6 +443,7 @@ impl Default for GameText {
             lines: IndexMap::new(),
             door_signs: HashSet::new(),
             shared: IndexMap::new(),
+            title: None,
         }
     }
 }
@@ -839,6 +843,7 @@ impl GameText {
             ]),
             door_signs,
             shared: plates::shared_furniture(&read)?,
+            title: rom.title(language)?,
         };
         if layout.protagonists && !text.protagonists_hold() {
             return Err(Error::new(

@@ -57,7 +57,9 @@ the Game Boy games. Nothing here is taken from its code.
 - **Pictures the game never names**: the boy and the girl to choose from as a game begins, and
   the Trainer Passport's photos in Sun and Moon, described in pa3ds's own words.
 - **Scenes without words**, described when the `descriptions` setting is on: many in Omega Ruby
-  and Alpha Sapphire, and one in Sun so far.
+  and Alpha Sapphire, each one's intro and title screen among them, and one in Sun so far. A
+  scene you skip goes undescribed from there, and in Omega Ruby and Alpha Sapphire a description
+  waits while the emulator is paused.
 - **Footsteps** where Omega Ruby, Alpha Sapphire, X and Y play none, as on streets, floors and in
   caves: the game's own step sound, as loud as the game and Azahar would play it.
 

@@ -16,11 +16,11 @@
 //! along it, with no line before or after (Orion, 2026-10-16). A scene of an app is said as the
 //! app starts, Omega Ruby's intro before the title screen as `app::field_demo::Proc` and then
 //! `movie::MovieProc`, and let go as any other app starts: A skips the intro straight to the title
-//! screen, and what it skipped is left unsaid (spike A).
+//! screen, and what it skipped is left unsaid (spike 236).
 //!
 //! A beat's seconds are the game's, counted in its frames (`GameClock`), where a game's profile can
 //! read its count: Omega Ruby's input device manager counts 60 a second through every app, so a
-//! beat waits while the emulator is paused and keeps up with fast-forward (spike A).
+//! beat waits while the emulator is paused and keeps up with fast-forward (spike 236).
 //!
 //! Omega Ruby and Alpha Sapphire play their own scenes in rooms of their own, twin zones of one
 //! layout (Seafloor Cavern's 0x6f and 0x6e), but some lines are said in a zone both share, as
@@ -33,14 +33,17 @@
 //! When each beat is said is a game's `scenes.toml`, every language's; what it says is the message
 //! of its `id` in the language's `scenes.ftl` (ADR-0040), English's where the language has none.
 //! A name the game shows is never written into a description: `{ POKEMON(383) }` is the game's own
-//! word for Groudon, out of the player's ROM, and so are `TRAINER`, `ITEM` and `PLACE`, and a whole
-//! line of the game's text, `{ TEXT(123, 91) }`. The credits draw the player's own Pokémon, which the
-//! save records as the story goes: `{ MEMORY(24) }` is the one it keeps for the 24th moment, in the
-//! form it keeps, read from the save as the beat is said (spike 222), and `{ YOURS(24) }` the same
-//! Pokémon as the player's: the nickname they gave it, where they still have it, or else
-//! `scene-yours` with its name in, "your Mega Latios" (Orion, 2026-10-16). Someone the game never
-//! names is `{ SPRITE(179) }`, called what a speaker drawn as sprite 179 is (`pa3ds.core.names`):
-//! the player's own name for them first, so a rename is heard in the next beat (`Described`).
+//! word for Groudon, out of the player's ROM, and so are `TRAINER`, `ITEM` and `PLACE`, a whole
+//! line of the game's text, `{ TEXT(123, 91) }`, and the game's own name, `{ GAME() }`. Words the
+//! game draws as a picture that no line of its text holds are the picture's words in
+//! `pictures.ftl`, `{ PICTURE("push_start") }`, as on any screen. The credits draw the player's own
+//! Pokémon, which the save records as the story goes: `{ MEMORY(24) }` is the one it keeps for the
+//! 24th moment, in the form it keeps, read from the save as the beat is said (spike 222), and
+//! `{ YOURS(24) }` the same Pokémon as the player's: the nickname they gave it, where they still
+//! have it, or else `scene-yours` with its name in, "your Mega Latios" (Orion, 2026-10-16).
+//! Someone the game never names is `{ SPRITE(179) }`, called what a speaker drawn as sprite 179 is
+//! (`pa3ds.core.names`): the player's own name for them first, so a rename is heard in the next
+//! beat (`Described`).
 //!
 //! The Python's `Scenes` keeps the callable it says each beat with, the announcements'
 //! `narrate`; here the profile owns the announcements through `&mut`, so it hands the callable to
@@ -65,6 +68,7 @@ use regex::Regex;
 
 use crate::core::toml;
 use crate::core::words::{Function, Words, current};
+use crate::games::common::pictures;
 use crate::games::common::text::{PAGE_BREAKS, Token, tokens};
 use crate::py::{self, Kind, Log, Result};
 
@@ -108,6 +112,12 @@ pub const FRAMES_A_SECOND: i64 = 60;
 /// The most frames the game's count may move on between two looks and be believed, 100 s of
 /// game: more is a count read from another game, or from memory that is no longer the count.
 pub const LEAP: i64 = 6_000;
+/// The function that puts in what the game calls itself, out of the ROM: `{ GAME() }`, "Pokémon
+/// Omega Ruby", the words of its title screen's logo.
+pub const GAME: &str = "GAME";
+/// The function that puts in a picture's words, `{ PICTURE("push_start") }`, by its texture's
+/// name: what `pictures.ftl` calls it, or words made from the name (`common.pictures`).
+pub const PICTURE: &str = "PICTURE";
 /// How the player's own Pokémon they never named is said, its name `$pokemon`: "your Mega
 /// Latios".
 pub const YOURS: &str = "scene-yours";
@@ -461,6 +471,24 @@ impl Described {
                 }),
             );
         }
+        functions.insert(
+            GAME.to_string(),
+            Rc::new(move |values| {
+                if !values.is_empty() {
+                    return None;
+                }
+                word("game", 0)
+            }),
+        );
+        functions.insert(
+            PICTURE.to_string(),
+            Rc::new(|values| {
+                let [texture] = values else {
+                    return None;
+                };
+                Some(pictured(texture))
+            }),
+        );
         let words = Rc::new(current().with_functions(functions)?);
         *these.borrow_mut() = Rc::downgrade(&words);
         Ok(Described { words, checking })
@@ -479,6 +507,19 @@ impl Described {
     pub fn said(&self, message: &str) -> Option<String> {
         self.words.get(message, &[])
     }
+}
+
+/// A picture's words by its texture's name (`pictures.words`). `str(texture)` of a number, which
+/// no file passes, is written as an int where it has no fraction.
+fn pictured(texture: &crate::core::words::Value) -> String {
+    let texture = match texture {
+        crate::core::words::Value::Text(text) => text.clone(),
+        crate::core::words::Value::Number(number) if number.fract() == 0.0 => {
+            (*number as i64).to_string()
+        }
+        crate::core::words::Value::Number(number) => py::float_repr(*number),
+    };
+    pictures::words(&texture)
 }
 
 /// `int(str(number))` of a value Fluent hands a function: a number written without a fraction.

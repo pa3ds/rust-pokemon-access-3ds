@@ -42,7 +42,40 @@ pub fn rom_image(files: &[(&str, &[u8])], title: i64) -> Vec<u8> {
 
 /// `rom_image(files, title, encrypted)`.
 pub fn rom_image_with(files: &[(&str, &[u8])], title: i64, encrypted: bool) -> Vec<u8> {
-    let romfs = romfs(files);
+    rom_image_full(files, title, encrypted, &[])
+}
+
+/// `rom_image(files, title, names=names)`.
+pub fn rom_image_named(files: &[(&str, &[u8])], title: i64, names: &[&str]) -> Vec<u8> {
+    rom_image_full(files, title, false, names)
+}
+
+/// An NCSD image whose first partition is an NCCH with this program id and these files, and
+/// with `names`, an ExeFS whose SMDH calls the game so in each of its languages in order.
+pub fn rom_image_full(
+    files: &[(&str, &[u8])],
+    title: i64,
+    encrypted: bool,
+    names: &[&str],
+) -> Vec<u8> {
+    let mut romfs = romfs(files);
+    romfs.extend(padding(&romfs, UNIT));
+    let exefs = if !names.is_empty() {
+        let mut smdh = b"SMDH".to_vec();
+        smdh.extend(vec![0; 4 + 16 * 0x200]);
+        for (index, name) in names.iter().enumerate() {
+            let encoded: Vec<u8> = name.encode_utf16().flat_map(u16::to_le_bytes).collect();
+            put(&mut smdh, 8 + index * 0x200, &encoded);
+        }
+        let mut exefs = vec![0; UNIT as usize];
+        put(&mut exefs, 0, b"icon");
+        put(&mut exefs, 8, &pack(&[(0, 4), (smdh.len() as i64, 4)]));
+        exefs.extend(smdh);
+        exefs.extend(padding(&exefs, UNIT));
+        exefs
+    } else {
+        Vec::new()
+    };
     let mut ncsd = vec![0; UNIT as usize];
     put(&mut ncsd, 0x100, b"NCSD");
     let ncch_units = 1;
@@ -55,9 +88,19 @@ pub fn rom_image_with(files: &[(&str, &[u8])], title: i64, encrypted: bool) -> V
     put(
         &mut ncch,
         0x1B0,
-        &pack(&[(1, 4), ((romfs.len() as i64 + UNIT - 1) / UNIT, 4)]),
+        &pack(&[(1, 4), (romfs.len() as i64 / UNIT, 4)]),
     );
-    [ncsd, ncch, romfs].concat()
+    if !exefs.is_empty() {
+        put(
+            &mut ncch,
+            0x1A0,
+            &pack(&[
+                (1 + romfs.len() as i64 / UNIT, 4),
+                (exefs.len() as i64 / UNIT, 4),
+            ]),
+        );
+    }
+    [ncsd, ncch, romfs, exefs].concat()
 }
 
 struct Dir {
