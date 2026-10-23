@@ -103,13 +103,29 @@ may-room-3 = You stand at the top of the stairs, in a corner of her room.
 # "Pokémon fully restored, items all ready, and..."
 may-turns-1 = She turns round, starts at the sight of you, and walks over.
 
+# "[name], I'll see you later!"
+may-leaves-1 = She grins, then walks past you and down the stairs, leaving you alone in her room.
+
+# Brendan, before he says his name (or_opening_as_a_girl, Omega Ruby): his mother's "He should be in
+# his room upstairs", then a demo of 9 s of his room, and the player arrives in it.
+brendan-room-1 = A bedroom upstairs: a window with light blue curtains, a bed with pale covers under it, a desk by the wall, a map on the wall. A boy stands at the desk with his back to you, his hands raised to the white hat on his head.
+brendan-room-2 = Up close, he leafs through a notebook on the desk, then grips the strap of his bag with a little smile.
+brendan-room-3 = You stand at the top of the stairs, in a corner of his room.
+
+# "Pokémon fully restored... Items all packed, and..."
+brendan-turns-1 = He turns round and walks over to you.
+
+# "Some other time, OK?"
+brendan-leaves-1 = He grins, then walks past you and down the stairs, leaving you alone in his room.
+
 # Route 102 (movie4_petalburg): "Look! Up there! Check 'em out, [name]!", 15 s before she names
 # what they saw.
 may-beautifly-1 = You and { TRAINER(4) } stand side by side in the tall grass, facing a line of pines. Three butterfly Pokémon flutter out of the trees on bright yellow and black wings.
 may-beautifly-2 = They flutter past the trees toward the red roofs of a town.
 may-beautifly-3 = They climb into the sky and drift away among the clouds.
 
-# Its twin for a girl: Brendan's "Whoa! Check 'em out, [name]!", composed from May's.
+# Its twin for a girl: Brendan's "Whoa! Check 'em out, [name]!", composed from May's, and seen
+# (or_beautifly_scene_as_a_girl).
 brendan-beautifly-1 = You and { TRAINER(1) } stand side by side in the tall grass, facing a line of pines. Three butterfly Pokémon flutter out of the trees on bright yellow and black wings.
 brendan-beautifly-2 = They flutter past the trees toward the red roofs of a town.
 brendan-beautifly-3 = They climb into the sky and drift away among the clouds.
@@ -572,3 +588,117 @@ sky-pillar-hiyyup-1 = The uniform goes flying. Beneath it is a young woman with 
 or-aster-1 = The view rises far above the tower, its top a small stone triangle in a sea of purple clouds.
 
 as-aster-1 = The view rises far above the tower, its top a small stone triangle in a sea of white clouds.
+
+# Zinnia's tale, a chapter a floor of the Sky Pillar (or_sky_pillar_1 to 5, spike 237): the painted
+# wall each chapter shows, Omega Ruby's, and her leaving at each chapter's end.
+or-tale-1 = The view turns to the wall, painted dark brown on pale stone: a row of tiny people with their arms raised along the top, a falling star between two clouds, and great dark swirls and jagged shapes below, tiny figures among them.
+or-tale-2 = The screen dims, and the painted wall comes back: the row of tiny people, holding hands now, and the falling star beneath them.
+or-tale-2b = The view climbs the wall. Above the people, a great dark band arches over two tall towers like ladders and an eye-like mark in a ring.
+or-tale-3 = The painted wall again: the people holding hands beneath the eye-like mark and its two towers.
+or-tale-3b = A long dark shape, spiked along its back, plunges down the wall toward them, and above it a great winged shape spreads out.
+or-tale-4 = The painted wall: a great face with curling horns and wide round eyes.
+or-tale-4b = The view moves to a tall painted tower with a peaked roof.
+or-tale-5 = The painted wall: a tall tower with a peaked roof, tiny people standing along its top with their arms raised, a cloud on one side and a ringed sun on the other.
+or-tale-5b = The view drifts over rows of painted triangles and circles, packed close.
+tale-zinnia-gone-1 = { TRAINER(713) } is gone. You stand alone.
+tale-zinnia-gone-2 = { TRAINER(713) } is gone. You stand alone.
+tale-zinnia-gone-3 = { TRAINER(713) } is gone. You stand alone.
+tale-zinnia-gone-4 = { TRAINER(713) } is gone. You stand alone.
+tale-zinnia-gone-5 = { TRAINER(713) } is gone. You stand alone.
+
+# Rayquaza summoned at the Sky Pillar's top (or_sky_pillar_6, spike 237). Zinnia is the game's own
+# word for her, the trainer she is, `{ TRAINER(713) }`.
+#
+# "...The show is about to start.": what the climb up showed, before her first line.
+summit-stars-1 = You come out onto the top of the tower, a stone triangle among the clouds, under a starry night sky. Far off at its point, { TRAINER(713) } stands with her back to you, her { POKEMON(293) } beside her, both gazing up at the stars.
+# "Aren't we happy now?"
+summit-walk-up-1 = She turns to smile at her { POKEMON(293) }, and you walk up behind them.
+# "That is my... It is our duty."
+summit-turns-away-1 = She turns her back to you, toward the altar, and the view rises to the stars.
+# "Just a little longer..."
+summit-night-passes-1 = The view rises to the starry sky.
+summit-night-passes-2 = Everything goes black.
+# "Mur, mur!"
+summit-wakes-1 = The light comes back. { TRAINER(713) } smiles down at her { POKEMON(293) }.
+# "Please... Take this little one..."
+summit-steps-forward-1 = She walks away from you to the middle of the altar, leaving her { POKEMON(293) } at your side.
+# "The Key Stones that Zinnia holds are giving off a blinding light!"
+summit-light-1 = Seen from high above, a light at the middle of the tower's top swells until everything is white.
+# "...Ugh...ngh...gh..."
+summit-pain-1 = She hunches over, hands clasped at her chest, grimacing.
+# "Rayquazaaa!!!"
+summit-rayquaza-comes-1 = The view rises high above the tower. A flash of white.
+summit-rayquaza-comes-2 = Green light ripples across the night sky, and a long green serpent of a Pokémon coils down out of it toward the tower: { POKEMON(384) }.
+# "Kiryararararahhh!!!"
+summit-rayquaza-lands-1 = { POKEMON(384) } lands on the tower's top before { TRAINER(713) } and you, its great coils piled around it.
+# "This...can't...be..."
+summit-kneels-1 = { TRAINER(713) } sinks to her knees in front of you, head bowed.
+# "The glow of [name]'s Meteorite grew even stronger!"
+summit-meteorite-1 = White light fills everything.
+# "Kiryarararaaahhh!!!"
+summit-swallows-1 = { POKEMON(384) } lunges at you out of a burst of green light, jaws wide.
+# "Light is spilling forth from within Rayquaza's body!"
+summit-glows-1 = { POKEMON(384) } rears up straight, and the light swells until everything is white.
+summit-glows-2 = The light fades. { POKEMON(384) } lies coiled at the top of the altar, looking down on you and { TRAINER(713) }.
+# "It's you! You have to do this!"
+summit-rayquaza-waits-1 = Seen from behind you, steps lead up to the altar, where { POKEMON(384) } waits, coiled.
+
+# After Zinnia's battle (or_sky_pillar_7): "You and Rayquaza must protect nature...Pokémon...the
+# people...", then the demo of the flight to space, Omega Ruby's.
+or-to-space-1 = Day has come on the tower's top. Seen past { TRAINER(713) }, you stand beside { POKEMON(384) } in a red suit and a round dark helmet.
+or-to-space-2 = { TRAINER(713) } smiles, a hand on her chest, her { POKEMON(293) } at her side.
+or-to-space-3 = You climb onto { POKEMON(384) }'s back.
+or-to-space-4 = The tower stands alone against the blue sky. A green flash, and a beam of green light shoots up from its top.
+or-to-space-5 = Far below, the tower is a speck in the sea, lit green and gold. On its top, { TRAINER(713) } and her { POKEMON(293) } look up.
+or-to-space-6 = { POKEMON(384) } shoots upward in a blaze of green light, golden rings on its body now, you on its back. A streak of light climbs through the sky.
+or-to-space-7 = Space: stars and drifting purple clouds of light, the curve of the earth below.
+or-to-space-8 = { POKEMON(384) } streaks on through space, glowing, with you on its back.
+or-to-space-9 = Ahead hangs a huge dark red rock.
+or-to-space-10 = { POKEMON(384) } pierces it in a streak of green. The rock bursts into great pieces above the earth.
+or-to-space-11 = Among the drifting pieces, a small dark triangle floats closer.
+or-to-space-12 = It is a red pyramid. Black ribbons uncurl from it.
+or-to-space-13 = The ribbons turn orange and blue, and the pyramid opens into a Pokémon: { POKEMON(386) }, orange and blue, a purple gem in its chest.
+or-to-space-14 = Green sparkles trail across the blue sky above the clouds.
+or-to-space-15 = The view sinks to the tower's top, standing alone above the clouds.
+or-to-space-16 = You stand on the tower's top again, facing the altar. { TRAINER(713) }'s { POKEMON(293) } walks up behind you.
+
+# The last visits round Hoenn (or_sky_pillar_7 from its state after Zinnia's battle, 2026-10-23),
+# a boy's, the Space Center's control room in the words of the Delta Episode's start.
+# Professor Birch is { SPRITE(179) }, and his wife, whom the game calls only "Woman", the
+# professor's wife.
+# "Mur murrr!"
+letter-1 = It scampers off, and you stand alone.
+letter-2 = Seen from high above, the tower's top stands among the clouds, you small upon it.
+# "Until we meet again, Zinnia"
+letter-3 = The view rises into the blue sky.
+epilogue-space-center-1 = A control room: rows of desks with glowing monitors under a great screen. Scientists sit at them, and { SPRITE(310) }, an old man in a white coat, stands among them.
+# "Thank you, [name]."
+epilogue-wally-1 = A living room by a kitchen. { TRAINER(518) } walks toward the door, and his mother and father stand behind him.
+# "I can't wait to go and check it out!"
+epilogue-wally-2 = { TRAINER(518) } walks out of the door.
+# "...that I can't help feeling happy, too."
+epilogue-magma-1 = A dim room trimmed in red. { TRAINER(235) } sits at the head of a long table under a red banner, head bowed, and { TRAINER(691) } stands by a model sailing ship. { TRAINER(694) } stands at the table's near end, facing { TRAINER(235) }.
+# "And that settles that!"
+epilogue-league-1 = A tall stone hall, light slanting in through high arched windows. { TRAINER(557) } stands at the foot of steps up to a dark doorway, and { TRAINER(572) } walks up to him.
+# "Thank you, my friend..."
+epilogue-league-2 = { TRAINER(572) } walks away, and { TRAINER(557) } turns to watch him go.
+epilogue-falls-1 = A great waterfall pours down into a cave. { TRAINER(713) } stands at the edge of a sandy ledge with her back to you, gazing at it, her { POKEMON(293) } beside her.
+# "It's all over..."
+epilogue-falls-2 = An old woman in a white headband walks up, and { TRAINER(713) } turns to her.
+# "... Yes."
+epilogue-falls-3 = { TRAINER(713) } walks away down the steps, leaving her { POKEMON(293) } beside the old woman.
+epilogue-parents-1 = A living room by a kitchen, evening light in the window. { SPRITE(179) } stands by the TV and { TRAINER(570) } beside him, while your mother and the professor's wife sit at a pink table.
+# "How about our little boy's favorite?"
+epilogue-parents-2 = { TRAINER(570) } and your mother go into the kitchen to cook, and { SPRITE(179) } and his wife walk out.
+epilogue-litleonids-1 = A hall with a model rocket in a roped-off ring at its middle. You stand before it.
+epilogue-litleonids-2 = { TRAINER(4) } walks up behind you, and the two of you look around the hall.
+epilogue-litleonids-3 = At a shop counter, { TRAINER(4) } looks over shelves of souvenirs.
+epilogue-litleonids-4 = { TRAINER(4) } puts her face through a cut-out of an astronaut holding an orange flag, the earth behind, and smiles at you.
+epilogue-litleonids-5 = The two of you sit side by side on a bench before a great window, looking out over the sea and the town.
+# "Time really flies when you're having fun..."
+epilogue-home-1 = Night. Lights glow in the windows of the houses on either side of the path, and you and { TRAINER(4) } walk down it together.
+# "See you tomorrow!"
+epilogue-home-2 = { TRAINER(4) } goes into her house, and you walk to your own door.
+# "You're back at last! Welcome home, [name]!"
+epilogue-home-3 = You go inside.
+epilogue-home-4 = You stand by your bed in your room.
