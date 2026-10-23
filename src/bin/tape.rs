@@ -218,7 +218,11 @@ fn main() -> ExitCode {
     };
     let mut all = true;
     for tape in &tapes {
-        match replay(tape, &against) {
+        // A thread a tape, as the Python replays each in an interpreter of its own: pa3ds keeps
+        // state in thread-locals, and the compass x_route_9_rhyhorn ended turned turned the next.
+        let replayed = std::thread::scope(|scope| scope.spawn(|| replay(tape, &against)).join())
+            .unwrap_or_else(|_| Err("the replay panicked".to_string()));
+        match replayed {
             Ok(same) => all &= same,
             Err(error) => {
                 println!("{}: {error}", tape.display());
