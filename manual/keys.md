@@ -7,7 +7,7 @@ When one of them is also bound to an Azahar button, pa3ds says so as it starts.
 ## The map's list
 
 pa3ds lists what is on the map in categories: all, exits, interactables, obstacles, people, items,
-berries, ash, bike, currents and pokémon, and while soaring, towns, routes, landmarks and mirage
+berries, ash, bike, riding, currents and pokémon, and while soaring, towns, routes, landmarks and mirage
 spots. A category with nothing in it is skipped. Each thing is said with where it is from you:
 "door, 1 of 3, 3 east 2 north". North is the way up walks you: where the camera is turned, as in
 Parfum Palace's garden in X, the directions turn with it.
@@ -81,6 +81,12 @@ you off it.
 
 **Jumping stones.** In Pokémon X, `P` crosses a mud pit by its stones: each press of the way hops
 you two squares, onto the next stone.
+
+**Riding Rhyhorn.** On Route 9, in X and Y, only a Rhyhorn crosses the spiky ground. The riding
+category lists each patch of flat ground, where you get on the Rhyhorn by facing it and pressing A, and get off
+with B. `P` walks you to the Rhyhorn, "Rhyhorn 1 east", across the spikes and off again, "get off
+3 north". Rocks are obstacles: on the Rhyhorn, face one and press A to smash it, which `P` says as
+"smash 1 east".
 
 **Big boulders** say which ways they can be pushed from where they stand, or "immoveable". Hold
 the way for a moment to push one a square. Push one into a hole and both leave the list.

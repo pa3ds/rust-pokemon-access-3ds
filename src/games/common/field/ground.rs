@@ -340,6 +340,8 @@ pub type Far = Rc<dyn Fn(i64, i64) -> Result<Option<Rc<Chunk>>>>;
 /// once the chunk with the wall in it loads.
 /// Water is a wall too, unless the ground is one to `surf`, and a bush or a rock a move clears
 /// unless it is one to clear them (`hm`), and a waterfall unless it is one to climb it (`falls`).
+/// So is ground only a ridden Pokémon crosses, but to a player riding one or getting on it on
+/// the way (`ride`), and a thing it smashes, but to a player riding it (`smashed`).
 #[derive(Clone)]
 pub struct Ground {
     pub chunks: Vec<Rc<Chunk>>,
@@ -452,6 +454,21 @@ pub struct Ground {
     ///
     /// A `frozenset` is a `HashSet`: it is only tested.
     pub crowd: HashSet<Cell>,
+    /// The cell kinds only a player riding a Pokémon crosses, blocked bit and all, as X's Rhyhorn
+    /// crosses Route 9's spiky ground (`ride`, spike 238); none in a game without one.
+    pub rides: HashSet<i64>,
+    /// The kinds of the flat ground beside them, walked on foot and riding: the only ground a way
+    /// gets onto them from, and off them onto.
+    pub stops: HashSet<i64>,
+    /// Whether the player is riding the Pokémon now (`mounted`).
+    pub riding: bool,
+    /// The cells of a Pokémon waiting on flat ground to be ridden, where a player on foot steps
+    /// in and is riding; none while they ride. Nobody stands in them.
+    pub mounts: HashSet<Cell>,
+    /// The cells of the things the ridden Pokémon smashes with A, stepped into only riding, faced
+    /// and smashed first (`ride`, `toll`), and open from then on: Route 9's rocks, smashed on the
+    /// Rhyhorn, needing no HM (spike 238). Nobody stands in them; on foot they are in the way.
+    pub smashed: HashSet<Cell>,
 }
 
 /// `Ground.lanes`: each cell of a street laid on the grid, with each step its ways allow and the
@@ -489,6 +506,11 @@ impl Default for Ground {
             strands: 0,
             lanes: Rc::new(IndexMap::new()),
             crowd: HashSet::new(),
+            rides: HashSet::new(),
+            stops: HashSet::new(),
+            riding: false,
+            mounts: HashSet::new(),
+            smashed: HashSet::new(),
         }
     }
 }
@@ -524,6 +546,11 @@ impl fmt::Debug for Ground {
             .field("strands", &self.strands)
             .field("lanes", &self.lanes)
             .field("crowd", &self.crowd)
+            .field("rides", &self.rides)
+            .field("stops", &self.stops)
+            .field("riding", &self.riding)
+            .field("mounts", &self.mounts)
+            .field("smashed", &self.smashed)
             .finish()
     }
 }
@@ -622,6 +649,57 @@ impl Ground {
         }
     }
 
+    /// This ground under `where`, with the kinds only a player riding crosses, `rides`, and
+    /// the flat ground beside them, `stops`; riding as `riding` judges it; the Pokémon whose
+    /// character is one of `mounts` in nobody's way; and the things drawn as one of `smashes`
+    /// smashed riding (`smashed`). One waiting on flat ground is where a player on foot gets on
+    /// (`mounts`). One ridden is not listed: its model stays where it was got on, and is put at
+    /// the player's cell whenever the map's models are built again (spike 238).
+    pub fn mounted(
+        &self,
+        r#where: &Field,
+        rides: &HashSet<i64>,
+        stops: &HashSet<i64>,
+        mounts: &HashSet<i64>,
+        smashes: &HashSet<i64>,
+    ) -> Result<Ground> {
+        let mut ground = Ground {
+            rides: rides.clone(),
+            stops: stops.clone(),
+            ..self.clone()
+        };
+        let both: HashSet<i64> = rides.union(stops).copied().collect();
+        let now = riding(r#where, &|cell| ground.kind(cell), &both)?;
+        let models = || r#where.interactables.iter().filter(|item| item.move_model);
+        let ridden: HashSet<Cell> = models()
+            .filter(|item| mounts.contains(&item.code))
+            .flat_map(|item| item.cells())
+            .collect();
+        let rocks: HashSet<Cell> = models()
+            .filter(|item| smashes.contains(&item.code))
+            .flat_map(|item| item.cells())
+            .collect();
+        let mut waiting: HashSet<Cell> = HashSet::new();
+        if !now {
+            for &cell in &ridden {
+                if ground.kind(cell)?.is_some_and(|kind| stops.contains(&kind)) {
+                    waiting.insert(cell);
+                }
+            }
+        }
+        // `standing - ridden - rocks`, in `standing`'s order.
+        ground.standing = self
+            .standing
+            .iter()
+            .filter(|cell| !ridden.contains(cell) && !rocks.contains(cell))
+            .copied()
+            .collect();
+        ground.riding = now;
+        ground.mounts = waiting;
+        ground.smashed = rocks;
+        Ok(ground)
+    }
+
     /// Whether the player can stand in the cell: on a stacked ground, on any floor of it
     /// (`open_at` with no height).
     pub fn open(&self, cell: Cell) -> Result<bool> {
@@ -660,10 +738,11 @@ impl Ground {
         let Some(chunk) = self.chunk(cell)? else {
             return Ok(true);
         };
-        Ok(
-            (chunk.walkable(cell)? || self.filled.contains(&cell) || chunk.kind(cell)? == STONE)
-                && (self.surf || !chunk.water(cell)?),
-        )
+        Ok((chunk.walkable(cell)?
+            || self.filled.contains(&cell)
+            || chunk.kind(cell)? == STONE
+            || self.rides.contains(&chunk.kind(cell)?))
+            && (self.surf || !chunk.water(cell)?))
     }
 
     /// On a stacked ground, each floor open in the cell, by its place among its chunk's floors,
@@ -912,9 +991,11 @@ impl Ground {
 
     /// What a move from `cell` to `step` costs on top of its steps: going onto water,
     /// through what a move clears, up a waterfall, or up a slope from the foot of it on foot,
-    /// where the player gets on the bike first; through a big boulder or somebody of `crowd`,
-    /// `SHOVE`; and along a street a way it does not run, which the keys never walk and a way
-    /// takes only where the cells laid on the grid leave it no other (`lanes`).
+    /// where the player gets on the bike first, or into a Pokémon waiting to be ridden, faced and
+    /// got on with A (`mounts`), or into a thing it smashes, faced and smashed with A
+    /// (`smashed`); through a big boulder or somebody of `crowd`, `SHOVE`; and along a street a
+    /// way it does not run, which the keys never walk and a way takes only where the cells laid
+    /// on the grid leave it no other (`lanes`).
     pub fn toll(&self, cell: Cell, step: Cell) -> Result<i64> {
         if self.cleared.get(&step) == Some(&STRENGTH) || self.crowd.contains(&step) {
             return Ok(SHOVE);
@@ -922,7 +1003,11 @@ impl Ground {
         if self.off_lane(cell, step) {
             return Ok(2 * pathfind::TURN);
         }
-        if self.cleared.contains_key(&step) || (self.water(step)? && !self.water(cell)?) {
+        if self.cleared.contains_key(&step)
+            || (self.water(step)? && !self.water(cell)?)
+            || (self.mounts.contains(&step) && !self.mounts.contains(&cell))
+            || self.smashed.contains(&step)
+        {
             return Ok(BOARD);
         }
         if (!self.bike && self.hopping(cell, step)) || self.climbing(cell, step) {
@@ -1098,6 +1183,71 @@ impl Ground {
             && ways.is_none_or(|ways| ways.contains(pathfind::towards(cell, step)))
     }
 
+    /// Whether the player is riding after a step from `cell` to `step`, riding before it or
+    /// not, or None where the step is not taken: into a Pokémon waiting to be ridden they get on
+    /// (`mounts`); into a thing it smashes (`smashed`) and onto the ground only riding crosses
+    /// (`rides`) they step only riding, onto that ground from it or from flat ground (`stops`),
+    /// and off it only onto flat ground; from flat ground onto any other they get off. On Route
+    /// 9 the Rhyhorn was got on at (19, 61), ridden onto the flat ground at (20, 61) and on onto
+    /// the spikes at (21, 61) (spike 238).
+    pub fn ride(&self, riding: bool, cell: Cell, step: Cell) -> Result<Option<bool>> {
+        // shortcut: a way that gets off stays on foot, the Pokémon left where they got off not
+        // being one to get on again; no way on Route 9 needs it, follow it if a route does.
+        if self.mounts.contains(&step) {
+            return Ok(Some(true));
+        }
+        if self.smashed.contains(&step) && !riding {
+            return Ok(None);
+        }
+        let held = |kind: Option<i64>, set: &HashSet<i64>| kind.is_some_and(|k| set.contains(&k));
+        let onto = self.kind(step)?;
+        if held(onto, &self.rides) {
+            let from = self.kind(cell)?;
+            return Ok(
+                if riding && (held(from, &self.rides) || held(from, &self.stops)) {
+                    Some(true)
+                } else {
+                    None
+                },
+            );
+        }
+        if held(onto, &self.stops) {
+            return Ok(Some(riding));
+        }
+        Ok(if held(self.kind(cell)?, &self.rides) {
+            None
+        } else {
+            Some(false)
+        })
+    }
+
+    /// Whether the player is riding on each cell of `path`, from `riding` on its first, or
+    /// None from the first step not taken (`ride`).
+    pub fn rode(&self, path: &[Cell]) -> Result<Vec<Option<bool>>> {
+        let mut out: Vec<Option<bool>> = vec![Some(self.riding)];
+        for pair in path.windows(2) {
+            let next = match out[out.len() - 1] {
+                None => None,
+                Some(last) => self.ride(last, pair[0], pair[1])?,
+            };
+            out.push(next);
+        }
+        Ok(out)
+    }
+
+    /// The cell's kind, as far as a loaded chunk or the ROM's says.
+    fn kind(&self, cell: Cell) -> Result<Option<i64>> {
+        let chunk = if self.corridor.is_some() {
+            None
+        } else {
+            self.chunk(cell)?
+        };
+        match chunk {
+            Some(chunk) => Ok(Some(chunk.kind(cell)?)),
+            None => Ok(None),
+        }
+    }
+
     /// The key that walks a step along or across a street, where it is one: up walks Route
     /// 7's north-west (`lanes`). None off the streets, where a way is walked by the compass.
     pub fn key(&self, cell: Cell, step: Cell) -> Option<&'static str> {
@@ -1211,7 +1361,10 @@ impl Ground {
         // A bush or a rock is walked up to and cleared from there, with HMs or not.
         let mut onto: IndexMap<Cell, Option<&'static str>> = IndexMap::new();
         for &cell in &cells {
-            if self.open_at(cell, item.height)? && !self.cleared.contains_key(&cell) {
+            if self.open_at(cell, item.height)?
+                && !self.cleared.contains_key(&cell)
+                && !self.smashed.contains(&cell)
+            {
                 onto.insert(cell, None);
             }
         }
@@ -1419,14 +1572,17 @@ impl Ground {
     }
 
     /// What a search from `start` is given to walk the sea's currents, which carry the player
-    /// their own way; through the ground's rotating doors, where they stand now and what each
-    /// step does to them; and on a stacked ground the floor each step is on, the player's
-    /// first, the last of the turns.
+    /// their own way; on a ground a ridden Pokémon crosses, whether the player is riding, the
+    /// first of the turns, 1 riding (`ride`); through the ground's rotating doors, where they
+    /// stand now and what each step does to them; and on a stacked ground the floor each step is
+    /// on, the player's first, the last of the turns.
     fn walk(&self, start: Cell) -> Result<Walk<'_>> {
-        if self.doors.is_empty() && !self.stacked {
+        let ride = !self.rides.is_empty();
+        if self.doors.is_empty() && !self.stacked && !ride {
             return Ok(Walk {
                 ground: self,
                 active: false,
+                ride,
                 turns: Vec::new(),
                 crossings: None,
             });
@@ -1438,19 +1594,18 @@ impl Ground {
         } else {
             Some(self.crossings())
         };
-        if !self.stacked {
-            return Ok(Walk {
-                ground: self,
-                active: true,
-                turns: self.turns(),
-                crossings,
-            });
+        let mut turns: Vec<i64> = Vec::new();
+        if ride {
+            turns.push(self.riding as i64);
         }
-        let mut turns = self.turns();
-        turns.push(self.floor(start, self.level)?);
+        turns.extend(self.turns());
+        if self.stacked {
+            turns.push(self.floor(start, self.level)?);
+        }
         Ok(Walk {
             ground: self,
             active: true,
+            ride,
             turns,
             crossings,
         })
@@ -1487,6 +1642,8 @@ impl Ground {
 struct Walk<'a> {
     ground: &'a Ground,
     active: bool,
+    /// Whether the first of the turns is whether the player is riding.
+    ride: bool,
     turns: pathfind::Turns,
     crossings: Option<Rc<HashMap<(Cell, Cell), i64>>>,
 }
@@ -1502,10 +1659,19 @@ struct Arrives<'a> {
 impl Walk<'_> {
     fn through(&self, turns: &[i64], cell: Cell, step: Cell) -> Result<Option<pathfind::Turns>> {
         let ground = self.ground;
-        let doors = if ground.stacked {
-            &turns[..turns.len() - 1]
+        let rode = if self.ride {
+            ground.ride(turns[0] != 0, cell, step)?
         } else {
-            turns
+            Some(false)
+        };
+        let Some(rode) = rode else {
+            return Ok(None);
+        };
+        let rest = if self.ride { &turns[1..] } else { turns };
+        let doors = if ground.stacked {
+            &rest[..rest.len() - 1]
+        } else {
+            rest
         };
         let after = if ground.doors.is_empty() {
             Some(Vec::new())
@@ -1515,13 +1681,15 @@ impl Walk<'_> {
         let Some(mut after) = after else {
             return Ok(None);
         };
-        if !ground.stacked {
-            return Ok(Some(after));
+        if ground.stacked {
+            let Some(floor) = ground.climb(rest[rest.len() - 1], cell, step)? else {
+                return Ok(None);
+            };
+            after.push(floor);
         }
-        let Some(floor) = ground.climb(turns[turns.len() - 1], cell, step)? else {
-            return Ok(None);
-        };
-        after.push(floor);
+        if self.ride {
+            after.insert(0, rode as i64);
+        }
         Ok(Some(after))
     }
 }
@@ -1532,6 +1700,18 @@ impl Arrives<'_> {
         let floor = at.unwrap_or(self.own);
         Ok(floor == ANY_FLOOR || floor == turns[turns.len() - 1])
     }
+}
+
+/// Whether the player rides a Pokémon over `ground`, the kinds it crosses and the flat ground
+/// beside them: the bike's bits set, which the ride sets too (`Field.on_bike`), on a cell `kind`
+/// says is of one of them. On Route 9 the Rhyhorn set +0x06 to 0x21 and +0x07 to 0x03, as the
+/// bike does (spike 238).
+pub fn riding(
+    r#where: &Field,
+    kind: &dyn Fn(Cell) -> Result<Option<i64>>,
+    ground: &HashSet<i64>,
+) -> Result<bool> {
+    Ok(r#where.on_bike && kind(r#where.cell)?.is_some_and(|kind| ground.contains(&kind)))
 }
 
 /// Whether the cell can be walked, or None when no loaded chunk holds it.

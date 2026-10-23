@@ -80,6 +80,10 @@ pub const MODEL_SOURCE: i64 = 13 << 32;
 /// player go round one place (spike 208).
 pub const CURRENT_SOURCE: i64 = 14 << 32;
 
+/// A patch of flat ground's source, where a ridden Pokémon is got on and off: `RIDE_SOURCE | x <<
+/// 12 | z`, its first cell (spike 238).
+pub const RIDE_SOURCE: i64 = 15 << 32;
+
 /// A place's `source` from its kind's tag and its own number. The number must leave the tag's
 /// bits clear, and no u16 the game holds can reach them, so one that does is a new encoding
 /// written wider than the tag allows for: a programmer's error, refused here rather than keyed as
@@ -144,8 +148,12 @@ pub const OBSTACLES: &str = "obstacles";
 /// teleporter is by where it comes out (Orion, 2026-10-13).
 pub const CURRENTS_CATEGORY: &str = "currents";
 
+/// The flat ground a ridden Pokémon is got on and off on, a category of its own: "not sure when you
+/// can get off rhyhorn so that prob need its own category" (Khai, 2026-10-22).
+pub const RIDING: &str = "riding";
+
 /// In the order they are walked and logged.
-pub const CATEGORIES: [&str; 10] = [
+pub const CATEGORIES: [&str; 11] = [
     "exits",
     "signs",
     OBSTACLES,
@@ -154,6 +162,7 @@ pub const CATEGORIES: [&str; 10] = [
     BERRIES,
     ASH,
     BIKE,
+    RIDING,
     CURRENTS_CATEGORY,
     POKEMON,
 ];
@@ -162,8 +171,8 @@ pub const CATEGORIES: [&str; 10] = [
 #[derive(Debug, Clone, PartialEq)]
 pub struct Interactable {
     /// One of `CATEGORIES`: `exits`, `signs`, `obstacles`, `people`, `items`, `berries`, `ash`,
-    /// `bike`, `currents` or `pokémon`, or in the sky `towns`, `routes`, `landmarks` or `mirage
-    /// spots`.
+    /// `bike`, `riding`, `currents` or `pokémon`, or in the sky `towns`, `routes`, `landmarks` or
+    /// `mirage spots`.
     pub category: String,
     /// What it is, in pa3ds's own words: `door`, `sign`, `PC`, `person`, `item ball`, `edge`,
     /// `berry spot`, `ash pile`, `hidden Pokémon`, `barrier`, `switch`, `passage`, `trapdoor`,

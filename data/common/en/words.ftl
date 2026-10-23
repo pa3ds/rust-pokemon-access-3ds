@@ -52,6 +52,7 @@ category-items = items
 category-berries = berries
 category-ash = ash
 category-bike = bike
+category-riding = riding
 category-currents = currents
 category-pokemon = pokémon
 # A category chosen, with how many things are in it.
@@ -138,6 +139,11 @@ how-push = push
 # them: "Surf 3 south, ride the current 28 west 4 north" (Orion, 2026-10-13).
 how-ride-the-current = ride the current
 p-current = ride the current { $bearing }
+# The step off a ridden Pokémon, from flat ground onto plain ground, and the rest of its leg: "get
+# off 3 north" (spike 238). Getting on is said with the Pokémon's own name: "Rhyhorn 1 east".
+how-get-off = get off
+# The step into a rock the ridden Pokémon smashes with A: "smash 1 east" (spike 238).
+how-smash = smash
 # The way chosen to push a big boulder, before the way to its side: "to push east: 3 west".
 p-to-push = to push { $way }:
 # A step to line up with the next leg, where a wall's corner would catch the player: "a little
@@ -271,6 +277,7 @@ kind-barrier = barrier
 kind-hole = hole
 kind-dive-spot = dive spot
 kind-current = current
+kind-flat-ground = flat ground
 kind-slope = slope
 kind-bumpy-slope = bumpy slope
 kind-rail = rail

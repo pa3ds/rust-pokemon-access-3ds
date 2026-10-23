@@ -40,7 +40,7 @@ use crate::games::gen6::field::zonedata::{
 use crate::games::gen6::field::zonetable::{
     INFO_KIND, INFO_MATRIX, INFO_NAME, INFO_PARENT, INFO_SETTING, INFO_SIZE, UNDERWATER,
 };
-use crate::games::gen6::game::{FeatureFactory, FurnitureKind, Game, SecretBaseFactory};
+use crate::games::gen6::game::{FeatureFactory, FurnitureKind, Game, Rides, SecretBaseFactory};
 use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::rom::maps::{ChunkSource, StreetSource};
 use crate::games::oras;
@@ -3346,6 +3346,103 @@ fn test_a_dive_spot_is_an_exit_at_its_patchs_cell_nearest_the_player() -> Result
     assert_eq!(seen, [((86, 167), (1, 1)), ((100, 165), (1, 1))]);
     let sources: HashSet<i64> = dives.iter().map(|item| item.source).collect();
     assert_eq!(sources.len(), 2);
+    Ok(())
+}
+
+/// Route 9's ride as `Rides`, smashing `smashes`.
+fn route_9(smashes: &[i64]) -> Rides {
+    Rides {
+        ground: HashSet::from([0x32]),
+        stops: HashSet::from([0x31]),
+        mounts: HashSet::from([0x100F]),
+        smashes: smashes.iter().copied().collect(),
+    }
+}
+
+/// Spike 238: on X's Route 9 a Rhyhorn is got on and off on flat ground, five patches between the
+/// spikes and plain ground, and Khai was "not sure when you can get off rhyhorn so that prob need
+/// its own category" (2026-10-22). A patch is one thing, at its cell nearest the player. Vaniville
+/// Town's pen round Mom's Rhyhorn is flat ground with no spikes, and nothing to ride there.
+#[test]
+fn test_flat_ground_is_listed_under_riding_a_patch_at_a_time() -> Result<()> {
+    let square: Vec<((i64, i64), i64)> = (84..87)
+        .flat_map(|x| (165..168).map(move |z| ((x, z), 0x31000020)))
+        .collect();
+    let row: Vec<((i64, i64), i64)> = (100..104).map(|x| ((x, 175), 0x31000020)).collect();
+    let spikes: Vec<((i64, i64), i64)> = (100..104).map(|x| ((x, 176), 0x32000025)).collect();
+    let mut listed: Vec<Vec<Interactable>> = Vec::new();
+    for tiles in [
+        [square.clone(), row.clone()].concat(),
+        [square.clone(), row.clone(), spikes.clone()].concat(),
+    ] {
+        let mut town = Town::new();
+        town.reader = field_reader(
+            town.memory.clone(),
+            Given::default(),
+            Game {
+                hidden: Some(dex_nav),
+                rides: Some(route_9(&[])),
+                ..game()
+            },
+        );
+        town.block_tiles(TOWN_BLOCK, TOWN_CHUNK, (80, 160), &border(160), &tiles);
+        listed.push(town.r#where()?.of("riding"));
+    }
+    let (pen, flat) = (&listed[0], &listed[1]);
+    assert!(pen.is_empty());
+    let mut seen: Vec<(String, (i64, i64))> = flat
+        .iter()
+        .map(|item| (item.kind.clone(), item.cell))
+        .collect();
+    seen.sort();
+    assert_eq!(
+        seen,
+        [
+            ("flat ground".to_string(), (86, 167)),
+            ("flat ground".to_string(), (100, 175))
+        ]
+    );
+    let sources: HashSet<i64> = flat.iter().map(|item| item.source).collect();
+    assert_eq!(sources.len(), 2);
+    Ok(())
+}
+
+/// Spike 238: on Route 9 the Rhyhorn smashes rocks with A, and while the player rode it the list
+/// said "Rhyhorn, here", its model left where it was got on.
+#[test]
+fn test_a_rock_the_rhyhorn_smashes_is_an_obstacle_and_the_ridden_rhyhorn_is_not_listed()
+-> Result<()> {
+    let mut tiles: Vec<((i64, i64), i64)> = (90..100).map(|x| ((x, 172), 0x31000020)).collect();
+    tiles.extend((90..100).map(|x| ((x, 173), 0x32000025)));
+    let mut town = Town::new();
+    town.reader = field_reader(
+        town.memory.clone(),
+        Given::default(),
+        Game {
+            hidden: Some(dex_nav),
+            rides: Some(route_9(&[0x200D])),
+            ..game()
+        },
+    );
+    town.block_tiles(TOWN_BLOCK, TOWN_CHUNK, (80, 160), &border(160), &tiles);
+    town.model(4, TOWN, 5, 0x100F, (95, 172));
+    town.model(5, TOWN, 6, 0x200D, (97, 173));
+    let on_foot = town.r#where()?;
+    let obstacles: Vec<i64> = on_foot
+        .of("obstacles")
+        .iter()
+        .map(|item| item.code)
+        .collect();
+    assert_eq!(obstacles, [0x200D]);
+    assert!(on_foot.of("people").iter().any(|item| item.code == 0x100F));
+    town.memory.write(POOL + 6, &[0x21, 0x03]);
+    assert!(
+        !town
+            .r#where()?
+            .of("people")
+            .iter()
+            .any(|item| item.code == 0x100F)
+    );
     Ok(())
 }
 

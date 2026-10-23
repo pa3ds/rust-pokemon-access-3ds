@@ -170,6 +170,23 @@ pub type ConditionsFactory = fn(
 /// `Callable[[Memory, str], OpeningReader]`.
 pub type OpeningFactory = fn(Rc<dyn Memory>, &str) -> Box<dyn OpeningReader>;
 
+/// The ground only a Pokémon the player rides crosses, as X's Rhyhorn crosses Route 9's spiky
+/// ground: a wall on foot, got onto from the flat ground beside it, where the Pokémon waits to be
+/// ridden and is got off (`Ground.mounted`, spike 238).
+///
+/// Its `frozenset`s are `HashSet`s: they are only tested.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Rides {
+    /// The cell kinds only a player riding crosses.
+    pub ground: HashSet<i64>,
+    /// The kinds of the flat ground it is got on and off on, walked on foot and riding.
+    pub stops: HashSet<i64>,
+    /// The characters of the Pokémon ridden.
+    pub mounts: HashSet<i64>,
+    /// The sprites of the things the ridden Pokémon smashes with A, in the way on foot.
+    pub smashes: HashSet<i64>,
+}
+
 /// One game as the gen 6 readers read it.
 ///
 /// Not `PartialEq`: the dataclass compares its callables by identity, which a `fn` pointer does
@@ -278,6 +295,9 @@ pub struct Game {
     /// game with none: X's Santalune Gym is a web of them, and ORAS's chunks use the same bit for
     /// other things (`Ground.strands`, spike 223).
     pub strands: i64,
+    /// What the Pokémon it lets the player ride cross, or None in a game with none: X's Rhyhorn on
+    /// Route 9 (spike 238).
+    pub rides: Option<Rides>,
     /// Whether a row of models drawn as nothing, two or more with one script that no drawn record
     /// of their zone has, is an invisible gate: not listed, and in the way. X's Santalune Gym has
     /// five behind Viola, and AZ's room five (spike 223).
@@ -345,6 +365,7 @@ impl Game {
             opening: None,
             memories: None,
             strands: 0,
+            rides: None,
             gates: false,
             form: None,
             steps: ORAS,

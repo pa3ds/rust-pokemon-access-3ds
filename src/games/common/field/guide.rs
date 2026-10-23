@@ -35,6 +35,14 @@ pub const PUSH: &str = "push";
 /// such thing.
 pub const CURRENT: &str = "ride the current";
 
+/// What the step off a ridden Pokémon is said with, from flat ground onto plain ground, and the
+/// rest of the leg it starts: "get off 3 north" (spike 238). The game names no such thing.
+pub const GET_OFF: &str = "get off";
+
+/// What the step into a thing the ridden Pokémon smashes is said with, "smash 1 east": on Route 9
+/// the Rhyhorn smashes rocks with A (spike 238). The game names no such thing.
+pub const SMASH: &str = "smash";
+
 /// What a leg is said with where the ROM's move names cannot be read: pa3ds's own word for where
 /// the leg goes.
 pub const OWN_MOVE_WORDS: [(i64, &str); 5] = [
@@ -581,6 +589,35 @@ fn near(path: &[Cell], cell: Cell, slack: i64) -> Option<i64> {
     }
 }
 
+/// The steps of `path` said with getting on a Pokémon to ride, by its name, "Rhyhorn 1
+/// east", with smashing a thing in the way riding, "smash 1 east", and with getting off it, the
+/// rest of that leg walked on as it is, "get off 3 north", from the player's first step, riding
+/// or not (`Ground.rode`). Ridden on, the way carries no word, as on water for a player already
+/// surfing (spike 238).
+fn rides(ground: &Ground, path: &[Cell], mount: &str) -> Result<HashMap<(Cell, Cell), String>> {
+    let mut out: HashMap<(Cell, Cell), String> = HashMap::new();
+    let mut last: Option<(Cell, Cell)> = None;
+    let rode = ground.rode(path)?;
+    for (i, pair) in path.windows(2).enumerate() {
+        let (cell, step) = (pair[0], pair[1]);
+        let (riding, on) = (rode[i] == Some(true), rode[i + 1] == Some(true));
+        if on && !riding {
+            out.insert((cell, step), mount.to_string());
+        } else if ground.smashed.contains(&step) {
+            out.insert((cell, step), SMASH.to_string());
+        } else if (riding && !on)
+            || last.is_some_and(|last| {
+                out.get(&last).map(String::as_str) == Some(GET_OFF)
+                    && pathfind::towards(last.0, last.1) == pathfind::towards(cell, step)
+            })
+        {
+            out.insert((cell, step), GET_OFF.to_string());
+        }
+        last = Some((cell, step));
+    }
+    Ok(out)
+}
+
 /// What is left of the way from its `at`th cell, said from where the player stands.
 fn left(guidance: &Guidance, at: i64, r#where: &Field) -> Result<String> {
     let leg = guidance
@@ -1061,7 +1098,27 @@ impl Guide {
             }
             Ok((2 * step.0 - cell.0, 2 * step.1 - cell.1))
         };
+        let mut mount = String::new();
+        for thing in &r#where.interactables {
+            if thing.move_model
+                && thing
+                    .cells()
+                    .iter()
+                    .any(|cell| ground.mounts.contains(cell))
+            {
+                mount = (self.label)(thing, r#where.zone)?;
+                break;
+            }
+        }
+        let ridden = if ground.rides.is_empty() {
+            HashMap::new()
+        } else {
+            rides(&ground, &path, &mount)?
+        };
         let how = |cell: Cell, step: Cell| -> Result<String> {
+            if let Some(word) = ridden.get(&(cell, step)) {
+                return Ok(word.clone());
+            }
             if pushed.contains(&(cell, step)) {
                 return Ok(PUSH.to_string());
             }
@@ -1410,10 +1467,18 @@ impl Guide {
             .collect();
         for &level in levels {
             let ground = self.ground(r#where, hm, level)?;
-            // A boulder a push will not move that way is in the way too (movie46, spike 213).
+            // A boulder a push will not move that way is in the way too (movie46, spike 213), and
+            // to a player on foot a rock only a ridden Pokémon smashes (spike 238).
+            let no_smashes = HashSet::new();
+            let smashes = if ground.riding {
+                &no_smashes
+            } else {
+                &ground.smashed
+            };
             let crowd: HashSet<Cell> = ground
                 .standing
                 .iter()
+                .chain(smashes.iter())
                 .filter(|cell| listed.contains(cell) && !own.contains(cell))
                 .copied()
                 .collect();
@@ -1426,6 +1491,7 @@ impl Guide {
                 .copied()
                 .collect();
             clear.shoves = IndexMap::new();
+            clear.smashed = ground.smashed.difference(&crowd).copied().collect();
             clear.crowd = crowd;
             let goals = aimed(clear.goals(item)?, sides);
             let way = clear.find(r#where.cell, &goals, heading, Some(item), false, None)?;
@@ -1433,9 +1499,12 @@ impl Guide {
                 continue;
             };
             let floors = clear.walked(&way)?;
+            let rode = ground.rode(&way)?;
             let mut found: Option<usize> = None;
             for (i, &cell) in way.iter().enumerate() {
-                if ground.stands(cell, floors[i])? || (i > 0 && !ground.joined(way[i - 1], cell)) {
+                if ground.stands(cell, floors[i])?
+                    || (i > 0 && (!ground.joined(way[i - 1], cell) || rode[i].is_none()))
+                {
                     found = Some(i);
                     break;
                 }
@@ -1555,12 +1624,13 @@ impl Guide {
     /// The field's ground, its decks walked at `height` or the player's own, crossing water
     /// for a way with HMs and for a player already on it: P from the water keeps to it, or
     /// there is no first step to take. Only a way with HMs cuts through a bush. A slope is
-    /// ridden up with HMs and by a player on the bike.
+    /// ridden up with HMs and by a player on the bike, not on a Pokémon they ride, which sets
+    /// the bike's bits too (`Ground.riding`, spike 238).
     pub fn ground(&self, r#where: &Field, hm: bool, height: Option<f64>) -> Result<Ground> {
         let mut ground = self.field.ground(r#where, height)?;
         ground.surf = hm || ground.water(r#where.cell)?;
         ground.hm = hm;
-        ground.bike = r#where.on_bike;
+        ground.bike = r#where.on_bike && !ground.riding;
         Ok(ground)
     }
 

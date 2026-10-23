@@ -16,7 +16,7 @@ use indexmap::IndexMap;
 use crate::core::keyfile::data_path;
 use crate::games::common::field::ground::{CUT, ROCK_SMASH, STRENGTH};
 use crate::games::gen6::field::footsteps::{RUN, Steps, WALK};
-use crate::games::gen6::game::{Data, FurnitureKind, Game};
+use crate::games::gen6::game::{Data, FurnitureKind, Game, Rides};
 use crate::games::gen6::rom::layout::{RomLayout, TownFacilities, owned};
 use crate::games::xy::intro::IntroReader;
 use crate::py::PySet;
@@ -309,6 +309,33 @@ pub const TOBI_KUSA: i64 = 0x2002;
 /// it is X's alone (spike 223).
 pub const STRAND: i64 = 0x8;
 
+/// Route 9 (zone 0x10b, chunk files 187 to 222 of `a/0/4/1`), crossed on a Rhyhorn. Its spiky
+/// ground, kind 0x32 with the blocked bit set (`0x32000025`), 490 cells, the executable counts as tall
+/// grass (it tests 0x32 with 0x20 to 0x23 at `0x003e1054`), so wild Pokémon are met on it. Its flat
+/// ground, kind 0x31 and open (`0x31000020`), 161 cells in five patches, always lies between the spikes
+/// and plain ground (tested alone, with 0x33, at `0x003e0f30`). In the tape of x_route9.ctm the player
+/// walked onto flat ground at (15, 60), faced the Rhyhorn, character `0x100f`, standing in (19, 60) and
+/// (19, 61), pressed A, and was moved into its cell, riding: +0x06 0x01 to 0x21 and +0x07 0x00 to 0x03,
+/// the bike's bits. They rode east from (20, 61), flat, onto the spikes at (21, 61). The Rhyhorn's
+/// model stays where it was got on, and is put at the player's cell whenever the map's models are
+/// built again: at (19, 61) while they rode to (31, 61), at (32, 61) from 39.37 s, as the chunks east
+/// loaded, and at (46, 59), the player's cell, after a battle. Route 9's ten rocks, sprite `0x200d`
+/// (`IROCK02`), the Rhyhorn smashes with A ("press A button to smash any boulders in your path", the
+/// walkthroughs say): two at (51, 58) and (51, 60) close the only way east across the spikes, listed
+/// "18 north" and "18 north 2 west" from (33, 61) at 91.76 s, gone from the list after 103 s, and the
+/// player was at (58, 59) by 130 s. Route 17's Mamoswine, whose kinds 0x33 and 0x34 the executable
+/// tests beside these, is left out: no recording shows it (spike 238).
+///
+/// Python's `RIDES` constant: a function, since a `HashSet` is no const.
+pub fn rides() -> Rides {
+    Rides {
+        ground: HashSet::from([0x32]),
+        stops: HashSet::from([0x31]),
+        mounts: HashSet::from([0x100F]),
+        smashes: HashSet::from([0x200D]),
+    }
+}
+
 pub const SANTALUNE_LOBBY: i64 = 0x37;
 pub const SANTALUNE_WEB: i64 = 0x38;
 /// Santalune Gym's two poles, a furniture record each way: the lobby's at (20, 24) and the web
@@ -437,6 +464,7 @@ pub fn game() -> &'static Game {
         rooms: HashSet::from([HOUSE]),
         models: Some(MODELS),
         strands: STRAND,
+        rides: Some(rides()),
         gates: true,
         steps: STEPS,
         training: TRAINING,
