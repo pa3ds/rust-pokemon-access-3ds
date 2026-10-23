@@ -651,12 +651,16 @@ impl FieldReader {
         };
         let bike = mmodel::on_bike(&head, form)?;
         self.on_rail.set(mmodel::on_rail(&head)?);
+        // One map's streets for the whole poll, the sweep's as the grid is (#18). Without the ROM
+        // the sweep keeps no files, and only the field map's own let the last map's lines go.
+        let files: Vec<i64> = if self.terrain.known() || !self.on_rail.get() {
+            self.terrain.files.borrow().1.to_vec()
+        } else {
+            self.read_files()?.1
+        };
         // Under a street's own camera the keys walk the world's ways, so its streets are the
         // grid's ground (`Rails.fixed`).
-        if !mmodel::on_rail(&head)? || {
-            let files = self.terrain.files.borrow().1.clone();
-            self.rails.fixed(&files, mmodel::rail(&head)?.0)?
-        } {
+        if !self.on_rail.get() || self.rails.fixed(&files, mmodel::rail(&head)?.0)? {
             *self.rails.corridor.borrow_mut() = None;
             let behind = self.rails.behind()?;
             self.behind.set(behind.is_some());
@@ -674,7 +678,7 @@ impl FieldReader {
                 ..Field::new(zone, cell)
             }));
         }
-        let on = self.rails.poll(&head, &self.read_files()?.1)?;
+        let on = self.rails.poll(&head, &files)?;
         let Some((at, bearing)) = on else {
             return Ok(Some(Field {
                 on_rail: true,

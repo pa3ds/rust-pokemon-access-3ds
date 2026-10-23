@@ -4352,6 +4352,46 @@ fn test_under_a_streets_own_camera_the_player_is_on_the_grid() -> Result<()> {
     Ok(())
 }
 
+/// A poll asked the rails whether the player's street was under a camera of its own with the
+/// chunk files the last sweep read, and where they were on it with the files the field map lists
+/// now: from a map change until the next sweep each poll took both maps' streets in from the ROM,
+/// and looked the line up in the map it is not of (#18).
+#[test]
+fn test_a_map_changed_since_the_sweep_has_one_maps_streets_read_until_the_next() -> Result<()> {
+    let line = rail::Line::new(0x8001, 1, 2, 4, 3, vec![0; 15]);
+    let network = rail::Network {
+        lines: IndexMap::from([(line.id, line.clone())]),
+        places: IndexMap::from([(1, (0.0, 0.0)), (2, (0.0, (4 * 18) as f64))]),
+        cameras: 0,
+    };
+    let asked: Rc<RefCell<Vec<Vec<i64>>>> = Rc::new(RefCell::new(Vec::new()));
+    let mut town = Town::new();
+    let heard = asked.clone();
+    town.reader = field_reader(
+        town.memory.clone(),
+        Given {
+            streets: Some(Rc::new(move |chunks: &[i64]| {
+                heard.borrow_mut().push(chunks.to_vec());
+                Ok(network.clone())
+            })),
+            far: Some(Rc::new(|_file| Ok(None))),
+            ..Given::default()
+        },
+        game(),
+    );
+    town.memory
+        .write(MAP + MAP_CHUNK_FILES, &le16(&[0, 700, 701]));
+    town.memory.u32(POOL + mmodel::CELL_X, &[line.id]);
+    town.memory.write(POOL + mmodel::PLACE_X, &f32s(&[0.0]));
+    town.reader.track(&town.found())?;
+    town.memory
+        .write(MAP + MAP_CHUNK_FILES, &le16(&[0, 800, 801]));
+    town.reader.poll()?;
+    town.reader.poll()?;
+    assert_eq!(*asked.borrow(), [vec![700, 701]]);
+    Ok(())
+}
+
 /// Up walks Route 7's street north-west, a cell of the street at a time, never straight
 /// north or west, and P's "7 north-west" was walked by holding north (the tapes of
 /// x_route-6-2.ctm and x_route-6-3.ctm, 2026-10-20). Laid on the grid, a street's cells let the
