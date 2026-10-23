@@ -5,6 +5,42 @@
 
 scene-yours = 你的{ $pokemon }
 
+## Omega Ruby: the intro and the title screen
+
+or-intro-forest = 一只{ POKEMON(267) }在挂满露水的高大叶片间翩翩飞舞。下方是森林中一个幽暗的小池塘，两只小小的宝可梦在池边探头张望。
+or-intro-drops = 视线沉向水面。一滴露珠从叶尖落下，涟漪在池面上荡开。
+or-intro-credit = 水面上渐渐浮现出文字：{ PICTURE("presented_by") } { PICTURE("gf_logo") }。
+or-intro-volcano = 视线穿过草木向上升起。森林远处，蓝天下矗立着两座山，其中一座是冒着烟的火山。
+or-intro-latios = { POKEMON(381) }低低掠过树梢，又向天空攀升而去。一道白光闪过。
+or-intro-island = 在大海的高空中，{ POKEMON(381) }从一座岛屿旁滑翔而过：一座火山口泛着红光的棕色火山，一片黄色的火山灰原野，还有绿色的森林。它拖着一缕水雾俯冲远去。
+or-intro-bike = 一条土路上，一辆红色自行车一路驶来。骑车的是一个男孩，戴着白色帽子，穿着红黑相间的衣服，背着绿色背包。
+or-intro-loop = 他抬起头。{ POKEMON(381) }在他头顶的天空中绕了一圈，然后疾驰而去。他闭上眼睛，露出微笑。
+or-intro-face = 视线拉近到他的脸上，一切渐渐变成白色。
+or-intro-movie-1 = 一个用颜料笔触画成的{ ITEM(4) }向你冲来。接着是一连串闪现的画面：火圈中的{ POKEMON(323) }，从黑暗的水中跃出的{ POKEMON(319) }，在烈日下咆哮的{ POKEMON(383) }。
+or-intro-movie-2 = 沙漠中的{ POKEMON(257) }，手腕喷出火焰。海边的{ POKEMON(260) }，高举双拳。幽暗森林中的{ POKEMON(254) }。
+or-intro-movie-3 = { TRAINER(235) }站在火柱中，推了推眼镜。接着是{ TRAINER(557) }，在一个墙上刻满图案的洞窟中。
+or-intro-movie-4 = 映着橙色的天空，是{ POKEMON(383) }黑色的身影，胸口燃着一团光。一个形似欧米伽字母的符号在火焰中成形，火焰在它周围盘旋，白光涌了进来。
+or-title-logo = 标题画面。宝可梦标志在红色水晶碎片之间从黑暗中闪耀而出，随后迸发成一片白光。
+or-title = 标志上写着{ GAME() }，金红两色，在一圈放射状的火焰之上燃烧。画面底部闪烁着：{ PICTURE("push_start") }。下屏幕上，{ POKEMON(383) }从烟雾与余烬中隐隐浮现，随后又隐去。
+
+## Alpha Sapphire: the intro and the title screen
+
+as-intro-forest = { or-intro-forest }
+as-intro-drops = { or-intro-drops }
+as-intro-credit = { or-intro-credit }
+as-intro-volcano = { or-intro-volcano }
+as-intro-latias = { POKEMON(380) }低低掠过树梢，又向天空攀升而去。一道白光闪过。
+as-intro-island = 在大海的高空中，{ POKEMON(380) }从一座岛屿旁滑翔而过：一座火山口泛着红光的棕色火山，一片黄色的火山灰原野，还有绿色的森林。它拖着一缕水雾俯冲远去。
+as-intro-bike = { or-intro-bike }
+as-intro-loop = 他抬起头。{ POKEMON(380) }在他头顶的天空中绕了一圈，然后疾驰而去。他闭上眼睛，露出微笑。
+as-intro-face = { or-intro-face }
+as-intro-movie-1 = 一个用颜料笔触画成的{ ITEM(4) }向你冲来。接着是一连串闪现的画面：从黑暗的水中跃出的{ POKEMON(319) }，火圈中的{ POKEMON(323) }，在聚集的暴风云下漂浮在海面上的{ POKEMON(382) }，还有大雨抽打着黑暗的海面。
+as-intro-movie-2 = { or-intro-movie-2 }
+as-intro-movie-3 = { TRAINER(178) }，深海中升腾的气泡间一个黑色的身影，随后他抓着衣领大笑。接着是{ TRAINER(557) }，在一个墙上刻满图案的洞窟中。
+as-intro-movie-4 = 映着深蓝色的背景，是{ POKEMON(382) }黑色的身影，身体中央燃着一团光。一个形似阿尔法字母的符号在水中成形，蓝色的水滴在它周围盘旋，白光涌了进来。
+as-title-logo = 标题画面。宝可梦标志在蓝色水晶碎片之间从黑暗中闪耀而出，随后迸发成一片白光。
+as-title = 标志上写着{ GAME() }，金蓝两色，在粼粼的光芒之上闪耀。画面底部闪烁着：{ PICTURE("push_start") }。下屏幕上，{ POKEMON(382) }在深海的气泡间游动，身上的花纹发出白光。
+
 ## The opening
 
 opening-pokemon-1 = { POKEMON(298) }出现在博士身旁：小小的、圆圆的、蓝色的，有一对大大的圆耳朵，尾巴末端是一个蓝色的球。
@@ -19,6 +55,37 @@ opening-handheld-2 = 屏幕切换成这个地区的地图：蓝色大海中的�
 opening-handheld-3 = 掌机被放下，昏暗的卡车继续隆隆前行。
 opening-truck-1 = 卡车的后门大大敞开，日光涌了进来，直到一切变成白色。
 opening-truck-2 = 光芒褪去。你站在停好的卡车车厢里，周围是纸箱和家具，阳光从敞开的门洒进来。
+
+## The rival
+
+may-room-1 = 楼上的一间卧室：墙上挂着一张地图，窗下是一张铺着红色被子的床，墙边有一张书桌。一个女孩背对着你站在书桌前，双手抬起，扶着头发上红白相间的蝴蝶结。
+may-room-2 = 近看，她在书桌上翻着一本笔记本，然后检查了一下腰带上的小包。
+may-room-3 = 你站在楼梯顶端，位于她房间的一角。
+may-turns-1 = 她转过身，看到你吓了一跳，然后走了过来。
+may-leaves-1 = 她咧嘴一笑，从你身旁走过，下楼去了，只留下你独自待在她的房间里。
+brendan-room-1 = 楼上的一间卧室：一扇挂着浅蓝色窗帘的窗户，窗下是一张铺着浅色被子的床，墙边有一张书桌，墙上挂着一张地图。一个男孩背对着你站在书桌前，双手抬起，扶着头上的白色帽子。
+brendan-room-2 = 近看，他在书桌上翻着一本笔记本，然后抓住背包的肩带，微微一笑。
+brendan-room-3 = 你站在楼梯顶端，位于他房间的一角。
+brendan-turns-1 = 他转过身，向你走来。
+brendan-leaves-1 = 他咧嘴一笑，从你身旁走过，下楼去了，只留下你独自待在他的房间里。
+may-beautifly-1 = 你和{ TRAINER(4) }并肩站在高高的草丛中，面朝一排松树。三只蝴蝶模样的宝可梦扇动着鲜艳的黄黑相间的翅膀，从树林中飞了出来。
+may-beautifly-2 = 它们飞过树林，朝着一座红屋顶的城镇飞去。
+may-beautifly-3 = 它们升上天空，在云间渐渐飘远。
+brendan-beautifly-1 = 你和{ TRAINER(1) }并肩站在高高的草丛中，面朝一排松树。三只蝴蝶模样的宝可梦扇动着鲜艳的黄黑相间的翅膀，从树林中飞了出来。
+brendan-beautifly-2 = 它们飞过树林，朝着一座红屋顶的城镇飞去。
+brendan-beautifly-3 = 它们升上天空，在云间渐渐飘远。
+
+## Granite Cave: the painted wall
+
+or-granite-mural-1 = 画面暗了下来。一圈光缓缓移过岩石上的画：一头巨大的黑色野兽，背上覆满参差不齐的鳞片，大张着嘴；接着是一排冒烟的山峰。
+or-granite-mural-2 = 视线拉远。这些画布满了洞窟的一整面墙：左边是那头野兽，在圆环和卷曲的烟柱间直立起来；右边是一道光芒下的小小人影；下方是冒烟的山峰。墙下，一个男人独自站在一段石阶的顶端，抬头仰望。
+or-granite-mural-3 = 近看，这个男人有一头淡蓝色的头发，穿着深色西装。他一手托着下巴凝视着墙壁，然后双臂交叉，陷入沉思。
+or-granite-mural-4 = 你站在台阶下，然后走上台阶来到他身旁。
+as-granite-mural-1 = 画面暗了下来。一圈光缓缓移过岩石上的画：锯齿状的条纹，一排排像海浪一样卷曲的漩涡，还有一个带着圆环标记的巨大黑色形体。
+as-granite-mural-2 = 视线拉远。这些画布满了洞窟的一整面墙：左边是几道光芒下的小小人影，右边是翻卷的云和海浪，那个巨大的形体位于两者之间。墙下，一个男人独自站在一段石阶的顶端，抬头仰望。
+as-granite-mural-3 = 近看，这个男人有一头淡蓝色的头发，穿着深色西装。他一手托着下巴凝视着墙壁，然后双臂交叉，陷入沉思。
+as-granite-mural-4 = 你站在台阶下，然后走上台阶来到他身旁。
+granite-steven-leaves-1 = { TRAINER(557) }走下台阶，离开了房间，只留下你独自站在那面画墙前。
 
 ## Omega Ruby: Groudon
 
@@ -319,3 +386,48 @@ as-sky-pillar-1 = 白天，一座摇摇欲坠的石塔顶端。一个戴黑色�
 sky-pillar-hiyyup-1 = 制服飞了出去。下面是一位留着黑色短发的年轻女子，披着一件破旧的长斗篷，穿着绿色靴子。
 or-aster-1 = 视线升到高塔上方很远的地方，塔顶只是紫色云海中的一个小小的石头三角形。
 as-aster-1 = 视线升到高塔上方很远的地方，塔顶只是白色云海中的一个小小的石头三角形。
+or-tale-1 = 视线转向墙壁，浅色的石头上画着深棕色的画：顶上是一排举着双臂的小人，两朵云之间有一颗坠落的星星，下方是巨大的黑色漩涡和锯齿状的形状，其间有小小的人影。
+or-tale-2 = 画面变暗，那面画墙又出现了：那排小人，现在手拉着手，下方是那颗坠落的星星。
+or-tale-2b = 视线沿墙向上移动。在人们上方，一道巨大的黑色弧带横跨在两座梯子般的高塔和一个圆环中的眼状标记之上。
+or-tale-3 = 又是那面画墙：眼状标记和它的两座塔下，人们手拉着手。
+or-tale-3b = 一个细长的黑色形体，背上长着尖刺，沿墙朝他们俯冲而下；在它上方，一个巨大的有翼形体舒展开来。
+or-tale-4 = 画墙上：一张巨大的脸，长着卷曲的角和圆圆的大眼睛。
+or-tale-4b = 视线移向一座画出的尖顶高塔。
+or-tale-5 = 画墙上：一座尖顶高塔，塔顶站着一排举着双臂的小人，一侧是一朵云，另一侧是一个带光环的太阳。
+or-tale-5b = 视线缓缓掠过一排排紧密排列的画出的三角形和圆形。
+tale-zinnia-gone-1 = { TRAINER(713) }不见了。你独自站在那里。
+tale-zinnia-gone-2 = { TRAINER(713) }不见了。你独自站在那里。
+tale-zinnia-gone-3 = { TRAINER(713) }不见了。你独自站在那里。
+tale-zinnia-gone-4 = { TRAINER(713) }不见了。你独自站在那里。
+tale-zinnia-gone-5 = { TRAINER(713) }不见了。你独自站在那里。
+summit-stars-1 = 你来到塔顶，这是云海中的一块石头三角形，头顶是繁星点点的夜空。远处的尖端，{ TRAINER(713) }背对着你站着，她的{ POKEMON(293) }在她身旁，一同仰望着星空。
+summit-walk-up-1 = 她转过头，对她的{ POKEMON(293) }微笑，你走到他们身后。
+summit-turns-away-1 = 她转身背对着你，面向祭坛，视线升向星空。
+summit-night-passes-1 = 视线升向繁星点点的夜空。
+summit-night-passes-2 = 一切陷入黑暗。
+summit-wakes-1 = 光亮重新出现。{ TRAINER(713) }低头对她的{ POKEMON(293) }微笑。
+summit-steps-forward-1 = 她离开你，走到祭坛中央，把她的{ POKEMON(293) }留在你身边。
+summit-light-1 = 从高空俯瞰，塔顶中央的一道光不断膨胀，直到一切变成白色。
+summit-pain-1 = 她弓着身子，双手紧握在胸前，面露痛苦。
+summit-rayquaza-comes-1 = 视线升到高塔上方的高空。一道白光闪过。
+summit-rayquaza-comes-2 = 绿光在夜空中荡漾，一只长长的绿色巨蛇般的宝可梦从中盘旋而下，朝高塔而来：{ POKEMON(384) }。
+summit-rayquaza-lands-1 = { POKEMON(384) }降落在塔顶，就在{ TRAINER(713) }和你面前，巨大的身躯在周围盘成一圈圈。
+summit-kneels-1 = { TRAINER(713) }在你面前跪倒在地，低着头。
+summit-meteorite-1 = 白光充满了一切。
+summit-swallows-1 = { POKEMON(384) }从一团迸发的绿光中向你扑来，张大了嘴。
+summit-glows-1 = { POKEMON(384) }笔直地挺起身子，光芒不断膨胀，直到一切变成白色。
+summit-glows-2 = 光芒褪去。{ POKEMON(384) }盘踞在祭坛顶端，俯视着你和{ TRAINER(713) }。
+summit-rayquaza-waits-1 = 从你身后看去，台阶通往祭坛，{ POKEMON(384) }盘踞在那里等待着。
+or-to-space-1 = 塔顶迎来了白昼。越过{ TRAINER(713) }看去，你穿着红色服装、戴着深色的圆形头盔，站在{ POKEMON(384) }身旁。
+or-to-space-2 = { TRAINER(713) }一手按在胸前微笑着，她的{ POKEMON(293) }在她身旁。
+or-to-space-3 = 你爬上{ POKEMON(384) }的背。
+or-to-space-4 = 高塔孤零零地矗立在蓝天下。绿光一闪，一束绿色的光从塔顶直射而上。
+or-to-space-5 = 远远的下方，高塔只是海中的一个小点，被映成绿色和金色。塔顶上，{ TRAINER(713) }和她的{ POKEMON(293) }抬头仰望。
+or-to-space-6 = { POKEMON(384) }在耀眼的绿光中向上疾冲，如今身上带着金色的环纹，你骑在它背上。一道光芒划过天空，向上攀升。
+or-to-space-7 = 太空：繁星和飘动的紫色光云，下方是地球的弧线。
+or-to-space-8 = { POKEMON(384) }发着光，载着你在太空中继续疾驰。
+or-to-space-9 = 前方悬着一块巨大的暗红色岩石。
+or-to-space-10 = { POKEMON(384) }化作一道绿光贯穿了它。岩石在地球上方炸裂成巨大的碎块。
+or-to-space-11 = 在飘浮的碎块之间，一个黑色的小三角形漂近。
+or-to-space-12 = 那是一个红色的金字塔。黑色的带子从中舒展开来。
+or-to-space-13 = 带子变成橙色和蓝色，金字塔展开成一只宝可梦：{ POKEMON(386) }，橙蓝相间，胸口有一颗紫色的宝石。
