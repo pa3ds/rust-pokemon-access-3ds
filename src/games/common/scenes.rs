@@ -86,6 +86,13 @@ pub fn shipped(data: &Path) -> &'static str {
 }
 /// The one control sequence inside a page that inserts no words (`games.common.text`).
 pub const COLOUR: i64 = 0xFF00;
+/// The controls choosing between two forms of the words after them, by the player's gender ("boy"
+/// or "girl", "May" or "Brendan") or by a number (`garc.NUMBER_FORM`): the words after one are both
+/// forms back to back, the first's letters counted in its second argument's low byte and the
+/// other's in its high byte.
+pub const CHOICES: [i64; 2] = [0x1100, 0x1101];
+/// Where a choice stands in a page's words until they are made a pattern.
+pub const CHOICE: &str = "\u{E000}";
 
 /// The functions a description names what the ROM lists with, by what each is the game's word
 /// for: `{ POKEMON(383) }`.
@@ -160,7 +167,9 @@ pub struct Scene {
 
 /// The index of a message's last page, and a pattern its text matches as the dialogue reader
 /// hears it: the words between inserts in order, anything where an insert was, as the player's
-/// name is in "Raiden changed into the Magma Suit!". None for a line that is not text.
+/// name is in "Raiden changed into the Magma Suit!", and either form where the game chooses one,
+/// "boy" or "girl" in Norman's "How about our little boy's favorite?". None for a line that is
+/// not text.
 pub fn last_page(line: &[u8]) -> Result<Option<(i64, Regex)>> {
     let parts = match tokens(line) {
         Ok(parts) => parts,
@@ -177,10 +186,29 @@ pub fn last_page(line: &[u8]) -> Result<Option<(i64, Regex)>> {
         .collect();
     let page = breaks.len() as i64;
     let mut pieces: Vec<String> = vec![String::new()];
+    let mut forms: Vec<(String, String)> = Vec::new();
+    let mut choice: Option<(i64, i64)> = None;
     let from = breaks.last().map_or(0, |last| last + 1);
     for part in &parts[from..] {
         match part {
-            Token::Text(text) => pieces.last_mut().expect("never empty").push_str(text),
+            Token::Text(text) => {
+                let mut text = text.clone();
+                if let Some((first, other)) = choice.take() {
+                    let chars: Vec<char> = text.chars().collect();
+                    forms.push((
+                        py::slice(&chars, 0, first).iter().collect(),
+                        py::slice(&chars, first, first + other).iter().collect(),
+                    ));
+                    pieces.last_mut().expect("never empty").push_str(CHOICE);
+                    text = py::slice_from(&chars, first + other).iter().collect();
+                }
+                pieces.last_mut().expect("never empty").push_str(&text);
+            }
+            Token::Control(control)
+                if CHOICES.contains(&control.code) && control.args.len() >= 2 =>
+            {
+                choice = Some((control.args[1] & 0xFF, control.args[1] >> 8));
+            }
             Token::Control(control) if control.code != COLOUR => pieces.push(String::new()),
             Token::Control(_) => {}
         }
@@ -192,11 +220,18 @@ pub fn last_page(line: &[u8]) -> Result<Option<(i64, Regex)>> {
     if words.iter().all(|word| word.is_empty()) {
         return Ok(None);
     }
-    let joined = words
+    let mut joined = words
         .iter()
         .map(|word| regex::escape(word))
         .collect::<Vec<_>>()
         .join(".*?");
+    for (first, other) in &forms {
+        joined = joined.replacen(
+            CHOICE,
+            &format!("(?:{}|{})", regex::escape(first), regex::escape(other)),
+            1,
+        );
+    }
     let pattern = Regex::new(&format!(r"(?s)\A(?:{joined})\z")).expect("escaped words");
     Ok(Some((page, pattern)))
 }

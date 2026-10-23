@@ -109,6 +109,11 @@ may-beautifly-1 = You and { TRAINER(4) } stand side by side in the tall grass, f
 may-beautifly-2 = They flutter past the trees toward the red roofs of a town.
 may-beautifly-3 = They climb into the sky and drift away among the clouds.
 
+# Its twin for a girl: Brendan's "Whoa! Check 'em out, [name]!", composed from May's.
+brendan-beautifly-1 = You and { TRAINER(1) } stand side by side in the tall grass, facing a line of pines. Three butterfly Pokémon flutter out of the trees on bright yellow and black wings.
+brendan-beautifly-2 = They flutter past the trees toward the red roofs of a town.
+brendan-beautifly-3 = They climb into the sky and drift away among the clouds.
+
 # Granite Cave's last room (scene_granite_cave_mural, in Alpha Sapphire and replayed in Omega
 # Ruby): a demo of 22 s as the player walks in toward the steps, before Steven's first line, then
 # the player is walked up to him. He is not named until he names himself, as a sighted player

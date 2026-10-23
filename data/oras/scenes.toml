@@ -293,6 +293,25 @@ id = "may-beautifly-2"
 at = 11
 id = "may-beautifly-3"
 
+# Its twin for a girl, with Brendan as the rival: "Whoa! Check 'em out, [name]!", the line of his
+# in May's place (story 225:51), composed from hers (ADR-0038 as amended 2026-10-16): no replay
+# has shown it, but Brendan has been seen in May's place, and the rest is the route's own.
+[[scene]]
+after = "story:225:51"
+zone = 0x18
+
+[[scene.beat]]
+at = 2
+id = "brendan-beautifly-1"
+
+[[scene.beat]]
+at = 7
+id = "brendan-beautifly-2"
+
+[[scene.beat]]
+at = 11
+id = "brendan-beautifly-3"
+
 # Granite Cave's last room, zone 0x51, from Alpha Sapphire's scene_granite_cave_mural: walking in
 # from the south, the player crosses a trigger before the steps (trigger 0, row 20, armed while
 # work 0x407a holds 0, which meeting Steven makes 1 in both versions) and a demo of 22 s pans over

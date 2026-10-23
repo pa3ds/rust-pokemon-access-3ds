@@ -73,6 +73,24 @@ fn test_a_line_is_matched_by_its_last_page_with_anything_where_an_insert_was() -
     Ok(())
 }
 
+/// The player's gender choosing the words after it: "boy", 3 letters, or "girl", 4 after them.
+const GENDER: &[i64] = &[0x1100, 255, 0x0403];
+
+/// Norman's "How about our little boy's favorite?" is one line for a boy and a girl, the ROM
+/// writing "boygirl" after a control saying how long each is (story 253:147, or_sky_pillar_7).
+#[test]
+fn test_words_the_players_gender_chooses_are_matched_as_either() -> Result<()> {
+    let (_, words) = page(&line(&[
+        Part::Text("Hmm.\nHow about our little "),
+        Part::Control(GENDER),
+        Part::Text("boygirl's favorite?"),
+    ]))?;
+    assert!(words.is_match("Hmm. How about our little boy's favorite?"));
+    assert!(words.is_match("Hmm. How about our little girl's favorite?"));
+    assert!(!words.is_match("Hmm. How about our little boygirl's favorite?"));
+    Ok(())
+}
+
 /// The log a test keeps, and what it logged.
 fn logging() -> (Log, Rc<RefCell<Vec<String>>>) {
     let logged: Rc<RefCell<Vec<String>>> = Rc::new(RefCell::new(Vec::new()));
