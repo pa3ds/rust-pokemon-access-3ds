@@ -7,7 +7,8 @@
 //! Kyogre caught or knocked out plays the same one (Orion, 2026-10-20). What follows the line is
 //! said a **beat** at a time, each when what it waits for comes: at once, a scene of the game's own
 //! starting (`app::field_demo::Proc`, which keeps nothing saying which), or the player arriving in
-//! a zone; then `at` seconds on. A scene waiting for a demo or a zone is let go when the player
+//! a zone, or in any one of several, as the player's own room is a boy's or a girl's; then `at`
+//! seconds on. A scene waiting for a demo or a zone is let go when the player
 //! arrives anywhere else, as after losing a battle in it. A scene with no line is said each time
 //! the player arrives in its zone: a room whose way on nothing shows but the room itself. A line
 //! with no zone is said before the player has arrived anywhere: the opening's. A scene of one of a
@@ -142,8 +143,9 @@ pub struct Beat {
     pub message: String,
     /// Wait for a scene of the game's own to start.
     pub demo: bool,
-    /// Wait for the player to arrive in this zone.
-    pub zone: Option<i64>,
+    /// Wait for the player to arrive in any one of these zones: the player's own room is a boy's
+    /// or a girl's, 0xe0 or 0xe2, after a line said to either.
+    pub zones: HashSet<i64>,
     /// Then this many seconds.
     pub at: f64,
 }
@@ -426,7 +428,11 @@ fn beat(table: &IndexMap<String, Value>) -> Option<Beat> {
     Some(Beat {
         message: message.clone(),
         demo: truth(table.get("demo")),
-        zone: int_of(table.get("zone")),
+        // `zone if isinstance(zone, list) else [zone]`, its ints.
+        zones: match table.get("zone") {
+            Some(Value::Array(items)) => items.iter().filter_map(|one| int_of(Some(one))).collect(),
+            zone => int_of(zone).into_iter().collect(),
+        },
         at,
     })
 }
@@ -759,9 +765,9 @@ impl Scenes {
     pub fn arrived(&mut self, zone: i64, say: Say) -> Result<()> {
         self.stepped_on.clear();
         if let Some(beat) = self.waiting()
-            && (beat.zone.is_some() || beat.demo)
+            && (!beat.zones.is_empty() || beat.demo)
         {
-            if beat.zone == Some(zone) {
+            if beat.zones.contains(&zone) {
                 return self.came(say);
             }
             self.scene = None;
@@ -795,7 +801,7 @@ impl Scenes {
             && self.next < self.scenes[scene].beats.len()
         {
             let beat = &self.scenes[scene].beats[self.next];
-            if ((beat.demo || beat.zone.is_some()) && !self.met)
+            if ((beat.demo || !beat.zones.is_empty()) && !self.met)
                 || (self.clock)()? < self.since + beat.at
             {
                 return Ok(());

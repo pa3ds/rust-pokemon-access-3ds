@@ -284,6 +284,49 @@ missing-1 = { ITEM(9999) } is nowhere.
     Ok(())
 }
 
+/// "Welcome home, [name]!" is said to a boy and a girl alike, and their rooms are zones of their
+/// own (or_ and as_sky_pillar_7): the room's beat comes in either, and nowhere else.
+#[test]
+fn test_a_beat_waiting_for_several_zones_comes_in_any_one() -> Result<()> {
+    let tmp_path = TmpDir::new();
+    let (scenes, words) = described(
+        tmp_path.path(),
+        r#"
+[[scene]]
+after = "story:66:35"
+zone = 0x6
+[[scene.beat]]
+zone = [0xe0, 0xe2]
+id = "room-1"
+"#,
+        "room-1 = Your room.\n",
+        &[(
+            ("story", 66, 35),
+            line(&[
+                Part::Text("Welcome home, "),
+                Part::Control(NAME),
+                Part::Text("!"),
+            ]),
+        )],
+        &[],
+        None,
+        &quiet(),
+        None,
+    )?;
+    let said: RefCell<Vec<String>> = RefCell::new(Vec::new());
+    let mut reader = Scenes::with_monotonic(scenes, said_of(&words));
+    let mut say = |text: &str| said.borrow_mut().push(text.to_string());
+    for room in [0xE0, 0xE2] {
+        reader.heard(0, "Welcome home, Raiden!", Some(0x6), &mut say)?;
+        reader.arrived(room, &mut say)?;
+    }
+    reader.heard(0, "Welcome home, Raiden!", Some(0x6), &mut say)?;
+    reader.arrived(0xDF, &mut say)?;
+    reader.arrived(0xE0, &mut say)?;
+    assert_eq!(*said.borrow(), ["Your room.", "Your room."]);
+    Ok(())
+}
+
 /// Kyogre caught or knocked out plays the same scene (test_kyogre_scene): either line in zone 0x79
 /// starts it, and a scene one of whose lines the ROM lacks is left out.
 #[test]

@@ -662,10 +662,28 @@ or-to-space-14 = Green sparkles trail across the blue sky above the clouds.
 or-to-space-15 = The view sinks to the tower's top, standing alone above the clouds.
 or-to-space-16 = You stand on the tower's top again, facing the altar. { TRAINER(713) }'s { POKEMON(293) } walks up behind you.
 
-# The last visits round Hoenn (or_sky_pillar_7 from its state after Zinnia's battle, 2026-10-23),
-# a boy's, the Space Center's control room in the words of the Delta Episode's start.
-# Professor Birch is { SPRITE(179) }, and his wife, whom the game calls only "Woman", the
-# professor's wife.
+# Alpha Sapphire's, the suit blue (as_sky_pillar_7, 2026-10-23).
+as-to-space-1 = Day has come on the tower's top. Seen past { TRAINER(713) }, you stand beside { POKEMON(384) } in a blue suit and a round blue helmet.
+as-to-space-2 = { TRAINER(713) } smiles, a hand on her chest, her { POKEMON(293) } at her side.
+as-to-space-3 = You climb onto { POKEMON(384) }'s back.
+as-to-space-4 = The tower stands alone against the blue sky. A green flash, and a beam of green light shoots up from its top.
+as-to-space-5 = Far below, the tower is a speck in the sea, lit green and gold. On its top, { TRAINER(713) } and her { POKEMON(293) } look up.
+as-to-space-6 = { POKEMON(384) } shoots upward in a blaze of green light, golden rings on its body now, you on its back. A streak of light climbs through the sky.
+as-to-space-7 = Space: stars and drifting purple clouds of light, the curve of the earth below.
+as-to-space-8 = { POKEMON(384) } streaks on through space, glowing, with you on its back.
+as-to-space-9 = Ahead hangs a huge dark red rock.
+as-to-space-10 = { POKEMON(384) } pierces it in a streak of green. The rock bursts into great pieces above the earth.
+as-to-space-11 = Among the drifting pieces, a small dark triangle floats closer.
+as-to-space-12 = It is a red pyramid. Black ribbons uncurl from it.
+as-to-space-13 = The ribbons turn orange and blue, and the pyramid opens into a Pokémon: { POKEMON(386) }, orange and blue, a purple gem in its chest.
+as-to-space-14 = Green sparkles trail across the blue sky above the clouds.
+as-to-space-15 = The view sinks to the tower's top, standing alone above the clouds.
+as-to-space-16 = You stand on the tower's top again, facing the altar. { TRAINER(713) }'s { POKEMON(293) } walks up behind you.
+
+# The last visits round Hoenn (or_ and as_sky_pillar_7 from their states after Zinnia's battle,
+# 2026-10-23), the Space Center's control room in the words of the Delta Episode's start, and May
+# for a boy, Brendan for a girl. Professor Birch is { SPRITE(179) }, and his wife, whom the game
+# calls only "Woman", the professor's wife.
 # "Mur murrr!"
 letter-1 = It scampers off, and you stand alone.
 letter-2 = Seen from high above, the tower's top stands among the clouds, you small upon it.
@@ -680,6 +698,10 @@ epilogue-wally-2 = { TRAINER(518) } walks out of the door.
 epilogue-magma-1 = A dim room trimmed in red. { TRAINER(235) } sits at the head of a long table under a red banner, head bowed, and { TRAINER(691) } stands by a model sailing ship. { TRAINER(694) } stands at the table's near end, facing { TRAINER(235) }.
 # "And that settles that!"
 epilogue-league-1 = A tall stone hall, light slanting in through high arched windows. { TRAINER(557) } stands at the foot of steps up to a dark doorway, and { TRAINER(572) } walks up to him.
+# Alpha Sapphire's, after "...that I can't help feeling happy, too."
+epilogue-aqua-1 = A dim room trimmed in blue. { TRAINER(178) } sits at the head of a long table under a blue banner, head bowed, and { TRAINER(688) } stands by a model sailing ship. { TRAINER(683) } stands at the table's near end, facing { TRAINER(178) }.
+# "Well... I guess it could be worse."
+epilogue-aqua-league-1 = A tall stone hall, light slanting in through high arched windows. { TRAINER(557) } stands at the foot of steps up to a dark doorway, and { TRAINER(572) } walks up to him.
 # "Thank you, my friend..."
 epilogue-league-2 = { TRAINER(572) } walks away, and { TRAINER(557) } turns to watch him go.
 epilogue-falls-1 = A great waterfall pours down into a cave. { TRAINER(713) } stands at the edge of a sandy ledge with her back to you, gazing at it, her { POKEMON(293) } beside her.
@@ -687,7 +709,7 @@ epilogue-falls-1 = A great waterfall pours down into a cave. { TRAINER(713) } st
 epilogue-falls-2 = An old woman in a white headband walks up, and { TRAINER(713) } turns to her.
 # "... Yes."
 epilogue-falls-3 = { TRAINER(713) } walks away down the steps, leaving her { POKEMON(293) } beside the old woman.
-epilogue-parents-1 = A living room by a kitchen, evening light in the window. { SPRITE(179) } stands by the TV and { TRAINER(570) } beside him, while your mother and the professor's wife sit at a pink table.
+epilogue-parents-1 = A living room by a kitchen, evening light in the window. { SPRITE(179) } stands by the TV and { TRAINER(570) } near the kitchen, while your mother and the professor's wife sit at a pink table.
 # "How about our little boy's favorite?"
 epilogue-parents-2 = { TRAINER(570) } and your mother go into the kitchen to cook, and { SPRITE(179) } and his wife walk out.
 epilogue-litleonids-1 = A hall with a model rocket in a roped-off ring at its middle. You stand before it.
@@ -695,10 +717,18 @@ epilogue-litleonids-2 = { TRAINER(4) } walks up behind you, and the two of you l
 epilogue-litleonids-3 = At a shop counter, { TRAINER(4) } looks over shelves of souvenirs.
 epilogue-litleonids-4 = { TRAINER(4) } puts her face through a cut-out of an astronaut holding an orange flag, the earth behind, and smiles at you.
 epilogue-litleonids-5 = The two of you sit side by side on a bench before a great window, looking out over the sea and the town.
+# A girl's: "How about our little girl's favorite?", and Brendan.
+brendan-parents-2 = { TRAINER(570) } and your mother go into the kitchen to cook, and { SPRITE(179) } and his wife walk out.
+brendan-litleonids-1 = A hall with a model rocket in a roped-off ring at its middle. You stand before it.
+brendan-litleonids-2 = { TRAINER(1) } walks up behind you, and the two of you look around the hall.
+brendan-litleonids-3 = At a shop counter, { TRAINER(1) } looks over shelves of souvenirs.
+brendan-litleonids-4 = { TRAINER(1) } puts his face through a cut-out of an astronaut holding an orange flag, the earth behind, and smiles.
+brendan-litleonids-5 = The two of you sit side by side on a bench before a great window, looking out over the sea and the town.
 # "Time really flies when you're having fun..."
 epilogue-home-1 = Night. Lights glow in the windows of the houses on either side of the path, and you and { TRAINER(4) } walk down it together.
+brendan-home-1 = Night. Lights glow in the windows of the houses on either side of the path, and you and { TRAINER(1) } walk down it together.
 # "See you tomorrow!"
-epilogue-home-2 = { TRAINER(4) } goes into her house, and you walk to your own door.
+epilogue-home-2 = The two of you part, and you walk to your own door.
 # "You're back at last! Welcome home, [name]!"
 epilogue-home-3 = You go inside.
 epilogue-home-4 = You stand by your bed in your room.

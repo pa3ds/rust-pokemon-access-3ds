@@ -8,8 +8,9 @@
 # of lines, `["text:147:67", "text:148:1"]`, is any one of them. A scene with no line is said as the player arrives in its zone, or with `trigger` as they first step
 # onto that trigger of the zone's. Its beats are said one after another: a beat with `demo` waits
 # for a scene of the game's own to start (a demo, the Hall of Fame, the credits), one with `zone`
-# for the player to arrive there, then `at` seconds. A beat's `id` is a label, not a place: one put
-# between two others takes a new label, `or-groudon-wakes-2b`, and no other beat's words move.
+# for the player to arrive there, or in any of a list, `[0xe0, 0xe2]`, a boy's room or a girl's,
+# then `at` seconds. A beat's `id` is a label, not a place, and one scene's alone: one put between
+# two others takes a new label, `or-groudon-wakes-2b`, and no other beat's words move.
 #
 # Each version plays its own scenes in rooms of its own, twin zones of one layout (Seafloor
 # Cavern's 0x6f in Omega Ruby, 0x6e in Alpha Sapphire), but a line said in a zone both share, as on
@@ -21,8 +22,9 @@
 # spike 222, Omega Ruby's movies 48 to 53, Victory Road to the Delta Episode's opening, and Alpha
 # Sapphire's movie4_hall_of_fame and movie5_delta_episode_intro; Omega Ruby's movies 1 and 4 and
 # Alpha Sapphire's scene_granite_cave_mural, 2026-10-19; spike 237, Omega Ruby's or_sky_pillar_6 and
-# or_sky_pillar_7, 2026-10-22, and or_sky_pillar_7 again from a state saved while recording it,
-# 2026-10-23); the seconds are from the moment its demo, line, arrival or trigger came there.
+# or_sky_pillar_7, 2026-10-22, and or_sky_pillar_7 and Alpha Sapphire's as_sky_pillar_7 again from
+# states saved while recording them, 2026-10-23); the seconds are from the moment its demo, line,
+# arrival or trigger came there.
 
 # Each version's intro and title screen, before the player is anywhere, each scene said as the app
 # that plays it starts and let go as another starts: A skips the intro straight to the title
@@ -2163,10 +2165,9 @@ id = "summit-rayquaza-waits-1"
 # After Zinnia's battle, by day, from Omega Ruby's or_sky_pillar_7 (spike 237): her "I am leaving
 # this task to you... You and Rayquaza must protect nature...Pokémon...the people...", then a demo
 # of 127 s: the player in a red suit and helmet rides Rayquaza up from the tower into space, it
-# breaks the meteoroid, and Deoxys comes out of the pieces before its battle. Omega Ruby's alone:
-# the suit is the Magma Suit's red, and no replay has shown Alpha Sapphire's. Its last beats wait
-# through the battle for the demo after it (or_sky_pillar_7 from its state saved after Zinnia's
-# battle, 2026-10-23).
+# breaks the meteoroid, and Deoxys comes out of the pieces before its battle. Omega Ruby's: the suit
+# is the Magma Suit's red. Its last beats wait through the battle for the demo after it
+# (or_sky_pillar_7 from its state saved after Zinnia's battle, 2026-10-23).
 [[scene]]
 after = "story:330:98"
 zone = 0xb5
@@ -2241,12 +2242,91 @@ id = "or-to-space-15"
 at = 15
 id = "or-to-space-16"
 
-# The last visits round Hoenn, from Omega Ruby's or_sky_pillar_7 replayed from the state saved after
-# Zinnia's battle (2026-10-23), a boy's: each visit's last line, then black, and the next place,
-# which each scene follows into with a beat waiting for the zone. The visit to the defeated team is
-# each version's own, Omega Ruby's the Magma Hideout, zone 0xae. The parents meet in the player's
-# house, zone 0xdf for a boy; a girl's is 0xe1 (her opening, spike 237), so the scenes from there
-# on, which name May, start only for a boy. No replay has shown a girl's.
+
+# Its twin in Alpha Sapphire, seen beat for beat in as_sky_pillar_7 from its state saved after
+# Zinnia's battle (2026-10-23): the same demo to the second, the player's suit blue.
+[[scene]]
+after = "story:330:98"
+zone = 0xb5
+title = 0x000400000011C500
+
+[[scene.beat]]
+demo = true
+at = 4
+id = "as-to-space-1"
+
+[[scene.beat]]
+at = 9
+id = "as-to-space-2"
+
+[[scene.beat]]
+at = 12
+id = "as-to-space-3"
+
+[[scene.beat]]
+at = 19
+id = "as-to-space-4"
+
+[[scene.beat]]
+at = 25
+id = "as-to-space-5"
+
+[[scene.beat]]
+at = 31
+id = "as-to-space-6"
+
+[[scene.beat]]
+at = 38
+id = "as-to-space-7"
+
+[[scene.beat]]
+at = 51
+id = "as-to-space-8"
+
+[[scene.beat]]
+at = 73
+id = "as-to-space-9"
+
+[[scene.beat]]
+at = 76
+id = "as-to-space-10"
+
+[[scene.beat]]
+at = 86
+id = "as-to-space-11"
+
+[[scene.beat]]
+at = 106
+id = "as-to-space-12"
+
+[[scene.beat]]
+at = 118
+id = "as-to-space-13"
+
+# After Deoxys's battle, the same scene: a demo of 13 s, Rayquaza's green trail in the sky and the
+# view sinking to the tower, then the field, the player back on the top, alone but for Zinnia's
+# Whismur, 18 s before its "Mur!".
+[[scene.beat]]
+demo = true
+at = 2
+id = "as-to-space-14"
+
+[[scene.beat]]
+at = 9
+id = "as-to-space-15"
+
+[[scene.beat]]
+at = 15
+id = "as-to-space-16"
+
+# The last visits round Hoenn, from or_sky_pillar_7 (Omega Ruby, a boy) and as_sky_pillar_7 (Alpha
+# Sapphire, a girl), each replayed from the state saved after Zinnia's battle (2026-10-23): each
+# visit's last line, then black, and the next place, which each scene follows into with a beat
+# waiting for the zone. Both versions play every visit alike to the second but the defeated team's,
+# the Magma Hideout (zone 0xae) in Omega Ruby and the Aqua Hideout (0x61) in Alpha Sapphire, staged
+# alike. The parents meet in the player's own house, a boy's zone 0xdf and a girl's 0xe1, and the
+# rival who tours the Space Center with the player is May for a boy and Brendan for a girl, each
+# on lines of their own.
 #
 # The Sky Pillar's top: Whismur's "Mur murrr!", then 4 s before the letter is read.
 [[scene]]
@@ -2299,6 +2379,7 @@ id = "epilogue-wally-2"
 [[scene]]
 after = "story:605:26"
 zone = 0x105
+title = 0x000400000011C400
 
 [[scene.beat]]
 zone = 0xae
@@ -2314,6 +2395,27 @@ zone = 0xae
 zone = 0x166
 at = 1.5
 id = "epilogue-league-1"
+
+# In Alpha Sapphire, the Aqua Hideout, zone 0x61.
+[[scene]]
+after = "story:605:26"
+zone = 0x105
+title = 0x000400000011C500
+
+[[scene.beat]]
+zone = 0x61
+at = 1
+id = "epilogue-aqua-1"
+
+# Shelly's "Well... I guess it could be worse.", then the Pokémon League.
+[[scene]]
+after = "story:416:33"
+zone = 0x61
+
+[[scene.beat]]
+zone = 0x166
+at = 1.5
+id = "epilogue-aqua-league-1"
 
 # Steven's "Thank you, my friend...", then Meteor Falls, zone 0x47.
 [[scene]]
@@ -2338,7 +2440,7 @@ zone = 0x47
 at = 2
 id = "epilogue-falls-2"
 
-# Her "... Yes.", then 16 s before Littleroot, a boy's house, zone 0xdf.
+# Her "... Yes.", then 16 s before Littleroot, the player's house.
 [[scene]]
 after = "story:444:92"
 zone = 0x47
@@ -2348,12 +2450,12 @@ at = 7
 id = "epilogue-falls-3"
 
 [[scene.beat]]
-zone = 0xdf
+zone = [0xdf, 0xe1]
 at = 2
 id = "epilogue-parents-1"
 
-# Norman's "How about our little boy's favorite?", then the Space Center's hall, zone 0x151, 38 s
-# without a word before May's "That was amazing...".
+# Norman's "How about our little boy's favorite?", one line for a boy and a girl, then the Space
+# Center's hall, zone 0x151, 38 s without a word before May's "That was amazing...".
 [[scene]]
 after = "story:253:147"
 zone = 0xdf
@@ -2383,17 +2485,49 @@ id = "epilogue-litleonids-4"
 at = 35
 id = "epilogue-litleonids-5"
 
-# May's "Time really flies when you're having fun...", then Littleroot by night, zone 0x6.
-[[scene]]
-after = "story:500:56"
-zone = 0x151
-
+# After May's "Time really flies when you're having fun...", Littleroot by night, zone 0x6. Her
+# line and Brendan's are the same words, so only the scene running tells them apart.
 [[scene.beat]]
 zone = 0x6
 at = 1.5
 id = "epilogue-home-1"
 
-# Her "See you tomorrow!"
+# "...our little girl's favorite?", and the hall with Brendan, before his "That was kinda awesome."
+[[scene]]
+after = "story:253:147"
+zone = 0xe1
+
+[[scene.beat]]
+at = 2
+id = "brendan-parents-2"
+
+[[scene.beat]]
+zone = 0x151
+at = 1
+id = "brendan-litleonids-1"
+
+[[scene.beat]]
+at = 4.5
+id = "brendan-litleonids-2"
+
+[[scene.beat]]
+at = 12.5
+id = "brendan-litleonids-3"
+
+[[scene.beat]]
+at = 26.5
+id = "brendan-litleonids-4"
+
+[[scene.beat]]
+at = 35
+id = "brendan-litleonids-5"
+
+[[scene.beat]]
+zone = 0x6
+at = 1.5
+id = "brendan-home-1"
+
+# "See you tomorrow!", May's and Brendan's the same words.
 [[scene]]
 after = "story:66:33"
 zone = 0x6
@@ -2403,7 +2537,8 @@ at = 2
 id = "epilogue-home-2"
 
 # "You're back at last! Welcome home, [name]!", then black, "Pokémon Omega Ruby Delta Episode:
-# End" over a dim emblem, and the player's room, a boy's, zone 0xe0.
+# End" (or Alpha Sapphire's) over a dim emblem, and the player's room, a boy's zone 0xe0 and a
+# girl's 0xe2.
 [[scene]]
 after = "story:66:35"
 zone = 0x6
@@ -2413,6 +2548,6 @@ at = 2
 id = "epilogue-home-3"
 
 [[scene.beat]]
-zone = 0xe0
+zone = [0xe0, 0xe2]
 at = 1
 id = "epilogue-home-4"
