@@ -567,11 +567,11 @@ fn test_a_way_is_said_from_the_camera_for_a_player_whose_keys_work_from_it() {
         Leg::new(WEST, 2, 13),
     ];
     assert_eq!(
-        turned(&way, NORTH, false).unwrap(),
+        turned(&way, NORTH, false, false).unwrap(),
         "3 forward, hold right, 5 forward, hold left, 2 forward, 1 back, hold left, 2 forward"
     );
     assert_eq!(
-        turned(&[Leg::new(WEST, 4, 4)], NORTH, false).unwrap(),
+        turned(&[Leg::new(WEST, 4, 4)], NORTH, false, false).unwrap(),
         "hold left, 4 forward"
     );
 }
@@ -582,17 +582,41 @@ fn test_a_way_is_said_from_the_camera_for_a_player_whose_keys_work_from_it() {
 #[test]
 fn test_a_camera_left_between_two_ways_is_straightened_before_walking_ahead_or_back() {
     assert_eq!(
-        turned(&[Leg::new(NORTH, 5, 5)], NORTH, true).unwrap(),
+        turned(&[Leg::new(NORTH, 5, 5)], NORTH, true, false).unwrap(),
         "camera angled, hold left, hold right, 5 forward"
     );
     assert_eq!(
-        turned(&[Leg::new(SOUTH, 2, 2), Leg::new(EAST, 1, 3)], NORTH, true).unwrap(),
+        turned(
+            &[Leg::new(SOUTH, 2, 2), Leg::new(EAST, 1, 3)],
+            NORTH,
+            true,
+            false
+        )
+        .unwrap(),
         "camera angled, hold left, hold right, 2 back, hold right, 1 forward"
     );
     assert_eq!(
-        turned(&[Leg::new(EAST, 4, 4)], NORTH, true).unwrap(),
+        turned(&[Leg::new(EAST, 4, 4)], NORTH, true, false).unwrap(),
         "hold right, 4 forward"
     );
+}
+
+/// Glittering Cave (spike 239): left and right turn the player a quarter and down turns them
+/// round, the camera swinging after them, and only up walks, so every leg not ahead is a turn and
+/// its steps forward. The camera settles on its own: an angle adds nothing.
+#[test]
+fn test_a_way_is_said_as_turns_for_a_player_the_camera_turns_with() {
+    let way = [
+        Leg::new(NORTH, 3, 3),
+        Leg::new(EAST, 5, 8),
+        Leg::new(NORTH, 2, 10),
+        Leg::new(SOUTH, 1, 11),
+        Leg::new(WEST, 2, 13),
+    ];
+    let said = "3 forward, turn right, 5 forward, turn left, 2 forward, turn around, 1 forward, \
+                turn right, 2 forward";
+    assert_eq!(turned(&way, NORTH, false, true).unwrap(), said);
+    assert_eq!(turned(&way, NORTH, true, true).unwrap(), said);
 }
 
 #[test]

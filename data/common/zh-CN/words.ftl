@@ -24,6 +24,9 @@ rail-back = 向后{ $steps }
 rail-hold-right = 按住右
 rail-hold-left = 按住左
 rail-angled = 镜头倾斜，按住左，按住右
+turn-right = 向右转
+turn-left = 向左转
+turn-around = 向后转
 
 ## The list of what is on the map, and the navigation keys' answers
 

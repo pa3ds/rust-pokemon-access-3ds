@@ -2728,6 +2728,29 @@ fn test_a_rare_ball_is_an_item_ball_and_grass_a_pokemon_leaps_out_of_is_pokemon(
     Ok(())
 }
 
+/// Glittering Cave (spike 239): nine models drawn as `ENEMY3D` were people standing in the way,
+/// "22 south, then can't continue". A wild battle begins as the player comes up to one, and after
+/// it they walk straight through its cell.
+#[test]
+fn test_a_spot_a_pokemon_lurks_at_unseen_is_pokemon_and_walked_through() -> Result<()> {
+    let mut town = Town::new();
+    town.reader = field_reader(
+        town.memory.clone(),
+        Given::default(),
+        Game {
+            lurkers: HashSet::from([xy::ENEMY3D]),
+            ..game()
+        },
+    );
+    town.model(3, TOWN, 3, xy::ENEMY3D, (100, 170));
+    let r#where = town.r#where()?;
+    let cells: Vec<(i64, i64)> = r#where.of("pokémon").iter().map(|item| item.cell).collect();
+    assert_eq!(cells, [(100, 170)]);
+    let ground = town.reader.ground(&r#where, None)?;
+    assert!(ground.open((100, 170))? && !ground.stepped.contains(&(100, 170)));
+    Ok(())
+}
+
 /// Spike 203: deep in the Cave of Origin three models drawn as nothing stand in a row in front
 /// of Groudon, which stands in the magma, with its script; in Sootopolis City one stands on each
 /// locked door. Each was listed as a nameless person, and so was the player in the Magma Suit,
@@ -4577,6 +4600,39 @@ fn test_off_the_rails_up_walks_the_way_the_camera_looks() -> Result<()> {
     }
     town.memory.u32(block, &[0, 0]);
     assert_eq!(town.reader.turn(3)?, 3);
+    Ok(())
+}
+
+/// Spike 239: in Glittering Cave `LOOKS` reads 0, which was taken for south, so P said "22
+/// south" for 22 north, and `YAW`, the heading on a rail, holds where the camera looks: north,
+/// 7.7 degrees west. The ways are said from that heading, and the compass is not turned.
+#[test]
+fn test_under_a_camera_behind_the_player_off_the_rails_the_ways_are_said_from_it() -> Result<()> {
+    let town = Town::new();
+    town.model(0, TOWN, mmodel::PLAYER_INDEX, 0xAC, (94, 172));
+    let (block, holder) = (0x08277140, 0x0827855C);
+    town.memory.u32(block, &[ALLOCATION, camera::BLOCK_SIZE]);
+    town.memory.u32(
+        holder,
+        &[FakeClasses::new(town.memory.clone()).add(camera::CLASS)],
+    );
+    town.memory.u32(holder + camera::BLOCK, &[block]);
+    let found = town.found();
+    let mut heap = found.heap.clone();
+    heap.insert(holder, camera::CLASS.to_string());
+    town.reader.track(&Found {
+        pages: found.pages.clone(),
+        heap,
+        partial: false,
+    })?;
+    town.memory
+        .write(block + camera::YAW, &f32s(&[(-172.3f64).to_radians()]));
+    town.memory.write(block + camera::LOOKS, &f32s(&[0.0]));
+    let r#where = town.reader.poll()?;
+    let r#where = r#where.expect("a poll");
+    assert!(r#where.heading == Some("north") && r#where.turning);
+    assert_eq!(py::round_to(r#where.bearing.unwrap_or(0.0), 1), 352.3);
+    assert_eq!(town.reader.turn(2)?, 0);
     Ok(())
 }
 

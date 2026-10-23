@@ -3355,6 +3355,27 @@ fn test_on_a_rail_the_way_and_the_bearing_are_said_from_the_camera() {
     assert_eq!(last(&rig.backend), "person, 2 of 2, 10 ahead 5 right");
 }
 
+/// Glittering Cave (spike 239): left and right turn the player and the camera swings after them,
+/// so P says each turn, then the steps forward.
+#[test]
+fn test_under_a_camera_that_turns_with_the_player_p_says_the_turns() {
+    let cave = Field {
+        heading: Some("north"),
+        bearing: Some(352.3),
+        turning: true,
+        ..street()
+    };
+    let mut rig = navigator(Want {
+        blocked: house_front(),
+        ..on(cave)
+    });
+    rig.press_key("p");
+    assert_eq!(
+        last(&rig.backend),
+        "turn right, 5 forward, turn left, 2 forward"
+    );
+}
+
 /// A tap of left or right leaves the camera between two ways, and up walks the player across
 /// the street at its angle (spike 105).
 #[test]

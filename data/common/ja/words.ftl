@@ -24,6 +24,9 @@ rail-back = 後ろへ{ $steps }
 rail-hold-right = 右を押し続ける
 rail-hold-left = 左を押し続ける
 rail-angled = カメラが斜め、左を押し続ける、右を押し続ける
+turn-right = 右を向く
+turn-left = 左を向く
+turn-around = 後ろを向く
 
 ## The list of what is on the map, and the navigation keys' answers
 

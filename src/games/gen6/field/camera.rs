@@ -12,7 +12,8 @@
 //!                         looks at, +0xc24 x3 the unit way from one to the other
 //!                         +0xc30 f32 the camera's own heading, in radians, the way a model's
 //!                         world facing is: up on the pad walks the world's (sin, cos) of it
-//!                         +0xebc f32 the camera's heading on a rail, the same way
+//!                         +0xebc f32 the camera's heading where it is behind the player, the
+//!                         same way
 //! ```
 //!
 //! Found in seven snapshots taken while the player walked up, each a different way, where +0xebc
@@ -22,6 +23,12 @@
 //! where up walked Khai west, swinging round to -pi as he walked north up it (spike 230,
 //! x_route-6-4.ctm, 2026-10-20). The way from where it is to what it looks at turns with it, to the
 //! tenth of a degree.
+//!
+//! Off the rails the camera is behind the player in Glittering Cave too, and +0xebc holds its heading
+//! there while +0xc30 reads 0: -172.3 degrees on arrival, looking north. On every other grid map
+//! measured, Route 9, Parfum Palace and its garden, Route 7 and a Lumiose building, +0xebc reads
+//! exactly 0 (spike 239, x_glittering_cave). So `behind` tells a camera behind the player on the grid
+//! from the grid's own, which `looks` reads.
 
 use std::f64::consts::PI;
 
@@ -65,6 +72,13 @@ pub fn heading(memory: &dyn Memory, block: i64) -> Result<Option<f64>> {
     }
     let yaw = angle(memory, block, YAW)?;
     Ok(yaw.map(f64::to_degrees))
+}
+
+/// The heading of a camera behind the player, in degrees (`heading`), or None where `YAW`
+/// reads 0, as it does wherever the camera is the grid's own (spike 239).
+pub fn behind(memory: &dyn Memory, block: i64) -> Result<Option<f64>> {
+    // Python's `heading(...) or None`: 0.0, and -0.0, are false.
+    Ok(heading(memory, block)?.filter(|&yaw| yaw != 0.0))
 }
 
 /// Where the camera looks, in radians the way a model faces (`LOOKS`), or None when the block

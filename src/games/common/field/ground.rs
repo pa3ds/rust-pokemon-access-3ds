@@ -565,6 +565,8 @@ pub struct Of {
     pub belts: IndexMap<Cell, &'static str>,
     pub far: Option<Far>,
     pub clears: IndexMap<i64, i64>,
+    /// A `frozenset`, only tested.
+    pub through: HashSet<i64>,
     pub solid: IndexMap<Cell, Option<f64>>,
 }
 
@@ -578,7 +580,9 @@ impl Ground {
     /// tunnel's halves, the only way through it to Verdanturf Town (spike 137). `solid` is
     /// cells something stands in that is not listed, with how high it stands where known: a
     /// Secret Base's desks and chairs, which the cell table has as open floor (spike 154), and
-    /// the game's invisible blockers (spike 167).
+    /// the game's invisible blockers (spike 167). A move model drawn as a sprite in `through`
+    /// neither stands in its cells nor is stepped round: Glittering Cave's lurking Pokémon,
+    /// walked through once its battle is over (spike 239).
     pub fn of(r#where: &Field, of: Of) -> Ground {
         let Of {
             chunks,
@@ -587,11 +591,17 @@ impl Ground {
             belts,
             far,
             clears,
+            through,
             solid,
         } = of;
-        let models: Vec<&Interactable> = r#where
+        let listed: Vec<&Interactable> = r#where
             .interactables
             .iter()
+            .filter(|item| !(item.move_model && through.contains(&item.code)))
+            .collect();
+        let models: Vec<&Interactable> = listed
+            .iter()
+            .copied()
             .filter(|item| item.move_model)
             .collect();
         let mut standing: IndexSet<Cell> = solid.keys().copied().collect();
@@ -607,7 +617,7 @@ impl Ground {
             }
         }
         let mut stepped: IndexSet<Cell> = IndexSet::new();
-        for item in &r#where.interactables {
+        for item in &listed {
             let place = item.place_kind();
             if item.category == POKEMON
                 || place == Some(WARP_SOURCE)

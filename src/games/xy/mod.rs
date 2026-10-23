@@ -296,6 +296,11 @@ pub const STOPPER: i64 = 0x8A;
 /// Route 6 and three on Route 18, with no script; "Whoa! A wild Audino leaped out of the tall
 /// grass!" (text 124:261, x_route-6.ctm, 2026-10-19).
 pub const TOBI_KUSA: i64 = 0x2002;
+/// A spot a wild Pokémon waits at unseen, `ENEMY3D`: nine in Glittering Cave (zone 0x12f), records
+/// 3 to 11, all running shared script 0x7d0, drawn as nothing. Walking up the corridor from (32, 72)
+/// the player stopped at (32, 50) under a "!" and a wild battle began, "A wild Onix appeared!"; after
+/// fleeing, up walked them straight through (32, 49) to (32, 37) (spike 239, x_glittering_cave).
+pub const ENEMY3D: i64 = 0x95;
 
 /// The bit of a cell's word on a strand of Santalune Gym's web (zone 0x38, chunk file 344 of
 /// `a/0/4/1`): the floor is open cells along strands, many running diagonally, two cells touching
@@ -431,6 +436,7 @@ pub fn game() -> &'static Game {
         ]),
         blockers: HashSet::from([STOPPER]),
         ambushes: HashSet::from([TOBI_KUSA]),
+        lurkers: HashSet::from([ENEMY3D]),
         elevators: ELEVATORS.collect(),
         warps: warps().clone(),
         triggers: IndexMap::from([

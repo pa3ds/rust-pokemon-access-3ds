@@ -318,6 +318,8 @@ pub struct FieldReader {
     clears: IndexMap<i64, i64>,
     /// The sprites of the spots a wild Pokémon leaps out of (`Game.ambushes`).
     ambushes: HashSet<i64>,
+    /// The sprites of the spots a wild Pokémon waits at unseen (`Game.lurkers`).
+    lurkers: HashSet<i64>,
     /// The matrix out of the ROM, which never touches RAM.
     pub terrain: Terrain,
     /// Underwater zone -> its `Ground.surfaces`, once found.
@@ -358,6 +360,8 @@ pub struct FieldReader {
     player: Slot<Option<i64>>,
     /// Whether the player's model was on a rail at the last poll.
     on_rail: Slot<bool>,
+    /// Whether the last poll found the camera behind a player off the rails (`Rails.behind`).
+    behind: Slot<bool>,
     holder: RefCell<Option<Holder>>,
     map: Slot<Option<i64>>,
     /// The field map's grid as last read: a sweep ago, or when the player's model changed.
@@ -473,6 +477,7 @@ impl FieldReader {
             triggers: game.triggers.clone(),
             clears: game.clears.clone(),
             ambushes: game.ambushes.clone(),
+            lurkers: game.lurkers.clone(),
             terrain,
             surfaces_of: RefCell::new(HashMap::new()),
             trigger_boxes: RefCell::new(HashMap::new()),
@@ -491,6 +496,7 @@ impl FieldReader {
             models: RefCell::new(Vec::new()),
             player: Slot::new(None),
             on_rail: Slot::new(false),
+            behind: Slot::new(false),
             holder: RefCell::new(None),
             map: Slot::new(None),
             grid: RefCell::new(None),
@@ -652,11 +658,19 @@ impl FieldReader {
             self.rails.fixed(&files, mmodel::rail(&head)?.0)?
         } {
             *self.rails.corridor.borrow_mut() = None;
+            let behind = self.rails.behind()?;
+            self.behind.set(behind.is_some());
             return Ok(Some(Field {
                 on_bike: bike,
                 place: Some(mmodel::place(&head)?),
                 surfing: mmodel::surfing(&head, form)?,
                 height: self.height.get(),
+                heading: match behind {
+                    None => None,
+                    Some(behind) => Some(pathfind::nearest(behind)?),
+                },
+                bearing: behind,
+                turning: self.behind.get(),
                 ..Field::new(zone, cell)
             }));
         }
@@ -685,9 +699,11 @@ impl FieldReader {
 
     /// The quarters clockwise from north the pad's up walks the player, as the last poll
     /// found them: where the camera looks (`Rails.turn`), and north on a rail, where the keys
-    /// walk the corridor or a street's lanes and the camera's own heading reads 0 (spike 230).
+    /// walk the corridor or a street's lanes and the camera's own heading reads 0 (spike 230),
+    /// and under a camera behind the player, where the ways are said from `Field.heading`
+    /// (spike 239).
     pub fn turn(&self, current: i64) -> Result<i64> {
-        if self.on_rail.get() {
+        if self.on_rail.get() || self.behind.get() {
             Ok(0)
         } else {
             self.rails.turn(current)
@@ -845,6 +861,7 @@ impl FieldReader {
                         None
                     },
                     clears: self.clears.clone(),
+                    through: self.lurkers.clone(),
                     solid,
                     ..Of::default()
                 },
@@ -2036,7 +2053,7 @@ impl FieldReader {
         let source = u32(head, mmodel::ZONE)? << 32 | model;
         let (category, kind) = if mmodel::ITEM_BALLS.contains(&code) {
             ("items", "item ball")
-        } else if self.ambushes.contains(&code) {
+        } else if self.ambushes.contains(&code) || self.lurkers.contains(&code) {
             (POKEMON, PROP)
         } else if self.clears.contains_key(&code)
             || self

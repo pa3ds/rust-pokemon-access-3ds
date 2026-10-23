@@ -634,16 +634,17 @@ fn left(guidance: &Guidance, at: i64, r#where: &Field) -> Result<String> {
     spoken(&legs, r#where)
 }
 
-/// Legs as the player's keys walk them: by the compass on the grid, and on a rail, where the
-/// keys work from the camera behind the player, from the way it looks (spike 105). A run of legs
-/// a current carries the player along is said as one, by where it leaves them (`CURRENT`).
+/// Legs as the player's keys walk them: by the compass on the grid, and on a rail or under a
+/// camera behind the player, where the keys work from it, from the way it looks (spikes 105 and
+/// A). A run of legs a current carries the player along is said as one, by where it leaves them
+/// (`CURRENT`).
 fn spoken(legs: &[Leg], r#where: &Field) -> Result<String> {
     if let Some(heading) = r#where.heading {
         let angled = match r#where.bearing {
             Some(bearing) => pathfind::off(bearing, heading)?.abs() > ANGLED,
             None => false,
         };
-        return pathfind::turned(legs, heading, angled);
+        return pathfind::turned(legs, heading, angled, r#where.turning);
     }
     let mut parts: Vec<String> = Vec::new();
     let mut drift = (0, 0);
@@ -1523,7 +1524,8 @@ impl Guide {
     }
 
     /// Whether the camera has stopped turning: it has stayed within `STILL` of one bearing
-    /// for `SETTLE` seconds. False off the rails, where there is no camera to turn.
+    /// for `SETTLE` seconds. False where no camera is behind the player: off the rails, but in
+    /// Glittering Cave (spike 239).
     fn settled(&self, r#where: &Field, guidance: &mut Guidance) -> bool {
         let Some(bearing) = r#where.bearing else {
             guidance.seen = None;
@@ -1542,10 +1544,12 @@ impl Guide {
     }
 
     /// The way on from here again, when the camera has stopped somewhere new with the
-    /// player standing still. On a rail the way is said from the camera, which left and right
-    /// turn only while held: a tap turns the player and leaves the camera where it was, or
-    /// between two ways, and the way said before is wrong for it, and a hold makes a turn said
-    /// done, which is worth hearing (spike 105).
+    /// player standing still. On a rail or under a camera behind the player the way is said
+    /// from the camera. On a rail left and right turn it only while held: a tap turns the player
+    /// and leaves the camera where it was, or between two ways, and the way said before is
+    /// wrong for it, and a hold makes a turn said done, which is worth hearing (spike 105). In
+    /// Glittering Cave a turn swings the camera after the player, and the way on is said from
+    /// where it settles (spike 239).
     fn turned(
         &self,
         r#where: &Field,

@@ -24,6 +24,9 @@ rail-back = { $steps } indietro
 rail-hold-right = tieni destra
 rail-hold-left = tieni sinistra
 rail-angled = telecamera inclinata, tieni sinistra, tieni destra
+turn-right = gira a destra
+turn-left = gira a sinistra
+turn-around = girati
 
 ## The list of what is on the map, and the navigation keys' answers
 

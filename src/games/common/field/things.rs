@@ -372,14 +372,20 @@ pub struct Field {
     /// player's own included (spike 102). With the rails loaded, `cell` and every cell listed are
     /// the corridor's (`Corridor`).
     pub on_rail: bool,
-    /// On a rail, the way of the corridor up walks the player, nearest `bearing`, which is the
-    /// way their keys work from: the camera is behind them there, so up walks the way it looks,
-    /// down back from it, and left and right turn the player a quarter, the camera following only
-    /// while the key is held (spike 105).
+    /// On a rail or under a camera behind the player, the way up walks them, nearest `bearing`,
+    /// which is the way their keys work from: up walks the way the camera looks. On a rail down
+    /// walks back from it, and left and right turn the player a quarter, the camera following only
+    /// while the key is held (spike 105); in Glittering Cave see `turning`.
     pub heading: Option<&'static str>,
-    /// On a rail, the way up walks the player in the corridor, in degrees clockwise from its
-    /// north: the camera's heading, which a tap of left or right leaves anywhere (spike 105).
+    /// On a rail or under a camera behind the player, the way up walks them, in degrees
+    /// clockwise from north, the corridor's on a rail: the camera's heading, which on a rail a tap
+    /// of left or right leaves anywhere (spikes 105 and 239).
     pub bearing: Option<f64>,
+    /// Whether the camera behind the player turns with them, as in Glittering Cave, rather than
+    /// being held round, as on Lumiose's rails: left and right turn the player a quarter and down
+    /// turns them round, the camera swinging after them, and only up walks (spike 239,
+    /// x_glittering_cave). Meaningful only with `heading` set.
+    pub turning: bool,
     /// Whether the player is riding the Mach Bike, which rides up a sandy slope (spike 158).
     pub on_bike: bool,
     /// Whether the player is surfing, where a current can carry them (spike 208).
@@ -413,6 +419,7 @@ impl Default for Field {
             on_rail: false,
             heading: None,
             bearing: None,
+            turning: false,
             on_bike: false,
             surfing: false,
             reach: None,

@@ -38,6 +38,11 @@ rail-hold-right = hold right
 rail-hold-left = hold left
 # A camera a tap left pointing between two ways, which a hold either way settles.
 rail-angled = camera angled, hold left, hold right
+# A leg in Glittering Cave, where the camera is behind the player and left, right and
+# down turn them with it (spike 239): "turn left, 5 forward".
+turn-right = turn right
+turn-left = turn left
+turn-around = turn around
 
 ## The list of what is on the map, and the navigation keys' answers
 

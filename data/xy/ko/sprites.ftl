@@ -345,6 +345,8 @@ sprite-0x2042 = 반짝임
 sprite-0x203e = 교통콘
 # en shaking grass: TOBI_KUSA, no script: three on Route 6 and three on Route 18, rustling till a wild Pokémon "leaped out of the tall grass" (text 124:261)
 sprite-0x2002 = 흔들리는 풀숲
+# en lurking Pokémon: ENEMY3D, shared script 2000: nine in the Glittering Cave, drawn as nothing, a wild battle as the player comes up to one (spike 239)
+sprite-0x95 = 숨어 있는 포켓몬
 
 ## tiles
 # What each kind of use tile is: a cell of the map the player faces and presses A at, with no

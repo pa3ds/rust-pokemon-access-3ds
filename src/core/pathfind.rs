@@ -992,7 +992,12 @@ pub fn spoken(runs: &[Leg]) -> String {
 /// a leg straight. A hold always settles it on a way, the one a quarter from the way it is
 /// nearest, so a first leg to one side is said as ever, and one ahead or behind after holding
 /// one way and back: "camera angled, hold left, hold right, 5 forward".
-pub fn turned(runs: &[Leg], heading: &str, angled: bool) -> Result<String> {
+///
+/// `turning` is a camera that turns with the player, as in Glittering Cave: left and right turn
+/// them a quarter and down turns them round, the camera swinging after them, and only up walks
+/// (spike 239). So every leg not ahead is a turn, then the steps forward: "turn left, 5 forward",
+/// "turn around, 1 forward". The camera settles on its own, so `angled` is ignored.
+pub fn turned(runs: &[Leg], heading: &str, angled: bool, turning: bool) -> Result<String> {
     let mut heading = heading;
     let mut words: Vec<String> = Vec::new();
     for (i, leg) in runs.iter().enumerate() {
@@ -1000,6 +1005,17 @@ pub fn turned(runs: &[Leg], heading: &str, angled: bool) -> Result<String> {
             compass_index(leg.direction)? - compass_index(heading)?,
             COMPASS.len() as i64,
         );
+        if turning {
+            if turn != 0 {
+                words.push(own(
+                    ["turn-right", "turn-around", "turn-left"][turn as usize - 1],
+                    &[],
+                ));
+            }
+            words.push(own("rail-forward", &[("steps", &leg.steps)]));
+            heading = leg.direction;
+            continue;
+        }
         if i == 0 && angled && (turn == 0 || turn == 2) {
             words.push(own("rail-angled", &[]));
         }

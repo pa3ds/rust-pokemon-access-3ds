@@ -24,6 +24,9 @@ rail-back = { $steps } atrás
 rail-hold-right = mantener derecha
 rail-hold-left = mantener izquierda
 rail-angled = cámara en ángulo, mantener izquierda, mantener derecha
+turn-right = girar a la derecha
+turn-left = girar a la izquierda
+turn-around = darse la vuelta
 
 ## The list of what is on the map, and the navigation keys' answers
 

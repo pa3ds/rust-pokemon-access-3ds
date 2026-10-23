@@ -251,6 +251,10 @@ pub struct Game {
     /// under pokémon rather than as a thing to use: X's grass on Routes 6 and 18, `TOBI_KUSA`
     /// (2026-10-19).
     pub ambushes: HashSet<i64>,
+    /// The sprites of the spots a wild Pokémon waits at unseen, a battle as the player comes up
+    /// to one and nothing in the way after: listed under pokémon, and walked through. X's
+    /// Glittering Cave, `ENEMY3D` (spike 239).
+    pub lurkers: HashSet<i64>,
     /// The sprites of its invisible blockers, move models drawn as nothing that stand in the way:
     /// listed as nobody, and solid but where they stand in for a rotating door's arm. Not where a
     /// sprite is a barrier (`barriers`).
@@ -352,6 +356,7 @@ impl Game {
             doors: None,
             ice: None,
             ambushes: HashSet::new(),
+            lurkers: HashSet::new(),
             blockers: HashSet::new(),
             elevators: HashSet::new(),
             player_looks: HashSet::new(),

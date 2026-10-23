@@ -925,6 +925,17 @@ impl Rails {
         }
     }
 
+    /// The heading of a camera behind a player off the rails, as in Glittering Cave, in
+    /// degrees clockwise from north; None with no camera found or none behind (spike 239). Up
+    /// walks the world's (sin a, cos a) of its angle, as `quarter` has it.
+    pub fn behind(&self) -> Result<Option<f64>> {
+        let yaw = match self.camera.get() {
+            None => None,
+            Some(block) => camera::behind(&*self.memory, block)?,
+        };
+        Ok(yaw.map(|yaw| py::modulo_f(180.0 - yaw, 360.0)))
+    }
+
     /// Where the player's model `head` is in the corridor of the streets joined to its line, and
     /// the way up walks them, or None while the line is not known. `files` are the map's chunk
     /// files, as the field map lists them.
