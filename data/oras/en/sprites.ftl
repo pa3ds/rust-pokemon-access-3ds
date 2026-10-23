@@ -196,6 +196,9 @@ sprite-0x2009 = big boulder
 # Things standing on the map, by the model their sprite's record in a/1/3/7 draws (spike 211), and
 # called what the game calls that thing among the Secret Base decorations (text 56) or the items
 # (text 114).
+# KIRAKIRA: the sparkle at each of the 28 places a Mega Stone lies, a script each from 0x41f
+# to 0x43a (or_mega_stone: "Raiden found a Sablenite!"); the word is story 330:64's
+sprite-0x203d = Mega Stone
 # DOLL_RURIRI: text 56:111, in both houses in Littleroot
 sprite-0x204a = Azurill Doll
 # DOLL_ENEKO: text 56:112

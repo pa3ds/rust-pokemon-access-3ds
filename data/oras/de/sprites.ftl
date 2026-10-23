@@ -324,6 +324,8 @@ sprite-0x2009 = großer Felsen
 # Things standing on the map, by the model their sprite's record in a/1/3/7 draws (spike 211), and
 # called what the game calls that thing among the Secret Base decorations (text 56) or the items
 # (text 114).
+# Mega Stone: story 330:64
+sprite-0x203d = Mega-Stein
 # Azurill Doll: text 56:111
 sprite-0x204a = Azurill-Puppe
 # Skitty Doll: text 56:112
