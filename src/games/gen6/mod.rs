@@ -17,6 +17,7 @@
 
 pub mod apps;
 pub mod field;
+pub mod frames;
 pub mod game;
 pub mod gflheap;
 pub mod mystatus;

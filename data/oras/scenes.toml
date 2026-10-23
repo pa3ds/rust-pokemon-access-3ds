@@ -23,6 +23,86 @@
 # Alpha Sapphire's scene_granite_cave_mural, 2026-10-19); the seconds are from the moment its
 # demo, line, arrival or trigger came there.
 
+# Omega Ruby's intro and title screen, before the player is anywhere, each scene said as the app
+# that plays it starts and let go as another starts: A skips the intro straight to the title
+# screen, and the rest of it goes unsaid. Seconds are from the app's start, by the game's own
+# frames (spike A, or_intro_and_title_screen, 2026-10-21).
+#
+# The intro's first part, the forest, Latios and the boy on his bike, played on the field's engine.
+[[scene]]
+app = "app::field_demo::Proc"
+title = 0x000400000011C400
+
+[[scene.beat]]
+at = 1
+id = "or-intro-forest"
+
+[[scene.beat]]
+at = 10.5
+id = "or-intro-drops"
+
+[[scene.beat]]
+at = 16.5
+id = "or-intro-credit"
+
+[[scene.beat]]
+at = 20.5
+id = "or-intro-volcano"
+
+[[scene.beat]]
+at = 22.7
+id = "or-intro-latios"
+
+[[scene.beat]]
+at = 24.8
+id = "or-intro-island"
+
+[[scene.beat]]
+at = 31.6
+id = "or-intro-bike"
+
+[[scene.beat]]
+at = 35.5
+id = "or-intro-loop"
+
+[[scene.beat]]
+at = 40.5
+id = "or-intro-face"
+
+# Its second part, a movie of quick cuts, half a second each.
+[[scene]]
+app = "movie::MovieProc"
+title = 0x000400000011C400
+
+[[scene.beat]]
+at = 1
+id = "or-intro-movie-1"
+
+[[scene.beat]]
+at = 6
+id = "or-intro-movie-2"
+
+[[scene.beat]]
+at = 8.2
+id = "or-intro-movie-3"
+
+[[scene.beat]]
+at = 11
+id = "or-intro-movie-4"
+
+# The title screen: the logo forms over 8 s, then stays until the player presses a button.
+[[scene]]
+app = "title::TitleProc"
+title = 0x000400000011C400
+
+[[scene.beat]]
+at = 1
+id = "or-title-logo"
+
+[[scene.beat]]
+at = 8.5
+id = "or-title"
+
 # The opening, before the player is anywhere, so in no zone: the professor's lines are the rest of
 # the game's text, file 118, and the stretches between them where he says nothing are described
 # (OR_character-desc.ctm, 2026-10-15).

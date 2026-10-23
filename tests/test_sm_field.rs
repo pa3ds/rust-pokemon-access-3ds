@@ -1191,6 +1191,7 @@ fn test_a_beat_waiting_for_a_zone_comes_as_the_field_arrives_there() {
         }],
         demo: Some(6),
         trigger: None,
+        app: None,
     };
     let emu = FakeEmulator::new(served(&bedroom.memory));
     let memory: Rc<dyn Memory> = Rc::new(RpcMemory::new(connect(&emu)));

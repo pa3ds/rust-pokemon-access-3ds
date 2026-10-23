@@ -44,7 +44,8 @@ use crate::games::common::layout_file::{LayoutFile, LayoutFiles};
 use crate::games::common::pictures::CAUGHT;
 use crate::games::common::pictures::named as named_picture;
 use crate::games::common::scenes::{
-    Described, Lines, Recall, Scenes, Word, load as load_scenes, shipped as scenes_shipped,
+    Described, GameClock, Lines, Recall, Scenes, Word, load as load_scenes,
+    shipped as scenes_shipped,
 };
 use crate::games::common::screen::{Pictures, ScreenPoll, ScreenText, ScreenTextReader};
 use crate::games::common::screen_announce::ScreenAnnouncer;
@@ -78,7 +79,7 @@ use crate::games::gen6::screens::training::{Bags, Goals, Round, TrainingPage};
 use crate::games::gen6::screens::{
     amie, buttons, distribution, partyicons, summary, townmap, training,
 };
-use crate::games::gen6::{gflheap, mystatus};
+use crate::games::gen6::{frames, gflheap, mystatus};
 use crate::py::{self, Error, Log, PySet, Result};
 
 /// What the heap is swept for: message windows, list controllers, the device manager a choice box
@@ -278,8 +279,9 @@ pub struct Gen6Profile {
     speaker_wanted: Cell<bool>,
     /// Every device manager a sweep has found. It lives all session, so a choice box built
     /// later is found in the blocks just allocated by the manager it holds. Iterated by
-    /// `Found.holders`, whose result follows its order, so a `PySet`.
-    managers: RefCell<PySet>,
+    /// `Found.holders`, whose result follows its order, so a `PySet`. Shared with the scenes'
+    /// clock, which reads the game's frames through them (`frames`).
+    managers: Rc<RefCell<PySet>>,
     /// The cell the Secret Base's decorating cursor was last said on, and what was there.
     decorating: RefCell<Option<((i64, i64), String)>>,
     /// The game's own apps, ORAS's soaring: while one runs, the keys walk what it lists, which
@@ -834,6 +836,7 @@ impl Gen6Profile {
         let screen_announcer = ScreenAnnouncer::with(speech.clone(), log.clone(), ui.pauses);
         // The scenes the game shows without words, described where the player asks and the game
         // has descriptions in their language (ADR-0038), those of the other version left out.
+        let managers = Rc::new(RefCell::new(PySet::new()));
         let scenes = if ui.descriptions && text.loaded() {
             // Python raises out of `__init__` here; `new` returns no `Result`, and nothing the
             // file or the ROM holds raises in `load` but a line number in digits no int reads.
@@ -857,9 +860,11 @@ impl Gen6Profile {
                 title,
             )
             .unwrap_or_else(|error| panic!("{error:?}"));
-            Some(RefCell::new(Scenes::with_monotonic(
+            let clock = GameClock::with_monotonic(frames_of(memory.clone(), managers.clone()));
+            Some(RefCell::new(Scenes::new(
                 loaded,
                 Rc::new(move |message: &str| described.said(message)),
+                Rc::new(move || clock.call()),
             )))
         } else {
             None
@@ -965,7 +970,7 @@ impl Gen6Profile {
             zone: Cell::new(None),
             unheard: RefCell::new(HashSet::new()),
             speaker_wanted: Cell::new(false),
-            managers: RefCell::new(PySet::new()),
+            managers,
             decorating: RefCell::new(None),
             own: owned,
         }
@@ -1117,10 +1122,15 @@ impl Gen6Profile {
         if started == BATTLE {
             self.battle.borrow_mut().begin();
         }
-        if DEMOS.contains(&started.as_str())
-            && let Some(scenes) = &self.scenes
-        {
-            scenes.borrow_mut().demo(None, &mut self.narrate())?;
+        if let Some(scenes) = &self.scenes {
+            scenes.borrow_mut().started(
+                &demangle(&started),
+                self.zone.get(),
+                &mut self.narrate(),
+            )?;
+            if DEMOS.contains(&started.as_str()) {
+                scenes.borrow_mut().demo(None, &mut self.narrate())?;
+            }
         }
         for app in self.own.iter() {
             app.started();
@@ -1818,6 +1828,18 @@ impl FieldSource for OwnApps {
     fn ground(&self, r#where: &Field, height: Option<f64>) -> Result<Ground> {
         self.field().ground(r#where, height)
     }
+}
+
+/// `Gen6Profile._frames`: the game's count of frames, which a scene's beats are timed by
+/// (`gen6.frames`): read in whatever phase asks, since a scene starts inside the field's.
+fn frames_of(
+    memory: Rc<dyn Memory>,
+    managers: Rc<RefCell<PySet>>,
+) -> Rc<dyn Fn() -> Result<Option<i64>>> {
+    Rc::new(move || {
+        let managers: Vec<i64> = managers.borrow().iter().collect();
+        frames::frames(&*memory, &managers)
+    })
 }
 
 /// A line of the "story" text or the "text" by its file and number, as the ROM has it, or

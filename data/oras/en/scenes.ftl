@@ -18,6 +18,31 @@
 # The player's own Pokémon they gave no nickname, the game's name for it in: "your Mega Latios".
 scene-yours = your { $pokemon }
 
+# Omega Ruby's intro, from boot to the title screen, and the title screen
+# (or_intro_and_title_screen, spike A). The studio's credit, the game's name and the title
+# screen's prompt are pictures with no line in the game's text, so none is written here.
+#
+# The intro's first part, on the field's engine.
+or-intro-forest = A { POKEMON(267) } flutters among tall, dewy leaves. Below lies a small, dark pond in the forest, two small Pokémon peeking in at its edge.
+or-intro-drops = The view sinks to the water. A drop of dew falls from a leaf tip, and rings spread across the pond.
+or-intro-credit = The credit of the studio that made the game fades in over the water.
+or-intro-volcano = The view rises through the plants. Beyond the forest stand two mountains under a blue sky, one a smoking volcano.
+or-intro-latios = { POKEMON(381) } swoops past low over the trees and climbs away into the sky. A flash of white.
+or-intro-island = High over the sea, { POKEMON(381) } glides past an island: a brown volcano glowing red at its crater, a yellow field of ash, green forest. It dives away in a streak of mist.
+or-intro-bike = On a dirt road, a red bike rolls along. Its rider is a boy in a white cap, red and black clothes and a green backpack.
+or-intro-loop = He looks up. { POKEMON(381) } loops through the sky above him and streaks away. He closes his eyes and smiles.
+or-intro-face = The view closes in on his face, and everything fades to white.
+
+# Its second part, a movie of quick cuts.
+or-intro-movie-1 = A { ITEM(4) }, drawn in strokes of paint, rushes at you. Then quick flashes: { POKEMON(323) } in a ring of fire, { POKEMON(319) } leaping from dark water, { POKEMON(383) } roaring under a blazing sun.
+or-intro-movie-2 = { POKEMON(257) } in a desert, flames streaming from its wrists. { POKEMON(260) } by the sea, fists raised. { POKEMON(254) } in a dark forest.
+or-intro-movie-3 = { TRAINER(235) } stands in a pillar of fire and pushes up his glasses. Then { TRAINER(557) }, in a cave of carved walls.
+or-intro-movie-4 = Against an orange sky, the black shape of { POKEMON(383) }, a light burning in its chest. A sign like the letter omega forms in fire, flames swirl round it, and white light floods in.
+
+# The title screen.
+or-title-logo = The title screen. The Pokémon logo shines out of the dark among shards of red crystal, then bursts into white light.
+or-title = Under the logo, the game's name burns in red letters over a sunburst of flames, and a line of words blinks in a bar along the bottom, waiting for a button. On the bottom screen, { POKEMON(383) } looms out of smoke and embers, then fades back.
+
 # The opening, before the player is anywhere: the professor's lines are the rest of the game's
 # text, file 118, and the stretches between them where he says nothing are described
 # (OR_character-desc.ctm, 2026-10-15).

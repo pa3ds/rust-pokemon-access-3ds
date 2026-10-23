@@ -13,7 +13,14 @@
 //! with no zone is said before the player has arrived anywhere: the opening's. A scene of one of a
 //! zone's triggers is said as the player first steps onto the trigger's cells after arriving: each
 //! of the Pokémon League's corridors plays its scene as the player walks across the trigger halfway
-//! along it, with no line before or after (Orion, 2026-10-16).
+//! along it, with no line before or after (Orion, 2026-10-16). A scene of an app is said as the
+//! app starts, Omega Ruby's intro before the title screen as `app::field_demo::Proc` and then
+//! `movie::MovieProc`, and let go as any other app starts: A skips the intro straight to the title
+//! screen, and what it skipped is left unsaid (spike A).
+//!
+//! A beat's seconds are the game's, counted in its frames (`GameClock`), where a game's profile can
+//! read its count: Omega Ruby's input device manager counts 60 a second through every app, so a
+//! beat waits while the emulator is paused and keeps up with fast-forward (spike A).
 //!
 //! Omega Ruby and Alpha Sapphire play their own scenes in rooms of their own, twin zones of one
 //! layout (Seafloor Cavern's 0x6f and 0x6e), but some lines are said in a zone both share, as
@@ -97,6 +104,10 @@ pub const RECALLED: [(&str, &str); 3] = [
     ("YOURS", "yours"),
     ("SPRITE", "sprite"),
 ];
+pub const FRAMES_A_SECOND: i64 = 60;
+/// The most frames the game's count may move on between two looks and be believed, 100 s of
+/// game: more is a count read from another game, or from memory that is no longer the count.
+pub const LEAP: i64 = 6_000;
 /// How the player's own Pokémon they never named is said, its name `$pokemon`: "your Mega
 /// Latios".
 pub const YOURS: &str = "scene-yours";
@@ -132,6 +143,9 @@ pub struct Scene {
     pub beats: Vec<Beat>,
     pub demo: Option<i64>,
     pub trigger: Option<i64>,
+    /// The app that plays it, by its class, `movie::MovieProc`: said as the app starts, and let
+    /// go as any other starts.
+    pub app: Option<String>,
 }
 
 /// The index of a message's last page, and a pattern its text matches as the dialogue reader
@@ -192,9 +206,10 @@ pub type Word = Rc<dyn Fn(&str, i64) -> Option<String>>;
 /// is anywhere; `after` may list several, `["text:147:67", "text:148:1"]`, and any one of them
 /// starts the scene, as a legendary caught or knocked out plays the same one. A scene with no
 /// line is said on arriving in its zone, as the player steps onto one of its triggers,
-/// `trigger = 0`, or as its demo starts, `demo = 6`, where the game numbers them. A scene whose
-/// lines or names the ROM does not have is left out, and logged. A scene with a `title` is the
-/// running `title`'s alone: one version's, said at a line in a zone the other version shares.
+/// `trigger = 0`, or as its demo starts, `demo = 6`, where the game numbers them, or as the app
+/// that plays it starts, `app = "movie::MovieProc"`. A scene whose lines or names the ROM does not
+/// have is left out, and logged. A scene with a `title` is the running `title`'s alone: one
+/// version's, said at a line in a zone the other version shares.
 pub fn load(
     text: &str,
     line: Line,
@@ -229,6 +244,10 @@ pub fn load(
             Some(Value::Integer(number)) => Some(*number),
             _ => None,
         };
+        let app = match table.get("app") {
+            Some(Value::String(app)) => Some(app.clone()),
+            _ => None,
+        };
         let pages: Vec<Option<(i64, Regex)>> = afters
             .iter()
             .map(|one| followed(one, line))
@@ -241,11 +260,11 @@ pub fn load(
             .cloned()
             .collect();
         if pages.iter().any(Option::is_none)
-            || (demo.is_none() && afters.is_empty() && zone.is_none())
+            || (demo.is_none() && app.is_none() && afters.is_empty() && zone.is_none())
             || kept.is_empty()
             || kept.len() < beats.len()
         {
-            log_left_out(log, &afters.join(" or "), demo, trigger);
+            log_left_out(log, &afters.join(" or "), demo, trigger, app.as_deref());
             continue;
         }
         scenes.push(Scene {
@@ -254,15 +273,23 @@ pub fn load(
             beats: kept,
             demo,
             trigger,
+            app,
         });
     }
     Ok(scenes)
 }
 
-fn log_left_out(log: &Log, after: &str, demo: Option<i64>, trigger: Option<i64>) {
+fn log_left_out(
+    log: &Log,
+    after: &str,
+    demo: Option<i64>,
+    trigger: Option<i64>,
+    app: Option<&str>,
+) {
     let what = match demo {
         _ if !after.is_empty() => after.to_string(),
         _ if let Some(trigger) = trigger => format!("trigger {trigger}"),
+        _ if let Some(app) = app => format!("app {app}"),
         None => "arriving".to_string(),
         Some(demo) => format!("demo {demo}"),
     };
@@ -483,13 +510,62 @@ fn words(raw: Option<&[u8]>) -> Option<String> {
     if said.is_empty() { None } else { Some(said) }
 }
 
+/// `clock()`: the seconds a scene's beats are timed by. Python's may raise, as `GameClock`'s
+/// reading of the game's frames may.
+pub type Clock = Rc<dyn Fn() -> Result<f64>>;
+
+/// Seconds as the game counts its frames, so a beat waits while the emulator is paused and
+/// keeps up with fast-forward; seconds of the wall clock while the count cannot be read, or goes
+/// back or jumps further than the game could run (`LEAP`).
+pub struct GameClock {
+    frames: Rc<dyn Fn() -> Result<Option<i64>>>,
+    wall: Rc<dyn Fn() -> f64>,
+    now: Cell<f64>,
+    /// The count and the wall clock as last looked at.
+    last: Cell<Option<(Option<i64>, f64)>>,
+}
+
+impl GameClock {
+    pub fn new(frames: Rc<dyn Fn() -> Result<Option<i64>>>, wall: Rc<dyn Fn() -> f64>) -> Self {
+        GameClock {
+            frames,
+            wall,
+            now: Cell::new(0.0),
+            last: Cell::new(None),
+        }
+    }
+
+    /// `GameClock(frames)`: on the monotonic clock.
+    pub fn with_monotonic(frames: Rc<dyn Fn() -> Result<Option<i64>>>) -> Self {
+        GameClock::new(frames, Rc::new(py::time::monotonic))
+    }
+
+    /// `clock()`.
+    pub fn call(&self) -> Result<f64> {
+        let (frames, wall) = ((self.frames)()?, (self.wall)());
+        if let Some((counted, then)) = self.last.get() {
+            match (frames, counted) {
+                (Some(frames), Some(counted))
+                    if 0 <= frames - counted && frames - counted <= LEAP =>
+                {
+                    self.now
+                        .set(self.now.get() + (frames - counted) as f64 / FRAMES_A_SECOND as f64);
+                }
+                _ => self.now.set(self.now.get() + (wall - then)),
+            }
+        }
+        self.last.set(Some((frames, wall)));
+        Ok(self.now.get())
+    }
+}
+
 /// Follows the scene the player is in, and says each beat of its description as it comes.
 pub struct Scenes {
     scenes: Vec<Scene>,
     /// A beat's words as it is said, by their id, or None where they are not to be said
     /// (`Described.said`).
     said: Rc<dyn Fn(&str) -> Option<String>>,
-    clock: Rc<dyn Fn() -> f64>,
+    clock: Clock,
     /// The scene followed now, by its place in `scenes`.
     scene: Option<usize>,
     /// The beat said next.
@@ -505,11 +581,7 @@ pub struct Scenes {
 }
 
 impl Scenes {
-    pub fn new(
-        scenes: Vec<Scene>,
-        said: Rc<dyn Fn(&str) -> Option<String>>,
-        clock: Rc<dyn Fn() -> f64>,
-    ) -> Self {
+    pub fn new(scenes: Vec<Scene>, said: Rc<dyn Fn(&str) -> Option<String>>, clock: Clock) -> Self {
         Scenes {
             scenes,
             said,
@@ -524,7 +596,7 @@ impl Scenes {
 
     /// `Scenes(scenes, say, said)`: on the monotonic clock.
     pub fn with_monotonic(scenes: Vec<Scene>, said: Rc<dyn Fn(&str) -> Option<String>>) -> Self {
-        Scenes::new(scenes, said, Rc::new(py::time::monotonic))
+        Scenes::new(scenes, said, Rc::new(|| Ok(py::time::monotonic())))
     }
 
     /// The triggers of a zone that start a scene, still to be stepped onto: where nothing is
@@ -585,6 +657,27 @@ impl Scenes {
         Ok(())
     }
 
+    /// An app has started, in the zone the player is in: a scene another app plays is let go, the
+    /// player having skipped it or it having ended, and a scene of this one starts.
+    pub fn started(&mut self, app: &str, zone: Option<i64>, say: Say) -> Result<()> {
+        if let Some(scene) = self.scene
+            && self.scenes[scene]
+                .app
+                .as_deref()
+                .is_some_and(|playing| playing != app)
+        {
+            self.scene = None;
+        }
+        let found = self
+            .scenes
+            .iter()
+            .position(|scene| scene.app.as_deref() == Some(app) && scene.zone == zone);
+        if let Some(found) = found {
+            self.start(found, say)?;
+        }
+        Ok(())
+    }
+
     /// The player is in another zone: a beat waiting for it comes, a scene waiting for another is
     /// let go, and a scene said on arriving there starts.
     pub fn arrived(&mut self, zone: i64, say: Say) -> Result<()> {
@@ -600,6 +693,7 @@ impl Scenes {
         let found = self.scenes.iter().position(|scene| {
             scene.lines.is_empty()
                 && scene.demo.is_none()
+                && scene.app.is_none()
                 && scene.trigger.is_none()
                 && scene.zone == Some(zone)
         });
@@ -610,10 +704,12 @@ impl Scenes {
     }
 
     fn start(&mut self, scene: usize, say: Say) -> Result<()> {
+        // Python's one assignment reads the clock before it sets anything.
+        let since = (self.clock)()?;
         self.scene = Some(scene);
         self.next = 0;
         self.met = false;
-        self.since = (self.clock)();
+        self.since = since;
         self.poll(say)
     }
 
@@ -624,7 +720,7 @@ impl Scenes {
         {
             let beat = &self.scenes[scene].beats[self.next];
             if ((beat.demo || beat.zone.is_some()) && !self.met)
-                || (self.clock)() < self.since + beat.at
+                || (self.clock)()? < self.since + beat.at
             {
                 return Ok(());
             }
@@ -648,8 +744,9 @@ impl Scenes {
     }
 
     fn came(&mut self, say: Say) -> Result<()> {
+        let since = (self.clock)()?;
         self.met = true;
-        self.since = (self.clock)();
+        self.since = since;
         self.poll(say)
     }
 }
