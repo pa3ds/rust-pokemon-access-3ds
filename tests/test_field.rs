@@ -1495,6 +1495,37 @@ fn test_a_border_known_on_one_side_is_narrowed_by_that_side() -> Result<()> {
     Ok(())
 }
 
+/// x_route-8.ctm (spike 234): Route 8's border to Cyllage City was one edge with the chunk north
+/// of it loaded and two once that unloaded, and the way P was guiding to the first, through the
+/// gap, became a way to the new first, where there is none: "no path to edge". The ROM's chunk
+/// narrows the border as the loaded one does, so the edge is the same whatever is loaded.
+#[test]
+fn test_a_side_no_loaded_chunk_holds_narrows_an_edge_by_the_roms_chunk() -> Result<()> {
+    let mut loaded = Town::with(false, 5, 7);
+    loaded.block(TOWN_BLOCK, TOWN_CHUNK, (80, 160), &[]);
+    loaded.block(ROUTE_BLOCK, ROUTE_CHUNK, (80, 120), &border(159));
+    let mut town = Town::with(false, 5, 7);
+    town.block(TOWN_BLOCK, TOWN_CHUNK, (80, 160), &[]);
+    let mut files = vec![NO_CHUNK_FILE; 64];
+    files[3 * 8 + 2] = 8;
+    town.memory.write(MAP + MAP_CHUNK_FILES, &le16(&files));
+    let route = mapblock::cells(&chunk_file((80, 120), &border(159)))?.unwrap();
+    town.reader = field_reader(
+        town.memory.clone(),
+        Given {
+            far: Some(Rc::new(move |file| {
+                Ok(if file == 8 { Some(route.clone()) } else { None })
+            })),
+            ..Given::default()
+        },
+        game(),
+    );
+    let expected = [((99, 159), (3, 1), EDGE_SOURCE | ROUTE << 16)];
+    assert_eq!(edges(&town)?, expected);
+    assert_eq!(edges(&loaded)?, expected);
+    Ok(())
+}
+
 #[test]
 fn test_each_gap_in_a_border_is_an_exit_of_its_own() -> Result<()> {
     let mut town = Town::with(false, 5, 7);
@@ -2426,7 +2457,7 @@ fn level_mesh(west_north: (i64, i64), east_south: (i64, i64), height: f64) -> Ve
     out
 }
 
-/// A chunk in ORAS's nine sections with a deck over its ground, or `x`'s eight: the ground's
+/// A chunk in ORAS's nine sections with a deck over its ground, X's eight `in_x`: the ground's
 /// table blocked at `crater`, its mesh level over the chunk at `ground`; the deck's table open
 /// at `deck` alone, its mesh level over `deck_box` at `over`. Cells are the map's.
 fn deck_file(
@@ -2436,7 +2467,7 @@ fn deck_file(
     ground: f64,
     over: f64,
     deck_box: ((i64, i64), (i64, i64)),
-    x: bool,
+    in_x: bool,
 ) -> Vec<u8> {
     let table = |open_at: &dyn Fn((i64, i64)) -> bool| -> Vec<u8> {
         let mut words: Vec<i64> = Vec::new();
@@ -2465,7 +2496,7 @@ fn deck_file(
         Vec::new(),
         Vec::new(),
     ];
-    if !x {
+    if !in_x {
         sections.push(Vec::new());
     }
     sections.push(table(&|cell| deck.contains(&cell)));
@@ -2532,7 +2563,7 @@ fn test_a_chunk_with_a_deck_is_walked_on_the_floor_at_the_players_height() -> Re
     Ok(())
 }
 
-/// x_route-8.ctm (spike A): X's chunks with a floor over the ground have eight sections, six
+/// x_route-8.ctm (spike 234): X's chunks with a floor over the ground have eight sections, six
 /// and the floor's table and mesh, and were turned away whole, so P took the player's chunk on
 /// Route 8 for open ground and said "11 west, 23 north" into its wall.
 #[test]

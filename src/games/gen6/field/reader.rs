@@ -2040,10 +2040,12 @@ impl FieldReader {
     /// The border is a run of blocks, and most of it is trees: Littleroot's north side is 40 cells
     /// wide and the way onto Route 101 is 3 of them (the user, 2026-09-22, asking for the walkable
     /// cells rather than the whole border). A cell is a way across when neither side of it is
-    /// blocked in the chunks loaded now, and each run of such cells is an exit of its own. Only the
-    /// four chunks around the player are loaded, so a border can have one side known and the other
-    /// not; a border with neither side known is listed whole, as it was before the chunks were
-    /// read.
+    /// blocked in the chunks loaded now, or the ROM's where none is, and each run of such cells is
+    /// an exit of its own, the same runs whatever is loaded: Route 8's border to Cyllage City split
+    /// in two as the chunk north of it unloaded, and P's way to the gap became a way to the new
+    /// first run, "no path to edge" (x_route-8.ctm, spike 234). Without the ROM a side no loaded
+    /// chunk holds is not known; a border with neither side known is listed whole, as it was before
+    /// the chunks were read.
     fn edges(&self, zone: i64, narrow: bool) -> Result<Vec<Interactable>> {
         let Some(grid) = self.grid.borrow().clone() else {
             return Ok(Vec::new());
@@ -2078,6 +2080,26 @@ impl FieldReader {
         if !narrow {
             // On a rail the chunks mark every cell a wall, and would narrow every edge away.
             chunks = Vec::new();
+        } else {
+            let held: HashSet<(i64, i64)> = chunks.iter().map(|chunk| chunk.key()).collect();
+            // A set of tuples in Python, iterated in its hash order: the chunks it adds cover
+            // cells no other chunk does, so the order they are added in changes nothing.
+            let mut keys: IndexSet<(i64, i64)> = IndexSet::new();
+            for pairs in borders.values() {
+                for pair in pairs {
+                    for cell in [pair.0, pair.1] {
+                        keys.insert((py::floordiv(cell.0, CHUNK), py::floordiv(cell.1, CHUNK)));
+                    }
+                }
+            }
+            for key in keys {
+                if held.contains(&key) {
+                    continue;
+                }
+                if let Some(far) = self.terrain.far(key.0, key.1)? {
+                    chunks.push(self.terrain.flattened(&far, None, false)?);
+                }
+            }
         }
         if wanted != self.wanted.get() {
             self.wanted.set(wanted);

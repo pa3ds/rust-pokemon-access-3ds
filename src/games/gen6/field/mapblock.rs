@@ -60,7 +60,7 @@ pub const HEAD: i64 = 0xAC;
 pub const MAGIC: &[u8] = b"GR";
 /// Six in X and Y (spike 100), seven in ORAS, and two more for each floor a chunk has over its
 /// ground: nine for Mt. Chimney's catwalk, eleven for two floors (spike 156), and in X eight and ten,
-/// 35 of its 1,030 chunk files (spike A). The cell table is section 0 in every one. Mt. Chimney's
+/// 35 of its 1,030 chunk files (spike 234). The cell table is section 0 in every one. Mt. Chimney's
 /// nine were turned away until 2026-10-02, and P took the crater for open ground and said "20 north"
 /// into its wall (omega_ruby_mt-chimney.ctm); X's eight on Route 8 until 2026-10-20, and P said "11
 /// west, 23 north" into one (x_route-8.ctm).
