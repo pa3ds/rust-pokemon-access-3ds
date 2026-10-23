@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use super::fake_rom::{TmpDir, lz11_literals, rom_image, rom_image_with};
 use crate::core::rom::{self, Rom};
-use crate::py::Kind;
+use crate::py::{self, Kind};
 
 const OMEGA_RUBY: i64 = 0x000400000011C400;
 const ALPHA_SAPPHIRE: i64 = 0x000400000011C500;
@@ -98,14 +98,53 @@ fn test_the_rom_found_is_the_decrypted_one_of_the_game_running() {
     assert_eq!(
         rom::find(
             OMEGA_RUBY,
-            vec![other.clone(), installer, locked.clone(), wanted.clone()]
+            vec![
+                other.clone(),
+                installer.clone(),
+                locked.clone(),
+                wanted.clone()
+            ],
+            None
         )
         .unwrap(),
         Some(wanted.clone())
     );
     assert_eq!(
-        rom::find(ALPHA_SAPPHIRE, vec![other, locked, wanted]).unwrap(),
+        rom::find(
+            ALPHA_SAPPHIRE,
+            vec![other.clone(), locked.clone(), wanted],
+            None
+        )
+        .unwrap(),
         None
+    );
+    let mut notes: Vec<String> = Vec::new();
+    let gone = tmp_path.path().join("gone.3ds");
+    assert_eq!(
+        rom::find(
+            ALPHA_SAPPHIRE,
+            vec![
+                installer.clone(),
+                gone.clone(),
+                locked.clone(),
+                other.clone()
+            ],
+            Some(&mut notes)
+        )
+        .unwrap(),
+        None
+    );
+    assert_eq!(
+        notes,
+        vec![
+            format!("{} is not a ROM image", py::path_str(&installer)),
+            format!("{} is not there", py::path_str(&gone)),
+            format!(
+                "{} cannot be read as a decrypted ROM image",
+                py::path_str(&locked)
+            ),
+            format!("{} is title 0004000000055d00", py::path_str(&other)),
+        ]
     );
 }
 

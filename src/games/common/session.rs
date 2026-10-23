@@ -151,26 +151,38 @@ impl Setup {
         }
     }
 
-    /// The player's ROM of the game running: `rom`, or the one Azahar has opened.
-    pub fn rom_path(&self) -> Result<Option<PathBuf>> {
+    /// The player's ROM of the game running: `rom`, or the one Azahar has opened. Where
+    /// none is, `notes` has which `qt-config.ini` was read and why each ROM it lists is not.
+    pub fn rom_path(&self, mut notes: Option<&mut Vec<String>>) -> Result<Option<PathBuf>> {
         if let Some(rom) = &self.rom {
             return Ok(Some(rom.clone()));
         }
+        let path = match &self.emulator {
+            Some(emulator) => emulator.clone(),
+            None => keyfile::emulator_config("")?,
+        };
         // `read_text(encoding="utf-8", errors="replace")`, which also turns a CRLF into a LF:
         // `azahar_roms` splits the text into lines, so the difference is never seen.
-        let emulator = match &self.emulator {
-            Some(emulator) => Ok(emulator.clone()),
-            None => keyfile::emulator_config(""),
+        let config = match std::fs::read(&path) {
+            Ok(bytes) => String::from_utf8_lossy(&bytes).into_owned(),
+            Err(error) => {
+                if let Some(notes) = notes.as_deref_mut() {
+                    notes.push(format!(
+                        "{} could not be read: {}",
+                        py::path_str(&path),
+                        keyfile::os_error(&error, &path, true)
+                    ));
+                }
+                String::new()
+            }
         };
-        let config = match emulator.and_then(|config| {
-            let bytes = std::fs::read(config)?;
-            Ok(String::from_utf8_lossy(&bytes).into_owned())
-        }) {
-            Ok(config) => config,
-            Err(error) if error.is(Kind::OsError) => String::new(),
-            Err(error) => return Err(error),
-        };
-        rom::find(self.process.title_id, rom::azahar_roms(&config))
+        let candidates = rom::azahar_roms(&config);
+        if let Some(notes) = notes.as_deref_mut()
+            && candidates.is_empty()
+        {
+            notes.push(format!("{} lists no ROM", py::path_str(&path)));
+        }
+        rom::find(self.process.title_id, candidates, notes)
     }
 
     /// What `load` reads out of the player's ROM in their language, or None; the log says
@@ -181,11 +193,15 @@ impl Setup {
         load: impl FnOnce(&Rom, &str) -> Result<T>,
         missing: &str,
     ) -> Result<Option<T>> {
-        let Some(path) = self.rom_path()? else {
+        let mut notes: Vec<String> = Vec::new();
+        let Some(path) = self.rom_path(Some(&mut notes))? else {
             (self.log)(&format!(
                 "no decrypted ROM of title {:016x} among those Azahar has opened; {missing}",
                 self.process.title_id
             ));
+            for note in &notes {
+                (self.log)(note);
+            }
             return Ok(None);
         };
         // Python's `with rom.Rom(path) as image:`: the image is closed as the block ends.

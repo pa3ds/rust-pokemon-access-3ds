@@ -4,7 +4,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use super::test_app::ENVIRONMENT;
 use crate::core::config::{self, General, Navigation, Table, Ui, Value};
+use crate::core::keyfile;
 use crate::core::toml as toml_text;
 use crate::py;
 
@@ -409,6 +411,53 @@ fn test_a_portable_azahar_s_folder_is_where_its_settings_are_patched() {
     assert_eq!(settings.emulator, ini);
     assert!(read(&ini).contains("enable_rpc_server=true\r\n"));
     assert_eq!(settings.said, "Azahar settings applied");
+}
+
+/// A player with pa3ds in the folder of a portable Azahar and an older Azahar's settings
+/// left in AppData: those were read, and no ROM was found among the ones they list (#14). The
+/// running Azahar's own folder comes first, wherever pa3ds is.
+#[test]
+fn test_a_portable_azahar_beside_pa3ds_is_found_over_an_old_appdata_config() {
+    fn azahar(folder: &Path) -> PathBuf {
+        let ini = folder.join("user").join("config").join("qt-config.ini");
+        fs::create_dir_all(ini.parent().unwrap()).unwrap();
+        fs::write(&ini, emulator_text()).unwrap();
+        fs::write(folder.join("azahar.exe"), b"").unwrap();
+        ini
+    }
+
+    let tmp_path = TmpPath::new();
+    let beside = azahar(&tmp_path.join("Azahar"));
+    azahar(&tmp_path.join("appdata").join("Azahar"));
+    let _environment = ENVIRONMENT
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let appdata = std::env::var_os("APPDATA");
+    // SAFETY: every test that touches the environment holds `ENVIRONMENT`.
+    unsafe { std::env::set_var("APPDATA", tmp_path.join("appdata")) };
+    let home = tmp_path.join("home");
+    keyfile::LOOKED_IN.with(|looked_in| {
+        *looked_in.borrow_mut() = Some([None, Some(tmp_path.join("Azahar"))]);
+    });
+    let found = config::prepare(Some(&home), None, true, false).unwrap();
+    let running = azahar(&tmp_path.join("elsewhere"));
+    keyfile::LOOKED_IN.with(|looked_in| {
+        *looked_in.borrow_mut() = Some([
+            Some(tmp_path.join("elsewhere")),
+            Some(tmp_path.join("Azahar")),
+        ]);
+    });
+    let found_running = config::prepare(Some(&home), None, true, false).unwrap();
+    keyfile::LOOKED_IN.with(|looked_in| *looked_in.borrow_mut() = None);
+    // SAFETY: as above.
+    unsafe {
+        match appdata {
+            Some(appdata) => std::env::set_var("APPDATA", appdata),
+            None => std::env::remove_var("APPDATA"),
+        }
+    }
+    assert_eq!(found.emulator, beside);
+    assert_eq!(found_running.emulator, running);
 }
 
 #[test]

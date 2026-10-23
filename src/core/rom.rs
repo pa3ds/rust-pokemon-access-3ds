@@ -181,13 +181,28 @@ pub fn title_id(path: &Path) -> Result<Option<i64>> {
     }
 }
 
-/// The first candidate that is a decrypted image of this title, or None.
-pub fn find(title: i64, candidates: impl IntoIterator<Item = PathBuf>) -> Result<Option<PathBuf>> {
+/// The first candidate that is a decrypted image of this title, or None. Why each one before
+/// it was passed over goes to `notes`: a player told only that none was found re-decrypted ROMs
+/// that were fine (#14).
+pub fn find(
+    title: i64,
+    candidates: impl IntoIterator<Item = PathBuf>,
+    mut notes: Option<&mut Vec<String>>,
+) -> Result<Option<PathBuf>> {
     for path in candidates {
-        if EXTENSIONS.contains(&suffix(&path).to_lowercase().as_str())
-            && title_id(&path)? == Some(title)
-        {
-            return Ok(Some(path));
+        let why = if !EXTENSIONS.contains(&suffix(&path).to_lowercase().as_str()) {
+            "is not a ROM image".to_string()
+        } else if !path.is_file() {
+            "is not there".to_string()
+        } else {
+            match title_id(&path)? {
+                None => "cannot be read as a decrypted ROM image".to_string(),
+                Some(found) if found != title => format!("is title {found:016x}"),
+                Some(_) => return Ok(Some(path)),
+            }
+        };
+        if let Some(notes) = notes.as_deref_mut() {
+            notes.push(format!("{} {why}", py::path_str(&path)));
         }
     }
     Ok(None)

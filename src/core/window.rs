@@ -23,6 +23,8 @@
 //! - ADR-0021: "in front" is a window showing the game, known by its title.
 //! - ADR-0031: the game's name is the emulator's window title: pa3ds keeps no table of game names.
 
+use std::path::{Path, PathBuf};
+
 use crate::py;
 
 pub const EMULATOR: &str = "azahar.exe";
@@ -88,6 +90,12 @@ pub fn in_front(emulator: &str) -> bool {
 
 #[cfg(windows)]
 pub fn process_name(pid: i64) -> String {
+    basename(&image_path(pid)).to_lowercase()
+}
+
+/// The full path of a process's executable, or "" where it cannot be asked.
+#[cfg(windows)]
+pub fn image_path(pid: i64) -> String {
     // SAFETY: OpenProcess only reads its arguments; a null handle is a refusal.
     let handle = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION as u32, 0, pid as u32) };
     if handle.is_null() {
@@ -104,7 +112,7 @@ pub fn process_name(pid: i64) -> String {
             .iter()
             .position(|&unit| unit == 0)
             .unwrap_or(buffer.len());
-        Some(basename(&String::from_utf16_lossy(&buffer[..end])).to_lowercase())
+        Some(String::from_utf16_lossy(&buffer[..end]))
     } else {
         None
     };
@@ -199,6 +207,11 @@ pub fn process_name(_pid: i64) -> String {
 }
 
 #[cfg(not(windows))]
+pub fn image_path(_pid: i64) -> String {
+    String::new()
+}
+
+#[cfg(not(windows))]
 pub fn process_of(_window: i64) -> String {
     String::new()
 }
@@ -264,4 +277,21 @@ pub(crate) fn game_title_from(
             .unwrap_or_default(),
         Err(_) => String::new(),
     }
+}
+
+/// The folder of the running emulator's executable, or None while none is up: where a
+/// portable Azahar keeps its settings (`keyfile.found_portable`).
+pub fn emulator_folder(emulator: &str) -> Option<PathBuf> {
+    let pid = emulator_pid(emulator);
+    let path = if pid != 0 {
+        image_path(pid)
+    } else {
+        String::new()
+    };
+    if path.is_empty() {
+        return None;
+    }
+    // `Path(path).parent`, which is the path itself at a root.
+    let path = PathBuf::from(path);
+    Some(path.parent().map(Path::to_path_buf).unwrap_or(path))
 }

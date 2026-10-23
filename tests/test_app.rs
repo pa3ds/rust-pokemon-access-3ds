@@ -36,7 +36,7 @@ use crate::py::{Error, Kind, Log, Result};
 
 /// The environment is the process's, and the tests run on threads of one process: a test that
 /// moves the player's folder holds this until it is done.
-static ENVIRONMENT: Mutex<()> = Mutex::new(());
+pub(super) static ENVIRONMENT: Mutex<()> = Mutex::new(());
 
 /// Every test that reaches the player's folder gets a home of its own. `main` writes the log, the
 /// keys file and the player's names there, and a test that reached the real one would rotate the

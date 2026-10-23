@@ -67,7 +67,7 @@ pub fn start(
             .join(format!("{}.toml", setup.process.name));
         pictures = textures::start(
             &cache,
-            setup.rom_path()?.as_deref(),
+            setup.rom_path(None)?.as_deref(),
             &game.rom.textures,
             &title,
             &setup.process.name,
@@ -84,7 +84,7 @@ pub fn start(
         (found, swims) = footsteps::load(
             footsteps::FILE,
             footsteps::shipped(&(game.data)()),
-            setup.rom_path()?.as_deref(),
+            setup.rom_path(None)?.as_deref(),
             archive,
             &sounds()?,
             &setup.log,

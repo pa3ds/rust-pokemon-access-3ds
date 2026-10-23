@@ -65,6 +65,7 @@
 //! - ADR-0032: everything the player owns is under `<pa3ds>/user`, which `PA3DS_HOME` moves; never
 //!   `%APPDATA%`.
 
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
@@ -74,8 +75,8 @@ use regex::Regex;
 
 use crate::core::config::Value;
 use crate::core::keys::{ORDER, PUNCTUATION};
-use crate::core::toml;
 use crate::core::words::own;
+use crate::core::{toml, window};
 use crate::py::{self, Error, Kind, Result};
 
 /// Mode -> key -> action, as `common.field.navigate` defines the modes and the actions. Nothing here
@@ -336,6 +337,29 @@ pub fn emulator_config(folder: &str) -> Result<PathBuf> {
         None => home()?,
     };
     Ok(root.join("Azahar").join("config").join("qt-config.ini"))
+}
+
+thread_local! {
+    /// The folders `found_portable` looks in where a test gives its own, in place of the running
+    /// Azahar's and pa3ds's: Python's test monkeypatches `window.emulator_folder` and `app_path`.
+    pub(crate) static LOOKED_IN: RefCell<Option<[Option<PathBuf>; 2]>> =
+        const { RefCell::new(None) };
+}
+
+/// The folder of a portable Azahar pa3ds finds with no `azahar_folder` set: the running
+/// Azahar's, then the one pa3ds is in; None where neither is one. Settings left in AppData by an
+/// Azahar used before were read over a portable one beside pa3ds, and no ROM was found (#14).
+pub fn found_portable() -> Result<Option<PathBuf>> {
+    let folders = match LOOKED_IN.with(|looked_in| looked_in.borrow().clone()) {
+        Some(folders) => folders,
+        None => [window::emulator_folder(window::EMULATOR), Some(app_path()?)],
+    };
+    for folder in folders.into_iter().flatten() {
+        if let Ok(found) = portable(&folder) {
+            return Ok(Some(found));
+        }
+    }
+    Ok(None)
 }
 
 /// The folder of a portable Azahar for a folder the player chose, or why it is not one. The
@@ -665,7 +689,7 @@ pub fn patch_settings(text: &str, wanted: &IndexMap<String, Value>) -> (String, 
 
 /// `str(OSError)` as Python words it: errno and its text for what `open` raised, the Windows
 /// error for what a direct Windows call (`mkdir`) raised, and the path as `repr` shows it.
-fn os_error(error: &std::io::Error, path: &Path, opened: bool) -> String {
+pub(crate) fn os_error(error: &std::io::Error, path: &Path, opened: bool) -> String {
     let shown = py::repr(&py::path_str(path));
     let Some(code) = error.raw_os_error() else {
         return error.to_string();

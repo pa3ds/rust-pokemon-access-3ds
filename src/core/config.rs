@@ -905,10 +905,22 @@ pub fn prepare(
     }
 
     let mut saved = String::new();
+    let mut folder = general.azahar_folder.clone();
+    if emulator.is_none()
+        && folder.is_empty()
+        && let Some(found) = keyfile::found_portable()?
+    {
+        folder = py::path_str(&found);
+        notes.push(format!("a portable Azahar found at {folder}"));
+    }
     let config = match emulator {
-        None => keyfile::emulator_config(&general.azahar_folder)?,
+        None => keyfile::emulator_config(&folder)?,
         Some(emulator) => emulator.to_path_buf(),
     };
+    notes.push(format!(
+        "Azahar's settings are read from {}",
+        py::path_str(&config)
+    ));
     if !wanted.is_empty() {
         let text = keyfile::read_config(&config, &mut notes);
         if !text.is_empty() {

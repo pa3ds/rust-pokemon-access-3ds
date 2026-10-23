@@ -96,8 +96,9 @@ pa3ds can change Azahar's settings only while Azahar is closed. If it says "clos
 pa3ds again to apply its settings", do exactly that. If it says "Azahar's settings were not
 found", start Azahar once, close it, and start pa3ds again.
 
-With a portable Azahar, one with a `user` folder beside `azahar.exe`, pa3ds asks the first time
-for the folder `azahar.exe` is in. Choose it, and pa3ds remembers it. Cancel instead if Azahar is
+With a portable Azahar, one with a `user` folder beside `azahar.exe`, pa3ds finds it on its own
+when Azahar is open or pa3ds is in the same folder. Otherwise pa3ds asks the first time for the
+folder `azahar.exe` is in. Choose it, and pa3ds remembers it. Cancel instead if Azahar is
 installed the usual way.
 
 Started by double-clicking or from a shortcut, pa3ds hides its window while Azahar is open, so
