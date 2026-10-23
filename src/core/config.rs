@@ -188,6 +188,7 @@ pub struct Navigation {
     pub track_boulders: bool,
     pub hide_door_signs: bool,
     pub show_y: bool,
+    pub sort_by_distance: bool,
 }
 
 impl Default for Navigation {
@@ -200,6 +201,7 @@ impl Default for Navigation {
             track_boulders: false,
             hide_door_signs: true,
             show_y: false,
+            sort_by_distance: true,
         }
     }
 }
@@ -214,6 +216,7 @@ impl Table for Navigation {
             ("track_boulders", Value::Bool(self.track_boulders)),
             ("hide_door_signs", Value::Bool(self.hide_door_signs)),
             ("show_y", Value::Bool(self.show_y)),
+            ("sort_by_distance", Value::Bool(self.sort_by_distance)),
         ]
     }
 
@@ -226,6 +229,7 @@ impl Table for Navigation {
             ("track_boulders", Value::Bool(value)) => self.track_boulders = value,
             ("hide_door_signs", Value::Bool(value)) => self.hide_door_signs = value,
             ("show_y", Value::Bool(value)) => self.show_y = value,
+            ("sort_by_distance", Value::Bool(value)) => self.sort_by_distance = value,
             _ => {}
         }
     }
@@ -280,7 +284,7 @@ fn defaults(name: &str) -> Vec<(&'static str, Value)> {
 }
 
 /// What each setting does, as the file's comment above it says it.
-pub const EXPLAINED: [(&str, &str); 18] = [
+pub const EXPLAINED: [(&str, &str); 19] = [
     (
         "pa3ds.keys",
         "answer pa3ds's keys and bind Azahar's buttons, as keys.toml says",
@@ -372,6 +376,12 @@ pub const EXPLAINED: [(&str, &str); 18] = [
         "say how high as well, as y after x and z, when C says where you stand and shift and C \
          where the thing chosen is: \"x 71, z 35, y 20\"; in the game's own units, 18 to a \
          square's width, and left out where pa3ds does not know it, as in Sun and Moon",
+    ),
+    (
+        "pa3ds.navigation.sort_by_distance",
+        "list mode's list nearest first, which changes as you walk; false keeps each thing in one \
+         place in it, the order the game's own tables have, so you can tell which house you have \
+         been in by where it is; direction mode is nearest first either way",
     ),
     (
         "pa3ds.extras.conditions",

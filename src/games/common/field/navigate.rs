@@ -1,10 +1,12 @@
 //! Navigation: the keys that walk the list of what is on the map, in one of two modes.
 //!
 //! **List mode** walks the whole map. Two keys step between categories and two between a
-//! category's items, nearest first; a fifth says the chosen item again. **Direction mode** looks
-//! one way at a time: four keys, one a compass point, each cycling through the category's items on
-//! that side of the player within `RANGE` cells each way (a half-box: north is everything with a
-//! smaller z, so a thing north-east is heard under north and under east both), nearest first. A
+//! category's items, nearest first, or in the zone's tables' order with `[pa3ds.navigation]
+//! sort_by_distance` off, so a thing keeps its place as the player walks; a fifth says the chosen
+//! item again. **Direction mode** looks one way at a time: four keys, one a compass point, each
+//! cycling through the category's items on that side of the player within `RANGE` cells each way
+//! (a half-box: north is everything with a smaller z, so a thing north-east is heard under north
+//! and under east both), nearest first. A
 //! press of another direction starts again from the nearest that way. The apostrophe toggles the
 //! mode (the user, 2026-09-21; moved off M on 2026-09-22, which is the emulator's Start). The
 //! category is one setting under both modes, and "all" is a category of its own, the one both
@@ -42,8 +44,8 @@
 //! the guiding, since the path's cells belong to the map the player has left.
 //!
 //! Bound by:
-//! - ADR-0024: nearest first by category, all a category, and direction mode a half-box 10 cells
-//!   deep.
+//! - ADR-0024: nearest first by category unless `sort_by_distance` is off, all a category, and
+//!   direction mode a half-box 10 cells deep, nearest first always.
 //! - ADR-0037: a search's find is guided to, and the detector's only with the DexNav open in touch
 //!   mode.
 
@@ -556,7 +558,7 @@ impl Navigator {
             let was = self.category;
             for _ in 0..self.categories.len() - 1 {
                 self.category = py::modulo(self.category + step, self.categories.len() as i64);
-                let items = self.items(&r#where)?;
+                let items = self.items(&r#where, false)?;
                 if !items.is_empty() {
                     self.chosen = Some(items[0].key());
                     self.say(&own(
@@ -581,7 +583,7 @@ impl Navigator {
         if DIRECTIONS.contains(&action) {
             return self.look(&r#where, action);
         }
-        let items = self.items(&r#where)?;
+        let items = self.items(&r#where, false)?;
         if items.is_empty() {
             self.say(&own(NOTHING_HERE, &[]));
             return Ok(());
@@ -602,7 +604,7 @@ impl Navigator {
     /// Say the next item on `direction`'s side of the player, nearest first.
     fn look(&mut self, r#where: &Field, direction: &str) -> Result<()> {
         let items: Vec<Interactable> = self
-            .items(r#where)?
+            .items(r#where, true)?
             .into_iter()
             .filter(|item| {
                 towards(
@@ -699,8 +701,13 @@ impl Navigator {
         }
     }
 
-    fn items(&self, r#where: &Field) -> Result<Vec<Interactable>> {
-        let mut items = r#where.of(&self.categories[self.category as usize]);
+    /// The category's items, nearest first unless `[pa3ds.navigation] sort_by_distance` is
+    /// off, where they keep the zone's tables' order; `nearest` true sorts them regardless.
+    fn items(&self, r#where: &Field, nearest: bool) -> Result<Vec<Interactable>> {
+        let mut items = r#where.of_with(
+            &self.categories[self.category as usize],
+            nearest || self.wording.sort_by_distance,
+        );
         if self.wording.hide_door_signs {
             // A person's source has a record's index where a sign's has its kind.
             items.retain(|item| {
@@ -806,7 +813,7 @@ impl Navigator {
 
     /// The thing the navigation keys are on now, or None when they are on nothing.
     fn chosen_item(&self, r#where: &Field) -> Result<Option<Interactable>> {
-        let mut items = self.items(r#where)?;
+        let mut items = self.items(r#where, false)?;
         if items.is_empty() {
             return Ok(None);
         }
@@ -836,7 +843,7 @@ impl Navigator {
         }
         let key = item.key();
         if !self
-            .items(r#where)?
+            .items(r#where, false)?
             .iter()
             .any(|listed| listed.key() == key)
         {

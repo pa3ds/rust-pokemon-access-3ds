@@ -26,6 +26,7 @@ has a comment in the file saying what it does.
 | `guide_to_hidden` | `true` | When the DexNav finds a hidden Pokémon, find the way to it as `P` does. |
 | `track_boulders` | `false` | Say how far a big boulder has moved from where it started, so you know which you have pushed. Off by default, since the game never shows where a boulder started. |
 | `hide_door_signs` | `true` | Leave a sign out of the list when all it says is the name of the door beside it. |
+| `sort_by_distance` | `true` | List mode's list nearest first. `false` keeps each thing in one place in the list as you walk, so you can tell by its place which house you have been in. Direction mode is nearest first either way. |
 | `show_y` | `false` | `C` and `Shift+C` say how high as well, after x and z, in the game's units: 18 to a square. |
 | **`[pa3ds.extras]`** | | See [Extras](#extras). |
 | `conditions` | `false` | Say a Pokémon's contest conditions as numbers, on its summary and in the Pokéblock Case. |

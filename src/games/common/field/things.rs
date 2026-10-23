@@ -460,15 +460,23 @@ impl Field {
         }
     }
 
-    /// This category's interactables (every one for `ALL`), nearest first.
+    /// `of(category)`: nearest first.
     pub fn of(&self, category: &str) -> Vec<Interactable> {
+        self.of_with(category, true)
+    }
+
+    /// This category's interactables (every one for `ALL`), nearest first, or with `nearest`
+    /// false in the order the zone's tables list them, which walking leaves alone.
+    pub fn of_with(&self, category: &str, nearest: bool) -> Vec<Interactable> {
         let mut items: Vec<Interactable> = self
             .interactables
             .iter()
             .filter(|item| category == ALL || item.category == category)
             .cloned()
             .collect();
-        items.sort_by_key(|item| distance(self.cell, item.nearest(self.cell)));
+        if nearest {
+            items.sort_by_key(|item| distance(self.cell, item.nearest(self.cell)));
+        }
         items
     }
 }

@@ -539,6 +539,39 @@ fn test_both_modes_start_on_everything_nearest_first() {
     );
 }
 
+/// Players asked that a thing keep its place, to tell which house they had been in by it.
+#[test]
+fn test_unsorted_the_list_keeps_the_tables_order_as_the_player_walks() {
+    let unsorted = Navigation {
+        sort_by_distance: false,
+        ..Navigation::default()
+    };
+    let mut rig = navigator(Want {
+        navigation: Some(unsorted.clone()),
+        ..Want::default()
+    });
+    walk_to(&rig, (90, 161));
+    rig.press(ITEM_READ);
+    rig.press(ITEM_NEXT);
+    let mut looking = navigator(Want {
+        direction: true,
+        navigation: Some(unsorted),
+        ..Want::default()
+    });
+    walk_to(&looking, (90, 161));
+    looking.press(NORTH);
+    let mut heard = said(&rig.backend);
+    heard.extend(said(&looking.backend));
+    assert_eq!(
+        heard,
+        [
+            "door, 1 of 5, 4 east 10 south",
+            "edge, 2 of 5, 2 north",
+            "person, 1 of 2, 1 north"
+        ]
+    );
+}
+
 /// Orion, 2026-09-30: "Nurse, 2 west 1 north, 1 of 9", and a setting for each.
 #[test]
 fn test_the_place_in_the_list_may_follow_the_way_or_be_left_out() {

@@ -318,10 +318,10 @@ fn test_a_setting_pa3ds_gained_is_added_and_nothing_else_changes() {
     let home = tmp_path.join("home");
     fs::create_dir(&home).unwrap();
     let full = config::render().unwrap();
-    let show_y = full.find("\n\n# Say how high").unwrap();
-    let line = full.find("show_y = ").unwrap();
+    let gained = full.find("\n\n# List mode's list").unwrap();
+    let line = full.find("sort_by_distance = ").unwrap();
     let end = line + full[line..].find('\n').unwrap();
-    let older = format!("{}{}", &full[..show_y], &full[end..]);
+    let older = format!("{}{}", &full[..gained], &full[end..]);
     let older = older.replace("pauses = false", "pauses = true");
     fs::write(home.join("config.toml"), older).unwrap();
     let settings = prepare(&home, &tmp_path.join("none.ini"), false);
@@ -334,7 +334,7 @@ fn test_a_setting_pa3ds_gained_is_added_and_nothing_else_changes() {
         settings
             .notes
             .iter()
-            .any(|note| note.ends_with("[pa3ds.navigation] show_y"))
+            .any(|note| note.ends_with("[pa3ds.navigation] sort_by_distance"))
     );
     assert!(!settings.said.contains("could not be read"));
 }
