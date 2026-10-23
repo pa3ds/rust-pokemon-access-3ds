@@ -58,11 +58,13 @@ pub const STATE: i64 = 0xA8;
 pub const HEAD: i64 = 0xAC;
 
 pub const MAGIC: &[u8] = b"GR";
-/// Six in X and Y (spike 100), seven in ORAS, and two more there for each floor a chunk has over
-/// its ground: nine for Mt. Chimney's catwalk, eleven for two floors (spike 156). The cell table is
-/// section 0 in every one. Mt. Chimney's nine were turned away until 2026-10-02, and P took the crater
-/// for open ground and said "20 north" into its wall (omega_ruby_mt-chimney.ctm).
-pub const SECTIONS: [i64; 4] = [6, 7, 9, 11];
+/// Six in X and Y (spike 100), seven in ORAS, and two more for each floor a chunk has over its
+/// ground: nine for Mt. Chimney's catwalk, eleven for two floors (spike 156), and in X eight and ten,
+/// 35 of its 1,030 chunk files (spike A). The cell table is section 0 in every one. Mt. Chimney's
+/// nine were turned away until 2026-10-02, and P took the crater for open ground and said "20 north"
+/// into its wall (omega_ruby_mt-chimney.ctm); X's eight on Route 8 until 2026-10-20, and P said "11
+/// west, 23 north" into one (x_route-8.ctm).
+pub const SECTIONS: [i64; 6] = [6, 7, 8, 9, 10, 11];
 pub const HEADER: i64 = 0x80;
 /// The cell table's section.
 pub const CELLS: i64 = 0;
@@ -71,6 +73,9 @@ pub const MESH: i64 = 2;
 /// An ORAS chunk's sections with its ground alone: one with more floors has each one's cell
 /// table from here, then each one's mesh in the same order.
 pub const ONE_FLOOR: i64 = 7;
+/// X's, laid out the same way: Route 8's file 87 has its floor's table in section 6 and its mesh
+/// in 7, and file 374, of ten, its two floors' tables in 6 and 7 and their meshes in 8 and 9.
+pub const X_ONE_FLOOR: i64 = 6;
 /// How far apart two open cells side by side of one floor must be to be a drop, not walked
 /// between: across ORAS's chunks of one floor, the ground's mesh steps no more than a cell's height
 /// between open neighbours but in eight files, where it drops 40 to 200, as Fortree City's
@@ -480,14 +485,21 @@ fn lay(corners: &[(f64, f64, f64); 3], under: &mut [Vec<f64>]) -> Result<()> {
 ///
 /// Python's `_floors`: renamed, as the public `floors` takes the name it would have here.
 fn floors_in(offsets: &[i64], section: &dyn Fn(i64) -> Result<Vec<u8>>) -> Result<Vec<Floor>> {
-    let over = py::floordiv(offsets.len() as i64 - 1 - ONE_FLOOR, 2);
+    let sections = offsets.len() as i64 - 1;
+    // X's counts are even and ORAS's odd, a floor adding two to either.
+    let alone = if py::modulo(sections, 2) == 0 {
+        X_ONE_FLOOR
+    } else {
+        ONE_FLOOR
+    };
+    let over = py::floordiv(sections - alone, 2);
     if over <= 0 {
         return Ok(Vec::new());
     }
     let mut out: Vec<Floor> = Vec::new();
     let mut pairs = vec![(CELLS, MESH)];
     for k in 0..over {
-        pairs.push((ONE_FLOOR + k, ONE_FLOOR + over + k));
+        pairs.push((alone + k, alone + over + k));
     }
     for (table, mesh) in pairs {
         let raw = section(table)?;

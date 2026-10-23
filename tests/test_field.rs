@@ -2426,9 +2426,9 @@ fn level_mesh(west_north: (i64, i64), east_south: (i64, i64), height: f64) -> Ve
     out
 }
 
-/// A chunk in ORAS's nine sections with a deck over its ground: the ground's table blocked
-/// at `crater`, its mesh level over the chunk at `ground`; the deck's table open at `deck`
-/// alone, its mesh level over `deck_box` at `over`. Cells are the map's.
+/// A chunk in ORAS's nine sections with a deck over its ground, or `x`'s eight: the ground's
+/// table blocked at `crater`, its mesh level over the chunk at `ground`; the deck's table open
+/// at `deck` alone, its mesh level over `deck_box` at `over`. Cells are the map's.
 fn deck_file(
     origin: (i64, i64),
     crater: &HashSet<(i64, i64)>,
@@ -2436,6 +2436,7 @@ fn deck_file(
     ground: f64,
     over: f64,
     deck_box: ((i64, i64), (i64, i64)),
+    x: bool,
 ) -> Vec<u8> {
     let table = |open_at: &dyn Fn((i64, i64)) -> bool| -> Vec<u8> {
         let mut words: Vec<i64> = Vec::new();
@@ -2456,17 +2457,19 @@ fn deck_file(
         (deck_box.0.0 - origin.0, deck_box.0.1 - origin.1),
         (deck_box.1.0 - origin.0, deck_box.1.1 - origin.1),
     ];
-    let sections = [
+    let mut sections = vec![
         table(&|cell| !crater.contains(&cell)),
         Vec::new(),
         level_mesh((0, 0), (40, 40), ground),
         Vec::new(),
         Vec::new(),
         Vec::new(),
-        Vec::new(),
-        table(&|cell| deck.contains(&cell)),
-        level_mesh(corner[0], corner[1], over),
     ];
+    if !x {
+        sections.push(Vec::new());
+    }
+    sections.push(table(&|cell| deck.contains(&cell)));
+    sections.push(level_mesh(corner[0], corner[1], over));
     let mut offsets = vec![mapblock::HEADER];
     for body in &sections {
         offsets.push(offsets[offsets.len() - 1] + body.len() as i64);
@@ -2502,6 +2505,7 @@ fn test_a_chunk_with_a_deck_is_walked_on_the_floor_at_the_players_height() -> Re
             108.0,
             108.0,
             ((96, 172), (111, 173)),
+            false,
         ),
     );
     town.memory.write(POOL + mmodel::WORLD_Y, &f32s(&[110.0]));
@@ -2528,6 +2532,35 @@ fn test_a_chunk_with_a_deck_is_walked_on_the_floor_at_the_players_height() -> Re
     Ok(())
 }
 
+/// x_route-8.ctm (spike A): X's chunks with a floor over the ground have eight sections, six
+/// and the floor's table and mesh, and were turned away whole, so P took the player's chunk on
+/// Route 8 for open ground and said "11 west, 23 north" into its wall.
+#[test]
+fn test_a_chunk_of_x_s_eight_sections_has_its_deck_from_section_six() -> Result<()> {
+    let town = Town::with(true, 5, 6);
+    let crater: HashSet<(i64, i64)> = (96..111)
+        .flat_map(|x| (168..177).map(move |z| (x, z)))
+        .collect();
+    let catwalk: HashSet<(i64, i64)> = (96..111).map(|x| (x, 172)).collect();
+    town.memory.write(
+        TOWN_CHUNK,
+        &deck_file(
+            (80, 160),
+            &crater,
+            &catwalk,
+            108.0,
+            108.0,
+            ((96, 172), (111, 173)),
+            true,
+        ),
+    );
+    town.memory.write(POOL + mmodel::WORLD_Y, &f32s(&[110.0]));
+    let r#where = town.r#where()?;
+    let ground = town.reader.ground(&r#where, None)?;
+    assert!(ground.open((100, 172))? && !ground.open((100, 171))?);
+    Ok(())
+}
+
 /// Spikes 159 and 167: Route 119's bridge stands over the path it crosses, and from the foot of
 /// the route, the player's height walked the path and cut the bridge, the only way north. The
 /// ground is walked a floor at a time instead: the bridge is open over the river, a step along it
@@ -2548,6 +2581,7 @@ fn test_a_matrix_with_a_deck_is_walked_a_floor_at_a_time() -> Result<()> {
             0.0,
             99.0,
             ((96, 172), (107, 173)),
+            false,
         ),
     );
     let ground = town.reader.ground(&town.r#where()?, None)?;
