@@ -256,14 +256,34 @@ pub fn template(title: &str, label: &str, check: &str, width: i64) -> Result<Vec
         ATOM_BUTTON,
         &cancel,
     )?;
+    frame(
+        DS_MODALFRAME | WS_SYSMENU,
+        0,
+        if check.is_empty() { 4 } else { 5 },
+        width,
+        buttons + 21,
+        title,
+        &items,
+    )
+}
 
+/// A DLGTEMPLATE round `count` items already built: a visible, captioned, centred popup in
+/// Segoe UI, with `style` and `ex_style` added.
+pub fn frame(
+    style: i64,
+    ex_style: i64,
+    count: i64,
+    width: i64,
+    height: i64,
+    title: &str,
+    items: &[u8],
+) -> Result<Vec<u8>> {
     let mut data = Vec::new();
-    let style =
-        DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_VISIBLE;
+    let style = style | DS_SETFONT | DS_CENTER | WS_POPUP | WS_CAPTION | WS_VISIBLE;
     data.extend_from_slice(&uint(style & 0xFFFFFFFF)?);
-    data.extend_from_slice(&uint(0)?);
-    data.extend_from_slice(&ushort(if check.is_empty() { 4 } else { 5 })?);
-    for number in [0, 0, width, buttons + 21] {
+    data.extend_from_slice(&uint(ex_style)?);
+    data.extend_from_slice(&ushort(count)?);
+    for number in [0, 0, width, height] {
         data.extend_from_slice(&short(number)?);
     }
     data.extend_from_slice(&ushort(0)?); // no menu
@@ -272,7 +292,7 @@ pub fn template(title: &str, label: &str, check: &str, width: i64) -> Result<Vec
     data.extend_from_slice(&ushort(9)?); // DS_SETFONT: point size, then the typeface
     data.extend_from_slice(&wstr("Segoe UI"));
     align(&mut data);
-    data.extend_from_slice(&items);
+    data.extend_from_slice(items);
     Ok(data)
 }
 

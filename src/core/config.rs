@@ -74,6 +74,7 @@ pub struct General {
     pub keys: bool,
     pub poll_rate: f64,
     pub azahar_folder: String,
+    pub hide_window: bool,
 }
 
 impl Default for General {
@@ -82,6 +83,7 @@ impl Default for General {
             keys: true,
             poll_rate: 60.0,
             azahar_folder: String::new(),
+            hide_window: true,
         }
     }
 }
@@ -92,6 +94,7 @@ impl Table for General {
             ("keys", Value::Bool(self.keys)),
             ("poll_rate", Value::Float(self.poll_rate)),
             ("azahar_folder", Value::Str(self.azahar_folder.clone())),
+            ("hide_window", Value::Bool(self.hide_window)),
         ]
     }
 
@@ -101,6 +104,7 @@ impl Table for General {
             ("poll_rate", Value::Int(value)) => self.poll_rate = value as f64,
             ("poll_rate", Value::Float(value)) => self.poll_rate = value,
             ("azahar_folder", Value::Str(value)) => self.azahar_folder = value,
+            ("hide_window", Value::Bool(value)) => self.hide_window = value,
             _ => {}
         }
     }
@@ -284,7 +288,7 @@ fn defaults(name: &str) -> Vec<(&'static str, Value)> {
 }
 
 /// What each setting does, as the file's comment above it says it.
-pub const EXPLAINED: [(&str, &str); 19] = [
+pub const EXPLAINED: [(&str, &str); 20] = [
     (
         "pa3ds.keys",
         "answer pa3ds's keys and bind Azahar's buttons, as keys.toml says",
@@ -299,6 +303,12 @@ pub const EXPLAINED: [(&str, &str); 19] = [
         "the folder a portable Azahar is in, the one with azahar.exe and a user folder; empty for \
          an Azahar installed in the usual way, whose settings are in AppData. pa3ds fills it in \
          when you choose the folder it asks for",
+    ),
+    (
+        "pa3ds.hide_window",
+        "hide pa3ds's window, the one a double-clicked pa3ds opens, while Azahar is open, so \
+         nothing of pa3ds's sits in Alt+Tab between you and the game; false keeps it in sight, \
+         for OBS to record pa3ds's sounds through it",
     ),
     (
         "pa3ds.ui.pauses",

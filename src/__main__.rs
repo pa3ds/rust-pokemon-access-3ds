@@ -16,6 +16,7 @@ use crate::core::words::{self, ENGLISH, Words, own};
 use crate::core::{config, instance, keyfile, window};
 use crate::games::common::field::keys::{DEFAULT_BINDINGS, EXPLAINED};
 use crate::py::{self, Log, time};
+use crate::ux::window::Window;
 
 /// Runs whose logs are kept, this one included.
 pub const KEPT_LOGS: usize = 10;
@@ -226,6 +227,13 @@ fn run(args: Args, hooks: &Hooks) -> py::Result<()> {
         settings = ask_for_azahar(settings, &mut asked)?;
     }
     let ui = settings.ui.clone();
+    // pa3ds's own window, for a pa3ds double-clicked: alone on its console, never a shell's, and
+    // never a silent run (docs/plans/pa3ds-window.md).
+    let own_window = if !args.silent && instance::alone() {
+        Some(Window::new()?)
+    } else {
+        None
+    };
 
     let backend: Rc<dyn Backend> = if args.silent {
         hooks.silent.clone()
@@ -269,7 +277,15 @@ fn run(args: Args, hooks: &Hooks) -> py::Result<()> {
     if replaced {
         log("replaced the pa3ds that was running, whose log this carries on");
     }
-    let beside = instance::Beside::new(log.clone(), instance::LOOK);
+    let hide_window: Option<Rc<dyn Fn()>> = match &own_window {
+        Some(window) if settings.general.hide_window => {
+            let window = window.clone();
+            Some(Rc::new(move || window.hide()))
+        }
+        _ => None,
+    };
+    let beside = instance::Beside::new(log.clone(), instance::LOOK)
+        .own_window(own_window.is_some(), hide_window);
 
     // A key's answer always interrupts (ADR-0010): `interrupt` adds menus to it. Until
     // 2026-09-24 this passed menus or nothing, and so no key ever cut speech off.
@@ -332,9 +348,13 @@ fn run(args: Args, hooks: &Hooks) -> py::Result<()> {
     }
 
     // Out of sight while Azahar is open, and closed with it (ADR-0039).
-    let until =
-        move || deadline.is_some_and(|deadline| time::monotonic() >= deadline) || beside.closed();
-    (hooks.run)(
+    let ended = own_window.clone();
+    let until = move || {
+        deadline.is_some_and(|deadline| time::monotonic() >= deadline)
+            || beside.closed()
+            || ended.as_ref().is_some_and(Window::exited)
+    };
+    let ran = (hooks.run)(
         rpc,
         speech,
         Settings {
@@ -351,8 +371,12 @@ fn run(args: Args, hooks: &Hooks) -> py::Result<()> {
             ..Settings::default()
         },
         &until,
-        log,
-    )
+        log.clone(),
+    );
+    if own_window.as_ref().is_some_and(Window::exited) {
+        log("ended from pa3ds's window");
+    }
+    ran
 }
 
 /// Ask for the folder of a portable Azahar, whose settings pa3ds could not find, and record

@@ -10,6 +10,7 @@ has a comment in the file saying what it does.
 | `keys` | `true` | Answer pa3ds's keys, and rebind Azahar's buttons as `keys.toml` says. |
 | `poll_rate` | `60` | How many times a second pa3ds reads the game. 30 for a slower machine. |
 | `azahar_folder` | `""` | The folder of a portable Azahar. Empty, pa3ds uses the open Azahar's folder or its own where either is a portable Azahar. pa3ds fills it in when you choose the folder it asks for. |
+| `hide_window` | `true` | Hide the window a double-clicked pa3ds opens while Azahar is open, so it is not in Alt+Tab. `false` keeps it in sight, for OBS to record pa3ds's sounds through it. |
 | **`[pa3ds.ui]`** | | |
 | `pauses` | `false` | Pause between pieces of screen text said together, such as a label and what follows it. |
 | `interrupt` | `false` | Cut off speech when a menu's cursor moves, instead of queueing. pa3ds's own keys always cut off speech. |

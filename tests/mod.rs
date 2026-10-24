@@ -41,6 +41,7 @@ mod test_mystatus;
 mod test_names;
 mod test_navigate;
 mod test_oras_text;
+mod test_own_window;
 mod test_partyicons;
 mod test_pathfind;
 mod test_plates;

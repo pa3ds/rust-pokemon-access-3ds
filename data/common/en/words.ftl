@@ -230,6 +230,12 @@ app-reader-error = Reader error
 # The rename box's buttons.
 dialog-ok = OK
 dialog-cancel = Cancel
+# pa3ds's own window, opened when pa3ds is double-clicked: its title and its buttons.
+window-title = Pokémon Access 3DS
+window-issues = Report an issue on GitHub
+window-azahar-portable = Download Azahar (portable)
+window-azahar-installer = Download Azahar (installer)
+window-exit = Exit
 
 ## As pa3ds starts: its keys, its settings and Azahar's
 

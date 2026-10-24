@@ -141,3 +141,26 @@ fn test_pa3ds_is_hidden_while_azahar_is_open_and_closes_once_it_has_closed() {
         ["Azahar has closed, and pa3ds closes with it"]
     );
 }
+
+/// A double-clicked pa3ds's window stands in for its console, which is hidden from the start;
+/// the window is hidden while Azahar is open, as the console was.
+#[test]
+fn test_a_pa3ds_with_its_own_window_hides_its_console_at_once_and_its_window_with_azahar() {
+    let other = Other::new();
+    let azahar = Rc::new(Cell::new(0));
+    let consoles = Rc::new(Cell::new(false));
+    let windows = Rc::new(Cell::new(false));
+    let beside = {
+        let (azahar, consoles, windows) = (azahar.clone(), consoles.clone(), windows.clone());
+        instance::Beside::with(
+            Rc::new(|_line: &str| {}),
+            0.0,
+            Rc::new(move || azahar.get()),
+            Rc::new(move || consoles.set(true)),
+        )
+        .own_window(true, Some(Rc::new(move || windows.set(true))))
+    };
+    assert!(!beside.closed() && consoles.get() && !windows.get());
+    azahar.set(other.pid());
+    assert!(!beside.closed() && windows.get());
+}

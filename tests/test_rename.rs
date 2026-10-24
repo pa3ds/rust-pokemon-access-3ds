@@ -833,7 +833,7 @@ fn test_a_person_with_no_record_has_no_box_to_tick() {
 /// none — and nothing here can see the window that comes out. Reading the bytes back the way
 /// Windows reads them is the next best thing: if this parser finds four items with the right
 /// classes in the right order, so will `DialogBoxIndirectParamW`.
-fn read_template(built: &[u8]) -> (String, Vec<(i64, i64, String)>) {
+pub(super) fn read_template(built: &[u8]) -> (String, Vec<(i64, i64, String)>) {
     fn wstr(built: &[u8], at: &mut usize) -> String {
         let mut end = *at;
         while built[end..end + 2] != [0, 0] {

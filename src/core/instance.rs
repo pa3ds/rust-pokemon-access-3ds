@@ -181,6 +181,11 @@ pub fn end(_pid: i64, _began: i64) -> bool {
 }
 
 #[cfg(not(windows))]
+pub fn alone() -> bool {
+    false
+}
+
+#[cfg(not(windows))]
 pub fn hide() {}
 
 /// Take the place of the pa3ds running from `home`, ending it, and say whether one was.
@@ -214,7 +219,8 @@ pub fn release(home: &Path) {
     }
 }
 
-/// Azahar, looked at once a second: pa3ds's window is hidden while Azahar is open, and
+/// Azahar, looked at once a second: pa3ds's console is hidden while Azahar is open, or from
+/// the start where pa3ds's own window stands in for it, and that window while Azahar is open;
 /// `closed` is true once Azahar has been open and has closed, for pa3ds to close with it.
 pub struct Beside {
     log: Log,
@@ -226,6 +232,11 @@ pub struct Beside {
     /// `window.emulator_pid` and `hide`, which the Python's test monkeypatched.
     find: Rc<dyn Fn() -> i64>,
     hide: Rc<dyn Fn()>,
+    /// Hide the console from the start, not only while Azahar is open: pa3ds's own window
+    /// stands in for it (`pa3ds.ux.window`).
+    early: bool,
+    /// What else to hide while Azahar is open: pa3ds's own window, where it has one.
+    also: Option<Rc<dyn Fn()>>,
 }
 
 impl Beside {
@@ -247,7 +258,16 @@ impl Beside {
             azahar: Cell::new(0),
             find,
             hide,
+            early: false,
+            also: None,
         }
+    }
+
+    /// Python's `early` and `also`, which default to False and None.
+    pub fn own_window(mut self, early: bool, also: Option<Rc<dyn Fn()>>) -> Self {
+        self.early = early;
+        self.also = also;
+        self
     }
 
     pub fn closed(&self) -> bool {
@@ -256,6 +276,9 @@ impl Beside {
             return false;
         }
         self.next.set(now + self.look);
+        if self.early {
+            (self.hide)();
+        }
         if self.azahar.get() == 0 {
             let pid = (self.find)();
             if pid != 0 {
@@ -270,6 +293,9 @@ impl Beside {
             return true;
         }
         (self.hide)();
+        if let Some(also) = &self.also {
+            also();
+        }
         false
     }
 }

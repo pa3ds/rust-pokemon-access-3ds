@@ -103,8 +103,10 @@ when Azahar is open or pa3ds is in the same folder. Otherwise pa3ds asks the fir
 folder `azahar.exe` is in. Choose it, and pa3ds remembers it. Cancel instead if Azahar is
 installed the usual way.
 
-Started by double-clicking or from a shortcut, pa3ds hides its window while Azahar is open, so
-it is not in Alt+Tab. While another window is in front of Azahar, pa3ds says nothing of the
+Started by double-clicking or from a shortcut, pa3ds opens a window, Pokémon Access 3DS, with
+buttons to report an issue on GitHub, to download Azahar's latest portable zip or its
+installer, and to exit pa3ds. It hides the window while Azahar is open, so it is not in Alt+Tab;
+`hide_window` keeps it in sight. While another window is in front of Azahar, pa3ds says nothing of the
 game, but still answers its keys.
 
 ## Updating
