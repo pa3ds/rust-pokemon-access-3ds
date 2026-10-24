@@ -23,6 +23,7 @@ pub mod games;
 pub mod py;
 pub mod tape;
 pub mod update;
+pub mod ux;
 
 #[cfg(test)]
 #[path = "../tests/mod.rs"]

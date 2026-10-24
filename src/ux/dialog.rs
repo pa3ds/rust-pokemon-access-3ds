@@ -113,7 +113,7 @@ pub struct Answer {
 }
 
 /// A null-terminated UTF-16 string, as every string in a dialog template is.
-fn wstr(text: &str) -> Vec<u8> {
+pub fn wstr(text: &str) -> Vec<u8> {
     let mut out: Vec<u8> = text.encode_utf16().flat_map(u16::to_le_bytes).collect();
     out.extend_from_slice(&[0, 0]);
     out
@@ -121,7 +121,7 @@ fn wstr(text: &str) -> Vec<u8> {
 
 /// Each item of a template starts on a 4-byte boundary. Windows does not forgive this: a
 /// template one byte out builds the wrong controls, or none.
-fn align(data: &mut Vec<u8>) {
+pub fn align(data: &mut Vec<u8>) {
     while !data.len().is_multiple_of(4) {
         data.push(0);
     }
@@ -154,7 +154,7 @@ fn uint(value: i64) -> Result<[u8; 4]> {
         .map_err(|_| Error::unpack("'I' format requires 0 <= number <= 4294967295"))
 }
 
-fn item(
+pub fn item(
     data: &mut Vec<u8>,
     style: i64,
     ex_style: i64,

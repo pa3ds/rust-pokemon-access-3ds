@@ -15,10 +15,6 @@ use std::time::Duration;
 use indexmap::IndexMap;
 
 use super::fake_speech::Recorder;
-use crate::core::dialog::{
-    ATOM_BUTTON, ATOM_EDIT, ATOM_STATIC, Ask, Asker, IDC_CHECK, IDC_EDIT, IDC_LABEL, IDCANCEL,
-    IDOK, template,
-};
 use crate::core::names::Names;
 use crate::core::speech::Speech;
 use crate::games::common::field::ground::Ground;
@@ -32,6 +28,10 @@ use crate::games::common::field::things::{
 };
 use crate::games::oras::field::hidden::HIDDEN_POKEMON;
 use crate::py::{self, Result};
+use crate::ux::dialog::{
+    ATOM_BUTTON, ATOM_EDIT, ATOM_STATIC, Ask, Asker, IDC_CHECK, IDC_EDIT, IDC_LABEL, IDCANCEL,
+    IDOK, template,
+};
 
 const NORMAN: i64 = 0x13F;
 const MART: i64 = 0x1AF;

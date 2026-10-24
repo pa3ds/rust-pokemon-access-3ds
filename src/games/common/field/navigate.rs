@@ -54,7 +54,6 @@ use std::rc::Rc;
 use indexmap::IndexMap;
 
 use crate::core::config::Navigation;
-use crate::core::dialog::Asker;
 use crate::core::names::Names;
 use crate::core::pathfind::{self, AHEAD, BEHIND, Cell, LEFT, RIGHT};
 use crate::core::speech::{Category, Speech};
@@ -74,6 +73,7 @@ use crate::games::common::touch::ACTIONS as TOUCH_ACTIONS;
 use crate::games::common::touch::NOTHING as TOUCH_NOTHING;
 use crate::games::common::touch::TouchTargets;
 use crate::py::{self, Error, Log, Result};
+use crate::ux::dialog::Asker;
 
 /// `(ALL, *things.CATEGORIES)`.
 pub const CATEGORIES: [&str; 12] = {

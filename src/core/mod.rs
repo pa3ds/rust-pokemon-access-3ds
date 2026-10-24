@@ -6,7 +6,7 @@
 //! - Finding the game's objects: `rtti` (a class's name from its vtable), `discovery` (sweeping for
 //!   them) and `heaps` (the blocks just allocated, ADR-0034).
 //! - The ROM on disk: `rom`, its file system, for the game's own words (ADR-0008).
-//! - The player's side: `speech`, `keys` and `keyfile`, `dialog` (asking for a name), `window`,
+//! - The player's side: `speech`, `keys` and `keyfile`, `window`,
 //!   `names` and `toml`, the files the player owns (ADR-0031).
 //! - `pathfind`: a way on foot over any game's cells.
 //!
@@ -14,7 +14,6 @@
 
 pub mod binary;
 pub mod config;
-pub mod dialog;
 pub mod discovery;
 pub mod heaps;
 pub mod keyfile;
