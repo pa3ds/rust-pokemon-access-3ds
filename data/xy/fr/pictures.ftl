@@ -14,3 +14,6 @@ model-girl_right = Peau brune, longs cheveux ondulés gris-noir foncé, yeux bru
 texture-kwg_button01 = JOUER
 texture-kwg_button02 = DÉCOR
 texture-kwg_button03 = CHANGER
+texture-push_start = Appuyez sur Start
+texture-presented_by = Présenté par
+texture-gf_logo = Game Freak

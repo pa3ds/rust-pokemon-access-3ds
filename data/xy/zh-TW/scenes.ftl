@@ -1,0 +1,47 @@
+### Traditional Chinese machine translation of `../en/scenes.ftl` (2026-10-27), a baseline for a translator to
+### correct. The English file says what each message is said of, and where; a message missing
+### here is said in English.
+x-title-light = 標題畫面。黑暗中，一個藍色的小光點亮起並逐漸變大，閃耀成一個發光的十字，然後迸散成火花。
+x-title-emblem = 一個巨大的字母X在一道白綠相間的光束前顯出黑色的輪廓，上方的兩臂像鹿角一樣分叉，接著變成深藍色。
+x-title-logo = 視線衝進光芒之中。寶可夢標誌在旋轉的青綠色光芒之上閃耀而出，藍色的X掠到它旁邊。
+x-title = 標誌上寫著{ GAME() }。畫面底部閃爍著：{ PICTURE("push_start") }。
+x-title-xerneas = 下螢幕上，{ POKEMON(716) }站在霧氣瀰漫的森林中，沐浴在一道道陽光裡：一頭高大的藍黑色鹿，有著細長的腿，巨大的角閃耀著彩虹的每一種顏色。視線緩緩繞著牠的頭、腿和大大張開的角轉動。
+x-title-riding = 接著是旅途的畫面。一個戴紅色帽子的女孩騎著{ POKEMON(672) }沿著圍著柵欄的泥土小路前進，越過長滿草的高台；一個戴紅色鴨舌帽的男孩騎著{ POKEMON(111) }穿過巨石間的岩地。
+x-title-city = 一座帶著金色徽章的白色拱門，一座高聳入雲的白色鋼架高塔。一個戴紅色貝雷帽的女孩沿著一條兩旁是樹木和高大石造建築的寬闊大道朝高塔走去。接著，一條長長的林蔭大道通往一座宮殿。
+x-title-amie = { POKEMON(255) }、{ POKEMON(25) }和{ POKEMON(700) }在明亮的天空中微笑。在陽光照耀的草坪上，{ POKEMON(700) }跳著舞，一隻{ POKEMON(667) }嚼著粉紅色的點心，一隻手撫摸著一隻{ POKEMON(694) }，一顆顆愛心飄了起來。
+x-title-skates = 男孩穿著直排輪，在球場上的橙色三角錐之間穿梭，在樹林間沿著欄杆滑行，然後沿著水邊的小路滑下去。
+x-title-hats = 女孩在一圈金色音符中轉圈，然後展示帽子：一頂帽簷上架著墨鏡的白色帽子，一頂別著黃色花朵的白色鴨舌帽，一頂粉藍相間的鴨舌帽。
+x-title-flight = 男孩站在沙灘上，頭頂是一道道藍光，白色的羽毛從身旁飄過。一個黑色的有翼身影俯衝而下，他騎著它飛上天空。一道白光閃過。
+x-title-credit = { POKEMON(716) }又站在霧氣瀰漫的森林中，下方漸漸浮現出文字：{ PICTURE("presented_by") } { PICTURE("gf_logo") }。
+x-movie-ball = 一顆{ ITEM(4) }劃過藍天，{ POKEMON(650) }從中衝出，來到一片草地上。
+x-movie-starters = { POKEMON(653) }、{ POKEMON(650) }和{ POKEMON(656) }並排出現。
+x-movie-fire = { POKEMON(650) }捲起一陣綠葉旋風攻向{ POKEMON(653) }，牠以一道充滿整個畫面的火焰回擊。
+x-movie-water = { POKEMON(656) }擲出一顆旋轉的水球，打在{ POKEMON(653) }身上。
+x-movie-flashes = 一連串閃現的畫面：{ POKEMON(697) }在攻擊打中牠時發出咆哮，{ POKEMON(668) }在一片白光中，一隻{ POKEMON(694) }朝一群白色的鳥迸出電光。
+x-movie-charizard = 黑暗中，一隻嘴邊燃著藍色火焰的黑色{ POKEMON(6) }在聚光燈下的岩石舞台上展開翅膀。一隻蒼白、肩膀寬闊的{ POKEMON(150) }凝聚出一顆發光的藍色球體，{ POKEMON(6) }穿過黃色的光芒朝牠疾衝而去。一切陷入黑暗。
+y-title-light = 標題畫面。黑暗中，一個紅色的小光點亮起，然後在一陣粉紅與紅色的閃光中迸散。
+y-title-emblem = 一個巨大的字母Y在一道白色光束前顯出黑色的輪廓，兩臂像鋸齒狀的翅膀一樣張開，接著變成紅色。
+y-title-logo = 視線衝進光芒之中。寶可夢標誌在翻騰的雲層之上閃耀而出，紅色的Y掠到它旁邊。
+y-title = { x-title }
+y-title-yveltal = 下螢幕上，{ POKEMON(717) }在紫色天空的雲間滑翔：一隻巨大的紅黑色鳥，有著寬大的鋸齒狀翅膀和長長的尾巴。視線繞著牠的翅膀、爪子，以及有一隻藍色眼睛的尖銳頭部轉動。
+y-title-riding = { x-title-riding }
+y-title-city = { x-title-city }
+y-title-amie = { x-title-amie }
+y-title-skates = { x-title-skates }
+y-title-hats = { x-title-hats }
+y-title-flight = { x-title-flight }
+y-title-credit = { POKEMON(717) }又在雲間盤旋，下方漸漸浮現出文字：{ PICTURE("presented_by") } { PICTURE("gf_logo") }。
+y-movie-ball = { x-movie-ball }
+y-movie-starters = { x-movie-starters }
+y-movie-fire = { x-movie-fire }
+y-movie-water = { x-movie-water }
+y-movie-flashes = { x-movie-flashes }
+y-movie-charizard = 黑暗中，一隻長著角、翅膀寬大的橙色{ POKEMON(6) }站在聚光燈下的岩石舞台上。一隻身形纖細、尾巴長長的蒼白{ POKEMON(150) }凝聚出一顆發光的藍色球體，{ POKEMON(6) }穿過黃色的光芒朝牠疾衝而去。一切陷入黑暗。
+prism-quiz-1 = 提問之前，白色框中有一個黑色的剪影：一隻用兩條腿站立的小生物，有兩隻長長的尖耳朵，尾巴像閃電一樣呈鋸齒狀彎折。
+prism-quiz-2 = 提問之前，白色框中有一個黑色的剪影：一隻圓圓的小鳥，用兩條細腿站著，有短而尖的喙，身後一束長長的尾羽呈扇形向上展開。
+prism-quiz-3 = 提問之前，白色框中有一個黑色的剪影：一隻用兩條腿站立的小猴子，有大大的圓耳朵，細長的尾巴末端捲曲。頭上一撮光滑的毛向上翹起，再以一道長長的圓弧向後捲回。
+prism-quiz-4 = 提問之前，三隻黑色的蝴蝶一隻接一隻出現。第一隻：圓胖的身體，圓圓的頭上有兩根末端捲曲的長觸角，翅膀圓圓的。第二隻，從正面看：寬大的翅膀邊緣呈波浪狀的扇貝形，上面一對翅膀的末端是尖的。第三隻：一隻蛾，翅膀平平地大大張開，翅尖有缺口，有兩隻短短的角，身體下方有一圈流蘇。
+prism-booths-1 = 後方有三個小隔間，每個裡面有一位訓練家，上方有大大的數字：左邊是1，中間是2，右邊是3。
+prism-booths-2 = { prism-booths-1 }
+prism-booths-3 = { prism-booths-1 }
+prism-booths-4 = { prism-booths-1 }

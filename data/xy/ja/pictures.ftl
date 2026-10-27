@@ -14,3 +14,6 @@ model-girl_right = 褐色の肌、ウェーブのかかった濃い灰色がか�
 texture-kwg_button01 = あそぶ
 texture-kwg_button02 = もようがえ
 texture-kwg_button03 = いれかえ
+texture-push_start = スタートを押してください
+texture-presented_by = 制作
+texture-gf_logo = ゲームフリーク

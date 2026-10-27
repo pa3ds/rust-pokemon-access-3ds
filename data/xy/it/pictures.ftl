@@ -14,3 +14,6 @@ model-girl_right = Pelle scura, lunghi capelli mossi grigio scuro quasi neri, oc
 texture-kwg_button01 = Gioca
 texture-kwg_button02 = Decora
 texture-kwg_button03 = Cambia
+texture-push_start = Premi Start
+texture-presented_by = Presentato da
+texture-gf_logo = Game Freak

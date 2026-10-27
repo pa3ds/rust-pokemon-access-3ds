@@ -14,3 +14,6 @@ model-girl_right = 棕色的皮肤，深灰黑色的长卷发，琥珀棕色眼�
 texture-kwg_button01 = 玩耍
 texture-kwg_button02 = 装饰
 texture-kwg_button03 = 交换
+texture-push_start = 请按START键
+texture-presented_by = 出品方
+texture-gf_logo = Game Freak

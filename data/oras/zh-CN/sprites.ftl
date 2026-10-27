@@ -20,7 +20,7 @@ sprite-0xb3 = 小田卷
 # wally.ctm: "Welcome to the Pokémon Center", in two Centers on two saves
 sprite-0x12a = 乔伊小姐
 # HAGI_RS: Dewford, Routes 104 and 109, the S.S. Tidal
-sprite-0x11b = 文太
+sprite-0x11b = 哈奇
 # KUSUNOKI_RS: Slateport and Lilycove
 sprite-0x135 = 库斯诺吉船长
 # SORAISI_RS: Fallarbor, Meteor Falls, Mossdeep

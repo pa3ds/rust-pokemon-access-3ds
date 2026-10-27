@@ -1,0 +1,47 @@
+### French machine translation of `../en/scenes.ftl` (2026-10-27), a baseline for a translator to
+### correct. The English file says what each message is said of, and where; a message missing
+### here is said in English.
+x-title-light = L'écran titre. Dans l'obscurité, une petite lumière bleue brille et grandit, s'embrase en une croix de lumière éclatante, et éclate en étincelles.
+x-title-emblem = Une grande lettre X se dresse, sombre, sur un faisceau de lumière blanche et verte, ses bras supérieurs ramifiés comme des bois de cerf, et devient bleu profond.
+x-title-logo = La vue fonce dans la lumière. Le logo Pokémon brille sur une lumière bleu-vert tourbillonnante, et le X bleu vient se placer à côté.
+x-title = Le logo indique { GAME() }. En bas, clignotant : { PICTURE("push_start") }.
+x-title-xerneas = Sur l'écran inférieur, { POKEMON(716) } se tient dans une forêt brumeuse, dans des rayons de soleil : un grand cerf bleu et noir aux longues pattes fines, ses grands bois brillant de toutes les couleurs de l'arc-en-ciel. La vue tourne lentement autour de sa tête, de ses pattes et de ses bois largement déployés.
+x-title-riding = Puis des scènes d'un voyage. Une fille en chapeau rouge monte un { POKEMON(672) } le long d'un chemin de terre clôturé et à travers des corniches herbeuses, et un garçon en casquette rouge monte un { POKEMON(111) } sur un sol rocailleux parmi des rochers.
+x-title-city = Une arche blanche ornée d'un emblème doré, et une haute tour blanche en treillis d'acier qui s'élève dans le ciel. Une fille en béret rouge descend une large avenue bordée d'arbres et de hauts immeubles de pierre, vers la tour. Puis une longue allée d'arbres mène à un palais.
+x-title-amie = { POKEMON(255) }, { POKEMON(25) } et { POKEMON(700) } sourient dans un ciel lumineux. Sur une pelouse ensoleillée, { POKEMON(700) } danse, un { POKEMON(667) } grignote une friandise rose, une main caresse un { POKEMON(694) }, et des cœurs s'envolent.
+x-title-skates = Le garçon, en rollers, slalome entre des plots orange sur un terrain, glisse sur un rail à travers les arbres, et descend en glissant un chemin au bord de l'eau.
+x-title-hats = La fille tourne sur elle-même dans un cercle de notes de musique dorées, puis montre des chapeaux : un blanc avec des lunettes de soleil sur le bord, une casquette blanche avec une fleur jaune, une casquette rose et bleue.
+x-title-flight = Le garçon se tient sur le sable sous des traînées de lumière bleue, tandis que des plumes blanches passent en flottant. Une silhouette ailée sombre fond sur lui, et il s'envole sur son dos dans le ciel. Un éclair blanc.
+x-title-credit = { POKEMON(716) } se tient de nouveau dans la forêt brumeuse, et des mots apparaissent en fondu en dessous : { PICTURE("presented_by") } { PICTURE("gf_logo") }.
+x-movie-ball = Une { ITEM(4) } décrit un arc dans un ciel bleu, et { POKEMON(650) } en jaillit sur un champ herbeux.
+x-movie-starters = { POKEMON(653) }, { POKEMON(650) } et { POKEMON(656) } apparaissent côte à côte.
+x-movie-fire = { POKEMON(650) } attaque { POKEMON(653) } avec un tourbillon de feuilles vertes, et celui-ci réplique par une explosion de feu qui emplit l'écran.
+x-movie-water = { POKEMON(656) } lance une boule d'eau tourbillonnante qui s'abat sur { POKEMON(653) }.
+x-movie-flashes = Des images rapides : { POKEMON(697) } rugissant tandis qu'une explosion l'atteint, { POKEMON(668) } dans un flot de lumière blanche, un { POKEMON(694) } lançant des étincelles sur une volée d'oiseaux blancs.
+x-movie-charizard = Dans l'obscurité, un { POKEMON(6) } noir aux flammes bleues à la gueule déploie ses ailes sur une scène rocheuse sous un projecteur. Un { POKEMON(150) } pâle aux larges épaules rassemble une sphère bleue lumineuse, et { POKEMON(6) } fonce sur lui à travers une lumière jaune. Tout devient noir.
+y-title-light = L'écran titre. Dans l'obscurité, une petite lumière rouge brille, puis éclate dans un éclair de lumière rose et rouge.
+y-title-emblem = Une grande lettre Y se dresse, sombre, sur un faisceau de lumière blanche, ses bras déployés comme des ailes dentelées, et devient rouge.
+y-title-logo = La vue fonce dans la lumière. Le logo Pokémon brille sur des nuages tourbillonnants, et le Y rouge vient se placer à côté.
+y-title = { x-title }
+y-title-yveltal = Sur l'écran inférieur, { POKEMON(717) } plane parmi les nuages dans un ciel violet : un immense oiseau rouge et noir aux larges ailes dentelées et à la longue queue. La vue tourne autour de ses ailes, de ses serres et de sa tête pointue à l'œil bleu unique.
+y-title-riding = { x-title-riding }
+y-title-city = { x-title-city }
+y-title-amie = { x-title-amie }
+y-title-skates = { x-title-skates }
+y-title-hats = { x-title-hats }
+y-title-flight = { x-title-flight }
+y-title-credit = { POKEMON(717) } tournoie de nouveau parmi les nuages, et des mots apparaissent en fondu en dessous : { PICTURE("presented_by") } { PICTURE("gf_logo") }.
+y-movie-ball = { x-movie-ball }
+y-movie-starters = { x-movie-starters }
+y-movie-fire = { x-movie-fire }
+y-movie-water = { x-movie-water }
+y-movie-flashes = { x-movie-flashes }
+y-movie-charizard = Dans l'obscurité, un { POKEMON(6) } orange, cornu et aux larges ailes, se tient sur une scène rocheuse sous un projecteur. Un { POKEMON(150) } élancé et pâle à la longue queue rassemble une sphère bleue lumineuse, et { POKEMON(6) } fonce sur lui à travers une lumière jaune. Tout devient noir.
+prism-quiz-1 = Avant la question, une silhouette noire dans un cadre blanc : une petite créature debout sur deux pattes, avec deux longues oreilles pointues et une queue en zigzag comme un éclair.
+prism-quiz-2 = Avant la question, une silhouette noire dans un cadre blanc : un petit oiseau rond sur deux pattes fines, avec un bec court et pointu et une queue de longues plumes déployée en éventail derrière lui.
+prism-quiz-3 = Avant la question, une silhouette noire dans un cadre blanc : un petit singe debout sur deux pattes, avec de grandes oreilles rondes et une queue fine enroulée au bout. Une mèche lisse s'élève de sa tête et retombe en arrière en une longue vague arrondie.
+prism-quiz-4 = Avant la question, trois papillons en noir, l'un après l'autre. Le premier : un corps dodu, une tête ronde avec deux longues antennes enroulées au bout, et des ailes arrondies. Le deuxième, vu de face : de larges ailes aux bords ondulés et festonnés, la paire du haut pointue au bout. Le troisième : un papillon de nuit aux ailes largement déployées à plat, échancrées au bout, avec deux petites cornes trapues et une frange sous le corps.
+prism-booths-1 = Au fond se trouvent trois cabines, un dresseur dans chacune, avec de grands numéros au-dessus : 1 à gauche, 2 au milieu et 3 à droite.
+prism-booths-2 = { prism-booths-1 }
+prism-booths-3 = { prism-booths-1 }
+prism-booths-4 = { prism-booths-1 }

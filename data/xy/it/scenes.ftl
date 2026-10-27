@@ -1,0 +1,47 @@
+### Italian machine translation of `../en/scenes.ftl` (2026-10-27), a baseline for a translator to
+### correct. The English file says what each message is said of, and where; a message missing
+### here is said in English.
+x-title-light = La schermata del titolo. Nel buio, una piccola luce blu brilla e cresce, si accende in una croce di luce splendente ed esplode in scintille.
+x-title-emblem = Una grande lettera X si staglia scura contro un fascio di luce bianca e verde, con i bracci superiori ramificati come corna di cervo, e diventa blu intenso.
+x-title-logo = La visuale si precipita nella luce. Il logo Pokémon risplende su una luce verde acqua vorticosa, e la X blu entra accanto a esso.
+x-title = Il logo dice { GAME() }. In basso, lampeggiante: { PICTURE("push_start") }.
+x-title-xerneas = Sullo schermo inferiore, { POKEMON(716) } è in una foresta nebbiosa tra raggi di sole: un alto cervo blu e nero su lunghe zampe sottili, con grandi corna che brillano di tutti i colori dell'arcobaleno. La visuale gira lentamente intorno alla sua testa, alle zampe e alle corna ben aperte.
+x-title-riding = Poi scene di un viaggio. Una ragazza con un cappello rosso cavalca un { POKEMON(672) } lungo un sentiero sterrato recintato e su sporgenze erbose, e un ragazzo con un berretto rosso cavalca un { POKEMON(111) } su un terreno roccioso tra i massi.
+x-title-city = Un arco bianco con un emblema dorato, e un'alta torre bianca a traliccio d'acciaio che si slancia nel cielo. Una ragazza con un basco rosso percorre un ampio viale alberato tra alti edifici di pietra, verso la torre. Poi un lungo viale alberato conduce a un palazzo.
+x-title-amie = { POKEMON(255) }, { POKEMON(25) } e { POKEMON(700) } sorridono da un cielo luminoso. Su un prato soleggiato { POKEMON(700) } balla, un { POKEMON(667) } sgranocchia un dolcetto rosa, una mano accarezza un { POKEMON(694) }, e salgono dei cuori.
+x-title-skates = Il ragazzo, sui pattini a rotelle, fa lo slalom tra coni arancioni su un campo, scivola lungo un binario tra gli alberi e scende lungo un sentiero accanto all'acqua.
+x-title-hats = La ragazza piroetta in un cerchio di note musicali dorate, poi sfoggia dei cappelli: uno bianco con occhiali da sole sulla tesa, un berretto bianco con un fiore giallo, un berretto rosa e blu.
+x-title-flight = Il ragazzo è sulla sabbia sotto scie di luce blu, mentre piume bianche gli passano accanto. Una sagoma alata scura scende in picchiata, e lui ci sale in groppa e si alza nel cielo. Un lampo bianco.
+x-title-credit = { POKEMON(716) } è di nuovo nella foresta nebbiosa, e sotto di esso appaiono in dissolvenza delle parole: { PICTURE("presented_by") } { PICTURE("gf_logo") }.
+x-movie-ball = Una { ITEM(4) } descrive un arco nel cielo azzurro, e { POKEMON(650) } ne esce su un prato erboso.
+x-movie-starters = { POKEMON(653) }, { POKEMON(650) } e { POKEMON(656) } appaiono fianco a fianco.
+x-movie-fire = { POKEMON(650) } attacca con un turbine di foglie verdi { POKEMON(653) }, che risponde con una vampata di fuoco che riempie lo schermo.
+x-movie-water = { POKEMON(656) } scaglia una sfera d'acqua vorticosa che si abbatte su { POKEMON(653) }.
+x-movie-flashes = Lampi rapidi: { POKEMON(697) } che ruggisce mentre un'esplosione lo colpisce, { POKEMON(668) } in un'ondata di luce bianca, un { POKEMON(694) } che lancia scintille contro uno stormo di uccelli bianchi.
+x-movie-charizard = Nel buio, un { POKEMON(6) } nero con fiamme blu alla bocca spiega le ali su un palco roccioso sotto un riflettore. Un { POKEMON(150) } pallido e dalle spalle larghe raccoglie una sfera blu luminosa, e { POKEMON(6) } gli sfreccia contro attraverso una luce gialla. Tutto si fa buio.
+y-title-light = La schermata del titolo. Nel buio, una piccola luce rossa brilla, poi esplode in un lampo di luce rosa e rossa.
+y-title-emblem = Una grande lettera Y si staglia scura contro un fascio di luce bianca, con i bracci aperti come ali frastagliate, e diventa rossa.
+y-title-logo = La visuale si precipita nella luce. Il logo Pokémon risplende su nuvole vorticose, e la Y rossa entra accanto a esso.
+y-title = { x-title }
+y-title-yveltal = Sullo schermo inferiore, { POKEMON(717) } plana tra le nuvole in un cielo viola: un enorme uccello rosso e nero con ampie ali frastagliate e una lunga coda. La visuale gira intorno alle sue ali, ai suoi artigli e alla sua testa appuntita con un occhio blu.
+y-title-riding = { x-title-riding }
+y-title-city = { x-title-city }
+y-title-amie = { x-title-amie }
+y-title-skates = { x-title-skates }
+y-title-hats = { x-title-hats }
+y-title-flight = { x-title-flight }
+y-title-credit = { POKEMON(717) } volteggia di nuovo tra le nuvole, e sotto di esso appaiono in dissolvenza delle parole: { PICTURE("presented_by") } { PICTURE("gf_logo") }.
+y-movie-ball = { x-movie-ball }
+y-movie-starters = { x-movie-starters }
+y-movie-fire = { x-movie-fire }
+y-movie-water = { x-movie-water }
+y-movie-flashes = { x-movie-flashes }
+y-movie-charizard = Nel buio, un { POKEMON(6) } arancione con corna e ampie ali è su un palco roccioso sotto un riflettore. Un { POKEMON(150) } snello e pallido con una lunga coda raccoglie una sfera blu luminosa, e { POKEMON(6) } gli sfreccia contro attraverso una luce gialla. Tutto si fa buio.
+prism-quiz-1 = Prima della domanda, una sagoma nera in una cornice bianca: una piccola creatura in piedi su due zampe, con due lunghe orecchie appuntite e una coda piegata a zigzag come un fulmine.
+prism-quiz-2 = Prima della domanda, una sagoma nera in una cornice bianca: un piccolo uccello tondo su due zampe sottili, con un becco corto e appuntito e una coda di lunghe piume aperte a ventaglio dietro di sé.
+prism-quiz-3 = Prima della domanda, una sagoma nera in una cornice bianca: una piccola scimmia in piedi su due zampe, con grandi orecchie tonde e una coda sottile arricciata in punta. Un ciuffo liscio le sale dalla testa e si ripiega all'indietro in un'unica lunga onda arrotondata.
+prism-quiz-4 = Prima della domanda, tre farfalle in nero, una dopo l'altra. La prima: un corpo paffuto, una testa tonda con due lunghe antenne arricciate in punta e ali arrotondate. La seconda, vista di fronte: ali larghe con bordi ondulati e smerlati, il paio superiore appuntito in cima. La terza: una falena con le ali spiegate, larghe e piatte, intaccate in punta, due cornetti tozzi e una frangia sotto il corpo.
+prism-booths-1 = In fondo ci sono tre cabine, con un allenatore in ciascuna e grandi numeri sopra: 1 a sinistra, 2 al centro e 3 a destra.
+prism-booths-2 = { prism-booths-1 }
+prism-booths-3 = { prism-booths-1 }
+prism-booths-4 = { prism-booths-1 }

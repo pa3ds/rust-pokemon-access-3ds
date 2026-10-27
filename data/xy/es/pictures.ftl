@@ -14,3 +14,6 @@ model-girl_right = Piel morena, pelo largo ondulado gris oscuro casi negro, ojos
 texture-kwg_button01 = Jugar
 texture-kwg_button02 = Decorar
 texture-kwg_button03 = Cambiar
+texture-push_start = Pulsa Start
+texture-presented_by = Presentado por
+texture-gf_logo = Game Freak

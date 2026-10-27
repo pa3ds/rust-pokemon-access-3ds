@@ -55,3 +55,14 @@ y-movie-fire = { x-movie-fire }
 y-movie-water = { x-movie-water }
 y-movie-flashes = { x-movie-flashes }
 y-movie-charizard = In the dark, an orange { POKEMON(6) } with horns and wide wings stands on a rocky stage under a spotlight. A slender, pale { POKEMON(150) } with a long tail gathers a glowing blue sphere, and { POKEMON(6) } streaks at it through yellow light. Everything goes dark.
+
+# Prism Tower's quiz rooms, from the rig's own run through the Gym (spike 252): the picture each
+# question shows for a few seconds before it is asked, never named, and the booths at the back.
+prism-quiz-1 = Before the question, a black shape in a white frame: a small creature standing on two legs, with two long pointed ears and a tail bent in zigzags like a lightning bolt.
+prism-quiz-2 = Before the question, a black shape in a white frame: a small round bird on two thin legs, with a short pointed beak and a tail of long feathers fanned up behind it.
+prism-quiz-3 = Before the question, a black shape in a white frame: a small monkey standing on two legs, with big round ears and a thin tail curling at its end. A smooth tuft sweeps up from its head and curls back in one long rounded wave.
+prism-quiz-4 = Before the question, three butterflies in black, one after another. The first: a plump body, a round head with two long antennae curling at their tips, and rounded wings. The second, seen from the front: broad wings with wavy, scalloped edges, the upper pair pointed at their tips. The third: a moth with its wings spread wide and flat, notched at their tips, two stubby horns and a fringe under its body.
+prism-booths-1 = At the back stand three booths, a trainer in each, with big numbers above them: 1 on the left, 2 in the middle and 3 on the right.
+prism-booths-2 = { prism-booths-1 }
+prism-booths-3 = { prism-booths-1 }
+prism-booths-4 = { prism-booths-1 }

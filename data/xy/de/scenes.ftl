@@ -1,0 +1,47 @@
+### German machine translation of `../en/scenes.ftl` (2026-10-27), a baseline for a translator to
+### correct. The English file says what each message is said of, and where; a message missing
+### here is said in English.
+x-title-light = Der Titelbildschirm. Im Dunkeln glüht ein kleines blaues Licht auf und wächst, flammt zu einem leuchtenden Lichtkreuz auf und zerstiebt in Funken.
+x-title-emblem = Ein großer Buchstabe X steht dunkel vor einem Strahl aus weißem und grünem Licht, seine oberen Arme verzweigt wie ein Geweih, und färbt sich tiefblau.
+x-title-logo = Der Blick stürzt ins Licht. Das Pokémon-Logo leuchtet über wirbelndem türkisem Licht auf, und das blaue X schwingt daneben herein.
+x-title = Auf dem Logo steht { GAME() }. Unten blinkt: { PICTURE("push_start") }.
+x-title-xerneas = Auf dem unteren Bildschirm steht { POKEMON(716) } in einem nebligen Wald in Sonnenstrahlen: ein großer blau-schwarzer Hirsch auf langen, dünnen Beinen, sein mächtiges Geweih leuchtet in allen Farben des Regenbogens. Der Blick kreist langsam um seinen Kopf, seine Beine und sein weit ausgebreitetes Geweih.
+x-title-riding = Dann Bilder einer Reise. Ein Mädchen mit rotem Hut reitet auf einem { POKEMON(672) } einen eingezäunten Feldweg entlang und über grasbewachsene Vorsprünge, und ein Junge mit roter Kappe reitet auf einem { POKEMON(111) } über steinigen Boden zwischen Felsbrocken.
+x-title-city = Ein weißer Torbogen mit goldenem Emblem und ein hoher weißer Turm aus Stahlgitter, der in den Himmel ragt. Ein Mädchen mit roter Baskenmütze geht eine breite Allee aus Bäumen und hohen Steinhäusern entlang auf den Turm zu. Dann führt eine lange Baumallee zu einem Palast.
+x-title-amie = { POKEMON(255) }, { POKEMON(25) } und { POKEMON(700) } lächeln aus einem hellen Himmel. Auf einem sonnigen Rasen tanzt { POKEMON(700) }, ein { POKEMON(667) } knabbert an einem rosa Leckerbissen, eine Hand streichelt ein { POKEMON(694) }, und Herzen steigen auf.
+x-title-skates = Der Junge fährt auf Rollschuhen Slalom um orangefarbene Hütchen auf einem Platz, grindet auf einer Schiene durch die Bäume und gleitet einen Weg am Wasser entlang.
+x-title-hats = Das Mädchen dreht sich in einem Ring aus goldenen Noten und führt dann Hüte vor: einen weißen mit einer Sonnenbrille auf der Krempe, eine weiße Kappe mit gelber Blume, eine rosa-blaue Kappe.
+x-title-flight = Der Junge steht auf Sand unter blauen Lichtstreifen, während weiße Federn vorbeitreiben. Eine dunkle geflügelte Gestalt stößt herab, und er reitet auf ihr in den Himmel. Ein weißer Blitz.
+x-title-credit = { POKEMON(716) } steht wieder im nebligen Wald, und darunter blenden Worte ein: { PICTURE("presented_by") } { PICTURE("gf_logo") }.
+x-movie-ball = Ein { ITEM(4) } fliegt in hohem Bogen über einen blauen Himmel, und { POKEMON(650) } springt heraus auf eine Wiese.
+x-movie-starters = { POKEMON(653) }, { POKEMON(650) } und { POKEMON(656) } erscheinen nebeneinander.
+x-movie-fire = { POKEMON(650) } schlägt mit einem Wirbel grüner Blätter nach { POKEMON(653) }, das mit einem Feuerstoß antwortet, der den Bildschirm füllt.
+x-movie-water = { POKEMON(656) } schleudert eine wirbelnde Wasserkugel, die über { POKEMON(653) } hereinbricht.
+x-movie-flashes = Schnelle Bilder: { POKEMON(697) }, das brüllt, während ein Angriff an ihm explodiert, { POKEMON(668) } in einer Flut aus weißem Licht, ein { POKEMON(694) }, das Funken auf einen Schwarm weißer Vögel sprüht.
+x-movie-charizard = Im Dunkeln breitet ein schwarzes { POKEMON(6) } mit blauen Flammen am Maul auf einer felsigen Bühne im Scheinwerferlicht die Flügel aus. Ein blasses, breitschultriges { POKEMON(150) } sammelt eine leuchtend blaue Kugel, und { POKEMON(6) } rast durch gelbes Licht darauf zu. Alles wird dunkel.
+y-title-light = Der Titelbildschirm. Im Dunkeln glüht ein kleines rotes Licht auf und zerbirst dann in einem Blitz aus rosa und rotem Licht.
+y-title-emblem = Ein großer Buchstabe Y steht dunkel vor einem Strahl aus weißem Licht, seine Arme ausgebreitet wie gezackte Flügel, und färbt sich rot.
+y-title-logo = Der Blick stürzt ins Licht. Das Pokémon-Logo leuchtet über wirbelnden Wolken auf, und das rote Y schwingt daneben herein.
+y-title = { x-title }
+y-title-yveltal = Auf dem unteren Bildschirm gleitet { POKEMON(717) } zwischen Wolken an einem violetten Himmel: ein riesiger rot-schwarzer Vogel mit weiten, gezackten Flügeln und langem Schwanz. Der Blick kreist um seine Flügel, seine Krallen und seinen spitzen Kopf mit einem blauen Auge.
+y-title-riding = { x-title-riding }
+y-title-city = { x-title-city }
+y-title-amie = { x-title-amie }
+y-title-skates = { x-title-skates }
+y-title-hats = { x-title-hats }
+y-title-flight = { x-title-flight }
+y-title-credit = { POKEMON(717) } zieht wieder seine Kreise zwischen den Wolken, und darunter blenden Worte ein: { PICTURE("presented_by") } { PICTURE("gf_logo") }.
+y-movie-ball = { x-movie-ball }
+y-movie-starters = { x-movie-starters }
+y-movie-fire = { x-movie-fire }
+y-movie-water = { x-movie-water }
+y-movie-flashes = { x-movie-flashes }
+y-movie-charizard = Im Dunkeln steht ein orangefarbenes { POKEMON(6) } mit Hörnern und weiten Flügeln auf einer felsigen Bühne im Scheinwerferlicht. Ein schlankes, blasses { POKEMON(150) } mit langem Schwanz sammelt eine leuchtend blaue Kugel, und { POKEMON(6) } rast durch gelbes Licht darauf zu. Alles wird dunkel.
+prism-quiz-1 = Vor der Frage eine schwarze Gestalt in einem weißen Rahmen: ein kleines Wesen, das auf zwei Beinen steht, mit zwei langen spitzen Ohren und einem Schwanz, der im Zickzack geknickt ist wie ein Blitz.
+prism-quiz-2 = Vor der Frage eine schwarze Gestalt in einem weißen Rahmen: ein kleiner runder Vogel auf zwei dünnen Beinen, mit kurzem spitzem Schnabel und einem Schwanz aus langen Federn, die hinter ihm nach oben gefächert sind.
+prism-quiz-3 = Vor der Frage eine schwarze Gestalt in einem weißen Rahmen: ein kleiner Affe, der auf zwei Beinen steht, mit großen runden Ohren und einem dünnen Schwanz, der sich am Ende einrollt. Ein glatter Schopf schwingt von seinem Kopf nach oben und biegt sich in einer langen, runden Welle zurück.
+prism-quiz-4 = Vor der Frage drei Schmetterlinge in Schwarz, einer nach dem anderen. Der erste: ein plumper Körper, ein runder Kopf mit zwei langen Fühlern, die sich an den Spitzen einrollen, und abgerundete Flügel. Der zweite, von vorn gesehen: breite Flügel mit welligen, gebogten Rändern, das obere Paar an den Spitzen spitz zulaufend. Der dritte: ein Falter mit weit und flach ausgebreiteten Flügeln, an den Spitzen eingekerbt, mit zwei kurzen Hörnern und einem Fransensaum unter dem Körper.
+prism-booths-1 = Hinten stehen drei Kabinen, in jeder ein Trainer, mit großen Zahlen darüber: 1 links, 2 in der Mitte und 3 rechts.
+prism-booths-2 = { prism-booths-1 }
+prism-booths-3 = { prism-booths-1 }
+prism-booths-4 = { prism-booths-1 }

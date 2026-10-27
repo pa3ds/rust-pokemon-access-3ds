@@ -176,3 +176,65 @@ id = "y-movie-flashes"
 [[scene.beat]]
 at = 9.6
 id = "y-movie-charizard"
+
+# Prism Tower's Gym (spike 252): each quiz room shows a picture in a white frame for a few seconds
+# before Bonnie's question, described by a beat after the question, and then the booths whose
+# numbers answer it. Zones 0x4f to 0x52, story 404 to 401; the pictures are from the screens of
+# the rig's own run through the Gym, 2026-10-27.
+[[scene]]
+after = "story:404:2"
+zone = 0x4f
+
+[[scene.beat]]
+id = "prism-quiz-1"
+
+[[scene]]
+after = "story:403:1"
+zone = 0x50
+
+[[scene.beat]]
+id = "prism-quiz-2"
+
+[[scene]]
+after = "story:402:1"
+zone = 0x51
+
+[[scene.beat]]
+id = "prism-quiz-3"
+
+[[scene]]
+after = "story:401:1"
+zone = 0x52
+
+[[scene.beat]]
+id = "prism-quiz-4"
+
+# "Go talk to the Trainer who's the same number as the right answer!", in each room: a scene
+# with no zone is the opening's, said before the player is anywhere.
+[[scene]]
+after = "story:404:3"
+zone = 0x4f
+
+[[scene.beat]]
+id = "prism-booths-1"
+
+[[scene]]
+after = "story:403:2"
+zone = 0x50
+
+[[scene.beat]]
+id = "prism-booths-2"
+
+[[scene]]
+after = "story:402:2"
+zone = 0x51
+
+[[scene.beat]]
+id = "prism-booths-3"
+
+[[scene]]
+after = "story:401:2"
+zone = 0x52
+
+[[scene.beat]]
+id = "prism-booths-4"

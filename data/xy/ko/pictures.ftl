@@ -14,3 +14,6 @@ model-girl_right = 갈색 피부, 길고 웨이브진 짙은 회흑색 머리, �
 texture-kwg_button01 = 논다
 texture-kwg_button02 = 모양바꾸기
 texture-kwg_button03 = 교체
+texture-push_start = 스타트 버튼을 누르세요
+texture-presented_by = 제공
+texture-gf_logo = 게임프리크

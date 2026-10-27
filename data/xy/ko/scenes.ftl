@@ -1,0 +1,47 @@
+### Korean machine translation of `../en/scenes.ftl` (2026-10-27), a baseline for a translator to
+### correct. The English file says what each message is said of, and where; a message missing
+### here is said in English.
+x-title-light = 타이틀 화면. 어둠 속에서 작은 파란 빛이 빛나며 커지다가, 빛나는 십자형 빛으로 번쩍이고, 불꽃으로 흩어진다.
+x-title-emblem = 하얗고 초록빛인 빛줄기를 배경으로 커다란 X 글자가 검게 서 있다. 위쪽 두 팔은 사슴뿔처럼 갈라져 있고, 글자는 짙은 파란색으로 바뀐다.
+x-title-logo = 시선이 빛 속으로 돌진한다. 소용돌이치는 청록빛 위로 포켓몬 로고가 빛나고, 그 옆으로 파란 X가 휙 들어온다.
+x-title = 로고에 적힌 글자는 { GAME() }. 아래쪽에서 깜박이는 글자: { PICTURE("push_start") }.
+x-title-xerneas = 아래 화면, 햇살이 비치는 안개 낀 숲에 서 있는 { POKEMON(716) }. 길고 가는 다리를 한 키 큰 파랑과 검정의 사슴으로, 커다란 뿔이 무지개의 모든 색으로 빛난다. 시선이 머리, 다리, 활짝 펼친 뿔 주위를 천천히 돈다.
+x-title-riding = 이어서 여행의 장면들. 빨간 모자를 쓴 여자아이가 { POKEMON(672) }에 타고 울타리 쳐진 흙길을 따라 달리며 풀이 덮인 턱을 넘고, 빨간 캡 모자를 쓴 남자아이가 { POKEMON(111) }에 타고 큰 돌 사이의 바위투성이 땅을 달린다.
+x-title-city = 금빛 문장이 있는 하얀 아치문, 그리고 하늘로 뻗은 강철 격자의 높고 하얀 탑. 빨간 베레모를 쓴 여자아이가 가로수와 높은 석조 건물이 늘어선 넓은 대로를 따라 탑 쪽으로 걸어간다. 이어서 긴 가로수길이 궁전으로 이어진다.
+x-title-amie = 밝은 하늘에서 미소 짓는 { POKEMON(255) }, { POKEMON(25) }, { POKEMON(700) }. 햇살 비치는 잔디밭에서 춤추는 { POKEMON(700) }, 분홍색 간식을 먹는 { POKEMON(667) }, 손이 쓰다듬는 { POKEMON(694) }. 하트가 떠오른다.
+x-title-skates = 롤러스케이트를 탄 남자아이가 코트의 주황색 콘 사이를 누비고, 나무 사이의 레일을 타고 미끄러지며, 물가의 길을 따라 미끄러져 내려간다.
+x-title-hats = 여자아이가 금빛 음표의 고리 속에서 빙글 돌고, 모자를 자랑한다. 챙에 선글라스를 얹은 하얀 모자, 노란 꽃이 달린 하얀 캡, 분홍과 파랑의 캡.
+x-title-flight = 하얀 깃털이 흩날리는 가운데, 푸른 빛줄기 아래 모래 위에 남자아이가 서 있다. 날개 달린 검은 형체가 내려오고, 남자아이는 그것을 타고 하늘로 올라간다. 하얀 섬광.
+x-title-credit = 다시 안개 낀 숲에 서 있는 { POKEMON(716) }. 그 아래로 글자가 서서히 떠오른다: { PICTURE("gf_logo") } { PICTURE("presented_by") }.
+x-movie-ball = 파란 하늘을 가로질러 포물선을 그리는 { ITEM(4) }. 풀밭으로 튀어나오는 { POKEMON(650) }.
+x-movie-starters = 나란히 나타나는 { POKEMON(653) }, { POKEMON(650) }, { POKEMON(656) }.
+x-movie-fire = 소용돌이치는 초록 잎으로 { POKEMON(653) }에게 공격을 퍼붓는 { POKEMON(650) }. 상대는 화면을 가득 채우는 불꽃을 내뿜으며 맞선다.
+x-movie-water = 소용돌이치는 물 덩어리를 던져, { POKEMON(653) }에게 퍼붓는 { POKEMON(656) }.
+x-movie-flashes = 빠르게 스치는 장면들. 폭발을 맞으며 포효하는 { POKEMON(697) }, 쏟아지는 하얀 빛 속의 { POKEMON(668) }, 하얀 새 떼를 향해 스파크를 튀기는 { POKEMON(694) }.
+x-movie-charizard = 어둠 속, 스포트라이트 아래 바위 무대에서 입가에 파란 불꽃을 머금고 날개를 펼치는 검은 { POKEMON(6) }. 빛나는 파란 구체를 모으는, 어깨가 넓고 창백한 { POKEMON(150) }. 노란 빛을 가르며 그쪽으로 돌진하는 { POKEMON(6) }. 모든 것이 어두워진다.
+y-title-light = 타이틀 화면. 어둠 속에서 작은 빨간 빛이 빛나다가, 분홍빛과 붉은빛의 섬광으로 터진다.
+y-title-emblem = 하얀 빛줄기를 배경으로 커다란 Y 글자가 검게 서 있다. 두 팔은 들쭉날쭉한 날개처럼 펼쳐져 있고, 글자는 빨간색으로 바뀐다.
+y-title-logo = 시선이 빛 속으로 돌진한다. 소용돌이치는 구름 위로 포켓몬 로고가 빛나고, 그 옆으로 빨간 Y가 휙 들어온다.
+y-title = { x-title }
+y-title-yveltal = 아래 화면, 보랏빛 하늘의 구름 사이를 미끄러지듯 나는 { POKEMON(717) }. 넓고 들쭉날쭉한 날개와 긴 꼬리를 가진 거대한 빨강과 검정의 새다. 시선이 날개, 발톱, 그리고 파란 눈 하나가 있는 날카로운 머리 주위를 돈다.
+y-title-riding = { x-title-riding }
+y-title-city = { x-title-city }
+y-title-amie = { x-title-amie }
+y-title-skates = { x-title-skates }
+y-title-hats = { x-title-hats }
+y-title-flight = { x-title-flight }
+y-title-credit = 다시 구름 사이를 선회하는 { POKEMON(717) }. 그 아래로 글자가 서서히 떠오른다: { PICTURE("gf_logo") } { PICTURE("presented_by") }.
+y-movie-ball = { x-movie-ball }
+y-movie-starters = { x-movie-starters }
+y-movie-fire = { x-movie-fire }
+y-movie-water = { x-movie-water }
+y-movie-flashes = { x-movie-flashes }
+y-movie-charizard = 어둠 속, 스포트라이트 아래 바위 무대에 서 있는, 뿔과 넓은 날개를 가진 주황색 { POKEMON(6) }. 빛나는 파란 구체를 모으는, 긴 꼬리를 가진 가냘프고 창백한 { POKEMON(150) }. 노란 빛을 가르며 그쪽으로 돌진하는 { POKEMON(6) }. 모든 것이 어두워진다.
+prism-quiz-1 = 문제가 나오기 전, 하얀 테두리 안의 검은 실루엣. 두 다리로 선 작은 생물로, 길고 뾰족한 귀 두 개와 번개처럼 지그재그로 꺾인 꼬리가 있다.
+prism-quiz-2 = 문제가 나오기 전, 하얀 테두리 안의 검은 실루엣. 가는 두 다리로 선 작고 동그란 새로, 짧고 뾰족한 부리가 있고, 뒤로는 긴 꽁지깃이 부채처럼 위로 펼쳐져 있다.
+prism-quiz-3 = 문제가 나오기 전, 하얀 테두리 안의 검은 실루엣. 두 다리로 선 작은 원숭이로, 크고 둥근 귀와 끝이 말린 가는 꼬리가 있다. 머리에서 매끈한 머리털 한 다발이 위로 솟았다가, 길고 둥근 물결 하나를 그리며 뒤로 말려 있다.
+prism-quiz-4 = 문제가 나오기 전, 검은 나비 세 마리가 차례로 나온다. 첫째는 통통한 몸에, 끝이 말린 긴 더듬이 두 개가 달린 둥근 머리, 둥근 날개. 둘째는 앞에서 본 모습으로, 가장자리가 물결 모양인 넓은 날개이고, 위쪽 한 쌍은 끝이 뾰족하다. 셋째는 날개를 넓고 평평하게 펼친 나방으로, 날개 끝이 파여 있고, 짧은 뿔 두 개와 몸 아래 술 장식이 있다.
+prism-booths-1 = 뒤쪽에 부스 세 개가 서 있고, 부스마다 트레이너가 한 명씩 있다. 위에는 큰 숫자가 있다. 왼쪽이 1, 가운데가 2, 오른쪽이 3.
+prism-booths-2 = { prism-booths-1 }
+prism-booths-3 = { prism-booths-1 }
+prism-booths-4 = { prism-booths-1 }

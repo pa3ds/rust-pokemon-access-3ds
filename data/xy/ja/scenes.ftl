@@ -1,0 +1,47 @@
+### Japanese machine translation of `../en/scenes.ftl` (2026-10-27), a baseline for a translator to
+### correct. The English file says what each message is said of, and where; a message missing
+### here is said in English.
+x-title-light = タイトル画面。暗闇の中、小さな青い光がともって大きくなり、輝く光の十字となって燃え上がり、火花となってはじける。
+x-title-emblem = 白と緑の光の柱を背に、大きなXの文字が黒く立っている。上の腕は角のように枝分かれしていて、文字は深い青に変わる。
+x-title-logo = 視線が光の中へ飛びこむ。渦巻く青緑の光の上にポケモンのロゴが輝き、その横に青いXがさっと現れる。
+x-title = ロゴには{ GAME() }とある。下のほうで点滅している：{ PICTURE("push_start") }。
+x-title-xerneas = 下の画面では、日の光が差しこむ霧の森に{ POKEMON(716) }が立っている。細長い脚の、背の高い青と黒の鹿で、大きな角が虹のあらゆる色に光っている。視線がその頭、脚、大きく広がった角のまわりをゆっくりと回る。
+x-title-riding = それから旅の場面。赤い帽子の女の子が{ POKEMON(672) }に乗って柵のある土の道を走り、草の段差を越えていく。赤いキャップの男の子は{ POKEMON(111) }に乗って、岩の間のごつごつした地面を進む。
+x-title-city = 金色の紋章のある白いアーチと、空へ伸びる鉄骨の背の高い白い塔。赤いベレー帽の女の子が、並木と高い石造りの建物が並ぶ広い大通りを塔のほうへ歩いていく。それから、長い並木道が宮殿へ続いている。
+x-title-amie = { POKEMON(255) }、{ POKEMON(25) }、{ POKEMON(700) }が明るい空からほほえみかける。日の当たる芝生で{ POKEMON(700) }が踊り、{ POKEMON(667) }がピンクのおやつをほおばり、手が{ POKEMON(694) }をなで、ハートが浮かび上がる。
+x-title-skates = ローラースケートをはいた男の子が、コートでオレンジのコーンの間をぬって進み、木々の間のレールを滑り、水辺の道を滑っていく。
+x-title-hats = 女の子が金色の音符の輪の中でくるりと回り、それから帽子を見せる：つばにサングラスをのせた白い帽子、黄色い花のついた白いキャップ、ピンクと青のキャップ。
+x-title-flight = 男の子が青い光の筋の下、砂の上に立ち、白い羽根がただよっていく。翼のある黒い影が舞い降り、男の子はそれに乗って空へ昇る。白い閃光。
+x-title-credit = ふたたび霧の森に{ POKEMON(716) }が立ち、その下に文字が浮かび上がる：{ PICTURE("presented_by") } { PICTURE("gf_logo") }。
+x-movie-ball = { ITEM(4) }が青空に弧を描き、{ POKEMON(650) }が草原に飛び出す。
+x-movie-starters = { POKEMON(653) }、{ POKEMON(650) }、{ POKEMON(656) }が並んで現れる。
+x-movie-fire = { POKEMON(650) }が緑の葉の渦を{ POKEMON(653) }に放ち、相手は画面いっぱいの炎で応える。
+x-movie-water = { POKEMON(656) }が渦巻く水の玉を投げつけ、{ POKEMON(653) }に浴びせかける。
+x-movie-flashes = 一瞬の場面が次々と：攻撃がはじける中でほえる{ POKEMON(697) }、白い光の洪水の中の{ POKEMON(668) }、白い鳥の群れに火花を放つ{ POKEMON(694) }。
+x-movie-charizard = 暗闇の中、口に青い炎をたたえた黒い{ POKEMON(6) }が、スポットライトの当たる岩のステージで翼を広げる。青白く肩幅の広い{ POKEMON(150) }が光る青い球をためると、{ POKEMON(6) }が黄色い光の中をそれに向かって突進する。すべてが暗くなる。
+y-title-light = タイトル画面。暗闇の中、小さな赤い光がともり、ピンクと赤の閃光となってはじける。
+y-title-emblem = 白い光の柱を背に、大きなYの文字が黒く立っている。腕はぎざぎざの翼のように広がっていて、文字は赤に変わる。
+y-title-logo = 視線が光の中へ飛びこむ。渦巻く雲の上にポケモンのロゴが輝き、その横に赤いYがさっと現れる。
+y-title = { x-title }
+y-title-yveltal = 下の画面では、紫の空の雲の間を{ POKEMON(717) }が滑空している。大きく広がるぎざぎざの翼と長い尾をもつ、巨大な赤と黒の鳥。視線がその翼、爪、そして青い目がひとつ見える鋭い頭のまわりを回る。
+y-title-riding = { x-title-riding }
+y-title-city = { x-title-city }
+y-title-amie = { x-title-amie }
+y-title-skates = { x-title-skates }
+y-title-hats = { x-title-hats }
+y-title-flight = { x-title-flight }
+y-title-credit = ふたたび雲の間を{ POKEMON(717) }が旋回し、その下に文字が浮かび上がる：{ PICTURE("presented_by") } { PICTURE("gf_logo") }。
+y-movie-ball = { x-movie-ball }
+y-movie-starters = { x-movie-starters }
+y-movie-fire = { x-movie-fire }
+y-movie-water = { x-movie-water }
+y-movie-flashes = { x-movie-flashes }
+y-movie-charizard = 暗闇の中、角と大きな翼をもつオレンジの{ POKEMON(6) }が、スポットライトの当たる岩のステージに立っている。長い尾をもつほっそりした青白い{ POKEMON(150) }が光る青い球をためると、{ POKEMON(6) }が黄色い光の中をそれに向かって突進する。すべてが暗くなる。
+prism-quiz-1 = 問題の前に、白い枠の中に黒い影：二本足で立つ小さな生き物で、長くとがった耳が二つと、稲妻のようにジグザグに曲がったしっぽがある。
+prism-quiz-2 = 問題の前に、白い枠の中に黒い影：細い二本足の小さく丸い鳥で、短くとがったくちばしと、後ろに扇のように広がる長い羽のしっぽがある。
+prism-quiz-3 = 問題の前に、白い枠の中に黒い影：二本足で立つ小さなサルで、大きな丸い耳と、先が巻いた細いしっぽがある。頭からなめらかな房が上へ伸び、長く丸みのある波となって後ろへ巻いている。
+prism-quiz-4 = 問題の前に、黒で描かれたちょうちょが三つ、順に現れる。一つ目：ふっくらした胴体、先が巻いた長い触角が二本ある丸い頭、丸い羽。二つ目は正面から：ふちが波打つ広い羽で、上の一対は先がとがっている。三つ目：羽を平らに大きく広げた蛾で、羽の先に切れこみがあり、短い角が二本、体の下にふさ飾りがある。
+prism-booths-1 = 奥にブースが三つあり、それぞれにトレーナーがいて、上に大きな番号がある：左が1、中央が2、右が3。
+prism-booths-2 = { prism-booths-1 }
+prism-booths-3 = { prism-booths-1 }
+prism-booths-4 = { prism-booths-1 }

@@ -14,3 +14,6 @@ model-girl_right = Braune Haut, lange gewellte dunkelgrau-schwarze Haare, bernst
 texture-kwg_button01 = Spielen
 texture-kwg_button02 = Deko
 texture-kwg_button03 = Wechseln
+texture-push_start = Start drücken
+texture-presented_by = Presented by
+texture-gf_logo = Game Freak

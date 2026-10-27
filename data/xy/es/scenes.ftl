@@ -1,0 +1,47 @@
+### Spanish machine translation of `../en/scenes.ftl` (2026-10-27), a baseline for a translator to
+### correct. The English file says what each message is said of, and where; a message missing
+### here is said in English.
+x-title-light = La pantalla de título. En la oscuridad, una pequeña luz azul brilla y crece, se convierte en una cruz de luz resplandeciente y estalla en chispas.
+x-title-emblem = Una gran letra X se recorta oscura contra un haz de luz blanca y verde, con los brazos superiores ramificados como astas, y se vuelve de un azul intenso.
+x-title-logo = La vista se adentra en la luz a toda velocidad. El logotipo de Pokémon brilla sobre una luz turquesa arremolinada, y la X azul aparece a su lado.
+x-title = El logotipo dice { GAME() }. Abajo, parpadeando: { PICTURE("push_start") }.
+x-title-xerneas = En la pantalla inferior, { POKEMON(716) } está en un bosque brumoso entre rayos de sol: un ciervo alto, azul y negro, de patas largas y finas, con sus grandes astas brillando con todos los colores del arcoíris. La vista gira despacio alrededor de su cabeza, sus patas y sus astas extendidas.
+x-title-riding = Luego, escenas de un viaje. Una chica con sombrero rojo monta un { POKEMON(672) } por un camino de tierra vallado y por salientes de hierba, y un chico con gorra roja monta un { POKEMON(111) } por un terreno rocoso entre peñascos.
+x-title-city = Un arco blanco con un emblema dorado, y una alta torre blanca de celosía de acero que se eleva hacia el cielo. Una chica con boina roja camina por una amplia avenida de árboles y altos edificios de piedra hacia la torre. Luego, una larga avenida de árboles lleva a un palacio.
+x-title-amie = { POKEMON(255) }, { POKEMON(25) } y { POKEMON(700) } sonríen desde un cielo luminoso. En un césped soleado, { POKEMON(700) } baila, un { POKEMON(667) } mordisquea un dulce rosa, una mano acaricia a un { POKEMON(694) }, y suben corazones flotando.
+x-title-skates = El chico, en patines, zigzaguea entre conos naranjas en una pista, se desliza por un raíl entre los árboles y baja por un camino junto al agua.
+x-title-hats = La chica gira en un círculo de notas musicales doradas y luego luce sombreros: uno blanco con gafas de sol en el ala, una gorra blanca con una flor amarilla, una gorra rosa y azul.
+x-title-flight = El chico está sobre la arena bajo estelas de luz azul mientras pasan flotando plumas blancas. Una forma alada oscura desciende en picado, y él se sube a ella y asciende al cielo. Un destello blanco.
+x-title-credit = { POKEMON(716) } vuelve a aparecer en el bosque brumoso, y bajo él aparecen poco a poco unas palabras: { PICTURE("presented_by") } { PICTURE("gf_logo") }.
+x-movie-ball = Una { ITEM(4) } traza un arco en un cielo azul, y { POKEMON(650) } sale de ella a un campo de hierba.
+x-movie-starters = { POKEMON(653) }, { POKEMON(650) } y { POKEMON(656) } aparecen uno al lado del otro.
+x-movie-fire = { POKEMON(650) } ataca a { POKEMON(653) } con un torbellino de hojas verdes, y este responde con una llamarada que llena la pantalla.
+x-movie-water = { POKEMON(656) } lanza una bola de agua arremolinada que cae sobre { POKEMON(653) }.
+x-movie-flashes = Destellos rápidos: { POKEMON(697) } rugiendo mientras una explosión estalla contra él, { POKEMON(668) } en un torrente de luz blanca, un { POKEMON(694) } lanzando chispas a una bandada de pájaros blancos.
+x-movie-charizard = En la oscuridad, un { POKEMON(6) } negro con llamas azules en la boca despliega sus alas en un escenario rocoso bajo un foco. Un { POKEMON(150) } pálido y de hombros anchos reúne una esfera azul brillante, y { POKEMON(6) } se lanza hacia él a través de una luz amarilla. Todo se oscurece.
+y-title-light = La pantalla de título. En la oscuridad, una pequeña luz roja brilla y luego estalla en un destello de luz rosa y roja.
+y-title-emblem = Una gran letra Y se recorta oscura contra un haz de luz blanca, con los brazos extendidos como alas dentadas, y se vuelve roja.
+y-title-logo = La vista se adentra en la luz a toda velocidad. El logotipo de Pokémon brilla sobre nubes arremolinadas, y la Y roja aparece a su lado.
+y-title = { x-title }
+y-title-yveltal = En la pantalla inferior, { POKEMON(717) } planea entre nubes en un cielo morado: un enorme pájaro rojo y negro de alas anchas y dentadas y una larga cola. La vista gira alrededor de sus alas, sus garras y su cabeza afilada con un solo ojo azul.
+y-title-riding = { x-title-riding }
+y-title-city = { x-title-city }
+y-title-amie = { x-title-amie }
+y-title-skates = { x-title-skates }
+y-title-hats = { x-title-hats }
+y-title-flight = { x-title-flight }
+y-title-credit = { POKEMON(717) } vuelve a dar vueltas entre las nubes, y bajo él aparecen poco a poco unas palabras: { PICTURE("presented_by") } { PICTURE("gf_logo") }.
+y-movie-ball = { x-movie-ball }
+y-movie-starters = { x-movie-starters }
+y-movie-fire = { x-movie-fire }
+y-movie-water = { x-movie-water }
+y-movie-flashes = { x-movie-flashes }
+y-movie-charizard = En la oscuridad, un { POKEMON(6) } naranja con cuernos y alas anchas está en un escenario rocoso bajo un foco. Un { POKEMON(150) } esbelto y pálido de cola larga reúne una esfera azul brillante, y { POKEMON(6) } se lanza hacia él a través de una luz amarilla. Todo se oscurece.
+prism-quiz-1 = Antes de la pregunta, una silueta negra en un marco blanco: una pequeña criatura de pie sobre dos patas, con dos orejas largas y puntiagudas y una cola en zigzag como un rayo.
+prism-quiz-2 = Antes de la pregunta, una silueta negra en un marco blanco: un pequeño pájaro redondo sobre dos patas finas, con un pico corto y puntiagudo y una cola de plumas largas desplegada en abanico detrás.
+prism-quiz-3 = Antes de la pregunta, una silueta negra en un marco blanco: un pequeño mono de pie sobre dos patas, con grandes orejas redondas y una cola fina enroscada en la punta. Un mechón liso sale de su cabeza hacia arriba y se curva hacia atrás en una larga onda redondeada.
+prism-quiz-4 = Antes de la pregunta, tres mariposas en negro, una tras otra. La primera: un cuerpo regordete, una cabeza redonda con dos antenas largas enroscadas en la punta, y alas redondeadas. La segunda, vista de frente: alas anchas de bordes ondulados y festoneados, con el par superior acabado en punta. La tercera: una polilla con las alas desplegadas, anchas y planas, con muescas en las puntas, dos cuernos cortos y un fleco bajo el cuerpo.
+prism-booths-1 = Al fondo hay tres cabinas, con un entrenador en cada una y grandes números encima: el 1 a la izquierda, el 2 en el centro y el 3 a la derecha.
+prism-booths-2 = { prism-booths-1 }
+prism-booths-3 = { prism-booths-1 }
+prism-booths-4 = { prism-booths-1 }

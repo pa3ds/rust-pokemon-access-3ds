@@ -23,6 +23,7 @@ kind-secret-base-spot = Geheimbasis-Platz
 kind-ladder-up = Leiter hoch
 kind-ladder-down = Leiter runter
 kind-switch = Schalter
+kind-conveyor-belt = Förderband
 kind-lift = Hebebühne
 kind-trapdoor = Falltür
 kind-geyser = Geysir

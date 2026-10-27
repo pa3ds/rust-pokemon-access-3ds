@@ -41,6 +41,7 @@ texture-menu_bg_button = commencer
 texture-msg_win_c = fermer
 texture-list_button = sacs d'entraînement
 texture-stage_icon = commencer
+texture-waza_pos = { "" }
 
 # Pokémon-Amie's decorate screen.
 texture-bgbutton_L = précédent

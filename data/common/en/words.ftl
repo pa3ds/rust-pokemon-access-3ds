@@ -166,6 +166,18 @@ how-slide = slide
 # where it lands the player: "3 east, grind the rail 17 east" (spike 247).
 how-grind-the-rail = grind the rail
 p-grind = grind the rail { $bearing }
+# The step that grabs a vine and its ride, as one leg, said with the way faced to grab it and
+# what the ride does: "3 north, face north, climb the vine up, 2 east" (spike 250).
+how-climb-the-vine-up = climb the vine up
+how-climb-the-vine-down = climb the vine down
+how-swing-on-the-vine = swing on the vine
+p-vine = face { $way }, { $how }
+# How many more vines a way rides past its first, said after it in place of the rest: "face
+# north, climb the vine up, then 16 more vines" (spike 250).
+p-more-vines = { $count ->
+    [one] then 1 more vine
+   *[other] then { $count } more vines
+}
 # A run of steps up or down a ramp, said as one leg by the way it starts, the key held all along
 # it: "up the ramp 25 south-east" (spike 248).
 how-up-the-ramp = up the ramp
@@ -291,7 +303,7 @@ setting-pa3ds-ui-interrupt-about = Cut off speech when a menu's cursor moves, in
 setting-pa3ds-ui-unfocused = Speak while Azahar is in the background
 setting-pa3ds-ui-unfocused-about = Keep saying what the game shows while another window is in front; otherwise pa3ds is quiet then, but for its own keys and messages.
 setting-pa3ds-ui-descriptions = Scene descriptions
-setting-pa3ds-ui-descriptions-about = Describe the scenes the game shows without words, such as Groudon waking. Each description is said after the line of text the scene follows. Only some scenes are described so far, and only in English.
+setting-pa3ds-ui-descriptions-about = Describe the scenes the game shows without words, such as Groudon waking. Each description is said after the line of text the scene follows. Only some scenes are described so far.
 setting-pa3ds-ui-language = Language
 setting-pa3ds-ui-language-about = The language pa3ds says its own words in, as the name of a folder of its data: en, fr, de, es, it, ja, ko, zh-CN or zh-TW. Empty follows the game's own language, which pa3ds reads from the save; set it where that is wrong, as for a fan translation over another language, and in Sun and Moon, whose save pa3ds cannot read, where it is the game's language too.
 setting-pa3ds-audio-tones = Relative volume for tones
@@ -371,6 +383,9 @@ azahar-folder-not-portable = { $folder } has no user folder beside its azahar.ex
 # game's `sprites.ftl`.
 kind-door = door
 kind-way-out = way out
+# The way off Coumarine Gym's top level, walked onto east, which drops the player to the
+# ground (spike 250).
+kind-way-down = way down
 kind-warp = warp
 kind-path = path
 kind-edge = edge
@@ -394,10 +409,19 @@ kind-hole = hole
 kind-dive-spot = dive spot
 kind-current = current
 kind-flat-ground = flat ground
+# Where one of Lumiose's streets ends on ground walked on the grid, as its plazas are (spike 251).
+kind-open-ground = open ground
+# The small square in each of Prism Tower's quiz rooms that asks Bonnie's question, and asks it again (spike 252).
+kind-quiz-panel = quiz panel
 # A run of the blue spots a climbing wall is climbed from, and one on a ledge at its side, where
 # the climber steps off it: the Gym's guide says "those blue spots" (spike 245).
 kind-blue-spot = blue spot
 kind-wall-ledge = wall ledge
+# An end of one of Coumarine Gym's vines, by what its ride does from there: up a level, down
+# one, or across a gap on one (spike 250).
+kind-vine-up = vine up
+kind-vine-down = vine down
+kind-swinging-vine = swinging vine
 # Where Shalour Gym's leader comes out to meet the player, at the centre's edges (spike 247).
 kind-gym-leader-spot = gym leader's spot
 kind-slope = slope
