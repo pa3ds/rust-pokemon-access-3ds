@@ -415,6 +415,132 @@ fn test_a_plate_is_named_by_a_line_that_is_a_facility_of_the_lists_text() -> Res
     Ok(())
 }
 
+/// The Japanese museum's plate puts its name in 「」 after its motto, and the door was named
+/// by the motto (a user, 2026-10-26).
+#[test]
+fn test_a_name_in_quotation_marks_on_a_line_of_its_own_names_the_plate() -> Result<()> {
+    let said = vec![MessageLine::from(
+        "はてしない うみ……\n「うみの かがく はくぶつかん」",
+    )];
+    let story = move |file: i64| -> Result<Vec<Vec<u8>>> {
+        if file == STORY {
+            message_lines(&message_file(&said))
+        } else {
+            Ok(Vec::new())
+        }
+    };
+    let zones = town(
+        &[(1, 10, 8)],
+        &[(CAFE, crate::games::gen6::field::zonedata::WARP_DOOR, 10, 10)],
+    )?;
+    let named = plates::plate_names(
+        &zones,
+        &table(),
+        &story,
+        &HashSet::from([TOWN]),
+        None,
+        &["うみのかがくはくぶつかん".to_string()],
+    )?;
+    assert_eq!(
+        named,
+        IndexMap::from([((TOWN, 0), "うみのかがくはくぶつかん".to_string())])
+    );
+    Ok(())
+}
+
+/// Stern's Shipyard's plate shows one of three notices as the story goes, each under its
+/// name, one in French capitalised otherwise; the door was "door" (a user, 2026-10-26). A plate
+/// whose notices share no one facility names nothing.
+#[test]
+fn test_a_plate_showing_one_of_several_notices_is_named_by_the_facility_all_of_them_hold()
+-> Result<()> {
+    let said = vec![
+        MessageLine::from("Stern's Shipyard\nWanted: a sailor."),
+        MessageLine::from("STERN'S Shipyard\nFerry at the Harbor."),
+        MessageLine::from("Harbor\nNo ferry today."),
+        MessageLine::from("Stern's Shipyard\nThe ferry is done."),
+    ];
+    let code = sign_script(
+        &IndexMap::from([
+            (
+                1,
+                vec![(0, script::PLATE), (1, script::PLATE), (3, script::PLATE)],
+            ),
+            (2, vec![(0, script::PLATE), (2, script::PLATE)]),
+        ]),
+        false,
+    );
+    let data = zone_file(&ZoneSpec {
+        furniture: &[(1, 10, 8), (2, 30, 8)],
+        warps: &[
+            (
+                CAFE,
+                crate::games::gen6::field::zonedata::WARP_DOOR,
+                10,
+                10,
+                None,
+                None,
+            ),
+            (
+                CAFE,
+                crate::games::gen6::field::zonedata::WARP_DOOR,
+                30,
+                10,
+                None,
+                None,
+            ),
+        ],
+        sections: 4,
+        script: &code,
+        ..ZoneSpec::default()
+    });
+    let zone = crate::games::gen6::field::zonedata::zone_file(&data)?.expect("a zone data file");
+    let zones: IndexMap<i64, plates::Zone> = IndexMap::from([
+        (
+            TOWN,
+            (
+                data.clone(),
+                crate::games::gen6::field::zonedata::records(
+                    &data,
+                    &zone,
+                    crate::games::gen6::field::zonedata::FURNITURE,
+                )?,
+                crate::games::gen6::field::zonedata::records(
+                    &data,
+                    &zone,
+                    crate::games::gen6::field::zonedata::WARP,
+                )?,
+            ),
+        ),
+        (CAFE, (Vec::new(), Vec::new(), Vec::new())),
+    ]);
+    let shown = message_lines(&message_file(&said))?;
+    let story = move |file: i64| -> Result<Vec<Vec<u8>>> {
+        Ok(if file == STORY {
+            shown.clone()
+        } else {
+            Vec::new()
+        })
+    };
+    let facilities = IndexMap::from([(
+        PLACE,
+        vec!["Stern's Shipyard".to_string(), "Harbor".to_string()],
+    )]);
+    let named = plates::plate_names(
+        &zones,
+        &table(),
+        &story,
+        &HashSet::from([TOWN]),
+        Some(&facilities),
+        &[],
+    )?;
+    assert_eq!(
+        named,
+        IndexMap::from([((TOWN, 0), "Stern's Shipyard".to_string())])
+    );
+    Ok(())
+}
+
 /// Mauville Hills' "Apt. 13 / Wattson's Home" says nothing its door is not called (Orion,
 /// 2026-10-13); a plate that says more than the name is not one.
 #[test]

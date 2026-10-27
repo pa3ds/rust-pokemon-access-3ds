@@ -33,6 +33,8 @@ pub const NEAR: i64 = 6;
 pub const FAR: i64 = 12;
 /// How much further the next door must be than the nearest for a plate to be the nearest's.
 pub const APART: f64 = 1.5;
+/// The quotation marks a plate puts round a name on a line of its own (`_named`).
+pub const QUOTES: &str = "「」『』“”\"";
 /// A zone-table row's +0x06: the zone's file in the story text archive, which its script's
 /// messages are lines of.
 pub const INFO_STORY: i64 = 0x06;
@@ -154,6 +156,10 @@ pub fn plate_names(
         if doors.is_empty() {
             continue;
         }
+        let listed = facilities
+            .get(&place(table, zone)?)
+            .map_or(&[][..], Vec::as_slice);
+        let mut found: Vec<(&Vec<u8>, String, i64)> = Vec::new();
         for (_index, record, line) in plates_of(&code, furniture, &lines)? {
             let words = first_page(item(&lines, line)?)?;
             let Some(mut words) = words.filter(|words| !words.is_empty()) else {
@@ -162,9 +168,6 @@ pub fn plate_names(
             let said = words_of(item(&lines, line)?)?;
             let name = self::named(item(&lines, line)?, every)?;
             if first_lines(item(&lines, line)?)?.contains('\n') {
-                let listed = facilities
-                    .get(&place(table, zone)?)
-                    .map_or(&[][..], Vec::as_slice);
                 words = facility(&said, listed)
                     .or_else(|| name.clone().filter(|name| !name.is_empty()))
                     .unwrap_or(words);
@@ -173,7 +176,12 @@ pub fn plate_names(
             {
                 words = name;
             }
-            let far = if !said.contains('\n') { FAR } else { NEAR };
+            found.push((record, words, if !said.contains('\n') { FAR } else { NEAR }));
+        }
+        for (record, name) in story_plates(&code, furniture, &lines, listed)? {
+            found.push((record, name, NEAR));
+        }
+        for (record, words, far) in found {
             let mut nearest: Vec<(i64, i64)> = Vec::new();
             for &(slot, door) in &doors {
                 if let Some(d) = apart(record, door)? {
@@ -201,6 +209,41 @@ pub fn plate_names(
         .into_iter()
         .map(|(door, (_d, words))| (door, words))
         .collect())
+}
+
+/// Each furniture record the zone's script shows a plate for in one of several lines as the
+/// story goes, with the one facility of its town's list that every one of them holds: Stern's
+/// Shipyard's plate is one of three notices, each under "Stern's Shipyard", and no other plate
+/// or table names its door (a user, 2026-10-26).
+fn story_plates<'a>(
+    code: &script::Script,
+    furniture: &'a [Vec<u8>],
+    lines: &[Vec<u8>],
+    listed: &[String],
+) -> Result<Vec<(&'a Vec<u8>, String)>> {
+    let mut out: Vec<(&Vec<u8>, String)> = Vec::new();
+    for record in furniture {
+        let shown: HashSet<i64> =
+            script::sign_lines(code, u16(record, zonedata::FURNITURE_SCRIPT)?)?
+                .into_iter()
+                .filter(|&(_, style)| style == script::PLATE)
+                .map(|(line, _)| line)
+                .collect();
+        if shown.len() < 2 || shown.iter().any(|&line| line >= lines.len() as i64) {
+            continue;
+        }
+        let refs: Vec<&String> = listed.iter().collect();
+        let mut held: HashSet<&String> = refs.iter().copied().collect();
+        for &line in &shown {
+            let said = words_of(item(lines, line)?)?;
+            let one = held_in(&said, &refs);
+            held.retain(|name| one.contains(name));
+        }
+        if held.len() == 1 {
+            out.push((record, held.into_iter().next().cloned().expect("one")));
+        }
+    }
+    Ok(out)
 }
 
 /// (zone, warp slot) -> the facility of its town's list a landmark's entrance is, for the
@@ -557,7 +600,9 @@ fn facility(said: &str, listed: &[String]) -> Option<String> {
 /// list is full at six, and Slateport's leaves out the Oceanic Museum, whose plate says "The
 /// endless sea sustains all life." first and its name on the next page: the list's text still
 /// names it. A whole line, not words within one, as `_facility` takes: X's "Autumnal Avenue
-/// Ahead" plate holds "Boutique" in "Poké Ball Boutique".
+/// Ahead" plate holds "Boutique" in "Poké Ball Boutique". A line's quotation marks are left out:
+/// the Japanese and Korean plates put the museum's name in them, 「うみの かがく はくぶつかん」,
+/// and named the door by its motto (a user's, in a Chinese translation, 2026-10-26).
 fn named(raw: &[u8], every: &[String]) -> Result<Option<String>> {
     let tokens = match text::tokens(raw) {
         Ok(tokens) => tokens,
@@ -573,7 +618,12 @@ fn named(raw: &[u8], every: &[String]) -> Result<Option<String>> {
         .collect();
     let lines: Vec<String> = joined
         .split('\n')
-        .map(|line| py::split(line).concat())
+        .map(|line| {
+            py::split(line)
+                .concat()
+                .trim_matches(|c| QUOTES.contains(c))
+                .to_string()
+        })
         .collect();
     let mut runs: HashSet<String> = lines.iter().cloned().collect();
     for pair in lines.windows(2) {
@@ -609,7 +659,34 @@ fn held_in<'a>(
 }
 
 fn holds(said: &str, name: &str) -> bool {
-    py::split(said).concat().contains(&py::split(name).concat())
+    // Case left out: one of the French shipyard's three notices says "Chantier Naval De Poupe".
+    casefold(&py::split(said).concat()).contains(&casefold(&py::split(name).concat()))
+}
+
+/// Python's `str.casefold`, for the letters the games' languages write: lowercase, and the
+/// letters whose fold is not their lowercase.
+///
+/// shortcut: only ß, ẞ, ſ, µ, ς and the Latin ligatures fold differently from `to_lowercase`
+/// here; the rest of CaseFolding.txt's full foldings (Greek with iota, Armenian, Cherokee) if a
+/// game's text ever holds them.
+fn casefold(text: &str) -> String {
+    let mut out = String::new();
+    for c in text.chars() {
+        match c {
+            'ß' | 'ẞ' => out.push_str("ss"),
+            'ſ' => out.push('s'),
+            'µ' => out.push('μ'),
+            'ς' => out.push('σ'),
+            'ﬀ' => out.push_str("ff"),
+            'ﬁ' => out.push_str("fi"),
+            'ﬂ' => out.push_str("fl"),
+            'ﬃ' => out.push_str("ffi"),
+            'ﬄ' => out.push_str("ffl"),
+            'ﬅ' | 'ﬆ' => out.push_str("st"),
+            _ => out.extend(c.to_lowercase()),
+        }
+    }
+    out
 }
 
 /// (zone, furniture index) of every plate outdoors that says nothing but the name of a door
