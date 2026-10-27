@@ -3214,10 +3214,12 @@ fn one_a_spot(items: Vec<Interactable>) -> Vec<Interactable> {
 }
 
 /// `items` with those of one `key` that touch side to side as one thing over the box round
-/// them, as the first of them listed (`_touching`, `_spread`); a key of None is kept apart. One
-/// thing the game builds of several records: Seafloor Cavern's submarine is four furniture
-/// records with one script, an elevator's door two side by side, and three stand-ins in a row
-/// in front of Groudon (spike 209).
+/// them, as the first of them listed (`_spread`); a key of None is kept apart. One thing the
+/// game builds of several records: Seafloor Cavern's submarine is four furniture records with
+/// one script, an elevator's door two side by side, and three stand-ins in a row in front of
+/// Groudon (spike 209). An item is never split: a warp across a diagonal street covers cells
+/// touching only at their corners, and grouped by its cells it was listed once a cell, under one
+/// key, and round Prism Tower `L` went back and forth between two exits (Khai, 2026-10-27).
 fn joined(
     items: Vec<Interactable>,
     key: &dyn Fn(&Interactable) -> Option<String>,
@@ -3231,16 +3233,38 @@ fn joined(
         }
     }
     for alike in keyed.values() {
-        let cells: HashSet<Cell> = alike.iter().flat_map(|item| item.cells()).collect();
-        for group in touching(&cells) {
-            let group_cells: HashSet<Cell> = group.iter().copied().collect();
-            let first = alike
+        // Each group's cells and its members, by their places in `alike`.
+        let mut groups: Vec<(HashSet<Cell>, Vec<usize>)> = Vec::new();
+        for (index, item) in alike.iter().enumerate() {
+            let cells: HashSet<Cell> = item.cells().into_iter().collect();
+            let mut near = cells.clone();
+            for &cell in &cells {
+                near.extend(beside(cell));
+            }
+            let (touched, rest): (Vec<_>, Vec<_>) = groups
+                .into_iter()
+                .partition(|group| !near.is_disjoint(&group.0));
+            groups = rest;
+            let (mut all, mut members) = (cells, Vec::new());
+            for (cells, those) in touched {
+                all.extend(cells);
+                members.extend(those);
+            }
+            members.push(index);
+            groups.push((all, members));
+        }
+        for (cells, members) in groups {
+            // `min(members, key=alike.index)`: the first item equal to each member.
+            let first = members
                 .iter()
-                .find(|item| item.cells().iter().any(|cell| group_cells.contains(cell)))
-                .expect("a group's cells are an item's");
+                .map(|&i| alike.iter().position(|item| *item == alike[i]).unwrap_or(i))
+                .min()
+                .expect("a group has a member");
+            let first = &alike[first];
+            let group: Vec<Cell> = cells.iter().copied().collect();
             let (cell, size) = spread(&group);
             // Warps across a diagonal street cover a row of cells, not their box.
-            let shape = if alike.iter().any(|item| !item.shape.is_empty()) {
+            let shape = if members.iter().any(|&i| !alike[i].shape.is_empty()) {
                 let mut sorted = group.clone();
                 sorted.sort();
                 sorted

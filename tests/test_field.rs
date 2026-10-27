@@ -5268,6 +5268,51 @@ fn test_a_diagonal_street_is_one_leg_said_by_the_key_that_walks_it() -> Result<(
     Ok(())
 }
 
+/// Round Prism Tower `L` went back and forth between two exits (Khai, 2026-10-27): a warp
+/// across a diagonal street covers cells touching only at their corners, and joining warps by
+/// their cells listed it once a cell, each under its one key, which the list walks by.
+#[test]
+fn test_a_warp_across_a_diagonal_street_is_listed_once() -> Result<()> {
+    let line = rail::Line::new(0x8001, 1, 2, 6, 3, vec![0; 21]);
+    let start = ((100 * 18 + 9) as f64, (170 * 18 + 9) as f64);
+    let end = (
+        start.0 - (6 * 18) as f64 / 2f64.sqrt(),
+        start.1 - (6 * 18) as f64 / 2f64.sqrt(),
+    );
+    let mut town = Town::new();
+    on_one_line(&mut town, &line, start, end, 1);
+    town.model(0, TOWN, mmodel::PLAYER_INDEX, 0xAC, (100, 170));
+    let mut data = zone_file(&ZoneSpec {
+        warps: &[(0x56, 0x0703, 0, 0, None, None)],
+        info: &town_info(),
+        ..ZoneSpec::default()
+    });
+    let first = zone_header(5) + INFO_SIZE + ENTITY_HEADER;
+    put(
+        &mut data,
+        first + 6,
+        &[le16(&[1]), le32(&[line.id]), le16(&[3, -1, 1, 3])].concat(),
+    );
+    town.memory.write(FILE, &data);
+    town.memory
+        .u32(HOLDER + 8, &[0x11 | (data.len() as i64) << 8]);
+    let warps: Vec<Interactable> = town
+        .r#where()?
+        .of("exits")
+        .into_iter()
+        .filter(|item| item.zone == Some(0x56))
+        .collect();
+    let cells = if warps.len() == 1 {
+        warps[0].cells()
+    } else {
+        Vec::new()
+    };
+    let xs: HashSet<i64> = cells.iter().map(|cell| cell.0).collect();
+    let zs: HashSet<i64> = cells.iter().map(|cell| cell.1).collect();
+    assert!(cells.len() > 1 && xs.len() == zs.len() && zs.len() == cells.len());
+    Ok(())
+}
+
 /// Spike 102: on a rail +0xec is 0, where on the grid it is the world's x; the chunks there
 /// mark every cell a wall, so the border is listed whole rather than narrowed away.
 #[test]
