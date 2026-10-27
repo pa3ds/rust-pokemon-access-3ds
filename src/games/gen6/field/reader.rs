@@ -1276,19 +1276,18 @@ impl FieldReader {
         let mut items: Vec<Interactable> = Vec::new();
         let data = self.current()?;
         let mut people = self.people(r#where.zone)?;
-        let kind = |cell: Cell| -> Result<Option<i64>> {
+        let loaded = self.chunks_loaded()?;
+        let chunk_at = |cell: Cell| -> Result<Option<Rc<Chunk>>> {
             // The ROM's chunk where none is loaded, as the ground has it: a battle unloads them all.
-            let loaded = self
-                .chunks_loaded()?
-                .into_iter()
-                .find(|chunk| chunk.holds(cell));
-            let chunk = match loaded {
-                Some(chunk) => Some(chunk),
+            match loaded.iter().find(|chunk| chunk.holds(cell)) {
+                Some(chunk) => Ok(Some(chunk.clone())),
                 None => self
                     .terrain
-                    .far(py::floordiv(cell.0, CHUNK), py::floordiv(cell.1, CHUNK))?,
-            };
-            match chunk {
+                    .far(py::floordiv(cell.0, CHUNK), py::floordiv(cell.1, CHUNK)),
+            }
+        };
+        let kind = |cell: Cell| -> Result<Option<i64>> {
+            match chunk_at(cell)? {
                 Some(chunk) => Ok(Some(chunk.kind(cell)?)),
                 None => Ok(None),
             }
@@ -1311,8 +1310,12 @@ impl FieldReader {
             // hidden door "Open sesame" opens and the Kalos Power Plant's: none other in either.
             let locks = warp_cells(&warps)?;
             let mut furniture: Vec<Interactable> = Vec::new();
+            // Each of Prism Tower's quiz rooms keeps a record in the walls of its far corner, with
+            // nothing beside it to stand on, and listed it as a sign (spike B).
             for item in read_furniture(&*self.memory, data)? {
-                if item.cells().iter().all(|cell| locks.contains(cell)) {
+                if item.cells().iter().all(|cell| locks.contains(cell))
+                    || buried(&chunk_at, &item.cells())?
+                {
                     continue;
                 }
                 furniture.push(self.furniture_listed(home, item));
@@ -2987,6 +2990,32 @@ fn walled_in(chunks: &[Rc<Chunk>], cell: Cell, rides: &HashSet<i64>) -> Result<b
         for dz in [-1, 0, 1] {
             if !wall((x + dx, z + dz))? {
                 return Ok(false);
+            }
+        }
+    }
+    Ok(true)
+}
+
+/// Whether every cell round `cells`, and they, are walls in their chunks (`chunk_at`) or off
+/// the map's north or west edge, where no chunk is: nothing stands beside them to face them
+/// from. Prism Tower's quiz rooms keep a record in the corner at (0, 0) (spike B). A chunk with
+/// a deck is no wall: its cell table is the ground's alone.
+fn buried(chunk_at: &dyn Fn(Cell) -> Result<Option<Rc<Chunk>>>, cells: &[Cell]) -> Result<bool> {
+    let wall = |near: Cell| -> Result<bool> {
+        if near.0 < 0 || near.1 < 0 {
+            return Ok(true);
+        }
+        Ok(match chunk_at(near)? {
+            None => false,
+            Some(chunk) => chunk.floors.is_empty() && !chunk.walkable(near)?,
+        })
+    };
+    for &(x, z) in cells {
+        for dx in -1..=1 {
+            for dz in -1..=1 {
+                if !wall((x + dx, z + dz))? {
+                    return Ok(false);
+                }
             }
         }
     }

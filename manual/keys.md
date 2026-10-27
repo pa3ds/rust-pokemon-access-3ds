@@ -125,6 +125,15 @@ steps, press the way it says to face the vine, then press A. Where the way rides
 says it up to the first and how many more, "then 16 more vines"; press `P` again once you land.
 From the top, the exits list the way down, which drops you to the ground.
 
+**Prism Tower's Gym.** In Lumiose City, in X and Y, the exits list the lift in the lobby's
+middle as "elevator": stand on it and walk north into its door. In each quiz room you arrive on
+the elevator back down, and the interactables list the quiz panel three steps north of it: step
+onto it to hear Bonnie's question, and again to hear it again. The three trainers at the back
+stand in booths numbered 1, 2 and 3 from west to east. Talk to the trainer whose number is your
+answer and battle them; a wrong answer means battling another one, and after the right one the
+game takes you up to the next room. With the `descriptions` setting on, pa3ds describes the
+picture each question shows.
+
 **Ramps.** In the Tower of Mastery, in X and Y, a ramp winds up round the tower twice, past the
 stairs on each landing to the top. `P` says each stretch of it as one step of the way, "8 west,
 up the ramp 22 east": hold that key and the ramp carries you round its curve to the next

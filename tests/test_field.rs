@@ -2236,6 +2236,33 @@ fn test_a_gyms_switches_and_passages_are_listed_and_walked_round_unless_the_goal
     Ok(())
 }
 
+/// Spike B: each of Prism Tower's quiz rooms keeps a record of three by three in the walls of
+/// the map's corner at (0, 0), listed as a sign 24 north; a sign in a wall beside the floor
+/// stays.
+#[test]
+fn test_furniture_with_nothing_beside_it_to_stand_on_is_not_listed() -> Result<()> {
+    let mut town = Town::new();
+    let walls: Vec<(i64, i64)> = (0..5).flat_map(|x| (0..5).map(move |z| (x, z))).collect();
+    town.block(ROUTE_BLOCK, ROUTE_CHUNK, (0, 0), &walls);
+    let data = zone_file(&ZoneSpec {
+        sized: &[(0x1, 0, 0, 3, 3), (0x2, 4, 4, 1, 1)],
+        info: &town_info(),
+        ..ZoneSpec::default()
+    });
+    town.memory.write(FILE, &data);
+    town.memory
+        .u32(HOLDER + 8, &[0x11 | (data.len() as i64) << 8]);
+    let codes: Vec<i64> = town
+        .r#where()?
+        .of("signs")
+        .iter()
+        .map(|item| item.code)
+        .filter(|&code| code == 0x1 || code == 0x2)
+        .collect();
+    assert_eq!(codes, [0x2]);
+    Ok(())
+}
+
 /// Spike 164: the way into Seafloor Cavern is a trigger under Route 128, seven cells wide, with no
 /// warp record behind it: listed as an exit leading to the zone its script warps to.
 #[test]
