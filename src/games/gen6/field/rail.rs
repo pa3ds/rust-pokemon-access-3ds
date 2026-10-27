@@ -1251,7 +1251,7 @@ impl Rails {
     /// the grid's cell the world has the end in; none the world does not place, nor one no open
     /// cell leads to. Zone 0x43's map has 53, all but one the joint of one track (spike 107),
     /// and 29 stand by open ground on the grid: the plazas, where the street hands the player to
-    /// the grid (spike A).
+    /// the grid (spike 251).
     pub fn ends(&self, corridor: &Corridor) -> Result<Vec<(i64, Cell, Cell)>> {
         let lines = self.lines.borrow();
         let places = self.places.borrow();
@@ -1455,7 +1455,7 @@ impl Rails {
     ///
     /// The pairs are the screen's: under a camera looking east, as round Prism Tower, `turn` 1,
     /// the quarters up walks from north, a line measured east runs up and down the screen, and
-    /// left walked the player north along one and down west across it (spike A). Each way is
+    /// left walked the player north along one and down west across it (spike 251). Each way is
     /// named the world's, which `pathfind.way` says as the key.
     pub fn lanes(&self, files: &[i64], compass: bool, turn: i64) -> Result<Rc<Lanes>> {
         self.read_streets(files)?;
@@ -1553,13 +1553,13 @@ impl Rails {
 
 /// Lines and tracks walked back from a dead end for the street's last open cell: off North
 /// Boulevard the alley's open cells stop four lines and tracks short of the joint onto Magenta
-/// Plaza, seven cells back, the rest of the way walled (spike A).
+/// Plaza, seven cells back, the rest of the way walled (spike 251).
 pub const BACK_LINES: i64 = 8;
 
 /// The open cell of the street ending at `point` on `line` nearest that end, nearest the
 /// street's middle, in the corridor: walked back along it line by line, up to `BACK_LINES`, and
 /// None where it branches or ends first. A street's last cells before a plaza are walls in its
-/// table, where the player walks on the grid (spike A).
+/// table, where the player walks on the grid (spike 251).
 fn open_toward(
     corridor: &Corridor,
     line: &Line,

@@ -170,11 +170,11 @@ pub const LANDING_REACH: i64 = 5;
 pub const STAIRS: &str = "stairs";
 
 /// What a street's end on ground walked on the grid is called, as Magenta Plaza is at the end of
-/// its alleys: the game's street marks name few of them (spike A).
+/// its alleys: the game's street marks name few of them (spike 251).
 pub const OPEN_GROUND: &str = "open ground";
 /// Cells round a street's end looked in for open ground: of zone 0x43's 53 ends, the 29 by a
 /// plaza or a square have between 5 and all 25 of the cells this far round open, and the rest none
-/// (spike A).
+/// (spike 251).
 pub const OPENING_REACH: i64 = 2;
 
 /// What a Secret Base's flag beside its PC is called: the game never names it where it stands.
@@ -819,7 +819,7 @@ impl FieldReader {
     /// street under a camera of the map's own, where the keys walk the street's way nearest the
     /// one pressed on the screen: round Prism Tower the camera looks east, and right walked the
     /// player south, left north, down west and up east, where "18 north" was said for the way
-    /// west and "19 west" for the exit there (spike A).
+    /// west and "19 west" for the exit there (spike 251).
     pub fn turn(&self, current: i64) -> Result<i64> {
         if self.behind.get()
             || (self.on_rail.get() && !self.fixed.get() && !self.terrain.raised()?)
@@ -1311,7 +1311,7 @@ impl FieldReader {
             let locks = warp_cells(&warps)?;
             let mut furniture: Vec<Interactable> = Vec::new();
             // Each of Prism Tower's quiz rooms keeps a record in the walls of its far corner, with
-            // nothing beside it to stand on, and listed it as a sign (spike B).
+            // nothing beside it to stand on, and listed it as a sign (spike 252).
             for item in read_furniture(&*self.memory, data)? {
                 if item.cells().iter().all(|cell| locks.contains(cell))
                     || buried(&chunk_at, &item.cells())?
@@ -1915,7 +1915,7 @@ impl FieldReader {
         }
         out.extend(exits(found, &|zone| self.zones.place_index(zone))?);
         // Off North Boulevard into Magenta Plaza's alley only the way back was listed: the alley
-        // ends on the plaza, which is walked on the grid and is on no line (spike A).
+        // ends on the plaza, which is walked on the grid and is on no line (spike 251).
         for (point, cell, ground) in self.rails.ends(corridor)? {
             if self.by_open_ground(ground)? {
                 out.push(Interactable {
@@ -2998,7 +2998,7 @@ fn walled_in(chunks: &[Rc<Chunk>], cell: Cell, rides: &HashSet<i64>) -> Result<b
 
 /// Whether every cell round `cells`, and they, are walls in their chunks (`chunk_at`) or off
 /// the map's north or west edge, where no chunk is: nothing stands beside them to face them
-/// from. Prism Tower's quiz rooms keep a record in the corner at (0, 0) (spike B). A chunk with
+/// from. Prism Tower's quiz rooms keep a record in the corner at (0, 0) (spike 252). A chunk with
 /// a deck is no wall: its cell table is the ground's alone.
 fn buried(chunk_at: &dyn Fn(Cell) -> Result<Option<Rc<Chunk>>>, cells: &[Cell]) -> Result<bool> {
     let wall = |near: Cell| -> Result<bool> {
@@ -3318,7 +3318,7 @@ fn joined(
 /// west", and the Tower of Mastery's stairs up are three side by side twice over, to zones 0xb7
 /// and 0xb9, both the Tower. A game takes one of two warps on one cell by a rule of its own:
 /// Lilycove's way into the hideout is Team Aqua's and Team Magma's on the same cells, and Omega
-/// Ruby's is Magma's, the second; so warps into two places both stay (spike A).
+/// Ruby's is Magma's, the second; so warps into two places both stay (spike 251).
 fn exits(
     warps: Vec<Interactable>,
     place: &dyn Fn(i64) -> Result<Option<i64>>,

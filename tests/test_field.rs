@@ -177,8 +177,8 @@ pub(crate) fn game() -> Game {
 }
 
 /// `field_reader`'s keyword arguments that are the ROM's words, chunks and `shared` and `natives`
-/// furniture, and the shipped table's `tiles` and `furniture_words`, each as the Python defaults it: set what
-/// differs with `..Given::default()`. The rest are the game's fields, given as a
+/// furniture, and the shipped table's `tiles` and `furniture_words`, each as the Python defaults
+/// it: set what differs with `..Given::default()`. The rest are the game's fields, given as a
 /// `Game { .., ..game() }`.
 #[derive(Default)]
 pub(crate) struct Given {
@@ -1060,7 +1060,7 @@ fn test_a_ladder_a_teleporter_and_an_entrance_are_what_the_games_table_of_kinds_
     Ok(())
 }
 
-/// Spike A: the Tower of Mastery's stairs up are three warps side by side into zone 0xb7, and
+/// Spike 251: the Tower of Mastery's stairs up are three warps side by side into zone 0xb7, and
 /// three more on the same cells into 0xb9, both the Tower, and were listed six times. Lumiose's
 /// mats out of its Pokémon Centers are three too. One kind into one zone is one exit over the
 /// cells it covers, and one on the same cells into the same place is said and walked to alike.
@@ -2236,7 +2236,7 @@ fn test_a_gyms_switches_and_passages_are_listed_and_walked_round_unless_the_goal
     Ok(())
 }
 
-/// Spike B: each of Prism Tower's quiz rooms keeps a record of three by three in the walls of
+/// Spike 252: each of Prism Tower's quiz rooms keeps a record of three by three in the walls of
 /// the map's corner at (0, 0), listed as a sign 24 north; a sign in a wall beside the floor
 /// stays.
 #[test]
@@ -5158,7 +5158,7 @@ fn test_under_a_streets_own_camera_the_player_is_on_the_grid() -> Result<()> {
     Ok(())
 }
 
-/// Spike A: round Prism Tower the camera looks east, and right walked the player south, left
+/// Spike 251: round Prism Tower the camera looks east, and right walked the player south, left
 /// north, down west and up east, on a street running north measured east; P said "18 north" for
 /// the way west and the list "19 west" for the exit there. The compass turns with the camera,
 /// and a street's pairs of keys are the screen's: left and right along a street running up the

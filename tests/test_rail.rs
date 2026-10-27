@@ -444,7 +444,7 @@ fn test_at_a_joint_each_street_is_laid_the_quarter_it_leaves_the_joint_by() -> R
     Ok(())
 }
 
-/// Spike A: the alley off North Boulevard ends in a joint of one track at each end, and one
+/// Spike 251: the alley off North Boulevard ends in a joint of one track at each end, and one
 /// opens onto Magenta Plaza, walked on the grid. Each end no other line meets is its cell in
 /// the corridor and the grid's cell the world has it in; a point two lines meet is none.
 #[test]

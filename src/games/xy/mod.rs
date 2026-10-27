@@ -456,19 +456,19 @@ pub const WAY_DOWN: i64 = 0x2B;
 pub const PRISM_LOBBY: i64 = 0x4D;
 pub const CLEMONT_ROOM: i64 = 0x4E;
 /// Prism Tower's Gym: its lobby, Clemont's room at the top, and Bonnie's four quiz rooms under it,
-/// joined by no warp at all, each lift a trigger whose script moves the player (spike B).
+/// joined by no warp at all, each lift a trigger whose script moves the player (spike 252).
 pub const QUIZ_ROOMS: std::ops::Range<i64> = 0x4F..0x53;
 /// The script of the lobby's one trigger, at (19, 22) before the door of the lift in the pillar
 /// at its middle: stepped onto and then walked north from, it carried the player up to the first
-/// quiz room at (19, 26) (spike B). Nothing was listed that led up to the Gym.
+/// quiz room at (19, 26) (spike 252). Nothing was listed that led up to the Gym.
 pub const LOBBY_LIFT: i64 = 0x3;
 /// The script of each quiz room's "small square" at (19, 23), which asks Bonnie's question and
 /// asks it again ("If you want to hear the question again, step on the small panel!"), script 6 on
-/// the same cell once asked (spike B).
+/// the same cell once asked (spike 252).
 pub const QUIZ_PANEL: i64 = 0x5;
 pub const QUIZ_LIFT: i64 = 0x7;
 /// The scripts of each quiz room's lift at (19, 26), which the player arrives on and which asks
-/// "Which floor would you like to go to?", and of Clemont's room's, at (19, 26) too (spike B).
+/// "Which floor would you like to go to?", and of Clemont's room's, at (19, 26) too (spike 252).
 pub const CLEMONT_LIFT: i64 = 0x5;
 
 /// Coumarine City Gym's vines (zone 0xbf), a tree climbed from 0 to Ramos at 720, its levels 0,

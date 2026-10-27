@@ -153,7 +153,7 @@ pub const FACING_TONES: [(f64, f64); 4] = [(0.5, 0.0), (1.0, 0.5), (0.5, 1.0), (
 /// new facing is taken without a tone: as a zone loads or the Bag opens over the field, the camera
 /// looks south for a poll or two in ORAS and X alike, and over the tapes 44 of 133 tones came
 /// within 1.5 s of a zone load or an app starting, the compass turned south and back within 0.8 s
-/// (spike A).
+/// (spike 251).
 pub const ARRIVAL_QUIET: f64 = 1.5;
 
 /// `Gen6Profile.__init__`'s arguments after `memory`, `names`, `speech`, `log` and the keyword
@@ -1585,7 +1585,7 @@ impl Gen6Profile {
                 (self.log)(&format!("field: up walks {}", COMPASS[turn as usize]));
             }
             // A tone as the way up walks turns a quarter, where nothing says it has: round Prism
-            // Tower and down Lumiose's streets the player cannot see the camera turn (spike A).
+            // Tower and down Lumiose's streets the player cannot see the camera turn (spike 251).
             if arrived || self.apps.borrow().running.as_deref() != Some(FIELD) {
                 self.quiet.set(py::time::monotonic() + ARRIVAL_QUIET);
             }

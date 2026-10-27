@@ -97,7 +97,7 @@ pub const HIDDEN_SOURCE: i64 = 17 << 32;
 pub const VINE_SOURCE: i64 = 18 << 32;
 
 /// Where a street ends on open ground: `OPENING_SOURCE | point`, the id of the point or joint it
-/// ends at, a map's own (spike A).
+/// ends at, a map's own (spike 251).
 pub const OPENING_SOURCE: i64 = 19 << 32;
 
 /// A place's `source` from its kind's tag and its own number. The number must leave the tag's
