@@ -444,6 +444,50 @@ fn test_at_a_joint_each_street_is_laid_the_quarter_it_leaves_the_joint_by() -> R
     Ok(())
 }
 
+/// Spike A: the alley off North Boulevard ends in a joint of one track at each end, and one
+/// opens onto Magenta Plaza, walked on the grid. Each end no other line meets is its cell in
+/// the corridor and the grid's cell the world has it in; a point two lines meet is none.
+#[test]
+fn test_a_streets_dead_ends_are_where_the_corridor_and_the_world_have_them() -> Result<()> {
+    let (stem, track) = (0x01, 0x02);
+    let (south, joint, plaza) = (0x10, 0x11, 0x12);
+    let network = rail::Network {
+        lines: IndexMap::from([
+            (
+                stem,
+                Line::new(stem, south, joint, 6, ACROSS, walls(6, &[])),
+            ),
+            (
+                track,
+                Line {
+                    track: true,
+                    ..Line::new(track, plaza, joint, 1, ACROSS, walls(1, &[]))
+                },
+            ),
+        ]),
+        places: IndexMap::from([
+            (south, (9.0, 117.0)),
+            (joint, (9.0, 9.0)),
+            (plaza, (9.0, -9.0)),
+        ]),
+        ..Default::default()
+    };
+    let lines = network.lines.clone();
+    let places = network.places.clone();
+    let rails = rail::Rails::new(
+        FakeMemory::new(),
+        Some(std::rc::Rc::new(move |_files: &[i64]| Ok(network.clone()))),
+        rail::Records::default(),
+        crate::games::gen6::field::camera::ORAS,
+    );
+    rails.lanes(&[1], false, 0)?;
+    let corridor = rail::lay_out(&lines, stem, Some(&places))?.expect("a corridor");
+    let mut ends = rails.ends(&corridor)?;
+    ends.sort();
+    assert_eq!(ends, [(south, (0, 0), (0, 6)), (plaza, (0, -7), (0, -1))]);
+    Ok(())
+}
+
 /// x_tower_of_mastery (spike 248): the Tower of Mastery's ramp winds twice round its ring,
 /// each lap over the one before in the grid and 360 above it. Where a street stands off the
 /// ground every street is a floor, the laps two, rising a cell at a time along each; where

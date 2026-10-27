@@ -1082,9 +1082,10 @@ pub struct Rails {
     /// one line onto the next; laid afresh from the player's own line otherwise. Which way it
     /// runs does not matter: a way there is said from the way the player faces.
     anchor: Slot<Option<i64>>,
-    /// The chunk files the streets' open cells were laid on the grid for and whether by the
-    /// compass, and the cells with their steps and keys (`lanes`).
-    lanes: RefCell<((Vec<i64>, bool), Rc<Lanes>)>,
+    /// The chunk files the streets' open cells were laid on the grid for, whether by the
+    /// compass and whether under a camera turned an odd number of quarters, and the cells with
+    /// their steps and keys (`lanes`).
+    lanes: RefCell<((Vec<i64>, bool, i64), Rc<Lanes>)>,
     /// How many cameras the map's streets place (`Network.cameras`).
     cameras: Slot<i64>,
 }
@@ -1109,7 +1110,7 @@ impl Rails {
             corridor: RefCell::new(None),
             camera: Slot::new(None),
             anchor: Slot::new(None),
-            lanes: RefCell::new(((Vec::new(), false), Rc::new(IndexMap::new()))),
+            lanes: RefCell::new(((Vec::new(), false, 0), Rc::new(IndexMap::new()))),
             cameras: Slot::new(0),
         }
     }
@@ -1143,6 +1144,20 @@ impl Rails {
         match looks {
             None => Ok(current),
             Some(looks) => quarter(looks, Some(current)),
+        }
+    }
+
+    /// The quarter of the world, clockwise from north, up walks a player on a rail or under
+    /// a camera behind them: the camera's heading (`camera.heading`), `current` while no camera
+    /// has been found or it holds no angle.
+    pub fn facing(&self, current: Option<i64>) -> Result<Option<i64>> {
+        let yaw = match self.camera.get() {
+            None => None,
+            Some(block) => camera::heading(&*self.memory, block, &self.shape)?,
+        };
+        match yaw {
+            None => Ok(current),
+            Some(yaw) => Ok(Some(quarter(yaw.to_radians(), current)?)),
         }
     }
 
@@ -1229,6 +1244,50 @@ impl Rails {
             }
         }
         Ok(lay_out(&self.lines.borrow(), line, Some(&self.places.borrow()))?.map(Rc::new))
+    }
+
+    /// Each dead end of the corridor's streets, a point or joint no other line or track
+    /// meets, as its id, the street's open cell in the corridor nearest it (`_open_toward`) and
+    /// the grid's cell the world has the end in; none the world does not place, nor one no open
+    /// cell leads to. Zone 0x43's map has 53, all but one the joint of one track (spike 107),
+    /// and 29 stand by open ground on the grid: the plazas, where the street hands the player to
+    /// the grid (spike A).
+    pub fn ends(&self, corridor: &Corridor) -> Result<Vec<(i64, Cell, Cell)>> {
+        let lines = self.lines.borrow();
+        let places = self.places.borrow();
+        let mut meeting: HashMap<i64, Vec<&Line>> = HashMap::new();
+        for line in lines.values() {
+            // Python's `{line.start, line.end}`: one point where a line starts and ends at it.
+            let mut points = vec![line.start];
+            if line.end != line.start {
+                points.push(line.end);
+            }
+            for point in points {
+                meeting.entry(point).or_default().push(line);
+            }
+        }
+        let mut out: Vec<(i64, Cell, Cell)> = Vec::new();
+        for laid in &corridor.laid {
+            for point in [laid.line.start, laid.line.end] {
+                let place = places.get(&point).copied();
+                let met = meeting
+                    .get(&point)
+                    .ok_or_else(|| Error::key(point.to_string()))?
+                    .len();
+                let Some(place) = place.filter(|_| met == 1) else {
+                    continue;
+                };
+                if let Some(cell) = open_toward(corridor, &laid.line, point, &meeting)? {
+                    let size = zonedata::CELL as f64;
+                    out.push((
+                        point,
+                        cell,
+                        (py::floor(place.0 / size)?, py::floor(place.1 / size)?),
+                    ));
+                }
+            }
+        }
+        Ok(out)
     }
 
     /// Where a record placed on a rail is on the grid, as the cells it covers, for a
@@ -1393,11 +1452,17 @@ impl Rails {
     /// never straight north or west, and P said "7 north-west" for up (the tapes of
     /// x_route-6-2.ctm and x_route-6-3.ctm, 2026-10-20). A cell is open where the cell of a line
     /// it is in, row and offset, is.
-    pub fn lanes(&self, files: &[i64], compass: bool) -> Result<Rc<Lanes>> {
+    ///
+    /// The pairs are the screen's: under a camera looking east, as round Prism Tower, `turn` 1,
+    /// the quarters up walks from north, a line measured east runs up and down the screen, and
+    /// left walked the player north along one and down west across it (spike A). Each way is
+    /// named the world's, which `pathfind.way` says as the key.
+    pub fn lanes(&self, files: &[i64], compass: bool, turn: i64) -> Result<Rc<Lanes>> {
         self.read_streets(files)?;
+        let odd = py::modulo(turn, 2);
         let cached = {
             let lanes = self.lanes.borrow();
-            lanes.0.0 == files && lanes.0.1 == compass
+            lanes.0.0 == files && lanes.0.1 == compass && lanes.0.2 == odd
         };
         if !cached {
             let mut lanes: Lanes = IndexMap::new();
@@ -1406,9 +1471,10 @@ impl Rails {
                     continue;
                 };
                 let (ax, az) = world.ahead;
+                let upright = (line.way == WAY_NORTH || line.way == WAY_SOUTH) != (odd != 0);
                 let (along, across): (&[(&str, Step)], &[(&str, Step)]) = if compass {
                     (&COMPASS_KEYS, &COMPASS_KEYS)
-                } else if line.way == WAY_NORTH || line.way == WAY_SOUTH {
+                } else if upright {
                     (&NORTH_KEYS, &EAST_KEYS)
                 } else {
                     (&EAST_KEYS, &NORTH_KEYS)
@@ -1438,7 +1504,7 @@ impl Rails {
                     }
                 }
             }
-            *self.lanes.borrow_mut() = ((files.to_vec(), compass), Rc::new(lanes));
+            *self.lanes.borrow_mut() = ((files.to_vec(), compass, odd), Rc::new(lanes));
         }
         Ok(self.lanes.borrow().1.clone())
     }
@@ -1483,6 +1549,62 @@ impl Rails {
         }
         Ok(())
     }
+}
+
+/// Lines and tracks walked back from a dead end for the street's last open cell: off North
+/// Boulevard the alley's open cells stop four lines and tracks short of the joint onto Magenta
+/// Plaza, seven cells back, the rest of the way walled (spike A).
+pub const BACK_LINES: i64 = 8;
+
+/// The open cell of the street ending at `point` on `line` nearest that end, nearest the
+/// street's middle, in the corridor: walked back along it line by line, up to `BACK_LINES`, and
+/// None where it branches or ends first. A street's last cells before a plaza are walls in its
+/// table, where the player walks on the grid (spike A).
+fn open_toward(
+    corridor: &Corridor,
+    line: &Line,
+    point: i64,
+    meeting: &HashMap<i64, Vec<&Line>>,
+) -> Result<Option<Cell>> {
+    let (mut line, mut point) = (line, point);
+    for _ in 0..BACK_LINES {
+        let rows: Vec<i64> = if line.end == point {
+            (0..=line.along).rev().collect()
+        } else {
+            (0..=line.along).collect()
+        };
+        let middle = py::floordiv(line.across, 2);
+        // `sorted` is stable: of two columns as near the middle, the western first.
+        let mut columns: Vec<i64> = (0..line.across).collect();
+        columns.sort_by_key(|column| (column - middle).abs());
+        for &row in &rows {
+            for &column in &columns {
+                if line.open(row, column) {
+                    return corridor.cell(line.id, row as f64, (column - middle) as f64);
+                }
+            }
+        }
+        point = if line.end == point {
+            line.start
+        } else {
+            line.end
+        };
+        let on: Vec<&Line> = meeting
+            .get(&point)
+            .map(|lines| {
+                lines
+                    .iter()
+                    .copied()
+                    .filter(|other| other.id != line.id)
+                    .collect()
+            })
+            .unwrap_or_default();
+        if on.len() != 1 {
+            return Ok(None);
+        }
+        line = on[0];
+    }
+    Ok(None)
 }
 
 /// Where a record placed on a rail is in the corridor, as its first corner and size, or None for

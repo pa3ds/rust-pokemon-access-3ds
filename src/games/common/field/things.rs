@@ -96,6 +96,10 @@ pub const HIDDEN_SOURCE: i64 = 17 << 32;
 /// on each of several levels, so its cell would not tell them apart (spike 250).
 pub const VINE_SOURCE: i64 = 18 << 32;
 
+/// Where a street ends on open ground: `OPENING_SOURCE | point`, the id of the point or joint it
+/// ends at, a map's own (spike A).
+pub const OPENING_SOURCE: i64 = 19 << 32;
+
 /// A place's `source` from its kind's tag and its own number. The number must leave the tag's
 /// bits clear, and no u16 the game holds can reach them, so one that does is a new encoding
 /// written wider than the tag allows for: a programmer's error, refused here rather than keyed as
@@ -196,8 +200,8 @@ pub struct Interactable {
     /// `berry spot`, `ash pile`, `hidden Pokémon`, `barrier`, `switch`, `passage`, `trapdoor`,
     /// `geyser`, `lift`, `teleporter`, `dive spot`, `stairs`, `stairs up`, `stairs down`, `ladder
     /// up`, `ladder down`, `entrance`, `slope`, `bumpy slope`, `rail`, `current`, `blue spot`,
-    /// `wall ledge`, `vine up`, `vine down`, `swinging vine`, a `flock` in the sky; or in the sky,
-    /// the game's own name for a place.
+    /// `wall ledge`, `vine up`, `vine down`, `swinging vine`, `open ground`, a `flock` in the sky;
+    /// or in the sky, the game's own name for a place.
     pub kind: String,
     pub cell: (i64, i64),
     pub size: (i64, i64),

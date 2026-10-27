@@ -46,8 +46,8 @@ use crate::games::common::field::ground::{
 use crate::games::common::field::things::{
     BIKE, BIKE_SOURCE, CLIMB_SOURCE, CLIMBING, CURRENT_SOURCE, CURRENTS_CATEGORY,
     DECORATION_SOURCE, DIVE_SOURCE, EDGE_SOURCE, FURNITURE_SOURCE, Field, Interactable, OBSTACLES,
-    POKEMON, RIDE_SOURCE, RIDING, STAIRS_SOURCE, TILE_SOURCE, TRIGGER_SOURCE, VINE_SOURCE,
-    WARP_SOURCE, kind_said, place_source,
+    OPENING_SOURCE, POKEMON, RIDE_SOURCE, RIDING, STAIRS_SOURCE, TILE_SOURCE, TRIGGER_SOURCE,
+    VINE_SOURCE, WARP_SOURCE, kind_said, place_source,
 };
 use crate::games::common::field::vines::{End, Vines, paired};
 use crate::games::gen6::field::features::{
@@ -168,6 +168,14 @@ pub const LANDING_REACH: i64 = 5;
 /// What a stair between two floors of one chunk is called, a warp between floors being stairs
 /// too: the game names neither (spike 167).
 pub const STAIRS: &str = "stairs";
+
+/// What a street's end on ground walked on the grid is called, as Magenta Plaza is at the end of
+/// its alleys: the game's street marks name few of them (spike A).
+pub const OPEN_GROUND: &str = "open ground";
+/// Cells round a street's end looked in for open ground: of zone 0x43's 53 ends, the 29 by a
+/// plaza or a square have between 5 and all 25 of the cells this far round open, and the rest none
+/// (spike A).
+pub const OPENING_REACH: i64 = 2;
 
 /// What a Secret Base's flag beside its PC is called: the game never names it where it stands.
 pub const FLAG: &str = "flag";
@@ -409,6 +417,10 @@ pub struct FieldReader {
     player: Slot<Option<i64>>,
     /// Whether the player's model was on a rail at the last poll.
     on_rail: Slot<bool>,
+    /// Whether that rail was a street under a camera of the map's own (`Rails.fixed`).
+    fixed: Slot<bool>,
+    /// The quarters clockwise from north up walks the player, as `turn` last found them.
+    turn: Slot<i64>,
     /// Whether the last poll found the camera behind a player off the rails (`Rails.behind`).
     behind: Slot<bool>,
     holder: RefCell<Option<Holder>>,
@@ -584,6 +596,8 @@ impl FieldReader {
             models: RefCell::new(Vec::new()),
             player: Slot::new(None),
             on_rail: Slot::new(false),
+            fixed: Slot::new(false),
+            turn: Slot::new(0),
             behind: Slot::new(false),
             holder: RefCell::new(None),
             map: Slot::new(None),
@@ -751,7 +765,9 @@ impl FieldReader {
         };
         // Under a street's own camera the keys walk the world's ways, so its streets are the
         // grid's ground (`Rails.fixed`).
-        if !self.on_rail.get() || self.rails.fixed(&files, mmodel::rail(&head)?.0)? {
+        self.fixed
+            .set(self.on_rail.get() && self.rails.fixed(&files, mmodel::rail(&head)?.0)?);
+        if !self.on_rail.get() || self.fixed.get() {
             *self.rails.corridor.borrow_mut() = None;
             let behind = self.rails.behind()?;
             self.behind.set(behind.is_some());
@@ -799,12 +815,33 @@ impl FieldReader {
     /// (spike 239). Not on a rail where the streets are floors of their own: the Tower of
     /// Mastery's fourteen cameras each look their own way over the ramp, up walking the player
     /// east down its first lap's east side and south along its landings, and north was said
-    /// for all of them, "8 west, 16 east" for a way west and then north (spike 248).
+    /// for all of them, "8 west, 16 east" for a way west and then north (spike 248). Nor on a
+    /// street under a camera of the map's own, where the keys walk the street's way nearest the
+    /// one pressed on the screen: round Prism Tower the camera looks east, and right walked the
+    /// player south, left north, down west and up east, where "18 north" was said for the way
+    /// west and "19 west" for the exit there (spike A).
     pub fn turn(&self, current: i64) -> Result<i64> {
-        if self.behind.get() || (self.on_rail.get() && !self.terrain.raised()?) {
-            return Ok(0);
+        if self.behind.get()
+            || (self.on_rail.get() && !self.fixed.get() && !self.terrain.raised()?)
+        {
+            self.turn.set(0);
+        } else {
+            self.turn.set(self.rails.turn(current)?);
         }
-        self.rails.turn(current)
+        Ok(self.turn.get())
+    }
+
+    /// The quarter of the world, clockwise from north, up walks the player, as the last poll
+    /// and `turn` found it: on Lumiose's rails and under a camera behind the player, where the
+    /// compass is not turned, the camera's own heading (`Rails.facing`); elsewhere the compass's
+    /// turn. `current` is the quarter last taken, kept until the camera is past its edge.
+    pub fn facing(&self, current: Option<i64>) -> Result<Option<i64>> {
+        if self.behind.get()
+            || (self.on_rail.get() && !self.fixed.get() && !self.terrain.raised()?)
+        {
+            return self.rails.facing(current);
+        }
+        Ok(Some(self.turn.get()))
     }
 
     /// The player's model and the zone it was built in, as the last poll read them.
@@ -860,7 +897,9 @@ impl FieldReader {
             }
         }
         let files = self.terrain.files.borrow().1.clone();
-        let lanes = self.rails.lanes(&files, self.terrain.raised()?)?;
+        let lanes = self
+            .rails
+            .lanes(&files, self.terrain.raised()?, self.turn.get())?;
         // Where the streets are floors of their own, a cell they open is open on its own floor.
         let mut covered = self.covered(r#where.zone)?;
         if !self.terrain.raised()? {
@@ -1279,6 +1318,7 @@ impl FieldReader {
                 furniture.push(self.furniture_listed(home, item));
             }
             items.extend(joined(furniture, &|item| Some(self.furniture_key(item))));
+            let mut found: Vec<Interactable> = Vec::new();
             for (i, record) in warps.iter().enumerate() {
                 let files = self.terrain.files.borrow().1.clone();
                 let shape = self.rails.on_grid(record, &files)?;
@@ -1290,13 +1330,14 @@ impl FieldReader {
                     Some(shape) => Some(rail::spread(shape.iter().copied())?),
                 };
                 let warp = self.warp(i as i64, record, at, home)?;
-                items.push(Interactable {
+                found.push(Interactable {
                     home,
                     arrival: arrival(record, home, &warps)?,
                     shape: shape.unwrap_or_default(),
                     ..warp
                 });
             }
+            items.extend(exits(found, &|zone| self.zones.place_index(zone))?);
         }
         items.extend(self.boulders(people, r#where.zone, data.as_ref(), home)?);
         items.extend(self.edges(r#where.zone, !r#where.on_rail)?);
@@ -1846,6 +1887,7 @@ impl FieldReader {
                 tables.push((Some(other), furniture.clone(), warps.clone()));
             }
         }
+        let mut found: Vec<Interactable> = Vec::new();
         for (owner, furniture, warps) in tables {
             for (i, record) in furniture.iter().enumerate() {
                 if let Some(at) = rail::spot(corridor, record)? {
@@ -1861,11 +1903,23 @@ impl FieldReader {
             for (i, record) in warps.iter().enumerate() {
                 if let Some(at) = rail::spot(corridor, record)? {
                     let warp = self.warp(i as i64, record, Some(at), owner)?;
-                    out.push(Interactable {
+                    found.push(Interactable {
                         home: owner,
                         ..warp
                     });
                 }
+            }
+        }
+        out.extend(exits(found, &|zone| self.zones.place_index(zone))?);
+        // Off North Boulevard into Magenta Plaza's alley only the way back was listed: the alley
+        // ends on the plaza, which is walked on the grid and is on no line (spike A).
+        for (point, cell, ground) in self.rails.ends(corridor)? {
+            if self.by_open_ground(ground)? {
+                out.push(Interactable {
+                    home,
+                    source: place_source(OPENING_SOURCE, point)?,
+                    ..Interactable::new("exits", OPEN_GROUND, cell)
+                });
             }
         }
         for other in self.others() {
@@ -1879,6 +1933,30 @@ impl FieldReader {
             }
         }
         Ok(out)
+    }
+
+    /// Whether a cell the grid can be walked in lies within `OPENING_REACH` of `cell`, in the
+    /// chunks loaded or, past them, the ROM's: the chunks under a street mark every cell of it a
+    /// wall (spike 102), so open ground beside a street's end is ground off it.
+    fn by_open_ground(&self, cell: Cell) -> Result<bool> {
+        let loaded = self.chunks_loaded()?;
+        for x in cell.0 - OPENING_REACH..cell.0 + OPENING_REACH + 1 {
+            for z in cell.1 - OPENING_REACH..cell.1 + OPENING_REACH + 1 {
+                let chunk = match loaded.iter().find(|chunk| chunk.holds((x, z))) {
+                    Some(chunk) => Some(chunk.clone()),
+                    None => self
+                        .terrain
+                        .far(py::floordiv(x, CHUNK), py::floordiv(z, CHUNK))?,
+                };
+                if let Some(chunk) = chunk
+                    && chunk.holds((x, z))
+                    && chunk.walkable((x, z))?
+                {
+                    return Ok(true);
+                }
+            }
+        }
+        Ok(false)
     }
 
     /// A warp as what the player walks through: a door, the mat out, stairs or an opening
@@ -3161,14 +3239,61 @@ fn joined(
                 .find(|item| item.cells().iter().any(|cell| group_cells.contains(cell)))
                 .expect("a group's cells are an item's");
             let (cell, size) = spread(&group);
+            // Warps across a diagonal street cover a row of cells, not their box.
+            let shape = if alike.iter().any(|item| !item.shape.is_empty()) {
+                let mut sorted = group.clone();
+                sorted.sort();
+                sorted
+            } else {
+                Vec::new()
+            };
             out.push(Interactable {
                 cell,
                 size,
+                shape,
                 ..first.clone()
             });
         }
     }
     out
+}
+
+/// `warps` as the player walks into them: those of one kind into one zone that touch side to
+/// side as one exit (`_joined`), and none whose cells a warp before it of its kind into the same
+/// `place` covers already, which is said alike and walked to alike. Lumiose's streets go on into
+/// the next through three warps a cell apart, "warp to Centrico Plaza here", "1 east" and "1
+/// west", and the Tower of Mastery's stairs up are three side by side twice over, to zones 0xb7
+/// and 0xb9, both the Tower. A game takes one of two warps on one cell by a rule of its own:
+/// Lilycove's way into the hideout is Team Aqua's and Team Magma's on the same cells, and Omega
+/// Ruby's is Magma's, the second; so warps into two places both stay (spike A).
+fn exits(
+    warps: Vec<Interactable>,
+    place: &dyn Fn(i64) -> Result<Option<i64>>,
+) -> Result<Vec<Interactable>> {
+    let mut kept: Vec<Interactable> = Vec::new();
+    for item in warps {
+        let cells: HashSet<Cell> = item.cells().into_iter().collect();
+        let mut covered = false;
+        for other in &kept {
+            if other.kind == item.kind
+                && cells.is_subset(&other.cells().into_iter().collect())
+                && place(other.zone.unwrap_or(0))? == place(item.zone.unwrap_or(0))?
+            {
+                covered = true;
+                break;
+            }
+        }
+        if !covered {
+            kept.push(item);
+        }
+    }
+    // Python's key is the tuple (kind, zone, height, home); its parts written out here.
+    Ok(joined(kept, &|item| {
+        Some(format!(
+            "{}|{:?}|{:?}|{:?}",
+            item.kind, item.zone, item.height, item.home
+        ))
+    }))
 }
 
 /// `cells` in groups of those that touch side to side, the group with the first cell first.

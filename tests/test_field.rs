@@ -1060,6 +1060,64 @@ fn test_a_ladder_a_teleporter_and_an_entrance_are_what_the_games_table_of_kinds_
     Ok(())
 }
 
+/// Spike A: the Tower of Mastery's stairs up are three warps side by side into zone 0xb7, and
+/// three more on the same cells into 0xb9, both the Tower, and were listed six times. Lumiose's
+/// mats out of its Pokémon Centers are three too. One kind into one zone is one exit over the
+/// cells it covers, and one on the same cells into the same place is said and walked to alike.
+/// Lilycove's way into the hideout is Team Aqua's and Team Magma's on the same cells, and Omega
+/// Ruby takes the second: into another place, both stay.
+#[test]
+fn test_warps_side_by_side_into_one_zone_are_one_exit_and_one_place_on_a_cell_once() -> Result<()> {
+    let town = Town::new();
+    let data = zone_file(&ZoneSpec {
+        warps: &[
+            (BEDROOM, 0x0500, 94, 171, None, None),
+            (BEDROOM, 0x0500, 95, 171, None, None),
+            (BEDROOM, 0x0500, 96, 171, None, None),
+            (HOUSE, 0x0500, 94, 171, None, None),
+            (HOUSE, 0x0500, 95, 171, None, None),
+            (HOUSE, 0x0500, 96, 171, None, None),
+            (BEDROOM, 0x0500, 98, 171, None, None),
+        ],
+        info: &town_info(),
+        ..ZoneSpec::default()
+    });
+    town.memory.write(FILE, &data);
+    town.memory
+        .u32(HOLDER + 8, &[0x11 | (data.len() as i64) << 8]);
+    for zone in [BEDROOM, HOUSE] {
+        town.memory.u16(TABLE + zone * INFO_SIZE + INFO_NAME, 170);
+    }
+    let exits = |town: &Town| -> Result<Vec<(Option<i64>, (i64, i64), (i64, i64))>> {
+        let mut out: Vec<(Option<i64>, (i64, i64), (i64, i64))> = town
+            .r#where()?
+            .of("exits")
+            .into_iter()
+            .filter(|item| item.zone == Some(BEDROOM) || item.zone == Some(HOUSE))
+            .map(|item| (item.zone, item.cell, item.size))
+            .collect();
+        out.sort();
+        Ok(out)
+    };
+    assert_eq!(
+        exits(&town)?,
+        [
+            (Some(BEDROOM), (94, 171), (3, 1)),
+            (Some(BEDROOM), (98, 171), (1, 1)),
+        ]
+    );
+    town.memory.u16(TABLE + HOUSE * INFO_SIZE + INFO_NAME, 171);
+    assert_eq!(
+        exits(&town)?,
+        [
+            (Some(HOUSE), (94, 171), (3, 1)),
+            (Some(BEDROOM), (94, 171), (3, 1)),
+            (Some(BEDROOM), (98, 171), (1, 1)),
+        ]
+    );
+    Ok(())
+}
+
 /// A warp's high byte is what it is and its low byte the way it is walked into, as a stair's
 /// is: Aquacorde's houses' mats out face east and west (0x0202, 0x0203) and Lumiose's doors
 /// north, east, south and west (0x0301, 0x0302, 0x0300, 0x0303), and every one but the first
@@ -2861,7 +2919,7 @@ fn raised_lanes(points: &[(i64, (f64, f64))], lines: &[(i64, i64, i64)]) -> Resu
         camera::ORAS,
     );
     Ok(Ground {
-        lanes: rails.lanes(&[1], true)?,
+        lanes: rails.lanes(&[1], true, 0)?,
         raised: true,
         ..Ground::default()
     })
@@ -4931,6 +4989,18 @@ fn on_one_line(
     end: (f64, f64),
     cameras: i64,
 ) {
+    on_one_line_under(town, line, start, end, cameras, game().camera);
+}
+
+/// `on_one_line`, the game's camera `shape`'s, as Python's tests give `camera=camera.X`.
+fn on_one_line_under(
+    town: &mut Town,
+    line: &rail::Line,
+    start: (f64, f64),
+    end: (f64, f64),
+    cameras: i64,
+    shape: camera::Shape,
+) {
     let network = rail::Network {
         lines: IndexMap::from([(line.id, line.clone())]),
         places: IndexMap::from([(1, start), (2, end)]),
@@ -4944,7 +5014,10 @@ fn on_one_line(
             far: Some(Rc::new(|_file| Ok(None))),
             ..Given::default()
         },
-        game(),
+        Game {
+            camera: shape,
+            ..game()
+        },
     );
     town.memory
         .write(MAP + MAP_CHUNK_FILES, &le16(&[0, 700, 701]));
@@ -5032,12 +5105,13 @@ fn test_under_a_streets_own_camera_the_player_is_on_the_grid() -> Result<()> {
     let line = rail::Line::new(0x8001, 1, 2, 4, 3, vec![0; 15]);
     let start = ((100 * 18 + 9) as f64, (160 * 18 + 9) as f64);
     let mut town = Town::new();
-    on_one_line(
+    on_one_line_under(
         &mut town,
         &line,
         start,
         (start.0, start.1 + (4 * 18) as f64),
         1,
+        camera::X,
     );
     town.memory.u32(POOL + mmodel::CELL_X, &[line.id]);
     town.memory.write(POOL + mmodel::PLACE_X, &f32s(&[0.0]));
@@ -5049,8 +5123,67 @@ fn test_under_a_streets_own_camera_the_player_is_on_the_grid() -> Result<()> {
         .map(|item| item.kind)
         .collect();
     assert_eq!(kinds, ["door", "door", "edge"]);
-    // Its lanes say each step by its key, and the camera's own heading reads 0 on a rail.
-    assert_eq!(town.reader.turn(3)?, 0);
+    // Route 7's camera looks north, and the compass is the world's.
+    let block = camera_of(&town, &camera::X)?;
+    town.memory
+        .write(block + camera::X.looks, &f32s(&[std::f64::consts::PI]));
+    assert_eq!(town.reader.turn(0)?, 0);
+    Ok(())
+}
+
+/// Spike A: round Prism Tower the camera looks east, and right walked the player south, left
+/// north, down west and up east, on a street running north measured east; P said "18 north" for
+/// the way west and the list "19 west" for the exit there. The compass turns with the camera,
+/// and a street's pairs of keys are the screen's: left and right along a street running up the
+/// world's north, which is across the screen.
+#[test]
+fn test_under_a_streets_own_camera_turned_east_the_keys_are_the_screens() -> Result<()> {
+    let line = rail::Line {
+        way: rail::WAY_EAST,
+        ..rail::Line::new(0x8001, 1, 2, 4, 3, vec![0; 15])
+    };
+    let start = ((100 * 18 + 9) as f64, (176 * 18 + 9) as f64);
+    let mut town = Town::new();
+    on_one_line_under(
+        &mut town,
+        &line,
+        start,
+        (start.0, start.1 - (4 * 18) as f64),
+        1,
+        camera::X,
+    );
+    town.memory.u32(POOL + mmodel::CELL_X, &[line.id]);
+    town.memory.write(POOL + mmodel::PLACE_X, &f32s(&[0.0]));
+    let r#where = town.r#where()?;
+    let block = camera_of(&town, &camera::X)?;
+    town.memory.write(
+        block + camera::X.looks,
+        &f32s(&[std::f64::consts::PI / 2.0]),
+    );
+    let turn = town.reader.turn(0)?;
+    assert_eq!(turn, 1);
+    let ground = town.reader.ground(&r#where)?;
+    pathfind::walked(turn);
+    let said: IndexMap<String, (i64, i64)> = [(100, 173), (100, 175), (99, 174), (101, 174)]
+        .into_iter()
+        .map(|step| {
+            (
+                pathfind::way(ground.key((100, 174), step).unwrap_or("")),
+                step,
+            )
+        })
+        .collect();
+    pathfind::walked(0);
+    assert_eq!(
+        said,
+        IndexMap::from([
+            ("west".to_string(), (100, 173)),
+            ("east".to_string(), (100, 175)),
+            ("south".to_string(), (99, 174)),
+            ("north".to_string(), (101, 174)),
+        ])
+    );
+    assert_eq!(town.reader.facing(None)?, Some(1));
     Ok(())
 }
 

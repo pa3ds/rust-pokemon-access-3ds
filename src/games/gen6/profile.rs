@@ -145,6 +145,16 @@ pub const HEAP_CLASSES: [&str; 36] = [
 
 /// Without a message window class there is nothing to read: not this game, or not this version.
 pub const REQUIRED: [&str; 2] = msgwin::CLASSES;
+/// Where the tone of each quarter up walks sounds, across and down as `Tones.play` has them,
+/// north first and clockwise: north high, south low, east in the right ear and west in the left, as
+/// the Hoenn map's cursor sounds its place (`core.tones`).
+pub const FACING_TONES: [(f64, f64); 4] = [(0.5, 0.0), (1.0, 0.5), (0.5, 1.0), (0.0, 0.5)];
+/// Seconds after the player arrives in a zone, or the field runs again after another app, that a
+/// new facing is taken without a tone: as a zone loads or the Bag opens over the field, the camera
+/// looks south for a poll or two in ORAS and X alike, and over the tapes 44 of 133 tones came
+/// within 1.5 s of a zone load or an app starting, the compass turned south and back within 0.8 s
+/// (spike A).
+pub const ARRIVAL_QUIET: f64 = 1.5;
 
 /// `Gen6Profile.__init__`'s arguments after `memory`, `names`, `speech`, `log` and the keyword
 /// `game`, each as the Python defaults it: set what differs with `..Options::default()`.
@@ -263,6 +273,13 @@ pub struct Gen6Profile {
     on_bike: Cell<bool>,
     /// The quarters from north up walks the player, as the compass was last turned.
     turn: Cell<i64>,
+    /// The quarter of the world up walks the player, as its tone last said (`facing`).
+    facing: Cell<Option<i64>>,
+    /// Python's `tones.play`, kept for the facing's tone.
+    tone: Option<Rc<Tones>>,
+    /// When the facing may next be toned, `ARRIVAL_QUIET` after the player arrives in a
+    /// zone or the field last ran under another app.
+    quiet: Cell<f64>,
     /// The language the save says the game is in, as the last whole sweep read it.
     pub save_language: RefCell<Option<String>>,
     pub announcements: Rc<RefCell<Announcements>>,
@@ -344,6 +361,7 @@ impl Gen6Profile {
             title,
             census,
         } = options;
+        let tone = tones.clone();
         let cache = memory;
         let memory: Rc<dyn Memory> = cache.clone();
         let named = named.unwrap_or_else(|| Rc::new(Names::empty()));
@@ -1017,6 +1035,9 @@ impl Gen6Profile {
             hidden_words: RefCell::new(None),
             on_bike: Cell::new(false),
             turn: Cell::new(0),
+            facing: Cell::new(None),
+            tone,
+            quiet: Cell::new(0.0),
             save_language: RefCell::new(None),
             announcements,
             screen_announcer: RefCell::new(screen_announcer),
@@ -1562,6 +1583,25 @@ impl Gen6Profile {
                 self.turn.set(turn);
                 walked(turn);
                 (self.log)(&format!("field: up walks {}", COMPASS[turn as usize]));
+            }
+            // A tone as the way up walks turns a quarter, where nothing says it has: round Prism
+            // Tower and down Lumiose's streets the player cannot see the camera turn (spike A).
+            if arrived || self.apps.borrow().running.as_deref() != Some(FIELD) {
+                self.quiet.set(py::time::monotonic() + ARRIVAL_QUIET);
+            }
+            let facing = field.facing(self.facing.get())?;
+            if facing != self.facing.get() {
+                if let (Some(_), Some(now)) = (self.facing.get(), facing)
+                    && py::time::monotonic() >= self.quiet.get()
+                {
+                    (self.log)(&format!("field: tone for facing {}", COMPASS[now as usize]));
+                    if let Some(tones) = &self.tone {
+                        let (across, down) = FACING_TONES[now as usize];
+                        // The sound thread not starting, raised to the field's poll in Python.
+                        let _ = tones.play(across, down);
+                    }
+                }
+                self.facing.set(facing);
             }
             self.navigator.borrow_mut().swept(&at)?;
             self.arrive(at.zone)?;
