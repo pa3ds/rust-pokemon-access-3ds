@@ -250,6 +250,17 @@ impl Script {
     /// that pushes one constant from `SHARED` up and hands it to a native, as every vending
     /// machine's case does, 0x28f0 to 0x28f4 by where it stands (spike 210).
     pub fn runs(&self, number: i64) -> Result<Option<i64>> {
+        let found = self.native(number)?;
+        Ok(found
+            .filter(|&(_, constant)| constant >= SHARED)
+            .map(|(_, constant)| constant))
+    }
+
+    /// The native the case `number` hands one constant to, and the constant, or None: its
+    /// first call is to a function that pushes the one constant and calls the native, as a
+    /// vending machine's does (`runs`) and each of Coumarine Gym's vines, 56 to swing on one and
+    /// 57 to climb one, with the end's number among its kind (spike A).
+    pub fn native(&self, number: i64) -> Result<Option<(i64, i64)>> {
         let case = self.cases()?.get(&number).copied();
         let function = match case {
             None => None,
@@ -267,10 +278,10 @@ impl Script {
         if codes != [PROC, PUSH_CONSTANT, NATIVE] || py::slice_from(&ops[2].1, 1) != [4] {
             return Ok(None);
         }
-        let Some(&shared) = ops[1].1.first() else {
+        let (Some(&native), Some(&constant)) = (ops[2].1.first(), ops[1].1.first()) else {
             return Err(Error::index("tuple index out of range"));
         };
-        Ok((shared >= SHARED).then_some(shared))
+        Ok(Some((native, constant)))
     }
 
     /// The cells of the function at `start`, up to its first return.

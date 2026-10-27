@@ -648,10 +648,21 @@ pub fn door_signs(
     Ok(out)
 }
 
-/// (zone, a furniture record's script) -> the shared script its case runs (`Script.runs`):
-/// what the record is wherever it stands, as every vending machine is one of five scripts.
-pub fn shared_furniture(zones: &IndexMap<i64, Zone>) -> Result<IndexMap<(i64, i64), i64>> {
-    let mut out: IndexMap<(i64, i64), i64> = IndexMap::new();
+/// (zone, a furniture record's script) -> the shared script its case runs (`Script.runs`),
+/// out of `native_furniture`: what the record is wherever it stands, as every vending machine is
+/// one of five scripts.
+pub fn shared_furniture(natives: &IndexMap<(i64, i64), (i64, i64)>) -> IndexMap<(i64, i64), i64> {
+    natives
+        .iter()
+        .filter(|(_, (_, constant))| *constant >= script::SHARED)
+        .map(|(&key, &(_, constant))| (key, constant))
+        .collect()
+}
+
+/// (zone, a furniture record's script) -> the native its case hands one constant to, and the
+/// constant (`Script.native`): a vending machine's shared script, or a vine's swing or climb.
+pub fn native_furniture(zones: &IndexMap<i64, Zone>) -> Result<IndexMap<(i64, i64), (i64, i64)>> {
+    let mut out: IndexMap<(i64, i64), (i64, i64)> = IndexMap::new();
     for (&zone, (data, furniture, _warps)) in zones {
         let code = if furniture.is_empty() {
             None
@@ -664,9 +675,9 @@ pub fn shared_furniture(zones: &IndexMap<i64, Zone>) -> Result<IndexMap<(i64, i6
         for record in furniture {
             let number = u16(record, zonedata::FURNITURE_SCRIPT)?;
             if number < script::SHARED
-                && let Some(runs) = code.runs(number)?
+                && let Some(found) = code.native(number)?
             {
-                out.insert((zone, number), runs);
+                out.insert((zone, number), found);
             }
         }
     }

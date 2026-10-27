@@ -629,7 +629,11 @@ fn test_furniture_whose_case_runs_a_shared_script_is_that_script() -> Result<()>
     let zones: IndexMap<i64, plates::Zone> =
         IndexMap::from([(TOWN, (data, furniture, Vec::new()))]);
     assert_eq!(
-        plates::shared_furniture(&zones)?,
+        plates::native_furniture(&zones)?,
+        IndexMap::from([((TOWN, 9), (90, 0x28F4))])
+    );
+    assert_eq!(
+        plates::shared_furniture(&plates::native_furniture(&zones)?),
         IndexMap::from([((TOWN, 9), 0x28F4)])
     );
     Ok(())

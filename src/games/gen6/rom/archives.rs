@@ -349,6 +349,9 @@ pub struct GameText {
     /// (zone, a furniture record's script) -> the game's shared script it runs
     /// (`plates.shared_furniture`).
     pub shared: IndexMap<(i64, i64), i64>,
+    /// (zone, a furniture record's script) -> the native its case hands one constant to, and the
+    /// constant (`plates.native_furniture`): a vine's swing or climb.
+    pub natives: IndexMap<(i64, i64), (i64, i64)>,
     /// What the game calls itself, "Pokémon Omega Ruby", out of the ROM's SMDH (`Rom.title`).
     pub title: Option<String>,
 }
@@ -396,6 +399,7 @@ impl PartialEq for GameText {
             && self.items == other.items
             && self.door_signs == other.door_signs
             && self.shared == other.shared
+            && self.natives == other.natives
             && self.title == other.title
     }
 }
@@ -443,6 +447,7 @@ impl Default for GameText {
             lines: IndexMap::new(),
             door_signs: HashSet::new(),
             shared: IndexMap::new(),
+            natives: IndexMap::new(),
             title: None,
         }
     }
@@ -735,6 +740,7 @@ impl GameText {
         let languages = lines_from(layout.languages)?;
         let categories = lines_from(layout.categories)?;
         let conditions = lines_from(layout.conditions)?;
+        let natives = plates::native_furniture(&read)?;
         let text = GameText {
             places: places.clone(),
             trainers,
@@ -842,7 +848,8 @@ impl GameText {
                 ),
             ]),
             door_signs,
-            shared: plates::shared_furniture(&read)?,
+            shared: plates::shared_furniture(&natives),
+            natives,
             title: rom.title(language)?,
         };
         if layout.protagonists && !text.protagonists_hold() {
