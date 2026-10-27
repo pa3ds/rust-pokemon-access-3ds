@@ -92,6 +92,10 @@ pub const CLIMB_SOURCE: i64 = 16 << 32;
 /// 249).
 pub const HIDDEN_SOURCE: i64 = 17 << 32;
 
+/// A vine's end: `VINE_SOURCE | number`, its record's script in the zone's. A cell holds an end
+/// on each of several levels, so its cell would not tell them apart (spike 250).
+pub const VINE_SOURCE: i64 = 18 << 32;
+
 /// A place's `source` from its kind's tag and its own number. The number must leave the tag's
 /// bits clear, and no u16 the game holds can reach them, so one that does is a new encoding
 /// written wider than the tag allows for: a programmer's error, refused here rather than keyed as
@@ -160,8 +164,9 @@ pub const CURRENTS_CATEGORY: &str = "currents";
 /// can get off rhyhorn so that prob need its own category" (Khai, 2026-10-22).
 pub const RIDING: &str = "riding";
 
-/// The blue spots climbing walls are got on at and the ledges they are got off onto, a category of
-/// its own: "mark its entry point and exit point maybe? in a category" (Khai, 2026-10-24).
+/// The blue spots climbing walls are got on at and the ledges they are got off onto, and the ends
+/// of vines, a category of its own: "mark its entry point and exit point maybe? in a category"
+/// (Khai, 2026-10-24).
 pub const CLIMBING: &str = "climbing";
 
 /// In the order they are walked and logged.
@@ -191,7 +196,8 @@ pub struct Interactable {
     /// `berry spot`, `ash pile`, `hidden Pokémon`, `barrier`, `switch`, `passage`, `trapdoor`,
     /// `geyser`, `lift`, `teleporter`, `dive spot`, `stairs`, `stairs up`, `stairs down`, `ladder
     /// up`, `ladder down`, `entrance`, `slope`, `bumpy slope`, `rail`, `current`, `blue spot`,
-    /// `wall ledge`, a `flock` in the sky; or in the sky, the game's own name for a place.
+    /// `wall ledge`, `vine up`, `vine down`, `swinging vine`, a `flock` in the sky; or in the sky,
+    /// the game's own name for a place.
     pub kind: String,
     pub cell: (i64, i64),
     pub size: (i64, i64),

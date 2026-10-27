@@ -51,6 +51,10 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
   you reach it. Listen for the next step at each landing. One place each
   in Coumarine City and Anistar City has ways high over the ground like it, walked the same way,
   and nobody has tried them.
+- **Coumarine Gym's vines**: `P` never reaches the vine on the west platforms from the fourth
+  level up to the fifth, and goes round it. The way down from the top level is listed, but `P`
+  does not take it on the way to anything, so `P` to the way out from the top climbs back down
+  the vines.
 - **Rails outside Shalour Gym**, on Routes 5, 13 and 18 and in Dendemille and Couriway Towns, are
   found the same way and nobody has tried them. A rail broken in the middle, as Route 5's over the
   water is, is not taken by `P`.

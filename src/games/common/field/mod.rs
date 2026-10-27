@@ -16,6 +16,8 @@
 //!   and the list shows the blue spots of.
 //! - `grind`: **`GrindRails`**, the grind rails of X's Shalour City Gym, which the ground's search
 //!   rides end to end.
+//! - `vines`: **`Vines`**, the vines of X's Coumarine City Gym, which the ground's search grabs and
+//!   rides up, down or across a gap.
 //! - `navigate` answers the navigation keys (`keys`), and `guide` finds the way and follows the
 //!   player along it.
 
@@ -28,3 +30,4 @@ pub mod keys;
 pub mod navigate;
 pub mod pad;
 pub mod things;
+pub mod vines;

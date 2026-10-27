@@ -259,7 +259,7 @@ impl Script {
     /// The native the case `number` hands one constant to, and the constant, or None: its
     /// first call is to a function that pushes the one constant and calls the native, as a
     /// vending machine's does (`runs`) and each of Coumarine Gym's vines, 56 to swing on one and
-    /// 57 to climb one, with the end's number among its kind (spike A).
+    /// 57 to climb one, with the end's number among its kind (spike 250).
     pub fn native(&self, number: i64) -> Result<Option<(i64, i64)>> {
         let case = self.cases()?.get(&number).copied();
         let function = match case {

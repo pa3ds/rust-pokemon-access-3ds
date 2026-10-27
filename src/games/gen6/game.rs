@@ -209,6 +209,16 @@ pub struct Grinding {
     pub end: i64,
 }
 
+/// The natives the zone script's case of a vine's end hands one constant to, as X's Coumarine
+/// City Gym's (`vines.Vines`, `Script.native`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Vining {
+    /// A vine swung on across a gap.
+    pub swing: i64,
+    /// A vine climbed, up from its lower end and down from its upper.
+    pub climb: i64,
+}
+
 /// One game as the gen 6 readers read it.
 ///
 /// Not `PartialEq`: the dataclass compares its callables by identity, which a `fn` pointer does
@@ -343,6 +353,9 @@ pub struct Game {
     /// The rails it lets the player grind along on roller skates, or None in a game with none:
     /// X's Shalour City Gym (spike 247).
     pub grinding: Option<Grinding>,
+    /// The vines it lets the player grab, or None in a game with none: X's Coumarine City Gym
+    /// (spike 250).
+    pub vining: Option<Vining>,
     /// Whether a row of models drawn as nothing, two or more with one script that no drawn record
     /// of their zone has, is an invisible gate: not listed, and in the way. X's Santalune Gym has
     /// five behind Viola, and AZ's room five (spike 223).
@@ -420,6 +433,7 @@ impl Game {
             rides: None,
             climbing: None,
             grinding: None,
+            vining: None,
             gates: false,
             form: None,
             steps: ORAS,

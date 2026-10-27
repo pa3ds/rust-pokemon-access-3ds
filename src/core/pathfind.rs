@@ -79,7 +79,7 @@ fn compass_index(way: &str) -> Result<i64> {
 
 /// `STEPS[way]`, which raises where `way` is none of the four.
 #[track_caller]
-fn step_of(way: &str) -> Result<Cell> {
+pub fn step_of(way: &str) -> Result<Cell> {
     match STEPS.iter().find(|(known, _)| *known == way) {
         Some(&(_, step)) => Ok(step),
         None => Err(Error::key(py::repr(way))),
@@ -145,6 +145,9 @@ pub struct Leg {
     /// `Held`: None for a plain `Leg`. A field here, as Python's `isinstance(leg, Held)` is
     /// `held.is_some()`, so a list of legs can hold both.
     pub held: Option<Held>,
+    /// Whether it is the guide's subclass `Vined`, the step that grabs a vine and its ride:
+    /// Python's `isinstance(leg, Vined)`.
+    pub vined: bool,
 }
 
 impl Leg {
@@ -156,6 +159,7 @@ impl Leg {
             end,
             how: String::new(),
             held: None,
+            vined: false,
         }
     }
 }
@@ -164,6 +168,20 @@ impl fmt::Display for Leg {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(held) = &self.held {
             return write!(f, "{}", held.said(self));
+        }
+        if self.vined {
+            // `Vined.__str__`: the way faced to grab the vine, and what its ride does.
+            return write!(
+                f,
+                "{}",
+                own(
+                    "p-vine",
+                    &[
+                        ("way", &way(self.direction)),
+                        ("how", &said("how", &self.how)),
+                    ]
+                )
+            );
         }
         if !self.how.is_empty() {
             return write!(
@@ -224,7 +242,8 @@ pub struct Options<'a> {
     pub carry: Option<&'a dyn Fn(Cell) -> Result<Option<&'static str>>>,
     pub slants: Option<&'a dyn Fn(Cell, Cell) -> Result<bool>>,
     pub slide: Option<&'a dyn Fn(Cell) -> Result<bool>>,
-    pub stops: Option<&'a dyn Fn(Cell) -> bool>,
+    pub stops: Option<&'a dyn Fn(Cell, &[i64]) -> bool>,
+    pub leap: Option<&'a dyn Fn(&[i64], Cell) -> Option<Cell>>,
 }
 
 /// The way of the compass `going` is, as `STEPS` holds it, or "" where it is none: a diagonal,
@@ -319,10 +338,16 @@ impl Ord for Entry<'_> {
 /// a state too, where one floor lies over another, and `arrives` says whether a cell stood on
 /// with `turns` is on the goals' floor: a goal is reached only there, not on the floor above
 /// it, and with `closest` the nearest cell on it comes before any nearer on another. `stops`
-/// says whether the player can stop on a cell at all, every one where it is None: one a grind
-/// rail is carrying them along cannot, and no way ends there, at a goal or short of one. With
-/// Shalour Gym's centre shut, P to the gym leader's spot said "grind the rail 5 west, then can't
-/// continue", the cell 5 along a rail of 14 being the nearest the centre (spike 247).
+/// says whether the player can stop on a cell with `turns` at all, every one where it is None:
+/// one a grind rail is carrying them along cannot, nor a vine's they hold, and no way ends
+/// there, at a goal or short of one. With Shalour Gym's centre shut, P to the gym leader's spot
+/// said "grind the rail 5 west, then can't continue", the cell 5 along a rail of 14 being the
+/// nearest the centre (spike 247).
+///
+/// `leap` says where the player in a cell with `turns` is carried in one move, or None: there,
+/// and nowhere else, the one move from it, a step's worth and a turn, with no way of its own and
+/// through `through` for its turns. A vine in Coumarine Gym, grabbed from beside it, carries the
+/// player up or down a level or across a gap, landing beside its other end (spike 250).
 ///
 /// A* over (cell, heading), since a turn has a price and the same cell entered two ways is two
 /// different places to go on from. The estimate is the distance to the goals' box, which never
@@ -348,6 +373,7 @@ pub fn find(
         slants,
         slide,
         stops,
+        leap,
     } = options;
     if goals.is_empty() {
         return Ok(None);
@@ -465,7 +491,7 @@ pub fn find(
             let (dx, dz) = step_of(sliding)?;
             can_walk((cell.0 + dx, cell.1 + dz))?
         };
-        if !past && stops.is_none_or(|stops| stops(cell)) {
+        if !past && stops.is_none_or(|stops| stops(cell, turned)) {
             // `min` keeps the first of equals, so a later state replaces it only by being less,
             // and between equal estimates and costs the states themselves are compared, as tuples.
             let candidate = (!arrives(cell, turned)?, estimate(cell), cost, state.clone());
@@ -505,6 +531,7 @@ pub fn find(
             *through,
             &slants,
             sliding,
+            *leap,
             &mut |direction, step, steps, after| {
                 let onward: State = (step, direction, after);
                 // Python's `going != direction != carried`: both inequalities, chained.
@@ -597,7 +624,8 @@ fn moves(
 
 /// Each move a search takes from `cell` with `turned`, `find`'s and `reached`'s alike: its
 /// way, where it lands, how many cells on, and the turns after it (`through`), as they were
-/// over a jump; a move `through` refuses is not taken.
+/// over a jump; a move `through` refuses is not taken. Where `leap` carries the player, that is
+/// the one move, with no way.
 #[allow(clippy::too_many_arguments)]
 fn onward(
     cell: Cell,
@@ -611,8 +639,23 @@ fn onward(
     through: Option<&dyn Fn(&[i64], Cell, Cell) -> Result<Option<Turns>>>,
     slants: &dyn Fn(Cell, Cell) -> Result<bool>,
     sliding: &'static str,
+    leap: Option<&dyn Fn(&[i64], Cell) -> Option<Cell>>,
     each: &mut dyn FnMut(&'static str, Cell, i64, Turns) -> Result<()>,
 ) -> Result<()> {
+    if let Some(leap) = leap
+        && let Some(to) = leap(turned, cell)
+    {
+        let after = match through {
+            None => Some(turned.to_vec()),
+            Some(through) => through(turned, cell, to)?,
+        };
+        if let Some(after) = after
+            && can_walk(to)?
+        {
+            each("", to, 1, after)?;
+        }
+        return Ok(());
+    }
     moves(
         cell,
         can_walk,
@@ -648,7 +691,8 @@ pub struct Reach<'a> {
     pub through: Option<&'a dyn Fn(&[i64], Cell, Cell) -> Result<Option<Turns>>>,
     pub slants: Option<&'a dyn Fn(Cell, Cell) -> Result<bool>>,
     pub slide: Option<&'a dyn Fn(Cell) -> Result<bool>>,
-    pub stops: Option<&'a dyn Fn(Cell) -> bool>,
+    pub stops: Option<&'a dyn Fn(Cell, &[i64]) -> bool>,
+    pub leap: Option<&'a dyn Fn(&[i64], Cell) -> Option<Cell>>,
 }
 
 /// Every cell inside `box` a way from `start` can end on, by `find`'s moves, with each state
@@ -658,6 +702,7 @@ pub struct Reach<'a> {
 /// every goal at a time. On ice (`slide`), the way the player slides is part of where they are,
 /// and a way ends only where a slide stops, as `find`'s does; nor where `stops` says the player
 /// cannot, along a grind rail, though a thing beside one has a goal on its cell (spike 247).
+/// Where `leap` carries the player, it does here too.
 pub fn reached(
     start: Cell,
     walkable: &dyn Fn(Cell) -> Result<bool>,
@@ -737,6 +782,7 @@ pub fn reached(
             options.through,
             &slants,
             sliding,
+            options.leap,
             &mut |direction, step, _, after| {
                 let way = compass_way(direction);
                 let on = if !way.is_empty() && slide(step)? {
@@ -756,7 +802,7 @@ pub fn reached(
                     let (dx, dz) = step_of(on)?;
                     can_walk((step.0 + dx, step.1 + dz))?
                 };
-                if !past && options.stops.is_none_or(|stops| stops(step)) {
+                if !past && options.stops.is_none_or(|stops| stops(step, &after)) {
                     out.entry(step).or_default().insert(after);
                 }
                 Ok(())
@@ -966,9 +1012,10 @@ fn back(came: &HashMap<State, State>, state: &State) -> Vec<Cell> {
     let mut cells = vec![state.0];
     while let Some(was) = came.get(state) {
         // A jump comes two cells from the last, in a line: the ledge between goes in too. A
-        // diagonal step is two cells off by the same count and jumps nothing.
+        // diagonal step is two cells off by the same count and jumps nothing, nor a leap, which
+        // has no way.
         let ((x, z), (x0, z0)) = (state.0, was.0);
-        if (x - x0).abs() + (z - z0).abs() == 2 && (x == x0 || z == z0) {
+        if !state.1.is_empty() && (x - x0).abs() + (z - z0).abs() == 2 && (x == x0 || z == z0) {
             cells.push((py::floordiv(x + x0, 2), py::floordiv(z + z0, 2)));
         }
         state = was;
@@ -980,33 +1027,40 @@ fn back(came: &HashMap<State, State>, state: &State) -> Vec<Cell> {
 
 /// `legs(path, how)`, with no step walked by a key other than its way's.
 pub fn legs(path: &[Cell], how: Option<&dyn Fn(Cell, Cell) -> Result<String>>) -> Result<Vec<Leg>> {
-    legs_with(path, how, None)
+    legs_with(path, how, None, None)
 }
 
 /// A path's straight runs, in order. `how` says what each step is walked with, and a run
 /// ends where that changes as well as where the path turns: "3 south, Surf 12 south". `key` is
 /// the key that walks a step where that is not its way, as up walks a street north-west.
+/// `placed` says both for a step by its place in the path, the index of its last cell, where
+/// its two cells do not: in Coumarine Gym the way climbs the vine from (59, 73) to (59, 72) at
+/// 0 and later walks over the same two cells at 720 (spike 250).
 pub fn legs_with(
     path: &[Cell],
     how: Option<&dyn Fn(Cell, Cell) -> Result<String>>,
     key: Option<&dyn Fn(Cell, Cell) -> Option<&'static str>>,
+    placed: Option<&IndexMap<i64, (String, Option<&'static str>)>>,
 ) -> Result<Vec<Leg>> {
     let mut out: Vec<Leg> = Vec::new();
     for i in 1..path.len() {
-        let mut direction = match key {
-            Some(key) => key(path[i - 1], path[i]).unwrap_or(""),
-            None => "",
+        let (walked, keyed) = match placed.and_then(|placed| placed.get(&(i as i64))) {
+            Some((walked, keyed)) => (walked.clone(), *keyed),
+            None => (
+                match how {
+                    Some(how) => how(path[i - 1], path[i])?,
+                    None => String::new(),
+                },
+                key.and_then(|key| key(path[i - 1], path[i])),
+            ),
         };
+        let mut direction = keyed.unwrap_or("");
         if direction.is_empty() {
             direction = towards(path[i - 1], path[i]);
         }
         if direction.is_empty() {
             direction = slant((path[i].0 - path[i - 1].0, path[i].1 - path[i - 1].1)).unwrap_or("");
         }
-        let walked = match how {
-            Some(how) => how(path[i - 1], path[i])?,
-            None => String::new(),
-        };
         match out.last_mut() {
             Some(last) if last.direction == direction && last.how == walked => {
                 *last = Leg {
@@ -1015,6 +1069,7 @@ pub fn legs_with(
                     end: i as i64,
                     how: walked,
                     held: None,
+                    vined: false,
                 };
             }
             _ => out.push(Leg {
@@ -1023,6 +1078,7 @@ pub fn legs_with(
                 end: i as i64,
                 how: walked,
                 held: None,
+                vined: false,
             }),
         }
     }

@@ -389,6 +389,26 @@ pub fn on_rail(record: &[u8]) -> Result<bool> {
     Ok(u16(record, PLACEMENT)? == ON_RAIL)
 }
 
+pub const TRIGGER_PLACEMENT: i64 = 0x08;
+
+/// A trigger placed on a rail: (line, a, x, cells a, cells x), as a furniture record's
+/// (`rail.placed`) but 4 bytes on, its placement at +0x08 and the five from +0x0c, where one on
+/// the grid has its cell and size. Coumarine Gym's one trigger, script 0x2b, lies so on its top
+/// level's east street, `0x0101fbb9` at (-1, 1), and drops the player walking onto it east to
+/// the ground (spike 250). None for a trigger on the grid.
+pub fn trigger_placed(record: &[u8]) -> Result<Option<(i64, i64, i64, i64, i64)>> {
+    if u16(record, TRIGGER_PLACEMENT)? != ON_RAIL {
+        return Ok(None);
+    }
+    Ok(Some((
+        u32(record, TRIGGER_X)?,
+        s16(record, TRIGGER_WIDTH)?,
+        s16(record, TRIGGER_HEIGHT)?,
+        s16(record, TRIGGER_Y)?,
+        s16(record, TRIGGER_Y + 2)?,
+    )))
+}
+
 /// The cell a place in world units is in, as a warp record gives its place.
 pub fn from_world(units: i64) -> i64 {
     py::floordiv(units - CELL / 2, CELL)

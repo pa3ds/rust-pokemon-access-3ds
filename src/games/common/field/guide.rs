@@ -19,6 +19,7 @@ use crate::games::common::field::ground::{
     BLOCK, CUT, Ground, IceRoom, NO_ZONE, Of, ROCK_SMASH, SOLID, STRENGTH, SURF, WATERFALL, WHOLE,
 };
 use crate::games::common::field::things::{self as field, Field, Interactable};
+use crate::games::common::field::vines;
 use crate::py::{self, Error, Log, Result};
 
 /// How far from a room of thin ice's exits a way may stop short and be taken over the ice
@@ -72,6 +73,49 @@ pub const RAMP_DOWN: &str = "down the ramp";
 /// stair's step, `chunk.CLIMB`. Along the Tower of Mastery's ramp a step climbs 6 to 10, one across
 /// it 2 at most, and a step off its foot alone was said "down the ramp 1 south-west" (spike 248).
 pub const LEVEL: f64 = 18.0;
+
+/// What the step that grabs a vine and its ride are said with, as one leg with the way faced to
+/// grab it: "3 north, face north, climb the vine up, 2 east" (`Vined`). In Coumarine City Gym the
+/// vines carry the player up or down a level, or across a gap on one (spike 250). The game names
+/// no such thing.
+pub const VINE: [(&str, &str); 3] = [
+    (vines::UP, "climb the vine up"),
+    (vines::DOWN, "climb the vine down"),
+    (vines::SWING, "swing on the vine"),
+];
+/// What a vine's ride is walked with until it is one leg with the step that grabbed it: never
+/// said (`_vined`).
+pub const RIDE: &str = "ride the vine";
+
+/// `VINE[ride]`.
+fn vine_word(ride: &str) -> Result<&'static str> {
+    VINE.iter()
+        .find(|(known, _)| *known == ride)
+        .map(|&(_, word)| word)
+        .ok_or_else(|| Error::key(py::repr(ride)))
+}
+
+/// `legs` with each step that grabs a vine and the ride after it one leg (`Vined`, a `Leg` whose
+/// `vined` is set).
+fn vined(legs: Vec<Leg>) -> Vec<Leg> {
+    let mut out: Vec<Leg> = Vec::new();
+    for leg in legs {
+        match out.last_mut() {
+            Some(grab) if leg.how == RIDE => {
+                *grab = Leg {
+                    direction: grab.direction,
+                    steps: grab.steps + leg.steps,
+                    end: leg.end,
+                    how: grab.how.clone(),
+                    held: None,
+                    vined: true,
+                };
+            }
+            _ => out.push(leg),
+        }
+    }
+    out
+}
 
 /// The legs a player is carried along rather than walks, each with the message a run of them is
 /// said by, where it leaves them (`_spoken`).
@@ -938,7 +982,9 @@ fn crossings(
 /// Legs as the player's keys walk them: by the compass on the grid, and on a rail or under a
 /// camera behind the player, where the keys work from it, from the way it looks (spikes 105 and
 /// A). A run of legs a current or a grind rail carries the player along is said as one, by
-/// where it leaves them (`CARRIED`). A leg into another place says it (`_crossings`).
+/// where it leaves them (`CARRIED`). A leg into another place says it (`_crossings`). The way
+/// is said as far as its first vine, then how many more it rides: up Coumarine Gym, every
+/// press said all 17 vines and the legs between, again at each step (Khai, 2026-10-26).
 fn spoken(legs: &[Leg], r#where: &Field, crossings: &IndexMap<i64, String>) -> Result<String> {
     if let Some(heading) = r#where.heading {
         let angled = match r#where.bearing {
@@ -947,6 +993,13 @@ fn spoken(legs: &[Leg], r#where: &Field, crossings: &IndexMap<i64, String>) -> R
         };
         return pathfind::turned(legs, heading, angled, r#where.turning);
     }
+    let vined: Vec<usize> = (0..legs.len()).filter(|&i| legs[i].vined).collect();
+    let more = vined.len() as i64 - 1;
+    let legs = if more > 0 {
+        &legs[..vined[0] + 1]
+    } else {
+        legs
+    };
     let mut parts: Vec<String> = Vec::new();
     let (mut drift, mut how) = ((0, 0), "");
     for leg in legs.iter().map(Some).chain([None]) {
@@ -970,6 +1023,9 @@ fn spoken(legs: &[Leg], r#where: &Field, crossings: &IndexMap<i64, String>) -> R
                 Some(into) => own("p-into", &[("leg", &leg.to_string()), ("place", into)]),
             });
         }
+    }
+    if more > 0 {
+        parts.push(own("p-more-vines", &[("count", &more)]));
     }
     Ok(parts.join(", "))
 }
@@ -1426,13 +1482,23 @@ impl Guide {
             Ok(String::new())
         };
         let key = |cell: Cell, step: Cell| ground.key(cell, step);
-        let legs = self::held(
+        // A vine is grabbed facing it from its spot, a swing's at a corner of it, and the step
+        // after the grab is its ride.
+        let grabs = ground.vined(&path)?;
+        let mut placed: IndexMap<i64, (String, Option<&'static str>)> = IndexMap::new();
+        for &i in grabs.keys() {
+            placed.insert(i + 1, (RIDE.to_string(), None));
+        }
+        for (&i, vine) in &grabs {
+            placed.insert(i, (vine_word(vine.ride)?.to_string(), Some(vine.faces)));
+        }
+        let legs = vined(self::held(
             ramps(
-                pathfind::legs_with(&path, Some(&how), Some(&key))?,
+                pathfind::legs_with(&path, Some(&how), Some(&key), Some(&placed))?,
                 &ramp_ways,
             ),
             &climbs,
-        )?;
+        )?);
         let visit = self.field.visit();
         let along: HashMap<Cell, i64> = path
             .iter()
@@ -1529,6 +1595,13 @@ impl Guide {
             guidance.still = (self.clock)();
             guidance.nudge = None;
         }
+        let hm = guidance.borrow().hm;
+        let ground = self.ground(r#where, hm)?;
+        if !ground.vines.vines.is_empty() && !ground.open_at(r#where.cell, r#where.height)? {
+            // On a vine or in the air on its ride, nothing is said until it lands the player on
+            // floor, and the way goes on from there, found again where it is not the way's.
+            return Ok(());
+        }
         let heading = pathfind::towards(was, r#where.cell);
         let mut at = guidance.borrow().at(r#where.cell)?;
         // A step along a diagonal street lands up to a cell off the diagonal the way was laid on
@@ -1581,8 +1654,6 @@ impl Guide {
         }
         // A chunk loaded since the path was found can show a wall where nothing was known. A
         // ledge on the way is not one, nor the shore or a waterfall: they are jumped.
-        let hm = guidance.borrow().hm;
-        let ground = self.ground(r#where, hm)?;
         let mut all = true;
         for &cell in py::slice_from(&guidance.borrow().path, at + 1) {
             if !(ground.open(cell)? || ground.ledge(cell)?.is_some() || ground.over(cell)?) {

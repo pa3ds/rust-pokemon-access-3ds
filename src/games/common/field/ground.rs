@@ -17,6 +17,8 @@ use crate::games::common::field::grind::{GrindRails, OFF};
 use crate::games::common::field::things::{
     Field, Interactable, POKEMON, TRIGGER_SOURCE, WARP_SOURCE,
 };
+use crate::games::common::field::vines::OFF as LET_GO;
+use crate::games::common::field::vines::{Vine, Vines};
 use crate::py::{self, Error, Result};
 
 /// What the ground asks of a rails' corridor (`gen6.field.rail.Corridor`): its own walls are the only
@@ -453,10 +455,11 @@ pub struct Ground {
     /// The cells of streets laid on the grid, each with the steps its street's ways allow, as
     /// (dx, dz), a diagonal among them, and the key that takes each (`rail.Rails.lanes`).
     pub lanes: Rc<Lanes>,
-    /// Whether the streets are floors of their own (`Terrain.raised`): a step along one is said by
-    /// the way it goes, as every other step is, not by its lane's key (`key`), since the keys follow
-    /// cameras looking every way, and a run up or down a ramp is one leg (`guide.RAMP_UP`, spike
-    /// 248).
+    /// Whether the streets are floors of their own (`Terrain.raised`): their lanes' keys are the
+    /// compass's ways nearest each street's own (`rail.Rails.lanes`), which the camera's turn makes
+    /// the pad's, since the keys follow cameras looking every way, and a run up or down a ramp is
+    /// one leg (`guide.RAMP_UP`, spike 248). Along Coumarine Gym's curving platforms one key held
+    /// walks the curve, said as one leg, "7 east" (spike 250).
     pub raised: bool,
     /// Cells people stand in on a ground that leaves them out of `standing`, a step into one
     /// costing as much as a boulder's (`SHOVE`): the way as if nobody stood anywhere still goes
@@ -492,6 +495,12 @@ pub struct Ground {
     ///
     /// An `Rc`, as `walls` is.
     pub grind_rails: Rc<GrindRails>,
+    /// The vines: an end's cell solid at its level and floor on any other, grabbed from a cell
+    /// beside it, facing it, and ridden to where it lands, a level up or down or across a gap
+    /// (`vines.Vines`, spike 250).
+    ///
+    /// An `Rc`, as `walls` is.
+    pub vines: Rc<Vines>,
 }
 
 /// `Ground.lanes`: each cell of a street laid on the grid, with each step its ways allow and the
@@ -537,6 +546,7 @@ impl Default for Ground {
             smashed: HashSet::new(),
             walls: Rc::new(Walls::default()),
             grind_rails: Rc::new(GrindRails::default()),
+            vines: Rc::new(Vines::default()),
         }
     }
 }
@@ -579,6 +589,7 @@ impl fmt::Debug for Ground {
             .field("smashed", &self.smashed)
             .field("walls", &self.walls)
             .field("grind_rails", &self.grind_rails)
+            .field("vines", &self.vines)
             .finish()
     }
 }
@@ -747,7 +758,8 @@ impl Ground {
     /// Whether the player can stand in the cell: on a stacked ground, on any floor of it, or on
     /// its floor at `height` where one is given (`floor_at`); off one, within `2 * CLIMB` of
     /// `height` where one is given and the cell's is known (`ground_height`), so a thing at the
-    /// foot of a cliff is not walked up to from its top.
+    /// foot of a cliff is not walked up to from its top. Never in a vine's cell at its height,
+    /// and in any where no height is given, which the search grabs it in (`vines`).
     pub fn open_at(&self, cell: Cell, height: Option<f64>) -> Result<bool> {
         if let Some(corridor) = &self.corridor {
             return Ok(!self.standing.contains(&cell) && corridor.open(cell)?);
@@ -755,6 +767,9 @@ impl Ground {
         if let Some(grid) = &self.grid
             && grid.at(py::floordiv(cell.0, BLOCK), py::floordiv(cell.1, BLOCK))? == NO_ZONE
         {
+            return Ok(false);
+        }
+        if self.vines.at(cell, height) {
             return Ok(false);
         }
         let floors = self.floors(cell)?;
@@ -788,7 +803,8 @@ impl Ground {
             || chunk.kind(cell)? == STONE
             || self.rides.contains(&chunk.kind(cell)?)
             || self.walls.slides.contains_key(&cell)
-            || self.grind_rails.cells.contains(&cell))
+            || self.grind_rails.cells.contains(&cell)
+            || (height.is_none() && self.vines.cells.contains(&cell)))
             && (self.surf || !chunk.water(cell)?))
     }
 
@@ -964,17 +980,64 @@ impl Ground {
     }
 
     /// The floor each cell of `path` is walked on, from the player's (`climb`): `ANY_FLOOR` all
-    /// along off a stacked ground.
+    /// along off a stacked ground, and on a vine's cell, held; and where its ride lands, the
+    /// floor at its height there.
     pub fn walked(&self, path: &[Cell]) -> Result<Vec<i64>> {
+        Ok(self.vined_both(path)?.0)
+    }
+
+    /// Each step of `path` that grabs a vine, by the index of its last cell, with the vine's
+    /// end it grabs: the step after it is the ride. By place, not by its cells, which the way
+    /// can walk again on another level (`pathfind.legs`'s `placed`).
+    pub fn vined(&self, path: &[Cell]) -> Result<IndexMap<i64, Vine>> {
+        Ok(self.vined_both(path)?.1)
+    }
+
+    /// `walked` and `vined`, the vine held followed along `path` as the search holds it
+    /// (`Vines.hold`). Python's `_vined`.
+    fn vined_both(&self, path: &[Cell]) -> Result<(Vec<i64>, IndexMap<i64, Vine>)> {
         let first = path
             .first()
             .ok_or_else(|| Error::index("tuple index out of range"))?;
         let mut floors = vec![self.floor(*first, self.level)?];
-        for pair in path.windows(2) {
-            let on = self.climb(floors[floors.len() - 1], pair[0], pair[1])?;
-            floors.push(on.unwrap_or(ANY_FLOOR));
+        let mut grabs: IndexMap<i64, Vine> = IndexMap::new();
+        let mut held = LET_GO;
+        for (i, pair) in path.windows(2).enumerate() {
+            let (i, cell, step) = (i as i64 + 1, pair[0], pair[1]);
+            let was = held;
+            if !self.vines.vines.is_empty() {
+                let here = self.at(cell, floors[floors.len() - 1])?;
+                held = self.vines.hold(held, cell, step, here).unwrap_or(LET_GO);
+            }
+            if held != LET_GO {
+                grabs.insert(i, self.vines.vines[(held - 1) as usize].clone());
+                floors.push(ANY_FLOOR);
+            } else if was != LET_GO {
+                floors.push(self.floor(step, Some(self.vines.vines[(was - 1) as usize].landing))?);
+            } else {
+                let on = self.climb(floors[floors.len() - 1], cell, step)?;
+                floors.push(on.unwrap_or(ANY_FLOOR));
+            }
         }
-        Ok(floors)
+        Ok((floors, grabs))
+    }
+
+    /// How high the player stands in `cell` on `floor`: its height there on a stacked ground,
+    /// the ground's off one, None where it is not known.
+    fn at(&self, cell: Cell, floor: i64) -> Result<Option<f64>> {
+        if self.stacked {
+            // Python's `dict(self.floors(cell)).get(floor)`: the last of a floor's entries wins.
+            return Ok(self
+                .floors(cell)?
+                .into_iter()
+                .rev()
+                .find(|&(k, _)| k == floor)
+                .and_then(|(_, height)| height));
+        }
+        match &self.ground_height {
+            None => Ok(None),
+            Some(ground_height) => ground_height(cell),
+        }
     }
 
     /// Whether the cell is water, as far as a loaded chunk or the ROM's says.
@@ -1215,9 +1278,13 @@ impl Ground {
     /// and (17, 63) to (18, 62) to (17, 61); across X's ROM 111 corner joins carry the bit on
     /// both cells, and the 177 without it are the corners of ordinary walls (spike 223). And
     /// along or across a street that runs so, where both cells are its (`lanes`), and along a
-    /// grind rail where it bends, as Shalour Gym's do a cell at a time (`grind_rails`).
+    /// grind rail where it bends, as Shalour Gym's do a cell at a time (`grind_rails`), and from
+    /// a swing's spot onto its vine, which touch at a corner (`vines`).
     pub fn slants(&self, cell: Cell, step: Cell) -> Result<bool> {
         if !self.grind_rails.steps.is_empty() && self.grind_rails.steps.contains(&(cell, step)) {
+            return Ok(true);
+        }
+        if self.vines.boards.contains_key(&(cell, step)) {
             return Ok(true);
         }
         if self.lanes.contains_key(&cell) && self.lanes.contains_key(&step) {
@@ -1344,11 +1411,7 @@ impl Ground {
     /// The key that walks a step along or across a street, where it is one: up walks Route
     /// 7's north-west (`lanes`). None off the streets, where a way is walked by the compass.
     pub fn key(&self, cell: Cell, step: Cell) -> Option<&'static str> {
-        let lane = if self.raised {
-            None
-        } else {
-            self.lanes.get(&cell)
-        };
+        let lane = self.lanes.get(&cell);
         lane?.get(&(step.0 - cell.0, step.1 - cell.1)).copied()
     }
 
@@ -1576,7 +1639,8 @@ impl Ground {
         let carry = |cell: Cell| self.carry(cell);
         let slants = |cell: Cell, step: Cell| self.slants(cell, step);
         let slide = |cell: Cell| self.slide(cell);
-        let stops = |cell: Cell| walk.stops(cell);
+        let stops = |cell: Cell, turns: &[i64]| walk.stops(cell, turns);
+        let leap = |turns: &[i64], cell: Cell| walk.leap(turns, cell);
         pathfind::find(
             start,
             goals,
@@ -1595,7 +1659,12 @@ impl Ground {
                 carry: Some(&carry),
                 slants: Some(&slants),
                 slide: Some(&slide),
-                stops: if walk.grinding { Some(&stops) } else { None },
+                stops: if walk.grinding || walk.vining {
+                    Some(&stops)
+                } else {
+                    None
+                },
+                leap: if walk.vining { Some(&leap) } else { None },
             },
         )
     }
@@ -1632,7 +1701,8 @@ impl Ground {
         let carry = |cell: Cell| ground.carry(cell);
         let slants = |cell: Cell, step: Cell| self.slants(cell, step);
         let slide = |cell: Cell| ground.slide(cell);
-        let stops = |cell: Cell| walk.stops(cell);
+        let stops = |cell: Cell, turns: &[i64]| walk.stops(cell, turns);
+        let leap = |turns: &[i64], cell: Cell| walk.leap(turns, cell);
         let states = pathfind::reached(
             start,
             &|cell: Cell| self.passable(cell),
@@ -1647,7 +1717,12 @@ impl Ground {
                 through: if walk.active { Some(&through) } else { None },
                 slants: Some(&slants),
                 slide: Some(&slide),
-                stops: if walk.grinding { Some(&stops) } else { None },
+                stops: if walk.grinding || walk.vining {
+                    Some(&stops)
+                } else {
+                    None
+                },
+                leap: if walk.vining { Some(&leap) } else { None },
             },
         )?;
         Ok(states
@@ -1686,19 +1761,25 @@ impl Ground {
     /// rails, the ride the player is on, or none, after that (`GrindRails.hold`), and a way never
     /// ends on a ride, which carries the player on to the rail's end (`stops`): P to Shalour
     /// Gym's centre, its gate shut, said "grind the rail 5 west, then can't continue" (spike 247);
-    /// through the ground's rotating doors, where they stand now and what each step does to
-    /// them; and on a stacked ground the floor each step is on, the player's first, the last of
-    /// the turns.
+    /// on a ground with vines, the vine held, or none, after that (`Vines.hold`), carried where
+    /// it lands (`leap`), never into a vine's cell with no floor but to grab it, and a way never
+    /// ends holding one (`stops`); through the ground's rotating doors, where they stand now and
+    /// what each step does to them; and on a stacked ground the floor each step is on, the
+    /// player's first, the last of the turns.
     fn walk(&self, start: Cell) -> Result<Walk<'_>> {
         let (ride, walled) = (!self.rides.is_empty(), !self.walls.lines.is_empty());
-        let grinding = !self.grind_rails.cells.is_empty();
-        if self.doors.is_empty() && !self.stacked && !ride && !walled && !grinding {
+        let (grinding, vining) = (
+            !self.grind_rails.cells.is_empty(),
+            !self.vines.vines.is_empty(),
+        );
+        if self.doors.is_empty() && !self.stacked && !ride && !walled && !grinding && !vining {
             return Ok(Walk {
                 ground: self,
                 active: false,
                 ride,
                 walled,
                 grinding,
+                vining,
                 turns: Vec::new(),
                 crossings: None,
             });
@@ -1720,6 +1801,9 @@ impl Ground {
         if grinding {
             turns.push(OFF);
         }
+        if vining {
+            turns.push(LET_GO);
+        }
         turns.extend(self.turns());
         if self.stacked {
             turns.push(self.floor(start, self.level)?);
@@ -1730,6 +1814,7 @@ impl Ground {
             ride,
             walled,
             grinding,
+            vining,
             turns,
             crossings,
         })
@@ -1772,6 +1857,8 @@ struct Walk<'a> {
     walled: bool,
     /// Whether the next is the grind rail's ride the player is on, or none.
     grinding: bool,
+    /// Whether the next is the vine the player holds, or none.
+    vining: bool,
     turns: pathfind::Turns,
     crossings: Option<Rc<HashMap<(Cell, Cell), i64>>>,
 }
@@ -1785,10 +1872,21 @@ struct Arrives<'a> {
 }
 
 impl Walk<'_> {
-    /// Python's `stops` closure: whether the player can stop on the cell.
-    fn stops(&self, cell: Cell) -> bool {
+    /// Where the vine held is in the turns.
+    fn vine(&self) -> usize {
+        self.ride as usize + self.walled as usize + self.grinding as usize
+    }
+
+    /// Python's `stops` closure: whether the player can stop on the cell with `turns`.
+    fn stops(&self, cell: Cell, turns: &[i64]) -> bool {
         // A rail's own cells are only ever stood on mid-ride: its end cells are not among them.
         !self.ground.grind_rails.cells.contains(&cell)
+            && (!self.vining || turns[self.vine()] == LET_GO)
+    }
+
+    /// Python's `leap` closure: where the vine held carries the player.
+    fn leap(&self, turns: &[i64], _cell: Cell) -> Option<Cell> {
+        self.ground.vines.leap(turns[self.vine()])
     }
 
     fn through(&self, turns: &[i64], cell: Cell, step: Cell) -> Result<Option<pathfind::Turns>> {
@@ -1820,6 +1918,30 @@ impl Walk<'_> {
             return Ok(None);
         };
         let rest = if self.grinding { &rest[1..] } else { rest };
+        let holding = if self.vining { rest[0] } else { LET_GO };
+        let hold = if self.vining {
+            let floor = if ground.stacked {
+                rest[rest.len() - 1]
+            } else {
+                ANY_FLOOR
+            };
+            ground
+                .vines
+                .hold(holding, cell, step, ground.at(cell, floor)?)
+        } else {
+            Some(LET_GO)
+        };
+        let Some(hold) = hold else {
+            return Ok(None);
+        };
+        if LET_GO == holding
+            && holding == hold
+            && ground.vines.cells.contains(&step)
+            && ground.floors(step)?.is_empty()
+        {
+            return Ok(None);
+        }
+        let rest = if self.vining { &rest[1..] } else { rest };
         let doors = if ground.stacked {
             &rest[..rest.len() - 1]
         } else {
@@ -1835,9 +1957,15 @@ impl Walk<'_> {
         };
         if ground.stacked {
             // A rail is on no floor the search walks: its cells are blocked on all of them,
-            // and the cell it lands on is stepped onto from any (`climb`).
-            let floor = if ground.grind_rails.cells.contains(&step) {
+            // and the cell it lands on is stepped onto from any (`climb`). Nor is a vine held,
+            // and its ride lands on the floor at its height.
+            let floor = if ground.grind_rails.cells.contains(&step) || hold != LET_GO {
                 Some(ANY_FLOOR)
+            } else if holding != LET_GO {
+                Some(ground.floor(
+                    step,
+                    Some(ground.vines.vines[(holding - 1) as usize].landing),
+                )?)
             } else {
                 ground.climb(rest[rest.len() - 1], cell, step)?
             };
@@ -1845,6 +1973,9 @@ impl Walk<'_> {
                 return Ok(None);
             };
             after.push(floor);
+        }
+        if self.vining {
+            after.insert(0, hold);
         }
         if self.grinding {
             after.insert(0, grind);

@@ -176,8 +176,8 @@ pub(crate) fn game() -> Game {
     )
 }
 
-/// `field_reader`'s keyword arguments that are the ROM's words, chunks and `shared` furniture,
-/// and the shipped table's `tiles` and `furniture_words`, each as the Python defaults it: set what
+/// `field_reader`'s keyword arguments that are the ROM's words, chunks and `shared` and `natives`
+/// furniture, and the shipped table's `tiles` and `furniture_words`, each as the Python defaults it: set what
 /// differs with `..Given::default()`. The rest are the game's fields, given as a
 /// `Game { .., ..game() }`.
 #[derive(Default)]
@@ -186,6 +186,7 @@ pub(crate) struct Given {
     pub tiles: Option<IndexMap<i64, String>>,
     pub furniture_words: Option<IndexMap<i64, String>>,
     pub shared: IndexMap<(i64, i64), i64>,
+    pub natives: IndexMap<(i64, i64), (i64, i64)>,
     pub streets: Option<rail::Streets>,
     pub outdoors: HashSet<i64>,
     pub street_records: rail::Records,
@@ -202,14 +203,15 @@ pub(crate) struct Given {
     pub extras_hidden_items: Option<&'static str>,
 }
 
-/// A field reader of `game`, the ROM's words, chunks and `shared` furniture given, the shipped
-/// table's `tiles` and `furniture_words`, and `[pa3ds.extras] hidden_items`.
+/// A field reader of `game`, the ROM's words, chunks and `shared` and `natives` furniture given,
+/// the shipped table's `tiles` and `furniture_words`, and `[pa3ds.extras] hidden_items`.
 pub(crate) fn field_reader(memory: Rc<FakeMemory>, given: Given, game: Game) -> Rc<FieldReader> {
     let Given {
         words,
         tiles,
         furniture_words,
         shared,
+        natives,
         streets,
         outdoors,
         street_records,
@@ -240,6 +242,7 @@ pub(crate) fn field_reader(memory: Rc<FakeMemory>, given: Given, game: Game) -> 
             }) as Rc<dyn ChunkSource>
         }),
         shared,
+        natives,
         ..GameText::default()
     };
     FieldReader::new(
@@ -2759,33 +2762,80 @@ fn test_a_stair_is_where_the_ground_meets_a_floor_over_it() {
 
 /// Khai, playing x_tower_of_mastery's save (spike 248): every street of the Tower of Mastery
 /// is measured east, and its lane's key said "east" for a step north up the ramp, "8 west, 16
-/// east" for a way west and then north. Where the streets are floors of their own a step is
-/// said by the way it goes, as everywhere off a street.
+/// east" for a way west and then north. Where the streets are floors of their own a street's
+/// keys are the ways nearest its own.
 #[test]
-fn test_a_step_up_a_ramp_is_said_by_the_way_it_goes_not_its_streets_key() -> Result<()> {
-    let lanes: IndexMap<(i64, i64), IndexMap<(i64, i64), &'static str>> = (0..5)
-        .map(|z| {
-            (
-                (0, z),
-                IndexMap::from([((0, -1), "east"), ((0, 1), "east")]),
-            )
-        })
+fn test_a_step_up_a_street_is_said_by_the_way_it_runs_not_the_way_it_is_measured() -> Result<()> {
+    let ground = raised_lanes(&[(1, (9.0, 81.0)), (2, (9.0, 9.0))], &[(1, 2, 4)])?;
+    let path = ground.find((0, 4), &goals_of(&[((0, 0), None)]), "", None, false, None)?;
+    let path = path.expect("a way");
+    let key = |cell, step| ground.key(cell, step);
+    assert_eq!(
+        pathfind::spoken(&pathfind::legs_with(&path, None, Some(&key), None)?),
+        "4 north"
+    );
+    Ok(())
+}
+
+/// A ground whose streets are floors of their own, each line (start, end, cells along) one
+/// cell wide and measured east, as all the Tower of Mastery's are, laid by `Rails.lanes`.
+fn raised_lanes(points: &[(i64, (f64, f64))], lines: &[(i64, i64, i64)]) -> Result<Ground> {
+    let network = rail::Network {
+        lines: lines
+            .iter()
+            .enumerate()
+            .map(|(i, &(start, end, along))| {
+                let id = 0x8000 | i as i64;
+                (
+                    id,
+                    rail::Line {
+                        way: rail::WAY_EAST,
+                        ..rail::Line::new(id, start, end, along, 1, vec![0x20; along as usize + 1])
+                    },
+                )
+            })
+            .collect(),
+        places: points.iter().copied().collect(),
+        cameras: 2,
+        ..Default::default()
+    };
+    let rails = rail::Rails::new(
+        FakeMemory::new(),
+        Some(Rc::new(move |_files: &[i64]| Ok(network.clone()))),
+        rail::Records::default(),
+        camera::ORAS,
+    );
+    Ok(Ground {
+        lanes: rails.lanes(&[1], true)?,
+        raised: true,
+        ..Ground::default()
+    })
+}
+
+/// x_gym_4 (spike 250): Coumarine Gym's lowest platform curves round the tree, and holding right
+/// alone walked the player south-east, east and north-east along it from (56.2, 74.2) to (64.3,
+/// 73.7), where P said each bend as a leg of its own, "2 south-east, 2 north-east".
+#[test]
+fn test_a_curving_street_one_key_walks_is_one_leg() -> Result<()> {
+    let ground = raised_lanes(
+        &[
+            (1, (9.0, 45.0)),
+            (2, (81.0, 81.0)),
+            (3, (189.0, 81.0)),
+            (4, (261.0, 45.0)),
+        ],
+        &[(1, 2, 4), (2, 3, 6), (3, 4, 4)],
+    )?;
+    let path: Vec<(i64, i64)> = [(0, 2), (1, 3), (2, 3), (3, 4)]
+        .into_iter()
+        .chain((4..11).map(|x| (x, 4)))
+        .chain([(11, 3), (12, 3), (13, 2), (14, 2)])
         .collect();
-    for (raised, said) in [(false, "4 east"), (true, "4 north")] {
-        let ground = Ground {
-            lanes: Rc::new(lanes.clone()),
-            raised,
-            ..Ground::default()
-        };
-        let path = ground.find((0, 4), &goals_of(&[((0, 0), None)]), "", None, false, None)?;
-        let path = path.expect("a way");
-        let key = |cell, step| ground.key(cell, step);
-        assert_eq!(
-            pathfind::spoken(&pathfind::legs_with(&path, None, Some(&key))?),
-            said,
-            "raised {raised}"
-        );
-    }
+    let key = |cell, step| ground.key(cell, step);
+    assert_eq!(
+        pathfind::spoken(&pathfind::legs_with(&path, None, Some(&key), None)?),
+        "14 east"
+    );
     Ok(())
 }
 
@@ -3950,6 +4000,76 @@ fn test_grind_rails_are_found_on_every_floor_and_never_past_a_blocked_cell() -> 
     Ok(())
 }
 
+/// Spike 250: Coumarine Gym's vines are furniture records on its streets whose zone script case
+/// hands a native one constant, 57 for a vine climbed, each as high as its line's start: the vine
+/// at (59, 72), at 0, is climbed up, and its other end, (59, 73) at 145, down. A record whose case
+/// runs a vending machine's shared script is no vine.
+#[test]
+fn test_vines_are_listed_under_climbing_each_end_by_what_its_ride_does() -> Result<()> {
+    let low = rail::Line::new(0x8001, 1, 2, 4, 3, vec![0; 15]);
+    let high = rail::Line::new(0x8002, 3, 4, 4, 3, vec![0; 15]);
+    let start = ((100 * 18 + 9) as f64, (160 * 18 + 9) as f64);
+    let end = (start.0, start.1 + (4 * 18) as f64);
+    let network = rail::Network {
+        lines: IndexMap::from([(low.id, low.clone()), (high.id, high.clone())]),
+        places: IndexMap::from([(1, start), (2, end), (3, start), (4, end)]),
+        cameras: 0,
+        heights: IndexMap::from([(1, 0.0), (2, 0.0), (3, 145.0), (4, 145.0)]),
+        ..Default::default()
+    };
+    let mut town = Town::new();
+    town.reader = field_reader(
+        town.memory.clone(),
+        Given {
+            streets: Some(Rc::new(move |_chunks: &[i64]| Ok(network.clone()))),
+            far: Some(Rc::new(|_file| Ok(None))),
+            natives: IndexMap::from([
+                ((TOWN, 0x1B), (57, 0)),
+                ((TOWN, 0x1C), (57, 1)),
+                ((TOWN, 9), (90, 0x28F4)),
+            ]),
+            ..Given::default()
+        },
+        Game {
+            vining: Some(xy::VINING),
+            ..game()
+        },
+    );
+    town.memory
+        .write(MAP + MAP_CHUNK_FILES, &le16(&[0, 700, 701]));
+    let mut data = zone_file(&ZoneSpec {
+        furniture: &[(0x1C, 0, 0), (0x1B, 0, 0), (9, 0, 0)],
+        info: &town_info(),
+        ..ZoneSpec::default()
+    });
+    let first = zone_header(5) + INFO_SIZE + ENTITY_HEADER;
+    for (i, (line, along)) in [(&low, 2), (&high, 3), (&low, 1)].into_iter().enumerate() {
+        put(
+            &mut data,
+            first + i as i64 * FURNITURE + 6,
+            &[le16(&[1]), le32(&[line.id]), le16(&[along, 0, 1, 1])].concat(),
+        );
+    }
+    town.memory.write(FILE, &data);
+    town.memory
+        .u32(HOLDER + 8, &[0x11 | (data.len() as i64) << 8]);
+    let mut listed: Vec<(String, (i64, i64), Option<f64>)> = town
+        .r#where()?
+        .of("climbing")
+        .iter()
+        .map(|item| (item.kind.clone(), item.cell, item.height))
+        .collect();
+    listed.sort_by(|a, b| a.partial_cmp(b).expect("no NaN"));
+    assert_eq!(
+        listed,
+        [
+            ("vine down".to_string(), (100, 163), Some(145.0)),
+            ("vine up".to_string(), (100, 162), Some(0.0)),
+        ]
+    );
+    Ok(())
+}
+
 /// Spike 238: on Route 9 the Rhyhorn smashes rocks with A, and while the player rode it the list
 /// said "Rhyhorn, here", its model left where it was got on.
 #[test]
@@ -4953,7 +5073,7 @@ fn test_a_diagonal_street_is_one_leg_said_by_the_key_that_walks_it() -> Result<(
     );
     let key = |cell, step| ground.key(cell, step);
     assert_eq!(
-        pathfind::spoken(&pathfind::legs_with(&path, None, Some(&key))?),
+        pathfind::spoken(&pathfind::legs_with(&path, None, Some(&key), None)?),
         "4 north"
     );
     assert_eq!(ground.key((100, 170), (101, 169)), Some("east"));

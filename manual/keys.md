@@ -111,6 +111,14 @@ the way to a rail's end, then the ride as one step of the way, "3 east, grind th
 skate onto the rail with the circle pad and it carries you to the far end. The interactables list
 the Gym leader's spot, where Korrina comes out to meet you.
 
+**Vines.** In Coumarine Gym, in X and Y, you climb the tree by its vines: face a vine and press A,
+and it carries you up or down a level, or swings you across to the next platform. The climbing
+category lists each end of a vine as "vine up", "vine down" or "swinging vine". `P` says the way to
+a vine and the ride as one step of the way, "2 east, face north, climb the vine up": walk the
+steps, press the way it says to face the vine, then press A. Where the way rides more vines, `P`
+says it up to the first and how many more, "then 16 more vines"; press `P` again once you land.
+From the top, the exits list the way down, which drops you to the ground.
+
 **Ramps.** In the Tower of Mastery, in X and Y, a ramp winds up round the tower twice, past the
 stairs on each landing to the top. `P` says each stretch of it as one step of the way, "8 west,
 up the ramp 22 east": hold that key and the ramp carries you round its curve to the next

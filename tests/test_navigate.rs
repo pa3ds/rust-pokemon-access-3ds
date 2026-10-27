@@ -29,6 +29,7 @@ use crate::games::common::field::navigate::{DoorSign, LeadsTo, Navigator, Option
 use crate::games::common::field::things::{
     FURNITURE_SOURCE, Field, Interactable, WARP_SOURCE, place_source,
 };
+use crate::games::common::field::vines::{End, Vines};
 use crate::games::common::touch::{ROW_NEXT, ROW_PREVIOUS, TAP};
 use crate::games::oras::{self, BIG_BOULDER, BUSH, CRACKED_BOULDER};
 use crate::games::xy;
@@ -118,6 +119,7 @@ struct FakeField {
     flat: RefCell<HashSet<Cell>>,
     walls: RefCell<Rc<Walls>>,
     grinds: RefCell<Rc<GrindRails>>,
+    vines: RefCell<Rc<Vines>>,
     /// Steps between open cells a drop apart, as the reader finds them off the ROM's heights.
     cliffs: RefCell<HashSet<(Cell, Cell)>>,
     visit: Slot<Option<(i64, i64)>>,
@@ -157,6 +159,7 @@ impl FakeField {
             flat: RefCell::new(HashSet::new()),
             walls: RefCell::new(Rc::new(Walls::default())),
             grinds: RefCell::new(Rc::new(GrindRails::default())),
+            vines: RefCell::new(Rc::new(Vines::default())),
             cliffs: RefCell::new(HashSet::new()),
             visit: Slot::new(Some((0x08D209B8, 0x6))),
             edit: RefCell::new(None),
@@ -282,6 +285,7 @@ impl FieldSource for FakeField {
             ground.level = self.level.get();
             ground.ladders = self.ladders.borrow().clone();
             ground.raised = self.ramp.get();
+            ground.vines = self.vines.borrow().clone();
             return Ok(ground);
         }
         let mut ground = Ground::of(
@@ -2181,6 +2185,198 @@ fn test_p_short_of_a_thing_never_stops_on_a_grind_rail() {
     let rails = rig.field.grinds.borrow().clone();
     assert!(way.is_some() && !rails.cells.contains(path_of(&way).last().unwrap()));
     assert!(last(&rig.backend).contains("can't continue"));
+}
+
+const COUMARINE_GYM: i64 = 0xBF;
+
+/// Vines on the fake stacked ground, as the reader finds Coumarine Gym's (spike 250).
+fn gym_vines(rig: &Rig, ends: &[End]) {
+    *rig.field.vines.borrow_mut() = Rc::new(Vines::found(ends));
+}
+
+/// `End(number, cell, height, swing, stand, faces)`.
+fn end(number: i64, cell: Cell, height: f64, swing: bool, stand: Cell, faces: &'static str) -> End {
+    End {
+        number,
+        cell,
+        height,
+        swing,
+        stand,
+        faces,
+    }
+}
+
+/// Ramos, the Gym's leader, standing in `cell` at `height`.
+fn ramos(cell: Cell, height: f64) -> Interactable {
+    Interactable {
+        height: Some(height),
+        ..somebody(cell, 0x08D1E9A8)
+    }
+}
+
+/// Coumarine City Gym (x_gym_4_climbed, spike 250): the player faced north at (59.6, 73.4) at
+/// 3, under the vine at (59.6, 72.4), pressed A and landed at (59.6, 74.4) at 148, the spot of
+/// its other end at 145. The step that grabs it and the climb are one leg, said with the way
+/// faced.
+#[test]
+fn test_p_climbs_a_vine_up_from_its_spot_and_goes_on_from_the_other_ends() {
+    let mut rig = navigator(on(Field {
+        interactables: vec![ramos((94, 177), 145.0)],
+        ..Field::new(COUMARINE_GYM, (90, 180))
+    }));
+    {
+        let mut floors = rig.field.floors.borrow_mut();
+        for z in [175, 176, 178, 179, 180] {
+            floors.insert((90, z), (Some(0.0), None));
+        }
+        floors.insert((90, 177), (Some(0.0), Some(145.0)));
+        for x in 91..95 {
+            floors.insert((x, 177), (None, Some(145.0)));
+        }
+    }
+    rig.field.level.set(Some(0.0));
+    gym_vines(
+        &rig,
+        &[
+            end(0x1B, (90, 176), 145.0, false, (90, 177), "north"),
+            end(0x1C, (90, 175), 0.0, false, (90, 176), "north"),
+        ],
+    );
+    rig.press(PATHFIND);
+    assert_eq!(
+        last(&rig.backend),
+        "4 north, face north, climb the vine up, 3 east"
+    );
+}
+
+/// Coumarine Gym's swinging vines hang off the two ends of a gap between platforms of one
+/// level, each touching the end at a corner: x_gym_4_climbed's player swung from (64.8, 74.2)
+/// to (71.2, 67.8), the ends of the platforms either side, ten times so (spike 250).
+#[test]
+fn test_p_swings_on_a_vine_from_the_end_of_a_platform_to_the_next_ones() {
+    let mut rig = navigator(on(Field {
+        interactables: vec![ramos((99, 180), 145.0)],
+        ..Field::new(COUMARINE_GYM, (90, 180))
+    }));
+    for x in [90, 91, 92, 96, 97, 98, 99] {
+        rig.field
+            .floors
+            .borrow_mut()
+            .insert((x, 180), (Some(145.0), None));
+    }
+    rig.field.level.set(Some(145.0));
+    gym_vines(
+        &rig,
+        &[
+            end(1, (93, 179), 145.0, true, (92, 180), "east"),
+            end(2, (95, 179), 145.0, true, (96, 180), "west"),
+        ],
+    );
+    rig.press(PATHFIND);
+    assert_eq!(
+        last(&rig.backend),
+        "2 east, face east, swing on the vine, 2 east"
+    );
+}
+
+/// Khai, climbing Coumarine Gym guided by P (spike 250): every press said all 17 vines to
+/// Ramos and the legs between them, again after every step. The way is said as far as its
+/// first vine, and then how many more it rides.
+#[test]
+fn test_a_way_up_several_vines_is_said_as_far_as_the_first_and_how_many_more() {
+    let mut rig = navigator(on(Field {
+        interactables: vec![ramos((100, 177), 145.0)],
+        ..Field::new(COUMARINE_GYM, (90, 180))
+    }));
+    {
+        let mut floors = rig.field.floors.borrow_mut();
+        for z in [175, 176, 178, 179, 180] {
+            floors.insert((90, z), (Some(0.0), None));
+        }
+        floors.insert((90, 177), (Some(0.0), Some(145.0)));
+        for x in [91, 92, 96, 97, 98, 99] {
+            floors.insert((x, 177), (None, Some(145.0)));
+        }
+    }
+    rig.field.level.set(Some(0.0));
+    gym_vines(
+        &rig,
+        &[
+            end(0x1B, (90, 176), 145.0, false, (90, 177), "north"),
+            end(0x1C, (90, 175), 0.0, false, (90, 176), "north"),
+            end(1, (93, 176), 145.0, true, (92, 177), "east"),
+            end(2, (95, 176), 145.0, true, (96, 177), "west"),
+        ],
+    );
+    rig.press(PATHFIND);
+    assert_eq!(
+        last(&rig.backend),
+        "4 north, face north, climb the vine up, then 1 more vine"
+    );
+}
+
+/// Coumarine Gym (x_gym_4_climbed, spike 250): the way to Ramos climbs the ground's vine from
+/// (59, 73) into (59, 72) and walks the same two cells again at 720, which P said as a second
+/// climb, "1 east, 2 north, face north, climb the vine up, 2 north".
+#[test]
+fn test_a_vine_climbed_is_said_once_where_the_way_walks_its_cells_again_higher_up() {
+    let mut rig = navigator(on(Field {
+        interactables: vec![ramos((90, 172), 145.0)],
+        ..Field::new(COUMARINE_GYM, (90, 178))
+    }));
+    {
+        let mut floors = rig.field.floors.borrow_mut();
+        for z in [176, 178] {
+            floors.insert((90, z), (Some(0.0), Some(145.0)));
+        }
+        floors.insert((90, 177), (Some(0.0), Some(145.0)));
+        for z in [173, 174, 175] {
+            floors.insert((90, z), (None, Some(145.0)));
+        }
+    }
+    rig.field.level.set(Some(0.0));
+    gym_vines(
+        &rig,
+        &[
+            end(0x1B, (91, 177), 145.0, false, (90, 177), "east"),
+            end(0x1C, (90, 175), 0.0, false, (90, 176), "north"),
+        ],
+    );
+    rig.press(PATHFIND);
+    assert_eq!(
+        last(&rig.backend),
+        "2 north, face north, climb the vine up, 4 north"
+    );
+}
+
+/// Coumarine Gym's top level, 720, walks over (59, 72), where the vine at 0 stopped the player
+/// (spike 250): a vine is in the way only at its own level, and there only grabbed.
+#[test]
+fn test_a_vines_cell_is_floor_on_another_level_and_never_walked_into_at_its_own() {
+    for (level, said_as) in [(145.0, "4 east"), (0.0, "1 south, 5 east")] {
+        let mut rig = navigator(on(Field {
+            interactables: vec![ramos((93, 175), level)],
+            ..Field::new(COUMARINE_GYM, (88, 175))
+        }));
+        {
+            let mut floors = rig.field.floors.borrow_mut();
+            for x in 88..94 {
+                floors.insert((x, 175), (Some(0.0), Some(145.0)));
+                floors.insert((x, 176), (Some(0.0), None));
+            }
+            floors.insert((90, 173), (None, Some(145.0)));
+        }
+        rig.field.level.set(Some(level));
+        gym_vines(
+            &rig,
+            &[
+                end(0x1B, (90, 174), 145.0, false, (90, 173), "south"),
+                end(0x1C, (90, 175), 0.0, false, (90, 176), "north"),
+            ],
+        );
+        rig.press(PATHFIND);
+        assert_eq!(last(&rig.backend), said_as, "level {level}");
+    }
 }
 
 /// X's Cyllage Gym (x_gym_2, spike 245): the player walked from the entrance to the blue spot at
