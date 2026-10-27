@@ -1804,6 +1804,61 @@ fn test_a_conveyor_belt_is_ridden_the_way_it_runs_and_walked_round_against_it() 
     Ok(())
 }
 
+/// Dewford Gym's switches and belts were in no list (a user, 2026-10-26). Listed, P's way down
+/// its corridor still walks over both, as before, where another listed trigger is stepped
+/// round: its switches only light the side passages (spike 132).
+#[test]
+fn test_dewford_gyms_switches_and_belts_are_listed_and_walked_over() -> Result<()> {
+    let mut town = Town::new();
+    town.memory.write(
+        FILE,
+        &zone_file(&ZoneSpec {
+            info: &town_info(),
+            triggers: &[(0x9, 90, 175, 3, None, None), (0x5, 91, 177, 1, None, None)],
+            ..ZoneSpec::default()
+        }),
+    );
+    let owned = |(category, kind): (&str, &str)| (category.to_string(), kind.to_string(), None);
+    town.reader = field_reader(
+        town.memory.clone(),
+        Given::default(),
+        Game {
+            belts: IndexMap::from([((TOWN, 0x9), pathfind::SOUTH)]),
+            triggers: IndexMap::from([
+                ((TOWN, 0x9), owned(oras::BELT)),
+                ((TOWN, 0x5), owned(oras::SWITCH)),
+            ]),
+            crossed: HashSet::from([(TOWN, 0x5)]),
+            ..game()
+        },
+    );
+    let r#where = town.r#where()?;
+    let mut kinds: Vec<String> = r#where
+        .of("signs")
+        .iter()
+        .filter(|item| item.code == 0x5 || item.code == 0x9)
+        .map(|item| item.kind.clone())
+        .collect();
+    kinds.sort();
+    assert_eq!(kinds, ["conveyor belt", "switch"]);
+    let ground = town.reader.ground(&r#where)?;
+    let r#box = ground.r#box((91, 174), [(91, 179)])?;
+    let ledge = |cell| ground.ledge(cell);
+    let down = pathfind::find(
+        (91, 174),
+        &goals_of(&[((91, 179), None)]),
+        &|cell| ground.passable(cell),
+        r#box,
+        &pathfind::Options {
+            ledge: Some(&ledge),
+            ..pathfind::Options::default()
+        },
+    )?;
+    let down = down.expect("a way down");
+    assert_eq!(pathfind::spoken(&pathfind::legs(&down, None)?), "5 south");
+    Ok(())
+}
+
 /// Mauville Gym (spike 146): a beam between two posts is a move model at its middle, which the
 /// list called a person. Facing south the beam runs east and west; a switch turns it to face east
 /// and run north and south, and it stands in all three of its cells either way.

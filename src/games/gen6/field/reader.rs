@@ -386,6 +386,8 @@ pub struct FieldReader {
     pub rails: Rails,
     /// (zone, a trigger's script) -> the way the conveyor belt it is runs (`Game.belts`).
     belts: IndexMap<(i64, i64), &'static str>,
+    /// (zone, a trigger's script) of the listed triggers P walks over (`Game.crossed`).
+    crossed: HashSet<(i64, i64)>,
     /// Zones walked about in as outdoors that are not their own parent, out of the ROM
     /// (`plates.outdoors`): a warp off a street into one of them is not a door.
     outdoors: HashSet<i64>,
@@ -571,6 +573,7 @@ impl FieldReader {
                 game.camera,
             ),
             belts: game.belts.clone(),
+            crossed: game.crossed.clone(),
             outdoors: text.outdoors.clone(),
             drawn: game.drawn,
             model_starts: game.models,
@@ -923,6 +926,12 @@ impl FieldReader {
             None
         };
         let belts = self.belts_here(r#where.zone)?;
+        let crossed: HashSet<Cell> = self
+            .trigger_cells(r#where.zone, self.crossed.is_empty(), &|key| {
+                self.crossed.contains(&key)
+            })?
+            .into_keys()
+            .collect();
         let ground_height: Option<GroundHeight> = if stacked {
             None
         } else {
@@ -955,6 +964,7 @@ impl FieldReader {
                     chunks,
                     grid,
                     belts,
+                    crossed,
                     far: if trusted && self.terrain.known() {
                         Some(far)
                     } else {
@@ -1099,22 +1109,40 @@ impl FieldReader {
     /// The cells of the zone's conveyor belts, each with the way it runs: its triggers whose
     /// scripts `Game.belts` knows as belts.
     fn belts_here(&self, zone: i64) -> Result<IndexMap<Cell, &'static str>> {
+        Ok(self
+            .trigger_cells(zone, self.belts.is_empty(), &|key| {
+                self.belts.contains_key(&key)
+            })?
+            .into_iter()
+            .map(|(cell, key)| (cell, self.belts[&key]))
+            .collect())
+    }
+
+    /// The cells of the zone's triggers whose (zone, script) `known` holds, each with it.
+    /// `none` is whether `known` is empty.
+    fn trigger_cells(
+        &self,
+        zone: i64,
+        none: bool,
+        known: &dyn Fn((i64, i64)) -> bool,
+    ) -> Result<IndexMap<Cell, (i64, i64)>> {
         let data = self.current()?;
-        let Some(data) = data.filter(|_| !self.belts.is_empty()) else {
+        let Some(data) = data.filter(|_| !none) else {
             return Ok(IndexMap::new());
         };
         let Some(home) = self.home(&data, &[zone])? else {
             return Ok(IndexMap::new());
         };
-        let mut out: IndexMap<Cell, &'static str> = IndexMap::new();
+        let mut out: IndexMap<Cell, (i64, i64)> = IndexMap::new();
         for record in read_triggers(&*self.memory, &data)? {
-            let Some(&way) = self.belts.get(&(home, u16(&record, TRIGGER_SCRIPT)?)) else {
+            let key = (home, u16(&record, TRIGGER_SCRIPT)?);
+            if !known(key) {
                 continue;
-            };
+            }
             let (x, z) = (u16(&record, TRIGGER_X)?, u16(&record, TRIGGER_Z)?);
             for dx in 0..u16(&record, TRIGGER_WIDTH)? {
                 for dz in 0..u16(&record, TRIGGER_HEIGHT)? {
-                    out.insert((x + dx, z + dz), way);
+                    out.insert((x + dx, z + dz), key);
                 }
             }
         }

@@ -279,6 +279,10 @@ pub struct Game {
     /// everywhere, since the player dives to it in a zone the zone table does not put under the
     /// sea.
     pub hidden_triggers: HashSet<(i64, i64)>,
+    /// (zone, a trigger's script) of the listed triggers P walks over on its way, where any other
+    /// is stepped round: Dewford Gym's switches, in the corridor its belts carry the player down,
+    /// which light its side passages and turn nothing (spike 132). A belt is walked over too.
+    pub crossed: HashSet<(i64, i64)>,
     /// The readers of what else it has on its field to list, each in its own words: ORAS's berry
     /// spots and Route 113's ash piles (`games.oras.field.berries`, `games.oras.field.ash`).
     pub features: Vec<FeatureFactory>,
@@ -411,6 +415,7 @@ impl Game {
             secret_bases: None,
             hidden_items: 0x44C,
             hidden_triggers: HashSet::new(),
+            crossed: HashSet::new(),
             features: Vec::new(),
             doors: None,
             ice: None,

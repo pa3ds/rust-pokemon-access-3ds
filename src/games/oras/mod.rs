@@ -549,6 +549,12 @@ pub fn belts() -> &'static IndexMap<(i64, i64), &'static str> {
     })
 }
 
+/// Dewford Gym's red floor switches, one cell each at (17, 31), (17, 25) and (17, 18), by their
+/// triggers' scripts (spike 132), which light the dark side passages. Listed with the belts, as a
+/// user asked (2026-10-26), and walked over on P's way (`Game.crossed`).
+pub const DEWFORD_SWITCHES: [(i64, i64); 3] =
+    [(DEWFORD_GYM, 0x5), (DEWFORD_GYM, 0x6), (DEWFORD_GYM, 0x7)];
+
 pub const MAUVILLE_GYM: i64 = 0x1B8;
 pub const STOPPER3: i64 = 0x138;
 
@@ -573,6 +579,7 @@ pub const MOSSDEEP_GYM: i64 = 0x1BB;
 pub const SOOTOPOLIS_GYM: i64 = 0x1BC;
 pub const SWITCH: (&str, &str) = ("signs", "switch");
 pub const PASSAGE: (&str, &str) = ("exits", "passage");
+pub const BELT: (&str, &str) = ("signs", "conveyor belt");
 pub const TRAPDOOR: (&str, &str) = ("exits", "trapdoor");
 pub const GEYSER: (&str, &str) = ("exits", "geyser");
 pub const LIFT: (&str, &str) = ("exits", "lift");
@@ -595,6 +602,8 @@ pub const CONTROL_ROOM: i64 = 0x9A;
 /// (`Game.hidden_triggers`).
 pub const SCANNER: i64 = 0x2;
 
+/// Dewford Gym's switches and belts (`DEWFORD_SWITCHES`, `BELTS`).
+///
 /// Mauville Gym's triggers, by their scripts (spike 146): its five floor switches, each one cell,
 /// the two by the entrance at (58, 38) and (66, 38), the three by Wattson at (5, 40), (13, 36) and
 /// (13, 44); and the ends of the way between its two rooms, which share no floor, three cells wide
@@ -669,6 +678,12 @@ pub fn triggers() -> &'static IndexMap<(i64, i64), (String, String, Option<i64>)
     TRIGGERS.get_or_init(|| {
         let owned = |(category, kind): (&str, &str)| (category.to_string(), kind.to_string(), None);
         let mut out = IndexMap::new();
+        for key in DEWFORD_SWITCHES {
+            out.insert(key, owned(SWITCH));
+        }
+        for &key in belts().keys() {
+            out.insert(key, owned(BELT));
+        }
         for script in 0x4..0x9 {
             out.insert((MAUVILLE_GYM, script), owned(SWITCH));
         }
@@ -900,6 +915,7 @@ pub fn game() -> &'static Game {
         pickups: HashSet::from([KIRAKIRA]),
         elevators: ELEVATORS.collect(),
         hidden_triggers: HashSet::from([(CONTROL_ROOM, SCANNER)]),
+        crossed: HashSet::from(DEWFORD_SWITCHES),
         player_looks: PLAYER_LOOKS.collect(),
         stairs: HashSet::from([SOOTOPOLIS_GYM]),
         apps: vec![Soaring::of],
