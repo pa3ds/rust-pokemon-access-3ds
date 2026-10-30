@@ -23,6 +23,9 @@ ends on a plaza you walk freely, the exits list that end as "open ground": walk 
 its own exits are listed. In X and Y, a gate is said with the place beyond it: "Lumiose Gate to
 Route 4".
 
+In Laverre Gym, in X and Y, the interactables list each teleporter with where it puts you, and `P`
+leads you through them, saying the way as far as the first and how many more.
+
 The list has three **modes**, and the apostrophe steps through them. During a battle or a scene
 the map's keys say "no map", and the thing you had chosen is kept for when the map comes back.
 Touch mode and the battle's keys work throughout.

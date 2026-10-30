@@ -1,5 +1,9 @@
 //! Where the player can walk: the chunks' cells, the grid of zones, a rail's corridor, rooms of
 //! thin ice and rotating doors, and the moves that clear the way.
+//!
+//! Bound by:
+//! - ADR-0024: a teleporter within its zone is walked onto and carries the player, a move of P's way
+//!   and of ctrl+P's walk out alike, and the partner it puts them on does nothing until stepped off.
 
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
