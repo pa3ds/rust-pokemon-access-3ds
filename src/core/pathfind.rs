@@ -228,7 +228,6 @@ const ARRIVED: State<'static> = ((0, 0), "arrived", Vec::new());
 
 /// `find`'s arguments after `box`, each as the Python defaults it: pass what differs with
 /// `..Options::default()`. A callable that is None is the Python's default lambda.
-#[derive(Default)]
 pub struct Options<'a> {
     pub heading: &'a str,
     pub ledge: Option<&'a dyn Fn(Cell) -> Result<Option<&'static str>>>,
@@ -244,6 +243,29 @@ pub struct Options<'a> {
     pub slide: Option<&'a dyn Fn(Cell) -> Result<bool>>,
     pub stops: Option<&'a dyn Fn(Cell, &[i64]) -> bool>,
     pub leap: Option<&'a dyn Fn(&[i64], Cell) -> Option<Cell>>,
+    pub straight: bool,
+}
+
+impl Default for Options<'_> {
+    fn default() -> Self {
+        Options {
+            heading: "",
+            ledge: None,
+            toll: None,
+            closest: false,
+            joined: None,
+            turns: Vec::new(),
+            through: None,
+            over: None,
+            arrives: None,
+            carry: None,
+            slants: None,
+            slide: None,
+            stops: None,
+            leap: None,
+            straight: true,
+        }
+    }
 }
 
 /// The way of the compass `going` is, as `STEPS` holds it, or "" where it is none: a diagonal,
@@ -351,7 +373,9 @@ impl Ord for Entry<'_> {
 ///
 /// A* over (cell, heading), since a turn has a price and the same cell entered two ways is two
 /// different places to go on from. The estimate is the distance to the goals' box, which never
-/// overstates, so the first goal reached is the cheapest.
+/// overstates, so the first goal reached is the cheapest. `straight` says the way is no
+/// shorter than that distance; where `leap` can carry the player further than its price, as a
+/// teleporter across Laverre Gym does for four, it is False, and the search goes by cost alone.
 pub fn find(
     start: Cell,
     goals: &IndexMap<Cell, Option<&'static str>>,
@@ -374,6 +398,7 @@ pub fn find(
         slide,
         stops,
         leap,
+        straight,
     } = options;
     if goals.is_empty() {
         return Ok(None);
@@ -545,7 +570,7 @@ pub fn find(
                 if price < spent.get(&onward).copied().unwrap_or(price + 1) {
                     spent.insert(onward.clone(), price);
                     came.insert(onward.clone(), state.clone());
-                    let left = estimate(step);
+                    let left = if *straight { estimate(step) } else { 0 };
                     frontier.push(Entry {
                         key: (price + left, left, order),
                         state: onward,

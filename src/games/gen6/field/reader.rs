@@ -886,13 +886,13 @@ impl FieldReader {
                 .borrow()
                 .clone()
                 .map(|corridor| corridor as Rc<dyn common::Corridor>);
-            return Ok(Ground::of(
+            return Ground::of(
                 r#where,
                 Of {
                     corridor,
                     ..Of::default()
                 },
-            ));
+            );
         }
         let bases = &self.secret_bases;
         let ice = match &self.ice {
@@ -1001,7 +1001,6 @@ impl FieldReader {
             hops,
             falls,
             surfaces,
-            stacked,
             level,
             ice,
             filled,
@@ -1026,9 +1025,10 @@ impl FieldReader {
                     clears: self.clears.clone(),
                     through: self.lurkers.clone(),
                     solid,
+                    stacked,
                     ..Of::default()
                 },
-            )
+            )?
         };
         if let Some(vines) = self.vines(r#where.zone)? {
             ground.vines = vines;

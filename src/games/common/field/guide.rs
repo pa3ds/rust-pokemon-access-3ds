@@ -1926,7 +1926,7 @@ impl Guide {
         heading: &str,
     ) -> Result<()> {
         let listed = self.field.interactables(r#where)?;
-        if Ground::of(&listed, Of::default())
+        if Ground::of(&listed, Of::default())?
             .stepped
             .contains(&r#where.cell)
         {

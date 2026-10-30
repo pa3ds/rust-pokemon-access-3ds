@@ -382,10 +382,10 @@ impl SunFieldReader {
     pub fn ground(&self, r#where: &Field) -> Result<Ground> {
         let found = self.r#where()?;
         let (Some(found), Some(walls)) = (found, &self.walls) else {
-            return Ok(Ground::of(r#where, Of::default()));
+            return Ground::of(r#where, Of::default());
         };
         let Some(walls) = walls.area(found.1)? else {
-            return Ok(Ground::of(r#where, Of::default()));
+            return Ground::of(r#where, Of::default());
         };
         let turn = self.turn.get();
         let standing = unturned(r#where.cell, turn);
@@ -408,7 +408,7 @@ impl SunFieldReader {
                 chunks: chunks.into_iter().map(Rc::new).collect(),
                 ..Of::default()
             },
-        );
+        )?;
         let drawn: Vec<(f64, f64)> = self
             .drawn(found.2)?
             .into_iter()

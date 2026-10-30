@@ -2557,7 +2557,7 @@ fn test_a_person_behind_a_counter_is_talked_to_across_it() -> Result<()> {
             chunks: vec![Rc::new(Chunk::new((0, 0), words))],
             ..Of::default()
         },
-    );
+    )?;
     assert_eq!(
         ground.goals(&nurse)?,
         goals_of(&[((19, 17), Some(pathfind::NORTH))])

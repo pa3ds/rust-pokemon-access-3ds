@@ -27,7 +27,7 @@ use crate::games::common::field::keys::{
 };
 use crate::games::common::field::navigate::{DoorSign, LeadsTo, Navigator, Options, Sides, Street};
 use crate::games::common::field::things::{
-    FURNITURE_SOURCE, Field, Interactable, WARP_SOURCE, place_source,
+    FURNITURE_SOURCE, Field, Interactable, TRIGGER_SOURCE, WARP_SOURCE, place_source,
 };
 use crate::games::common::field::vines::{End, Vines};
 use crate::games::common::touch::{DRAG, ROW_NEXT, ROW_PREVIOUS, TAP};
@@ -285,10 +285,10 @@ impl FieldSource for FakeField {
                         floors: stack,
                         ..Chunk::new(origin, words)
                     })],
+                    stacked: true,
                     ..Of::default()
                 },
-            );
-            ground.stacked = true;
+            )?;
             ground.level = self.level.get();
             ground.ladders = self.ladders.borrow().clone();
             ground.raised = self.ramp.get();
@@ -303,7 +303,7 @@ impl FieldSource for FakeField {
                 clears: oras::game().clears.clone(),
                 ..Of::default()
             },
-        );
+        )?;
         ground.ice = self.ice.borrow().clone();
         ground.hops = bumpy
             .iter()
@@ -2410,6 +2410,123 @@ fn test_a_vines_cell_is_floor_on_another_level_and_never_walked_into_at_its_own(
         rig.press(PATHFIND);
         assert_eq!(last(&rig.backend), said_as, "level {level}");
     }
+}
+
+/// A teleporter as the reader lists Laverre Gym's (spike A).
+fn panel(i: i64, cell: Cell, height: f64, lands: Cell, landing: f64) -> Interactable {
+    Interactable {
+        source: place_source(TRIGGER_SOURCE, i).unwrap(),
+        height: Some(height),
+        arrival: Some(lands),
+        landing: Some(landing),
+        ..Interactable::new("signs", "teleporter", cell)
+    }
+}
+
+/// A pair of panels each putting the player on the other, and one from by the player up to the
+/// far side of the room above.
+fn laverre_panels() -> Vec<Interactable> {
+    vec![
+        panel(0, (94, 172), 0.0, (100, 172), 90.0),
+        panel(1, (100, 172), 90.0, (94, 172), 0.0),
+        panel(2, (91, 172), 0.0, (103, 171), 90.0),
+    ]
+}
+
+/// Two rooms of Laverre Gym's a floor apart and side by side, no floor joining them, the lower
+/// x 90 to 94 at 0, the upper x 100 to 104 at 90, z 170 to 174, with `LAVERRE_PANELS` and
+/// `items`, the player at `at` on the floor at `level` (spike A).
+///
+/// Python's `at` and `level` default to (92, 172) and 0.0.
+fn laverre_gym(items: &[Interactable], at: Cell, level: f64) -> (Rig, Field) {
+    let r#where = Field {
+        interactables: laverre_panels()
+            .into_iter()
+            .chain(items.iter().cloned())
+            .collect(),
+        height: Some(level),
+        ..Field::new(xy::LAVERRE_GYM, at)
+    };
+    let rig = navigator(on(r#where.clone()));
+    {
+        let mut floors = rig.field.floors.borrow_mut();
+        for z in 170..175 {
+            for x in 90..95 {
+                floors.insert((x, z), (Some(0.0), None));
+            }
+            for x in 100..105 {
+                floors.insert((x, z), (None, Some(90.0)));
+            }
+        }
+    }
+    rig.field.level.set(Some(level));
+    (rig, r#where)
+}
+
+fn gym_way(rig: &Rig, r#where: &Field, item: &Interactable) -> (Ground, Vec<Cell>) {
+    let ground = rig.field.ground(r#where).unwrap();
+    let path = ground
+        .find(
+            r#where.cell,
+            &ground.goals(item).unwrap(),
+            "",
+            Some(item),
+            false,
+            None,
+        )
+        .unwrap()
+        .expect("a way");
+    (ground, path)
+}
+
+/// Laverre Gym (spike A): a teleporter stepped onto puts the player on its partner's panel on
+/// the floor above, and the way goes on from there, that panel doing nothing until stepped off
+/// and back onto.
+#[test]
+fn test_a_way_through_a_teleporter_goes_on_from_its_partner_which_does_not_fire() {
+    let grant = Interactable {
+        height: Some(90.0),
+        ..somebody((100, 170), 0x08D1E9A8)
+    };
+    let (rig, r#where) = laverre_gym(std::slice::from_ref(&grant), (92, 172), 0.0);
+    let (ground, path) = gym_way(&rig, &r#where, &grant);
+    assert_eq!(
+        path,
+        vec![(92, 172), (93, 172), (94, 172), (100, 172), (100, 171)]
+    );
+    assert_eq!(ground.walked(&path).unwrap(), vec![0, 0, 0, 1, 1]);
+    assert_eq!(ground.teleported(&path).unwrap(), HashSet::from([3]));
+}
+
+/// The distance to the goals is no measure of a way across a teleporter: the one a step west,
+/// away from the person, puts the player beside them, where the nearer the person as the crow
+/// flies leaves 3 east 1 north to walk.
+#[test]
+fn test_of_two_teleporters_the_way_takes_the_cheaper_however_far_from_the_goal_it_stands() {
+    let grant = Interactable {
+        height: Some(90.0),
+        ..somebody((103, 170), 0x08D1E9A8)
+    };
+    let (rig, r#where) = laverre_gym(std::slice::from_ref(&grant), (92, 172), 0.0);
+    assert_eq!(
+        gym_way(&rig, &r#where, &grant).1,
+        vec![(92, 172), (91, 172), (103, 171)]
+    );
+}
+
+/// Ctrl and P's walk out follows teleporters as P does, and a teleporter nothing puts the
+/// player onto is reached as a way to it ends on it.
+#[test]
+fn test_the_walk_out_reaches_the_room_a_teleporter_leads_to_and_the_teleporter() {
+    let (rig, r#where) = laverre_gym(&[], (92, 172), 0.0);
+    let reached = rig
+        .field
+        .ground(&r#where)
+        .unwrap()
+        .reached((92, 172), &[(104, 174), (91, 172)])
+        .unwrap();
+    assert_eq!(reached[&(104, 174)], HashSet::from([1]));
+    assert_eq!(reached[&(91, 172)], HashSet::from([0]));
 }
 
 /// X's Cyllage Gym (x_gym_2, spike 245): the player walked from the entrance to the blue spot at
