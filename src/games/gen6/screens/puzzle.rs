@@ -14,11 +14,12 @@
 //! ```
 //!
 //! So each tile is said by its row and column and where its piece belongs: "row 1, column 2, in
-//! place", "row 1, column 2, goes to row 3, column 4". Saying where a piece belongs is more than a
-//! sighted player is told, who sees the picture whole and matches each piece by what is on it; it
-//! is on for now (Orion, 2026-10-26), until movies of more puzzles show how the game chooses its
-//! pictures and cuts them, and the tiles can be said as they look. Then where a piece belongs
-//! becomes an Extra, an easy mode a player turns on.
+//! place", "row 1, column 2, goes to row 3, column 4"; touch mode's keys moving from tile to tile
+//! say only the row or the column that changed, "column 3, in place". Saying where a piece belongs
+//! is more than a sighted player is told, who sees the picture whole and matches each piece by
+//! what is on it; it is on for now (Orion, 2026-10-26), until movies of more puzzles show how the
+//! game chooses its pictures and cuts them, and the tiles can be said as they look. Then where a
+//! piece belongs becomes an Extra, an easy mode a player turns on.
 //!
 //! Normal, Hard and Unlimited are not measured: a board of other than twenty pieces is not read.
 
@@ -30,7 +31,7 @@ use crate::core::binary::{f32, u32};
 use crate::core::memory::Memory;
 use crate::core::words::own;
 use crate::games::common::layout::Layouts;
-use crate::games::common::touch::{HEIGHT, WIDTH};
+use crate::games::common::touch::{HEIGHT, Target, WIDTH};
 use crate::py::{self, Result};
 
 pub const CLASS: &str = "N3app6puzzle5PieceE";
@@ -53,6 +54,8 @@ pub const STEP: i64 = 60;
 pub const SLACK: i64 = 6;
 
 pub const GRID: &str = "slot-grid";
+pub const ROW: &str = "puzzle-row";
+pub const COLUMN: &str = "puzzle-column";
 pub const HOME: &str = "puzzle-home";
 pub const GOES: &str = "puzzle-goes";
 pub const PICKED_WORD: &str = "puzzle-picked";
@@ -123,18 +126,37 @@ impl TilePuzzle {
         let (Some(slot), Some(board)) = (slot, board) else {
             return Ok(None);
         };
-        let (home, picked) = board[&slot];
-        let tile = place(slot);
-        let said = if home == slot {
-            own(HOME, &[("tile", &tile)])
-        } else {
-            own(GOES, &[("tile", &tile), ("home", &place(home))])
+        Ok(Some(said(slot, &board, &place(slot))))
+    }
+
+    /// Touch mode's key moving from one tile to another: only the row or the column that
+    /// changed, then where its piece belongs, "column 3, in place" (Orion, 2026-10-26); None
+    /// for its whole name, staying on one or moving off the grid.
+    pub fn moved(&self, before: &Target, now: &Target) -> Result<Option<String>> {
+        let (old, new) = (
+            cell(before.x as f64, before.y as f64)?,
+            cell(now.x as f64, now.y as f64)?,
+        );
+        let board = match (old, new) {
+            (Some(_), Some(_)) => self.board()?,
+            _ => None,
         };
-        Ok(Some(if picked {
-            own(PICKED_WORD, &[("tile", &said)])
+        let (Some(old), Some(new), Some(board)) = (old, new, board) else {
+            return Ok(None);
+        };
+        if old == new {
+            return Ok(None);
+        }
+        let ((row, column), (was_row, was_column)) =
+            ((new / ACROSS, new % ACROSS), (old / ACROSS, old % ACROSS));
+        let tile = if row != was_row && column != was_column {
+            place(new)
+        } else if row != was_row {
+            own(ROW, &[("row", &(row + 1))])
         } else {
-            said
-        }))
+            own(COLUMN, &[("column", &(column + 1))])
+        };
+        Ok(Some(said(new, &board, &tile)))
     }
 
     /// The slot a picture lies over, by its middle: None off the grid.
@@ -146,20 +168,41 @@ impl TilePuzzle {
         };
         let shape = layouts.shape;
         let (head, root) = (layouts.pane(picture)?, layouts.pane(placement.root)?);
-        let x = WIDTH as f64 / 2.0 + f32(&head, shape.x)? - f32(&root, shape.x)?;
-        let y = HEIGHT as f64 / 2.0 - (f32(&head, shape.y)? - f32(&root, shape.y)?);
-        let (column, row) = (
-            py::round((x - LEFT as f64) / STEP as f64)?,
-            py::round((y - TOP as f64) / STEP as f64)?,
-        );
-        if !((0..ACROSS).contains(&column)
-            && (0..PIECES / ACROSS).contains(&row)
-            && (x - LEFT as f64 - (column * STEP) as f64).abs() <= SLACK as f64
-            && (y - TOP as f64 - (row * STEP) as f64).abs() <= SLACK as f64)
-        {
-            return Ok(None);
-        }
-        Ok(Some(row * ACROSS + column))
+        cell(
+            WIDTH as f64 / 2.0 + f32(&head, shape.x)? - f32(&root, shape.x)?,
+            HEIGHT as f64 / 2.0 - (f32(&head, shape.y)? - f32(&root, shape.y)?),
+        )
+    }
+}
+
+/// The slot whose middle a pixel is, or None off the grid.
+fn cell(x: f64, y: f64) -> Result<Option<i64>> {
+    let (column, row) = (
+        py::round((x - LEFT as f64) / STEP as f64)?,
+        py::round((y - TOP as f64) / STEP as f64)?,
+    );
+    if !((0..ACROSS).contains(&column)
+        && (0..PIECES / ACROSS).contains(&row)
+        && (x - LEFT as f64 - (column * STEP) as f64).abs() <= SLACK as f64
+        && (y - TOP as f64 - (row * STEP) as f64).abs() <= SLACK as f64)
+    {
+        return Ok(None);
+    }
+    Ok(Some(row * ACROSS + column))
+}
+
+/// A tile, said as `tile`, then where its piece belongs and whether it is picked.
+fn said(slot: i64, board: &IndexMap<i64, (i64, bool)>, tile: &str) -> String {
+    let (home, picked) = board[&slot];
+    let said = if home == slot {
+        own(HOME, &[("tile", &tile)])
+    } else {
+        own(GOES, &[("tile", &tile), ("home", &place(home))])
+    };
+    if picked {
+        own(PICKED_WORD, &[("tile", &said)])
+    } else {
+        said
     }
 }
 

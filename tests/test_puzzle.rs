@@ -5,6 +5,7 @@ use indexmap::IndexMap;
 use super::fake_layouts::FakeLayouts;
 use super::fake_memory::{FakeClasses, FakeMemory};
 use crate::games::common::lyt;
+use crate::games::common::touch::Target;
 use crate::games::gen6::screens::puzzle;
 
 const SCREEN: i64 = 0x08300000;
@@ -73,6 +74,34 @@ fn test_a_tile_says_its_place_and_where_its_piece_belongs() {
     assert_eq!(
         reader.name(frames[7]).unwrap().as_deref(),
         Some("row 2, column 3, in place")
+    );
+}
+
+#[test]
+fn test_a_move_says_only_the_row_or_column_that_changed() {
+    // Orion, 2026-10-26: O, O, O and L from row 1, column 2 say "row 2", "row 3", "row 4",
+    // "column 3", each with where the tile's piece belongs.
+    let mut slots: Vec<i64> = (0..puzzle::PIECES).collect();
+    (slots[14], slots[0]) = (0, 14);
+    let (reader, _) = board(&slots, Some(0));
+    let tile = |slot: i64| {
+        let (row, column) = (slot / puzzle::ACROSS, slot % puzzle::ACROSS);
+        Target::new(slot, "", 40 + 60 * column, 30 + 60 * row, 0.0, 58.0)
+    };
+    let moved = |before: Target, now: Target| reader.moved(&before, &now).unwrap();
+    assert_eq!(moved(tile(1), tile(6)).as_deref(), Some("row 2, in place"));
+    assert_eq!(
+        moved(tile(13), tile(14)).as_deref(),
+        Some("column 5, goes to row 1, column 1")
+    );
+    assert_eq!(
+        moved(tile(19), tile(0)).as_deref(),
+        Some("row 1, column 1, goes to row 3, column 5, picked")
+    );
+    assert_eq!(moved(tile(7), tile(7)), None);
+    assert_eq!(
+        moved(tile(7), Target::new(99, "", 300, 225, 0.0, 20.0)),
+        None
     );
 }
 

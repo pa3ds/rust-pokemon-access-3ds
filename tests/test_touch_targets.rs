@@ -48,6 +48,11 @@ struct Screen {
 
 impl Screen {
     fn new(found: Vec<Target>) -> Self {
+        Screen::with_moved(found, None)
+    }
+
+    /// `Screen(found, moved)`.
+    fn with_moved(found: Vec<Target>, moved: Option<touch::Moved>) -> Self {
         let tapped: Rc<RefCell<Vec<(i64, i64)>>> = Rc::new(RefCell::new(Vec::new()));
         let slid: Rc<RefCell<Vec<(Vec<(i64, i64)>, f64)>>> = Rc::new(RefCell::new(Vec::new()));
         let kept = slid.clone();
@@ -75,6 +80,7 @@ impl Screen {
                     kept.borrow_mut().push((path.to_vec(), seconds));
                     None
                 })),
+                moved,
                 ..Options::default()
             },
         );
@@ -120,8 +126,52 @@ fn test_targets_are_walked_row_by_row_from_the_top() {
     );
     assert_eq!(screen.press(touch::ITEM_PREVIOUS), "BAG");
     assert_eq!(screen.press(touch::ROW_NEXT), "DexNav");
-    assert_eq!(screen.press(touch::ROW_PREVIOUS), "POKÉMON");
-    assert_eq!(screen.press(touch::ITEM_READ), "POKÉMON");
+    assert_eq!(screen.press(touch::ROW_PREVIOUS), "BAG");
+    assert_eq!(screen.press(touch::ITEM_READ), "BAG");
+}
+
+#[test]
+fn test_a_row_key_moves_straight_up_or_down() {
+    // Orion, 2026-10-26: Tile Puzzle's grid walked by column, to the nearest across.
+    let grid: Vec<Target> = (0..6)
+        .map(|i: i64| {
+            let name = format!("{}{}", ['a', 'b'][(i / 3) as usize], i % 3);
+            Target::new(
+                20 + i,
+                &name,
+                40 + 60 * (i % 3),
+                30 + 60 * (i / 3),
+                90.0 - 60.0 * (i / 3) as f64,
+                58.0,
+            )
+        })
+        .collect();
+    let mut screen = Screen::new(grid);
+    screen.start();
+    screen.press(touch::ITEM_NEXT);
+    assert_eq!(
+        (0..2)
+            .map(|_| screen.press(touch::ROW_NEXT))
+            .collect::<Vec<_>>(),
+        ["b1", "a1"]
+    );
+    assert_eq!(screen.press(touch::ROW_PREVIOUS), "b1");
+}
+
+#[test]
+fn test_a_move_can_be_said_otherwise_than_by_the_name() {
+    // Tile Puzzle says only the row or the column that changed; staying put says the name.
+    let moved: touch::Moved = Rc::new(|before: &Target, now: &Target| {
+        Ok(if before == now {
+            None
+        } else {
+            Some(format!("from {}", before.name))
+        })
+    });
+    let mut screen = Screen::with_moved(bar(), Some(moved));
+    screen.start();
+    assert_eq!(screen.press(touch::ITEM_NEXT), "from POKÉMON");
+    assert_eq!(screen.press(touch::ITEM_READ), "POKÉDEX");
 }
 
 /// ADR-0009: with nothing chosen, and once the chosen target has left the screen, the tap key

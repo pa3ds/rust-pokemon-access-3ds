@@ -261,6 +261,10 @@ amie-stroke = stroke { $pokemon }
 # column 4". The game says neither.
 puzzle-home = { $tile }, in place
 puzzle-goes = { $tile }, goes to { $home }
+# Moving to the next tile says only the row or the column that changed, in place of slot-grid:
+# "column 3, in place".
+puzzle-row = row { $row }
+puzzle-column = column { $column }
 # The tile tapped first, which the next tap swaps with.
 puzzle-picked = { $tile }, picked
 

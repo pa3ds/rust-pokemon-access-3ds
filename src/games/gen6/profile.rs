@@ -846,6 +846,16 @@ impl Gen6Profile {
                         )
                     })
                 }),
+                moved: Some({
+                    let (apps, puzzle) = (apps.clone(), puzzle.clone());
+                    Rc::new(move |before: &touch::Target, now: &touch::Target| {
+                        if apps.borrow().running.as_deref() == Some(puzzle::APP) {
+                            puzzle.borrow().moved(before, now)
+                        } else {
+                            Ok(None)
+                        }
+                    })
+                }),
                 gestures: Some({
                     let (amie, goals, waiting, bags, apps) = (
                         amie.clone(),

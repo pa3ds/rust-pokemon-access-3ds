@@ -156,6 +156,9 @@ pub type Places = Rc<dyn Fn() -> Result<Rc<IndexMap<String, String>>>>;
 pub type Slide = Rc<dyn Fn(&[(i64, i64)], f64) -> Option<String>>;
 /// `Callable[[], list[Target]]`: targets no touch area draws. It reads memory.
 pub type Gestures = Rc<dyn Fn() -> Result<Vec<Target>>>;
+/// `Callable[[Target, Target], str | None]`: what a key moving from one target to another says.
+/// It reads memory.
+pub type Moved = Rc<dyn Fn(&Target, &Target) -> Result<Option<String>>>;
 
 /// `TouchTargets.__init__`'s keyword arguments, each as the Python defaults it: set what differs
 /// with `..Options::default()`.
@@ -173,6 +176,7 @@ pub struct Options {
     pub off: Option<Off>,
     pub said_off: Option<SaidOff>,
     pub places: Option<Places>,
+    pub moved: Option<Moved>,
 }
 
 /// The bottom screen's touch targets, and the one touch mode is on.
@@ -211,6 +215,9 @@ pub struct TouchTargets {
     /// The AreaNav's map's touch areas by pane name -> the place each is, while the map is the
     /// screen's and not the field's window onto it; none otherwise.
     places: Option<Places>,
+    /// What a key moving from one target to another says in place of the second's name, or
+    /// None for its name: Tile Puzzle's tiles say only the row or column that changed.
+    moved: Option<Moved>,
     chosen: Option<i64>,
     /// Touch area -> what it was last called (rule 4).
     named: IndexMap<i64, (String, HashSet<i64>)>,
@@ -248,6 +255,7 @@ impl TouchTargets {
             off,
             said_off,
             places,
+            moved,
         } = options;
         TouchTargets {
             layouts,
@@ -267,6 +275,7 @@ impl TouchTargets {
             off,
             said_off,
             places,
+            moved,
             chosen: None,
             named: IndexMap::new(),
             unnamed: HashSet::new(),
@@ -282,7 +291,7 @@ impl TouchTargets {
         let found = self.targets()?;
         self.chosen = found.first().map(|target| target.pane);
         Ok(match found.first() {
-            Some(first) => self.said(first),
+            Some(first) => self.said(first, None),
             None => own(NOTHING, &[]),
         })
     }
@@ -302,7 +311,7 @@ impl TouchTargets {
             .position(|target| Some(target.pane) == self.chosen)
         else {
             self.chosen = Some(found[0].pane);
-            return Ok(self.said(&found[0]));
+            return Ok(self.said(&found[0], None));
         };
         if action == TAP {
             let target = &found[at];
@@ -331,6 +340,7 @@ impl TouchTargets {
             ));
             return Ok(tap(target.x, target.y).unwrap_or_default());
         }
+        let before = found[at].clone();
         if action == ITEM_NEXT {
             at = py::modulo(at as i64 + 1, found.len() as i64) as usize;
         } else if action == ITEM_PREVIOUS {
@@ -341,22 +351,35 @@ impl TouchTargets {
                 .iter()
                 .position(|members| members.contains(&at))
                 .expect("every target is in a row");
+            // Straight up or down, to the nearest across: a grid's column kept (Orion,
+            // 2026-10-26, Tile Puzzle).
             let step = if action == ROW_NEXT { 1 } else { -1 };
-            at = lines[py::modulo(row as i64 + step, lines.len() as i64) as usize][0];
+            let x = found[at].x;
+            at = *lines[py::modulo(row as i64 + step, lines.len() as i64) as usize]
+                .iter()
+                .min_by_key(|&&i| (found[i].x - x).abs())
+                .expect("a row has a target");
         }
         self.chosen = Some(found[at].pane);
-        Ok(self.said(&found[at]))
+        let moved = match &self.moved {
+            Some(moved) => moved(&before, &found[at])?,
+            None => None,
+        };
+        Ok(self.said(&found[at], moved))
     }
 
-    /// A target's name, with its tone, as the key chooses it.
-    fn said(&self, target: &Target) -> String {
+    /// A target's name, or `line` in its place, with its tone, as the key chooses it.
+    fn said(&self, target: &Target, line: Option<String>) -> String {
         if let Some(tone) = &self.tone {
             tone(
                 target.x as f64 / WIDTH as f64,
                 target.y as f64 / HEIGHT as f64,
             );
         }
-        target.name.clone()
+        match line {
+            Some(line) if !line.is_empty() => line,
+            _ => target.name.clone(),
+        }
     }
 
     /// Every touch area drawn on the bottom screen that can be named, in reading order.
