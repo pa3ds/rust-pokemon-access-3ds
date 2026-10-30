@@ -975,6 +975,65 @@ fn test_a_touch_area_holding_no_such_picture_is_not_named_by_one_lying_in_it() {
     assert!(targets.targets().unwrap().is_empty());
 }
 
+/// Amie's strip across its top bar, `3t`, hangs from the layout's root over its bar of Poké
+/// Puffs, each a button of its own, and took the Sweet Poké Puff's name, and kept it with the
+/// bar hidden (or_amie_pokepuffs).
+#[test]
+fn test_a_touch_area_is_named_by_no_picture_of_a_button_inside_it_nor_one_hidden() {
+    let memory = FakeMemory::new();
+    let classes = FakeClasses::new(memory.clone());
+    let fake = FakeLayouts::new(&memory, &classes);
+    let (bounding, picture) = (
+        classes.add(lyt::BOUNDING_CLASS),
+        classes.add(lyt::PICTURE_CLASS),
+    );
+    let (_work, root) = fake.screen_with(0x08200000, false, false);
+    let (strip, bar, puff, area) = (root + 0x1000, root + 0x2000, root + 0x3000, root + 0x4000);
+    fake.pane_with_vtable(strip, root, Some(bounding));
+    fake.pane(bar, root);
+    fake.pane_with_vtable(puff, bar, Some(picture));
+    fake.pane_with_vtable(area, puff, Some(bounding));
+    for (pane, (width, height)) in [
+        (strip, (320.0f32, 50.0f32)),
+        (puff, (40.0, 40.0)),
+        (area, (40.0, 40.0)),
+    ] {
+        memory.write(pane + lyt::SCALE_X, &floats(&[1.0, 1.0]));
+        memory.write(pane + lyt::WIDTH, &floats(&[width, height]));
+    }
+    memory.write(strip + lyt::X, &floats(&[-160.0]));
+    for pane in [puff, area] {
+        memory.write(pane + lyt::X, &floats(&[-65.0]));
+    }
+    fake.track().unwrap();
+    let mut targets = TouchTargets::new(
+        fake.layouts.clone(),
+        Rc::new(Vec::new),
+        Rc::new(|_box| Ok(String::new())),
+        Rc::new(|_pane| Ok(None)),
+        Rc::new(|_root| None),
+        Rc::new(|_line: &str| {}),
+        Options {
+            picture_name: Some(Rc::new(move |pane| {
+                Ok((pane == puff).then(|| "Sweet Poké Puff".to_string()))
+            })),
+            ..Options::default()
+        },
+    );
+    assert_eq!(
+        targets
+            .targets()
+            .unwrap()
+            .iter()
+            .map(|t| (t.name.as_str(), t.x))
+            .collect::<Vec<_>>(),
+        [("Sweet Poké Puff", 95)]
+    );
+    fake.visible(bar, false);
+    fake.layouts.refresh();
+    assert!(targets.targets().unwrap().is_empty());
+}
+
 /// Pokémon-Amie's Pokémon is stroked, not tapped: its target's key slides along the path
 /// (spike 200).
 #[test]

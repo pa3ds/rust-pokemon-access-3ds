@@ -521,10 +521,15 @@ impl TouchTargets {
                 }
                 if let Some(picture_name) = self.picture_name.clone() {
                     // What the game fills a picture with comes first, as it is drawn: the Bag's
-                    // party slot is its Pokémon's icon, then its level (movie21).
+                    // party slot is its Pokémon's icon, then its level (movie21). Not a picture of
+                    // a button inside it, shown or not: Amie's strip across its top bar took the
+                    // Sweet Poké Puff of the bar of puffs inside it for its name, each puff a
+                    // button of its own, and kept it with the bar hidden (or_amie_pokepuffs).
+                    let inner = self.inner(root, touch, &tree)?;
                     let mut pictured: Option<String> = None;
                     for &p in group {
                         if tree.get(&p).map(String::as_str) == Some(lyt::PICTURE_CLASS)
+                            && !inner.contains(&p)
                             && let Some(word) = picture_name(p)?
                             && !word.is_empty()
                         {
@@ -569,7 +574,7 @@ impl TouchTargets {
                         }
                         pictured = None;
                         for (&p, word) in filled.as_ref().expect("filled above") {
-                            if self.lies_in(p, touch)? {
+                            if !inner.contains(&p) && self.lies_in(p, touch)? {
                                 pictured = Some(word.clone());
                                 break;
                             }
@@ -988,6 +993,28 @@ impl TouchTargets {
         }
         self.groups.insert(touch, out.clone());
         Ok(out)
+    }
+
+    /// The panes of the buttons of the touch areas inside the touch area's own, shown or
+    /// not.
+    fn inner(
+        &mut self,
+        root: i64,
+        touch: i64,
+        tree: &IndexMap<i64, String>,
+    ) -> Result<HashSet<i64>> {
+        let group: HashSet<i64> = self.group(root, touch, tree)?.into_iter().collect();
+        let mut inner: HashSet<i64> = HashSet::new();
+        for (&other, kind) in tree {
+            if kind == lyt::BOUNDING_CLASS && other != touch && group.contains(&other) {
+                let button: HashSet<i64> = self.group(root, other, tree)?.into_iter().collect();
+                // `button < group`: a proper subset.
+                if button.len() < group.len() && button.is_subset(&group) {
+                    inner.extend(button);
+                }
+            }
+        }
+        Ok(inner)
     }
 
     /// A pane's middle, or None where it is not laid out, found once per walk.
