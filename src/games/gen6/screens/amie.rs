@@ -71,7 +71,7 @@ pub const STROKE: [(i64, i64); 6] = [
 /// Where a drag carries a Poké Puff to on the Pokémon, its mouth: held there, Pikachu leaned in,
 /// ate it in about 2.5 s and showed a heart; held at the screen's middle, over its eyes, it frowned
 /// and turned away, and 17 above its mouth it ate nothing in 3.5 s (or_amie_dragging_puffs, spike
-/// A). Measured on Pikachu alone.
+/// A). Blaziken and Metagross ate there too, a little slower (Orion, 2026-10-28).
 pub const MOUTH: (i64, i64) = (160, 157);
 pub const STROKE_SECONDS: f64 = 3.0;
 /// The pane a stroke stands in for in touch mode, which no pane is at.
