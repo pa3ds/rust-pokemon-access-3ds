@@ -81,6 +81,13 @@ texture-bgbutton_L = previous
 texture-bgbutton_R = next
 texture-button_back = return
 texture-button_exit = exit
+# Pokémon-Amie's own three buttons, beside the Pokémon PLAY opens it on: a Poké Puff in the top
+# left, which opens the Poké Puffs to feed it, a music note in the top right, which opens the
+# games, and a Poké Ball in the bottom right, which goes back to the PlayNav (as_play_nav, and
+# the guides).
+texture-button_food = Poké Puffs
+texture-button_play = games
+texture-button_ball = return
 
 ## The ◀ and ▶ in the top bar's corners, which turn the PlayNav's pages and the sub-screen
 ## tutorial's: both draw `button.bclim`, and only their side of the screen tells them apart
