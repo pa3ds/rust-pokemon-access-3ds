@@ -10,11 +10,15 @@ use super::fake_memory::{CODE, FakeClasses};
 use super::test_amie::{PAGE, WALKER, page, species};
 use crate::core::config::Amie;
 use crate::core::rtti::ClassNames;
+use crate::games::common::field::keys::{BERRIES, BERRY_PICKER};
+use crate::games::common::touch::Target;
 use crate::games::gen6::apps::FIELD;
 use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::screens::amie;
+use crate::games::gen6::screens::berry_picker::{self, Touching};
 use crate::games::gen6::screens::playnav::PlayNav;
 use crate::games::oras;
+use crate::py::Result;
 
 #[test]
 fn test_the_amie_pages_pokemon_is_named_on_the_field_and_offered_to_stroke_in_amie() {
@@ -41,6 +45,8 @@ fn test_the_amie_pages_pokemon_is_named_on_the_field_and_offered_to_stroke_in_am
         &Amie::default(),
         Rc::new(|| Ok(HashSet::new())),
         Rc::new(|| Ok(HashSet::new())),
+        Rc::new(|said: &str| said.to_string()),
+        Rc::new(|said: &str| said.to_string()),
         false,
     );
     playnav
@@ -60,4 +66,26 @@ fn test_the_amie_pages_pokemon_is_named_on_the_field_and_offered_to_stroke_in_am
         .collect();
     assert_eq!(names, ["stroke Sceptile"]);
     assert!(playnav.poll(Some(FIELD)).unwrap().is_empty());
+    // Keys of its own only while the screen that has them runs.
+    assert_eq!(playnav.context(Some(berry_picker::APP)), Some(BERRY_PICKER));
+    assert_eq!(playnav.context(Some(FIELD)), None);
+    assert_eq!(
+        playnav
+            .press(BERRIES[0], Some(FIELD), &mut Untouched)
+            .unwrap(),
+        ""
+    );
+}
+
+/// Touch mode that is never touched: Python's `cast(TouchTargets, None)`.
+struct Untouched;
+
+impl Touching for Untouched {
+    fn targets(&mut self) -> Result<Vec<Target>> {
+        Ok(Vec::new())
+    }
+
+    fn give(&mut self, _picked: &Target, _over: &Target) -> String {
+        String::new()
+    }
 }

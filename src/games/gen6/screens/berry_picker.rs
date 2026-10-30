@@ -48,6 +48,7 @@ use crate::core::rtti::ClassNames;
 use crate::core::speech::Category;
 use crate::core::words::own;
 use crate::games::common::field::keys::BERRIES as BERRY_KEYS;
+use crate::games::common::field::keys::BERRY_PICKER;
 use crate::games::common::field::keys::POKEMON as POKEMON_KEYS;
 use crate::games::common::layout::Layouts;
 use crate::games::common::touch::{HEIGHT, ImageOf, Target, TouchTargets, WIDTH};
@@ -585,12 +586,12 @@ impl Touching for TouchTargets {
 /// `picked` and `wrong` are what is heard as a berry is picked up, and for a key with nothing to
 /// do, a berry the round has not or a Pokémon not up: a sound, and "", or else the words.
 ///
-/// Python's holds touch mode; here touch mode, which the navigator owns, is handed to `press`.
+/// Python's holds touch mode, which is built after the PlayNav's screens, as it offers their
+/// targets; here touch mode, which the navigator owns, is handed to `press`.
 pub struct BerryKeys {
     picker: Rc<RefCell<BerryPicker>>,
     /// An image -> the game's word for it: a berry's item name, the tree's targets' names.
     words: IndexMap<String, String>,
-    running: Rc<dyn Fn() -> Option<String>>,
     picked: Rc<dyn Fn(&str) -> String>,
     wrong: Rc<dyn Fn(&str) -> String>,
     /// The berry picked up, by name, while one is.
@@ -601,22 +602,31 @@ impl BerryKeys {
     pub fn new(
         picker: Rc<RefCell<BerryPicker>>,
         words: IndexMap<String, String>,
-        running: Rc<dyn Fn() -> Option<String>>,
         picked: Rc<dyn Fn(&str) -> String>,
         wrong: Rc<dyn Fn(&str) -> String>,
     ) -> Self {
         BerryKeys {
             picker,
             words,
-            running,
             picked,
             wrong,
             berry: None,
         }
     }
 
+    /// The keys' table in the keys file while Berry Picker runs, `[pa3ds.amie.berry_picker]`,
+    /// else None.
+    pub fn context(&self, running: Option<&str>) -> Option<&'static str> {
+        (running == Some(APP)).then_some(BERRY_PICKER)
+    }
+
     /// Answer one of the keys, with the line to say.
-    pub fn press(&mut self, action: &str, touch: &mut dyn Touching) -> Result<String> {
+    pub fn press(
+        &mut self,
+        action: &str,
+        running: Option<&str>,
+        touch: &mut dyn Touching,
+    ) -> Result<String> {
         if let Some(number) = BERRY_KEYS.iter().position(|&berry| berry == action) {
             let name = BERRIES
                 .get(number)
@@ -635,8 +645,7 @@ impl BerryKeys {
             .iter()
             .position(|&pokemon| pokemon == action)
             .ok_or_else(|| Error::value("tuple.index(x): x not in tuple"))?;
-        let running = (self.running)();
-        let found = self.picker.borrow().pokemon(index, running.as_deref())?;
+        let found = self.picker.borrow().pokemon(index, running)?;
         let Some((called, target)) = found else {
             return Ok((self.wrong)(&own(NO_POKEMON, &[("number", &(index + 1))])));
         };

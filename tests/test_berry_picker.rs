@@ -11,7 +11,7 @@ use super::fake_memory::{CODE, FakeClasses, FakeMemory};
 use super::test_battle::record_of;
 use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
-use crate::games::common::field::keys::{BERRIES, POKEMON};
+use crate::games::common::field::keys::{BERRIES, BERRY_PICKER, POKEMON};
 use crate::games::common::layout::Layouts;
 use crate::games::common::touch::Target;
 use crate::games::common::{lyt, pokemon, strbuf};
@@ -328,7 +328,9 @@ struct Keys {
 
 impl Keys {
     fn press(&mut self, action: &str) -> String {
-        self.pressing.press(action, &mut self.touched).unwrap()
+        self.pressing
+            .press(action, Some(berry_picker::APP), &mut self.touched)
+            .unwrap()
     }
 }
 
@@ -356,7 +358,6 @@ fn keys(sounds: bool) -> Keys {
     let pressing = berry_picker::BerryKeys::new(
         found,
         words(),
-        Rc::new(|| Some(berry_picker::APP.to_string())),
         {
             let heard = heard.clone();
             Rc::new(move |berry: &str| heard("pick", format!("holding {berry}")))
@@ -379,6 +380,11 @@ fn keys(sounds: bool) -> Keys {
 #[test]
 fn test_a_berrys_key_then_a_pokemons_gives_it_the_berry() {
     let mut keys = keys(false);
+    assert_eq!(
+        keys.pressing.context(Some(berry_picker::APP)),
+        Some(BERRY_PICKER)
+    );
+    assert_eq!(keys.pressing.context(Some("N3app6puzzle7ProcessE")), None);
     assert_eq!(keys.press(BERRIES[2]), "holding Pinap Berry");
     assert!(keys.touched.given.is_empty());
     assert_eq!(
@@ -442,7 +448,8 @@ fn test_a_key_with_nothing_to_do_plays_the_games_error_sound_or_says_why() {
             && keys.played.borrow().is_empty()
     );
     let mut sounding = self::keys(true);
-    assert!(sounding.press(BERRIES[6]).is_empty() && sounding.press(BERRIES[2]).is_empty());
+    assert!(sounding.press(BERRIES[6]).is_empty());
+    assert!(sounding.press(BERRIES[2]).is_empty());
     assert_eq!(*sounding.played.borrow(), ["wrong", "pick"]);
 }
 

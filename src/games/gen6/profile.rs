@@ -34,7 +34,7 @@ use crate::games::common::cursors::reader::CursorReader;
 use crate::games::common::dialogue::{DialogueReader, Shown};
 use crate::games::common::field::ground::Ground;
 use crate::games::common::field::guide::{FieldSource, Place};
-use crate::games::common::field::keys::{BERRY_PICKER, Bindings, Contexts, DEFAULT_CONTEXTS};
+use crate::games::common::field::keys::{Bindings, Contexts, DEFAULT_CONTEXTS};
 use crate::games::common::field::navigate::{
     DoorSign, LeadsTo, Navigator, Options as NavigatorOptions, Sides, Street,
 };
@@ -81,8 +81,7 @@ use crate::games::gen6::screens::partners::Partners;
 use crate::games::gen6::screens::partyicons::PartyIcons;
 use crate::games::gen6::screens::playnav::PlayNav;
 use crate::games::gen6::screens::{
-    amie, berry_picker, boxes, buttons, distribution, partners, partyicons, puzzle, summary,
-    townmap, training,
+    amie, boxes, buttons, distribution, partners, partyicons, puzzle, summary, townmap, training,
 };
 use crate::games::gen6::{frames, gflheap, mystatus};
 use crate::py::{self, Error, Log, PySet, Result};
@@ -272,8 +271,6 @@ pub struct Gen6Profile {
     /// Pokémon-Amie's and Super Training's screens, which name what they draw and offer what no
     /// touch area does.
     pub playnav: Rc<PlayNav>,
-    /// Berry Picker's own keys, a berry's and a Pokémon's.
-    pub berry_keys: RefCell<berry_picker::BerryKeys>,
     /// A screen's own keys, answered before the navigator's while it runs (`context`).
     contexts: Contexts,
     pub buttons: Rc<RefCell<buttons::Buttons>>,
@@ -721,8 +718,23 @@ impl Gen6Profile {
             let buttons = buttons.clone();
             Rc::new(move || buttons.borrow().off())
         };
-        // Pokémon-Amie's and Super Training's screens, which name what they draw and offer what
-        // no touch area does.
+        // A screen's own keys are heard as the drag's own sounds are and the game's error sound,
+        // or said where they are off.
+        let heard = {
+            let feedback_sounds = feedback_sounds.clone();
+            Rc::new(move |sound: &str, said: String| -> String {
+                if let Some(sounds) = &feedback_sounds
+                    && sounds.names().contains(sound)
+                {
+                    // The sound thread not starting, raised to the key's handler in Python.
+                    let _ = sounds.play(sound);
+                    return String::new();
+                }
+                said
+            })
+        };
+        // Pokémon-Amie's and Super Training's screens, which name what they draw, offer what no
+        // touch area does, and answer keys of their own, Berry Picker's.
         let playnav = Rc::new(PlayNav::new(
             memory.clone(),
             names.clone(),
@@ -737,6 +749,11 @@ impl Gen6Profile {
                 Rc::new(move || buttons.borrow_mut().idle()) as Idle
             },
             off.clone(),
+            {
+                let heard = heard.clone();
+                Rc::new(move |berry: &str| heard(PICK_SOUND, own(HOLDING, &[("target", &berry)])))
+            },
+            Rc::new(move |why: &str| heard(WRONG_SOUND, why.to_string())),
             ui.descriptions,
         ));
         let classes: IndexSet<String> = HEAP_CLASSES
@@ -869,34 +886,6 @@ impl Gen6Profile {
                     Rc::new(move || playnav.targets(apps.borrow().running.as_deref()))
                 }),
             },
-        );
-        // Berry Picker's own keys, a berry's and a Pokémon's, heard as the drag's own sounds are
-        // and the game's error sound, or said where they are off.
-        let heard = {
-            let feedback_sounds = feedback_sounds.clone();
-            Rc::new(move |sound: &str, said: String| -> String {
-                if let Some(sounds) = &feedback_sounds
-                    && sounds.names().contains(sound)
-                {
-                    // The sound thread not starting, raised to the key's handler in Python.
-                    let _ = sounds.play(sound);
-                    return String::new();
-                }
-                said
-            })
-        };
-        let berry_keys = berry_picker::BerryKeys::new(
-            playnav.berry_picker.clone(),
-            images.clone(),
-            {
-                let apps = apps.clone();
-                Rc::new(move || apps.borrow().running.clone())
-            },
-            {
-                let heard = heard.clone();
-                Rc::new(move |berry: &str| heard(PICK_SOUND, own(HOLDING, &[("target", &berry)])))
-            },
-            Rc::new(move |why: &str| heard(WRONG_SOUND, why.to_string())),
         );
         // The Hoenn map's cursor says nothing between places: a tone says where it is.
         let map_cursor = MapCursor::new(
@@ -1104,7 +1093,6 @@ impl Gen6Profile {
             distribution,
             views,
             playnav,
-            berry_keys: RefCell::new(berry_keys),
             contexts,
             buttons,
             party_icons,
@@ -1611,7 +1599,8 @@ impl Gen6Profile {
                     .touch
                     .as_mut()
                     .expect("the gen 6 navigator is given touch targets");
-                self.berry_keys.borrow_mut().press(&action, touch)?
+                let running = self.apps.borrow().running.clone();
+                self.playnav.press(&action, running.as_deref(), touch)?
             };
             if !said.is_empty() {
                 (self.log)(&format!("key: {said}"));
@@ -1621,9 +1610,10 @@ impl Gen6Profile {
         })
     }
 
-    /// The screen running now that has keys of its own: Berry Picker.
+    /// The table of the keys file of the screen running now, where it has keys of its own:
+    /// Berry Picker's (`PlayNav.context`).
     pub fn context(&self) -> Option<&'static str> {
-        (self.apps.borrow().running.as_deref() == Some(berry_picker::APP)).then_some(BERRY_PICKER)
+        self.playnav.context(self.apps.borrow().running.as_deref())
     }
 
     /// Play a footstep where the player's foot came down on silent ground, every tick: the

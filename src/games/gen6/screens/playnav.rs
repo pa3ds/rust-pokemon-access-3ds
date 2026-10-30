@@ -14,7 +14,10 @@
 //!   category), read with the screen's words;
 //! - `describe(running)`, what it describes of a picture the game shows without words (ADR-0038),
 //!   after the screen's words: the narrator's line, `Category.SCENE`, or one only logged, None,
-//!   where descriptions are off.
+//!   where descriptions are off;
+//! - `context(running)` and `press(action, running)`, a screen's own keys: the table of the keys
+//!   file they are in while it runs (`field.keys.DEFAULT_CONTEXTS`), and the line a key's action
+//!   says.
 //!
 //! A new one is built here and put in the tuples of what it answers, in the order it is asked in:
 //! touch mode names a picture by the first reader with a name for it, and offers targets in order.
@@ -39,7 +42,7 @@ use crate::games::common::touch::{Idle, ImageOf, Off, Target};
 use crate::games::gen6::game::Game;
 use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::screens::amie::{AmiePage, Goods, Puffs};
-use crate::games::gen6::screens::berry_picker::BerryPicker;
+use crate::games::gen6::screens::berry_picker::{BerryKeys, BerryPicker, Touching};
 use crate::games::gen6::screens::puzzle::TilePuzzle;
 use crate::games::gen6::screens::training::{Bags, Goals, Round, TrainingPage};
 use crate::games::gen6::screens::waiting::Waiting;
@@ -70,6 +73,33 @@ pub trait Polled {
 /// A reader describing a picture the game shows without words.
 pub trait Described {
     fn describe(&self, running: Option<&str>) -> Result<Vec<(String, String, Option<Category>)>>;
+}
+
+/// A screen's own keys: the table of the keys file they are in while it runs, and the line a
+/// key's action says. Touch mode, which the navigator owns, is handed to `press`.
+pub trait Keyed {
+    fn context(&self, running: Option<&str>) -> Option<&'static str>;
+    fn press(
+        &self,
+        action: &str,
+        running: Option<&str>,
+        touch: &mut dyn Touching,
+    ) -> Result<String>;
+}
+
+impl Keyed for RefCell<BerryKeys> {
+    fn context(&self, running: Option<&str>) -> Option<&'static str> {
+        self.borrow().context(running)
+    }
+
+    fn press(
+        &self,
+        action: &str,
+        running: Option<&str>,
+        touch: &mut dyn Touching,
+    ) -> Result<String> {
+        self.borrow_mut().press(action, running, touch)
+    }
 }
 
 impl Described for RefCell<TilePuzzle> {
@@ -183,6 +213,7 @@ pub struct PlayNav {
     offering: Vec<Rc<dyn Offering>>,
     polled: Vec<Rc<dyn Polled>>,
     described: Vec<Rc<dyn Described>>,
+    keyed: Vec<Rc<dyn Keyed>>,
 }
 
 /// `yours`: a Pokémon of the player's by the nickname they gave it, or else as the game calls its
@@ -217,6 +248,8 @@ impl PlayNav {
         settings: &Amie,
         idle: Idle,
         off: Off,
+        picked: Rc<dyn Fn(&str) -> String>,
+        wrong: Rc<dyn Fn(&str) -> String>,
         describing: bool,
     ) -> PlayNav {
         // The PlayNav's Pokémon-Amie page draws its Pokémon's icon, and says nothing of whose;
@@ -277,11 +310,19 @@ impl PlayNav {
             names,
             layouts.clone(),
             image_of.clone(),
-            images,
+            images.clone(),
             Rc::new(move |found: &pokemon::Pokemon| short(&text, found)),
             Rc::new(py::time::monotonic),
             settings.berry_first,
             settings.one_at_a_time,
+        )));
+        // Its own keys, a berry's and a Pokémon's, heard as the drag's own sounds are and the
+        // game's error sound, or said where they are off.
+        let berry_keys = Rc::new(RefCell::new(BerryKeys::new(
+            berry_picker.clone(),
+            images,
+            picked,
+            wrong,
         )));
         // A round says its score, clock and banners, and warns of a Bot's shot.
         let sparring = Rc::new(RefCell::new(Round::new(layouts, image_of, memory, None)));
@@ -305,6 +346,7 @@ impl PlayNav {
             offering: vec![amie, goals, berry_picker.clone(), waiting, bags],
             polled: vec![sparring, berry_picker.clone()],
             described: vec![puzzle.clone()],
+            keyed: vec![berry_keys],
             puzzle,
             berry_picker,
         }
@@ -350,6 +392,28 @@ impl PlayNav {
             said.extend(reader.describe(running)?);
         }
         Ok(said)
+    }
+
+    /// The table of the keys file of the screen running, where it has keys of its own.
+    pub fn context(&self, running: Option<&str>) -> Option<&'static str> {
+        self.keyed.iter().find_map(|keys| keys.context(running))
+    }
+
+    /// Answer one of the screen's own keys, with the line to say.
+    pub fn press(
+        &self,
+        action: &str,
+        running: Option<&str>,
+        touch: &mut dyn Touching,
+    ) -> Result<String> {
+        match self
+            .keyed
+            .iter()
+            .find(|keys| keys.context(running).is_some())
+        {
+            Some(keys) => keys.press(action, running, touch),
+            None => Ok(String::new()),
+        }
     }
 
     /// What each screen says now, as (what the log calls it, the line, its category).
