@@ -136,6 +136,7 @@ p-lined-up = 已对齐
 p-then-cant-continue = 然后无法继续
 p-cant-continue = 无法继续
 p-in-the-way = { $thing }挡路
+p-requires = 需要{ $move }
 p-surface = 浮上水面，前往{ $bearing }的潜水点
 p-into = { $leg }，进入{ $place }
 p-and-ice-cleared = 冰面全部碎裂

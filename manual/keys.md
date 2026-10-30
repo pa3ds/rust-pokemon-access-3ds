@@ -43,7 +43,7 @@ The battle's keys work throughout.
 |---|---|
 | `'` (apostrophe) | Next mode: list mode, direction mode, touch mode. |
 | `[` and `]` | Previous and next category. |
-| `P` | Find the way on foot to the chosen thing, and guide you along it turn by turn. |
+| `P` | Find the way on foot to the chosen thing, and guide you along it turn by turn. Where only `Shift+P` reaches it, `P` takes you as far as the spot where a move is needed and says which, "then can't continue, requires Surf". |
 | `Shift+P` | The same, but also using Surf, Cut, Rock Smash, Strength, Waterfall and the bikes. It pushes a big boulder only where there is no way round it. |
 | `Alt+P` | Stop guiding. |
 | `Ctrl+P` | Leave out of the list everything `Shift+P` finds no way to from where you stand, or put it back. Everything is listed each time pa3ds starts. |

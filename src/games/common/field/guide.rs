@@ -712,6 +712,20 @@ fn lined(nudge: &str, place: (f64, f64), cell: Cell) -> bool {
     }
 }
 
+/// Whether `ground` takes the step from `cell` to `step`, a step of a way found on another: into
+/// a cell it walks, not up a slope it walks only down, or over a ledge or a mud pit's mud it jumps
+/// (`Ground.ledge`, `Ground.over`).
+fn walks(ground: &Ground, cell: Cell, step: Cell) -> Result<bool> {
+    let way = pathfind::towards(cell, step);
+    if ground.ledge(step)? == Some(way) || ground.over(step)? {
+        return Ok(true);
+    }
+    Ok(ground.passable(step)?
+        && ground.ledge(step)?.is_none_or(|ledge| ledge == way)
+        && ground.ledge(cell)?.is_none_or(|ledge| ledge == way)
+        && ground.joined(cell, step))
+}
+
 /// The ways a big boulder is to be pushed, whose sides a way to it ends on: `push` where it
 /// can be pushed so, otherwise every way it can be (`Interactable.pushes`); none for anything
 /// else, and for a boulder no push moves.
@@ -1485,6 +1499,11 @@ impl Guide {
             let (way, text) = again;
             path = Some(way);
             blocker = text;
+        } else if short && let Some(needed) = self.needs(r#where, item, &ground, heading, &sides)? {
+            // Python also rebinds `goals` here, and reads it again only where not short.
+            let (_goals, way, r#move) = needed;
+            path = Some(way);
+            blocker = format!(", {}", own("p-requires", &[("move", &r#move)]));
         }
         let path = match path {
             Some(path) if !(short && path.len() == 1) => path,
@@ -1956,6 +1975,67 @@ impl Guide {
             .find(|thing| thing.move_model && thing.cells().contains(&cells[at]))
             .cloned();
         Ok(Some((goals, way[..at].to_vec(), stood)))
+    }
+
+    /// Where P's way on `ground` falls short and Shift and P's reaches `item`: Shift and P's way
+    /// as far as its first step `ground` cannot take, with its goals and the move or the bike
+    /// that step needs; None on a ground with HMs already, where Shift and P's falls short too,
+    /// or where what stops P is no such step. In the Cave of Origin P to Steven, across the
+    /// water, went the other way, to where the cave came nearest him as the crow flies, and Orion
+    /// asked for the way to where Surf is needed instead (2026-10-30).
+    #[allow(clippy::type_complexity)]
+    fn needs(
+        &self,
+        r#where: &Field,
+        item: &Interactable,
+        ground: &Ground,
+        heading: &str,
+        sides: &HashSet<&'static str>,
+    ) -> Result<Option<(IndexMap<Cell, Option<&'static str>>, Vec<Step>, String)>> {
+        if ground.hm {
+            return Ok(None);
+        }
+        let hm = self.ground(r#where, true)?;
+        let goals = aimed(hm.goals(item)?, sides);
+        let way = hm.find(r#where.cell, &goals, heading, Some(item), false, None)?;
+        let Some(way) = way else {
+            return Ok(None);
+        };
+        if !reached(&hm, item, &goals, &Some(way.clone()))? {
+            return Ok(None);
+        }
+        let cells = pathfind::cells(&way);
+        let mut found: Option<usize> = None;
+        for i in 1..cells.len() {
+            if !walks(ground, cells[i - 1], cells[i])? {
+                found = Some(i);
+                break;
+            }
+        }
+        let Some(at) = found else {
+            return Ok(None);
+        };
+        let (cell, step) = (cells[at - 1], cells[at]);
+        let word = |number: i64| -> Result<String> {
+            self.moves
+                .get(&number)
+                .cloned()
+                .ok_or_else(|| Error::key(number.to_string()))
+        };
+        let r#move = if let Some(&clear) = ground.cleared.get(&step) {
+            Some(word(clear)?)
+        } else if hm.climbing(cell, step) {
+            Some(word(WATERFALL)?)
+        } else if hm.water(step, None)? || hm.shore(step)? {
+            Some(word(SURF)?)
+        } else if hm.hopping(cell, step) {
+            Some(self.words.acro.clone())
+        } else if hm.climbs(cell, step)? {
+            Some(self.words.bike.clone())
+        } else {
+            None
+        };
+        Ok(r#move.map(|r#move| (goals, way[..at].to_vec(), r#move)))
     }
 
     /// Whether the camera has stopped turning: it has stayed within `STILL` of one bearing

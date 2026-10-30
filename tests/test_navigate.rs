@@ -17,7 +17,7 @@ use crate::games::common::field::chunk::{ANY_FLOOR, BLOCKED, CHUNK, Chunk, Floor
 use crate::games::common::field::climb::Walls;
 use crate::games::common::field::grind::GrindRails;
 use crate::games::common::field::ground::{
-    CUT, Grid, Ground, IceRoom, Of, ROCK_SMASH, STRENGTH, SURF, StepWords, WATERFALL, Word,
+    CUT, Grid, Ground, IceRoom, NO_ZONE, Of, ROCK_SMASH, STRENGTH, SURF, StepWords, WATERFALL, Word,
 };
 use crate::games::common::field::guide::{FieldSource, Guidance, Place};
 use crate::games::common::field::keys::{
@@ -1728,6 +1728,34 @@ fn test_p_keeps_to_land_and_shift_p_says_the_leg_to_surf_when_the_player_reaches
     assert_eq!(tail(&rig.backend, 2), ["1 south", "Surf 2 south"]);
     step(&mut rig, &[(100, 177), (100, 178), (100, 179)]);
     assert_eq!(tail(&rig.backend, 2), ["1 south", "person, 1 south"]);
+}
+
+/// The Cave of Origin: P to Steven, across the water, went to where the cave came nearest him as
+/// the crow flies, the other way (Orion, 2026-10-30). Where Shift and P reaches the thing, P says
+/// its way as far as the first step that needs the move, and the move.
+#[test]
+fn test_where_only_shift_p_reaches_a_thing_p_goes_to_where_the_hm_is_needed() {
+    let mut rig = navigator(Want {
+        blocked: house_front(),
+        sea: sea_band(),
+        ..on(street())
+    });
+    // The matrix is the one chunk, so that nothing leads round the sea.
+    *rig.field.grid.borrow_mut() = Some(Grid {
+        width: 12,
+        height: 20,
+        zones: (0..12 * 20)
+            .map(|i| if i % 12 >= 8 { 0x6 } else { NO_ZONE })
+            .collect(),
+    });
+    rig.press(CATEGORY_PREVIOUS);
+    rig.press(PATHFIND);
+    assert_eq!(
+        last(&rig.backend),
+        "10 east, 1 south, then can't continue, requires Surf"
+    );
+    let way = path_of(&guidance(&rig));
+    assert_eq!(way.last(), Some(&(100, 176)));
 }
 
 /// ADR-0041: a replay presses no key of pa3ds's, so what P and Shift and P say of the way to

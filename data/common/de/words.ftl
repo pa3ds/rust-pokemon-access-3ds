@@ -138,6 +138,7 @@ p-lined-up = ausgerichtet
 p-then-cant-continue = dann geht es nicht weiter
 p-cant-continue = es geht nicht weiter
 p-in-the-way = { $thing } im Weg
+p-requires = { $move } nötig
 p-surface = auftauchen und zur Tauchstelle { $bearing }
 p-into = { $leg } nach { $place }
 p-and-ice-cleared = und das Eis ist gebrochen

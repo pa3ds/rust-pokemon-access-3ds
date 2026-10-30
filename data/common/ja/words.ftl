@@ -136,6 +136,7 @@ p-lined-up = 位置が合った
 p-then-cant-continue = その先は進めない
 p-cant-continue = 進めない
 p-in-the-way = { $thing }がじゃまをしている
+p-requires = { $move }がひつよう
 p-surface = 浮上して{ $bearing }のダイビングポイントへ
 p-into = { $leg }、{ $place }へ
 p-and-ice-cleared = そして氷はすべて割れる

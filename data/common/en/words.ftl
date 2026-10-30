@@ -215,6 +215,9 @@ p-lined-up = lined up
 p-then-cant-continue = then can't continue
 p-cant-continue = can't continue
 p-in-the-way = { $thing } in the way
+# Where P's way falls short and Shift and P's goes on, the move its first step P cannot
+# take needs: "10 south, then can't continue, requires Surf" (Orion, 2026-10-30).
+p-requires = requires { $move }
 # Under the sea, where the way goes on from another dive spot (spike 165).
 p-surface = surface and go to the dive spot { $bearing }
 # A leg that crosses into another place, said with it: "10 east into Route 117" (Orion,
