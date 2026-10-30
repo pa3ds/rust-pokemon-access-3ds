@@ -78,7 +78,9 @@ mode offers "continue", and a tap goes on with the message. The PlayNav's "previ
 turn the page instead, away from the message.
 
 In Pokémon-Amie, touch mode offers to stroke your Pokémon, and the tap key strokes it. This is an
-experiment. In a Super Training regimen, touch mode offers each goal the Balloon Bot puts up:
+experiment. In its Tile Puzzle, each tile is said by its row and column and where the piece of the
+picture on it belongs, "row 1, column 2, goes to row 3, column 4", or "in place"; tap a tile, then
+the tile where its piece belongs, to swap them. In a Super Training regimen, touch mode offers each goal the Balloon Bot puts up:
 the tap key's first press says the goal, and each press after that shoots at it, wherever it has
 moved. pa3ds says "shot coming" about a second before the bot's ball arrives: move with the
 Circle Pad, or raise a shield with L.

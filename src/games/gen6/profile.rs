@@ -77,10 +77,11 @@ use crate::games::gen6::screens::lists::{CONTROLLER_CLASS, ListReader};
 use crate::games::gen6::screens::mapcursor::MapCursor;
 use crate::games::gen6::screens::partners::Partners;
 use crate::games::gen6::screens::partyicons::PartyIcons;
+use crate::games::gen6::screens::puzzle::TilePuzzle;
 use crate::games::gen6::screens::training::{Bags, Goals, Round, TrainingPage};
 use crate::games::gen6::screens::waiting::Waiting;
 use crate::games::gen6::screens::{
-    amie, boxes, buttons, distribution, partners, partyicons, summary, townmap, training,
+    amie, boxes, buttons, distribution, partners, partyicons, puzzle, summary, townmap, training,
 };
 use crate::games::gen6::{frames, gflheap, mystatus};
 use crate::py::{self, Error, Log, PySet, Result};
@@ -94,17 +95,18 @@ use crate::py::{self, Error, Log, PySet, Result};
 /// picture of its Pokémon Distribution draws, and its views, which say which of its layouts it
 /// draws; the party and the icons the Bag draws it with; the Pokémon-Amie page, which says whose
 /// icon its Pokémon is; the texture systems Amie's decorate screen draws its Poké Puffs and items
-/// from, and the layout helpers its item pages point at; Super Training's page, which says whose
-/// each party slot's is; and the balls of its Balloon Bots, which say when a shot is coming; the
-/// Battle Maison's partner screen, which says whose portrait each picture draws; and the save's
-/// trainer record, which says the game's language (`mystatus`). A game's own readers add what
+/// from, and the layout helpers its item pages point at; its Tile Puzzle's board, which says where
+/// each tile's piece belongs; Super Training's page, which says whose each party slot's is; and
+/// the balls of its Balloon Bots, which say when a shot is coming; the Battle Maison's partner
+/// screen, which says whose portrait each picture draws; and the save's trainer record, which says
+/// the game's language (`mystatus`). A game's own readers add what
 /// they find their objects by (`Gen6Profile.classes`): ORAS's DexNav, the player's work its hidden Pokémon's record is found
 /// through.
 ///
 /// Not TextBoxes or cursor windows: walking each layout's tree finds every one that can be placed on
 /// screen (spike 62). And the linear heap is not swept: the battle builds its layouts there, and its
 /// message window leads to their pool (spike 64).
-pub const HEAP_CLASSES: [&str; 36] = [
+pub const HEAP_CLASSES: [&str; 37] = [
     msgwin::CLASSES[0],
     msgwin::CLASSES[1],
     talk::CLASSES[0],
@@ -129,6 +131,7 @@ pub const HEAP_CLASSES: [&str; 36] = [
     amie::CLASS,
     distribution::REPLACE_CLASS,
     amie::G2D_CLASS,
+    puzzle::CLASS,
     training::CLASS,
     training::MISSILE,
     partners::CLASS,
@@ -241,6 +244,7 @@ pub struct Gen6Profile {
     pub amie: Rc<RefCell<AmiePage>>,
     pub puffs: Rc<RefCell<Puffs>>,
     pub goods: Rc<RefCell<Goods>>,
+    pub puzzle: Rc<RefCell<TilePuzzle>>,
     pub training: Rc<RefCell<TrainingPage>>,
     pub goals: Rc<Goals>,
     pub waiting: Rc<Waiting>,
@@ -585,6 +589,11 @@ impl Gen6Profile {
             names.clone(),
             text.goods.clone(),
         )));
+        // Its Tile Puzzle draws each tile's piece in 3D, and says nothing of where it belongs.
+        let puzzle = Rc::new(RefCell::new(TilePuzzle::new(
+            memory.clone(),
+            layouts.clone(),
+        )));
         // So does Super Training's, with the party; and its rounds' goals are on the top screen.
         let training = Rc::new(RefCell::new(TrainingPage::with_icons(
             memory.clone(),
@@ -728,6 +737,7 @@ impl Gen6Profile {
             );
             let partners = partners.clone();
             let (puffs, goods) = (puffs.clone(), goods.clone());
+            let (puzzle, image_of) = (puzzle.clone(), image_of.clone());
             Rc::new(move |pane: i64| {
                 // The AreaNav's navigators are the field's and its own app's: elsewhere they are
                 // gone, and asking cost a touch walk 1,400 reads (movie22). On the field its icons
@@ -771,6 +781,13 @@ impl Gen6Profile {
                         return Ok(Some(name));
                     }
                     return goods.borrow_mut().name(pane);
+                }
+                if running.as_deref() == Some(puzzle::APP) {
+                    return if image_of(pane)?.as_deref() == Some(puzzle::FRAME) {
+                        puzzle.borrow().name(pane)
+                    } else {
+                        Ok(None)
+                    };
                 }
                 party_icons.borrow().name(pane)
             })
@@ -1039,6 +1056,7 @@ impl Gen6Profile {
             amie,
             puffs,
             goods,
+            puzzle,
             training,
             goals,
             waiting,
@@ -1113,6 +1131,7 @@ impl Gen6Profile {
         self.amie.borrow_mut().track(&found.heap, adding)?;
         self.puffs.borrow_mut().track(&found.heap, adding)?;
         self.goods.borrow_mut().track(&found.heap, adding)?;
+        self.puzzle.borrow_mut().track(&found.heap, adding)?;
         self.training.borrow_mut().track(&found.heap, adding)?;
         self.partners.borrow_mut().track(&found.heap, adding)?;
         self.occupants.borrow_mut().track(&found.heap);

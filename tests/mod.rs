@@ -50,6 +50,7 @@ mod test_pathfind;
 mod test_plates;
 mod test_pokemon;
 mod test_profile;
+mod test_puzzle;
 mod test_rail;
 mod test_rename;
 mod test_rom;

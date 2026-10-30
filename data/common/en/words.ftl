@@ -256,6 +256,13 @@ training-left = { $time } left
 # Touch mode's one gesture that is not a tap, a slide back and forth over the Pokémon, the
 # manual's word: "stroke Sceptile".
 amie-stroke = stroke { $pokemon }
+# A tile of Pokémon-Amie's Tile Puzzle, by its row and column (slot-grid), and where the piece of
+# the picture it shows belongs: "row 1, column 2, in place", "row 1, column 2, goes to row 3,
+# column 4". The game says neither.
+puzzle-home = { $tile }, in place
+puzzle-goes = { $tile }, goes to { $home }
+# The tile tapped first, which the next tap swaps with.
+puzzle-picked = { $tile }, picked
 
 ## What pa3ds says of itself
 
