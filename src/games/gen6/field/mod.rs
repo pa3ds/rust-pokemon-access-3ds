@@ -16,6 +16,7 @@ pub mod reader;
 pub mod speaker;
 pub mod talk;
 pub mod terrain;
+pub mod works;
 pub mod zonedata;
 pub mod zonetable;
 

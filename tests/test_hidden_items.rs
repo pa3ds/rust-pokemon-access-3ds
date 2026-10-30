@@ -8,9 +8,8 @@ use indexmap::IndexMap;
 use super::fake_memory::FakeMemory;
 use crate::core::config;
 use crate::core::discovery::Found;
-use crate::games::gen6::field::hidden_items::{
-    EVENT_CLASS, FLAGS, HiddenItems, ITEMS_LEAST, Only, ROW, rows,
-};
+use crate::games::gen6::field::hidden_items::{HiddenItems, ITEMS_LEAST, Only, ROW, rows};
+use crate::games::gen6::field::works::{EVENT_CLASS, FLAGS, Works};
 use crate::py::{self, Result};
 
 /// Where the run of omega_ruby's Route 110 replay found `field::EventWork`.
@@ -75,9 +74,10 @@ fn test_an_item_is_listed_until_its_flag_is_set_and_under_the_sea_alone_where_as
     let nowhere = |_cell: (i64, i64)| -> Result<Option<i64>> { Ok(None) };
     // Rows 25 and 26 found already, as the replay's save had them: flags 0x465 and 0x466.
     memory.write(EVENT + FLAGS + 0x467 / 8, &[0x60]);
-    let items = HiddenItems::new(memory.clone(), &image(), BASE, None);
+    let works = Rc::new(Works::new(memory.clone()));
+    let items = HiddenItems::new(memory.clone(), works.clone(), &image(), BASE, None);
     assert_eq!(items.listed(ROUTE_110, &nowhere)?, Vec::new());
-    items.track(&found())?;
+    works.track(&found())?;
     let listed: Vec<(String, (i64, i64), Option<f64>)> = items
         .listed(ROUTE_110, &nowhere)?
         .into_iter()
@@ -90,8 +90,7 @@ fn test_an_item_is_listed_until_its_flag_is_set_and_under_the_sea_alone_where_as
     memory.write(EVENT + FLAGS + 0x467 / 8, &[0xE0]);
     assert_eq!(items.listed(ROUTE_110, &nowhere)?, Vec::new());
     let only: Only = Rc::new(|zone: i64| Ok(zone == UNDER_126));
-    let under = HiddenItems::new(memory.clone(), &image(), BASE, Some(only));
-    under.track(&found())?;
+    let under = HiddenItems::new(memory.clone(), works, &image(), BASE, Some(only));
     assert_eq!(under.listed(ROUTE_110, &nowhere)?, Vec::new());
     let cells: Vec<(i64, i64)> = under
         .listed(UNDER_126, &nowhere)?

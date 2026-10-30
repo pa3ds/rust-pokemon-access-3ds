@@ -809,3 +809,42 @@ fn test_furniture_whose_case_runs_a_shared_script_is_that_script() -> Result<()>
     );
     Ok(())
 }
+
+/// Laverre Gym's panels are triggers whose case hands native 56 x, the floor in squares of
+/// height and z (spike A); the same native in a zone not listed, as Coumarine Gym's vine swing
+/// is, is left alone.
+#[test]
+fn test_a_teleporter_of_a_listed_zone_puts_the_player_where_its_native_says() -> Result<()> {
+    let code = case_script(&IndexMap::from([(
+        3,
+        vec![
+            script::PROC,
+            push(9),
+            push(5),
+            push(19),
+            script::NATIVE,
+            56,
+            12,
+            script::RETN,
+        ],
+    )]));
+    let data = zone_file(&ZoneSpec {
+        triggers: &[(3, 1, 1, 1, None, None)],
+        sections: 4,
+        script: &code,
+        ..ZoneSpec::default()
+    });
+    let zones: IndexMap<i64, plates::Zone> = IndexMap::from([
+        (TOWN, (data.clone(), Vec::new(), Vec::new())),
+        (CAFE, (data, Vec::new(), Vec::new())),
+    ]);
+    assert_eq!(
+        plates::teleports(&zones, &IndexMap::from([(TOWN, 56)]))?,
+        IndexMap::from([((TOWN, 3), (19, 90, 9))])
+    );
+    assert_eq!(
+        plates::teleports(&zones, &IndexMap::from([(TOWN, 57)]))?,
+        IndexMap::new()
+    );
+    Ok(())
+}

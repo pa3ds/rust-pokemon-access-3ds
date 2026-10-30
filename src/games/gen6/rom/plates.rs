@@ -802,6 +802,38 @@ pub fn native_furniture(zones: &IndexMap<i64, Zone>) -> Result<IndexMap<(i64, i6
     Ok(out)
 }
 
+/// (zone, a trigger's script) -> (x, how high in world units, z) of where it puts the
+/// player, for each trigger of a zone `teleporting` lists whose case hands that zone's native
+/// three constants, x, the floor in squares of height and z (`Script.call`, `Game.teleporting`).
+/// A native's number is its zone script's own, so only the zones listed are read.
+pub fn teleports(
+    zones: &IndexMap<i64, Zone>,
+    teleporting: &IndexMap<i64, i64>,
+) -> Result<IndexMap<(i64, i64), (i64, i64, i64)>> {
+    let mut out: IndexMap<(i64, i64), (i64, i64, i64)> = IndexMap::new();
+    for (&zone, &native) in teleporting {
+        let Some((data, _furniture, _warps)) = zones.get(&zone) else {
+            continue;
+        };
+        let found = zonedata::zone_file(data)?;
+        let code = script_of(data)?;
+        let (Some(found), Some(code)) = (found, code) else {
+            continue;
+        };
+        for record in zonedata::read_triggers(&zonedata::Bytes(data), &found)? {
+            let number = u16(&record, zonedata::TRIGGER_SCRIPT)?;
+            if let Some((called, constants)) = code.call(number)?
+                && called == native
+                && constants.len() == 3
+            {
+                let (x, squares, z) = (constants[0], constants[1], constants[2]);
+                out.insert((zone, number), (x, squares * zonedata::CELL, z));
+            }
+        }
+    }
+    Ok(out)
+}
+
 /// Each furniture record the zone's script shows a plate for, by its index, with the line of
 /// the story text it shows: a record that shows one line in a plate's style, and no other.
 fn plates_of<'a>(

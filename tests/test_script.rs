@@ -215,6 +215,37 @@ fn test_a_case_that_hands_a_shared_scripts_number_to_a_native_runs_it() {
     assert_eq!(runs, [Some(0x28F0), None, None, None]);
 }
 
+/// Each of Laverre Gym's panels calls a function that pushes z, the floor and x, the last
+/// argument first, and calls native 56 with their 12 bytes (spike A); one handing a native
+/// anything but constants is no call.
+#[test]
+fn test_a_case_handing_a_native_constants_gives_them_first_argument_first() {
+    let code = script::read(&case_script(&IndexMap::from([
+        (
+            3,
+            vec![
+                script::PROC,
+                push(9),
+                push(5),
+                push(19),
+                script::NATIVE,
+                56,
+                12,
+                script::RETN,
+            ],
+        ),
+        (
+            4,
+            vec![script::PROC, push(9), script::NATIVE, 56, 8, script::RETN],
+        ),
+    ])))
+    .unwrap()
+    .expect("a script");
+    assert_eq!(code.call(3).unwrap(), Some((56, vec![19, 5, 9])));
+    assert_eq!(code.call(4).unwrap(), None);
+    assert_eq!(code.native(3).unwrap(), None);
+}
+
 /// The game stores a script's cells compact, seven bits a byte, and a data offset past the
 /// stored bytes' end, since it counts the cells expanded.
 #[test]

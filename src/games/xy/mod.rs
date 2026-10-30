@@ -453,6 +453,13 @@ pub const COUMARINE_GYM: i64 = 0xBF;
 /// so the landing is the game's and P walks to it as a way out of the top (spike 250).
 pub const WAY_DOWN: i64 = 0x2B;
 
+/// Laverre City Gym, one zone of three floors stacked at 0, 90 and 180, each three rooms wide,
+/// joined by 23 one-cell triggers the player is teleported by: each one's case calls a function that
+/// pushes three constants and calls native 56, x, the floor in squares of height and z. Eleven pairs
+/// land on each other's panel, and the one at (11, 1) on the top floor lands by the entrance, armed
+/// while work 0x40f3 is 1. A teleport keeps the player's model (spike A).
+pub const LAVERRE_GYM: i64 = 0xCB;
+
 pub const PRISM_LOBBY: i64 = 0x4D;
 pub const CLEMONT_ROOM: i64 = 0x4E;
 /// Prism Tower's Gym: its lobby, Clemont's room at the top, and Bonnie's four quiz rooms under it,
@@ -662,6 +669,7 @@ pub fn game() -> &'static Game {
         climbing: Some(climbing()),
         grinding: Some(GRINDING),
         vining: Some(VINING),
+        teleporting: IndexMap::from([(LAVERRE_GYM, 56)]),
         gates: true,
         steps: STEPS,
         training: TRAINING,

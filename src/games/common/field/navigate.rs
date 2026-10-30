@@ -758,7 +758,7 @@ impl Navigator {
     fn said(&self, r#where: &Field, items: &[Interactable], at: i64) -> Result<()> {
         let item = &items[at as usize];
         let mut way = item.bearing(r#where.cell, r#where.heading)?;
-        if let Some(rise) = rise(r#where, item)? {
+        if let Some(rise) = rise(r#where, item.height)? {
             way += &format!(", {rise}");
         }
         if let Some(arrival) = item.arrival {
@@ -769,6 +769,9 @@ impl Navigator {
                     &[("bearing", &things::bearing(r#where.cell, arrival))]
                 )
             );
+        }
+        if let Some(rise) = rise(r#where, item.landing)? {
+            way += &format!(", {rise}");
         }
         let start = if self.wording.track_boulders {
             item.start
@@ -1063,15 +1066,16 @@ fn named(called: Option<&str>) -> String {
     }
 }
 
-/// How far above or below the player `item` stands, "104 below", in the game's units, where
+/// How far above or below the player `height` is, "104 below", in the game's units, where
 /// both heights are known and further apart than a thing is walked up to from (`Ground.open`):
 /// an item ball on a path under a cliff, said "1 north" alone, left a player on the cliff top
-/// against it and unable to pick it up (Orion, 2026-10-24).
-fn rise(r#where: &Field, item: &Interactable) -> Result<Option<String>> {
-    let (Some(height), Some(item_height)) = (r#where.height, item.height) else {
+/// against it and unable to pick it up (Orion, 2026-10-24). A thing's own height, and where a
+/// teleporter puts the player (`Interactable.landing`).
+fn rise(r#where: &Field, height: Option<f64>) -> Result<Option<String>> {
+    let (Some(here), Some(height)) = (r#where.height, height) else {
         return Ok(None);
     };
-    let rise = py::round(item_height - height)?;
+    let rise = py::round(height - here)?;
     if rise.abs() as f64 <= 2.0 * CLIMB {
         return Ok(None);
     }

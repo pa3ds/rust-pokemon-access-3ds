@@ -29,7 +29,7 @@ use crate::games::gen6::field::features::{Feature, HiddenReader, Tracked, ZoneAt
 use crate::games::gen6::field::fieldmap::{
     MAP_BLOCK_SIZE, MAP_CHUNK_FILES, MAP_CHUNKS_TALL, MAP_CHUNKS_WIDE, MAP_GRID, MAP_KIND, MAP_MARK,
 };
-use crate::games::gen6::field::hidden_items::{EVENT_CLASS, FIRST_WORK, HIDDEN_ITEM, WORKS};
+use crate::games::gen6::field::hidden_items::HIDDEN_ITEM;
 use crate::games::gen6::field::mmodel::PROP_MODEL;
 use crate::games::gen6::field::reader::PC_TILE as PC_KIND;
 use crate::games::gen6::field::reader::{
@@ -37,6 +37,7 @@ use crate::games::gen6::field::reader::{
 };
 use crate::games::gen6::field::terrain::NO_CHUNK_FILE;
 use crate::games::gen6::field::terrain::{FarCells, FarFloors, FarHeights, FarMatrices, Terrain};
+use crate::games::gen6::field::works::{EVENT_CLASS, FIRST_WORK, WORKS};
 use crate::games::gen6::field::zonedata::{
     ENTITY_HEADER, FURNITURE, NPC, WARP, WARP_DOOR, npc_trainers, zone_header,
 };
@@ -176,10 +177,10 @@ pub(crate) fn game() -> Game {
     )
 }
 
-/// `field_reader`'s keyword arguments that are the ROM's words, chunks and `shared` and `natives`
-/// furniture, and the shipped table's `tiles` and `furniture_words`, each as the Python defaults
-/// it: set what differs with `..Given::default()`. The rest are the game's fields, given as a
-/// `Game { .., ..game() }`.
+/// `field_reader`'s keyword arguments that are the ROM's words, chunks, `shared` and `natives`
+/// furniture and `teleports`, and the shipped table's `tiles` and `furniture_words`, each as the
+/// Python defaults it: set what differs with `..Given::default()`. The rest are the game's
+/// fields, given as a `Game { .., ..game() }`.
 #[derive(Default)]
 pub(crate) struct Given {
     pub words: IndexMap<i64, String>,
@@ -187,6 +188,7 @@ pub(crate) struct Given {
     pub furniture_words: Option<IndexMap<i64, String>>,
     pub shared: IndexMap<(i64, i64), i64>,
     pub natives: IndexMap<(i64, i64), (i64, i64)>,
+    pub teleports: IndexMap<(i64, i64), (i64, i64, i64)>,
     pub streets: Option<rail::Streets>,
     pub outdoors: HashSet<i64>,
     pub street_records: rail::Records,
@@ -203,8 +205,9 @@ pub(crate) struct Given {
     pub extras_hidden_items: Option<&'static str>,
 }
 
-/// A field reader of `game`, the ROM's words, chunks and `shared` and `natives` furniture given,
-/// the shipped table's `tiles` and `furniture_words`, and `[pa3ds.extras] hidden_items`.
+/// A field reader of `game`, the ROM's words, chunks, `shared` and `natives` furniture and
+/// `teleports` given, the shipped table's `tiles` and `furniture_words`, and `[pa3ds.extras]
+/// hidden_items`.
 pub(crate) fn field_reader(memory: Rc<FakeMemory>, given: Given, game: Game) -> Rc<FieldReader> {
     let Given {
         words,
@@ -212,6 +215,7 @@ pub(crate) fn field_reader(memory: Rc<FakeMemory>, given: Given, game: Game) -> 
         furniture_words,
         shared,
         natives,
+        teleports,
         streets,
         outdoors,
         street_records,
@@ -243,6 +247,7 @@ pub(crate) fn field_reader(memory: Rc<FakeMemory>, given: Given, game: Game) -> 
         }),
         shared,
         natives,
+        teleports,
         ..GameText::default()
     };
     FieldReader::new(
@@ -2347,6 +2352,64 @@ fn test_an_item_a_trigger_gives_is_a_hidden_item_while_the_trigger_is_armed() ->
     assert_eq!(listed(&mut town, HIDDEN_UNDERWATER)?, vec![(90, 175)]);
     town.memory.write(work, &le16(&[0]));
     assert_eq!(listed(&mut town, HIDDEN_UNDERWATER)?, Vec::new());
+    Ok(())
+}
+
+/// Laverre Gym's panels (spike A): each trigger the ROM says puts the player somewhere in the
+/// zone is listed under signs as a teleporter, with where and how high; the one by the entrance,
+/// armed by work 0x40f3 at 1, only while the work holds it, the Extra off as it ships.
+#[test]
+fn test_a_teleporter_is_a_sign_saying_where_it_puts_the_player_while_it_is_armed() -> Result<()> {
+    let mut town = Town::new();
+    town.memory.write(
+        FILE,
+        &zone_file(&ZoneSpec {
+            info: &town_info(),
+            triggers: &[
+                (0x3, 95, 175, 1, Some(90), None),
+                (0x4, 96, 175, 1, Some(180), Some((1, 0x40F3))),
+            ],
+            ..ZoneSpec::default()
+        }),
+    );
+    let work = EVENT_WORK + WORKS + (0x40F3 - FIRST_WORK) * 2;
+    town.reader = field_reader(
+        town.memory.clone(),
+        Given {
+            teleports: IndexMap::from([((TOWN, 0x3), (100, 0, 176)), ((TOWN, 0x4), (90, 0, 170))]),
+            ..Given::default()
+        },
+        game(),
+    );
+    town.reader.track(&Found {
+        pages: IndexMap::new(),
+        heap: IndexMap::from([(EVENT_WORK, EVENT_CLASS.to_string())]),
+        partial: false,
+    })?;
+
+    #[allow(clippy::type_complexity)]
+    let teleporters = |town: &mut Town| -> Result<
+        Vec<((i64, i64), Option<f64>, Option<(i64, i64)>, Option<f64>)>,
+    > {
+        Ok(town
+            .r#where()?
+            .of("signs")
+            .into_iter()
+            .filter(|item| item.kind == "teleporter")
+            .map(|item| (item.cell, item.height, item.arrival, item.landing))
+            .collect())
+    };
+
+    assert_eq!(
+        teleporters(&mut town)?,
+        vec![((95, 175), Some(90.0), Some((100, 176)), Some(0.0))]
+    );
+    town.memory.write(work, &le16(&[1]));
+    let cells: Vec<(i64, i64)> = teleporters(&mut town)?
+        .into_iter()
+        .map(|(cell, ..)| cell)
+        .collect();
+    assert_eq!(cells, vec![(95, 175), (96, 175)]);
     Ok(())
 }
 

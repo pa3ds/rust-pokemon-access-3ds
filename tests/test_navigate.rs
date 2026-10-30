@@ -1143,6 +1143,32 @@ fn test_a_teleporter_says_where_it_comes_out_after_the_way_to_it() {
     );
 }
 
+/// Laverre Gym's panels (spike A): one on the player's floor putting them on the floor above,
+/// 90 up, says so after where.
+#[test]
+fn test_a_teleporter_onto_another_floor_says_how_far_above_or_below_it_puts_the_player() {
+    let pad = Interactable {
+        source: 0,
+        height: Some(2.0),
+        arrival: Some((111, 180)),
+        landing: Some(90.0),
+        ..Interactable::new("signs", "teleporter", (97, 172))
+    };
+    let mut rig = navigator(Want {
+        r#where: Some(Field {
+            interactables: vec![pad],
+            height: Some(2.0),
+            ..Field::new(town().zone, town().cell)
+        }),
+        ..Want::default()
+    });
+    rig.press(ITEM_READ);
+    assert_eq!(
+        said(&rig.backend),
+        ["teleporter, 1 of 1, 3 east, out at 17 east 8 south, 88 above"]
+    );
+}
+
 #[test]
 fn test_without_the_games_words_an_exit_is_what_it_is() {
     let mut rig = navigator(Want {

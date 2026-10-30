@@ -16,33 +16,28 @@
 //! Ball the Dowsing Machine found on Route 110 at (10, 59) is the 27th (or_route_110_dowsing). The
 //! table is found by its shape, as the Secret Bases' spots are: the longest run of rows numbered
 //! from 1 whose zone and cell are in range. An item is gone once the event flag `Game.hidden_items`
-//! plus its number is set: the save's `field::EventWork`, a bit a flag from +0x2f4, the low bit
-//! first.
+//! plus its number is set: the save's flags (`works.Works`).
 //!
 //! A second table of 33 rows lies past it, items found only while something else holds (their flags
 //! carry 0x8000), each with several to choose from: not read.
 //!
 //! An item a trigger gives is listed with them (`Game.hidden_triggers`): the Scanner in Sea
 //! Mauville's sunken control room, whose trigger is armed while work `0x400c` holds 1 and whose
-//! script sets it to 0 once the Scanner is taken. The save's works are u16s from +0x04 of
-//! `field::EventWork`, work 0x4000 first: entering Glacia's corridor, whose trigger is armed while
-//! work `0x414d` holds 0, took it from 1 to 0, and its scene put it back to 1
-//! (or_elite_four_glacia).
+//! script sets it to 0 once the Scanner is taken.
 //!
 //! Bound by:
 //! - ADR-0017: an Extra, shipping off. Under the sea it says what a sighted player is taken to see
 //!   there, where the Dowsing Machine cannot be used (Orion, 2026-10-26); everywhere, what the game
 //!   keeps from everyone.
 
-use std::cell::Cell as Slot;
 use std::rc::Rc;
 
 use crate::core::binary;
-use crate::core::discovery::Found;
 use crate::core::memory::Memory;
 use crate::core::pathfind::Cell;
 use crate::games::common::field::things::{HIDDEN_SOURCE, Interactable, place_source};
-use crate::games::gen6::field::features::{Feature, Tracked, ZoneAt};
+use crate::games::gen6::field::features::ZoneAt;
+use crate::games::gen6::field::works::{FLAGS, Works};
 use crate::py::{Error, Result};
 
 /// What one is listed as: the game shows a glint at most, and never names it.
@@ -116,12 +111,6 @@ pub const ZONE_LIMIT: i64 = 0x400;
 pub const MATRIX_CELLS: i64 = 0x400;
 /// Fewer rows than this in a run is not the table: Omega Ruby's has 171.
 pub const ITEMS_LEAST: i64 = 100;
-pub const EVENT_CLASS: &str = "N5field9EventWorkE";
-/// Where `field::EventWork` keeps its flags (Omega Ruby's `0x12fd48`).
-pub const FLAGS: i64 = 0x2F4;
-pub const WORKS: i64 = 0x04;
-/// Where `field::EventWork` keeps its works, a u16 each, and the first one's number.
-pub const FIRST_WORK: i64 = 0x4000;
 
 /// A hidden item as the table has it: its zone, its cell, its height and its item.
 pub type Row = (i64, Cell, i64, i64);
@@ -183,54 +172,35 @@ pub type Only = Rc<dyn Fn(i64) -> Result<bool>>;
 /// The hidden items of the zone the player is in that are still to be found, out of the
 /// executable's table and the save's flags (`gen6.field.Feature`).
 pub struct HiddenItems {
-    pub classes: Vec<&'static str>,
     memory: Rc<dyn Memory>,
+    works: Rc<Works>,
     rows: Vec<Row>,
     flags: i64,
     only: Option<Only>,
-    event: Slot<Option<i64>>,
 }
 
 impl HiddenItems {
-    /// `flags` is the flag before the first item's; `only` says which zones to list them in,
-    /// under the sea, or None for every zone.
-    pub fn new(memory: Rc<dyn Memory>, image: &[u8], flags: i64, only: Option<Only>) -> Self {
+    /// `works` holds the save's flags; `flags` is the flag before the first item's; `only`
+    /// says which zones to list them in, under the sea, or None for every zone.
+    pub fn new(
+        memory: Rc<dyn Memory>,
+        works: Rc<Works>,
+        image: &[u8],
+        flags: i64,
+        only: Option<Only>,
+    ) -> Self {
         HiddenItems {
-            classes: vec![EVENT_CLASS],
             memory,
+            works,
             rows: rows(image),
             flags,
             only,
-            event: Slot::new(None),
         }
-    }
-
-    pub fn track(&self, found: &Found) -> Result<()> {
-        if let Some(&last) = found.of(&[EVENT_CLASS]).last() {
-            self.event.set(Some(last));
-        }
-        Ok(())
-    }
-
-    /// Whether the save's `work` holds `value`; False before a sweep has found the works.
-    pub fn holds(&self, work: i64, value: i64) -> Result<bool> {
-        let Some(event) = self.event.get() else {
-            return Ok(false);
-        };
-        let at = event + WORKS + (work - FIRST_WORK) * 2;
-        // `int.from_bytes(..., "little")`, which takes however many bytes there are.
-        let held = self
-            .memory
-            .read(at, 2)?
-            .iter()
-            .rev()
-            .fold(0i64, |held, &byte| held << 8 | i64::from(byte));
-        Ok(held == value)
     }
 
     /// Each hidden item in `zone` not yet found; none before a sweep has found the flags.
     pub fn listed(&self, zone: i64, _zone_at: ZoneAt) -> Result<Vec<Interactable>> {
-        let Some(event) = self.event.get() else {
+        let Some(event) = self.works.event.get() else {
             return Ok(Vec::new());
         };
         if let Some(only) = &self.only
@@ -269,21 +239,5 @@ impl HiddenItems {
             });
         }
         Ok(out)
-    }
-}
-
-impl Tracked for HiddenItems {
-    fn classes(&self) -> Vec<&'static str> {
-        self.classes.clone()
-    }
-
-    fn track(&self, found: &Found) -> Result<()> {
-        HiddenItems::track(self, found)
-    }
-}
-
-impl Feature for HiddenItems {
-    fn listed(&self, zone: i64, zone_at: ZoneAt) -> Result<Vec<Interactable>> {
-        HiddenItems::listed(self, zone, zone_at)
     }
 }

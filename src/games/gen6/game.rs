@@ -360,6 +360,10 @@ pub struct Game {
     /// The vines it lets the player grab, or None in a game with none: X's Coumarine City Gym
     /// (spike 250).
     pub vining: Option<Vining>,
+    /// Zone -> the native its teleporters' cases hand where they put the player, x, the floor in
+    /// squares of height and z (`plates.teleports`): X's Laverre City Gym (spike A). By zone, since a
+    /// native's number is its zone script's own: Coumarine Gym's 56 swings a vine.
+    pub teleporting: IndexMap<i64, i64>,
     /// Whether a row of models drawn as nothing, two or more with one script that no drawn record
     /// of their zone has, is an invisible gate: not listed, and in the way. X's Santalune Gym has
     /// five behind Viola, and AZ's room five (spike 223).
@@ -439,6 +443,7 @@ impl Game {
             climbing: None,
             grinding: None,
             vining: None,
+            teleporting: IndexMap::new(),
             gates: false,
             form: None,
             steps: ORAS,

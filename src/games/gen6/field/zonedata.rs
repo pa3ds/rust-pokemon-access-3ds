@@ -231,7 +231,7 @@ pub fn npc_trainers(data: &[u8], trainers: i64) -> Result<Vec<(i64, i64)>> {
 }
 
 /// A file held whole, read as memory from address 0.
-struct Bytes<'a>(&'a [u8]);
+pub struct Bytes<'a>(pub &'a [u8]);
 
 impl Memory for Bytes<'_> {
     fn read(&self, address: i64, size: i64) -> Result<Vec<u8>> {

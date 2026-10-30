@@ -256,32 +256,59 @@ impl Script {
             .map(|(_, constant)| constant))
     }
 
-    /// The native the case `number` hands one constant to, and the constant, or None: its
-    /// first call is to a function that pushes the one constant and calls the native, as a
-    /// vending machine's does (`runs`) and each of Coumarine Gym's vines, 56 to swing on one and
-    /// 57 to climb one, with the end's number among its kind (spike 250).
+    /// The native the case `number` hands one constant to, and the constant, or None
+    /// (`call`): as a vending machine's does (`runs`) and each of Coumarine Gym's vines, 56 to
+    /// swing on one and 57 to climb one, with the end's number among its kind (spike 250).
     pub fn native(&self, number: i64) -> Result<Option<(i64, i64)>> {
+        Ok(match self.call(number)? {
+            Some((native, constants)) if constants.len() == 1 => Some((native, constants[0])),
+            _ => None,
+        })
+    }
+
+    /// The native the case `number` hands constants to, and the constants, the first
+    /// argument first, or None: its first call is to a function that pushes only constants,
+    /// the last argument first, and calls the native with their size. Each of Laverre Gym's
+    /// panels hands native 56 three, x, the floor in squares of height and z (spike A).
+    pub fn call(&self, number: i64) -> Result<Option<(i64, Vec<i64>)>> {
         let case = self.cases()?.get(&number).copied();
         let function = match case {
             None => None,
             Some(case) => self.called(case)?,
         };
-        let body = match function {
+        let ops: Vec<&(i64, Vec<i64>)> = match function {
             None => Vec::new(),
-            Some(function) => self.body(function)?,
+            Some(function) => self
+                .body(function)?
+                .iter()
+                .map(|cell| &self.instructions[cell])
+                .collect(),
         };
-        let ops: Vec<&(i64, Vec<i64>)> = py::slice(&body, 0, 3)
-            .iter()
-            .map(|cell| &self.instructions[cell])
-            .collect();
-        let codes: Vec<i64> = ops.iter().map(|(op, _)| *op).collect();
-        if codes != [PROC, PUSH_CONSTANT, NATIVE] || py::slice_from(&ops[2].1, 1) != [4] {
+        if ops.is_empty() || ops[0].0 != PROC {
             return Ok(None);
         }
-        let (Some(&native), Some(&constant)) = (ops[2].1.first(), ops[1].1.first()) else {
+        let pushed: Vec<&(i64, Vec<i64>)> = ops[1..]
+            .iter()
+            .copied()
+            .take_while(|one| one.0 == PUSH_CONSTANT)
+            .collect();
+        let native = ops.get(1 + pushed.len()).copied();
+        let Some(native) = native.filter(|native| {
+            native.0 == NATIVE && py::slice_from(&native.1, 1) == [4 * pushed.len() as i64]
+        }) else {
+            return Ok(None);
+        };
+        let Some(&called) = native.1.first() else {
             return Err(Error::index("tuple index out of range"));
         };
-        Ok(Some((native, constant)))
+        let mut constants: Vec<i64> = Vec::new();
+        for (_, operands) in pushed.iter().rev() {
+            let Some(&constant) = operands.first() else {
+                return Err(Error::index("tuple index out of range"));
+            };
+            constants.push(constant);
+        }
+        Ok(Some((called, constants)))
     }
 
     /// The cells of the function at `start`, up to its first return.

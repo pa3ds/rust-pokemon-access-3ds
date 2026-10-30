@@ -358,6 +358,9 @@ pub struct GameText {
     /// (zone, warp slot) -> the place indices of the gate a warp goes into and of the place
     /// beyond it (`plates.gate_names`).
     pub gates: IndexMap<(i64, i64), (i64, i64)>,
+    /// (zone, a trigger's script) -> (x, how high in world units, z) of where the teleporter it
+    /// is puts the player (`plates.teleports`): Laverre Gym's panels.
+    pub teleports: IndexMap<(i64, i64), (i64, i64, i64)>,
 }
 
 /// `Callable[[int], Sequence[bytes]]`: a text archive's file as its lines (`lines_of`).
@@ -454,6 +457,7 @@ impl Default for GameText {
             natives: IndexMap::new(),
             title: None,
             gates: IndexMap::new(),
+            teleports: IndexMap::new(),
         }
     }
 }
@@ -475,9 +479,20 @@ impl GameText {
         !self.places.is_empty()
     }
 
-    /// Read one language's names out of the ROM. A RomError when the language is not one
-    /// the game carries or the files are not what the layout says they are.
+    /// `load(rom, language, layout)`: no zone's teleporters.
     pub fn load(rom: &Rom, language: &str, layout: &RomLayout) -> Result<GameText> {
+        GameText::load_with(rom, language, layout, &IndexMap::new())
+    }
+
+    /// Read one language's names out of the ROM, and where the teleporters of the zones
+    /// `teleporting` lists put the player (`Game.teleporting`). A RomError when the language is
+    /// not one the game carries or the files are not what the layout says they are.
+    pub fn load_with(
+        rom: &Rom,
+        language: &str,
+        layout: &RomLayout,
+        teleporting: &IndexMap<i64, i64>,
+    ) -> Result<GameText> {
         let Some(archive) = layout.text.get(language) else {
             return Err(Error::new(
                 Kind::RomError,
@@ -858,6 +873,7 @@ impl GameText {
             natives,
             gates,
             title: rom.title(language)?,
+            teleports: plates::teleports(&read, teleporting)?,
         };
         if layout.protagonists && !text.protagonists_hold() {
             return Err(Error::new(

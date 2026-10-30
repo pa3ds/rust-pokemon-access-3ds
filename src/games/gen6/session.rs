@@ -56,7 +56,7 @@ pub fn start(
         &title,
         None,
     )?);
-    let text = Rc::new(game_text(&setup, &game.rom)?);
+    let text = Rc::new(game_text_with(&setup, &game.rom, &game.teleporting)?);
     let mut pictures = None;
     if !game.rom.textures.is_empty()
         && let Some(home) = &setup.names_home
@@ -159,15 +159,25 @@ pub fn start(
     })
 }
 
-/// The game's own words out of the player's ROM, or `NO_TEXT`; the log says which, and why.
+/// `game_text(setup, layout)`: no zone's teleporters.
+pub fn game_text(setup: &Setup, layout: &RomLayout) -> Result<GameText> {
+    game_text_with(setup, layout, &IndexMap::new())
+}
+
+/// The game's own words out of the player's ROM, or `NO_TEXT`, with where the teleporters of
+/// the zones `teleporting` lists put the player; the log says which, and why.
 ///
 /// Not having them costs a place's name said a moment early and the rival's name, both of which
 /// have a fallback — AreaNav's words and "Rival" — so a ROM that cannot be read is logged, not
 /// spoken at every start.
-pub fn game_text(setup: &Setup, layout: &RomLayout) -> Result<GameText> {
+pub fn game_text_with(
+    setup: &Setup,
+    layout: &RomLayout,
+    teleporting: &IndexMap<i64, i64>,
+) -> Result<GameText> {
     Ok(setup
         .words(
-            |image, language| GameText::load(image, language, layout),
+            |image, language| GameText::load_with(image, language, layout, teleporting),
             "the game's own words for places and the rival are off",
         )?
         .unwrap_or_else(no_text))

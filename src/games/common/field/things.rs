@@ -173,6 +173,10 @@ pub const RIDING: &str = "riding";
 /// (Khai, 2026-10-24).
 pub const CLIMBING: &str = "climbing";
 
+/// What a teleporter that moves the player within its zone is listed as, under signs, and the
+/// leg that is its teleport said with (`guide.Teleported`): the game names none (spike A).
+pub const TELEPORTER: &str = "teleporter";
+
 /// In the order they are walked and logged.
 pub const CATEGORIES: [&str; 12] = [
     "exits",
@@ -233,8 +237,14 @@ pub struct Interactable {
     pub height: Option<f64>,
     /// For an exit that comes out in the zone it is in, the cell it comes out at: a hideout's
     /// teleporter pads, most of which lead to another pad of their own room (2026-10-06). For a
-    /// current, where it lets the player go from `cell`.
+    /// current, where it lets the player go from `cell`. For a teleporter that moves the player
+    /// within the zone with no warp, where it puts them (`landing`).
     pub arrival: Option<(i64, i64)>,
+    /// For a teleporter that moves the player within the zone with no warp, how high `arrival`
+    /// is: which floor it puts them on, Laverre Gym's panels (spike A). Set only with `arrival`;
+    /// None for anything else, a warp's teleporter pad among them, whose warp builds the field
+    /// anew.
+    pub landing: Option<f64>,
     /// For a move model built from a record of a zone's table, that zone and the record's index:
     /// which one it is, wherever it walks or is pushed (spike 202). None where it is not read: Sun's
     /// models.
@@ -275,6 +285,7 @@ impl Interactable {
             home: None,
             height: None,
             arrival: None,
+            landing: None,
             record: None,
             start: None,
             pushes: None,

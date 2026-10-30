@@ -46,8 +46,8 @@ use crate::games::common::field::ground::{
 use crate::games::common::field::things::{
     BIKE, BIKE_SOURCE, CLIMB_SOURCE, CLIMBING, CURRENT_SOURCE, CURRENTS_CATEGORY,
     DECORATION_SOURCE, DIVE_SOURCE, EDGE_SOURCE, FURNITURE_SOURCE, Field, Interactable, OBSTACLES,
-    OPENING_SOURCE, POKEMON, RIDE_SOURCE, RIDING, STAIRS_SOURCE, TILE_SOURCE, TRIGGER_SOURCE,
-    VINE_SOURCE, WARP_SOURCE, kind_said, place_source,
+    OPENING_SOURCE, POKEMON, RIDE_SOURCE, RIDING, STAIRS_SOURCE, TELEPORTER, TILE_SOURCE,
+    TRIGGER_SOURCE, VINE_SOURCE, WARP_SOURCE, kind_said, place_source,
 };
 use crate::games::common::field::vines::{End, Vines, paired};
 use crate::games::gen6::field::features::{
@@ -56,6 +56,7 @@ use crate::games::gen6::field::features::{
 use crate::games::gen6::field::hidden_items::{HIDDEN_ITEM, HiddenItems, Only};
 use crate::games::gen6::field::rail::{self, Rails, keep};
 use crate::games::gen6::field::terrain::{FarCells, FarFloors, FarHeights, FarMatrices, Terrain};
+use crate::games::gen6::field::works::Works;
 use crate::games::gen6::field::zonedata::{
     FURNITURE, FURNITURE_SCRIPT, LZ11, NPC, NPC_INDEX, NPC_SCRIPT, NPC_SPRITE, NPC_X, NPC_Z,
     TRIGGER_HEIGHT, TRIGGER_SCRIPT, TRIGGER_VALUE, TRIGGER_WIDTH, TRIGGER_WORK, TRIGGER_X,
@@ -348,6 +349,9 @@ pub struct FieldReader {
     /// (zone, a furniture record's script) -> the native its case hands one constant to, and
     /// the constant (`plates.native_furniture`).
     natives: IndexMap<(i64, i64), (i64, i64)>,
+    /// (zone, a trigger's script) -> (x, how high, z) of where the teleporter it is puts the
+    /// player (`plates.teleports`).
+    teleports: IndexMap<(i64, i64), (i64, i64, i64)>,
     /// The zone and map the vines' ends were read for, and the ends (`_vine_ends`).
     ends_of: RefCell<(VinesKey, Rc<Vec<End>>)>,
     /// The zone and map the vines were found for, and the vines (`_vines`).
@@ -357,6 +361,8 @@ pub struct FieldReader {
     gates: bool,
     /// The game's Secret Bases, or None in a game without them.
     secret_bases: Option<Rc<dyn SecretBaseReader>>,
+    /// The save's works and flags, which arm triggers and say which hidden items are found.
+    works: Rc<Works>,
     /// The hidden items still to be found, where the Extra lists them (spike 249).
     hidden_items: Option<HiddenItems>,
     /// (zone, sprite) of the move models that are a barrier's beam (`Game.barriers`).
@@ -524,6 +530,8 @@ impl FieldReader {
         let underwater = hidden_items == HIDDEN_UNDERWATER;
         let hidden_memory = memory.clone();
         let flags = game.hidden_items;
+        let works = Rc::new(Works::new(memory.clone()));
+        let hidden_works = works.clone();
         let hidden_items = move |me: &Weak<FieldReader>| {
             if !listing || image.is_empty() {
                 return None;
@@ -538,11 +546,18 @@ impl FieldReader {
                         .underwater(zone)
                 }) as Only
             });
-            Some(HiddenItems::new(hidden_memory, image, flags, only))
+            Some(HiddenItems::new(
+                hidden_memory,
+                hidden_works,
+                image,
+                flags,
+                only,
+            ))
         };
         Rc::new_cyclic(|me| FieldReader {
             me: me.clone(),
             hidden_items: hidden_items(me),
+            works,
             zones: ZoneTable::new(memory.clone(), text.zone_table.clone()),
             warp_words: game.warps.clone(),
             features,
@@ -561,6 +576,7 @@ impl FieldReader {
             grinding: game.grinding,
             vining: game.vining,
             natives: text.natives.clone(),
+            teleports: text.teleports.clone(),
             ends_of: RefCell::new((None, Rc::new(Vec::new()))),
             vines_of: RefCell::new((None, Rc::new(Vines::default()))),
             gates: game.gates,
@@ -637,9 +653,7 @@ impl FieldReader {
         if let Some(hidden) = &self.hidden {
             out.push(&**hidden);
         }
-        if let Some(hidden_items) = &self.hidden_items {
-            out.push(hidden_items);
-        }
+        out.push(&*self.works);
         if let Some(doors) = &self.doors {
             out.push(&**doors);
         }
@@ -1192,11 +1206,16 @@ impl FieldReader {
     /// and the way between its two rooms, which share no floor (spike 146); Lavaridge Gym's
     /// trapdoors and geysers (spike 157); Mossdeep Gym's lifts and teleporter (spike 163); the way
     /// into Seafloor Cavern under Route 128 (spike 164). And where the Extra lists hidden items,
-    /// those a trigger gives, while it is armed: once taken it is not. One placed on a street is
-    /// where the street has it on the grid, as high as its line's start: Coumarine Gym's way
-    /// down, on its top level (spike 250).
+    /// those a trigger gives, while it is armed: once taken it is not. One placed on a
+    /// street is where the street has it on the grid, as high as its line's start: Coumarine
+    /// Gym's way down, on its top level (spike 250). Each teleporter the ROM says puts the player
+    /// somewhere in the zone, while it is armed, a sign with where it puts them (`arrival`,
+    /// `landing`): Laverre Gym's panels (spike A).
     fn listed_triggers(&self, data: &ZoneData, zone: i64) -> Result<Vec<Interactable>> {
-        let home = if self.triggers.is_empty() && self.hidden_triggers.is_empty() {
+        let home = if self.triggers.is_empty()
+            && self.hidden_triggers.is_empty()
+            && self.teleports.is_empty()
+        {
             None
         } else {
             self.home(data, &[zone])?
@@ -1208,11 +1227,28 @@ impl FieldReader {
         let files = self.terrain.files.borrow().1.clone();
         for (i, record) in read_triggers(&*self.memory, data)?.iter().enumerate() {
             let script = u16(record, TRIGGER_SCRIPT)?;
+            let armed = (u16(record, TRIGGER_WORK)?, u16(record, TRIGGER_VALUE)?);
+            if let Some(&lands) = self.teleports.get(&(home, script)) {
+                if self.works.armed(armed.0, armed.1)? {
+                    out.push(Interactable {
+                        size: (u16(record, TRIGGER_WIDTH)?, u16(record, TRIGGER_HEIGHT)?),
+                        code: script,
+                        source: place_source(TRIGGER_SOURCE, i as i64)?,
+                        home: Some(home),
+                        height: Some(s16(record, TRIGGER_Y)? as f64),
+                        arrival: Some((lands.0, lands.2)),
+                        landing: Some(lands.1 as f64),
+                        ..Interactable::new(
+                            "signs",
+                            TELEPORTER,
+                            (u16(record, TRIGGER_X)?, u16(record, TRIGGER_Z)?),
+                        )
+                    });
+                }
+                continue;
+            }
             if self.hidden_triggers.contains(&(home, script)) {
-                if let Some(hidden_items) = &self.hidden_items
-                    && hidden_items
-                        .holds(u16(record, TRIGGER_WORK)?, u16(record, TRIGGER_VALUE)?)?
-                {
+                if self.hidden_items.is_some() && self.works.holds(armed.0, armed.1)? {
                     out.push(Interactable {
                         size: (u16(record, TRIGGER_WIDTH)?, u16(record, TRIGGER_HEIGHT)?),
                         code: script,
