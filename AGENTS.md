@@ -112,7 +112,11 @@ The Python checkout is `PA3DS_PYTHON`, or `../pokemon-access-3ds` beside this on
 
 0. Claim the oldest open `upstream` issue (*Talking to upstream*, above), and check out the
    commit its title names in the Python checkout: that is HEAD below, whatever upstream's main
-   has moved on to since.
+   has moved on to since. `git fetch` this repository and branch from `origin/main`: its
+   `port.toml` must name the commit the issue's body says port.toml matches. Where it does not,
+   your main is stale or a port has not landed yet, so stop and ask. A sync begun on a main two
+   days stale ported again what Khai's PR #32 had merged (Orion, 2026-10-30); `status` now
+   warns where origin's `port.toml` is ahead of yours.
 1. `status`, then for each file listed to port by hand, read its upstream diff
    (`git -C ../pokemon-access-3ds diff <port.toml's commit>..HEAD -- <path>`) and make the same
    change to its Rust file, following `docs/porting.md`. Port the change to its tests too.

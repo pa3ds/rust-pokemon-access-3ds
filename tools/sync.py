@@ -84,8 +84,29 @@ def tracked() -> list[str]:
     return [path for path in git("ls-files").splitlines() if path]
 
 
+def landed(pinned: str) -> str | None:
+    """The upstream commit `port.toml` names on origin's main, fetched now, where it is past
+    `pinned`: a port has landed since this branch left main. None where it is not, or where
+    origin cannot be reached. A sync begun on a stale main ported PR #32 again (2026-10-30)."""
+    try:
+        subprocess.run(["git", "-C", str(ROOT), "fetch", "--quiet", "origin"], check=True,
+                       capture_output=True)
+        text = subprocess.run(["git", "-C", str(ROOT), "show", "origin/main:port.toml"],
+                              check=True, capture_output=True, text=True, encoding="utf-8").stdout
+        theirs = str(tomllib.loads(text)["upstream"])
+    except (subprocess.CalledProcessError, OSError, tomllib.TOMLDecodeError, KeyError):
+        return None
+    behind = subprocess.run(["git", "-C", str(PYTHON), "merge-base", "--is-ancestor", theirs,
+                             pinned], capture_output=True).returncode != 0
+    return theirs if theirs != pinned and behind else None
+
+
 def status(since: str | None = None) -> int:
     pinned = str(manifest()["upstream"])
+    if (theirs := landed(pinned)) is not None:
+        print(f"WARNING: origin/main's port.toml matches {theirs[:9]}, past this checkout's "
+              f"{pinned[:9]}: a port has landed since this branch left main. Branch from "
+              "origin/main (AGENTS.md, step 0).\n")
     upstream = git("rev-parse", since).strip() if since else pinned
     head = git("rev-parse", "HEAD").strip()
     print(f"port.toml matches {pinned[:9]}; upstream HEAD is {head[:9]}")
