@@ -44,8 +44,7 @@ use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::screens::amie::{AmiePage, Goods, Puffs};
 use crate::games::gen6::screens::berry_picker::{BerryKeys, BerryPicker, Touching};
 use crate::games::gen6::screens::puzzle::TilePuzzle;
-use crate::games::gen6::screens::training::{Bags, Goals, Round, TrainingPage};
-use crate::games::gen6::screens::waiting::Waiting;
+use crate::games::gen6::screens::training::{Bags, Goals, Round, TrainingPage, Waiting};
 use crate::py::{self, Result};
 
 /// A reader handed what a sweep found of its objects, by class.

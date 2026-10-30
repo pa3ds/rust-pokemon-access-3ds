@@ -74,6 +74,16 @@
 //! One of the Bot's flew three times in 15 s, and the score fell 177, 167, 157 as they hit. The
 //! player blocks a ball with L in the second before it lands. A shot of the player's own with
 //! +0x110 set would warn as well; not seen.
+//!
+//! Super Training's welcome, "Welcome to S.T.!" over its page, is a message the field shows on the
+//! bottom screen, waiting for a tap to go on (as_play_nav, spike 253). The page switches every
+//! button of its own off under it (spike 228), and the frame round the PlayNav's pages keeps its
+//! arrows and the X menu's icons on: touch mode offered those alone, and "next", the frame's ▶, went
+//! on with the message and turned the PlayNav to the page after, leaving Super Training behind.
+//! While a message waits, the game draws its ▼ in the message's corner, `f_msg_win_c01.bclim`, at
+//! (305, 63) for the welcome, on no touch area. Touch mode offers the ▼ as "continue", where a tap
+//! lands on no button (`Waiting`): any message of the field's bottom screen that draws one, the
+//! welcome the only one met so far.
 
 use std::collections::BTreeSet;
 use std::rc::Rc;
@@ -125,6 +135,9 @@ pub static GOAL_FRAME: LazyLock<Regex> = LazyLock::new(|| {
 /// What the texture's name of a training bag's picture starts with, in the list and beside the
 /// Pokémon alike; the one beside it has no word in the game's text and is not offered.
 pub const BAG_IMAGE: &str = "sand_bag";
+/// The ▼ a bottom-screen message draws while it waits for a tap (`Waiting`).
+pub const ARROW: &str = "f_msg_win_c01.bclim";
+pub const CONTINUE: &str = "touch-continue";
 pub const TOP_WIDTH: i64 = 400;
 /// The top screen in pixels, as a layout places its panes from its middle.
 pub const TOP_HEIGHT: i64 = 240;
@@ -492,6 +505,42 @@ impl Bags {
 /// `sorted((x, what) ...)`: Python's tuple order, x first and then the words.
 fn by_place(items: Vec<(f64, String)>) -> Vec<(f64, String)> {
     py::sorted_by_lt(items, |a, b| if a.0 != b.0 { a.0 < b.0 } else { a.1 < b.1 })
+}
+
+/// The bottom screen's message waiting for a tap, as a touch target: Super Training's
+/// welcome.
+pub struct Waiting {
+    layouts: Rc<Layouts>,
+    image_of: ImageOf,
+}
+
+impl Waiting {
+    pub fn new(layouts: Rc<Layouts>, image_of: ImageOf) -> Self {
+        Waiting { layouts, image_of }
+    }
+
+    /// The ▼ of each message waiting on the bottom screen of the field, "continue".
+    pub fn targets(&self, running: Option<&str>) -> Result<Vec<Target>> {
+        if running != Some(FIELD) {
+            return Ok(Vec::new());
+        }
+        let layouts = &self.layouts;
+        let mut found = Vec::new();
+        for (pane, root, _image, across, up) in
+            pictures(layouts, &self.image_of, false, &|image| image == ARROW)?
+        {
+            let x = py::round(WIDTH as f64 / 2.0 + across)?;
+            let y = py::round(HEIGHT as f64 / 2.0 - up)?;
+            let height = f32(&layouts.pane(pane)?, layouts.shape.height)?;
+            let layer = layouts.layer(root)?;
+            found.push(Target {
+                layer,
+                root,
+                ..Target::new(pane, &own(CONTINUE, &[]), x, y, up, height)
+            });
+        }
+        Ok(found)
+    }
 }
 
 /// The score and the target of the row of digits around the shown slash, or None: the digits

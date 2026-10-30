@@ -20,4 +20,3 @@ pub mod boxes;
 pub mod partners;
 pub mod puzzle;
 pub mod training;
-pub mod waiting;
