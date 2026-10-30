@@ -169,8 +169,16 @@ pub fn along(path: &[(i64, i64)], start: f64, until: f64, now: f64) -> Option<(i
     Some((x, y))
 }
 
-/// A press the player holds between keys (`TouchServer`).
-pub trait Drag {
+/// The emulated touch screen, which touch mode presses on the player's keys (`TouchServer`):
+/// a tap, a slide along a path, and a press the player holds between keys. Each says why not
+/// where it cannot, as `TouchServer.tap` does.
+pub trait TouchScreen {
+    /// Press at (x, y) and let go.
+    fn tap(&self, x: i64, y: i64) -> Option<String>;
+
+    /// Press at the path's first point, move along it over `seconds`, and let go.
+    fn slide(&self, path: &[(i64, i64)], seconds: f64) -> Option<String>;
+
     /// Press at (x, y) and keep it down; says why not as `TouchServer.tap` does.
     fn hold(&self, x: i64, y: i64) -> Option<String>;
 
@@ -406,7 +414,15 @@ impl TouchServer {
     }
 }
 
-impl Drag for TouchServer {
+impl TouchScreen for TouchServer {
+    fn tap(&self, x: i64, y: i64) -> Option<String> {
+        TouchServer::tap(self, x, y)
+    }
+
+    fn slide(&self, path: &[(i64, i64)], seconds: f64) -> Option<String> {
+        TouchServer::slide(self, path, seconds)
+    }
+
     fn hold(&self, x: i64, y: i64) -> Option<String> {
         TouchServer::hold(self, x, y)
     }

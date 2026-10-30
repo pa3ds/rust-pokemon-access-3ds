@@ -27,7 +27,7 @@ use crate::core::pathfind::{COMPASS, walked};
 use crate::core::rtti::{ClassNames, demangle};
 use crate::core::speech::{Category, Speech};
 use crate::core::tones::{Tones, ticking};
-use crate::core::touch::Drag;
+use crate::core::touch::TouchScreen;
 use crate::core::words::own;
 use crate::games::common::announce::{Announcements, Speaker};
 use crate::games::common::cursors::reader::CursorReader;
@@ -55,7 +55,7 @@ use crate::games::common::screen_announce::ScreenAnnouncer;
 use crate::games::common::session::Profile;
 use crate::games::common::slots::Occupant;
 use crate::games::common::touch::{
-    self, FileOf, HOLDING, Idle, ImageOf, Lists, OnScreen, PictureName, Tap, TextOf, TouchTargets,
+    self, FileOf, HOLDING, Idle, ImageOf, Lists, OnScreen, PictureName, TextOf, TouchTargets,
 };
 use crate::games::common::{lyt, msgwin, pokemon, strbuf};
 use crate::games::gen6::apps::{BATTLE, DEMOS, FIELD, MANAGER_CLASS, RunningApp, TUTORIAL};
@@ -197,9 +197,7 @@ pub struct Options {
     pub pictures: Option<Rc<Index>>,
     /// The executable as read from its code, `b""` when there is none.
     pub image: Vec<u8>,
-    pub tap: Option<Tap>,
-    pub slide: Option<touch::Slide>,
-    pub drag: Option<Rc<dyn Drag>>,
+    pub touch_screen: Option<Rc<dyn TouchScreen>>,
     pub tones: Option<Rc<Tones>>,
     pub ticks: Option<Rc<Tones>>,
     pub clips: Option<Rc<Clips>>,
@@ -384,9 +382,7 @@ impl Gen6Profile {
             text,
             pictures,
             image,
-            tap,
-            slide,
-            drag,
+            touch_screen,
             tones,
             ticks,
             clips,
@@ -822,7 +818,7 @@ impl Gen6Profile {
             log.clone(),
             touch::Options {
                 images: Some(images.clone()),
-                tap,
+                screen: touch_screen,
                 tone: tones.clone().map(|tones| {
                     Rc::new(move |across: f64, down: f64| {
                         // The sound thread not starting, raised to the key's handler in Python.
@@ -833,8 +829,6 @@ impl Gen6Profile {
                 lists: Some(lists_labels),
                 idle: Some(idle),
                 off: Some(off),
-                slide,
-                drag,
                 wrap: touch_settings.wrap,
                 next_row: touch_settings.next_row,
                 pace: Some({

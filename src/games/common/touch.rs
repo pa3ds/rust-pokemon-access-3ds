@@ -53,7 +53,7 @@ use std::rc::Rc;
 use indexmap::{IndexMap, IndexSet};
 
 use crate::core::binary::{f32, u32};
-use crate::core::touch::Drag;
+use crate::core::touch::TouchScreen;
 use crate::core::words::own;
 use crate::games::common::layout::Layouts;
 use crate::games::common::layout_file::LayoutFile;
@@ -158,8 +158,6 @@ pub type TextOf = Rc<dyn Fn(i64) -> Result<String>>;
 pub type ImageOf = Rc<dyn Fn(i64) -> Result<Option<String>>>;
 /// `Callable[[int], LayoutFile | None]`: a layout's root -> the file it was built from.
 pub type FileOf = Rc<dyn Fn(i64) -> Option<Rc<LayoutFile>>>;
-/// `Callable[[int, int], str | None]`: tap a pixel of the touch screen.
-pub type Tap = Rc<dyn Fn(i64, i64) -> Option<String>>;
 /// `Callable[[float, float], None]`: sound where a target is.
 pub type Tone = Rc<dyn Fn(f64, f64)>;
 /// `Callable[[int], str | None]`: what a picture the game fills in as it runs draws. It reads
@@ -178,8 +176,6 @@ pub type SaidOff = Rc<dyn Fn(i64) -> Result<bool>>;
 /// `Callable[[], Mapping[str, str]]`: the AreaNav's map's touch areas by pane name -> the place
 /// each is. It reads memory.
 pub type Places = Rc<dyn Fn() -> Result<Rc<IndexMap<String, String>>>>;
-/// `Callable[[Sequence[tuple[int, int]], float], str | None]`: drag a press along a path.
-pub type Slide = Rc<dyn Fn(&[(i64, i64)], f64) -> Option<String>>;
 /// `Callable[[], list[Target]]`: targets no touch area draws. It reads memory.
 pub type Gestures = Rc<dyn Fn() -> Result<Vec<Target>>>;
 
@@ -188,17 +184,15 @@ pub type Gestures = Rc<dyn Fn() -> Result<Vec<Target>>>;
 pub struct Options {
     /// None is `{}`.
     pub images: Option<IndexMap<String, String>>,
-    pub tap: Option<Tap>,
+    pub screen: Option<Rc<dyn TouchScreen>>,
     pub tone: Option<Tone>,
     pub picture_name: Option<PictureName>,
     pub lists: Option<Lists>,
     pub idle: Option<Idle>,
-    pub slide: Option<Slide>,
     pub gestures: Option<Gestures>,
     pub off: Option<Off>,
     pub said_off: Option<SaidOff>,
     pub places: Option<Places>,
-    pub drag: Option<Rc<dyn Drag>>,
     pub wrap: bool,
     pub next_row: bool,
     /// None is never.
@@ -213,17 +207,15 @@ impl Default for Options {
     fn default() -> Self {
         Options {
             images: None,
-            tap: None,
+            screen: None,
             tone: None,
             picture_name: None,
             lists: None,
             idle: None,
-            slide: None,
             gestures: None,
             off: None,
             said_off: None,
             places: None,
-            drag: None,
             wrap: true,
             next_row: true,
             delayed: None,
@@ -246,8 +238,9 @@ pub struct TouchTargets {
     file_of: FileOf,
     log: Log,
     images: IndexMap<String, String>,
-    /// Tap a pixel of the touch screen; a line saying why not, or None once sent.
-    tap: Option<Tap>,
+    /// The touch screen a tap, a slide and a drag press, or None where pa3ds takes no keys
+    /// and touches nothing, as in a replay.
+    screen: Option<Rc<dyn TouchScreen>>,
     /// Sound where a target is, across and down the screen as shares of it (`core.tones`).
     tone: Option<Tone>,
     /// The game's word for what a picture the game fills in as it runs draws, or None.
@@ -256,8 +249,6 @@ pub struct TouchTargets {
     lists: Option<Lists>,
     /// The works of the layouts whose buttons take no tap now (`Buttons.idle`).
     idle: Option<Idle>,
-    /// Drag a press along a path of the touch screen over so many seconds.
-    slide: Option<Slide>,
     /// Targets a screen offers that no touch area draws, each a stroke: Pokémon-Amie's
     /// Pokémon, stroked by sliding over it (spike 200).
     gestures: Option<Gestures>,
@@ -270,8 +261,6 @@ pub struct TouchTargets {
     /// The AreaNav's map's touch areas by pane name -> the place each is, while the map is the
     /// screen's and not the field's window onto it; none otherwise.
     places: Option<Places>,
-    /// A press held between keys (`DRAG`).
-    drag: Option<Rc<dyn Drag>>,
     /// Whether the screen drags only as the drag is let go, straight from where it was picked up
     /// to where the keys chose: Berry Picker, where a berry carried over a Pokémon wanting
     /// another sends it off (spike 260). Elsewhere the press goes with the keys, as a Poké Puff
@@ -329,17 +318,15 @@ impl TouchTargets {
     ) -> Self {
         let Options {
             images,
-            tap,
+            screen,
             tone,
             picture_name,
             lists,
             idle,
-            slide,
             gestures,
             off,
             said_off,
             places,
-            drag,
             wrap,
             next_row,
             delayed,
@@ -355,17 +342,15 @@ impl TouchTargets {
             file_of,
             log,
             images: images.unwrap_or_default(),
-            tap,
+            screen,
             tone,
             picture_name,
             lists,
             idle,
-            slide,
             gestures,
             off,
             said_off,
             places,
-            drag,
             delayed: delayed.unwrap_or_else(|| Rc::new(|| false)),
             sound,
             offered,
@@ -419,7 +404,7 @@ impl TouchTargets {
             if self.picked.is_some() {
                 return Ok(String::new());
             }
-            if self.drag.is_none() {
+            if self.screen.is_none() {
                 return Ok(own("touch-off", &[]));
             }
             // Nothing is pressed until the keys choose another target: Shift pressed and let go
@@ -442,7 +427,7 @@ impl TouchTargets {
         if action == TAP {
             let target = &found[at];
             if !target.path.is_empty() {
-                let Some(slide) = &self.slide else {
+                let Some(screen) = &self.screen else {
                     return Ok(own("touch-off", &[]));
                 };
                 let path: Vec<String> = target
@@ -455,16 +440,18 @@ impl TouchTargets {
                     target.name,
                     path.join(", ")
                 ));
-                return Ok(slide(&target.path, target.seconds).unwrap_or_default());
+                return Ok(screen
+                    .slide(&target.path, target.seconds)
+                    .unwrap_or_default());
             }
-            let Some(tap) = &self.tap else {
+            let Some(screen) = &self.screen else {
                 return Ok(own("touch-off", &[]));
             };
             (self.log)(&format!(
                 "touch: tap {} at ({}, {})",
                 target.name, target.x, target.y
             ));
-            return Ok(tap(target.x, target.y).unwrap_or_default());
+            return Ok(screen.tap(target.x, target.y).unwrap_or_default());
         }
         let before = found[at].clone();
         let lines = rows(&found);
@@ -521,8 +508,8 @@ impl TouchTargets {
         let (Some(picked), Some(over)) = (picked, over) else {
             return String::new();
         };
-        if pressed && let Some(drag) = &self.drag {
-            drag.release();
+        if pressed && let Some(screen) = &self.screen {
+            screen.release();
             (self.log)(&format!("touch: let go on {}", over.name));
         } else if (self.delayed)() && over.pane != picked.pane {
             return self.give(&picked, &over);
@@ -534,7 +521,7 @@ impl TouchTargets {
     /// that drags only on letting go has it (`delayed`): Berry Picker's keys, a berry's and then a
     /// Pokémon's, give it this way (ADR-0009 as amended 2026-10-29).
     pub fn give(&self, picked: &Target, over: &Target) -> String {
-        let Some(slide) = &self.slide else {
+        let Some(screen) = &self.screen else {
             return own("touch-off", &[]);
         };
         let (x, y) = over.drop.unwrap_or((over.x, over.y));
@@ -546,7 +533,7 @@ impl TouchTargets {
             over.name,
             listed.join(", ")
         ));
-        if let Some(why) = slide(&path, DROP_SECONDS / (self.pace)())
+        if let Some(why) = screen.slide(&path, DROP_SECONDS / (self.pace)())
             && !why.is_empty()
         {
             return why;
@@ -567,20 +554,21 @@ impl TouchTargets {
     /// such move, and slid from target to target after; or, where the screen drags only on
     /// letting go (`delayed`), nothing touched until then.
     fn carry(&mut self, target: &Target) {
-        let (Some(picked), Some(over), Some(drag)) = (&self.picked, &self.over, &self.drag) else {
+        let (Some(picked), Some(over), Some(screen)) = (&self.picked, &self.over, &self.screen)
+        else {
             return;
         };
         if target.pane == over.pane {
             return;
         }
-        let (picked, drag) = (picked.clone(), drag.clone());
+        let (picked, screen) = (picked.clone(), screen.clone());
         self.over = Some(target.clone());
         if (self.delayed)() {
             (self.log)(&format!("touch: choose {}", target.name));
             return;
         }
         if !self.pressed {
-            if let Some(why) = drag.hold(picked.x, picked.y)
+            if let Some(why) = screen.hold(picked.x, picked.y)
                 && !why.is_empty()
             {
                 (self.log)(&format!("touch: could not hold {}: {why}", picked.name));
@@ -593,7 +581,7 @@ impl TouchTargets {
             ));
         }
         let (x, y) = target.drop.unwrap_or((target.x, target.y));
-        drag.r#move(x, y);
+        screen.r#move(x, y);
         (self.log)(&format!("touch: carry to {} at ({x}, {y})", target.name));
     }
 

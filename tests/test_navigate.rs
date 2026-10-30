@@ -5161,13 +5161,21 @@ fn test_the_way_is_said_again_once_the_camera_stops_somewhere_new() {
 
 /// For when the line was missed, and while the HP box is off the screen (ADR-0015; the
 /// user's keys, 2026-09-29). A key's answer interrupts.
-/// A press held between keys, each touch kept (`core.touch.Drag`), where Python's test gives the
+/// The touch screen, each held press kept (`core.touch.TouchScreen`), where Python's test gives the
 /// navigator a stand-in for touch mode: touch mode is a `TouchTargets` here, given its targets.
 struct Holding {
     touches: RefCell<Vec<(&'static str, i64, i64)>>,
 }
 
-impl crate::core::touch::Drag for Holding {
+impl crate::core::touch::TouchScreen for Holding {
+    fn tap(&self, _x: i64, _y: i64) -> Option<String> {
+        None
+    }
+
+    fn slide(&self, _path: &[(i64, i64)], _seconds: f64) -> Option<String> {
+        None
+    }
+
     fn hold(&self, x: i64, y: i64) -> Option<String> {
         self.touches.borrow_mut().push(("hold", x, y));
         None
@@ -5212,7 +5220,7 @@ fn test_while_a_touch_is_held_shift_keys_walk_and_letting_go_of_shift_lets_go() 
         Rc::new(|_root| None),
         Rc::new(|_line: &str| {}),
         touch::Options {
-            drag: Some(held.clone()),
+            screen: Some(held.clone()),
             ..touch::Options::default()
         },
     );
@@ -5286,7 +5294,7 @@ fn holding_navigator(
         Rc::new(|_root| None),
         Rc::new(|_line: &str| {}),
         touch::Options {
-            drag: Some(held.clone()),
+            screen: Some(held.clone()),
             ..touch::Options::default()
         },
     );

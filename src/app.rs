@@ -680,17 +680,9 @@ fn session(
             rom: settings.rom.clone(),
             emulator: settings.emulator.clone(),
             sweep_chunk: settings.sweep_chunk,
-            tap: touching.clone().map(|touching| {
-                Rc::new(move |x: i64, y: i64| touching.tap(x, y))
-                    as Rc<dyn Fn(i64, i64) -> Option<String>>
-            }),
-            slide: touching.clone().map(|touching| {
-                Rc::new(move |path: &[(i64, i64)], seconds: f64| touching.slide(path, seconds))
-                    as Rc<dyn Fn(&[(i64, i64)], f64) -> Option<String>>
-            }),
-            drag: touching
+            touch_screen: touching
                 .clone()
-                .map(|touching| touching as Rc<dyn crate::core::touch::Drag>),
+                .map(|touching| touching as Rc<dyn crate::core::touch::TouchScreen>),
             tones: match &loudness {
                 Some(loudness) if audio.tones > 0.0 => {
                     Some(Rc::new(Tones::new(Some(loudness.clone()), audio.tones)))

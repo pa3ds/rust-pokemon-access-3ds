@@ -34,13 +34,27 @@ fn bar() -> Vec<Target> {
         .collect()
 }
 
-/// A press held between keys, each touch kept (`core.touch.Drag`).
+/// The touch screen, each tap, slide and held press kept (`core.touch.TouchScreen`).
 #[derive(Default)]
-struct Held {
+struct Pressed {
+    tapped: RefCell<Vec<(i64, i64)>>,
+    slid: RefCell<Vec<Vec<(i64, i64)>>>,
+    seconds: RefCell<Vec<f64>>,
     touches: RefCell<Vec<(&'static str, i64, i64)>>,
 }
 
-impl crate::core::touch::Drag for Held {
+impl crate::core::touch::TouchScreen for Pressed {
+    fn tap(&self, x: i64, y: i64) -> Option<String> {
+        self.tapped.borrow_mut().push((x, y));
+        None
+    }
+
+    fn slide(&self, path: &[(i64, i64)], seconds: f64) -> Option<String> {
+        self.slid.borrow_mut().push(path.to_vec());
+        self.seconds.borrow_mut().push(seconds);
+        None
+    }
+
     fn hold(&self, x: i64, y: i64) -> Option<String> {
         self.touches.borrow_mut().push(("hold", x, y));
         None
@@ -55,46 +69,35 @@ impl crate::core::touch::Drag for Held {
     }
 }
 
-/// Touch targets with the screen's given, and every tap kept.
+/// Touch targets with the screen's given, pressing a touch screen that keeps every touch.
 ///
 /// Python subclasses `TouchTargets` and overrides `targets`; here the targets are handed to it
 /// through its test-only `given`, and the layouts it never reads are an empty memory's.
 struct Screen {
     targets: TouchTargets,
-    tapped: Rc<RefCell<Vec<(i64, i64)>>>,
-    /// Every slide, as Python's test keeps them by setting `_slide`.
-    slid: Rc<RefCell<Vec<(Vec<(i64, i64)>, f64)>>>,
+    pressed: Rc<Pressed>,
     found: Rc<RefCell<Vec<Target>>>,
 }
 
 impl Screen {
     fn new(found: Vec<Target>) -> Self {
-        Screen::with_drag(found, None)
-    }
-
-    /// `Screen(found, drag)`.
-    fn with_drag(found: Vec<Target>, drag: Option<Rc<Held>>) -> Self {
-        Screen::with_options(found, drag, true, true, false, None)
+        Screen::with_options(found, true, true, false, None)
     }
 
     /// `Screen(found, wrap=wrap, next_row=next_row)`.
     fn wrapping(found: Vec<Target>, wrap: bool, next_row: bool) -> Self {
-        Screen::with_options(found, None, wrap, next_row, false, None)
+        Screen::with_options(found, wrap, next_row, false, None)
     }
 
-    /// `Screen(found, drag, wrap, next_row, delayed, pace)`. Every slide's seconds are kept in
-    /// `slid`, where Python's keeps them in `seconds`.
+    /// `Screen(found, wrap, next_row, delayed, pace)`.
     fn with_options(
         found: Vec<Target>,
-        drag: Option<Rc<Held>>,
         wrap: bool,
         next_row: bool,
         delayed: bool,
         pace: Option<Rc<dyn Fn() -> f64>>,
     ) -> Self {
-        let tapped: Rc<RefCell<Vec<(i64, i64)>>> = Rc::new(RefCell::new(Vec::new()));
-        let slid: Rc<RefCell<Vec<(Vec<(i64, i64)>, f64)>>> = Rc::new(RefCell::new(Vec::new()));
-        let kept = slid.clone();
+        let pressed = Rc::new(Pressed::default());
         let found = Rc::new(RefCell::new(found));
         let memory = FakeMemory::new();
         let layouts = Rc::new(Layouts::new(
@@ -102,7 +105,6 @@ impl Screen {
             Rc::new(ClassNames::new(memory.clone(), CODE)),
             lyt::ORAS,
         ));
-        let keep = tapped.clone();
         let mut targets = TouchTargets::new(
             layouts,
             Rc::new(Vec::new),
@@ -111,15 +113,7 @@ impl Screen {
             Rc::new(|_root| None),
             Rc::new(|_line: &str| {}),
             Options {
-                tap: Some(Rc::new(move |x, y| {
-                    keep.borrow_mut().push((x, y));
-                    None
-                })),
-                slide: Some(Rc::new(move |path: &[(i64, i64)], seconds| {
-                    kept.borrow_mut().push((path.to_vec(), seconds));
-                    None
-                })),
-                drag: drag.map(|drag| drag as Rc<dyn crate::core::touch::Drag>),
+                screen: Some(pressed.clone()),
                 wrap,
                 next_row,
                 delayed: Some(Rc::new(move || delayed)),
@@ -138,8 +132,7 @@ impl Screen {
         }));
         Screen {
             targets,
-            tapped,
-            slid,
+            pressed,
             found,
         }
     }
@@ -153,7 +146,7 @@ impl Screen {
     }
 
     fn tapped(&self) -> Vec<(i64, i64)> {
-        self.tapped.borrow().clone()
+        self.pressed.tapped.borrow().clone()
     }
 }
 
@@ -291,14 +284,13 @@ fn test_nothing_on_the_bottom_screen_is_said_so() {
 /// mode offers nothing there, nor reads their layouts (`gen6.profile.TOUCHED`).
 #[test]
 fn test_a_screen_the_games_buttons_work_has_nothing_to_touch() {
-    let tapped: Rc<RefCell<Vec<(i64, i64)>>> = Rc::new(RefCell::new(Vec::new()));
+    let pressed = Rc::new(Pressed::default());
     let memory = FakeMemory::new();
     let layouts = Rc::new(Layouts::new(
         memory.clone(),
         Rc::new(ClassNames::new(memory.clone(), CODE)),
         lyt::ORAS,
     ));
-    let keep = tapped.clone();
     let mut targets = TouchTargets::new(
         layouts,
         Rc::new(Vec::new),
@@ -307,10 +299,7 @@ fn test_a_screen_the_games_buttons_work_has_nothing_to_touch() {
         Rc::new(|_root| None),
         Rc::new(|_line: &str| {}),
         Options {
-            tap: Some(Rc::new(move |x, y| {
-                keep.borrow_mut().push((x, y));
-                None
-            })),
+            screen: Some(pressed.clone()),
             offered: Some(Rc::new(|| false)),
             ..Options::default()
         },
@@ -319,7 +308,7 @@ fn test_a_screen_the_games_buttons_work_has_nothing_to_touch() {
     assert!(
         started == "nothing to touch" && "nothing to touch" == targets.press(touch::TAP).unwrap()
     );
-    assert!(tapped.borrow().is_empty());
+    assert!(pressed.tapped.borrow().is_empty());
 }
 
 /// The X menu (layer 10) over the PokéNav (layer 1): its POKÉDEX button covers the DexNav, which a
@@ -1170,7 +1159,6 @@ fn test_a_touch_area_is_named_by_no_picture_of_a_button_inside_it_nor_one_hidden
 /// middle, the puff covered Pikachu's eyes and fell (or_amie_dragging_puffs).
 #[test]
 fn test_a_drag_holds_the_target_named_carries_it_with_the_keys_and_lets_go() {
-    let held = Rc::new(Held::default());
     let puff = Target::new(1, "Sweet Poké Puff", 95, 23, 97.0, 40.0);
     let pokemon = Target {
         path: vec![(110, 110), (210, 110)],
@@ -1178,7 +1166,7 @@ fn test_a_drag_holds_the_target_named_carries_it_with_the_keys_and_lets_go() {
         drop: Some((160, 157)),
         ..Target::new(2, "stroke Pikachu", 160, 120, 0.0, 240.0)
     };
-    let mut screen = Screen::with_drag(vec![puff, pokemon], Some(held.clone()));
+    let mut screen = Screen::new(vec![puff, pokemon]);
     assert_eq!(screen.press(touch::ITEM_READ), "Sweet Poké Puff");
     assert!(screen.press(touch::DRAG) == "holding Sweet Poké Puff" && screen.targets.holding());
     assert!(screen.press(touch::DRAG).is_empty() && screen.press(touch::TAP).is_empty());
@@ -1187,7 +1175,7 @@ fn test_a_drag_holds_the_target_named_carries_it_with_the_keys_and_lets_go() {
     assert!(screen.targets.drop() == "let go on stroke Pikachu" && !screen.targets.holding());
     assert_eq!(screen.targets.drop(), "");
     assert_eq!(
-        *held.touches.borrow(),
+        *screen.pressed.touches.borrow(),
         [("hold", 95, 23), ("move", 160, 157), ("release", 0, 0)]
     );
     assert_eq!(screen.tapped(), []);
@@ -1197,15 +1185,15 @@ fn test_a_drag_holds_the_target_named_carries_it_with_the_keys_and_lets_go() {
 /// screen reader would otherwise tap; Berry Picker's tree drops a berry tapped (spike 260).
 #[test]
 fn test_a_drag_let_go_where_it_was_picked_up_touches_nothing() {
-    let held = Rc::new(Held::default());
-    let mut screen = Screen::with_drag(bar(), Some(held.clone()));
+    let mut screen = Screen::new(bar());
     screen.start();
     assert_eq!(screen.press(touch::DRAG), "holding POKÉMON");
     assert_eq!(screen.targets.drop(), "let go on POKÉMON");
+    let pressed = &screen.pressed;
     assert!(
-        held.touches.borrow().is_empty()
-            && screen.tapped().is_empty()
-            && screen.slid.borrow().is_empty()
+        pressed.touches.borrow().is_empty()
+            && pressed.tapped.borrow().is_empty()
+            && pressed.slid.borrow().is_empty()
     );
 }
 
@@ -1214,7 +1202,7 @@ fn test_a_drag_let_go_where_it_was_picked_up_touches_nothing() {
 #[test]
 fn test_with_feedback_sounds_a_drag_is_heard_not_said() {
     let played: Rc<RefCell<Vec<bool>>> = Rc::new(RefCell::new(Vec::new()));
-    let mut screen = Screen::with_drag(bar(), Some(Rc::new(Held::default())));
+    let mut screen = Screen::new(bar());
     let kept = played.clone();
     screen.targets.sound = Some(Rc::new(move |up| kept.borrow_mut().push(up)));
     screen.start();
@@ -1228,32 +1216,21 @@ fn test_with_feedback_sounds_a_drag_is_heard_not_said() {
 /// straight from the tree to the Pokémon chosen.
 #[test]
 fn test_where_the_screen_drags_on_letting_go_nothing_moves_until_then() {
-    let held = Rc::new(Held::default());
     let berry = Target::new(1, "Pinap Berry", 268, 40, 80.0, 40.0);
     let other = Target::new(2, "Gyarados wants Razz Berry", 56, 215, -95.0, 50.0);
     let wants = Target::new(3, "Pikachu wants Pinap Berry", 160, 215, -95.0, 50.0);
-    let mut screen = Screen::with_options(
-        vec![berry, other, wants],
-        Some(held.clone()),
-        true,
-        true,
-        true,
-        None,
-    );
+    let mut screen = Screen::with_options(vec![berry, other, wants], true, true, true, None);
     screen.start();
     assert_eq!(screen.press(touch::DRAG), "holding Pinap Berry");
     assert_eq!(screen.press(touch::ITEM_NEXT), "Gyarados wants Razz Berry");
     assert_eq!(screen.press(touch::ITEM_NEXT), "Pikachu wants Pinap Berry");
-    assert!(held.touches.borrow().is_empty() && screen.slid.borrow().is_empty());
+    assert!(screen.pressed.touches.borrow().is_empty() && screen.pressed.slid.borrow().is_empty());
     assert_eq!(screen.targets.drop(), "let go on Pikachu wants Pinap Berry");
     assert_eq!(
-        *screen.slid.borrow(),
-        [(
-            vec![(268, 40), (268, 40), (160, 215), (160, 215)],
-            touch::DROP_SECONDS
-        )]
+        *screen.pressed.slid.borrow(),
+        [vec![(268, 40), (268, 40), (160, 215), (160, 215)]]
     );
-    assert!(held.touches.borrow().is_empty() && !screen.targets.holding());
+    assert!(screen.pressed.touches.borrow().is_empty() && !screen.targets.holding());
 }
 
 /// Orion asked for the drag shorter (2026-10-29): 0.15 s fed the most berries at full speed, and a
@@ -1270,7 +1247,6 @@ fn test_a_drag_made_on_letting_go_lasts_as_many_of_the_games_frames_at_any_speed
     };
     let screen = Screen::with_options(
         vec![berry.clone(), wants.clone()],
-        None,
         true,
         true,
         true,
@@ -1282,8 +1258,10 @@ fn test_a_drag_made_on_letting_go_lasts_as_many_of_the_games_frames_at_any_speed
     );
     speed.set(0.3);
     screen.targets.give(&berry, &wants);
-    let seconds: Vec<f64> = screen.slid.borrow().iter().map(|(_, s)| *s).collect();
-    assert_eq!(seconds, [touch::DROP_SECONDS, touch::DROP_SECONDS / 0.3]);
+    assert_eq!(
+        *screen.pressed.seconds.borrow(),
+        [touch::DROP_SECONDS, touch::DROP_SECONDS / 0.3]
+    );
     assert_eq!(touch::DROP_SECONDS, 0.15);
 }
 
@@ -1299,8 +1277,9 @@ fn test_a_stroke_slides_along_its_path_where_a_tap_would_press() {
     let mut screen = Screen::new(vec![stroke]);
     assert_eq!(screen.press(touch::TAP), "stroke Sceptile");
     assert_eq!(screen.press(touch::TAP), "");
-    assert!(
-        *screen.slid.borrow() == [(vec![(110, 110), (210, 110)], 3.0)]
-            && screen.tapped().is_empty()
+    assert_eq!(
+        *screen.pressed.slid.borrow(),
+        [vec![(110, 110), (210, 110)]]
     );
+    assert!(*screen.pressed.seconds.borrow() == [3.0] && screen.tapped().is_empty());
 }
