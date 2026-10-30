@@ -272,6 +272,7 @@ pub fn rom() -> &'static RomLayout {
         goods: Some(GOODS_NAMES),
         items: Some(ITEM_NAMES),
         sounds: Some(SOUND_ARCHIVE.to_string()),
+        error_sound: "SEQ_SE_BEEP".to_string(),
         touch_words: [
             training_bags(),
             training_regimens(),

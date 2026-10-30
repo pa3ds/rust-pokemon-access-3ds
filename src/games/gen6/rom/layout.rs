@@ -60,6 +60,11 @@ pub struct RomLayout {
     /// The sound archive, whose footsteps pa3ds plays where the game plays none (`footsteps`);
     /// None in a game whose footsteps are not measured.
     pub sounds: Option<String>,
+    /// The game's own sound for a press that does nothing, played for a key of pa3ds's with
+    /// nothing to do in place of saying why (Orion, 2026-10-29): Omega Ruby's `SEQ_SE_SYS_015`,
+    /// which X calls `SEQ_SE_BEEP`, the same samples; X's `SEQ_SE_SYS_015` is another, 0.93 s
+    /// long, and Omega Ruby's `SEQ_SE_BEEP` another again.
+    pub error_sound: String,
     /// The story text archive a language, whose file a zone-table row's +0x06 gives is what the
     /// zone's script shows, its plates' words among it (`plates.plate_names`); none in a game
     /// whose plates are not read.
@@ -196,6 +201,7 @@ impl RomLayout {
             protagonists: false,
             chunks: None,
             sounds: None,
+            error_sound: "SEQ_SE_SYS_015".to_string(),
             story: IndexMap::new(),
             street_marks: None,
             street_names: None,

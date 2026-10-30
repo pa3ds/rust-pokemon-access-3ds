@@ -1209,7 +1209,7 @@ fn test_a_drag_let_go_where_it_was_picked_up_touches_nothing() {
     );
 }
 
-/// Orion, 2026-10-28: "holding" and "let go on" slowed a timed game; Amie's own touch sounds say
+/// Orion, 2026-10-28: "holding" and "let go on" slowed a timed game; the game's own sounds say
 /// it, and nothing names what was picked up.
 #[test]
 fn test_with_feedback_sounds_a_drag_is_heard_not_said() {

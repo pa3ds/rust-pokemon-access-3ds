@@ -80,7 +80,7 @@ does, and touch mode says "nothing to touch".
 | `I` and `O` | The button above and below: the nearest in the previous and next row. |
 | `K` | The chosen button again. |
 | `U` | Tap the chosen button. |
-| `Shift` | In Pokémon-Amie, pick up the chosen button to drag it, with a short touch sound. Keep Shift down: `J`, `L`, `I` and `O` choose where to, and `K` says where it is. Let go of Shift to drop it there, with another sound. With the `drag` setting at `"toggle"`, press once to pick up and again to drop; with `feedback_sounds` at 0, "holding" and "let go on" are said instead of the sounds. Nothing else drags. A key of your own can drag too (Changing keys, below). |
+| `Shift` | In Pokémon-Amie, pick up the chosen button to drag it, with the PC Box's sound for picking up a Pokémon. Keep Shift down: `J`, `L`, `I` and `O` choose where to, and `K` says where it is. Let go of Shift to drop it there, with another sound. With the `drag` setting at `"toggle"`, press once to pick up and again to drop; with `feedback_sounds` at 0, "holding" and "let go on" are said instead of the sounds. Nothing else drags. A key of your own can drag too (Changing keys, below). |
 
 In the AreaNav, touch mode offers each place on the map by name, and a tap chooses it.
 

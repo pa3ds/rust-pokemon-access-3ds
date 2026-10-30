@@ -21,12 +21,10 @@ use crate::core::words::{self, Words};
 use crate::games::common::session::{Profile, Session, Setup};
 use crate::games::gen6::field::footsteps;
 use crate::games::gen6::game::Game;
-use crate::games::gen6::profile::{Gen6Profile, Options, REQUIRED};
+use crate::games::gen6::profile::{DROP_SOUND, Gen6Profile, Options, PICK_SOUND, REQUIRED};
 use crate::games::gen6::rom::archives::{GameText, no_text};
 use crate::games::gen6::rom::layout::RomLayout;
-use crate::games::{
-    gen6::gflheap, gen6::rom::textures, gen6::screens::amie, gen6::screens::buttons,
-};
+use crate::games::{gen6::gflheap, gen6::rom::textures, gen6::screens::buttons};
 use crate::py::{Kind, Result};
 
 /// `game` read through a page cache, every poll in a phase of its own: one pipelined fetch of
@@ -179,10 +177,10 @@ pub fn game_text(setup: &Setup, layout: &RomLayout) -> Result<GameText> {
 /// The game's own words out of the player's ROM, or `NO_TEXT`, with where the teleporters of
 /// the zones `teleporting` lists put the player; the log says which, and why.
 ///
-/// The game's own sounds for what a key has done, out of the player's ROM: the touch sounds touch
-/// mode picks up and lets go of a drag with (`amie.PICK_SOUND`), and its error sound
-/// (`amie.WRONG_SOUND`); none, and the log says why, where it cannot be read, and each is said in
-/// words.
+/// The game's own sounds for what a key has done, out of the player's ROM: the PC Box's touch
+/// mode picks up and lets go of a drag with (`profile.PICK_SOUND`), and the game's error sound
+/// (`RomLayout.error_sound`); none, and the log says why, where it cannot be read, and each is
+/// said in words.
 pub fn feedback_sounds(setup: &Setup, layout: &RomLayout) -> Result<IndexMap<String, Sound>> {
     let rom = setup.rom_path(None)?;
     let (Some(archive), Some(rom)) = (layout.sounds.as_deref(), rom) else {
@@ -195,7 +193,7 @@ pub fn feedback_sounds(setup: &Setup, layout: &RomLayout) -> Result<IndexMap<Str
         bcsar::sounds(
             &image,
             archive,
-            [amie::PICK_SOUND, amie::DROP_SOUND, amie::WRONG_SOUND],
+            [PICK_SOUND, DROP_SOUND, layout.error_sound.as_str()],
         )
     });
     match read {

@@ -387,8 +387,8 @@ fn test_another_berrys_key_picks_that_one_up_instead() {
 }
 
 /// A berry the round has not, as 7 on Easy, a Pokémon not to be read, or one not up with a berry
-/// picked up, which stays picked up: the game's own error sound, `SEQ_SE_SYS_015`, with
-/// `feedback_sounds` on (Orion, 2026-10-29).
+/// picked up, which stays picked up: the game's own error sound, `SEQ_SE_SYS_015` in
+/// Omega Ruby, with `feedback_sounds` on (Orion, 2026-10-29).
 #[test]
 fn test_a_key_with_nothing_to_do_plays_the_games_error_sound_or_says_why() {
     let mut keys = keys(false);

@@ -177,6 +177,12 @@ pub const TOUCHED: [&str; 10] = [
     training::MENU,
     training::SPARRING,
 ];
+pub const PICK_SOUND: &str = "SEQ_SE_CATCH";
+/// The PC Box's sounds for picking up a Pokémon and putting it down, the game's own for moving
+/// something somewhere, played as touch mode picks up a drag and lets go of it in place of
+/// "holding" and "let go on" (Orion, 2026-10-29): a tenth and an eighth of a second, the same in
+/// Omega Ruby and X. Amie's touch sounds, `SEQ_SE_KW_TOUCH` and `SEQ_SE_KW_TOUCH2`, until then.
+pub const DROP_SOUND: &str = "SEQ_SE_RELEASE";
 /// Where the tone of each quarter up walks sounds, across and down as `Tones.play` has them,
 /// north first and clockwise: north high, south low, east in the right ear and west in the left, as
 /// the Hoenn map's cursor sounds its place (`core.tones`).
@@ -989,11 +995,12 @@ impl Gen6Profile {
             },
             {
                 let heard = heard.clone();
-                Rc::new(move |berry: &str| {
-                    heard(amie::PICK_SOUND, own(HOLDING, &[("target", &berry)]))
-                })
+                Rc::new(move |berry: &str| heard(PICK_SOUND, own(HOLDING, &[("target", &berry)])))
             },
-            Rc::new(move |why: &str| heard(amie::WRONG_SOUND, why.to_string())),
+            {
+                let error_sound = game.rom.error_sound.clone();
+                Rc::new(move |why: &str| heard(&error_sound, why.to_string()))
+            },
         );
         // The Hoenn map's cursor says nothing between places: a tone says where it is.
         let map_cursor = MapCursor::new(
@@ -2379,21 +2386,17 @@ fn street_of(text: Rc<GameText>) -> Street {
     })
 }
 
-/// Touch mode's sound for picking up a drag, with True, and letting go of it, Amie's own touch
-/// sounds; None where either is missing, and the drag is said in words.
+/// Touch mode's sound for picking up a drag, with True, and letting go of it, the PC Box's
+/// (`PICK_SOUND`); None where either is missing, and the drag is said in words.
 pub fn dragged(sounds: Option<Rc<Clips>>) -> Option<Rc<dyn Fn(bool)>> {
     let sounds = sounds?;
     let names = sounds.names();
-    if !(names.contains(amie::PICK_SOUND) && names.contains(amie::DROP_SOUND)) {
+    if !(names.contains(PICK_SOUND) && names.contains(DROP_SOUND)) {
         return None;
     }
     Some(Rc::new(move |up: bool| {
         // The sound thread not starting, raised to the key's handler in Python.
-        let _ = sounds.play(if up {
-            amie::PICK_SOUND
-        } else {
-            amie::DROP_SOUND
-        });
+        let _ = sounds.play(if up { PICK_SOUND } else { DROP_SOUND });
     }))
 }
 
