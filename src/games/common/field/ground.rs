@@ -1296,14 +1296,17 @@ impl Ground {
     }
 
     /// Which way the cell carries a player surfing on it where it is a current, or a player
-    /// on foot down a climbing wall's slide (`Walls.slides`), or None: the search's `carry`
-    /// (`CURRENTS`).
-    pub fn carry(&self, cell: Cell) -> Result<Option<&'static str>> {
-        if let Some(&way) = self
+    /// on foot down a climbing wall's slide (`Walls.slides`) or along a conveyor belt on
+    /// `floor` (`conveyed`), or None: the search's `carry` (`CURRENTS`).
+    ///
+    /// Python's `floor` defaults to `ANY_FLOOR`.
+    pub fn carry(&self, cell: Cell, floor: i64) -> Result<Option<&'static str>> {
+        if let Some(way) = self
             .walls
             .slides
             .get(&cell)
-            .or_else(|| self.conveyors.get(&cell))
+            .copied()
+            .or_else(|| self.conveyed(cell, floor))
         {
             return Ok(Some(way));
         }
@@ -1332,14 +1335,30 @@ impl Ground {
         }
     }
 
+    /// Which way a conveyor belt carries a player on `floor` of the cell, or None: a belt is
+    /// the ground's, the first of a stacked ground's floors, and the Poké Ball Factory's walkway
+    /// at 90 crosses over two of them, (15, 18) and (27, 18), which the belts under it carried
+    /// the player off until a belt was a floor's (spike A).
+    ///
+    /// Python's `floor` defaults to `ANY_FLOOR`.
+    pub fn conveyed(&self, cell: Cell, floor: i64) -> Option<&'static str> {
+        if floor == ANY_FLOOR || floor == 0 {
+            self.conveyors.get(&cell).copied()
+        } else {
+            None
+        }
+    }
+
     /// Where a current carries a player on `cell`, a cell at a time, to the first cell it
     /// does not carry them on from, `cell` first: `cell` alone off a current, and where the
-    /// way it carries is shut. Stops if the currents go round in a ring.
+    /// way it carries is shut. Stops if the currents go round in a ring. On a stacked ground,
+    /// on the floor the player's height says (`level`).
     pub fn drift(&self, cell: Cell) -> Result<Vec<Cell>> {
         let mut out = vec![cell];
+        let floor = self.floor(cell, self.level)?;
         loop {
             let last = *out.last().expect("cell is first");
-            let Some(way) = self.carry(last)? else {
+            let Some(way) = self.carry(last, floor)? else {
                 break;
             };
             let step = pathfind::STEPS
@@ -1746,7 +1765,7 @@ impl Ground {
             Some(at) => at.arrives(cell, turns),
             None => Ok(true),
         };
-        let carry = |cell: Cell| self.carry(cell);
+        let carry = |cell: Cell, turns: &[i64]| self.carried(cell, turns);
         let slants = |cell: Cell, step: Cell| self.slants(cell, step);
         let slide = |cell: Cell| self.slide(cell);
         let stops = |cell: Cell, turns: &[i64]| walk.stops(cell, turns);
@@ -1816,7 +1835,7 @@ impl Ground {
             self.teleports.keys().map(|(cell, _)| *cell).collect(),
         )?;
         let through = |turns: &[i64], cell: Cell, step: Cell| walk.through(turns, cell, step);
-        let carry = |cell: Cell| ground.carry(cell);
+        let carry = |cell: Cell, turns: &[i64]| ground.carried(cell, turns);
         let slants = |cell: Cell, step: Cell| self.slants(cell, step);
         let slide = |cell: Cell| ground.slide(cell);
         let stops = |cell: Cell, turns: &[i64]| walk.stops(cell, turns);
@@ -1965,6 +1984,17 @@ impl Ground {
             turns,
             crossings,
         })
+    }
+
+    /// The search's `carry`: on a stacked ground on the floor the turns end with. Python's
+    /// `_carry`.
+    fn carried(&self, cell: Cell, turns: &[i64]) -> Result<Option<&'static str>> {
+        let floor = if self.stacked {
+            turns[turns.len() - 1]
+        } else {
+            ANY_FLOOR
+        };
+        self.carry(cell, floor)
     }
 
     /// On a stacked ground, what a search to `item` is given to say a cell with the turns it

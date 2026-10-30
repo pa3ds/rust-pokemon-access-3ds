@@ -249,7 +249,7 @@ pub struct Options<'a> {
     pub through: Option<&'a dyn Fn(&[i64], Cell, Cell) -> Result<Option<Turns>>>,
     pub over: Option<&'a dyn Fn(Cell) -> Result<bool>>,
     pub arrives: Option<&'a dyn Fn(Cell, &[i64]) -> Result<bool>>,
-    pub carry: Option<&'a dyn Fn(Cell) -> Result<Option<&'static str>>>,
+    pub carry: Option<&'a dyn Fn(Cell, &[i64]) -> Result<Option<&'static str>>>,
     pub slants: Option<&'a dyn Fn(Cell, Cell) -> Result<bool>>,
     pub slide: Option<&'a dyn Fn(Cell) -> Result<bool>>,
     pub stops: Option<&'a dyn Fn(Cell, &[i64]) -> bool>,
@@ -350,8 +350,9 @@ impl Ord for Entry<'_> {
 /// cell that can is a slope, stepped onto, along and off only the way it goes down. `over` says
 /// which cells that cannot be walked are crossed as a ledge is, but either way: the strip of
 /// shore Surf jumps the player over, getting on the water and off it. `carry` says which way a
-/// cell carries the player, a current: entered any way, and left only that way, a cell at a time,
-/// unless the cell that way cannot be walked. The player does not turn there, so the turns it
+/// cell stood in with `turns` carries the player, a current, or a belt on its floor: entered any
+/// way, and left only that way, a cell at a time, unless the cell that way cannot be walked. The
+/// player does not turn there, so the turns it
 /// makes cost nothing. `slide` says which cells are ice: entered any way, and left only the way
 /// the player came in, unless the cell that way cannot be walked, where they stop and step off
 /// any way; a goal is reached only where a slide stops. `slants` says whether a step between
@@ -423,7 +424,7 @@ pub fn find(
     let over_cache: Cached<Cell, bool> = Cached::new();
     let toll_cache: Cached<(Cell, Cell), i64> = Cached::new();
     let joined_cache: Cached<(Cell, Cell), bool> = Cached::new();
-    let carry_cache: Cached<Cell, Option<&'static str>> = Cached::new();
+    let carry_cache: Cached<(Cell, Turns), Option<&'static str>> = Cached::new();
     let slants_cache: Cached<(Cell, Cell), bool> = Cached::new();
     let slide_cache: Cached<Cell, bool> = Cached::new();
     let down = |cell: Cell| {
@@ -450,9 +451,9 @@ pub fn find(
             None => Ok(true),
         })
     };
-    let carry = |cell: Cell| {
-        carry_cache.get(cell, || match carry {
-            Some(carry) => carry(cell),
+    let carry = |cell: Cell, turns: &[i64]| {
+        carry_cache.get((cell, turns.to_vec()), || match carry {
+            Some(carry) => carry(cell, turns),
             None => Ok(None),
         })
     };
@@ -554,7 +555,7 @@ pub fn find(
                 }
             }
         }
-        let carried = carry(cell)?;
+        let carried = carry(cell, turned)?;
         onward(
             cell,
             turned,
@@ -671,7 +672,7 @@ fn onward(
     down: &dyn Fn(Cell) -> Result<Option<&'static str>>,
     over: &dyn Fn(Cell) -> Result<bool>,
     joined: &dyn Fn(Cell, Cell) -> Result<bool>,
-    carry: &dyn Fn(Cell) -> Result<Option<&'static str>>,
+    carry: &dyn Fn(Cell, &[i64]) -> Result<Option<&'static str>>,
     through: Option<&dyn Fn(&[i64], Cell, Cell) -> Result<Option<Turns>>>,
     slants: &dyn Fn(Cell, Cell) -> Result<bool>,
     sliding: &'static str,
@@ -699,7 +700,7 @@ fn onward(
         down,
         over,
         joined,
-        carry,
+        &|one| carry(one, turned),
         slants,
         sliding,
         &mut |direction, step, steps| {
@@ -722,7 +723,7 @@ pub struct Reach<'a> {
     pub joined: Option<&'a dyn Fn(Cell, Cell) -> Result<bool>>,
     pub over: Option<&'a dyn Fn(Cell) -> Result<bool>>,
     pub ends: Option<&'a dyn Fn(Cell) -> Result<bool>>,
-    pub carry: Option<&'a dyn Fn(Cell) -> Result<Option<&'static str>>>,
+    pub carry: Option<&'a dyn Fn(Cell, &[i64]) -> Result<Option<&'static str>>>,
     pub turns: Turns,
     pub through: Option<&'a dyn Fn(&[i64], Cell, Cell) -> Result<Option<Turns>>>,
     pub slants: Option<&'a dyn Fn(Cell, Cell) -> Result<bool>>,
@@ -748,7 +749,7 @@ pub fn reached(
     let down_cache: Cached<Cell, Option<&'static str>> = Cached::new();
     let walk_cache: Cached<Cell, bool> = Cached::new();
     let walked_cache: Cached<Cell, bool> = Cached::new();
-    let carry_cache: Cached<Cell, Option<&'static str>> = Cached::new();
+    let carry_cache: Cached<(Cell, Turns), Option<&'static str>> = Cached::new();
     let slants_cache: Cached<(Cell, Cell), bool> = Cached::new();
     let slide_cache: Cached<Cell, bool> = Cached::new();
     let down = |cell: Cell| {
@@ -757,9 +758,9 @@ pub fn reached(
             None => Ok(None),
         })
     };
-    let carry = |cell: Cell| {
-        carry_cache.get(cell, || match options.carry {
-            Some(carry) => carry(cell),
+    let carry = |cell: Cell, turns: &[i64]| {
+        carry_cache.get((cell, turns.to_vec()), || match options.carry {
+            Some(carry) => carry(cell, turns),
             None => Ok(None),
         })
     };

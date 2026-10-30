@@ -1482,6 +1482,19 @@ impl Guide {
             }
         }
         let (ramped, ramp_ways) = self::ramped(&ground, &path)?;
+        let walked = ground.walked(&path)?;
+        // The floor each step is walked from: a belt carries only on its own floor.
+        let floor_of: HashMap<(Cell, Cell), i64> = path
+            .windows(2)
+            .map(|pair| (pair[0], pair[1]))
+            .zip(walked.iter().copied())
+            .collect();
+        let floor = |cell: Cell, step: Cell| -> Result<i64> {
+            floor_of
+                .get(&(cell, step))
+                .copied()
+                .ok_or_else(|| Error::key(format!("({cell:?}, {step:?})")))
+        };
         let how = |cell: Cell, step: Cell| -> Result<String> {
             if let Some(word) = ramped.get(&(cell, step)) {
                 return Ok(word.to_string());
@@ -1504,10 +1517,10 @@ impl Guide {
             {
                 return Ok(SLIDE.to_string());
             }
-            if ground.conveyors.get(&cell).copied() == Some(pathfind::towards(cell, step)) {
+            if ground.conveyed(cell, floor(cell, step)?) == Some(pathfind::towards(cell, step)) {
                 return Ok(BELT.to_string());
             }
-            if ground.carry(cell)? == Some(pathfind::towards(cell, step)) {
+            if ground.carry(cell, floor(cell, step)?)? == Some(pathfind::towards(cell, step)) {
                 return Ok(CURRENT.to_string());
             }
             if ground.hopping(cell, step) {
@@ -1563,7 +1576,7 @@ impl Guide {
         let visit = self.field.visit();
         let nudge = nudge(&ground, r#where.place, &path, 0)?;
         let crossings = crossings(&ground, &path, &legs, &self.place)?;
-        let floors = ground.walked(&path)?;
+        let floors = walked;
         let since = (self.clock)();
         let first = legs.first().map(|leg| leg.direction);
         self.guidance = Some(Rc::new(RefCell::new(Guidance {

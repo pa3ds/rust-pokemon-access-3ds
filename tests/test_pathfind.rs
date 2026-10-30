@@ -396,8 +396,10 @@ fn test_a_current_carries_the_player_its_way_until_that_way_is_shut() {
         };
         path.map(|path| spoken(&legs(&path, Some(&how)).unwrap()))
     };
+
+    let turned = |cell: Cell, _turns: &[i64]| carry(cell);
     let carried = Options {
-        carry: Some(&carry),
+        carry: Some(&turned),
         ..plain()
     };
     assert_eq!(
@@ -432,7 +434,7 @@ fn test_a_current_carries_the_player_its_way_until_that_way_is_shut() {
             &*walkable,
             box_,
             &Reach {
-                carry: Some(&carry),
+                carry: Some(&turned),
                 ..Reach::default()
             }
         )

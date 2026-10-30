@@ -296,6 +296,7 @@ impl FieldSource for FakeField {
             ground.ladders = self.ladders.borrow().clone();
             ground.raised = self.ramp.get();
             ground.vines = self.vines.borrow().clone();
+            ground.conveyors = self.conveyors.borrow().clone();
             return Ok(ground);
         }
         let mut ground = Ground::of(
@@ -3747,6 +3748,49 @@ fn test_floor_over_floor_each_is_walked_as_itself_and_joined_by_the_stairs() {
     rig.field.level.set(Some(198.0));
     rig.press(PATHFIND);
     assert_eq!(last(&rig.backend), "12 south");
+}
+
+/// X's Poké Ball Factory: its walkway at 90 crosses over a belt at 18, and P's ways off the
+/// walkway were none, the belt carrying the player off it into nothing; the player stuck in the
+/// factory's east room heard "can't continue" for both doors up there (Khai, 2026-10-29, spike
+/// A). A belt carries the player on its own floor, the ground's, and on no floor above it.
+#[test]
+fn test_a_walkway_over_a_conveyor_belt_is_walked_across_and_the_belt_carries_only_below() {
+    let grunt = Interactable {
+        height: Some(90.0),
+        ..somebody((89, 170), 0x08D269E8)
+    };
+    let mut rig = navigator(on(Field {
+        interactables: vec![grunt.clone()],
+        ..Field::new(0x136, (100, 170))
+    }));
+    {
+        let mut floors = rig.field.floors.borrow_mut();
+        for x in 89..101 {
+            floors.insert((x, 170), (None, Some(90.0)));
+        }
+        for z in 167..174 {
+            let upper = floors.get(&(95, z)).and_then(|floor| floor.1);
+            floors.insert((95, z), (Some(18.0), upper));
+        }
+    }
+    *rig.field.conveyors.borrow_mut() = (168..174).map(|z| ((95, z), pathfind::NORTH)).collect();
+    rig.field.level.set(Some(90.0));
+    rig.press(PATHFIND);
+    assert_eq!(said(&rig.backend), ["10 west"]);
+    walk_to(&rig, (95, 173));
+    rig.field.level.set(Some(18.0));
+    let below = Interactable {
+        cell: (95, 166),
+        height: Some(18.0),
+        ..grunt
+    };
+    *rig.field.r#where.borrow_mut() = Some(Field {
+        interactables: vec![below],
+        ..Field::new(0x136, (95, 173))
+    });
+    rig.press(PATHFIND);
+    assert_eq!(last(&rig.backend), "ride the belt 6 north");
 }
 
 /// x_tower_2 (spike 248): the Tower of Mastery's ramp curves round its statue, and P said each
