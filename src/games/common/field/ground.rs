@@ -103,6 +103,19 @@ pub fn pushes(
     Ok(out)
 }
 
+/// The game's own words a step can be said with, which the guide has: its moves by number, the
+/// Mach Bike and the Acro Bike.
+#[derive(Debug, Clone, PartialEq)]
+pub struct StepWords {
+    pub moves: IndexMap<i64, String>,
+    pub bike: String,
+    pub acro: String,
+}
+
+/// What a landform calls a step from a cell to the next on a floor, of its own ground, or None
+/// (`Ground.words`).
+pub type Word = Rc<dyn Fn(&Ground, Cell, Cell, i64, &StepWords) -> Result<Option<String>>>;
+
 /// Cells to a block of the matrix.
 pub const BLOCK: i64 = 10;
 
@@ -386,6 +399,10 @@ pub struct Ground {
     ///
     /// An `Rc`, as `walls` is.
     pub vines: Rc<Vines>,
+    /// What each landform calls a step of its own ground, "slide", "ride the current", the Acro
+    /// Bike: a leg is said with the first that names its step, after a ramp's and before a cleared
+    /// thing's move and Surf, which are no landform's (`Guide.to`).
+    pub words: Vec<Word>,
     /// Each listed teleporter's cell and the floor it is on, `floor`'s and `ANY_FLOOR` off a
     /// stacked ground, with where it puts the player and on what floor: Laverre Gym's panels. Not
     /// in `stepped`: a step onto one is the way on, the teleport the one move from it, and one the
@@ -448,6 +465,7 @@ impl Default for Ground {
             walls: Rc::new(Walls::default()),
             grind_rails: Rc::new(GrindRails::default()),
             vines: Rc::new(Vines::default()),
+            words: Vec::new(),
             teleports: IndexMap::new(),
             arrows: IndexMap::new(),
         }
@@ -496,6 +514,7 @@ impl fmt::Debug for Ground {
             .field("walls", &self.walls)
             .field("grind_rails", &self.grind_rails)
             .field("vines", &self.vines)
+            .field("words", &self.words.len())
             .field("teleports", &self.teleports)
             .finish()
     }
@@ -1216,6 +1235,12 @@ impl Ground {
         {
             return Ok(Some(way));
         }
+        self.current(cell)
+    }
+
+    /// Which way the cell carries a player surfing on it where it is a current in the sea, or
+    /// None (`CURRENTS`).
+    pub fn current(&self, cell: Cell) -> Result<Option<&'static str>> {
         let chunk = if self.corridor.is_some() {
             None
         } else {

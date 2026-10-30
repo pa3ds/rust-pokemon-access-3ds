@@ -19,7 +19,8 @@ use crate::games::common::field::chunk::ANY_FLOOR;
 use crate::games::common::field::climb;
 use crate::games::common::field::grind::GRIND;
 use crate::games::common::field::ground::{
-    BLOCK, CUT, Ground, IceRoom, NO_ZONE, Of, ROCK_SMASH, SOLID, STRENGTH, SURF, WATERFALL, WHOLE,
+    BLOCK, CUT, Ground, IceRoom, NO_ZONE, Of, ROCK_SMASH, SOLID, STRENGTH, SURF, StepWords,
+    WATERFALL, WHOLE,
 };
 use crate::games::common::field::ride;
 use crate::games::common::field::things::{self as field, Field, Interactable};
@@ -959,11 +960,11 @@ pub struct Guide {
     /// number: the game's name for the move, out of the ROM's move names, or `OWN_MOVE_WORDS`
     /// when there is no ROM to read it from.
     moves: IndexMap<i64, String>,
-    /// What a leg up a sandy slope is said with: the game's name for the Mach Bike.
-    bike: String,
-    /// What a hop up a bumpy slope is said with: the game's name for the Acro Bike, said on
-    /// the bike too, since nothing read says which of the two the player is riding.
-    acro: String,
+    /// The game's words a landform says its steps with (`Ground.words`): what a leg up a sandy
+    /// slope is said with, the game's name for the Mach Bike; and a hop up a bumpy slope, its name
+    /// for the Acro Bike, said on the bike too, since nothing read says which of the two the
+    /// player is riding.
+    words: StepWords,
     /// Whether the field's walls are read, so P can find a way. Sun keeps its walls as
     /// meshes pa3ds does not read, and a way found without them would lead through them.
     routes: bool,
@@ -1027,15 +1028,18 @@ impl Guide {
             log,
             wording,
             clock,
+            words: StepWords {
+                moves: own.clone(),
+                bike: match bike {
+                    Some(bike) if !bike.is_empty() => bike,
+                    _ => OWN_SLOPE_WORD.to_string(),
+                },
+                acro: match acro {
+                    Some(acro) if !acro.is_empty() => acro,
+                    _ => OWN_HOP_WORD.to_string(),
+                },
+            },
             moves: own,
-            bike: match bike {
-                Some(bike) if !bike.is_empty() => bike,
-                _ => OWN_SLOPE_WORD.to_string(),
-            },
-            acro: match acro {
-                Some(acro) if !acro.is_empty() => acro,
-                _ => OWN_HOP_WORD.to_string(),
-            },
             routes,
             slack,
             guidance: None,
@@ -1552,27 +1556,12 @@ impl Guide {
             if let Some(word) = ramped.get(&(cell, step)) {
                 return Ok(word.to_string());
             }
-            if ground.walls.slides.get(&cell) == Some(&pathfind::towards(cell, step))
-                || ground.slide(cell)?
-                || ground.slide(step)?
-            {
-                return Ok(SLIDE.to_string());
-            }
-            if ground.conveyed(cell, floor(cell, step)?) == Some(pathfind::towards(cell, step)) {
-                return Ok(BELT.to_string());
-            }
-            if ground.carry(cell, floor(cell, step)?)? == Some(pathfind::towards(cell, step)) {
-                return Ok(CURRENT.to_string());
-            }
-            if ground.hopping(cell, step) {
-                return Ok(self.acro.clone());
-            }
-            if ground.climbing(cell, step) {
-                return self
-                    .moves
-                    .get(&WATERFALL)
-                    .cloned()
-                    .ok_or_else(|| Error::key(WATERFALL.to_string()));
+            for one in &ground.words {
+                if let Some(said) = one(&ground, cell, step, floor(cell, step)?, &self.words)?
+                    && !said.is_empty()
+                {
+                    return Ok(said);
+                }
             }
             if let Some(clear) = ground.cleared.get(&step) {
                 return self
@@ -1587,9 +1576,6 @@ impl Guide {
                     .get(&SURF)
                     .cloned()
                     .ok_or_else(|| Error::key(SURF.to_string()));
-            }
-            if !ground.bike && ground.climbs(cell, step)? {
-                return Ok(self.bike.clone());
             }
             Ok(String::new())
         };

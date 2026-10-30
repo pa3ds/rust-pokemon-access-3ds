@@ -29,7 +29,8 @@ use crate::games::common::field::chunk::{
 };
 use crate::games::common::field::climb::Walls;
 use crate::games::common::field::grind::GrindRails;
-use crate::games::common::field::ground::{Ground, STRENGTH};
+use crate::games::common::field::ground::{Ground, STRENGTH, StepWords, WATERFALL};
+use crate::games::common::field::guide::{BELT, CURRENT as CURRENT_WORD, SLIDE};
 use crate::games::common::field::things::{
     ARROW_SOURCE, ARROWS, BIKE, BIKE_SOURCE, CLIMB_SOURCE, CLIMBING, CURRENT_SOURCE,
     CURRENTS_CATEGORY, DIVE_SOURCE, Field, Interactable, OBSTACLES, RIDE_SOURCE, RIDING,
@@ -190,6 +191,19 @@ pub trait Landform: Any + Debug + Send + Sync {
     fn laid(&self, _found: &Found, ground: Ground, _here: &Here) -> Result<Ground> {
         Ok(ground)
     }
+
+    /// What a step from `cell` to `step`, walked on `floor`, of its own ground is said with, or
+    /// None (`Ground.words`).
+    fn word(
+        &self,
+        _ground: &Ground,
+        _cell: Cell,
+        _step: Cell,
+        _floor: i64,
+        _words: &StepWords,
+    ) -> Result<Option<String>> {
+        Ok(None)
+    }
 }
 
 /// `found`, as the landform that worked it out made it.
@@ -333,6 +347,24 @@ impl Landform for Bike {
         Ok(Ground {
             hops: found_as::<BikeFound>(found).1.clone(),
             ..ground
+        })
+    }
+
+    fn word(
+        &self,
+        ground: &Ground,
+        cell: Cell,
+        step: Cell,
+        _floor: i64,
+        words: &StepWords,
+    ) -> Result<Option<String>> {
+        if ground.hopping(cell, step) {
+            return Ok(Some(words.acro.clone()));
+        }
+        Ok(if !ground.bike && ground.climbs(cell, step)? {
+            Some(words.bike.clone())
+        } else {
+            None
         })
     }
 }
@@ -548,6 +580,23 @@ impl Landform for Currents {
         }
         Ok(out)
     }
+
+    fn word(
+        &self,
+        ground: &Ground,
+        cell: Cell,
+        step: Cell,
+        _floor: i64,
+        _words: &StepWords,
+    ) -> Result<Option<String>> {
+        Ok(
+            if ground.current(cell)? == Some(pathfind::towards(cell, step)) {
+                Some(CURRENT_WORD.to_string())
+            } else {
+                None
+            },
+        )
+    }
 }
 
 /// Where a current lets the player go from each of its cells, as `Ground.drift` carries them
@@ -624,6 +673,48 @@ impl Landform for Waterfalls {
         Ok(Ground {
             falls: found_as::<IndexMap<Cell, &'static str>>(found).clone(),
             ..ground
+        })
+    }
+
+    fn word(
+        &self,
+        ground: &Ground,
+        cell: Cell,
+        step: Cell,
+        _floor: i64,
+        words: &StepWords,
+    ) -> Result<Option<String>> {
+        if !ground.climbing(cell, step) {
+            return Ok(None);
+        }
+        Ok(Some(
+            words
+                .moves
+                .get(&WATERFALL)
+                .cloned()
+                .ok_or_else(|| Error::key(WATERFALL.to_string()))?,
+        ))
+    }
+}
+
+/// Shoal Cave's ice, which a player on foot slides across the way they stepped (`Ground.slide`,
+/// spike 246): read off the chunks by the search itself, and neither found nor listed.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct Ice;
+
+impl Landform for Ice {
+    fn word(
+        &self,
+        ground: &Ground,
+        cell: Cell,
+        step: Cell,
+        _floor: i64,
+        _words: &StepWords,
+    ) -> Result<Option<String>> {
+        Ok(if ground.slide(cell)? || ground.slide(step)? {
+            Some(SLIDE.to_string())
+        } else {
+            None
         })
     }
 }
@@ -840,6 +931,22 @@ impl Landform for Climbing {
             ..ground
         })
     }
+
+    fn word(
+        &self,
+        ground: &Ground,
+        cell: Cell,
+        step: Cell,
+        _floor: i64,
+        _words: &StepWords,
+    ) -> Result<Option<String>> {
+        let slides = ground.walls.slides.get(&cell) == Some(&pathfind::towards(cell, step));
+        Ok(if slides {
+            Some(SLIDE.to_string())
+        } else {
+            None
+        })
+    }
 }
 
 /// The rails a player on roller skates grinds along, by the cell kinds of the ROM's chunks, as
@@ -1040,6 +1147,23 @@ impl Landform for Conveyors {
             ..ground
         })
     }
+
+    fn word(
+        &self,
+        ground: &Ground,
+        cell: Cell,
+        step: Cell,
+        floor: i64,
+        _words: &StepWords,
+    ) -> Result<Option<String>> {
+        Ok(
+            if ground.conveyed(cell, floor) == Some(pathfind::towards(cell, step)) {
+                Some(BELT.to_string())
+            } else {
+                None
+            },
+        )
+    }
 }
 
 /// Each run of cells adjacent along a row or a column, as its first cell and its size.
@@ -1076,5 +1200,6 @@ pub fn gen6() -> Vec<Arc<dyn Landform>> {
         Arc::new(DiveSpots),
         Arc::new(Currents),
         Arc::new(Waterfalls),
+        Arc::new(Ice),
     ]
 }

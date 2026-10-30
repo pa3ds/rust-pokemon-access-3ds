@@ -36,8 +36,8 @@ use crate::core::pathfind::{self, Cell};
 use crate::core::words::own;
 use crate::games::common::field::chunk::{BLOCKED, CHUNK, Chunk};
 use crate::games::common::field::ground::{
-    self as common, BLOCK, CRACKED, Far, Grid, Ground, GroundHeight, NO_ZONE, Of, STRENGTH, pushes,
-    walkable,
+    self as common, BLOCK, CRACKED, Far, Grid, Ground, GroundHeight, NO_ZONE, Of, STRENGTH,
+    StepWords, Word, pushes, walkable,
 };
 use crate::games::common::field::ride::riding;
 use crate::games::common::field::things::{
@@ -942,6 +942,18 @@ impl FieldReader {
             strands: self.strands,
             lanes,
             raised: self.terrain.raised()?,
+            words: self
+                .landforms
+                .iter()
+                .map(|form| {
+                    let form = form.clone();
+                    Rc::new(
+                        move |ground: &Ground, cell, step, floor, words: &StepWords| {
+                            form.word(ground, cell, step, floor, words)
+                        },
+                    ) as Word
+                })
+                .collect(),
             ..Ground::of(
                 r#where,
                 Of {

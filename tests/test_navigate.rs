@@ -3,6 +3,7 @@
 use std::cell::{Cell as Slot, RefCell};
 use std::collections::HashSet;
 use std::rc::Rc;
+use std::sync::Arc;
 
 use indexmap::{IndexMap, IndexSet};
 
@@ -16,7 +17,7 @@ use crate::games::common::field::chunk::{ANY_FLOOR, BLOCKED, CHUNK, Chunk, Floor
 use crate::games::common::field::climb::Walls;
 use crate::games::common::field::grind::GrindRails;
 use crate::games::common::field::ground::{
-    CUT, Grid, Ground, IceRoom, Of, ROCK_SMASH, STRENGTH, SURF, WATERFALL,
+    CUT, Grid, Ground, IceRoom, Of, ROCK_SMASH, STRENGTH, SURF, StepWords, WATERFALL, Word,
 };
 use crate::games::common::field::guide::{FieldSource, Guidance, Place};
 use crate::games::common::field::keys::{
@@ -32,6 +33,7 @@ use crate::games::common::field::things::{
 };
 use crate::games::common::field::vines::{End, Vines};
 use crate::games::common::touch::{DRAG, ROW_NEXT, ROW_PREVIOUS, TAP};
+use crate::games::gen6::field::landform::{Landform, gen6};
 use crate::games::oras::{self, BIG_BOULDER, BUSH, CRACKED_BOULDER};
 use crate::games::xy;
 use crate::py::{self, Result};
@@ -96,6 +98,24 @@ fn arrow_word(way: &str) -> i64 {
         .find(|(_, pushes)| *pushes == way)
         .expect("an arrow pushes one of the four ways");
     kind << KIND_SHIFT | 0x20
+}
+
+/// What the landforms call their steps, as the field reader gives a ground them: Python's
+/// `WORDS`.
+fn landform_words() -> Vec<Word> {
+    let mut forms: Vec<Arc<dyn Landform>> = gen6();
+    forms.push(Arc::new(xy::climbing()));
+    forms.push(Arc::new(xy::belts()));
+    forms
+        .into_iter()
+        .map(|form| {
+            Rc::new(
+                move |ground: &Ground, cell, step, floor, words: &StepWords| {
+                    form.word(ground, cell, step, floor, words)
+                },
+            ) as Word
+        })
+        .collect()
 }
 
 /// What `FakeField.ground` is run through before it is handed over: Python's tests replace the
@@ -329,6 +349,7 @@ impl FieldSource for FakeField {
             ground.raised = self.ramp.get();
             ground.vines = self.vines.borrow().clone();
             ground.conveyors = self.conveyors.borrow().clone();
+            ground.words = landform_words();
             return Ok(ground);
         }
         let mut ground = Ground::of(
@@ -367,6 +388,7 @@ impl FieldSource for FakeField {
         } else {
             IndexMap::from(xy::ARROWS)
         };
+        ground.words = landform_words();
         if !spiky.is_empty() {
             let rides = xy::rides();
             ground = ground.mounted(
