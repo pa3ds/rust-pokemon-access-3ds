@@ -4588,12 +4588,16 @@ fn test_the_users_keys_map_to_the_actions() {
         .collect();
     expected.extend(
         [
-            "shift+k", "shift+j", "shift+p", "alt+p", "ctrl+p", "shift+r", "shift+c", "shift+u",
+            "shift+k", "shift+j", "shift+p", "alt+p", "ctrl+p", "shift+r", "shift+c",
         ]
         .map(str::to_string),
     );
     assert_eq!(bound_keys(&DEFAULT_BINDINGS), expected);
-    assert_eq!(bound(TOUCH, "shift+u"), DRAG);
+    assert!(
+        !DEFAULT_BINDINGS[TOUCH]
+            .values()
+            .any(|action| action == DRAG)
+    );
     for mode in [LIST, DIRECTION, TOUCH] {
         assert_eq!(
             [",", "."].map(|key| bound(mode, key)),
@@ -4861,12 +4865,13 @@ fn test_while_a_touch_is_held_shift_keys_walk_and_letting_go_of_shift_lets_go() 
         Rc::new(|_line: &str| {}),
         Options {
             touch: Some(targets),
+            shift_drags: Some(Rc::new(|| true)),
             ..Options::default()
         },
     );
     nav.press(MODE_TOGGLE).unwrap();
     nav.press(MODE_TOGGLE).unwrap();
-    nav.press_key("shift+u").unwrap();
+    nav.press_key(SHIFT_DOWN).unwrap();
     nav.press_key("shift+l").unwrap();
     nav.press_key("shift+j").unwrap();
     nav.press_key(SHIFT_UP).unwrap();
@@ -4881,7 +4886,7 @@ fn test_while_a_touch_is_held_shift_keys_walk_and_letting_go_of_shift_lets_go() 
         ]
     );
     assert_eq!(last(&backend), "let go on Sweet Poké Puff");
-    nav.press_key("shift+u").unwrap();
+    nav.press_key(SHIFT_DOWN).unwrap();
     backend.spoken.borrow_mut().clear();
     nav.press(MODE_TOGGLE).unwrap();
     assert_eq!(said(&backend), ["let go on Sweet Poké Puff", "list mode"]);
@@ -4943,14 +4948,15 @@ fn holding_navigator(
     (nav, held, backend)
 }
 
-/// ADR-0009 as amended 2026-10-28 (Orion): in touch mode on Pokémon-Amie's screens Shift alone
-/// picks up and lets go as it comes up, or with `drag` "toggle" one press picks up and the next
-/// lets go; elsewhere Shift alone drags nothing, and touch mode keeps its keys with Shift.
+/// ADR-0009 as amended 2026-10-28 (Orion): in touch mode on a screen that drags, Pokémon-Amie's
+/// or the PC Box's, Shift alone picks up and lets go as it comes up, or with `drag` "toggle" one
+/// press picks up and the next lets go; elsewhere Shift alone drags nothing, and touch mode keeps
+/// its keys with Shift.
 ///
 /// Python's stand-in records the actions asked, DRAG and ITEM_NEXT; here the drag's touches say
 /// them: pressed on the move to the Pokémon, and let go.
 #[test]
-fn test_shift_alone_drags_in_amies_screens_held_or_tapped() {
+fn test_shift_alone_drags_on_the_screens_that_drag_held_or_tapped() {
     for (drag, keys) in [
         ("hold", vec![SHIFT_DOWN, "l", SHIFT_UP]),
         (
@@ -4989,27 +4995,40 @@ fn test_shift_alone_drags_in_amies_screens_held_or_tapped() {
     }
 }
 
-/// Outside Pokémon-Amie the drag key is Shift and U, tapped to pick up and again to let go with
-/// `drag` "toggle"; Shift coming up between lets nothing go.
+/// A press is never left down (ADR-0009): picked up on a screen that drags, it is let go by Shift
+/// however the screen has changed since, held or tapped; and with `drag` "toggle" the tap key lets
+/// go too, as it taps.
 #[test]
-fn test_with_drag_toggle_shift_and_u_picks_up_and_again_lets_go() {
-    let (mut nav, held, backend) = holding_navigator(
-        Navigation {
-            drag: "toggle".to_string(),
-            ..Navigation::default()
-        },
-        None,
-    );
-    nav.press_key("shift+u").unwrap();
-    nav.press_key(SHIFT_UP).unwrap();
-    nav.press_key("l").unwrap();
-    assert!(nav.touch.as_ref().unwrap().holding());
-    nav.press_key("shift+u").unwrap();
-    assert!(
-        *held.touches.borrow() == [("hold", 95, 23), ("move", 160, 120), ("release", 0, 0)]
-            && !nav.touch.as_ref().unwrap().holding()
-    );
-    assert_eq!(last(&backend), "let go on stroke Pikachu");
+fn test_a_drag_is_let_go_after_its_screen_has_gone() {
+    for (drag, keys) in [
+        ("hold", vec![SHIFT_DOWN, "l", SHIFT_UP]),
+        ("toggle", vec![SHIFT_DOWN, SHIFT_UP, "l", SHIFT_DOWN]),
+        ("toggle", vec![SHIFT_DOWN, SHIFT_UP, "l", "u"]),
+    ] {
+        let dragging = Rc::new(Slot::new(true));
+        let shift_drags: Rc<dyn Fn() -> bool> = {
+            let dragging = dragging.clone();
+            Rc::new(move || dragging.get())
+        };
+        let (mut nav, held, backend) = holding_navigator(
+            Navigation {
+                drag: drag.to_string(),
+                ..Navigation::default()
+            },
+            Some(shift_drags),
+        );
+        nav.press_key(keys[0]).unwrap();
+        dragging.set(false);
+        for key in &keys[1..] {
+            nav.press_key(key).unwrap();
+        }
+        assert!(
+            *held.touches.borrow() == [("hold", 95, 23), ("move", 160, 120), ("release", 0, 0)]
+                && !nav.touch.as_ref().unwrap().holding(),
+            "{keys:?}"
+        );
+        assert_eq!(last(&backend), "let go on stroke Pikachu", "{keys:?}");
+    }
 }
 
 #[test]

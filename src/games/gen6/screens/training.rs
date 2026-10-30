@@ -98,6 +98,8 @@ use crate::py::{self, Result};
 pub const CLASS: &str = "N5field9subscreen8training11FM_TrainingE";
 /// A round of Super Training, the app the goals are offered in.
 pub const SPARRING: &str = "N3app8sparring4ProcE";
+/// Super Training's list of regimens, an app of its own (or_super_training_practice).
+pub const MENU: &str = "N3app13sparring_menu4ProcE";
 /// Where ORAS's page keeps its PokeIcon; X's keeps it at 0xC8 (`Game.training`).
 pub const ICONS: i64 = 0xF0;
 /// How far after the PokeIcon the records start, in ORAS and X alike (spike 228).

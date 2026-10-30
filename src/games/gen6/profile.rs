@@ -7,6 +7,8 @@
 //! numbers, and what it alone has (spike 100).
 //!
 //! Bound by:
+//! - ADR-0009: touch mode offers targets only in the apps that need a touch (`TOUCHED`), and
+//!   Shift alone drags only in Pokémon-Amie's.
 //! - ADR-0041: a replay logs touch mode's targets as they change, so a tape holds them.
 
 use std::cell::{Cell, RefCell};
@@ -56,7 +58,7 @@ use crate::games::common::touch::{
     self, FileOf, Idle, ImageOf, Lists, OnScreen, PictureName, Tap, TextOf, TouchTargets,
 };
 use crate::games::common::{lyt, msgwin, pokemon, strbuf};
-use crate::games::gen6::apps::{BATTLE, DEMOS, FIELD, MANAGER_CLASS, RunningApp};
+use crate::games::gen6::apps::{BATTLE, DEMOS, FIELD, MANAGER_CLASS, RunningApp, TUTORIAL};
 use crate::games::gen6::field::dowsing::Lights;
 use crate::games::gen6::field::footsteps::Footsteps;
 use crate::games::gen6::field::reader::{FieldReader, MOVE_MODEL_CLASS};
@@ -156,6 +158,24 @@ pub const HEAP_CLASSES: [&str; 41] = [
 
 /// Without a message window class there is nothing to read: not this game, or not this version.
 pub const REQUIRED: [&str; 2] = msgwin::CLASSES;
+/// The apps touch mode offers targets in (ADR-0009 as amended 2026-10-29): the field, whose
+/// bottom screen is the PokéNav Plus and its DexNav, BuzzNav and PlayNav, with Super Training's
+/// page; the PlayNav's tutorials; the AreaNav; and Pokémon-Amie's and Super Training's own. Every
+/// other screen, the Bag, the PC, a battle, is worked with the game's buttons, which do all its
+/// touches do and faster, and touch mode says there is nothing to touch (Orion, 2026-10-29). A
+/// `frozenset` in Python, only ever tested for membership.
+pub const TOUCHED: [&str; 10] = [
+    FIELD,
+    TUTORIAL,
+    townmap::APP,
+    amie::SCREENS[0],
+    amie::SCREENS[1],
+    amie::SCREENS[2],
+    amie::SCREENS[3],
+    amie::SCREENS[4],
+    training::MENU,
+    training::SPARRING,
+];
 /// Where the tone of each quarter up walks sounds, across and down as `Tones.play` has them,
 /// north first and clockwise: north high, south low, east in the right ear and west in the left, as
 /// the Hoenn map's cursor sounds its place (`core.tones`).
@@ -768,12 +788,11 @@ impl Gen6Profile {
         // A round says its score, clock and banners, and warns of a Bot's shot.
         let sparring = Round::new(layouts.clone(), image_of.clone(), memory.clone(), None);
         let picture_name: PictureName = {
-            let (apps, distribution, amie, training, party_icons) = (
+            let (apps, distribution, amie, training) = (
                 apps.clone(),
                 distribution.clone(),
                 amie.clone(),
                 training.clone(),
-                party_icons.clone(),
             );
             let partners = partners.clone();
             let (puffs, goods) = (puffs.clone(), goods.clone());
@@ -782,7 +801,7 @@ impl Gen6Profile {
                 // The AreaNav's navigators are the field's and its own app's: elsewhere they are
                 // gone, and asking cost a touch walk 1,400 reads (movie22). On the field its icons
                 // are the DexNav's; in the AreaNav, its Pokémon Distribution's (or_area_nav).
-                // A name of "" or None goes on to the party's icons.
+                // A name of "" or None goes on to the next.
                 let running = apps.borrow().running.clone();
                 if running
                     .as_deref()
@@ -831,7 +850,7 @@ impl Gen6Profile {
                         Ok(None)
                     };
                 }
-                party_icons.borrow().name(pane)
+                Ok(None)
             })
         };
         let lists_labels: Lists = {
@@ -871,6 +890,15 @@ impl Gen6Profile {
                     .as_ref()
                     .is_none_or(|navigation| navigation.touch_next_row),
                 sound: dragged(drag_sounds),
+                offered: Some({
+                    let apps = apps.clone();
+                    Rc::new(move || {
+                        apps.borrow()
+                            .running
+                            .as_deref()
+                            .is_none_or(|running| TOUCHED.contains(&running))
+                    })
+                }),
                 delayed: Some({
                     let apps = apps.clone();
                     Rc::new(move || {

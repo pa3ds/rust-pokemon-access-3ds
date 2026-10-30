@@ -31,7 +31,7 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
 
 - **An empty Battle Box** reads as the box behind it.
 - **Carrying a Pokémon**, the slot it is over says who is in it, except in a box that has the
-  same name as another box. Touch mode says only where each slot is.
+  same name as another box.
 - **Opening the Box** sometimes says "Normal Pokérus Paralysis".
 
 ## Omega Ruby and Alpha Sapphire

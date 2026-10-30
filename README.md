@@ -53,8 +53,9 @@ the Game Boy games. Nothing here is taken from its code.
 - **Where you are**: the place name when you arrive somewhere new.
 - **The map**: exits, interactables (signs and the like), people, items, berry spots, obstacles
   and more, each with its direction and distance, and the way to any of them on foot.
-- **The touch screen**: the buttons on the bottom screen, which touch mode can tap for you, the
-  PokéNav's and PlayNav's apps and the AreaNav's places among them.
+- **The touch screen**: the buttons on the bottom screen where the game needs a touch, which
+  touch mode can tap for you: the PokéNav's and PlayNav's apps, the AreaNav's places,
+  Pokémon-Amie and Super Training.
 - **The AreaNav**: each place, and the Pokémon seen there, as the DexNav says them.
 - **The DexNav**: the area's Pokémon, which are met on the water or by fishing, and which you
   have caught, searching, and a hidden Pokémon's details.

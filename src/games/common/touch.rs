@@ -5,10 +5,11 @@
 //! the PC Box's slots (spike 129); so is every other screen's. In touch mode the navigation keys
 //! walk the touch areas drawn on the bottom screen, in reading order, row by row, saying each by
 //! name; and a key taps the one chosen, through `pa3ds.core.touch` (ADR-0009, amended 2026-10-01:
-//! the one thing pa3ds does to the game, on the player's key, on the target it has just named). Or
-//! a key holds a press on it, a **drag** (`DRAG`), and the press goes with each target the keys
-//! choose after, until it is let go (`drop`): Pokémon-Amie's Poké Puffs are dragged to the
-//! Pokémon (ADR-0009).
+//! the one thing pa3ds does to the game, on the player's key, on the target it has just named). Or,
+//! on a screen that drags, Shift alone holds a press on it, a **drag** (`DRAG`), and the press goes
+//! with each target the keys choose after, until it is let go (`drop`): Pokémon-Amie's Poké Puffs
+//! are dragged to the Pokémon (ADR-0009). A game's profile says which screens need a touch at all
+//! (`offered`): on the rest, which the game's buttons work, touch mode has nothing to touch.
 //!
 //! A touch area is named by, in this order (spike 171):
 //!
@@ -41,7 +42,8 @@
 //! (or_area_nav).
 //!
 //! Bound by:
-//! - ADR-0009: a tap, or a drag, only on the player's keys, and only on targets just named.
+//! - ADR-0009: a tap, or a drag, only on the player's keys, only on targets just named, and only
+//!   on the screens that need a touch.
 //! - ADR-0037: the DexNav's icons are offered and said caught or not, though the game switches off
 //!   those not caught.
 
@@ -73,7 +75,8 @@ pub const ITEM_READ: &str = "item read";
 pub const ROW_PREVIOUS: &str = "row previous";
 pub const ROW_NEXT: &str = "row next";
 pub const TAP: &str = "tap";
-/// Hold a press on the target chosen, carried to each target the keys choose until `drop`.
+/// Hold a press on the target chosen, carried to each target the keys choose until `drop`: Shift
+/// alone's, bound to no key (`Navigator.press_key`).
 pub const DRAG: &str = "drag";
 /// What the keys do in touch mode; the names are the navigation keys' own where they match.
 ///
@@ -195,6 +198,7 @@ pub struct Options {
     /// None is never.
     pub delayed: Option<Rc<dyn Fn() -> bool>>,
     pub sound: Option<Rc<dyn Fn(bool)>>,
+    pub offered: Option<Rc<dyn Fn() -> bool>>,
 }
 
 impl Default for Options {
@@ -216,6 +220,7 @@ impl Default for Options {
             next_row: true,
             delayed: None,
             sound: None,
+            offered: None,
         }
     }
 }
@@ -267,6 +272,9 @@ pub struct TouchTargets {
     /// "holding" and "let go on", which slowed a timed game (`[pa3ds.audio] drag_sounds`, Orion,
     /// 2026-10-28); None says them.
     pub(crate) sound: Option<Rc<dyn Fn(bool)>>,
+    /// Whether the screen up now needs a touch: none is offered on one the game's buttons work
+    /// (`gen6.profile.TOUCHED`); None offers them everywhere.
+    offered: Option<Rc<dyn Fn() -> bool>>,
     /// Whether the keys go round from the last target to the first and the bottom row to the
     /// top, or stop at the ends (`[pa3ds.navigation] touch_wrap`).
     wrap: bool,
@@ -324,6 +332,7 @@ impl TouchTargets {
             next_row,
             delayed,
             sound,
+            offered,
         } = options;
         TouchTargets {
             layouts,
@@ -346,6 +355,7 @@ impl TouchTargets {
             drag,
             delayed: delayed.unwrap_or_else(|| Rc::new(|| false)),
             sound,
+            offered,
             wrap,
             next_row,
             picked: None,
@@ -576,6 +586,11 @@ impl TouchTargets {
         #[cfg(test)]
         if let Some(given) = &self.given {
             return Ok(given());
+        }
+        if let Some(offered) = &self.offered
+            && !offered()
+        {
+            return Ok(Vec::new());
         }
         let layouts = self.layouts.clone();
         let shape = layouts.shape;

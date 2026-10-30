@@ -31,7 +31,7 @@ belt as "conveyor belt", and the switch that turns a belt round as "switch".
 
 The list has three **modes**, and the apostrophe steps through them. During a battle or a scene
 the map's keys say "no map", and the thing you had chosen is kept for when the map comes back.
-Touch mode and the battle's keys work throughout.
+The battle's keys work throughout.
 
 **In every mode**
 
@@ -69,7 +69,10 @@ Touch mode and the battle's keys work throughout.
 | `K` | The next thing to the west. |
 
 **Touch mode** walks the buttons on the bottom screen, in reading order. While a panel or a Yes
-and No is up, it leaves out the buttons behind it that a tap no longer reaches.
+and No is up, it leaves out the buttons behind it that a tap no longer reaches. It works where the
+game needs a touch: on the map with the PokéNav Plus, in the AreaNav, Pokémon-Amie and Super
+Training. Elsewhere, in the Bag, the PC or a battle, the game's own buttons do everything a touch
+does, and touch mode says "nothing to touch".
 
 | Key | What it does |
 |---|---|
@@ -77,7 +80,7 @@ and No is up, it leaves out the buttons behind it that a tap no longer reaches.
 | `I` and `O` | The button above and below: the nearest in the previous and next row. |
 | `K` | The chosen button again. |
 | `U` | Tap the chosen button. |
-| `Shift` and `U` | Pick up the chosen button to drag it, with a short touch sound. Keep Shift down: `J`, `L`, `I` and `O` choose where to, and `K` says where it is. Let go of Shift to drop it there, with another sound. In Pokémon-Amie, Shift alone does this. With the `drag` setting at `"toggle"`, press once to pick up and again to drop; with `drag_sounds` at 0, "holding" and "let go on" are said instead of the sounds. |
+| `Shift` | In Pokémon-Amie, pick up the chosen button to drag it, with a short touch sound. Keep Shift down: `J`, `L`, `I` and `O` choose where to, and `K` says where it is. Let go of Shift to drop it there, with another sound. With the `drag` setting at `"toggle"`, press once to pick up and again to drop; with `drag_sounds` at 0, "holding" and "let go on" are said instead of the sounds. Nothing else drags. |
 
 In the AreaNav, touch mode offers each place on the map by name, and a tap chooses it.
 

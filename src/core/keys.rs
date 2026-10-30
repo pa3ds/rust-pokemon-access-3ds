@@ -117,8 +117,8 @@ pub const SHIFT: &str = "shift";
 /// alone: touch mode lets go of a drag held with it (`common.touch`'s drag). Never a key bound.
 pub const SHIFT_UP: &str = "shift up";
 /// What is pressed when Shift goes down alone in front of the emulator, once however long it is
-/// held, and passed on to the emulator all the same: touch mode drags with it in Pokémon-Amie
-/// (ADR-0009 as amended 2026-10-28). Never a key bound.
+/// held, and passed on to the emulator all the same: touch mode drags with it on the screens that
+/// drag (ADR-0009 as amended 2026-10-28). Never a key bound.
 pub const SHIFT_DOWN: &str = "shift down";
 pub const CTRL: &str = "ctrl";
 pub const ALT: &str = "alt";
@@ -341,7 +341,7 @@ impl State {
                 && SHIFTS.contains(&(event.vkCode as i64))
             {
                 // Shift alone, passed on all the same and said once however long it is held:
-                // touch mode drags with it in Pokémon-Amie (ADR-0009).
+                // touch mode drags with it on the screens that drag (ADR-0009).
                 if !self.shift_down.load(Ordering::SeqCst)
                     && !held(VK_CONTROL)
                     && !held(VK_MENU)

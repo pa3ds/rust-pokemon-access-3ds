@@ -44,8 +44,8 @@
 //! the guiding, since the path's cells belong to the map the player has left.
 //!
 //! Bound by:
-//! - ADR-0009: Shift alone drags in touch mode only while one of Pokémon-Amie's screens runs, held
-//!   or tapped as `drag` says; elsewhere touch mode keeps its keys with Shift.
+//! - ADR-0009: Shift alone drags in touch mode only on the screens that drag, held or tapped as
+//!   `drag` says; elsewhere touch mode keeps its keys with Shift, and nothing drags.
 //! - ADR-0024: nearest first by category unless `sort_by_distance` is off, all a category, and
 //!   direction mode a half-box 10 cells deep, nearest first always.
 //! - ADR-0037: a search's find is guided to, and the detector's only with the DexNav open in touch
@@ -291,8 +291,8 @@ pub struct Navigator {
     /// The gen 6 profile's `census` walks them too, where the Python's holds the same object as
     /// `self.touch`.
     pub(crate) touch: Option<TouchTargets>,
-    /// Whether Shift alone drags in touch mode now: while one of Pokémon-Amie's screens runs
-    /// (ADR-0009 as amended 2026-10-28).
+    /// Whether Shift alone drags in touch mode now: on a screen that drags (ADR-0009 as amended
+    /// 2026-10-28).
     shift_drags: Rc<dyn Fn() -> bool>,
     /// How an item and the way to it are said (`config.toml`'s `[pa3ds.navigation]`).
     wording: Navigation,
@@ -451,9 +451,7 @@ impl Navigator {
             .cloned();
         if holding
             && toggle
-            && action
-                .as_deref()
-                .is_some_and(|action| action == DRAG || action == TAP)
+            && action.as_deref() == Some(TAP)
             && let Some(touch) = &mut self.touch
         {
             // Tapped to pick up, tapped again to let go (`[pa3ds.navigation] drag`).
@@ -465,21 +463,19 @@ impl Navigator {
         Ok(())
     }
 
-    /// Shift alone. In touch mode while one of Pokémon-Amie's screens runs it drags: held, it
-    /// picks up the target said and lets go as it comes up; or, with `[pa3ds.navigation] drag`
-    /// "toggle", one press picks up and the next lets go. Elsewhere it lets go of a drag Shift
-    /// and U picked up, as it comes up (ADR-0009 as amended 2026-10-28).
+    /// Shift alone. In touch mode on a screen that drags it drags: held, it picks up the target
+    /// said and lets go as it comes up; or, with `[pa3ds.navigation] drag` "toggle", one press
+    /// picks up and the next lets go. A drag is let go however the screen has changed (ADR-0009
+    /// as amended 2026-10-28).
     fn shift(&mut self, down: bool, holding: bool, toggle: bool) -> Result<()> {
         if self.touch.is_none() {
             return Ok(());
         }
-        let alone = self.mode == TOUCH && (self.shift_drags)();
-        let touch = self.touch.as_mut().expect("checked above");
-        if down && alone && !holding {
-            let said = touch.press(DRAG)?;
+        if down && !holding && self.mode == TOUCH && (self.shift_drags)() {
+            let said = self.touch.as_mut().expect("checked above").press(DRAG)?;
             self.say(&said);
-        } else if holding && ((down && alone && toggle) || (!down && !toggle)) {
-            let dropped = touch.drop();
+        } else if holding && down == toggle {
+            let dropped = self.touch.as_mut().expect("checked above").drop();
             self.say(&dropped);
         }
         Ok(())

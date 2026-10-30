@@ -284,6 +284,41 @@ fn test_nothing_on_the_bottom_screen_is_said_so() {
     assert!(started == "nothing to touch" && "nothing to touch" == screen.press(touch::ITEM_NEXT));
 }
 
+/// Orion, 2026-10-29: the Bag, the PC and a battle are worked with the game's buttons, and touch
+/// mode offers nothing there, nor reads their layouts (`gen6.profile.TOUCHED`).
+#[test]
+fn test_a_screen_the_games_buttons_work_has_nothing_to_touch() {
+    let tapped: Rc<RefCell<Vec<(i64, i64)>>> = Rc::new(RefCell::new(Vec::new()));
+    let memory = FakeMemory::new();
+    let layouts = Rc::new(Layouts::new(
+        memory.clone(),
+        Rc::new(ClassNames::new(memory.clone(), CODE)),
+        lyt::ORAS,
+    ));
+    let keep = tapped.clone();
+    let mut targets = TouchTargets::new(
+        layouts,
+        Rc::new(Vec::new),
+        Rc::new(|_box| Ok(String::new())),
+        Rc::new(|_pane| Ok(None)),
+        Rc::new(|_root| None),
+        Rc::new(|_line: &str| {}),
+        Options {
+            tap: Some(Rc::new(move |x, y| {
+                keep.borrow_mut().push((x, y));
+                None
+            })),
+            offered: Some(Rc::new(|| false)),
+            ..Options::default()
+        },
+    );
+    let started = targets.start().unwrap();
+    assert!(
+        started == "nothing to touch" && "nothing to touch" == targets.press(touch::TAP).unwrap()
+    );
+    assert!(tapped.borrow().is_empty());
+}
+
 /// The X menu (layer 10) over the PokéNav (layer 1): its POKÉDEX button covers the DexNav, which a
 /// tap would never reach; the shortcut bar, in no menu button, stays (movie21).
 #[test]
@@ -1126,10 +1161,10 @@ fn test_a_touch_area_is_named_by_no_picture_of_a_button_inside_it_nor_one_hidden
     assert!(targets.targets().unwrap().is_empty());
 }
 
-/// Pokémon-Amie's Poké Puffs are dragged to the Pokémon: Shift and U holds a touch on the puff
-/// said, the keys carry it to each target they say, the Pokémon at its mouth, and letting go of
-/// Shift lets go of it there; a tap meanwhile touches nothing (ADR-0009). Carried to the
-/// Pokémon's middle, the puff covered Pikachu's eyes and fell (or_amie_dragging_puffs).
+/// Pokémon-Amie's Poké Puffs are dragged to the Pokémon: Shift holds a touch on the puff said,
+/// the keys carry it to each target they say, the Pokémon at its mouth, and letting go of Shift
+/// lets go of it there; a tap meanwhile touches nothing (ADR-0009). Carried to the Pokémon's
+/// middle, the puff covered Pikachu's eyes and fell (or_amie_dragging_puffs).
 #[test]
 fn test_a_drag_holds_the_target_named_carries_it_with_the_keys_and_lets_go() {
     let held = Rc::new(Held::default());

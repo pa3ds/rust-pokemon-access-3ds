@@ -9,7 +9,7 @@ use std::sync::LazyLock;
 
 use indexmap::IndexMap;
 
-use crate::games::common::touch::{DRAG, ROW_NEXT, ROW_PREVIOUS, TAP};
+use crate::games::common::touch::{ROW_NEXT, ROW_PREVIOUS, TAP};
 
 pub const LIST: &str = "list";
 
@@ -106,7 +106,7 @@ pub const ITEM_COORDINATES: &str = "item coordinates";
 /// What the keys file says above an action's key, where its name does not say it all. The
 /// horde's order is Orion's, heard by fainting the bottom left Zigzagoon and the fifth going to 0%
 /// (movie16, 2026-10-01): the enemy side is said by battle position (`gen6.screens.battle`).
-pub const EXPLAINED: [(&str, &str); 4] = [
+pub const EXPLAINED: [(&str, &str); 3] = [
     (
         ENEMY_SIDE,
         "The enemy's Pokémon are said in the order the battle places them. In a horde of five that \
@@ -121,11 +121,6 @@ pub const EXPLAINED: [(&str, &str); 4] = [
     (
         TAP,
         "Touches the button touch mode last said, and nothing else.",
-    ),
-    (
-        DRAG,
-        "Holds a touch on the button touch mode last said. Keep Shift down and the keys that \
-         walk the buttons carry it to each one they say; let go of Shift to let go of it.",
     ),
 ];
 
@@ -150,9 +145,9 @@ fn keys(pairs: &[(&str, &str)]) -> IndexMap<String, String> {
 /// last spoke. Shift and P is the way there with HMs (2026-09-28). R says the player's side of a
 /// battle again and shift and R the enemy's (2026-09-29). The apostrophe steps on to touch mode
 /// after direction mode (Orion, 2026-10-02; it was shift and T for a day), where J and L walk the
-/// bottom screen's buttons, I and O a row at a time, K says the one chosen again and U taps it;
-/// shift and U holds a touch on it, carried by the same keys with shift held and let go with shift
-/// (Orion, 2026-10-26).
+/// bottom screen's buttons, I and O a row at a time, K says the one chosen again and U taps it.
+/// Shift alone drags it, in Pokémon-Amie, and no key is bound to it: Shift and U did from
+/// 2026-10-26 to 2026-10-29, when Shift alone took its place (Orion, ADR-0009).
 /// C says the player's cell and alt and P stops guiding (2026-10-10), and shift and C the cells of
 /// the thing chosen (Orion, 2026-10-15). All of these are the player's to change in
 /// `<pa3ds>\user\keys.toml`.
@@ -216,7 +211,6 @@ pub static DEFAULT_BINDINGS: LazyLock<Bindings> = LazyLock::new(|| {
                 ("o", ROW_NEXT),
                 ("k", ITEM_READ),
                 ("u", TAP),
-                ("shift+u", DRAG),
                 ("[", CATEGORY_PREVIOUS),
                 ("]", CATEGORY_NEXT),
                 ("'", MODE_TOGGLE),

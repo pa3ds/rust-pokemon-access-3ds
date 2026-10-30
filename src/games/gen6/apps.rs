@@ -39,6 +39,9 @@ pub const DEMOS: [&str; 3] = [
     "N3app11dendou_demo4ProcE",
     "N3app15sango_staffroll13StaffrollProcE",
 ];
+/// The PlayNav's tutorial the first time one of its apps opens, its pages turned by the arrows of
+/// the touch screen (or_playnav_amie_tutorial).
+pub const TUTORIAL: &str = "N3app19sub_screen_tutorial4ProcE";
 pub const MANAGER_RUNNING: i64 = 0x10;
 pub const PROCESS_MANAGER: i64 = 0x1C;
 /// How far into a process the manager's pointer may land. The Pokédex's lands deepest yet: 0x150.

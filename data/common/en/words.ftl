@@ -231,8 +231,8 @@ touch-continue = continue
 # A tap asked for where pa3ds cannot tap, and one Azahar is not listening for.
 touch-off = touch is off
 touch-not-listening = Azahar is not taking touches from pa3ds
-# Shift and U holding a touch on a button, and Shift let go of, with the touch where it was
-# carried to.
+# Shift holding a touch on a button, and Shift let go of, with the touch where it was carried
+# to.
 touch-holding = holding { $target }
 touch-dropped = let go on { $target }
 
@@ -376,7 +376,7 @@ setting-pa3ds-navigation-touch_wrap-about = In touch mode, go from the last butt
 setting-pa3ds-navigation-touch_next_row = Touch mode goes on to the next row
 setting-pa3ds-navigation-touch_next_row-about = In touch mode, J and L go on into the row above or below at a row's end; false keeps them in their row, so pressing L a few times always ends at its right.
 setting-pa3ds-navigation-drag = How touch mode drags
-setting-pa3ds-navigation-drag-about = Drag with Shift held, letting go of the touch as Shift comes up ("hold"), or tap Shift to pick up and tap it again to let go ("toggle"); in Pokémon-Amie Shift alone drags, elsewhere Shift and U.
+setting-pa3ds-navigation-drag-about = Drag with Shift held, letting go of the touch as Shift comes up ("hold"), or tap Shift to pick up and tap it again to let go ("toggle"). Only Pokémon-Amie drags.
 setting-pa3ds-navigation-drag-hold = Hold Shift
 setting-pa3ds-navigation-drag-toggle = Tap to pick up, tap to let go
 setting-pa3ds-extras-conditions = Contest conditions as numbers
