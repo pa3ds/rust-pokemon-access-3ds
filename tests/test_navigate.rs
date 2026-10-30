@@ -3908,7 +3908,7 @@ fn test_floor_over_floor_each_is_walked_as_itself_and_joined_by_the_stairs() {
 /// X's Poké Ball Factory: its walkway at 90 crosses over a belt at 18, and P's ways off the
 /// walkway were none, the belt carrying the player off it into nothing; the player stuck in the
 /// factory's east room heard "can't continue" for both doors up there (Khai, 2026-10-29, spike
-/// A). A belt carries the player on its own floor, the ground's, and on no floor above it.
+/// 259). A belt carries the player on its own floor, the ground's, and on no floor above it.
 #[test]
 fn test_a_walkway_over_a_conveyor_belt_is_walked_across_and_the_belt_carries_only_below() {
     let grunt = Interactable {

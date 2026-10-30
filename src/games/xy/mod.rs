@@ -487,7 +487,7 @@ pub const BELT_ENTRANCE: i64 = 0x6;
 /// west, faced from (4, 23): the switch that turns every belt round, "The direction of the conveyor
 /// has been reversed!", each time it is pressed. Its case calls one native with nothing and shows the
 /// line. A Worker upstairs says "Change the direction of the conveyor by using the switch!" (spike
-/// A).
+/// 259).
 pub const BELT_SWITCH: i64 = 0x7;
 /// The factory's four belts, each from its first cell as runs of cells carried one way, the player
 /// set down on the cell past the last. Nothing in the zone, its chunks, its meshes or the trigger says
