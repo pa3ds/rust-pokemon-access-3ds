@@ -291,6 +291,23 @@ fn test_the_roms_door_name_is_a_doors_and_never_a_signs() {
     assert_eq!(named.place(TOWN, 0), None);
 }
 
+/// Khai, 2026-10-28: Lumiose's five gates were each "warp to Lumiose Gate".
+#[test]
+#[allow(clippy::identity_op)]
+fn test_a_warp_into_a_gate_is_called_the_gate_and_the_place_beyond_it() {
+    let town = Town::new();
+    let named = names(&[]);
+    let text = GameText {
+        gates: IndexMap::from([((TOWN, 0), (170, 204))]),
+        ..GameText::new(places(), trainers())
+    };
+    profile(&town, text, Some(named.clone()), no_log());
+    assert_eq!(
+        named.place(TOWN, WARP_SOURCE | 0).as_deref(),
+        Some("Littleroot Town to Route 101")
+    );
+}
+
 /// The user, 2026-09-24: nothing said the gap north of Littleroot leads to Route 101. The
 /// place is the zone table's index for each side and the ROM's word for it; the house behind the
 /// first door shares the town's place, and the second door's zone has no place at all.

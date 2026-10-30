@@ -2140,10 +2140,15 @@ fn game_word(text: &GameText, character: i64) -> Option<String> {
 
 /// What the game calls a slot on a map: the building behind a door in from outdoors,
 /// where the ROM's own tables pair the two (spike 86). Only a warp's slot is a door's: a sign
-/// is numbered in a table of its own.
+/// is numbered in a table of its own. A warp into one of X's gates is the gate and the place
+/// beyond it, "Lumiose Gate to Route 4": Lumiose's five gates are all "Lumiose Gate" (Khai,
+/// 2026-10-28).
 fn game_place(text: &GameText, zone: i64, slot: i64) -> Option<String> {
     if source_kind(slot) != WARP_SOURCE {
         return None;
+    }
+    if let Some((gate, beyond)) = text.gate(zone, source_number(slot)) {
+        return Some(own("leads-to", &[("thing", &gate), ("place", &beyond)]));
     }
     text.door(zone, source_number(slot))
 }

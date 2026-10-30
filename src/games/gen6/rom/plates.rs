@@ -17,6 +17,10 @@
 //! A mark covers a whole boulevard, or one cell at an alley's mouth; a warp between two of Lumiose's
 //! zones is named for the mark nearest where it comes out, on the line it comes out on, which is
 //! the warp its record's +0x02 gives in the zone it goes to.
+//!
+//! A warp into one of X's **gates** is named for the gate and the place beyond it, "Lumiose Gate to
+//! Route 4": the gate's zone has an area kind of its own (`zonetable.GATE`), and the place beyond
+//! is the one its warps reach that is neither the gate's nor the warp's own (`gate_names`).
 
 use std::collections::HashSet;
 
@@ -421,6 +425,43 @@ pub fn street_names(
                 if !words.is_empty() {
                     out.insert((zone, slot as i64), words);
                 }
+            }
+        }
+    }
+    Ok(out)
+}
+
+/// (zone, warp slot) -> the place index of the gate a warp goes into and of the one place
+/// beyond it: the one its warps reach besides its own and the warp's own zone's. X's five gates
+/// out of Lumiose are all "Lumiose Gate", and only what lies beyond tells them apart.
+pub fn gate_names(
+    zones: &IndexMap<i64, Zone>,
+    table: &[u8],
+) -> Result<IndexMap<(i64, i64), (i64, i64)>> {
+    let mut out: IndexMap<(i64, i64), (i64, i64)> = IndexMap::new();
+    for (&zone, (_data, _furniture, warps)) in zones {
+        let here = place(table, zone)?;
+        for (slot, record) in warps.iter().enumerate() {
+            let to = u16(record, zonedata::WARP_TO)?;
+            if !zones.contains_key(&to)
+                || row(table, to, crate::games::gen6::field::zonetable::INFO_KIND)?
+                    != crate::games::gen6::field::zonetable::GATE
+            {
+                continue;
+            }
+            let gate = place(table, to)?;
+            if gate == here {
+                continue;
+            }
+            let mut beyond: HashSet<i64> = HashSet::new();
+            for onward in &zones[&to].2 {
+                beyond.insert(place(table, u16(onward, zonedata::WARP_TO)?)?);
+            }
+            beyond.remove(&gate);
+            beyond.remove(&here);
+            if beyond.len() == 1 {
+                let only = *beyond.iter().next().expect("one left");
+                out.insert((zone, slot as i64), (gate, only));
             }
         }
     }

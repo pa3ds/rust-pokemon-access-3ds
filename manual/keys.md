@@ -20,7 +20,8 @@ right ear for east and your left for west.
 
 Exits side by side into the same place are one exit. On Lumiose City's streets, where a street
 ends on a plaza you walk freely, the exits list that end as "open ground": walk onto the plaza and
-its own exits are listed.
+its own exits are listed. In X and Y, a gate is said with the place beyond it: "Lumiose Gate to
+Route 4".
 
 The list has three **modes**, and the apostrophe steps through them. During a battle or a scene
 the map's keys say "no map", and the thing you had chosen is kept for when the map comes back.

@@ -667,6 +667,51 @@ fn test_a_warp_between_two_of_lumioses_zones_is_named_for_the_street_it_comes_ou
     Ok(())
 }
 
+/// Lumiose's five gates are all "Lumiose Gate" (Khai, 2026-10-28): each side's warp in is
+/// the gate's place and the place its other warp leads to. A warp into a zone of another kind
+/// is not a gate's.
+#[test]
+fn test_a_warp_into_a_gate_is_named_for_the_gate_and_the_one_place_beyond_it() -> Result<()> {
+    use crate::games::gen6::field::zonetable;
+    let (gate, gate_place) = (7, 24);
+    let mut rows = table();
+    put(
+        &mut rows,
+        gate * zonetable::INFO_SIZE + zonetable::INFO_KIND,
+        &le16(&[zonetable::GATE]),
+    );
+    put(
+        &mut rows,
+        gate * zonetable::INFO_SIZE + zonetable::INFO_NAME,
+        &le16(&[gate_place]),
+    );
+    let warp = |to: i64, back: i64| warp_on(0, to, back, 0, 0, (1, 1));
+    let zones: IndexMap<i64, plates::Zone> = IndexMap::from([
+        (
+            TOWN,
+            (Vec::new(), Vec::new(), vec![warp(gate, 0), warp(CAFE, 0)]),
+        ),
+        (ELSEWHERE, (Vec::new(), Vec::new(), vec![warp(gate, 1)])),
+        (
+            gate,
+            (
+                Vec::new(),
+                Vec::new(),
+                vec![warp(TOWN, 0), warp(ELSEWHERE, 0)],
+            ),
+        ),
+        (CAFE, (Vec::new(), Vec::new(), Vec::new())),
+    ]);
+    assert_eq!(
+        plates::gate_names(&zones, &rows)?,
+        IndexMap::from([
+            ((TOWN, 0), (gate_place, OTHER_PLACE)),
+            ((ELSEWHERE, 0), (gate_place, PLACE))
+        ])
+    );
+    Ok(())
+}
+
 /// Lumiose's other zones and Coumarine's lower town are not their own parents, but the
 /// player walks about in them: a building's way out comes out there, or their records are on
 /// streets. Coumarine's Gym has its puzzle on rails, and a kind of its own.

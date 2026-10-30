@@ -41,6 +41,9 @@ pub const INFO_KIND: i64 = 0x08;
 /// 130 and 134, under Sootopolis City, and Seafloor Cavern's first room, which the player swims
 /// into (spike 165).
 pub const UNDERWATER: i64 = 0xC2;
+/// The area kind of X's gates between a town and a route, every one of its 16 and nothing else;
+/// no zone of ORAS has it (2026-10-28).
+pub const GATE: i64 = 0x47;
 
 /// What kind of place a zone is, a byte: 1 the open air, every town and route of both games and
 /// Frost Cavern's and the Poké Ball Factory's grounds, and 6 X's two woods; 2 to 5 under a roof, as

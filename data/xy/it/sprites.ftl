@@ -647,3 +647,5 @@ place-0x37-furniture-5 = foto
 # photograph: story 420:7 and 420:8, Santalune Gym, zone 0x37
 place-0x37-furniture-6 = foto
 place-0x37-furniture-7 = foto
+# Lysandre Café: story 313:4, Lumiose City, zone 0x43: the plate of script 22, which no record shows, so no door is paired with it
+place-0x43-warp-1 = Caffè Elisio

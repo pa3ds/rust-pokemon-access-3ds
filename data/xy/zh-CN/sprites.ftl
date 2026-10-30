@@ -648,3 +648,5 @@ place-0x37-furniture-5 = 照片
 # photograph: story 420:7 and 420:8, Santalune Gym, zone 0x37
 place-0x37-furniture-6 = 照片
 place-0x37-furniture-7 = 照片
+# Lysandre Café: story 313:4, Lumiose City, zone 0x43; pa3ds's own word, Lysandre's name above and café, since no official one was found
+place-0x43-warp-1 = 弗拉达利咖啡馆

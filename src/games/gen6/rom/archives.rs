@@ -23,7 +23,8 @@
 //!   143 doors in towns and routes, the same in every language because the pairing is made on line
 //!   numbers, never on words. A door the ROM cannot pair is left unnamed, not guessed at. The way
 //!   into a landmark's building that no plate pairs is named from the facilities its town's list has
-//!   left (`plates.entrance_names`, 2026-10-06).
+//!   left (`plates.entrance_names`, 2026-10-06). A warp into one of X's gates is the gate and the
+//!   place beyond it (`plates.gate_names`, 2026-10-28).
 //!
 //! - **The map's places**, which the Pokédex's habitat draws as touch areas of the AreaNav's map
 //!   (`a/0/6/7`): the AreaNav's list gives each row's zone the index of its touch area at +0x04,
@@ -354,6 +355,9 @@ pub struct GameText {
     pub natives: IndexMap<(i64, i64), (i64, i64)>,
     /// What the game calls itself, "Pokémon Omega Ruby", out of the ROM's SMDH (`Rom.title`).
     pub title: Option<String>,
+    /// (zone, warp slot) -> the place indices of the gate a warp goes into and of the place
+    /// beyond it (`plates.gate_names`).
+    pub gates: IndexMap<(i64, i64), (i64, i64)>,
 }
 
 /// `Callable[[int], Sequence[bytes]]`: a text archive's file as its lines (`lines_of`).
@@ -449,6 +453,7 @@ impl Default for GameText {
             shared: IndexMap::new(),
             natives: IndexMap::new(),
             title: None,
+            gates: IndexMap::new(),
         }
     }
 }
@@ -741,6 +746,7 @@ impl GameText {
         let categories = lines_from(layout.categories)?;
         let conditions = lines_from(layout.conditions)?;
         let natives = plates::native_furniture(&read)?;
+        let gates = plates::gate_names(&read, &table)?;
         let text = GameText {
             places: places.clone(),
             trainers,
@@ -850,6 +856,7 @@ impl GameText {
             door_signs,
             shared: plates::shared_furniture(&natives),
             natives,
+            gates,
             title: rom.title(language)?,
         };
         if layout.protagonists && !text.protagonists_hold() {
@@ -895,6 +902,13 @@ impl GameText {
     /// The street of Lumiose's this zone's warp comes out on, or None.
     pub fn street(&self, zone: i64, slot: i64) -> Option<String> {
         self.street_to.get(&(zone, slot)).cloned()
+    }
+
+    /// What the game calls the gate this zone's warp goes into and the place beyond it, or
+    /// None.
+    pub fn gate(&self, zone: i64, slot: i64) -> Option<(String, String)> {
+        let &(gate, beyond) = self.gates.get(&(zone, slot))?;
+        Some((self.place(gate)?, self.place(beyond)?))
     }
 
     /// What the game calls a Pokémon in a form: the form's own name where it holds the
