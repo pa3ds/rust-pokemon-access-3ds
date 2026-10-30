@@ -1166,6 +1166,36 @@ impl Landform for Conveyors {
     }
 }
 
+/// The strands a player walks diagonally between, by a bit of a cell's word, as X's Santalune Gym
+/// is a web of them (`Ground.strands`, spike 223): laid only on a matrix with a cell that carries
+/// the bit, so that a search elsewhere knows no step there is diagonal (`Ground.diagonal`). Not
+/// listed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Strands {
+    pub bit: i64,
+}
+
+impl Landform for Strands {
+    fn found(&self, matrix: &Matrix) -> Result<Found> {
+        let found = matrix
+            .chunks
+            .values()
+            .any(|chunk| chunk.words.iter().any(|word| word & self.bit != 0));
+        Ok(Rc::new(found))
+    }
+
+    fn laid(&self, found: &Found, ground: Ground, _here: &Here) -> Result<Ground> {
+        Ok(if *found_as::<bool>(found) {
+            Ground {
+                strands: self.bit,
+                ..ground
+            }
+        } else {
+            ground
+        })
+    }
+}
+
 /// Each run of cells adjacent along a row or a column, as its first cell and its size.
 pub fn runs(cells: impl IntoIterator<Item = Cell>) -> Vec<(Cell, (i64, i64))> {
     let mut left: Vec<Cell> = cells.into_iter().collect();

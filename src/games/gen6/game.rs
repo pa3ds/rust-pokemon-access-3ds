@@ -305,10 +305,6 @@ pub struct Game {
     /// The reader of the Pokémon its save keeps for its credits, or None in a game whose credits
     /// have not been looked at: ORAS's (`oras.memories`, spike 222).
     pub memories: Option<MemoriesFactory>,
-    /// The bit of a cell's word that marks a strand the player walks diagonally between, or 0 in a
-    /// game with none: X's Santalune Gym is a web of them, and ORAS's chunks use the same bit for
-    /// other things (`Ground.strands`, spike 223).
-    pub strands: i64,
     /// Zone -> the native its teleporters' cases hand where they put the player, x, the floor in
     /// squares of height and z (`plates.teleports`): X's Laverre City Gym (spike 258). By zone, since a
     /// native's number is its zone script's own: Coumarine Gym's 56 swings a vine.
@@ -388,7 +384,6 @@ impl Game {
             conditions: None,
             opening: None,
             memories: None,
-            strands: 0,
             teleporting: IndexMap::new(),
             gates: false,
             form: None,

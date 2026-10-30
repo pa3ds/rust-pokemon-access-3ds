@@ -19,7 +19,7 @@ use crate::games::common::field::ground::{CUT, ROCK_SMASH, STRENGTH};
 use crate::games::gen6::field::camera;
 use crate::games::gen6::field::footsteps::{RUN, Steps, WALK};
 use crate::games::gen6::field::landform::{
-    ArrowTiles, Climbing, Conveyors, Grinding, Landform, Rides, Vining, gen6,
+    ArrowTiles, Climbing, Conveyors, Grinding, Landform, Rides, Strands, Vining, gen6,
 };
 use crate::games::gen6::game::{Data, FurnitureKind, Game};
 use crate::games::gen6::rom::layout::{RomLayout, TownFacilities, owned};
@@ -805,7 +805,6 @@ pub fn game() -> &'static Game {
         ]),
         rooms: HashSet::from([HOUSE]),
         models: Some(MODELS),
-        strands: STRAND,
         landforms: [
             gen6(),
             vec![
@@ -817,6 +816,7 @@ pub fn game() -> &'static Game {
                 Arc::new(GRINDING),
                 Arc::new(VINING),
                 Arc::new(belts()),
+                Arc::new(Strands { bit: STRAND }),
             ],
         ]
         .concat(),

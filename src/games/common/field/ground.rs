@@ -1644,7 +1644,8 @@ impl Ground {
     /// whose floor a stacked ground ends on (`_walk`, `_arrives`). `walkable` is where it may
     /// step, `passable` where it is not given. Across a teleporter the distance to the goals is
     /// no measure of the way left, a teleport crossing Laverre Gym in one move, so the search
-    /// goes by cost alone. A way to a teleporter or an arrow ends on it, though it carries the
+    /// goes by cost alone; on ground with diagonal steps a step can close two of the distance
+    /// (`diagonal`). A way to a teleporter or an arrow ends on it, though it carries the
     /// player on.
     ///
     /// Python's `heading`, `item`, `closest` and `walkable` default to "", None, False and None.
@@ -1703,8 +1704,18 @@ impl Ground {
                 stops: if walk.carries { Some(&stops) } else { None },
                 leap: if walk.carries { Some(&leap) } else { None },
                 straight: !self.traversals().iter().any(|way| way.far()),
+                diagonal: self.diagonal(),
             },
         )
+    }
+
+    /// Whether a step on this ground can be diagonal (`slants`): along Santalune Gym's strands,
+    /// Lumiose's slanted streets, a grind rail's bends and onto a swing's vine.
+    pub fn diagonal(&self) -> bool {
+        self.strands != 0
+            || !self.lanes.is_empty()
+            || !self.grind_rails.steps.is_empty()
+            || !self.vines.boards.is_empty()
     }
 
     /// Every cell a way from `start` across this ground can end on, in the box round it and

@@ -275,8 +275,6 @@ pub struct FieldReader {
     /// (zone, a furniture record's script) -> what it is, where it is no sign (`Game.furniture`):
     /// a Secret Base's PC and flag.
     furniture_kinds: IndexMap<(i64, i64), FurnitureKind>,
-    /// The bit of a cell's word that marks a strand walked diagonally (`Game.strands`).
-    strands: i64,
     /// The game's landforms, gen 6's and its own (`Game.landforms`).
     landforms: Vec<Arc<dyn Landform>>,
     /// What each landform worked out, by the map it was worked out on (`_found`).
@@ -512,7 +510,6 @@ impl FieldReader {
             ice: game.ice.map(|make| make(memory.clone())),
             decorations: text.decorations.clone(),
             furniture_kinds: game.furniture.clone(),
-            strands: game.strands,
             landforms: game.landforms.clone(),
             found_of: RefCell::new(HashMap::new()),
             rides: game.landforms.iter().find_map(as_form::<Rides>).cloned(),
@@ -939,7 +936,6 @@ impl FieldReader {
             level,
             ice,
             ground_height,
-            strands: self.strands,
             lanes,
             raised: self.terrain.raised()?,
             words: self

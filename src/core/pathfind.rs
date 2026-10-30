@@ -280,6 +280,7 @@ pub struct Options<'a> {
     pub stops: Option<&'a dyn Fn(Cell, &[i64]) -> Result<bool>>,
     pub leap: Option<&'a dyn Fn(&[i64], Cell) -> Option<Cell>>,
     pub straight: bool,
+    pub diagonal: bool,
 }
 
 impl Default for Options<'_> {
@@ -300,6 +301,7 @@ impl Default for Options<'_> {
             stops: None,
             leap: None,
             straight: true,
+            diagonal: false,
         }
     }
 }
@@ -419,6 +421,10 @@ impl Ord for Entry<'_> {
 /// picks, whatever order it went in. `straight` says the way is no
 /// shorter than that distance; where `leap` can carry the player further than its price, as a
 /// teleporter across Laverre Gym does for four, it is False, and the search goes by cost alone.
+/// `diagonal` says a step can be diagonal (`slants`), closing one cell each way for a step's
+/// price, so the estimate counts the further of the two alone: counting both, it overstated, and
+/// a way across Santalune Gym's web or along Lumiose's slanted streets might not have been the
+/// cheapest (Orion, 2026-10-30).
 pub fn find(
     start: Cell,
     goals: &IndexMap<Cell, Option<&'static str>>,
@@ -442,6 +448,7 @@ pub fn find(
         stops,
         leap,
         straight,
+        diagonal,
     } = options;
     if goals.is_empty() {
         return Ok(None);
@@ -513,6 +520,21 @@ pub fn find(
             + (reach.north - cell.1).max(0).max(cell.1 - reach.south))
     };
 
+    let left = |cell: Cell| -> i64 {
+        // The least the way on can cost: a step a cell, a diagonal closing one each way.
+        if !*straight {
+            return 0;
+        }
+        if !*diagonal {
+            return estimate(cell);
+        }
+        STEP * (reach.west - cell.0)
+            .max(0)
+            .max(cell.0 - reach.east)
+            .max(reach.north - cell.1)
+            .max(cell.1 - reach.south)
+    };
+
     let can_walk = |cell: Cell| {
         open_cells.get(cell, || {
             if !r#box.holds(cell) {
@@ -529,7 +551,7 @@ pub fn find(
     let mut order: i64 = 0;
     let mut frontier: BinaryHeap<Entry> = BinaryHeap::new();
     frontier.push(Entry {
-        key: (estimate(start), 0, order),
+        key: (left(start), 0, order),
         node: first.clone(),
     });
     order += 1;
@@ -633,7 +655,7 @@ pub fn find(
                     price,
                     &node,
                     &mut frontier,
-                    if *straight { estimate(step) } else { 0 },
+                    left(step),
                     &mut order,
                 )
             },

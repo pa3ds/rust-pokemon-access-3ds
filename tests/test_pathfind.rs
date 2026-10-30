@@ -66,6 +66,32 @@ fn test_open_ground_is_crossed_in_two_legs() {
     assert_eq!(said(path).as_deref(), Some("5 east, 2 north"));
 }
 
+/// A diagonal step closes a cell each way for one step's price: an estimate counting both
+/// overstated, and this way came back "1 north-east, 1 north-west, 1 north, 2 north-west", a
+/// turn dearer than the cheapest.
+#[test]
+fn test_where_steps_can_be_diagonal_the_way_is_still_the_cheapest() {
+    let (walkable, box_) = drawn(&[".....", "##..#", "###.#", "..#..", "..##.", "....#"]);
+    let slants = |_cell: Cell, _step: Cell| Ok(true);
+    let options = Options {
+        slants: Some(&slants),
+        diagonal: true,
+        ..plain()
+    };
+    let way = find(
+        (3, 5),
+        &goals(&[((1, 0), None)]),
+        &*walkable,
+        box_,
+        &options,
+    )
+    .unwrap();
+    assert_eq!(
+        said(way).as_deref(),
+        Some("1 north-east, 1 north, 3 north-west")
+    );
+}
+
 /// Of ways that cost the same, the one going on the way the player goes, else the one whose
 /// first leg runs furthest, else the first of north, east, south and west: a rule, not the
 /// order the search went in.
