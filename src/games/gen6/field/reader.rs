@@ -943,7 +943,10 @@ impl FieldReader {
             ));
         }
         let ladders = self.ladders_here()?;
-        let cliffs = self.terrain.cliffs(level, &ladders)?;
+        let mut cliffs = self.terrain.cliffs(level, &ladders)?;
+        if let Some(climbing) = &self.climbing {
+            cliffs.extend(self.terrain.sides(climbing)?.iter().copied());
+        }
         // From the models, not the listing: guiding asks with nothing listed.
         let holes = self.holes(r#where.zone)?;
         let filled = if holes.is_empty() {

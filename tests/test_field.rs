@@ -4104,6 +4104,42 @@ fn test_climbing_walls_are_listed_a_run_of_blue_spots_or_a_ledge_at_a_time() -> 
     Ok(())
 }
 
+/// Spike A: in X's Poké Ball Factory the cell beside a ramp is `0x51` to `0x54`, a climbing
+/// wall's sideways kinds, and the player could not step east from (14, 22), `0x51`, onto the ramp
+/// at (15, 22), nor west back off it, and P's way to a belt went that way. The step its kind
+/// names is closed both ways, and only that one.
+#[test]
+fn test_a_ramps_side_is_never_stepped_across_on_foot() -> Result<()> {
+    let mut town = Town::with(false, 5, 7);
+    let mut files = vec![NO_CHUNK_FILE; 64];
+    files[4 * 8 + 2] = 7;
+    town.memory.write(MAP + MAP_CHUNK_FILES, &le16(&files));
+    let words = mapblock::cells(&chunk_file_with(
+        (80, 160),
+        &[],
+        &[((94, 175), 0x51000020)],
+        7,
+    ))?
+    .unwrap();
+    town.reader = field_reader(
+        town.memory.clone(),
+        Given {
+            far: Some(Rc::new(move |file| {
+                Ok(if file == 7 { Some(words.clone()) } else { None })
+            })),
+            ..Given::default()
+        },
+        Game {
+            climbing: Some(xy::climbing()),
+            ..game()
+        },
+    );
+    let ground = town.reader.ground(&town.r#where()?)?;
+    assert!(!ground.joined((94, 175), (95, 175)) && !ground.joined((95, 175), (94, 175)));
+    assert!(ground.joined((94, 175), (93, 175)) && ground.joined((94, 175), (94, 176)));
+    Ok(())
+}
+
 /// Spike 245: in Cyllage Gym the player stepped south onto `0x8a` at (16, 20), at 189, and was
 /// carried down the blocked cells south of it, 171 to 117, onto the floor at 108 (x_gym_2_slide).
 /// X has `0x8a` in other chunks too; where the cells past it do not fall, it is no slide.

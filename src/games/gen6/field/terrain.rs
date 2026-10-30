@@ -130,6 +130,9 @@ pub struct Terrain {
     rises_of: RefCell<IndexMap<BTreeSet<i64>, Rises>>,
     /// The chunk files the climbing walls were found for, and the walls (`walls`).
     walls_of: RefCell<(Option<Rc<Vec<i64>>>, Rc<Walls>)>,
+    /// The chunk files the climbing walls' sideways steps were found for, and the steps
+    /// (`sides`). A `frozenset`, only tested.
+    sides_of: RefCell<(Option<Rc<Vec<i64>>>, Rc<HashSet<(Cell, Cell)>>)>,
     /// The chunk files the grind rails were found for, and the rails (`grind_rails`).
     grinds_of: RefCell<(Option<Rc<Vec<i64>>>, Rc<GrindRails>)>,
     /// The chunk files the floors were read for, and whether one has a deck (`stacked`).
@@ -160,6 +163,7 @@ impl Terrain {
             drops: RefCell::new(HashMap::new()),
             rises_of: RefCell::new(IndexMap::new()),
             walls_of: RefCell::new((None, Rc::new(Walls::default()))),
+            sides_of: RefCell::new((None, Rc::new(HashSet::new()))),
             grinds_of: RefCell::new((None, Rc::new(GrindRails::default()))),
             stacked: RefCell::new((None, false)),
         }
@@ -471,6 +475,41 @@ impl Terrain {
         }
         self.rises_of.borrow_mut().insert(key.clone(), (files, out));
         Ok(self.rises_of.borrow()[&key].1.clone())
+    }
+
+    /// Each step, both ways, from a cell of one of `climbing`'s sideways kinds the way its
+    /// kind names, off the ROM's chunks, found once a matrix: on foot never taken. In the Poké
+    /// Ball Factory those kinds stand at a ramp's sides, and the player could not step east from
+    /// (14, 22), `0x51`, onto the ramp at (15, 22), nor west back off it, nor north from (15, 4),
+    /// `0x53`, onto the ramp at (15, 3) (spike A); in Cyllage Gym the step is off a face onto a
+    /// ledge, a climber's (`Ground.joined`).
+    pub fn sides(&self, climbing: &Climbing) -> Result<Rc<HashSet<(Cell, Cell)>>> {
+        let (wide, files) = {
+            let held = self.files.borrow();
+            (held.0, held.1.clone())
+        };
+        if self.sides_of.borrow().0.as_ref() != Some(&files) {
+            let mut out: HashSet<(Cell, Cell)> = HashSet::new();
+            for at in 0..files.len() as i64 {
+                let Some(chunk) = self.far(py::modulo(at, wide), py::floordiv(at, wide))? else {
+                    continue;
+                };
+                for (cell, kind) in chunk.kinds() {
+                    if let Some(&way) = climbing.sideways.get(&kind) {
+                        let (dx, dz) = pathfind::STEPS
+                            .iter()
+                            .find(|(known, _)| *known == way)
+                            .map(|&(_, step)| step)
+                            .ok_or_else(|| Error::key(py::repr(way)))?;
+                        let step = (cell.0 + dx, cell.1 + dz);
+                        out.insert((cell, step));
+                        out.insert((step, cell));
+                    }
+                }
+            }
+            *self.sides_of.borrow_mut() = (Some(files), Rc::new(out));
+        }
+        Ok(self.sides_of.borrow().1.clone())
     }
 
     /// Every climbing wall on the matrix (`Walls.found`), off the ROM's chunks with their
