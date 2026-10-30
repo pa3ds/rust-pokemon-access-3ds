@@ -79,6 +79,22 @@ impl Screen {
 
     /// `Screen(found, moved, drag)`.
     fn with_drag(found: Vec<Target>, moved: Option<touch::Moved>, drag: Option<Rc<Held>>) -> Self {
+        Screen::with_options(found, moved, drag, true, true)
+    }
+
+    /// `Screen(found, wrap=wrap, next_row=next_row)`.
+    fn wrapping(found: Vec<Target>, wrap: bool, next_row: bool) -> Self {
+        Screen::with_options(found, None, None, wrap, next_row)
+    }
+
+    /// `Screen(found, moved, drag, wrap, next_row)`.
+    fn with_options(
+        found: Vec<Target>,
+        moved: Option<touch::Moved>,
+        drag: Option<Rc<Held>>,
+        wrap: bool,
+        next_row: bool,
+    ) -> Self {
         let tapped: Rc<RefCell<Vec<(i64, i64)>>> = Rc::new(RefCell::new(Vec::new()));
         let slid: Rc<RefCell<Vec<(Vec<(i64, i64)>, f64)>>> = Rc::new(RefCell::new(Vec::new()));
         let kept = slid.clone();
@@ -108,6 +124,8 @@ impl Screen {
                 })),
                 moved,
                 drag: drag.map(|drag| drag as Rc<dyn crate::core::touch::Drag>),
+                wrap,
+                next_row,
                 ..Options::default()
             },
         );
@@ -183,6 +201,74 @@ fn test_a_row_key_moves_straight_up_or_down() {
         ["b1", "a1"]
     );
     assert_eq!(screen.press(touch::ROW_PREVIOUS), "b1");
+}
+
+/// Two rows of three, "a0" to "b2", 60 apart.
+fn grid() -> Vec<Target> {
+    (0..6)
+        .map(|i: i64| {
+            let name = format!("{}{}", ['a', 'b'][(i / 3) as usize], i % 3);
+            Target::new(
+                20 + i,
+                &name,
+                40 + 60 * (i % 3),
+                30 + 60 * (i / 3),
+                90.0 - 60.0 * (i / 3) as f64,
+                58.0,
+            )
+        })
+        .collect()
+}
+
+/// Orion, 2026-10-28: O a few times always ends on the bottom row, and L at the last.
+#[test]
+fn test_with_wrapping_off_the_keys_stop_at_the_ends() {
+    let mut screen = Screen::wrapping(grid(), false, true);
+    screen.start();
+    assert_eq!(
+        (0..3)
+            .map(|_| screen.press(touch::ROW_NEXT))
+            .collect::<Vec<_>>(),
+        ["b0", "b0", "b0"]
+    );
+    assert_eq!(
+        (0..3)
+            .map(|_| screen.press(touch::ITEM_NEXT))
+            .collect::<Vec<_>>(),
+        ["b1", "b2", "b2"]
+    );
+    assert_eq!(
+        (0..2)
+            .map(|_| screen.press(touch::ROW_PREVIOUS))
+            .collect::<Vec<_>>(),
+        ["a2", "a2"]
+    );
+    assert_eq!(screen.press(touch::ITEM_NEXT), "b0");
+}
+
+/// Orion, 2026-10-28: L a few times always ends at the row's right.
+#[test]
+fn test_with_the_next_row_off_left_and_right_keep_to_their_row() {
+    let mut screen = Screen::wrapping(grid(), true, false);
+    screen.start();
+    assert_eq!(
+        (0..3)
+            .map(|_| screen.press(touch::ITEM_NEXT))
+            .collect::<Vec<_>>(),
+        ["a1", "a2", "a0"]
+    );
+    assert_eq!(
+        Screen::wrapping(grid(), false, false).press(touch::ITEM_PREVIOUS),
+        "a0"
+    );
+    let mut stopping = Screen::wrapping(grid(), false, false);
+    stopping.start();
+    assert_eq!(
+        (0..3)
+            .map(|_| stopping.press(touch::ITEM_NEXT))
+            .collect::<Vec<_>>(),
+        ["a1", "a2", "a2"]
+    );
 }
 
 #[test]

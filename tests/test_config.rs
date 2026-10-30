@@ -324,8 +324,8 @@ fn test_a_setting_pa3ds_gained_is_added_and_nothing_else_changes() {
     let home = tmp_path.join("home");
     fs::create_dir(&home).unwrap();
     let full = config::render().unwrap();
-    let gained = full.find("\n\n# List mode's list").unwrap();
-    let line = full.find("sort_by_distance = ").unwrap();
+    let gained = full.find("\n\n# In touch mode, J and L").unwrap();
+    let line = full.find("touch_next_row = ").unwrap();
     let end = line + full[line..].find('\n').unwrap();
     let older = format!("{}{}", &full[..gained], &full[end..]);
     let older = older.replace("pauses = false", "pauses = true");
@@ -340,7 +340,7 @@ fn test_a_setting_pa3ds_gained_is_added_and_nothing_else_changes() {
         settings
             .notes
             .iter()
-            .any(|note| note.ends_with("[pa3ds.navigation] sort_by_distance"))
+            .any(|note| note.ends_with("[pa3ds.navigation] touch_next_row"))
     );
     assert!(!settings.said.contains("could not be read"));
 }

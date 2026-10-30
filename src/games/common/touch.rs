@@ -175,7 +175,6 @@ pub type Moved = Rc<dyn Fn(&Target, &Target) -> Result<Option<String>>>;
 
 /// `TouchTargets.__init__`'s keyword arguments, each as the Python defaults it: set what differs
 /// with `..Options::default()`.
-#[derive(Default)]
 pub struct Options {
     /// None is `{}`.
     pub images: Option<IndexMap<String, String>>,
@@ -191,6 +190,30 @@ pub struct Options {
     pub places: Option<Places>,
     pub moved: Option<Moved>,
     pub drag: Option<Rc<dyn Drag>>,
+    pub wrap: bool,
+    pub next_row: bool,
+}
+
+impl Default for Options {
+    fn default() -> Self {
+        Options {
+            images: None,
+            tap: None,
+            tone: None,
+            picture_name: None,
+            lists: None,
+            idle: None,
+            slide: None,
+            gestures: None,
+            off: None,
+            said_off: None,
+            places: None,
+            moved: None,
+            drag: None,
+            wrap: true,
+            next_row: true,
+        }
+    }
 }
 
 /// The bottom screen's touch targets, and the one touch mode is on.
@@ -234,6 +257,12 @@ pub struct TouchTargets {
     moved: Option<Moved>,
     /// A press held between keys (`DRAG`).
     drag: Option<Rc<dyn Drag>>,
+    /// Whether the keys go round from the last target to the first and the bottom row to the
+    /// top, or stop at the ends (`[pa3ds.navigation] touch_wrap`).
+    wrap: bool,
+    /// Whether J and L go on into the next row at a row's end, or stay in their row
+    /// (`[pa3ds.navigation] touch_next_row`).
+    next_row: bool,
     /// The target a held press is on, while one is held.
     over: Option<Target>,
     chosen: Option<i64>,
@@ -277,6 +306,8 @@ impl TouchTargets {
             places,
             moved,
             drag,
+            wrap,
+            next_row,
         } = options;
         TouchTargets {
             layouts,
@@ -298,6 +329,8 @@ impl TouchTargets {
             places,
             moved,
             drag,
+            wrap,
+            next_row,
             over: None,
             chosen: None,
             listed: IndexMap::new(),
@@ -389,21 +422,35 @@ impl TouchTargets {
             return Ok(tap(target.x, target.y).unwrap_or_default());
         }
         let before = found[at].clone();
-        if action == ITEM_NEXT {
-            at = py::modulo(at as i64 + 1, found.len() as i64) as usize;
-        } else if action == ITEM_PREVIOUS {
-            at = py::modulo(at as i64 - 1, found.len() as i64) as usize;
-        } else if action == ROW_NEXT || action == ROW_PREVIOUS {
-            let lines = rows(&found);
-            let row = lines
+        let lines = rows(&found);
+        let row = lines
+            .iter()
+            .position(|members| members.contains(&at))
+            .expect("every target is in a row");
+        if action == ITEM_NEXT || action == ITEM_PREVIOUS {
+            // The whole list in reading order, or with `next_row` off the row alone; past its
+            // end, round to the other or, with `wrap` off, stay (`[pa3ds.navigation]`).
+            let walked: Vec<usize> = if self.next_row {
+                (0..found.len()).collect()
+            } else {
+                lines[row].clone()
+            };
+            let step = walked
                 .iter()
-                .position(|members| members.contains(&at))
-                .expect("every target is in a row");
+                .position(|&i| i == at)
+                .expect("the target chosen is among those walked") as i64
+                + if action == ITEM_NEXT { 1 } else { -1 };
+            at = walked[stepped(step, walked.len() as i64, self.wrap) as usize];
+        } else if action == ROW_NEXT || action == ROW_PREVIOUS {
             // Straight up or down, to the nearest across: a grid's column kept (Orion,
             // 2026-10-26, Tile Puzzle).
-            let step = if action == ROW_NEXT { 1 } else { -1 };
             let x = found[at].x;
-            at = *lines[py::modulo(row as i64 + step, lines.len() as i64) as usize]
+            let row = stepped(
+                row as i64 + if action == ROW_NEXT { 1 } else { -1 },
+                lines.len() as i64,
+                self.wrap,
+            );
+            at = *lines[row as usize]
                 .iter()
                 .min_by_key(|&&i| (found[i].x - x).abs())
                 .expect("a row has a target");
@@ -1232,6 +1279,16 @@ fn shown(layouts: &Layouts, pane: i64) -> Result<bool> {
     Ok(layouts
         .placement(pane)?
         .is_some_and(|placement| placement.shown))
+}
+
+/// A step to `at` among `count`: round to the other end past either, or with `wrap` off stay
+/// at the end.
+fn stepped(at: i64, count: i64, wrap: bool) -> i64 {
+    if wrap {
+        py::modulo(at, count)
+    } else {
+        at.max(0).min(count - 1)
+    }
 }
 
 /// The targets a tap reaches: a tap lands on the layout drawn on top, so a target under a touch

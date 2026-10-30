@@ -199,6 +199,8 @@ pub struct Navigation {
     pub hide_door_signs: bool,
     pub show_y: bool,
     pub sort_by_distance: bool,
+    pub touch_wrap: bool,
+    pub touch_next_row: bool,
 }
 
 impl Default for Navigation {
@@ -212,6 +214,8 @@ impl Default for Navigation {
             hide_door_signs: true,
             show_y: false,
             sort_by_distance: true,
+            touch_wrap: true,
+            touch_next_row: true,
         }
     }
 }
@@ -227,6 +231,8 @@ impl Table for Navigation {
             ("hide_door_signs", Value::Bool(self.hide_door_signs)),
             ("show_y", Value::Bool(self.show_y)),
             ("sort_by_distance", Value::Bool(self.sort_by_distance)),
+            ("touch_wrap", Value::Bool(self.touch_wrap)),
+            ("touch_next_row", Value::Bool(self.touch_next_row)),
         ]
     }
 
@@ -240,6 +246,8 @@ impl Table for Navigation {
             ("hide_door_signs", Value::Bool(value)) => self.hide_door_signs = value,
             ("show_y", Value::Bool(value)) => self.show_y = value,
             ("sort_by_distance", Value::Bool(value)) => self.sort_by_distance = value,
+            ("touch_wrap", Value::Bool(value)) => self.touch_wrap = value,
+            ("touch_next_row", Value::Bool(value)) => self.touch_next_row = value,
             _ => {}
         }
     }

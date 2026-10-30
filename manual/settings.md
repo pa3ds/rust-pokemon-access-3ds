@@ -36,6 +36,8 @@ they take effect the next time pa3ds starts.
 | `hide_door_signs` | `true` | Leave a sign out of the list when all it says is the name of the door beside it. |
 | `sort_by_distance` | `true` | List mode's list nearest first. `false` keeps each thing in one place in the list as you walk, so you can tell by its place which house you have been in. Direction mode is nearest first either way. |
 | `show_y` | `false` | `C` and `Shift+C` say how high as well, after x and z, in the game's units: 18 to a square. |
+| `touch_wrap` | `true` | In touch mode, go from the last button back to the first, and from the bottom row back to the top. `false` stops at the ends, so pressing `O` a few times always ends on the bottom row. |
+| `touch_next_row` | `true` | In touch mode, `J` and `L` go on into the next row at a row's end. `false` keeps them in their row, so pressing `L` a few times always ends at its right. |
 | **`[pa3ds.extras]`** | | See [Extras](#extras). |
 | `conditions` | `false` | Say a Pokémon's contest conditions as numbers, on its summary and in the Pokéblock Case. |
 | `hidden_items` | `"off"` | List the hidden items you have not found yet among the items, as "hidden item": `"underwater"` under the sea alone, `"all"` everywhere. |

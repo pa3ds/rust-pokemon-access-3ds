@@ -862,6 +862,12 @@ impl Gen6Profile {
                 off: Some(off),
                 slide,
                 drag,
+                wrap: navigation
+                    .as_ref()
+                    .is_none_or(|navigation| navigation.touch_wrap),
+                next_row: navigation
+                    .as_ref()
+                    .is_none_or(|navigation| navigation.touch_next_row),
                 said_off: Some({
                     let (apps, distribution) = (apps.clone(), distribution.clone());
                     Rc::new(move |pane: i64| {
