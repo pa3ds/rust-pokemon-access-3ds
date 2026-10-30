@@ -3259,10 +3259,13 @@ fn over(item: &Interactable) -> i64 {
 /// Littleroot is a doll drawn, a furniture record in front of it saying "It's an Azurill Doll!",
 /// and the cabinet under it, and was listed three times in one cell (Orion, 2026-10-14; spike
 /// 211). A sign that reaches past what covers it, a shelf longer than what stands on it, stays.
+/// A trigger is no layer of a spot: it is stepped on, not read, and on a floor of its own, as
+/// Laverre Gym's teleporter at (29, 1) on its middle floor is under the cells of a bureau's
+/// record, which has no floor (spike A).
 fn one_a_spot(items: Vec<Interactable>) -> Vec<Interactable> {
     let covered: Vec<(i64, HashSet<Cell>)> = items
         .iter()
-        .filter(|item| item.category == "signs")
+        .filter(|item| layered(item))
         .map(|item| (over(item), item.cells().into_iter().collect()))
         .collect();
     let under = |item: &Interactable| -> bool {
@@ -3274,8 +3277,13 @@ fn one_a_spot(items: Vec<Interactable>) -> Vec<Interactable> {
     };
     items
         .into_iter()
-        .filter(|item| item.category != "signs" || !under(item))
+        .filter(|item| !layered(item) || !under(item))
         .collect()
+}
+
+/// Whether `item` is one of the signs a spot stacks, read where it stands (`_one_a_spot`).
+fn layered(item: &Interactable) -> bool {
+    item.category == "signs" && item.place_kind() != Some(TRIGGER_SOURCE)
 }
 
 /// `items` with those of one `key` that touch side to side as one thing over the box round

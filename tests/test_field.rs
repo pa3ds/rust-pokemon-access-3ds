@@ -2413,6 +2413,40 @@ fn test_a_teleporter_is_a_sign_saying_where_it_puts_the_player_while_it_is_armed
     Ok(())
 }
 
+/// Laverre Gym's panel at (29, 1) on its middle floor lies under the cells of a bureau's
+/// record, which has no floor, and the listing left it out as a sign the record covers.
+#[test]
+fn test_a_teleporter_under_a_furniture_records_cells_is_still_listed() -> Result<()> {
+    let mut town = Town::new();
+    town.memory.write(
+        FILE,
+        &zone_file(&ZoneSpec {
+            info: &town_info(),
+            furniture: &[(1, 95, 175)],
+            triggers: &[(0x3, 95, 175, 1, Some(90), None)],
+            ..ZoneSpec::default()
+        }),
+    );
+    town.reader = field_reader(
+        town.memory.clone(),
+        Given {
+            teleports: IndexMap::from([((TOWN, 0x3), (100, 0, 176))]),
+            ..Given::default()
+        },
+        game(),
+    );
+    let mut kinds: Vec<String> = town
+        .r#where()?
+        .of("signs")
+        .into_iter()
+        .filter(|item| item.cell == (95, 175))
+        .map(|item| item.kind.clone())
+        .collect();
+    kinds.sort();
+    assert_eq!(kinds, vec!["sign", "teleporter"]);
+    Ok(())
+}
+
 /// Spike 224: the pole in Santalune Gym's lobby is a furniture record whose script warps the
 /// player to the web room below: listed as an exit leading there, while the statue stays a
 /// sign.
