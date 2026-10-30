@@ -77,7 +77,7 @@ and No is up, it leaves out the buttons behind it that a tap no longer reaches.
 | `I` and `O` | The button above and below: the nearest in the previous and next row. |
 | `K` | The chosen button again. |
 | `U` | Tap the chosen button. |
-| `Shift` and `U` | Hold a touch on the chosen button. Keep Shift down: `J`, `L`, `I` and `O` carry it to each button they say, and `K` says where it is. Let go of Shift to let go of it. |
+| `Shift` and `U` | Pick up the chosen button to drag it. Keep Shift down: `J`, `L`, `I` and `O` choose where to, and `K` says where it is. Let go of Shift to drop it there. In Pokémon-Amie, Shift alone does this. With the `drag` setting at `"toggle"`, press once to pick up and again to drop. |
 
 In the AreaNav, touch mode offers each place on the map by name, and a tap chooses it.
 
@@ -86,16 +86,19 @@ mode offers "continue", and a tap goes on with the message. The PlayNav's "previ
 turn the page instead, away from the message.
 
 In Pokémon-Amie, touch mode offers to stroke your Pokémon, and the tap key strokes it. This is an
-experiment. Its Poké Puffs button opens a bar of puffs, each said by its kind. To give one, hold a
-touch on it and carry it to your Pokémon, and keep Shift down while your Pokémon eats it: let go
-once you hear it finish and cry, a few seconds, longer for some Pokémon than others. In its Tile Puzzle, each tile is said by its row and column and where the piece of the
+experiment. Its Poké Puffs button opens a bar of puffs, each said by its kind. To give one, hold
+Shift on it and carry it to your Pokémon, and keep Shift down while your Pokémon eats it: let go
+once you hear it finish and cry, a few seconds, longer for some Pokémon than others. In its Tile
+Puzzle, each tile is said by its row and column and where the piece of the
 picture on it belongs, "row 1, column 2, goes to row 3, column 4", or "in place". Moving to the next
 tile says only the row or the column that changed, "column 3, in place", and `K` says the whole.
 Tap a tile, then the tile where its piece belongs, to swap them. Over the finished picture there
 is nothing to touch: B goes back. In its Berry Picker, touch mode offers the berries on the tree
 by name, and each Pokémon that pops up wanting one, "Treecko wants Pinap Berry", which pa3ds also
-says as it comes. Hold a touch on that berry, carry it down to the Pokémon, and let go of Shift.
-A Pokémon waits only two or three seconds. A tap knocks a berry off the tree for nobody. In a
+says as it comes. Hold Shift on that berry, choose the Pokémon with `J`, `L`, `I` and `O`, and let
+go of Shift: the berry goes straight to it. Nothing moves until you let go, so choosing past
+another Pokémon is safe, but a wrong berry sends a Pokémon away. A Pokémon waits only about two
+seconds. A tap knocks a berry off the tree for nobody. In a
 Super Training regimen, touch mode offers each goal the
 Balloon Bot puts up: the tap key's first press says the goal, and each press after that shoots at
 it, wherever it has moved. pa3ds says "shot coming" about a second before the bot's ball arrives:

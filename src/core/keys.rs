@@ -113,9 +113,13 @@ pub fn key_name(virtual_key: i64) -> String {
 }
 
 pub const SHIFT: &str = "shift";
-/// What is pressed when Shift comes up after a key of pa3ds's taken with it: touch mode lets go
-/// of a press held with Shift and U on it (`common.touch`'s drag). Never a key bound.
+/// What is pressed when Shift comes up after a key of pa3ds's taken with it, or after it went down
+/// alone: touch mode lets go of a drag held with it (`common.touch`'s drag). Never a key bound.
 pub const SHIFT_UP: &str = "shift up";
+/// What is pressed when Shift goes down alone in front of the emulator, once however long it is
+/// held, and passed on to the emulator all the same: touch mode drags with it in Pokémon-Amie
+/// (ADR-0009 as amended 2026-10-28). Never a key bound.
+pub const SHIFT_DOWN: &str = "shift down";
 pub const CTRL: &str = "ctrl";
 pub const ALT: &str = "alt";
 /// The order modifiers are written in, so one combination has one name. Windows' own order.
@@ -275,8 +279,11 @@ struct State {
     emulator: String,
     pressed: Mutex<VecDeque<String>>,
     elsewhere: Mutex<HashSet<i64>>,
-    /// Whether a key of pa3ds's has been taken with Shift since Shift last came up.
+    /// Whether a key of pa3ds's has been taken with Shift since Shift last came up, or Shift went
+    /// down alone in front of the emulator.
     shifted: AtomicBool,
+    /// Whether Shift is down: Windows repeats its press while it is held.
+    shift_down: AtomicBool,
     thread_id: AtomicU32,
     ready: Event,
     error: Mutex<String>,
@@ -325,6 +332,30 @@ impl State {
             let event = unsafe { &*(lparam as *const KeyboardHookStruct) };
             let message = wparam as i64;
             track(&mut lock(&self.elsewhere), event.vkCode as i64, message);
+            if (message == WM_KEYUP || message == WM_SYSKEYUP)
+                && SHIFTS.contains(&(event.vkCode as i64))
+            {
+                self.shift_down.store(false, Ordering::SeqCst);
+            }
+            if (message == WM_KEYDOWN || message == WM_SYSKEYDOWN)
+                && SHIFTS.contains(&(event.vkCode as i64))
+            {
+                // Shift alone, passed on all the same and said once however long it is held:
+                // touch mode drags with it in Pokémon-Amie (ADR-0009).
+                if !self.shift_down.load(Ordering::SeqCst)
+                    && !held(VK_CONTROL)
+                    && !held(VK_MENU)
+                    && lock(&self.elsewhere).is_empty()
+                    && !ELSEWHERE.iter().any(|&key| held(key))
+                    && window::in_front(&self.emulator)
+                {
+                    self.shift_down.store(true, Ordering::SeqCst);
+                    self.shifted.store(true, Ordering::SeqCst);
+                    lock(&self.pressed).push_back(SHIFT_DOWN.to_string());
+                }
+                // SAFETY: the arguments are the ones this hook was called with.
+                return unsafe { CallNextHookEx(null_mut(), code, wparam, lparam) };
+            }
             if (message == WM_KEYUP || message == WM_SYSKEYUP)
                 && SHIFTS.contains(&(event.vkCode as i64))
                 && self.shifted.load(Ordering::SeqCst)
@@ -387,6 +418,7 @@ impl Hotkeys {
                 pressed: Mutex::new(VecDeque::new()),
                 elsewhere: Mutex::new(HashSet::new()),
                 shifted: AtomicBool::new(false),
+                shift_down: AtomicBool::new(false),
                 thread_id: AtomicU32::new(0),
                 ready: Event::default(),
                 error: Mutex::new(String::new()),

@@ -58,6 +58,9 @@ pub const GAMES: [&str; 3] = [
     "N3app7heading7ProcessE",
     "N3app6puzzle7ProcessE",
 ];
+/// Pokémon-Amie's own screens, where touch mode drags with Shift alone (ADR-0009 as amended
+/// 2026-10-28). A `frozenset` in Python, only ever tested for membership.
+pub const SCREENS: [&str; 5] = [AMIE, ARRANGE, GAMES[0], GAMES[1], GAMES[2]];
 /// A digit of a count the games' results draw a picture a digit: Berry Picker's berries and Head
 /// It's total (or_amie_stars). Python's `DIGIT`, `(\d)\.bclim` matched whole.
 pub fn digit(image: Option<&str>) -> Option<String> {

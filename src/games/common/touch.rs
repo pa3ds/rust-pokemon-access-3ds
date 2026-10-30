@@ -91,6 +91,10 @@ pub const ACTIONS: [&str; 7] = [
 pub const NOTHING: &str = "touch-nothing";
 pub const HOLDING: &str = "touch-holding";
 pub const DROPPED: &str = "touch-dropped";
+/// How long a drag made as it is let go takes (`delayed`): a fifth of a second pressed where it
+/// was picked up, a fifth sliding, a fifth on the target. Spike A's berries, pressed 0.15 s, slid
+/// 0.2 and held 0.3 to 0.5, were eaten as they came.
+pub const DROP_SECONDS: f64 = 0.6;
 /// How far across its width a pane's place is, by its anchor: left, centre, right.
 pub const ANCHOR: [f64; 3] = [0.0, 0.5, 1.0];
 
@@ -192,6 +196,8 @@ pub struct Options {
     pub drag: Option<Rc<dyn Drag>>,
     pub wrap: bool,
     pub next_row: bool,
+    /// None is never.
+    pub delayed: Option<Rc<dyn Fn() -> bool>>,
 }
 
 impl Default for Options {
@@ -212,6 +218,7 @@ impl Default for Options {
             drag: None,
             wrap: true,
             next_row: true,
+            delayed: None,
         }
     }
 }
@@ -257,14 +264,24 @@ pub struct TouchTargets {
     moved: Option<Moved>,
     /// A press held between keys (`DRAG`).
     drag: Option<Rc<dyn Drag>>,
+    /// Whether the screen drags only as the drag is let go, straight from where it was picked up
+    /// to where the keys chose: Berry Picker, where a berry carried over a Pokémon wanting
+    /// another sends it off (spike A). Elsewhere the press goes with the keys, as a Poké Puff
+    /// must, held at the Pokémon's mouth until it has been eaten (spike 257).
+    delayed: Rc<dyn Fn() -> bool>,
     /// Whether the keys go round from the last target to the first and the bottom row to the
     /// top, or stop at the ends (`[pa3ds.navigation] touch_wrap`).
     wrap: bool,
     /// Whether J and L go on into the next row at a row's end, or stay in their row
     /// (`[pa3ds.navigation] touch_next_row`).
     next_row: bool,
-    /// The target a held press is on, while one is held.
+    /// The target picked up to drag, while one is.
+    picked: Option<Target>,
+    /// The target the keys have chosen to drag it to, while one is picked up.
     over: Option<Target>,
+    /// Whether the press is down: from the first move away from the target picked up, where the
+    /// screen does not drag only on letting go.
+    pressed: bool,
     chosen: Option<i64>,
     /// A layout's root -> the names of its buttons that were a list's labels while it was up.
     listed: IndexMap<i64, HashSet<String>>,
@@ -308,6 +325,7 @@ impl TouchTargets {
             drag,
             wrap,
             next_row,
+            delayed,
         } = options;
         TouchTargets {
             layouts,
@@ -329,9 +347,12 @@ impl TouchTargets {
             places,
             moved,
             drag,
+            delayed: delayed.unwrap_or_else(|| Rc::new(|| false)),
             wrap,
             next_row,
+            picked: None,
             over: None,
+            pressed: false,
             chosen: None,
             listed: IndexMap::new(),
             named: IndexMap::new(),
@@ -372,26 +393,24 @@ impl TouchTargets {
             return Ok(self.said(&found[0], None));
         };
         if action == DRAG {
-            let target = &found[at];
-            if self.over.is_some() {
+            let target = found[at].clone();
+            if self.picked.is_some() {
                 return Ok(String::new());
             }
-            let Some(drag) = &self.drag else {
+            if self.drag.is_none() {
                 return Ok(own("touch-off", &[]));
-            };
-            if let Some(why) = drag.hold(target.x, target.y)
-                && !why.is_empty()
-            {
-                return Ok(why);
             }
+            // Nothing is pressed until the keys choose another target: Shift pressed and let go
+            // alone, as to pause a screen reader, touches nothing (ADR-0009).
+            self.picked = Some(target.clone());
             self.over = Some(target.clone());
             (self.log)(&format!(
-                "touch: hold {} at ({}, {})",
+                "touch: pick up {} at ({}, {})",
                 target.name, target.x, target.y
             ));
             return Ok(own(HOLDING, &[("target", &target.name)]));
         }
-        if action == TAP && self.over.is_some() {
+        if action == TAP && self.picked.is_some() {
             return Ok(String::new());
         }
         if action == TAP {
@@ -466,34 +485,76 @@ impl TouchTargets {
         Ok(self.said(&found[at], moved))
     }
 
-    /// Whether a press is held between keys (`DRAG`).
+    /// Whether a target is picked up to drag (`DRAG`), pressed yet or not.
     pub fn holding(&self) -> bool {
-        self.over.is_some()
+        self.picked.is_some()
     }
 
-    /// Let go of a press held by `DRAG` where it is, with the line to say; "" with none.
+    /// Let go of the target `DRAG` picked up, where the keys chose, with the line to say; ""
+    /// with none. Where the screen drags only on letting go (`delayed`), the drag is made now,
+    /// from the target picked up straight to the one chosen, or not at all on the same one.
     pub fn drop(&mut self) -> String {
-        let (Some(_), Some(drag)) = (&self.over, &self.drag) else {
+        let (picked, over, pressed) = (self.picked.take(), self.over.take(), self.pressed);
+        self.pressed = false;
+        let (Some(picked), Some(over)) = (picked, over) else {
             return String::new();
         };
-        let drag = drag.clone();
-        let over = self.over.take().expect("held above");
-        drag.release();
-        (self.log)(&format!("touch: let go on {}", over.name));
+        let (x, y) = over.drop.unwrap_or((over.x, over.y));
+        if pressed && let Some(drag) = &self.drag {
+            drag.release();
+            (self.log)(&format!("touch: let go on {}", over.name));
+        } else if (self.delayed)()
+            && over.pane != picked.pane
+            && let Some(slide) = &self.slide
+        {
+            let path = [(picked.x, picked.y), (picked.x, picked.y), (x, y), (x, y)];
+            let listed: Vec<String> = path.iter().map(|(x, y)| format!("({x}, {y})")).collect();
+            (self.log)(&format!(
+                "touch: drag {} to {} along [{}]",
+                picked.name,
+                over.name,
+                listed.join(", ")
+            ));
+            if let Some(why) = slide(&path, DROP_SECONDS)
+                && !why.is_empty()
+            {
+                return why;
+            }
+        }
         own(DROPPED, &[("target", &over.name)])
     }
 
-    /// Slide a held press on to the target the keys have just chosen.
+    /// Take what was picked up on to the target the keys have just chosen: pressed on the first
+    /// such move, and slid from target to target after; or, where the screen drags only on
+    /// letting go (`delayed`), nothing touched until then.
     fn carry(&mut self, target: &Target) {
-        let (Some(over), Some(drag)) = (&self.over, &self.drag) else {
+        let (Some(picked), Some(over), Some(drag)) = (&self.picked, &self.over, &self.drag) else {
             return;
         };
         if target.pane == over.pane {
             return;
         }
+        let (picked, drag) = (picked.clone(), drag.clone());
+        self.over = Some(target.clone());
+        if (self.delayed)() {
+            (self.log)(&format!("touch: choose {}", target.name));
+            return;
+        }
+        if !self.pressed {
+            if let Some(why) = drag.hold(picked.x, picked.y)
+                && !why.is_empty()
+            {
+                (self.log)(&format!("touch: could not hold {}: {why}", picked.name));
+                return;
+            }
+            self.pressed = true;
+            (self.log)(&format!(
+                "touch: hold {} at ({}, {})",
+                picked.name, picked.x, picked.y
+            ));
+        }
         let (x, y) = target.drop.unwrap_or((target.x, target.y));
         drag.r#move(x, y);
-        self.over = Some(target.clone());
         (self.log)(&format!("touch: carry to {} at ({x}, {y})", target.name));
     }
 

@@ -79,21 +79,22 @@ impl Screen {
 
     /// `Screen(found, moved, drag)`.
     fn with_drag(found: Vec<Target>, moved: Option<touch::Moved>, drag: Option<Rc<Held>>) -> Self {
-        Screen::with_options(found, moved, drag, true, true)
+        Screen::with_options(found, moved, drag, true, true, false)
     }
 
     /// `Screen(found, wrap=wrap, next_row=next_row)`.
     fn wrapping(found: Vec<Target>, wrap: bool, next_row: bool) -> Self {
-        Screen::with_options(found, None, None, wrap, next_row)
+        Screen::with_options(found, None, None, wrap, next_row, false)
     }
 
-    /// `Screen(found, moved, drag, wrap, next_row)`.
+    /// `Screen(found, moved, drag, wrap, next_row, delayed)`.
     fn with_options(
         found: Vec<Target>,
         moved: Option<touch::Moved>,
         drag: Option<Rc<Held>>,
         wrap: bool,
         next_row: bool,
+        delayed: bool,
     ) -> Self {
         let tapped: Rc<RefCell<Vec<(i64, i64)>>> = Rc::new(RefCell::new(Vec::new()));
         let slid: Rc<RefCell<Vec<(Vec<(i64, i64)>, f64)>>> = Rc::new(RefCell::new(Vec::new()));
@@ -126,6 +127,7 @@ impl Screen {
                 drag: drag.map(|drag| drag as Rc<dyn crate::core::touch::Drag>),
                 wrap,
                 next_row,
+                delayed: Some(Rc::new(move || delayed)),
                 ..Options::default()
             },
         );
@@ -1174,6 +1176,52 @@ fn test_a_drag_holds_the_target_named_carries_it_with_the_keys_and_lets_go() {
         [("hold", 95, 23), ("move", 160, 157), ("release", 0, 0)]
     );
     assert_eq!(screen.tapped(), []);
+}
+
+/// ADR-0009 as amended 2026-10-28: Shift alone picks up, and Shift pressed and let go to pause a
+/// screen reader would otherwise tap; Berry Picker's tree drops a berry tapped (spike A).
+#[test]
+fn test_a_drag_let_go_where_it_was_picked_up_touches_nothing() {
+    let held = Rc::new(Held::default());
+    let mut screen = Screen::with_drag(bar(), None, Some(held.clone()));
+    screen.start();
+    assert_eq!(screen.press(touch::DRAG), "holding POKÉMON");
+    assert_eq!(screen.targets.drop(), "let go on POKÉMON");
+    assert!(
+        held.touches.borrow().is_empty()
+            && screen.tapped().is_empty()
+            && screen.slid.borrow().is_empty()
+    );
+}
+
+/// ADR-0009 as amended 2026-10-28: in Berry Picker a berry carried over a Pokémon wanting another
+/// sends it off at once (spike A), so the keys only choose, and letting go drags the berry
+/// straight from the tree to the Pokémon chosen.
+#[test]
+fn test_where_the_screen_drags_on_letting_go_nothing_moves_until_then() {
+    let held = Rc::new(Held::default());
+    let berry = Target::new(1, "Pinap Berry", 268, 40, 80.0, 40.0);
+    let other = Target::new(2, "Gyarados wants Razz Berry", 56, 215, -95.0, 50.0);
+    let wants = Target::new(3, "Pikachu wants Pinap Berry", 160, 215, -95.0, 50.0);
+    let mut screen = Screen::with_options(
+        vec![berry, other, wants],
+        None,
+        Some(held.clone()),
+        true,
+        true,
+        true,
+    );
+    screen.start();
+    assert_eq!(screen.press(touch::DRAG), "holding Pinap Berry");
+    assert_eq!(screen.press(touch::ITEM_NEXT), "Gyarados wants Razz Berry");
+    assert_eq!(screen.press(touch::ITEM_NEXT), "Pikachu wants Pinap Berry");
+    assert!(held.touches.borrow().is_empty() && screen.slid.borrow().is_empty());
+    assert_eq!(screen.targets.drop(), "let go on Pikachu wants Pinap Berry");
+    assert_eq!(
+        *screen.slid.borrow(),
+        [(vec![(268, 40), (268, 40), (160, 215), (160, 215)], 0.6)]
+    );
+    assert!(held.touches.borrow().is_empty() && !screen.targets.holding());
 }
 
 /// Pokémon-Amie's Pokémon is stroked, not tapped: its target's key slides along the path

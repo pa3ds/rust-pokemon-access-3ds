@@ -8,7 +8,7 @@ use indexmap::{IndexMap, IndexSet};
 
 use crate::core::config::Navigation;
 use crate::core::keyfile;
-use crate::core::keys::{SHIFT_UP, key_name};
+use crate::core::keys::{SHIFT_DOWN, SHIFT_UP, key_name};
 use crate::core::names::Names;
 use crate::core::pathfind::{self, Cell, Leg, nearest};
 use crate::core::speech::{Backend, Category, Speech, default_interrupts};
@@ -4886,6 +4886,130 @@ fn test_while_a_touch_is_held_shift_keys_walk_and_letting_go_of_shift_lets_go() 
     nav.press(MODE_TOGGLE).unwrap();
     assert_eq!(said(&backend), ["let go on Sweet Poké Puff", "list mode"]);
     assert!(!nav.touch.as_ref().unwrap().holding());
+}
+
+/// A navigator in touch mode over a Poké Puff and the Pokémon's stroke, its drag's touches kept:
+/// the Rust stand-in for Python's `Holding`, which records the actions asked of touch mode.
+fn holding_navigator(
+    navigation: Navigation,
+    shift_drags: Option<Rc<dyn Fn() -> bool>>,
+) -> (Navigator, Rc<Holding>, Rc<Recorder>) {
+    use crate::core::rtti::ClassNames;
+    use crate::games::common::layout::Layouts;
+    use crate::games::common::lyt;
+    use crate::games::common::touch::{self, Target, TouchTargets};
+
+    let backend = Rc::new(Recorder::default());
+    let held = Rc::new(Holding {
+        touches: RefCell::new(Vec::new()),
+    });
+    let memory = super::fake_memory::FakeMemory::new();
+    let layouts = Rc::new(Layouts::new(
+        memory.clone(),
+        Rc::new(ClassNames::new(memory.clone(), super::fake_memory::CODE)),
+        lyt::ORAS,
+    ));
+    let mut targets = TouchTargets::new(
+        layouts,
+        Rc::new(Vec::new),
+        Rc::new(|_box| Ok(String::new())),
+        Rc::new(|_pane| Ok(None)),
+        Rc::new(|_root| None),
+        Rc::new(|_line: &str| {}),
+        touch::Options {
+            drag: Some(held.clone()),
+            ..touch::Options::default()
+        },
+    );
+    targets.given = Some(Rc::new(|| {
+        vec![
+            Target::new(1, "Sweet Poké Puff", 95, 23, 97.0, 40.0),
+            Target::new(2, "stroke Pikachu", 160, 120, 0.0, 240.0),
+        ]
+    }));
+    let mut nav = Navigator::new(
+        Rc::new(FakeField::new(Some(town()), &[], &[], &[], &[])),
+        Rc::new(Speech::plain(backend.clone())),
+        Rc::new(|_line: &str| {}),
+        Options {
+            touch: Some(targets),
+            navigation: Some(navigation),
+            shift_drags,
+            ..Options::default()
+        },
+    );
+    nav.press(MODE_TOGGLE).unwrap();
+    nav.press(MODE_TOGGLE).unwrap();
+    (nav, held, backend)
+}
+
+/// ADR-0009 as amended 2026-10-28 (Orion): in touch mode on Pokémon-Amie's screens Shift alone
+/// picks up and lets go as it comes up, or with `drag` "toggle" one press picks up and the next
+/// lets go; elsewhere Shift alone drags nothing, and touch mode keeps its keys with Shift.
+///
+/// Python's stand-in records the actions asked, DRAG and ITEM_NEXT; here the drag's touches say
+/// them: pressed on the move to the Pokémon, and let go.
+#[test]
+fn test_shift_alone_drags_in_amies_screens_held_or_tapped() {
+    for (drag, keys) in [
+        ("hold", vec![SHIFT_DOWN, "l", SHIFT_UP]),
+        (
+            "toggle",
+            vec![SHIFT_DOWN, SHIFT_UP, "l", SHIFT_DOWN, SHIFT_UP],
+        ),
+    ] {
+        let amie = Rc::new(Slot::new(true));
+        let shift_drags: Rc<dyn Fn() -> bool> = {
+            let amie = amie.clone();
+            Rc::new(move || amie.get())
+        };
+        let (mut nav, held, backend) = holding_navigator(
+            Navigation {
+                drag: drag.to_string(),
+                ..Navigation::default()
+            },
+            Some(shift_drags),
+        );
+        for key in keys {
+            nav.press_key(key).unwrap();
+        }
+        let touched = [("hold", 95, 23), ("move", 160, 120), ("release", 0, 0)];
+        assert_eq!(*held.touches.borrow(), touched, "{drag}");
+        assert!(
+            last(&backend) == "let go on stroke Pikachu" && !nav.touch.as_ref().unwrap().holding(),
+            "{drag}"
+        );
+        amie.set(false);
+        nav.press_key(SHIFT_DOWN).unwrap();
+        nav.press_key(SHIFT_UP).unwrap();
+        assert!(
+            *held.touches.borrow() == touched && !nav.touch.as_ref().unwrap().holding(),
+            "{drag}"
+        );
+    }
+}
+
+/// Outside Pokémon-Amie the drag key is Shift and U, tapped to pick up and again to let go with
+/// `drag` "toggle"; Shift coming up between lets nothing go.
+#[test]
+fn test_with_drag_toggle_shift_and_u_picks_up_and_again_lets_go() {
+    let (mut nav, held, backend) = holding_navigator(
+        Navigation {
+            drag: "toggle".to_string(),
+            ..Navigation::default()
+        },
+        None,
+    );
+    nav.press_key("shift+u").unwrap();
+    nav.press_key(SHIFT_UP).unwrap();
+    nav.press_key("l").unwrap();
+    assert!(nav.touch.as_ref().unwrap().holding());
+    nav.press_key("shift+u").unwrap();
+    assert!(
+        *held.touches.borrow() == [("hold", 95, 23), ("move", 160, 120), ("release", 0, 0)]
+            && !nav.touch.as_ref().unwrap().holding()
+    );
+    assert_eq!(last(&backend), "let go on stroke Pikachu");
 }
 
 #[test]

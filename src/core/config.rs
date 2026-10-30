@@ -201,6 +201,7 @@ pub struct Navigation {
     pub sort_by_distance: bool,
     pub touch_wrap: bool,
     pub touch_next_row: bool,
+    pub drag: String,
 }
 
 impl Default for Navigation {
@@ -216,6 +217,7 @@ impl Default for Navigation {
             sort_by_distance: true,
             touch_wrap: true,
             touch_next_row: true,
+            drag: DRAG_HOLD.to_string(),
         }
     }
 }
@@ -233,6 +235,7 @@ impl Table for Navigation {
             ("sort_by_distance", Value::Bool(self.sort_by_distance)),
             ("touch_wrap", Value::Bool(self.touch_wrap)),
             ("touch_next_row", Value::Bool(self.touch_next_row)),
+            ("drag", Value::Str(self.drag.clone())),
         ]
     }
 
@@ -248,6 +251,7 @@ impl Table for Navigation {
             ("sort_by_distance", Value::Bool(value)) => self.sort_by_distance = value,
             ("touch_wrap", Value::Bool(value)) => self.touch_wrap = value,
             ("touch_next_row", Value::Bool(value)) => self.touch_next_row = value,
+            ("drag", Value::Str(value)) => self.drag = value,
             _ => {}
         }
     }
@@ -290,14 +294,21 @@ impl Table for Extras {
 pub const HIDDEN_OFF: &str = "off";
 pub const HIDDEN_UNDERWATER: &str = "underwater";
 pub const HIDDEN_ALL: &str = "all";
+pub const DRAG_HOLD: &str = "hold";
+pub const DRAG_TOGGLE: &str = "toggle";
 /// Each setting that is one of a few words, by its name in the file: its words, the default
 /// first. `[pa3ds.extras] hidden_items` lists none, those under the sea, where the Dowsing Machine
 /// cannot be used and a sighted player is taken to see them, or all (Orion, 2026-10-26); a word it
-/// does not have lists none.
-pub const CHOICES: [(&str, &[&str]); 1] = [(
-    "pa3ds.extras.hidden_items",
-    &[HIDDEN_OFF, HIDDEN_UNDERWATER, HIDDEN_ALL],
-)];
+/// does not have lists none. `[pa3ds.navigation] drag` holds a touch mode drag while its key is
+/// held, or picks up with one press and lets go with the next, for a player who cannot hold a key
+/// (Orion, 2026-10-28).
+pub const CHOICES: [(&str, &[&str]); 2] = [
+    (
+        "pa3ds.extras.hidden_items",
+        &[HIDDEN_OFF, HIDDEN_UNDERWATER, HIDDEN_ALL],
+    ),
+    ("pa3ds.navigation.drag", &[DRAG_HOLD, DRAG_TOGGLE]),
+];
 
 /// The tables of the file, in the order it writes them: each is a settings dataclass, and
 /// `defaults` is what `kind()` holds.

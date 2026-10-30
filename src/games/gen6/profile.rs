@@ -868,6 +868,13 @@ impl Gen6Profile {
                 next_row: navigation
                     .as_ref()
                     .is_none_or(|navigation| navigation.touch_next_row),
+                delayed: Some({
+                    let apps = apps.clone();
+                    Rc::new(move || {
+                        apps.borrow().running.as_deref()
+                            == Some(crate::games::gen6::screens::berry_picker::APP)
+                    })
+                }),
                 said_off: Some({
                     let (apps, distribution) = (apps.clone(), distribution.clone());
                     Rc::new(move |pane: i64| {
@@ -990,6 +997,15 @@ impl Gen6Profile {
                     .flat_map(|app| app.categories())
                     .map(String::from)
                     .collect(),
+                shift_drags: Some({
+                    let apps = apps.clone();
+                    Rc::new(move || {
+                        apps.borrow()
+                            .running
+                            .as_deref()
+                            .is_some_and(|running| amie::SCREENS.contains(&running))
+                    })
+                }),
                 ..NavigatorOptions::default()
             },
         );

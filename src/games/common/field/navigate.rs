@@ -44,6 +44,8 @@
 //! the guiding, since the path's cells belong to the map the player has left.
 //!
 //! Bound by:
+//! - ADR-0009: Shift alone drags in touch mode only while one of Pokémon-Amie's screens runs, held
+//!   or tapped as `drag` says; elsewhere touch mode keeps its keys with Shift.
 //! - ADR-0024: nearest first by category unless `sort_by_distance` is off, all a category, and
 //!   direction mode a half-box 10 cells deep, nearest first always.
 //! - ADR-0037: a search's find is guided to, and the detector's only with the DexNav open in touch
@@ -53,8 +55,8 @@ use std::rc::Rc;
 
 use indexmap::IndexMap;
 
-use crate::core::config::Navigation;
-use crate::core::keys::{SHIFT, SHIFT_UP};
+use crate::core::config::{DRAG_TOGGLE, Navigation};
+use crate::core::keys::{SHIFT, SHIFT_DOWN, SHIFT_UP};
 use crate::core::names::Names;
 use crate::core::pathfind::{self, AHEAD, BEHIND, Cell, LEFT, RIGHT};
 use crate::core::speech::{Category, Speech};
@@ -74,6 +76,7 @@ use crate::games::common::field::things::{
 use crate::games::common::touch::ACTIONS as TOUCH_ACTIONS;
 use crate::games::common::touch::NOTHING as TOUCH_NOTHING;
 use crate::games::common::touch::TouchTargets;
+use crate::games::common::touch::{DRAG, TAP};
 use crate::py::{self, Error, Log, Result};
 use crate::ux::dialog::Asker;
 
@@ -172,6 +175,8 @@ pub struct Options {
     pub door_sign: Option<DoorSign>,
     /// What the game calls the place a zone is in, which a leg of P's way into another says.
     pub place: Option<Place>,
+    /// None is never.
+    pub shift_drags: Option<Rc<dyn Fn() -> bool>>,
 }
 
 impl Default for Options {
@@ -195,6 +200,7 @@ impl Default for Options {
             categories: Vec::new(),
             door_sign: None,
             place: None,
+            shift_drags: None,
         }
     }
 }
@@ -285,6 +291,9 @@ pub struct Navigator {
     /// The gen 6 profile's `census` walks them too, where the Python's holds the same object as
     /// `self.touch`.
     pub(crate) touch: Option<TouchTargets>,
+    /// Whether Shift alone drags in touch mode now: while one of Pokémon-Amie's screens runs
+    /// (ADR-0009 as amended 2026-10-28).
+    shift_drags: Rc<dyn Fn() -> bool>,
     /// How an item and the way to it are said (`config.toml`'s `[pa3ds.navigation]`).
     wording: Navigation,
     speech: Rc<Speech>,
@@ -341,6 +350,7 @@ impl Navigator {
             categories,
             door_sign,
             place,
+            shift_drags,
         } = options;
         let wording = navigation.unwrap_or_default();
         let names = names.unwrap_or_else(|| Rc::new(Names::default()));
@@ -385,6 +395,7 @@ impl Navigator {
                 .chain(categories)
                 .collect(),
             touch,
+            shift_drags: shift_drags.unwrap_or_else(|| Rc::new(|| false)),
             wording,
             speech,
             log,
@@ -423,12 +434,9 @@ impl Navigator {
     /// Shift and J would rename the speaker (ADR-0009).
     pub fn press_key(&mut self, key: &str) -> Result<()> {
         let holding = self.touch.as_ref().is_some_and(TouchTargets::holding);
-        if key == SHIFT_UP {
-            if holding && let Some(touch) = &mut self.touch {
-                let dropped = touch.drop();
-                self.say(&dropped);
-            }
-            return Ok(());
+        let toggle = self.wording.drag == DRAG_TOGGLE;
+        if key == SHIFT_DOWN || key == SHIFT_UP {
+            return self.shift(key == SHIFT_DOWN, holding, toggle);
         }
         let prefix = format!("{SHIFT}+");
         let key = if holding {
@@ -441,8 +449,38 @@ impl Navigator {
             .get(self.mode)
             .and_then(|keys| keys.get(&key.to_lowercase()))
             .cloned();
-        if let Some(action) = action {
+        if holding
+            && toggle
+            && action
+                .as_deref()
+                .is_some_and(|action| action == DRAG || action == TAP)
+            && let Some(touch) = &mut self.touch
+        {
+            // Tapped to pick up, tapped again to let go (`[pa3ds.navigation] drag`).
+            let dropped = touch.drop();
+            self.say(&dropped);
+        } else if let Some(action) = action {
             self.press(&action)?;
+        }
+        Ok(())
+    }
+
+    /// Shift alone. In touch mode while one of Pokémon-Amie's screens runs it drags: held, it
+    /// picks up the target said and lets go as it comes up; or, with `[pa3ds.navigation] drag`
+    /// "toggle", one press picks up and the next lets go. Elsewhere it lets go of a drag Shift
+    /// and U picked up, as it comes up (ADR-0009 as amended 2026-10-28).
+    fn shift(&mut self, down: bool, holding: bool, toggle: bool) -> Result<()> {
+        if self.touch.is_none() {
+            return Ok(());
+        }
+        let alone = self.mode == TOUCH && (self.shift_drags)();
+        let touch = self.touch.as_mut().expect("checked above");
+        if down && alone && !holding {
+            let said = touch.press(DRAG)?;
+            self.say(&said);
+        } else if holding && ((down && alone && toggle) || (!down && !toggle)) {
+            let dropped = touch.drop();
+            self.say(&dropped);
         }
         Ok(())
     }
