@@ -5,7 +5,7 @@
 //! while the player is in it, whose +0x14 points at a byte that is 0, or 1 once the switch has turned
 //! the belts round, and back to 0 at the next press: across three presses of the switch, it and one
 //! other byte of memory flipped each time and nothing else did, and a save made after one press
-//! loads with it 1 and the belts turned (spike A).
+//! loads with it 1 and the belts turned (spike 259).
 
 use std::cell::RefCell;
 use std::rc::Rc;

@@ -481,7 +481,7 @@ impl Terrain {
     /// kind names, off the ROM's chunks, found once a matrix: on foot never taken. In the Poké
     /// Ball Factory those kinds stand at a ramp's sides, and the player could not step east from
     /// (14, 22), `0x51`, onto the ramp at (15, 22), nor west back off it, nor north from (15, 4),
-    /// `0x53`, onto the ramp at (15, 3) (spike A); in Cyllage Gym the step is off a face onto a
+    /// `0x53`, onto the ramp at (15, 3) (spike 259); in Cyllage Gym the step is off a face onto a
     /// ledge, a climber's (`Ground.joined`).
     pub fn sides(&self, climbing: &Climbing) -> Result<Rc<HashSet<(Cell, Cell)>>> {
         let (wide, files) = {

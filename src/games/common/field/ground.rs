@@ -384,7 +384,7 @@ pub struct Ground {
     /// Cells of a conveyor belt that carries the player, each with the way it carries them on to
     /// the next: open, and left only that way until the belt ends, as a current is (`carry`). X's
     /// Poké Ball Factory's run along its walkways, turning corners, and set the player down on the
-    /// cell past the last (spike A).
+    /// cell past the last (spike 259).
     pub conveyors: IndexMap<Cell, &'static str>,
     /// The belts as they run once `switch` is pressed, none where no switch turns them: the
     /// factory's switch turns one of its belts round, and back at the next press (`turned`).
@@ -1003,7 +1003,7 @@ impl Ground {
     /// between. Another floor is stepped onto only within `CLIMB`; along one floor a step is
     /// taken as on any ground, rising no more than `RISE`, a drop being a cliff: the Poké Ball
     /// Factory's floor at (1, 20) is 36 under the switch's at (1, 21), whose stair steps from it
-    /// onto another floor at 45 (spike A). Each of Sootopolis Gym's two stairs climbs its lower
+    /// onto another floor at 45 (spike 259). Each of Sootopolis Gym's two stairs climbs its lower
     /// floor 18 or 19 a cell to 189, and steps across onto the entrance's room at 198
     /// (spike 167), and on Route 119 the way north goes on along the bridge at 99 where the path
     /// under it has dropped to 50 (spike 159). Where either cell has no height, no step goes onto
@@ -1367,7 +1367,7 @@ impl Ground {
     /// Which way a conveyor belt carries a player on `floor` of the cell, or None: a belt is
     /// the ground's, the first of a stacked ground's floors, and the Poké Ball Factory's walkway
     /// at 90 crosses over two of them, (15, 18) and (27, 18), which the belts under it carried
-    /// the player off until a belt was a floor's (spike A).
+    /// the player off until a belt was a floor's (spike 259).
     ///
     /// Python's `floor` defaults to `ANY_FLOOR`.
     pub fn conveyed(&self, cell: Cell, floor: i64) -> Option<&'static str> {

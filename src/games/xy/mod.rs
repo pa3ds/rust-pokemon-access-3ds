@@ -465,7 +465,7 @@ pub const LAVERRE_GYM: i64 = 0xCB;
 pub const BALL_FACTORY: i64 = 0x136;
 /// The Poké Ball Factory's floor, and the script of its 11 one-cell triggers, each a way onto one of
 /// its conveyor belts: its case calls one native with nothing, which carries the player along the belt
-/// (spike A).
+/// (spike 259).
 pub const BELT_ENTRANCE: i64 = 0x6;
 /// The script of the factory's one furniture record, at (4, 22) on the raised floor at 36 in its
 /// west, faced from (4, 23): the switch that turns every belt round, "The direction of the conveyor
@@ -478,7 +478,7 @@ pub const BELT_SWITCH: i64 = 0x7;
 /// where one goes, so each was ridden, in x_poke_ball_factory_belts cut short with presses added:
 /// from (15, 20) up its column and west to (8, 16), from (9, 15) north to (9, 10), from (8, 11) west,
 /// north and east to (10, 3), and from (17, 3) east, south, east and south to (27, 19), with no key
-/// held, through the triggers along each (spike A). Each walkway is one cell wide, and every cell a
+/// held, through the triggers along each (spike 259). Each walkway is one cell wide, and every cell a
 /// belt is stepped onto from off it is one of the triggers: stepped onto from where it sets the player
 /// down, a belt carries them straight back. These are the belts before the switch turns any
 /// (`BELT_TURNED`).
@@ -511,7 +511,7 @@ pub const BELT_ROUTES: [((i64, i64), &[(&str, i64)]); 4] = [
 /// walkthroughs go on through to the stairs up, and west onto (15, 17) to (15, 21). The last belt's
 /// end, north onto (27, 18), still carried them back south, and the two belts between were not ridden
 /// turned: taken for untouched, as the Worker's "Change the direction of the conveyor by using the
-/// switch!" has one belt (spike A).
+/// switch!" has one belt (spike 259).
 pub const BELT_TURNED: [((i64, i64), &[(&str, i64)]); 2] = [
     ((9, 16), &[(pathfind::EAST, 7)]),
     ((15, 17), &[(pathfind::SOUTH, 4)]),

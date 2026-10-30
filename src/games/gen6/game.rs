@@ -200,7 +200,7 @@ pub struct Climbing {
 }
 
 /// One zone's conveyor belts that carry the player (`Ground.conveyors`), and the switch that
-/// turns some of them round, as X's Poké Ball Factory's (spike A).
+/// turns some of them round, as X's Poké Ball Factory's (spike 259).
 #[derive(Debug, Clone, PartialEq)]
 pub struct Conveyors {
     /// Each cell of a belt with the way it carries the player while the switch has turned none.
@@ -300,7 +300,7 @@ pub struct Game {
     pub crossed: HashSet<(i64, i64)>,
     /// Zone -> its conveyor belts that carry the player, and the switch that turns some round:
     /// X's Poké Ball Factory, whose belts a native of the game's runs with nothing in the zone, its
-    /// chunks or the trigger saying where (spike A).
+    /// chunks or the trigger saying where (spike 259).
     pub conveyors: IndexMap<i64, Conveyors>,
     /// The readers of what else it has on its field to list, each in its own words: ORAS's berry
     /// spots and Route 113's ash piles (`games.oras.field.berries`, `games.oras.field.ash`).

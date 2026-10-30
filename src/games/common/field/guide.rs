@@ -132,7 +132,7 @@ fn vined(legs: Vec<Leg>) -> Vec<Leg> {
 /// What a leg a conveyor belt carries the player along is said with, a run of them as one by where
 /// it leaves them: "3 north, ride the belt 7 west 4 north". In X's Poké Ball Factory the player stepped
 /// north onto (15, 20) and was carried up its column and west along a walkway to (8, 16), turning a
-/// corner, with up held all the way (spike A). The game names no such thing.
+/// corner, with up held all the way (spike 259). The game names no such thing.
 pub const BELT: &str = "ride the belt";
 
 /// The legs a player is carried along rather than walks, each with the message a run of them is
@@ -1324,7 +1324,7 @@ impl Guide {
     /// belts as it turns them (`Ground.turned`). In the Poké Ball Factory a Team Flare Grunt
     /// stands on the walkway to the north-east room, and the way there goes by the switch, down to
     /// the belt it turns, and up the stairs past the room it sets the player down in (Khai,
-    /// 2026-10-29, spike A).
+    /// 2026-10-29, spike 259).
     fn switch_first(
         &self,
         r#where: &Field,

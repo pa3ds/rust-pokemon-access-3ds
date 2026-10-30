@@ -4104,7 +4104,7 @@ fn test_climbing_walls_are_listed_a_run_of_blue_spots_or_a_ledge_at_a_time() -> 
     Ok(())
 }
 
-/// Spike A: in X's Poké Ball Factory the cell beside a ramp is `0x51` to `0x54`, a climbing
+/// Spike 259: in X's Poké Ball Factory the cell beside a ramp is `0x51` to `0x54`, a climbing
 /// wall's sideways kinds, and the player could not step east from (14, 22), `0x51`, onto the ramp
 /// at (15, 22), nor west back off it, and P's way to a belt went that way. The step its kind
 /// names is closed both ways, and only that one.

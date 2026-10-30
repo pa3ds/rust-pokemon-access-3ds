@@ -3009,7 +3009,7 @@ fn factory_walks() -> HashSet<Cell> {
 }
 
 /// X's Poké Ball Factory: the player south of a belt's first cell, a Team Flare Grunt up the
-/// walkway past where it sets them down (spike A).
+/// walkway past where it sets them down (spike 259).
 fn factory() -> Field {
     Field {
         interactables: vec![somebody((90, 163), 0x08D1E9A8)],
@@ -3019,7 +3019,7 @@ fn factory() -> Field {
 
 /// X's Poké Ball Factory: a belt carries a player on foot along its walkway to its end,
 /// turning corners, whatever they hold, and P's way was found again at each cell it carried them,
-/// the player never getting where it led (x_poke_ball_factory_belts, spike A). P's way says the
+/// the player never getting where it led (x_poke_ball_factory_belts, spike 259). P's way says the
 /// ride as one leg, by where it sets the player down, and nothing while it carries them.
 #[test]
 fn test_p_rides_a_conveyor_belt_as_one_leg_and_finds_no_way_again_while_it_carries() {
@@ -3065,7 +3065,7 @@ fn switch() -> Interactable {
 
 /// X's Poké Ball Factory: past a Team Flare Grunt on the walkway, the way to the north-east room
 /// is a belt the switch turns round, and Khai, stuck at the Grunt, pressed the switch and heard
-/// nothing new (2026-10-29, spike A). Where the belts as they run lead nowhere and a way goes by
+/// nothing new (2026-10-29, spike 259). Where the belts as they run lead nowhere and a way goes by
 /// the switch, P says the way to it first; pressed, the way on is said. Nothing past the switch
 /// is unreachable.
 #[test]
@@ -3872,7 +3872,7 @@ fn test_a_walkway_over_a_conveyor_belt_is_walked_across_and_the_belt_carries_onl
 
 /// X's Poké Ball Factory: the floor at (1, 20) is 36 under the switch's at (1, 21), and P's way
 /// stepped straight up it, "1 south, 15 north", Khai pressing south and hearing it again (Khai,
-/// 2026-10-29, spike A). Along one floor a step rises no more than a stair's: the way goes up the
+/// 2026-10-29, spike 259). Along one floor a step rises no more than a stair's: the way goes up the
 /// ramp beside it.
 #[test]
 fn test_along_one_floor_a_step_up_a_wall_is_not_taken_and_a_ramp_beside_it_is() {
