@@ -174,7 +174,7 @@ pub type OpeningFactory = fn(Rc<dyn Memory>, &str) -> Box<dyn OpeningReader>;
 /// The ground only a Pokémon the player rides crosses, as X's Rhyhorn crosses Route 9's spiky
 /// ground and its Mamoswine Route 17's deep snow: a wall on foot, got onto from the flat ground
 /// beside it, where the Pokémon waits to be ridden and is got off (`Ground.mounted`, spikes 238
-/// and A). Each field holds every route's, as no zone has two.
+/// and 263). Each field holds every route's, as no zone has two.
 ///
 /// Its `frozenset`s are `HashSet`s: they are only tested.
 #[derive(Debug, Clone, PartialEq, Default)]

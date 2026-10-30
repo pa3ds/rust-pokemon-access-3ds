@@ -80,7 +80,7 @@ const RHYHORN: i64 = 0x100F;
 /// Route 9's rocks, `IROCK02`, which the Rhyhorn smashes with A.
 const ROCK: i64 = 0x200D;
 /// X's Route 17's deep snow, blocked, crossed only riding a Mamoswine (x_route_17_mamoswine,
-/// spike A).
+/// spike 263).
 const SNOW: i64 = 0x34007825;
 /// The flat ground between the snow and plain ground, where the Mamoswine is got on and off.
 const SNOW_FLAT: i64 = 0x33003820;
@@ -1838,7 +1838,7 @@ fn test_p_on_foot_gets_on_the_rhyhorn_waiting_on_flat_ground_to_cross_the_spikes
     );
 }
 
-/// Route 17 (spike A): the player faced the Mamoswine waiting on flat ground at (66, 54) and
+/// Route 17 (spike 263): the player faced the Mamoswine waiting on flat ground at (66, 54) and
 /// pressed A, and was moved into its cell riding, as on Route 9's Rhyhorn. P stopped at the snow,
 /// "then can't continue".
 #[test]

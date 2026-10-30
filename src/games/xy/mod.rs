@@ -382,7 +382,7 @@ pub const STRAND: i64 = 0x8;
 /// faced the Mamoswine, character `0x1007`, waiting on flat ground at (66, 54), pressed A and was
 /// moved into its cell with the bike's bits set, as on the Rhyhorn, then rode south onto the snow at
 /// (66, 58). Its ten rocks, sprite `0x2035` (`ISNOW01`), are "nothing against Mamoswine's
-/// strength!" (story 70:5) (spike A).
+/// strength!" (story 70:5) (spike 263).
 ///
 /// Python's `RIDES` constant: a function, since a `HashSet` is no const.
 pub fn rides() -> Rides {
