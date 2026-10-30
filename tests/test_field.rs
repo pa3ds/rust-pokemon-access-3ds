@@ -16,14 +16,18 @@ use crate::core::discovery::{ALLOCATION, Found};
 use crate::core::memory::Memory;
 use crate::core::pathfind;
 use crate::core::rtti::ClassNames;
-use crate::games::common::field::chunk::{BLOCKED, CHUNK, COUNTER, Chunk, Floor, KIND_SHIFT};
+use crate::games::common::field::chunk::{
+    ANY_FLOOR, BLOCKED, CHUNK, COUNTER, Chunk, Floor, KIND_SHIFT,
+};
 use crate::games::common::field::grind::GrindRail;
-use crate::games::common::field::ground::{BLOCK, Ground, NO_ZONE, Of, RotatingDoor, pushes};
+use crate::games::common::field::ground::{BLOCK, Ground, NO_ZONE, Of, pushes};
+use crate::games::common::field::rotating::{Doors, RotatingDoor};
 use crate::games::common::field::things::{
     ASH_SOURCE, BERRY_SOURCE, DECORATION_SOURCE, EDGE_SOURCE, FURNITURE_SOURCE, Field,
     Interactable, SECRET_BASE_SOURCE, TILE_SOURCE, WARP_SOURCE, describe, place_source,
     source_kind, source_number,
 };
+use crate::games::common::field::traversal::Traversal;
 use crate::games::gen6::field::features::SecretBaseReader;
 use crate::games::gen6::field::features::{Feature, HiddenReader, Tracked, ZoneAt};
 use crate::games::gen6::field::fieldmap::{
@@ -3663,17 +3667,21 @@ fn test_a_rotating_door_turns_only_where_its_arms_sweep_open_cells() -> Result<(
         doors: vec![door],
         ..Ground::default()
     };
-    assert_eq!(ground.through(&[1], (23, 22), (22, 22), None)?, None);
+    let doors = Doors::of(&ground).expect("the ground's doors");
     assert_eq!(
-        ground.through(&[1], (22, 23), (22, 22), None)?,
+        doors.step(&ground, &[1], (23, 22), (22, 22), ANY_FLOOR)?,
+        None
+    );
+    assert_eq!(
+        doors.step(&ground, &[1], (22, 23), (22, 22), ANY_FLOOR)?,
         Some(vec![0])
     );
     assert_eq!(
-        ground.through(&[1], (24, 22), (25, 22), None)?,
+        doors.step(&ground, &[1], (24, 22), (25, 22), ANY_FLOOR)?,
         Some(vec![1])
     );
     assert_eq!(
-        ground.pushes(&[(22, 24), (22, 23), (22, 22)])?,
+        doors.pushes(&ground, &[(22, 24), (22, 23), (22, 22)])?,
         IndexSet::from([2])
     );
     Ok(())

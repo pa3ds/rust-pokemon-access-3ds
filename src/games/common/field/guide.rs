@@ -19,6 +19,8 @@ use crate::games::common::field::climb::Climb;
 use crate::games::common::field::ground::{
     BLOCK, CUT, Ground, IceRoom, NO_ZONE, Of, ROCK_SMASH, SOLID, STRENGTH, SURF, WATERFALL, WHOLE,
 };
+use crate::games::common::field::ride;
+use crate::games::common::field::rotating::Doors;
 use crate::games::common::field::things::{self as field, Field, Interactable, TELEPORTER};
 use crate::games::common::field::vines;
 use crate::py::{self, Error, Log, Result};
@@ -975,7 +977,7 @@ fn near(path: &[Cell], cell: Cell, slack: i64) -> Option<i64> {
 fn rides(ground: &Ground, path: &[Cell], mount: &str) -> Result<HashMap<(Cell, Cell), String>> {
     let mut out: HashMap<(Cell, Cell), String> = HashMap::new();
     let mut last: Option<(Cell, Cell)> = None;
-    let rode = ground.rode(path)?;
+    let rode = ride::rode(ground, path)?;
     for (i, pair) in path.windows(2).enumerate() {
         let (cell, step) = (pair[0], pair[1]);
         let (riding, on) = (rode[i] == Some(true), rode[i + 1] == Some(true));
@@ -1719,8 +1721,10 @@ impl Guide {
             }
         }
         let mut pushed: HashSet<(Cell, Cell)> = HashSet::new();
-        for i in ground.pushes(&path)? {
-            pushed.insert((path[i as usize - 1], path[i as usize]));
+        if let Some(doors) = Doors::of(&ground) {
+            for i in doors.pushes(&ground, &path)? {
+                pushed.insert((path[i as usize - 1], path[i as usize]));
+            }
         }
 
         let lands = |cell: Cell, step: Cell| -> Result<Cell> {
@@ -2198,7 +2202,7 @@ impl Guide {
             return Ok(None);
         };
         let floors = clear.walked(&way)?;
-        let rode = ground.rode(&way)?;
+        let rode = ride::rode(ground, &way)?;
         let mut found: Option<usize> = None;
         for (i, &cell) in way.iter().enumerate() {
             if ground.stands(cell, floors[i])?

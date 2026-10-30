@@ -1,15 +1,20 @@
 //! Climbing walls: X's Cyllage Gym's rock faces, climbed from the blue spots at their foot, along
 //! the row of cells in front of each, and off onto a ledge at a face's side; and the slides down
-//! them, which carry the player (spike 245).
+//! them, which carry the player (spike 245). A traversal (`traversal`): its state is what the
+//! player on a face's line may be doing, `FOOT`, `WALL` or `EITHER`.
 //!
 //! Bound by:
 //! - ADR-0006: nothing here names a game's kinds; `gen6.game.Climbing` carries them.
 //! - ADR-0024: a climb is said as legs, each covering cells.
 
+use std::rc::Rc;
+
 use indexmap::IndexMap;
 
-use crate::core::pathfind::{self, Cell};
+use crate::core::pathfind::{self, Cell, State};
 use crate::games::common::field::chunk::{BLOCKED, CLIMB, KIND_SHIFT};
+use crate::games::common::field::ground::Ground;
+use crate::games::common::field::traversal::Traversal;
 use crate::py::{self, Result};
 
 /// A handhold, in world units: a cell's height. Up the wall from (25, 32) at 3 the player rose to
@@ -233,9 +238,17 @@ impl Walls {
         Ok(pathfind::STEP * py::round(rise.abs() / HOLD)?)
     }
 
+    pub fn on(ground: &Ground) -> Option<Rc<dyn Traversal>> {
+        if ground.walls.lines.is_empty() {
+            None
+        } else {
+            Some(ground.walls.clone() as Rc<dyn Traversal>)
+        }
+    }
+
     /// What a player standing in `cell` at `level` may be doing: either at a blue spot, on
     /// the wall on a line above its foot, on foot anywhere else.
-    pub fn start(&self, cell: Cell, level: Option<f64>) -> i64 {
+    pub fn doing(&self, cell: Cell, level: Option<f64>) -> i64 {
         if self.pads.contains_key(&cell) {
             return EITHER;
         }
@@ -299,7 +312,7 @@ impl Walls {
             let side: Vec<usize> = (i..j)
                 .filter(|&k| self.sideways(path[k], path[k + 1]))
                 .collect();
-            let walled = face.is_some() && i == 0 && self.start(path[0], level) == WALL;
+            let walled = face.is_some() && i == 0 && self.doing(path[0], level) == WALL;
             if !side.is_empty() || walled {
                 let spots: Vec<usize> = (i..j + 1)
                     .filter(|&k| self.pads.contains_key(&path[k]))
@@ -358,5 +371,22 @@ impl Walls {
             .into_iter()
             .map(|((face, height), cells)| (cells, height > self.feet[face as usize]))
             .collect()
+    }
+}
+
+impl Traversal for Walls {
+    fn start(&self, ground: &Ground, cell: Cell, _floor: i64) -> Result<State> {
+        Ok(vec![self.doing(cell, ground.level)])
+    }
+
+    fn step(
+        &self,
+        _ground: &Ground,
+        state: &[i64],
+        cell: Cell,
+        step: Cell,
+        _floor: i64,
+    ) -> Result<Option<State>> {
+        Ok(self.hold(state[0], cell, step).map(|held| vec![held]))
     }
 }

@@ -21,6 +21,7 @@
 //! - `navigate` answers the navigation keys (`keys`), and `guide` finds the way and follows the
 //!   player along it.
 
+pub mod arrow;
 pub mod chunk;
 pub mod climb;
 pub mod grind;
@@ -29,5 +30,9 @@ pub mod guide;
 pub mod keys;
 pub mod navigate;
 pub mod pad;
+pub mod ride;
+pub mod rotating;
+pub mod teleport;
 pub mod things;
+pub mod traversal;
 pub mod vines;

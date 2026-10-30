@@ -16,7 +16,7 @@ use crate::games::common::field::chunk::{ANY_FLOOR, BLOCKED, CHUNK, Chunk, Floor
 use crate::games::common::field::climb::Walls;
 use crate::games::common::field::grind::GrindRails;
 use crate::games::common::field::ground::{
-    CUT, Grid, Ground, IceRoom, Of, ROCK_SMASH, RotatingDoor, STRENGTH, SURF, WATERFALL,
+    CUT, Grid, Ground, IceRoom, Of, ROCK_SMASH, STRENGTH, SURF, WATERFALL,
 };
 use crate::games::common::field::guide::{FieldSource, Guidance, Place};
 use crate::games::common::field::keys::{
@@ -26,6 +26,7 @@ use crate::games::common::field::keys::{
     PATHFIND_OFF, POKEMON, RENAME, RENAME_SPEAKER, SOUTH, TOUCH, WEST, bound_keys, context_keys,
 };
 use crate::games::common::field::navigate::{DoorSign, LeadsTo, Navigator, Options, Sides, Street};
+use crate::games::common::field::rotating::RotatingDoor;
 use crate::games::common::field::things::{
     FURNITURE_SOURCE, Field, Interactable, TRIGGER_SOURCE, WARP_SOURCE, place_source,
 };

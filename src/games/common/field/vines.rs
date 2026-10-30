@@ -1,14 +1,19 @@
 //! Vines: X's vines the player faces and grabs with A, which carry them up or down a level or swing
-//! them across a gap to the next platform, as in Coumarine City Gym (spike 250).
+//! them across a gap to the next platform, as in Coumarine City Gym (spike 250). A traversal
+//! (`traversal`): its state is the vine held, or `OFF`.
 //!
 //! Bound by:
 //! - ADR-0006: nothing here names a game's natives; `gen6.game.Vining` carries them.
 //! - ADR-0024: a ride on a vine is said as a leg, the step that grabs it with the ride.
 
 use std::collections::{HashMap, HashSet};
+use std::rc::Rc;
 
-use crate::core::pathfind::Cell;
-use crate::games::common::field::chunk::CLIMB;
+use crate::core::pathfind::{Cell, State};
+use crate::games::common::field::chunk::{ANY_FLOOR, CLIMB};
+use crate::games::common::field::ground::Ground;
+use crate::games::common::field::traversal::Traversal;
+use crate::py::Result;
 
 pub const UP: &str = "vine up";
 pub const DOWN: &str = "vine down";
@@ -84,7 +89,8 @@ pub struct Vine {
 }
 
 /// The zone's vines, as the search and the guide ask them: none on most maps
-/// (`Vines::default()`, Python's `NO_VINES`).
+/// (`Vines::default()`, Python's `NO_VINES`). A vine held carries the player where it lands
+/// (`leap`), and a way never ends holding one.
 ///
 /// Python's frozensets and mappings here are only tested and looked up: `HashSet` and `HashMap`.
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -135,6 +141,14 @@ impl Vines {
         }
     }
 
+    pub fn on(ground: &Ground) -> Option<Rc<dyn Traversal>> {
+        if ground.vines.vines.is_empty() {
+            None
+        } else {
+            Some(ground.vines.clone() as Rc<dyn Traversal>)
+        }
+    }
+
     /// Whether an end stands in `cell` within `CLIMB` of `height`: where the vine is in the
     /// way. Never where `height` is not given.
     pub fn at(&self, cell: Cell, height: Option<f64>) -> bool {
@@ -170,14 +184,81 @@ impl Vines {
             Some(OFF)
         }
     }
+}
 
-    /// Where the vine held carries the player, the one move from its cell: the search's
-    /// `leap`. None holding none.
-    pub fn leap(&self, held: i64) -> Option<Cell> {
-        if held == OFF {
+impl Traversal for Vines {
+    fn carries(&self) -> bool {
+        true
+    }
+
+    fn start(&self, _ground: &Ground, _cell: Cell, _floor: i64) -> Result<State> {
+        Ok(vec![OFF])
+    }
+
+    /// `hold`, from the height of `floor` in `cell`; and never into a vine's cell with
+    /// no floor but to grab it.
+    fn step(
+        &self,
+        ground: &Ground,
+        state: &[i64],
+        cell: Cell,
+        step: Cell,
+        floor: i64,
+    ) -> Result<Option<State>> {
+        let held = self.hold(state[0], cell, step, ground.height(cell, floor)?);
+        let Some(held) = held else {
+            return Ok(None);
+        };
+        if OFF == state[0]
+            && state[0] == held
+            && self.cells.contains(&step)
+            && ground.floors(step)?.is_empty()
+        {
+            return Ok(None);
+        }
+        Ok(Some(vec![held]))
+    }
+
+    fn lands(
+        &self,
+        ground: &Ground,
+        before: &[i64],
+        after: &[i64],
+        _cell: Cell,
+        step: Cell,
+        _floor: i64,
+    ) -> Result<Option<i64>> {
+        // A vine held is on no floor, and its ride lands on the floor at its height.
+        if after[0] != OFF {
+            return Ok(Some(ANY_FLOOR));
+        }
+        if before[0] != OFF {
+            return Ok(Some(ground.floor(
+                step,
+                Some(self.vines[(before[0] - 1) as usize].landing),
+            )?));
+        }
+        Ok(None)
+    }
+
+    fn stops(
+        &self,
+        _ground: &Ground,
+        state: &[i64],
+        _cell: Cell,
+        _floor: i64,
+        _ends: &HashSet<Cell>,
+    ) -> Result<bool> {
+        Ok(state[0] == OFF)
+    }
+
+    /// Where the vine held carries the player, the one move from its cell; None holding
+    /// none.
+    fn leap(&self, _ground: &Ground, state: &[i64], _cell: Cell, _floor: i64) -> Option<Cell> {
+        if state[0] == OFF {
             None
         } else {
-            Some(self.vines[(held - 1) as usize].lands)
+            Some(self.vines[(state[0] - 1) as usize].lands)
         }
     }
 }

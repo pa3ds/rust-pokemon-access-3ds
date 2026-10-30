@@ -29,7 +29,7 @@ use crate::core::binary::{self, u32};
 use crate::core::discovery::{Found, HEAP_SPAN, within};
 use crate::core::memory::Memory;
 use crate::core::pathfind::{EAST, NORTH, SOUTH, WEST};
-use crate::games::common::field::ground::RotatingDoor;
+use crate::games::common::field::rotating::RotatingDoor;
 use crate::games::gen6::field::features::{DoorReader, Tracked};
 use crate::py::{self, Error, Result};
 

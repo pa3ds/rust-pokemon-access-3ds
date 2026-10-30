@@ -6,7 +6,8 @@ use indexmap::IndexSet;
 
 use crate::core::discovery::Found;
 use crate::core::pathfind::Cell;
-use crate::games::common::field::ground::{IceRoom, RotatingDoor};
+use crate::games::common::field::ground::IceRoom;
+use crate::games::common::field::rotating::RotatingDoor;
 use crate::games::common::field::things::Interactable;
 use crate::py::Result;
 

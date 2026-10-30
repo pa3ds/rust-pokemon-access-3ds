@@ -1,16 +1,21 @@
 //! Grind rails: X's rails the player skates onto on roller skates and is carried along, end to
-//! end, as in Shalour City Gym (spike 247).
+//! end, as in Shalour City Gym (spike 247). A traversal (`traversal`): its state is the ride the
+//! player is on, or `OFF`.
 //!
 //! Bound by:
 //! - ADR-0006: nothing here names a game's kinds; `gen6.game.Grinding` carries them.
 //! - ADR-0024: a ride along a rail is said as legs, each covering cells.
 
 use std::collections::{HashMap, HashSet};
+use std::rc::Rc;
 
 use indexmap::{IndexMap, IndexSet};
 
-use crate::core::pathfind::{self, Cell};
-use crate::games::common::field::chunk::{BLOCKED, KIND_SHIFT};
+use crate::core::pathfind::{self, Cell, State};
+use crate::games::common::field::chunk::{ANY_FLOOR, BLOCKED, KIND_SHIFT};
+use crate::games::common::field::ground::Ground;
+use crate::games::common::field::traversal::Traversal;
+use crate::py::Result;
 
 /// The search's state off every rail. On one it is a ride's number, from 1: `2 * i + 1` along
 /// rail `i` from its first cell, `2 * i + 2` back from its last.
@@ -27,7 +32,9 @@ pub struct GrindRail {
 }
 
 /// The matrix's grind rails, as the search and the guide ask them: none on most maps
-/// (`GrindRails::default()`, Python's `NO_GRIND_RAILS`).
+/// (`GrindRails::default()`, Python's `NO_GRIND_RAILS`). A way never ends on a ride, which
+/// carries the player on to the rail's end: P to Shalour Gym's centre, its gate shut, said
+/// "grind the rail 5 west, then can't continue" (spike 247).
 ///
 /// Python's frozensets and mappings here are only tested and looked up: `HashSet` and `HashMap`.
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -144,6 +151,14 @@ impl GrindRails {
         GrindRails::of(out)
     }
 
+    pub fn on(ground: &Ground) -> Option<Rc<dyn Traversal>> {
+        if ground.grind_rails.cells.is_empty() {
+            None
+        } else {
+            Some(ground.grind_rails.clone() as Rc<dyn Traversal>)
+        }
+    }
+
     /// The ride after the step, `OFF` once it lands, or None where it cannot be taken: the
     /// search's `through`. On a rail the one step is the ride's next cell; onto one only from an
     /// end cell, in line; and never onto or off a rail's cells sideways: the Gym's entrance rail
@@ -169,6 +184,53 @@ impl GrindRails {
         } else {
             Some(OFF)
         }
+    }
+}
+
+impl Traversal for GrindRails {
+    fn carries(&self) -> bool {
+        true
+    }
+
+    fn start(&self, _ground: &Ground, _cell: Cell, _floor: i64) -> Result<State> {
+        Ok(vec![OFF])
+    }
+
+    fn step(
+        &self,
+        _ground: &Ground,
+        state: &[i64],
+        cell: Cell,
+        step: Cell,
+        _floor: i64,
+    ) -> Result<Option<State>> {
+        Ok(self.hold(state[0], cell, step).map(|ride| vec![ride]))
+    }
+
+    fn lands(
+        &self,
+        _ground: &Ground,
+        _before: &[i64],
+        _after: &[i64],
+        _cell: Cell,
+        step: Cell,
+        _floor: i64,
+    ) -> Result<Option<i64>> {
+        // A rail is on no floor the search walks: its cells are blocked on all of them, and
+        // the cell it lands on is stepped onto from any (`Ground.climb`).
+        Ok(self.cells.contains(&step).then_some(ANY_FLOOR))
+    }
+
+    fn stops(
+        &self,
+        _ground: &Ground,
+        _state: &[i64],
+        cell: Cell,
+        _floor: i64,
+        _ends: &HashSet<Cell>,
+    ) -> Result<bool> {
+        // A rail's own cells are only ever stood on mid-ride: its end cells are not among them.
+        Ok(!self.cells.contains(&cell))
     }
 }
 
