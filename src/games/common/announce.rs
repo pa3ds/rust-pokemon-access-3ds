@@ -8,6 +8,8 @@
 //! Bound by:
 //! - ADR-0013: within a poll, the item under a cursor, then the rows changed, then what came on
 //!   screen.
+//! - ADR-0023: a speaker, the narrator among them, is named as they take over and again once a
+//!   screen's words have come between their lines.
 
 use std::collections::HashSet;
 use std::rc::Rc;
@@ -59,6 +61,9 @@ pub struct Announcements {
     /// Who was named on the last page said, so a conversation names each speaker as it takes over
     /// rather than before every line.
     said_speaker: Option<String>,
+    /// Screen lines spoken by then (`Speech.spoken`): a screen's words coming between two of a
+    /// speaker's lines name them again (Orion, 2026-10-27).
+    screens: i64,
     /// First pages with no name yet, each with the polls it has waited (`SPEAKER_POLLS`).
     unnamed: Vec<(i64, PageShown)>,
     /// Text written over a message window, each with the number of screen text polls before it,
@@ -96,6 +101,7 @@ impl Announcements {
             speaker,
             hold,
             said_speaker: None,
+            screens: 0,
             unnamed: Vec::new(),
             written: Vec::new(),
             screen_polls: 0,
@@ -266,24 +272,26 @@ impl Announcements {
         self.sides.clear();
     }
 
-    /// `narrate(text)`: not `named`.
+    /// Say a scene's description as the narrator's line, named as a speaker is (Orion,
+    /// 2026-10-12 and 2026-10-27). A speaker after it is named again.
     pub fn narrate(&mut self, text: &str) {
-        self.narrate_named(text, false);
-    }
-
-    /// Say a scene's description as the narrator's line: named when it takes over from whoever
-    /// spoke last, a speaker or the game's own unnamed text, and plain while it goes on, as a
-    /// speaker is (Orion, 2026-10-12). A speaker after it is named again. `named` names it
-    /// anyway, for a description among a screen's words rather than after a line.
-    pub fn narrate_named(&mut self, text: &str, named: bool) {
-        let said = if self.said_speaker.as_deref() == Some(NARRATOR) && !named {
-            text.to_string()
-        } else {
+        let said = if self.takes_over(NARRATOR) {
             format!("{}: {text}", own(NARRATOR, &[]))
+        } else {
+            text.to_string()
         };
-        self.said_speaker = Some(NARRATOR.to_string());
         (self.log)(&format!("scene [{}]: {text}", own(NARRATOR, &[])));
         self.speech.say(&said, Category::Scene);
+    }
+
+    /// Whether `name` is said before their line: when they take over from whoever spoke last,
+    /// a speaker or the game's own unnamed text, or when a screen's words have come since their
+    /// last line; not while they go on.
+    fn takes_over(&mut self, name: &str) -> bool {
+        let screens = self.speech.spoken(Category::Screen);
+        let named = self.said_speaker.as_deref() != Some(name) || screens != self.screens;
+        (self.said_speaker, self.screens) = (Some(name.to_string()), screens);
+        named
     }
 
     /// Python's `_say` of a `TextWritten`, apart from the page's: it names nobody, so it cannot
@@ -306,16 +314,22 @@ impl Announcements {
             None => None,
         };
         let said = match &name {
-            Some(name) if self.said_speaker.as_deref() != Some(name.as_str()) => {
-                format!("{name}: {}", item.text)
+            None => {
+                self.said_speaker = None;
+                item.text.clone()
             }
-            _ => item.text.clone(),
+            Some(name) => {
+                if self.takes_over(name) {
+                    format!("{name}: {}", item.text)
+                } else {
+                    item.text.clone()
+                }
+            }
         };
         let who = match &name {
             None => String::new(),
             Some(name) => format!(" [{name}]"),
         };
-        self.said_speaker = name;
         (self.log)(&format!(
             "dialogue {:#010x} page {} ({}){who}: {}",
             item.window, item.index, item.why, item.text

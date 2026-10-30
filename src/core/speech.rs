@@ -21,7 +21,8 @@
 //! - ADR-0021: the game's lines are dropped while another window is in front; pa3ds's own and a
 //!   key's answer are said anywhere.
 
-use std::collections::HashSet;
+use std::cell::RefCell;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use crate::py::{self, Error, Kind, Result};
@@ -119,6 +120,9 @@ pub struct Speech {
     backend: Rc<dyn Backend>,
     interrupts: HashSet<Category>,
     listening: Option<Listening>,
+    /// Lines spoken so far of each category, so a speaker can be named again after a screen's
+    /// words come between their lines.
+    spoken: RefCell<HashMap<Category, i64>>,
 }
 
 impl Speech {
@@ -134,7 +138,13 @@ impl Speech {
             backend,
             interrupts,
             listening,
+            spoken: RefCell::new(HashMap::new()),
         }
+    }
+
+    /// `spoken[category]`: the lines of a category spoken so far.
+    pub fn spoken(&self, category: Category) -> i64 {
+        self.spoken.borrow().get(&category).copied().unwrap_or(0)
     }
 
     /// Speech with the default interrupts, heard in any window.
@@ -162,6 +172,7 @@ impl Speech {
         self.backend
             .speak(&spoken, self.interrupts.contains(&category));
         self.backend.braille(&spoken);
+        *self.spoken.borrow_mut().entry(category).or_insert(0) += 1;
         true
     }
 }

@@ -1517,12 +1517,18 @@ impl Gen6Profile {
             (self.log)(&format!("distribution: {line}"));
             self.speech.say(line, Category::Screen);
         }
-        if self.describing && self.apps.borrow().running.as_deref() == Some(puzzle::APP) {
+        if self.text.loaded() && self.apps.borrow().running.as_deref() == Some(puzzle::APP) {
             let shown = self.puzzle.borrow().new_picture()?;
             if let Some(shown) = shown
                 && let Some(said) = puzzle::described(&shown, &|found| self.yours(found))
             {
-                self.announcements.borrow_mut().narrate_named(&said, true);
+                if self.describing {
+                    self.announcements.borrow_mut().narrate(&said);
+                } else {
+                    // Drawn afresh each time the puzzle opens, so a replay's log says which three
+                    // it drew, which proves it followed its movie.
+                    (self.log)(&format!("puzzle picture: {said}"));
+                }
             }
         }
         if let Some(conditions) = &self.conditions {

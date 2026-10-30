@@ -11,7 +11,7 @@ use regex::Regex;
 
 use super::fake_rom::TmpDir;
 use super::fake_speech::Recorder;
-use crate::core::speech::Speech;
+use crate::core::speech::{Category, Speech};
 use crate::core::words::{self, ENGLISH, Words};
 use crate::games::common::announce::{Announcements, Speaker};
 use crate::games::common::dialogue::{PageShown, Shown};
@@ -988,23 +988,43 @@ fn test_a_description_is_the_narrators_named_as_a_speaker_is() -> Result<()> {
 }
 
 #[test]
-fn test_a_description_among_a_screens_words_names_the_narrator_every_time() {
+fn test_a_screens_words_between_two_lines_name_their_speaker_again() -> Result<()> {
     // ADR-0038: Tile Puzzle's picture came after "Easy", the title screen's beat the last
-    // narrated, and plain it was heard as one more of the screen's lines.
+    // narrated, and plain it was heard as one more of the screen's lines. Orion, 2026-10-27: the
+    // narrator is named again after a screen's words as any speaker is.
     let backend = Recorder::new();
+    let speech = Rc::new(Speech::plain(backend.clone()));
     let mut announcements = Announcements::with(
-        Rc::new(Speech::plain(backend.clone())),
+        speech.clone(),
         Rc::new(|_: &str| {}),
-        Some(Rc::new(|_| Ok(None))),
+        Some(Rc::new(|window| {
+            Ok((window == 1).then(|| "Wally".to_string()))
+        })),
         false,
     );
+    let shown = |index: i64, text: &str| vec![Shown::Page(PageShown::new(1, index, text))];
     announcements.narrate("The title screen.");
-    announcements.narrate_named("Metagross on the left.", true);
+    speech.say("Easy", Category::Screen);
+    announcements.narrate("Metagross on the left.");
+    announcements.narrate("Blaze on the right.");
+    announcements.pages(&shown(0, "Here goes!"))?;
+    speech.say("Yes", Category::Prompt);
+    announcements.pages(&shown(1, "I did it!"))?;
+    speech.say("Bag", Category::Screen);
+    announcements.pages(&shown(2, "Thank you!"))?;
     assert_eq!(
         backend.spoken(),
         [
             "Narration: The title screen.",
-            "Narration: Metagross on the left."
+            "Easy",
+            "Narration: Metagross on the left.",
+            "Blaze on the right.",
+            "Wally: Here goes!",
+            "Yes",
+            "I did it!",
+            "Bag",
+            "Wally: Thank you!"
         ]
     );
+    Ok(())
 }
