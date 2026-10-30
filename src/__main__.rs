@@ -256,7 +256,7 @@ fn run(args: Args, hooks: &Hooks) -> py::Result<()> {
     };
 
     // pa3ds's own window, for a pa3ds double-clicked: alone on its console, never a shell's, and
-    // never a silent run (docs/plans/pa3ds-window.md). Settings applied in its settings dialog
+    // never a silent run (ADR-0039). Settings applied in its settings dialog
     // take when pa3ds starts again in its place.
     let own_window = if !args.silent && instance::alone() {
         Some(Window::new(Some(Box::new(|owner: isize| {

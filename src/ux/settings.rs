@@ -1,6 +1,6 @@
 //! The mod settings: `config.toml`'s settings as controls, opened from pa3ds's window.
 //!
-//! **What it is** (docs/plans/pa3ds-window.md). A modal `#32770` over pa3ds's window: a tab for
+//! **What it is** (ADR-0039 as amended 2026-10-30). A modal `#32770` over pa3ds's window: a tab for
 //! each page, General, Speech, Audio, Navigation and Extras, one a table of the file, and the page
 //! chosen under them, a control a setting. Ctrl+Tab and Ctrl+Shift+Tab change the page from
 //! anywhere in it, as Windows' own property sheets do (Orion, 2026-10-25: a list of pages said its
@@ -25,6 +25,10 @@
 //! again now, for them to take; the new pa3ds takes this one's place (`instance.again`). Otherwise
 //! they take at the next start. Nothing the poll loop does asks after the settings (Orion: rather a
 //! restart than a check every tick).
+//!
+//! Bound by:
+//! - ADR-0039: a change takes by starting pa3ds again, never in the poll loop, and applying writes
+//!   each setting changed on its own line, nothing else in the file.
 
 use std::rc::Rc;
 

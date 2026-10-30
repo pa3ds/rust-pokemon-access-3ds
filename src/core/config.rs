@@ -1063,7 +1063,7 @@ pub fn remember_azahar(folder: &Path, home: Option<&Path>) -> Result<bool> {
 /// Set each setting in the settings file, named by its table and itself
 /// (`pa3ds.ui.pauses`), as the player asked: on its line, commented out or not, or else added to
 /// its table. Nothing else in the file changes, its comments and order kept (the settings
-/// dialog, docs/plans/pa3ds-window.md). False when the file cannot be read or written.
+/// dialog, ADR-0039). False when the file cannot be read or written.
 pub fn change(settings: &[(String, Value)], home: Option<&Path>) -> Result<bool> {
     let path = config_path(home)?;
     let (mut text, _, problem) = toml::load(&path);

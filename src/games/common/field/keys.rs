@@ -20,7 +20,7 @@ pub const LIST: &str = "list";
 pub const DIRECTION: &str = "direction";
 
 /// Touch mode: the navigation keys walk the bottom screen's touch targets, and one taps the one
-/// said (`games.common.touch`, docs/plans/pokenav-and-touch.md).
+/// said (`games.common.touch`, ADR-0009).
 pub const TOUCH: &str = "touch";
 
 /// What the mode key steps through, in turn (Orion, 2026-10-02: one key for all three).

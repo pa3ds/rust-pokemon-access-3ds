@@ -2,7 +2,7 @@
 //!
 //! **Why it exists.** OBS records a program's sound by one of its windows, and pa3ds had none: its
 //! console is Windows Terminal's or conhost's, another process, so a streamer picking it recorded that
-//! process instead of pa3ds's tones and footsteps (Orion, 2026-10-24; docs/plans/pa3ds-window.md).
+//! process instead of pa3ds's tones and footsteps (Orion, 2026-10-24; ADR-0039).
 //! This window is pa3ds's own process's. A player who double-clicked pa3ds also gets somewhere to
 //! end it and to reach its pages from, and in time its settings.
 //!

@@ -1,6 +1,6 @@
 //! Touch mode: the bottom screen's touch targets, walked by name, and a tap on the one chosen.
 //!
-//! The PokéNav Plus is touched, never walked with a cursor (docs/plans/pokenav-and-touch.md). Each
+//! The PokéNav Plus is touched, never walked with a cursor (ADR-0009). Each
 //! of its buttons is a touch area, an `nw::lyt::Bounding`, which pa3ds finds and places as it does
 //! the PC Box's slots (spike 129); so is every other screen's. In touch mode the navigation keys
 //! walk the touch areas drawn on the bottom screen, in reading order, row by row, saying each by
