@@ -24,6 +24,18 @@ const DEMO: i64 = 0x08B20000;
 const TEXT: i64 = 0x08B21000;
 const APP: i64 = 0x08B30000;
 const TREECKO: i64 = 252;
+const TORCHIC: i64 = 255;
+const MUDKIP: i64 = 258;
+
+/// `NAMES.get(found.species)`.
+fn named(species: i64) -> Option<String> {
+    match species {
+        TREECKO => Some("Treecko".to_string()),
+        TORCHIC => Some("Torchic".to_string()),
+        MUDKIP => Some("Mudkip".to_string()),
+        _ => None,
+    }
+}
 
 /// Easy's tree as touch mode offers it (as_amie_berry_picker).
 fn tree() -> Vec<Target> {
@@ -142,9 +154,7 @@ fn picker_with(demo: Option<i64>, clock: Rc<dyn Fn() -> f64>) -> Picker {
         fake.layouts.clone(),
         Rc::new(move |pane: i64| Ok(drawn.get(&pane).map(|image| image.to_string()))),
         IndexMap::from([("kinomi02.bclim".to_string(), "Pinap Berry".to_string())]),
-        Rc::new(|found: &pokemon::Pokemon| {
-            (found.species == TREECKO).then(|| "Treecko".to_string())
-        }),
+        Rc::new(|found: &pokemon::Pokemon| named(found.species)),
         clock,
     );
     memory.u32(APP, &[classes.add(berry_picker::APP)]);
@@ -387,8 +397,8 @@ fn test_another_berrys_key_picks_that_one_up_instead() {
 }
 
 /// A berry the round has not, as 7 on Easy, a Pokémon not to be read, or one not up with a berry
-/// picked up, which stays picked up: the game's own error sound, `SEQ_SE_SYS_015` in
-/// Omega Ruby, with `feedback_sounds` on (Orion, 2026-10-29).
+/// picked up, which stays picked up: the game's own beep, `SEQ_SE_BEEP`,
+/// with `feedback_sounds` on (Orion, 2026-10-29).
 #[test]
 fn test_a_key_with_nothing_to_do_plays_the_games_error_sound_or_says_why() {
     let mut keys = keys(false);
@@ -465,4 +475,52 @@ fn test_the_rounds_clock_says_how_fast_the_game_runs() {
         picked.found.poll(app).unwrap();
     }
     assert_eq!(picked.found.speed(), 1.0);
+}
+
+/// Orion, 2026-10-29: pressing the keys as a round begins learns them too late, so the three are
+/// said in the game's own order, the keys', once while the clock stands full before START!, and
+/// again before a Play Again's round; with one of them not to be read, not at all.
+#[test]
+fn test_the_rounds_three_pokemon_are_said_in_their_keys_order_before_it_starts() {
+    let mut picked = picker(None);
+    let app = Some(berry_picker::APP);
+    assert!(
+        !picked
+            .found
+            .poll(app)
+            .unwrap()
+            .iter()
+            .any(|line| line.contains(" and "))
+    );
+    let memory = picked.memory.clone();
+    for (i, species) in [(0, TORCHIC), (2, MUDKIP)] {
+        let param = PARAM + 0x1000 * (i + 1);
+        memory.write(param, &memory.read(PARAM, 4).unwrap());
+        memory.u32(param + 4, &[param + pokemon::RECORD_IN_PARAM]);
+        memory.write(param + pokemon::RECORD_IN_PARAM, &record_of("", 0, species));
+        memory.u32(
+            MODEL + berry_picker::RECORDS + i * berry_picker::SIZE + berry_picker::PARAM,
+            &[param],
+        );
+    }
+    let lineup = "Torchic, Treecko and Mudkip".to_string();
+    memory.u32(APP + berry_picker::CLOCK, &[1799]);
+    picked.found.poll(app).unwrap();
+    memory.u32(APP + berry_picker::CLOCK, &[1800]);
+    assert_eq!(
+        &picked.found.poll(app).unwrap()[..1],
+        std::slice::from_ref(&lineup)
+    );
+    assert!(!picked.found.poll(app).unwrap().contains(&lineup));
+    memory.u32(APP + berry_picker::CLOCK, &[1200]);
+    assert!(!picked.found.poll(app).unwrap().contains(&lineup));
+    memory.u32(APP + berry_picker::CLOCK, &[1800]);
+    assert_eq!(
+        &picked.found.poll(app).unwrap()[..1],
+        std::slice::from_ref(&lineup)
+    );
+    assert_eq!(
+        picked.found.poll(Some("N3app6puzzle7ProcessE")).unwrap(),
+        Vec::<String>::new()
+    );
 }

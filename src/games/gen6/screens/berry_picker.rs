@@ -59,6 +59,8 @@ pub const APP: &str = "N3app5nuts27ProcessE";
 /// 1800, through the round and on to 0 (spike A, spike C).
 pub const CLOCK: i64 = 0x38;
 pub const CLOCK_RATE: i64 = 30;
+/// What the clock stands at before a round's START!, and again from each Play Again (spike A).
+pub const FULL: i64 = 60 * CLOCK_RATE;
 /// More frames than any round's clock counts: a word past it is not one.
 pub const LONGEST: i64 = 20 * 60 * CLOCK_RATE;
 /// How long the clock is watched to say how fast the game runs: a player lowers Azahar's speed
@@ -108,6 +110,7 @@ pub const APART: i64 = 50;
 pub const BODY: i64 = 215;
 pub const WANTS: &str = "berry-picker-wants";
 pub const WANTED: &str = "berry-picker-wanted";
+pub const LINEUP: &str = "berry-picker-lineup";
 pub const NOT_UP: &str = "berry-picker-not-up";
 pub const NO_BERRY: &str = "berry-picker-no-berry";
 /// What Berry Picker's keys say, in place of the game's own error sound where it is off
@@ -150,6 +153,8 @@ pub struct BerryPicker {
     /// When the round's clock was last looked at, and what it said.
     paced: Option<(f64, i64)>,
     speed: f64,
+    /// Whether the round about to start has had its three Pokémon said (`lineup`).
+    told: bool,
 }
 
 impl BerryPicker {
@@ -196,6 +201,7 @@ impl BerryPicker {
             said: HashSet::new(),
             paced: None,
             speed: 1.0,
+            told: false,
         }
     }
 
@@ -236,12 +242,14 @@ impl BerryPicker {
         self.speed
     }
 
-    /// What a bubble that has just come says, while the round runs.
+    /// The round's three Pokémon as it is about to start, and what a bubble that has just
+    /// come says while it runs.
     pub fn poll(&mut self, running: Option<&str>) -> Result<Vec<String>> {
+        let mut lineup = self.lineup(running)?;
         if !self.playing(running)? {
             self.said = HashSet::new();
             self.paced = None;
-            return Ok(Vec::new());
+            return Ok(lineup);
         }
         self.pace()?;
         let wants = self.wants()?;
@@ -255,7 +263,41 @@ impl BerryPicker {
             .map(|want| want.said.clone())
             .collect();
         self.said = shown;
-        Ok(new)
+        lineup.extend(new);
+        Ok(lineup)
+    }
+
+    /// The round's three Pokémon in the game's own order, Berry Picker's own keys' order, said
+    /// once while its clock stands full before START! and again before each Play Again's: the
+    /// keys are learnt too late by pressing them as the round begins (Orion, 2026-10-29).
+    fn lineup(&mut self, running: Option<&str>) -> Result<Vec<String>> {
+        let frames = if running == Some(APP) {
+            self.frames()?
+        } else {
+            None
+        };
+        if frames.is_none_or(|frames| frames < FULL) {
+            self.told = false;
+            return Ok(Vec::new());
+        }
+        let names: Vec<Option<String>> = self
+            .records()?
+            .into_iter()
+            .map(|(called, _, _)| called)
+            .collect();
+        if self.told || names.len() as i64 != COUNT || names.iter().any(Option::is_none) {
+            return Ok(Vec::new());
+        }
+        self.told = true;
+        let names: Vec<String> = names.into_iter().flatten().collect();
+        Ok(vec![own(
+            LINEUP,
+            &[
+                ("first", &names[0]),
+                ("second", &names[1]),
+                ("third", &names[2]),
+            ],
+        )])
     }
 
     /// Each Pokémon wanting a berry, to let a dragged berry go on, while the round runs.
@@ -331,19 +373,7 @@ impl BerryPicker {
     /// Watch the round's clock run down for how fast the game runs, at most every
     /// `PACE_SECONDS`; a clock that stands, as on the results, says nothing of it.
     fn pace(&mut self) -> Result<()> {
-        // A copy in the module's code, as `Model`'s are, holds instructions where the clock is:
-        // every one a word far beyond any round's frames.
-        let mut frames: Option<i64> = None;
-        for (&at, &vtable) in &self.apps {
-            let head = self.memory.read(at, CLOCK + 4)?;
-            if u32(&head, 0)? == vtable {
-                let value = u32(&head, CLOCK)?;
-                if value <= LONGEST {
-                    frames = Some(value);
-                    break;
-                }
-            }
-        }
+        let frames = self.frames()?;
         let now = (self.clock)();
         let Some(frames) = frames else {
             return Ok(());
@@ -363,6 +393,22 @@ impl BerryPicker {
             self.paced = Some((now, frames));
         }
         Ok(())
+    }
+
+    /// The round's clock, in frames left, or None with no app object found.
+    fn frames(&self) -> Result<Option<i64>> {
+        // A copy in the module's code, as `Model`'s are, holds instructions where the clock is:
+        // every one a word far beyond any round's frames.
+        for (&at, &vtable) in &self.apps {
+            let head = self.memory.read(at, CLOCK + 4)?;
+            if u32(&head, 0)? == vtable {
+                let value = u32(&head, CLOCK)?;
+                if value <= LONGEST {
+                    return Ok(Some(value));
+                }
+            }
+        }
+        Ok(None)
     }
 
     /// Whether the game runs and no demonstration is showing; with none found, it runs.

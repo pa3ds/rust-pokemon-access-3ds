@@ -108,8 +108,8 @@ Berry Picker also has keys of its own, in any mode. `1` to `7` pick up a berry, 
 order: Razz, Bluk and Pinap on Easy, then Wepear and Magost on Normal, and Durin and Nomel on Hard;
 on Easy and Normal that is left to right. `8`, `9` and `0` are the round's three Pokémon, each
 keeping its key all round. With a berry picked up, a Pokémon's key gives it the berry; with none,
-it says what that Pokémon wants, so pressing `8`, `9` and `0` as the round starts says which is
-which. Another berry's key picks that one up instead. A key with nothing to do, as `7` on Easy,
+it says what that Pokémon wants. As each round is about to start, pa3ds says the three in their
+keys' order. Another berry's key picks that one up instead. A key with nothing to do, as `7` on Easy,
 plays the game's error sound. Outside Berry Picker these keys are Azahar's as ever.
 
 In a Super Training regimen, touch mode offers each goal the

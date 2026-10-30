@@ -296,6 +296,9 @@ puzzle-picked = { $tile }, picked
 # Berry wanted".
 berry-picker-wants = { $pokemon } wants { $berry }
 berry-picker-wanted = { $berry } wanted
+# Berry Picker's three Pokémon in the game's own order, which its keys go by, said as a round is
+# about to start: "Blaze, Pikachu Rock Star and Windsong".
+berry-picker-lineup = { $first }, { $second } and { $third }
 # Berry Picker's own keys, where the game's error sound is off: a Pokémon's key while it is down
 # or wants nothing, and a key with no berry or Pokémon in this round, by its number, "no berry 6".
 berry-picker-not-up = { $pokemon } is not up

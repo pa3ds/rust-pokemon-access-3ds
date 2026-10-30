@@ -183,6 +183,11 @@ pub const PICK_SOUND: &str = "SEQ_SE_CATCH";
 /// "holding" and "let go on" (Orion, 2026-10-29): a tenth and an eighth of a second, the same in
 /// Omega Ruby and X. Amie's touch sounds, `SEQ_SE_KW_TOUCH` and `SEQ_SE_KW_TOUCH2`, until then.
 pub const DROP_SOUND: &str = "SEQ_SE_RELEASE";
+/// The game's own sound for a press that does nothing, played for a key of pa3ds's with nothing to
+/// do in place of saying why (Orion, 2026-10-29): the beep of Omega Ruby's menus, its
+/// `SEQ_SE_SYS_015` too, the same wave 271 samples longer; X's `SEQ_SE_BEEP` is that same wave at
+/// the same volume, where X's `SEQ_SE_SYS_015` is another sound, 0.93 s long.
+pub const WRONG_SOUND: &str = "SEQ_SE_BEEP";
 /// Where the tone of each quarter up walks sounds, across and down as `Tones.play` has them,
 /// north first and clockwise: north high, south low, east in the right ear and west in the left, as
 /// the Hoenn map's cursor sounds its place (`core.tones`).
@@ -997,10 +1002,7 @@ impl Gen6Profile {
                 let heard = heard.clone();
                 Rc::new(move |berry: &str| heard(PICK_SOUND, own(HOLDING, &[("target", &berry)])))
             },
-            {
-                let error_sound = game.rom.error_sound.clone();
-                Rc::new(move |why: &str| heard(&error_sound, why.to_string()))
-            },
+            Rc::new(move |why: &str| heard(WRONG_SOUND, why.to_string())),
         );
         // The Hoenn map's cursor says nothing between places: a tone says where it is.
         let map_cursor = MapCursor::new(
