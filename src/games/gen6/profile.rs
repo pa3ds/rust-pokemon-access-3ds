@@ -7,8 +7,8 @@
 //! numbers, and what it alone has (spike 100).
 //!
 //! Bound by:
-//! - ADR-0009: touch mode offers targets only in the apps that need a touch (`TOUCHED`), and
-//!   Shift alone drags only in Pokémon-Amie's.
+//! - ADR-0009: touch mode offers targets only in the apps that need a touch (`TOUCHED`, and the
+//!   subscreens' among them), and Shift alone drags only where the subscreens say.
 //! - ADR-0041: a replay logs touch mode's targets as they change, so a tape holds them.
 
 use std::cell::{Cell, RefCell};
@@ -83,8 +83,8 @@ use crate::games::gen6::screens::partyicons::PartyIcons;
 use crate::games::gen6::screens::{
     boxes, buttons, distribution, partners, partyicons, summary, townmap,
 };
-use crate::games::gen6::subscreen::Subscreens;
-use crate::games::gen6::subscreen::{amie, puzzle, super_training};
+use crate::games::gen6::subscreen::{self, Subscreens};
+use crate::games::gen6::subscreen::{amie, puzzle};
 use crate::games::gen6::{frames, gflheap, mystatus};
 use crate::py::{self, Error, Log, PySet, Result};
 
@@ -142,22 +142,23 @@ pub const HEAP_CLASSES: [&str; 31] = [
 /// Without a message window class there is nothing to read: not this game, or not this version.
 pub const REQUIRED: [&str; 2] = msgwin::CLASSES;
 /// The apps touch mode offers targets in (ADR-0009 as amended 2026-10-29): the field, whose
-/// bottom screen is the PokéNav Plus and its DexNav, BuzzNav and PlayNav, with Super Training's
-/// page; the PlayNav's tutorials; the AreaNav; and Pokémon-Amie's and Super Training's own. Every
-/// other screen, the Bag, the PC, a battle, is worked with the game's buttons, which do all its
-/// touches do and faster, and touch mode says there is nothing to touch (Orion, 2026-10-29). A
+/// bottom screen is the PokéNav Plus and its DexNav, BuzzNav and PlayNav, or X's own, with
+/// Pokémon-Amie's and Super Training's pages; the subscreens' tutorials; the AreaNav; and the
+/// subscreens' own apps (`subscreen.TOUCHED`), Pokémon-Amie's and Super Training's. Every other
+/// screen, the Bag, the PC, a battle, is worked with the game's buttons, which do all its touches
+/// do and faster, and touch mode says there is nothing to touch (Orion, 2026-10-29). A
 /// `frozenset` in Python, only ever tested for membership.
 pub const TOUCHED: [&str; 10] = [
     FIELD,
     TUTORIAL,
     townmap::APP,
-    amie::SCREENS[0],
-    amie::SCREENS[1],
-    amie::SCREENS[2],
-    amie::SCREENS[3],
-    amie::SCREENS[4],
-    super_training::MENU,
-    super_training::SPARRING,
+    subscreen::TOUCHED[0],
+    subscreen::TOUCHED[1],
+    subscreen::TOUCHED[2],
+    subscreen::TOUCHED[3],
+    subscreen::TOUCHED[4],
+    subscreen::TOUCHED[5],
+    subscreen::TOUCHED[6],
 ];
 pub const PICK_SOUND: &str = "SEQ_SE_CATCH";
 /// The PC Box's sounds for picking up a Pokémon and putting it down, the game's own for moving
@@ -876,15 +877,12 @@ impl Gen6Profile {
                 }),
                 settings: touch_settings.clone(),
                 delayed: Some({
-                    let apps = apps.clone();
-                    Rc::new(move || {
-                        apps.borrow().running.as_deref()
-                            == Some(crate::games::gen6::subscreen::berry_picker::APP)
-                    })
+                    let (apps, subscreens) = (apps.clone(), subscreens.clone());
+                    Rc::new(move || subscreens.delayed(apps.borrow().running.as_deref()))
                 }),
                 pace: Some({
                     let subscreens = subscreens.clone();
-                    Rc::new(move || subscreens.berry_picker.borrow().speed())
+                    Rc::new(move || subscreens.pace())
                 }),
                 sound: dragged(feedback_sounds.clone()),
             },
@@ -961,7 +959,7 @@ impl Gen6Profile {
                         apps.borrow()
                             .running
                             .as_deref()
-                            .is_some_and(|running| amie::SCREENS.contains(&running))
+                            .is_some_and(|running| subscreen::DRAGS.contains(&running))
                     })
                 }),
                 toggle: touch_settings.drag == DRAG_TOGGLE,

@@ -24,8 +24,14 @@
 //!
 //! A new one is built here and put in the tuples of what it answers, in the order it is asked in:
 //! touch mode names a picture by the first reader with a name for it, and offers targets in order.
-//! The profile reaches two by name: Berry Picker, whose clock times touch mode's drag, and Tile
-//! Puzzle, whose play the screen announcer's clock waits on.
+//! What touch mode does in the subscreens' apps is theirs too: which need a touch (`TOUCHED`), where
+//! Shift alone drags (`DRAGS`), and where a drag is made only on letting go, at the pace of the
+//! game's clock (`Subscreens.delayed`, `Subscreens.pace`). The profile reaches Tile Puzzle by name,
+//! whose play the screen announcer's clock waits on.
+//!
+//! Bound by:
+//! - ADR-0009: touch mode offers targets in the subscreens' apps that need a touch, Shift alone
+//!   drags only in Pokémon-Amie's, and Berry Picker's drag is made on letting go.
 //!
 //! Python asks each reader by the same name, duck-typed; here each answer is a trait, implemented
 //! for the `RefCell` a reader is shared in, and the tuples are lists of them.
@@ -54,6 +60,21 @@ use amie::{AmiePage, Goods, Puffs};
 use berry_picker::{BerryKeys, BerryPicker, Touching};
 use puzzle::TilePuzzle;
 use super_training::{Bags, Goals, Round, TrainingPage, Waiting};
+
+/// The subscreens' apps touch mode offers targets in (ADR-0009 as amended 2026-10-29), beside the
+/// field whose bottom screen they are: Pokémon-Amie, its decorate screen and its games, and Super
+/// Training's regimen menu and rounds. A `frozenset` in Python, only ever tested for membership.
+pub const TOUCHED: [&str; 7] = [
+    amie::SCREENS[0],
+    amie::SCREENS[1],
+    amie::SCREENS[2],
+    amie::SCREENS[3],
+    amie::SCREENS[4],
+    super_training::MENU,
+    super_training::SPARRING,
+];
+/// The apps where Shift alone drags, Pokémon-Amie's, the only ones that drag (ADR-0009).
+pub const DRAGS: [&str; 5] = amie::SCREENS;
 
 /// A reader handed what a sweep found of its objects, by class.
 pub trait Tracked {
@@ -212,7 +233,7 @@ impl Polled for RefCell<BerryPicker> {
 /// The subscreens' readers, and what each answers for the app running.
 pub struct Subscreens {
     pub puzzle: Rc<RefCell<TilePuzzle>>,
-    pub berry_picker: Rc<RefCell<BerryPicker>>,
+    berry_picker: Rc<RefCell<BerryPicker>>,
     /// What the heap is swept for, each reader's `classes`.
     pub classes: Vec<&'static str>,
     tracked: Vec<Rc<dyn Tracked>>,
@@ -261,7 +282,7 @@ impl Subscreens {
     ) -> Subscreens {
         // The Pokémon-Amie page draws its Pokémon's icon, and says nothing of whose; Amie itself is
         // stroked by a slide over it.
-        let amie = Rc::new(RefCell::new(AmiePage::with_number(
+        let page = Rc::new(RefCell::new(AmiePage::with_number(
             memory.clone(),
             names.clone(),
             text.species.clone(),
@@ -334,7 +355,7 @@ impl Subscreens {
         // A round says its score, clock and banners, and warns of a Bot's shot.
         let sparring = Rc::new(RefCell::new(Round::new(layouts, image_of, memory, None)));
         let tracked: Vec<Rc<dyn Tracked>> = vec![
-            amie.clone(),
+            page.clone(),
             puffs.clone(),
             goods.clone(),
             puzzle.clone(),
@@ -349,8 +370,8 @@ impl Subscreens {
         Subscreens {
             classes: classes.into_iter().collect(),
             tracked,
-            named: vec![amie.clone(), training, puffs, goods, puzzle.clone()],
-            offering: vec![amie, goals, berry_picker.clone(), waiting, bags],
+            named: vec![page.clone(), training, puffs, goods, puzzle.clone()],
+            offering: vec![page, goals, berry_picker.clone(), waiting, bags],
             polled: vec![sparring, berry_picker.clone()],
             described: vec![puzzle.clone()],
             keyed: vec![berry_keys],
@@ -430,5 +451,18 @@ impl Subscreens {
             said.extend(reader.poll(running)?);
         }
         Ok(said)
+    }
+
+    /// Whether touch mode's drag is made only as it is let go, straight from where it was
+    /// picked up to where the keys chose: in Berry Picker, where a berry carried over a Pokémon
+    /// wanting another sends it off (spike 260).
+    pub fn delayed(&self, running: Option<&str>) -> bool {
+        running == Some(berry_picker::APP)
+    }
+
+    /// How fast the game runs beside full speed, which a drag made on letting go is timed
+    /// by: Berry Picker's clock says (`BerryPicker.speed`).
+    pub fn pace(&self) -> f64 {
+        self.berry_picker.borrow().speed()
     }
 }
