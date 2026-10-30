@@ -78,6 +78,7 @@ use crate::games::gen6::screens::mapcursor::MapCursor;
 use crate::games::gen6::screens::partners::Partners;
 use crate::games::gen6::screens::partyicons::PartyIcons;
 use crate::games::gen6::screens::training::{Bags, Goals, Round, TrainingPage};
+use crate::games::gen6::screens::waiting::Waiting;
 use crate::games::gen6::screens::{
     amie, boxes, buttons, distribution, partners, partyicons, summary, townmap, training,
 };
@@ -242,6 +243,7 @@ pub struct Gen6Profile {
     pub goods: Rc<RefCell<Goods>>,
     pub training: Rc<RefCell<TrainingPage>>,
     pub goals: Rc<Goals>,
+    pub waiting: Rc<Waiting>,
     pub bags: Rc<Bags>,
     pub sparring: RefCell<Round>,
     pub buttons: Rc<RefCell<buttons::Buttons>>,
@@ -591,6 +593,8 @@ impl Gen6Profile {
             game.training,
         )));
         let goals = Rc::new(Goals::new(layouts.clone(), image_of.clone()));
+        // A message on the bottom screen waits for a tap on no button: Super Training's welcome.
+        let waiting = Rc::new(Waiting::new(layouts.clone(), image_of.clone()));
         // The DexNav draws a Pokémon caught in colour, and only those are said so: "Ralts",
         // "Magikarp fishing caught", with commas under pauses (ADR-0037, `Distribution.said`).
         let gap = if ui.pauses { ", " } else { " " };
@@ -826,12 +830,18 @@ impl Gen6Profile {
                     })
                 }),
                 gestures: Some({
-                    let (amie, goals, bags, apps) =
-                        (amie.clone(), goals.clone(), bags.clone(), apps.clone());
+                    let (amie, goals, waiting, bags, apps) = (
+                        amie.clone(),
+                        goals.clone(),
+                        waiting.clone(),
+                        bags.clone(),
+                        apps.clone(),
+                    );
                     Rc::new(move || {
                         let running = apps.borrow().running.clone();
                         let mut found = amie.borrow_mut().strokes(running.as_deref())?;
                         found.extend(goals.targets(running.as_deref())?);
+                        found.extend(waiting.targets(running.as_deref())?);
                         found.extend(bags.targets(running.as_deref())?);
                         Ok(found)
                     })
@@ -1031,6 +1041,7 @@ impl Gen6Profile {
             goods,
             training,
             goals,
+            waiting,
             bags,
             sparring: RefCell::new(sparring),
             buttons,

@@ -212,6 +212,8 @@ p-gone = { $thing } gone
 ## Touch mode
 
 touch-nothing = nothing to touch
+# A message on the bottom screen waiting for a tap to go on, as Super Training's welcome: its ▼.
+touch-continue = continue
 # A tap asked for where pa3ds cannot tap, and one Azahar is not listening for.
 touch-off = touch is off
 touch-not-listening = Azahar is not taking touches from pa3ds

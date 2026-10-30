@@ -73,6 +73,10 @@ and No is up, it leaves out the buttons behind it that a tap no longer reaches.
 
 In the AreaNav, touch mode offers each place on the map by name, and a tap chooses it.
 
+When a message on the bottom screen waits for a tap, as Super Training's welcome does, touch
+mode offers "continue", and a tap goes on with the message. The PlayNav's "previous" and "next"
+turn the page instead, away from the message.
+
 In Pokémon-Amie, touch mode offers to stroke your Pokémon, and the tap key strokes it. This is an
 experiment. In a Super Training regimen, touch mode offers each goal the Balloon Bot puts up:
 the tap key's first press says the goal, and each press after that shoots at it, wherever it has
