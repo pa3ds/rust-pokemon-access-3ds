@@ -10,6 +10,7 @@ pub mod habitat;
 pub mod lists;
 pub mod mapcursor;
 pub mod partyicons;
+pub mod playnav;
 pub mod summary;
 pub mod townmap;
 
