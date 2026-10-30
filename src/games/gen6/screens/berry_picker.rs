@@ -27,9 +27,15 @@
 //! shows three Pokémon wanting berries too, a demonstration, and is said nothing of: its
 //! `app::nuts2::Demo` says when it is over (`OVER`).
 //!
+//! The round's three Pokémon are drawn from the party, and each keeps its record all round wherever
+//! it pops up (spike C), so Berry Picker's own keys name them by it: a key a berry, picked up off
+//! the tree, and a key a Pokémon, given it (`BerryKeys`).
+//!
 //! Bound by:
-//! - ADR-0009: a berry is dragged to the Pokémon that wants it, on the player's keys.
+//! - ADR-0009: a berry is dragged to the Pokémon that wants it, on the player's keys, by touch
+//!   mode's or by Berry Picker's own, a berry's and then a Pokémon's.
 
+use std::cell::RefCell;
 use std::collections::HashSet;
 use std::rc::Rc;
 
@@ -40,13 +46,24 @@ use crate::core::discovery::HEAP_SPAN;
 use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
 use crate::core::words::own;
+use crate::games::common::field::keys::BERRIES as BERRY_KEYS;
+use crate::games::common::field::keys::POKEMON as POKEMON_KEYS;
 use crate::games::common::layout::Layouts;
-use crate::games::common::touch::{HEIGHT, ImageOf, Target, WIDTH};
+use crate::games::common::touch::{HEIGHT, ImageOf, Target, TouchTargets, WIDTH};
 use crate::games::common::{pokemon, strbuf};
 use crate::games::gen6::screens::training::pictures;
-use crate::py::{self, Result};
+use crate::py::{self, Error, Result};
 
 pub const APP: &str = "N3app5nuts27ProcessE";
+/// Where the app's object counts the round's clock down in frames, 30 a second at full speed from
+/// 1800, through the round and on to 0 (spike A, spike C).
+pub const CLOCK: i64 = 0x38;
+pub const CLOCK_RATE: i64 = 30;
+/// More frames than any round's clock counts: a word past it is not one.
+pub const LONGEST: i64 = 20 * 60 * CLOCK_RATE;
+/// How long the clock is watched to say how fast the game runs: a player lowers Azahar's speed
+/// limit for a higher score, and a drag is timed by the game's frames (`speed`).
+pub const PACE_SECONDS: f64 = 0.5;
 pub const MODEL: &str = "N3app5nuts25ModelE";
 /// The game's opening, "Pick Berries for your Pokémon!", READY and START!, which shows three
 /// Pokémon wanting berries before the round: a demonstration, said nothing of (Orion, 2026-10-28).
@@ -91,6 +108,11 @@ pub const APART: i64 = 50;
 pub const BODY: i64 = 215;
 pub const WANTS: &str = "berry-picker-wants";
 pub const WANTED: &str = "berry-picker-wanted";
+pub const NOT_UP: &str = "berry-picker-not-up";
+pub const NO_BERRY: &str = "berry-picker-no-berry";
+/// What Berry Picker's keys say, in place of the game's own error sound where it is off
+/// (`BerryKeys`).
+pub const NO_POKEMON: &str = "berry-picker-no-pokemon";
 
 /// What a Pokémon of the player's is called (`Gen6Profile._yours`).
 pub type Name = Rc<dyn Fn(&pokemon::Pokemon) -> Option<String>>;
@@ -114,17 +136,24 @@ pub struct BerryPicker {
     words: IndexMap<String, String>,
     /// What a Pokémon of the player's is called.
     name: Name,
+    clock: Rc<dyn Fn() -> f64>,
     /// Model object -> the vtable it was found with.
     models: IndexMap<i64, i64>,
     /// Demo object -> the vtable it was found with.
     demos: IndexMap<i64, i64>,
+    /// The app's own object -> the vtable it was found with: the round's clock.
+    apps: IndexMap<i64, i64>,
     /// The bubbles shown at the last poll, by their berry's picture and what it said.
     ///
     /// A set only tested.
     said: HashSet<(i64, String)>,
+    /// When the round's clock was last looked at, and what it said.
+    paced: Option<(f64, i64)>,
+    speed: f64,
 }
 
 impl BerryPicker {
+    /// `BerryPicker(...)` with Python's default clock, `time.monotonic`.
     pub fn new(
         memory: Rc<dyn Memory>,
         names: Rc<ClassNames>,
@@ -133,6 +162,26 @@ impl BerryPicker {
         words: IndexMap<String, String>,
         name: Name,
     ) -> Self {
+        BerryPicker::with_clock(
+            memory,
+            names,
+            layouts,
+            image_of,
+            words,
+            name,
+            Rc::new(py::time::monotonic),
+        )
+    }
+
+    pub fn with_clock(
+        memory: Rc<dyn Memory>,
+        names: Rc<ClassNames>,
+        layouts: Rc<Layouts>,
+        image_of: ImageOf,
+        words: IndexMap<String, String>,
+        name: Name,
+        clock: Rc<dyn Fn() -> f64>,
+    ) -> Self {
         BerryPicker {
             memory,
             names,
@@ -140,45 +189,61 @@ impl BerryPicker {
             image_of,
             words,
             name,
+            clock,
             models: IndexMap::new(),
             demos: IndexMap::new(),
+            apps: IndexMap::new(),
             said: HashSet::new(),
+            paced: None,
+            speed: 1.0,
         }
     }
 
-    /// The models and demonstrations a sweep found, by class: all of them, or with `adding`
+    /// The models, demonstrations and apps a sweep found, by class: all of them, or with `adding`
     /// the new ones.
     pub fn track(&mut self, found: &IndexMap<i64, String>, adding: bool) -> Result<()> {
-        let mut models = if adding {
-            self.models.clone()
-        } else {
-            IndexMap::new()
-        };
-        let mut demos = if adding {
-            self.demos.clone()
-        } else {
-            IndexMap::new()
-        };
-        for (&at, name) in found {
-            if name == MODEL || name == DEMO {
-                let vtable = u32(&self.memory.read(at, 4)?, 0)?;
-                if name == MODEL {
-                    models.insert(at, vtable);
+        let mut kept: IndexMap<&str, IndexMap<i64, i64>> = [
+            (MODEL, &self.models),
+            (DEMO, &self.demos),
+            (APP, &self.apps),
+        ]
+        .into_iter()
+        .map(|(kind, have)| {
+            (
+                kind,
+                if adding {
+                    have.clone()
                 } else {
-                    demos.insert(at, vtable);
-                }
+                    IndexMap::new()
+                },
+            )
+        })
+        .collect();
+        for (&at, name) in found {
+            if let Some(objects) = kept.get_mut(name.as_str()) {
+                objects.insert(at, u32(&self.memory.read(at, 4)?, 0)?);
             }
         }
-        (self.models, self.demos) = (models, demos);
+        self.models = kept.shift_remove(MODEL).unwrap_or_default();
+        self.demos = kept.shift_remove(DEMO).unwrap_or_default();
+        self.apps = kept.shift_remove(APP).unwrap_or_default();
         Ok(())
+    }
+
+    /// How fast the game runs beside full speed, by the round's clock: 1 until it has been seen
+    /// to run.
+    pub fn speed(&self) -> f64 {
+        self.speed
     }
 
     /// What a bubble that has just come says, while the round runs.
     pub fn poll(&mut self, running: Option<&str>) -> Result<Vec<String>> {
         if !self.playing(running)? {
             self.said = HashSet::new();
+            self.paced = None;
             return Ok(Vec::new());
         }
+        self.pace()?;
         let wants = self.wants()?;
         let shown: HashSet<(i64, String)> = wants
             .iter()
@@ -198,20 +263,29 @@ impl BerryPicker {
         if !self.playing(running)? {
             return Ok(Vec::new());
         }
-        Ok(self
+        Ok(self.wants()?.iter().map(target).collect())
+    }
+
+    /// The round's `index`-th Pokémon in the game's own order, which keeps each its place in it
+    /// all round wherever it pops up (spike C), and where to give it a berry while it is up wanting
+    /// one, else None; None with no such Pokémon.
+    pub fn pokemon(
+        &self,
+        index: usize,
+        running: Option<&str>,
+    ) -> Result<Option<(String, Option<Target>)>> {
+        let records = self.records()?;
+        let Some((Some(called), place, y)) = records.get(index).cloned() else {
+            return Ok(None);
+        };
+        if !self.playing(running)? || records.iter().any(|other| other.1 == place && other.2 > y) {
+            return Ok(Some((called, None)));
+        }
+        let want = self
             .wants()?
             .into_iter()
-            .map(|want| {
-                Target::new(
-                    want.pane,
-                    &want.said,
-                    want.x,
-                    BODY,
-                    HEIGHT as f64 / 2.0 - BODY as f64,
-                    APART as f64,
-                )
-            })
-            .collect())
+            .find(|want| self::place(want.x as f64 - WIDTH as f64 / 2.0) == place);
+        Ok(Some((called, want.as_ref().map(target))))
     }
 
     /// The bubbles on the screen showing a berry, left to right.
@@ -254,6 +328,43 @@ impl BerryPicker {
         Ok(found)
     }
 
+    /// Watch the round's clock run down for how fast the game runs, at most every
+    /// `PACE_SECONDS`; a clock that stands, as on the results, says nothing of it.
+    fn pace(&mut self) -> Result<()> {
+        // A copy in the module's code, as `Model`'s are, holds instructions where the clock is:
+        // every one a word far beyond any round's frames.
+        let mut frames: Option<i64> = None;
+        for (&at, &vtable) in &self.apps {
+            let head = self.memory.read(at, CLOCK + 4)?;
+            if u32(&head, 0)? == vtable {
+                let value = u32(&head, CLOCK)?;
+                if value <= LONGEST {
+                    frames = Some(value);
+                    break;
+                }
+            }
+        }
+        let now = (self.clock)();
+        let Some(frames) = frames else {
+            return Ok(());
+        };
+        let Some((then, before)) = self.paced.filter(|&(_, before)| frames <= before) else {
+            self.paced = Some((now, frames));
+            return Ok(());
+        };
+        if now - then >= PACE_SECONDS {
+            if before > frames {
+                // Python's `min(max(x, 0.05), 4.0)`: the first unless the second is strictly
+                // greater, or less.
+                let raw = (before - frames) as f64 / (now - then) / CLOCK_RATE as f64;
+                let floor = if 0.05 > raw { 0.05 } else { raw };
+                self.speed = if 4.0 < floor { 4.0 } else { floor };
+            }
+            self.paced = Some((now, frames));
+        }
+        Ok(())
+    }
+
     /// Whether the game runs and no demonstration is showing; with none found, it runs.
     fn playing(&self, running: Option<&str>) -> Result<bool> {
         if running != Some(APP) {
@@ -276,6 +387,23 @@ impl BerryPicker {
     /// Each place -> what the Pokémon highest in it is called.
     fn standing(&self) -> Result<IndexMap<i64, String>> {
         let mut heights: IndexMap<i64, (f64, String)> = IndexMap::new();
+        for (called, place, y) in self.records()? {
+            if let Some(called) = called
+                && heights.get(&place).is_none_or(|(high, _)| *high < y)
+            {
+                heights.insert(place, (y, called));
+            }
+        }
+        Ok(heights
+            .into_iter()
+            .map(|(place, (_, called))| (place, called))
+            .collect())
+    }
+
+    /// The round's Pokémon in the game's own order: what each is called, or None where it cannot
+    /// be read, its place and how high it stands.
+    fn records(&self) -> Result<Vec<(Option<String>, i64, f64)>> {
+        let mut found: Vec<(Option<String>, i64, f64)> = Vec::new();
         for (&at, &vtable) in &self.models {
             let raw = self.memory.read(at, RECORDS + COUNT * SIZE)?;
             if u32(&raw, 0)? != vtable {
@@ -285,27 +413,137 @@ impl BerryPicker {
                 let record = RECORDS + i * SIZE;
                 let param = u32(&raw, record + PARAM)?;
                 let (x, y) = (f32(&raw, record + PLACE)?, f32(&raw, record + PLACE + 4)?);
-                let place = place(x);
                 // The sweep finds two more in the module's code, which hold instructions where
                 // a record's pointers are: read through, 0xebffe000 failed every poll of the round
                 // and nothing more was said.
-                if !(HEAP_SPAN.0 <= param && param < HEAP_SPAN.1)
-                    || heights.get(&place).is_some_and(|(high, _)| *high >= y)
-                {
+                if !(HEAP_SPAN.0 <= param && param < HEAP_SPAN.1) {
                     continue;
                 }
-                let found = pokemon::read(&*self.memory, &self.names, param, pokemon::SPECIES_MAX)?;
-                let called = found.as_ref().and_then(|found| (self.name)(found));
-                if let Some(called) = called {
-                    heights.insert(place, (y, called));
-                }
+                let read = pokemon::read(&*self.memory, &self.names, param, pokemon::SPECIES_MAX)?;
+                found.push((
+                    read.as_ref().and_then(|read| (self.name)(read)),
+                    place(x),
+                    y,
+                ));
             }
         }
-        Ok(heights
-            .into_iter()
-            .map(|(place, (_, called))| (place, called))
-            .collect())
+        Ok(found)
     }
+}
+
+/// Touch mode as Berry Picker's keys ask it: the targets it offers, and a drag given
+/// (`TouchTargets`, or a test's stand-in, as Python duck-types it).
+pub trait Touching {
+    fn targets(&mut self) -> Result<Vec<Target>>;
+    fn give(&mut self, picked: &Target, over: &Target) -> String;
+}
+
+impl Touching for TouchTargets {
+    fn targets(&mut self) -> Result<Vec<Target>> {
+        TouchTargets::targets(self)
+    }
+
+    fn give(&mut self, picked: &Target, over: &Target) -> String {
+        TouchTargets::give(self, picked, over)
+    }
+}
+
+/// Berry Picker's own keys (Orion, 2026-10-29): a berry's picks it up off the tree, and a
+/// Pokémon's gives it the berry picked up, the drag made then as touch mode's is on letting go; a
+/// Pokémon's with none picked up says what it wants. Another berry's key picks that one up instead.
+/// Touch mode's own keys still drag as ever, for a player who wants the challenge.
+///
+/// `picked` and `wrong` are what is heard as a berry is picked up, and for a key with nothing to
+/// do, a berry the round has not or a Pokémon not up: a sound, and "", or else the words.
+///
+/// Python's holds touch mode; here touch mode, which the navigator owns, is handed to `press`.
+pub struct BerryKeys {
+    picker: Rc<RefCell<BerryPicker>>,
+    /// An image -> the game's word for it: a berry's item name, the tree's targets' names.
+    words: IndexMap<String, String>,
+    running: Rc<dyn Fn() -> Option<String>>,
+    picked: Rc<dyn Fn(&str) -> String>,
+    wrong: Rc<dyn Fn(&str) -> String>,
+    /// The berry picked up, by name, while one is.
+    berry: Option<String>,
+}
+
+impl BerryKeys {
+    pub fn new(
+        picker: Rc<RefCell<BerryPicker>>,
+        words: IndexMap<String, String>,
+        running: Rc<dyn Fn() -> Option<String>>,
+        picked: Rc<dyn Fn(&str) -> String>,
+        wrong: Rc<dyn Fn(&str) -> String>,
+    ) -> Self {
+        BerryKeys {
+            picker,
+            words,
+            running,
+            picked,
+            wrong,
+            berry: None,
+        }
+    }
+
+    /// Answer one of the keys, with the line to say.
+    pub fn press(&mut self, action: &str, touch: &mut dyn Touching) -> Result<String> {
+        if let Some(number) = BERRY_KEYS.iter().position(|&berry| berry == action) {
+            let name = BERRIES
+                .get(number)
+                .and_then(|(image, _)| self.words.get(*image))
+                .cloned();
+            let Some(name) = name else {
+                return Ok((self.wrong)(&own(NO_BERRY, &[("number", &(number + 1))])));
+            };
+            if tree(touch, &name)?.is_none() {
+                return Ok((self.wrong)(&own(NO_BERRY, &[("number", &(number + 1))])));
+            }
+            self.berry = Some(name.clone());
+            return Ok((self.picked)(&name));
+        }
+        let index = POKEMON_KEYS
+            .iter()
+            .position(|&pokemon| pokemon == action)
+            .ok_or_else(|| Error::value("tuple.index(x): x not in tuple"))?;
+        let running = (self.running)();
+        let found = self.picker.borrow().pokemon(index, running.as_deref())?;
+        let Some((called, target)) = found else {
+            return Ok((self.wrong)(&own(NO_POKEMON, &[("number", &(index + 1))])));
+        };
+        let Some(berry) = self.berry.clone() else {
+            return Ok(match target {
+                Some(target) => target.name,
+                None => own(NOT_UP, &[("pokemon", &called)]),
+            });
+        };
+        let berry = tree(touch, &berry)?;
+        let (Some(target), Some(berry)) = (target, berry) else {
+            return Ok((self.wrong)(&own(NOT_UP, &[("pokemon", &called)])));
+        };
+        self.berry = None;
+        Ok(touch.give(&berry, &target))
+    }
+}
+
+/// The berry by that name hanging in the tree, as touch mode offers it.
+fn tree(touch: &mut dyn Touching, name: &str) -> Result<Option<Target>> {
+    Ok(touch
+        .targets()?
+        .into_iter()
+        .find(|target| target.name == name))
+}
+
+/// Where a Pokémon wanting a berry is given one, as touch mode offers it.
+fn target(want: &Want) -> Target {
+    Target::new(
+        want.pane,
+        &want.said,
+        want.x,
+        BODY,
+        HEIGHT as f64 / 2.0 - BODY as f64,
+        APART as f64,
+    )
 }
 
 /// Whether a berry so far across and up from a bubble's place is drawn in it.

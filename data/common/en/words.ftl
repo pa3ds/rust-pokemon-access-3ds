@@ -296,6 +296,11 @@ puzzle-picked = { $tile }, picked
 # Berry wanted".
 berry-picker-wants = { $pokemon } wants { $berry }
 berry-picker-wanted = { $berry } wanted
+# Berry Picker's own keys, where the game's error sound is off: a Pokémon's key while it is down
+# or wants nothing, and a key with no berry or Pokémon in this round, by its number, "no berry 6".
+berry-picker-not-up = { $pokemon } is not up
+berry-picker-no-berry = no berry { $number }
+berry-picker-no-pokemon = no Pokémon { $number }
 
 ## What pa3ds says of itself
 
@@ -354,8 +359,8 @@ setting-pa3ds-audio-footsteps = Relative volume for footsteps
 setting-pa3ds-audio-footsteps-about = How loud pa3ds's own footsteps are on the ground where the game plays none, as streets, floors and caves: 1 as loud as the game would play them, 0.5 half as loud, 1.5 louder, 0 none; in the settings dialog, in percent, 100 as loud as the game.
 setting-pa3ds-audio-ticks = Relative volume for clock ticks
 setting-pa3ds-audio-ticks-about = How loud a short tone is at each second of a game's clock, as in Pokémon-Amie's games; the clock itself is said each half minute and in its last seconds: 1 as loud as the game, 0.5 half as loud, 1.5 louder, 0 none, as it ships; in the settings dialog, in percent, 100 as loud as the game.
-setting-pa3ds-audio-drag_sounds = Relative volume for drag sounds
-setting-pa3ds-audio-drag_sounds-about = How loud Pokémon-Amie's short touch sounds are as touch mode picks up a drag and lets go of it, said "holding" and "let go on" at 0: 1 as loud as the game, 0.5 half as loud, 1.5 louder; in the settings dialog, in percent, 100 as loud as the game.
+setting-pa3ds-audio-feedback_sounds = Relative volume for feedback sounds
+setting-pa3ds-audio-feedback_sounds-about = How loud the game's own short sounds are for what a key has done: Pokémon-Amie's touch sounds as touch mode picks up a drag and lets go of it, and the game's error sound for a key with nothing to do, as a berry Berry Picker's round does not have. At 0 pa3ds says them instead, "holding", "let go on" and why: 1 as loud as the game, 0.5 half as loud, 1.5 louder; in the settings dialog, in percent, 100 as loud as the game.
 setting-pa3ds-navigation-positions = Announce list position
 setting-pa3ds-navigation-positions-about = Say where a thing is in the list, as in "door, 1 of 3".
 setting-pa3ds-navigation-position_first = List position before directions

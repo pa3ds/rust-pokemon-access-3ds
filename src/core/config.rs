@@ -152,9 +152,11 @@ pub struct Audio {
     /// A tone at each tick of a game's clock, which is said only at its marks
     /// (`screen_announce`, `tones.ticking`); off until a player asks (Orion, 2026-10-26).
     pub ticks: f64,
-    /// The game's own touch sounds as touch mode picks up and lets go of a drag, in place of
-    /// "holding" and "let go on", which slowed a timed game (Orion, 2026-10-28); 0 says them.
-    pub drag_sounds: f64,
+    /// The game's own sounds for what a key has done: its touch sounds as a drag is picked up and
+    /// let go of, in place of "holding" and "let go on", which slowed a timed game (Orion,
+    /// 2026-10-28), and its error sound for a key with nothing to do, in place of saying why; 0
+    /// says them all. `drag_sounds` until 2026-10-29, when the error sound joined them (Orion).
+    pub feedback_sounds: f64,
 }
 
 impl Default for Audio {
@@ -163,7 +165,7 @@ impl Default for Audio {
             tones: 1.0,
             footsteps: 1.0,
             ticks: 0.0,
-            drag_sounds: 1.0,
+            feedback_sounds: 1.0,
         }
     }
 }
@@ -174,7 +176,7 @@ impl Table for Audio {
             ("tones", Value::Float(self.tones)),
             ("footsteps", Value::Float(self.footsteps)),
             ("ticks", Value::Float(self.ticks)),
-            ("drag_sounds", Value::Float(self.drag_sounds)),
+            ("feedback_sounds", Value::Float(self.feedback_sounds)),
         ]
     }
 
@@ -188,7 +190,7 @@ impl Table for Audio {
             "tones" => self.tones = value,
             "footsteps" => self.footsteps = value,
             "ticks" => self.ticks = value,
-            "drag_sounds" => self.drag_sounds = value,
+            "feedback_sounds" => self.feedback_sounds = value,
             _ => {}
         }
     }
@@ -846,7 +848,8 @@ pub fn prepare(
             py::path_str(&path)
         ));
         // The Python zips the three with `dataclasses.astuple(Audio())`, strict, and since
-        // `drag_sounds` that has four: it raises here (an upstream bug, ported as it is).
+        // `drag_sounds`, now `feedback_sounds`, that has four: it raises here (an upstream bug,
+        // ported as it is).
         return Err(Error::value("zip() argument 2 is longer than argument 1"));
     }
     let navigation: Navigation = table(

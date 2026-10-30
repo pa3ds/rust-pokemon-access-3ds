@@ -34,7 +34,7 @@ use crate::games::common::cursors::reader::CursorReader;
 use crate::games::common::dialogue::{DialogueReader, Shown};
 use crate::games::common::field::ground::Ground;
 use crate::games::common::field::guide::{FieldSource, Place};
-use crate::games::common::field::keys::Bindings;
+use crate::games::common::field::keys::{BERRY_PICKER, Bindings, Contexts, DEFAULT_CONTEXTS};
 use crate::games::common::field::navigate::{
     DoorSign, LeadsTo, Navigator, Options as NavigatorOptions, Sides, Street,
 };
@@ -55,7 +55,7 @@ use crate::games::common::screen_announce::ScreenAnnouncer;
 use crate::games::common::session::Profile;
 use crate::games::common::slots::Occupant;
 use crate::games::common::touch::{
-    self, FileOf, Idle, ImageOf, Lists, OnScreen, PictureName, Tap, TextOf, TouchTargets,
+    self, FileOf, HOLDING, Idle, ImageOf, Lists, OnScreen, PictureName, Tap, TextOf, TouchTargets,
 };
 use crate::games::common::{lyt, msgwin, pokemon, strbuf};
 use crate::games::gen6::apps::{BATTLE, DEMOS, FIELD, MANAGER_CLASS, RunningApp, TUTORIAL};
@@ -111,7 +111,7 @@ use crate::py::{self, Error, Log, PySet, Result};
 /// Not TextBoxes or cursor windows: walking each layout's tree finds every one that can be placed on
 /// screen (spike 62). And the linear heap is not swept: the battle builds its layouts there, and its
 /// message window leads to their pool (spike 64).
-pub const HEAP_CLASSES: [&str; 41] = [
+pub const HEAP_CLASSES: [&str; 42] = [
     msgwin::CLASSES[0],
     msgwin::CLASSES[1],
     talk::CLASSES[0],
@@ -139,6 +139,7 @@ pub const HEAP_CLASSES: [&str; 41] = [
     puzzle::CLASS,
     puzzle::PICTURE,
     puzzle::BACKGROUND,
+    berry_picker::APP,
     berry_picker::MODEL,
     berry_picker::DEMO,
     training::CLASS,
@@ -210,11 +211,13 @@ pub struct Options {
     pub tones: Option<Rc<Tones>>,
     pub ticks: Option<Rc<Tones>>,
     pub clips: Option<Rc<Clips>>,
-    pub drag_sounds: Option<Rc<Clips>>,
+    pub feedback_sounds: Option<Rc<Clips>>,
     /// None is `{}`.
     pub swims: Option<IndexMap<String, f64>>,
     pub title: Option<i64>,
     pub census: bool,
+    /// None is `DEFAULT_CONTEXTS`.
+    pub contexts: Option<Contexts>,
 }
 
 /// The gen 6 readers, and what each sweep and poll does with them, for ORAS or for X and Y.
@@ -279,6 +282,10 @@ pub struct Gen6Profile {
     pub waiting: Rc<Waiting>,
     pub bags: Rc<Bags>,
     pub berry_picker: Rc<RefCell<berry_picker::BerryPicker>>,
+    /// Berry Picker's own keys, a berry's and a Pokémon's.
+    pub berry_keys: RefCell<berry_picker::BerryKeys>,
+    /// A screen's own keys, answered before the navigator's while it runs (`context`).
+    contexts: Contexts,
     pub sparring: RefCell<Round>,
     pub buttons: Rc<RefCell<buttons::Buttons>>,
     pub party_icons: Rc<RefCell<PartyIcons>>,
@@ -398,11 +405,13 @@ impl Gen6Profile {
             tones,
             ticks,
             clips,
-            drag_sounds,
+            feedback_sounds,
             swims,
             title,
             census,
+            contexts,
         } = options;
+        let contexts = contexts.unwrap_or_else(|| DEFAULT_CONTEXTS.clone());
         let tone = tones.clone();
         let cache = memory;
         let memory: Rc<dyn Memory> = cache.clone();
@@ -869,7 +878,7 @@ impl Gen6Profile {
             file_of,
             log.clone(),
             touch::Options {
-                images: Some(images),
+                images: Some(images.clone()),
                 tap,
                 tone: tones.clone().map(|tones| {
                     Rc::new(move |across: f64, down: f64| {
@@ -889,7 +898,11 @@ impl Gen6Profile {
                 next_row: navigation
                     .as_ref()
                     .is_none_or(|navigation| navigation.touch_next_row),
-                sound: dragged(drag_sounds),
+                pace: Some({
+                    let berry_picker = berry_picker.clone();
+                    Rc::new(move || berry_picker.borrow().speed())
+                }),
+                sound: dragged(feedback_sounds.clone()),
                 offered: Some({
                     let apps = apps.clone();
                     Rc::new(move || {
@@ -951,6 +964,36 @@ impl Gen6Profile {
                     })
                 }),
             },
+        );
+        // Berry Picker's own keys, a berry's and a Pokémon's, heard as the drag's own sounds are
+        // and the game's error sound, or said where they are off.
+        let heard = {
+            let feedback_sounds = feedback_sounds.clone();
+            Rc::new(move |sound: &str, said: String| -> String {
+                if let Some(sounds) = &feedback_sounds
+                    && sounds.names().contains(sound)
+                {
+                    // The sound thread not starting, raised to the key's handler in Python.
+                    let _ = sounds.play(sound);
+                    return String::new();
+                }
+                said
+            })
+        };
+        let berry_keys = berry_picker::BerryKeys::new(
+            berry_picker.clone(),
+            images.clone(),
+            {
+                let apps = apps.clone();
+                Rc::new(move || apps.borrow().running.clone())
+            },
+            {
+                let heard = heard.clone();
+                Rc::new(move |berry: &str| {
+                    heard(amie::PICK_SOUND, own(HOLDING, &[("target", &berry)]))
+                })
+            },
+            Rc::new(move |why: &str| heard(amie::WRONG_SOUND, why.to_string())),
         );
         // The Hoenn map's cursor says nothing between places: a tone says where it is.
         let map_cursor = MapCursor::new(
@@ -1167,6 +1210,8 @@ impl Gen6Profile {
             waiting,
             bags,
             berry_picker,
+            berry_keys: RefCell::new(berry_keys),
+            contexts,
             sparring: RefCell::new(sparring),
             buttons,
             party_icons,
@@ -1686,11 +1731,39 @@ impl Gen6Profile {
         Ok(())
     }
 
-    /// Answer a navigation key, by name.
+    /// Answer a navigation key, by name: the screen's own first, while one with keys of its own
+    /// runs (`context`), in every mode.
     pub fn press(&self, key: &str) -> Result<()> {
         phase(&*self.memory, "keys", || {
-            self.navigator.borrow_mut().press_key(key)
+            let context = self.context();
+            let action = context.and_then(|context| {
+                self.contexts
+                    .get(context)
+                    .and_then(|keys| keys.get(&key.to_lowercase()))
+                    .cloned()
+            });
+            let Some(action) = action else {
+                return self.navigator.borrow_mut().press_key(key);
+            };
+            let said = {
+                let mut navigator = self.navigator.borrow_mut();
+                let touch = navigator
+                    .touch
+                    .as_mut()
+                    .expect("the gen 6 navigator is given touch targets");
+                self.berry_keys.borrow_mut().press(&action, touch)?
+            };
+            if !said.is_empty() {
+                (self.log)(&format!("key: {said}"));
+                self.speech.say(&said, Category::Key);
+            }
+            Ok(())
         })
+    }
+
+    /// The screen running now that has keys of its own: Berry Picker.
+    pub fn context(&self) -> Option<&'static str> {
+        (self.apps.borrow().running.as_deref() == Some(berry_picker::APP)).then_some(BERRY_PICKER)
     }
 
     /// Play a footstep where the player's foot came down on silent ground, every tick: the
@@ -2376,6 +2449,10 @@ impl Profile for Gen6Profile {
 
     fn press(&self, key: &str) -> Result<()> {
         Gen6Profile::press(self, key)
+    }
+
+    fn context(&self) -> Option<&'static str> {
+        Gen6Profile::context(self)
     }
 
     fn sweep_wanted(&self) -> Result<bool> {

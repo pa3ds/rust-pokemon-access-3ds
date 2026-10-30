@@ -327,6 +327,10 @@ struct State {
     keys: HashSet<String>,
     emulator: String,
     released: Mutex<Released>,
+    /// The keys of the screen running now that has its own (`keyfile`'s contexts), taken besides
+    /// `keys` until the runtime says another screen runs: a key that is one of Azahar's buttons
+    /// stays that button everywhere else (Orion, 2026-10-29).
+    contextual: Mutex<HashSet<String>>,
     pressed: Mutex<VecDeque<String>>,
     elsewhere: Mutex<HashSet<i64>>,
     /// Whether a key of pa3ds's has been taken with Shift since Shift last came up, or Shift went
@@ -428,7 +432,13 @@ impl State {
                 let name = modified(&key_name(event.vkCode as i64), ctrl, alt, shift);
                 let elsewhere =
                     !lock(&self.elsewhere).is_empty() || ELSEWHERE.iter().any(|&key| held(key));
-                let key = bound(&name, &self.keys, ctrl, alt, elsewhere);
+                let keys: Vec<String> = self
+                    .keys
+                    .iter()
+                    .chain(lock(&self.contextual).iter())
+                    .cloned()
+                    .collect();
+                let key = bound(&name, &keys, ctrl, alt, elsewhere);
                 if !key.is_empty() && window::in_front(&self.emulator) {
                     if lock(&self.released).down(event.vkCode as i64, &key) {
                         if shift {
@@ -480,6 +490,7 @@ impl Hotkeys {
                     .collect(),
                 emulator: emulator.to_string(),
                 released: Mutex::new(Released::new(released)),
+                contextual: Mutex::new(HashSet::new()),
                 pressed: Mutex::new(VecDeque::new()),
                 elsewhere: Mutex::new(HashSet::new()),
                 shifted: AtomicBool::new(false),
@@ -518,6 +529,12 @@ impl Hotkeys {
         if let Some(thread) = &self.thread {
             thread.join(2.0);
         }
+    }
+
+    /// `hotkeys.contextual = keys`: the keys of the screen running now that has its own, taken
+    /// besides the rest until the next call.
+    pub fn set_contextual(&self, keys: HashSet<String>) {
+        *lock(&self.state.contextual) = keys;
     }
 
     /// The keys pressed since the last call, in order.

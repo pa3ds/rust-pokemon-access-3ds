@@ -96,10 +96,14 @@ pub const NOTHING: &str = "touch-nothing";
 pub const NO_DRAG: &str = "touch-no-drag";
 pub const HOLDING: &str = "touch-holding";
 pub const DROPPED: &str = "touch-dropped";
-/// How long a drag made as it is let go takes (`delayed`): a fifth of a second pressed where it
-/// was picked up, a fifth sliding, a fifth on the target. Spike A's berries, pressed 0.15 s, slid
-/// 0.2 and held 0.3 to 0.5, were eaten as they came.
-pub const DROP_SECONDS: f64 = 0.6;
+/// How long a drag made as it is let go takes at full speed (`delayed`), a third pressed where it
+/// was picked up, a third sliding, a third on the target, and as much longer as the game runs
+/// slower (`pace`): a player lowers Azahar's speed limit for a higher score. Orion asked for it
+/// shorter than the first 0.6 s (2026-10-29), and in rounds played live by touch mode's keys
+/// (spike A's `--keys`) it fed 32 berries of 33 drags at 0.6 s, 31 of 35 at 0.3, 42 of 46 at 0.15,
+/// the quicker giving the more before each Pokémon left, and 12 of 31 at 0.05, where each third is
+/// a game frame and a half.
+pub const DROP_SECONDS: f64 = 0.15;
 /// How far across its width a pane's place is, by its anchor: left, centre, right.
 pub const ANCHOR: [f64; 3] = [0.0, 0.5, 1.0];
 
@@ -201,6 +205,8 @@ pub struct Options {
     pub delayed: Option<Rc<dyn Fn() -> bool>>,
     pub sound: Option<Rc<dyn Fn(bool)>>,
     pub offered: Option<Rc<dyn Fn() -> bool>>,
+    /// None is full speed, 1.
+    pub pace: Option<Rc<dyn Fn() -> f64>>,
 }
 
 impl Default for Options {
@@ -223,6 +229,7 @@ impl Default for Options {
             delayed: None,
             sound: None,
             offered: None,
+            pace: None,
         }
     }
 }
@@ -271,12 +278,15 @@ pub struct TouchTargets {
     /// must, held at the Pokémon's mouth until it has been eaten (spike 257).
     delayed: Rc<dyn Fn() -> bool>,
     /// A sound for picking up a drag, with True, and letting go of it, played in place of saying
-    /// "holding" and "let go on", which slowed a timed game (`[pa3ds.audio] drag_sounds`, Orion,
-    /// 2026-10-28); None says them.
+    /// "holding" and "let go on", which slowed a timed game (`[pa3ds.audio] feedback_sounds`,
+    /// Orion, 2026-10-28); None says them.
     pub(crate) sound: Option<Rc<dyn Fn(bool)>>,
     /// Whether the screen up now needs a touch: none is offered on one the game's buttons work
     /// (`gen6.profile.TOUCHED`); None offers them everywhere.
     offered: Option<Rc<dyn Fn() -> bool>>,
+    /// How fast the game runs beside full speed, which a drag made on letting go is timed by
+    /// (`DROP_SECONDS`): Berry Picker's clock says (`berry_picker.BerryPicker.speed`).
+    pace: Rc<dyn Fn() -> f64>,
     /// Whether the keys go round from the last target to the first and the bottom row to the
     /// top, or stop at the ends (`[pa3ds.navigation] touch_wrap`).
     wrap: bool,
@@ -335,6 +345,7 @@ impl TouchTargets {
             delayed,
             sound,
             offered,
+            pace,
         } = options;
         TouchTargets {
             layouts,
@@ -358,6 +369,7 @@ impl TouchTargets {
             delayed: delayed.unwrap_or_else(|| Rc::new(|| false)),
             sound,
             offered,
+            pace: pace.unwrap_or_else(|| Rc::new(|| 1.0)),
             wrap,
             next_row,
             picked: None,
@@ -509,28 +521,41 @@ impl TouchTargets {
         let (Some(picked), Some(over)) = (picked, over) else {
             return String::new();
         };
-        let (x, y) = over.drop.unwrap_or((over.x, over.y));
         if pressed && let Some(drag) = &self.drag {
             drag.release();
             (self.log)(&format!("touch: let go on {}", over.name));
-        } else if (self.delayed)()
-            && over.pane != picked.pane
-            && let Some(slide) = &self.slide
-        {
-            let path = [(picked.x, picked.y), (picked.x, picked.y), (x, y), (x, y)];
-            let listed: Vec<String> = path.iter().map(|(x, y)| format!("({x}, {y})")).collect();
-            (self.log)(&format!(
-                "touch: drag {} to {} along [{}]",
-                picked.name,
-                over.name,
-                listed.join(", ")
-            ));
-            if let Some(why) = slide(&path, DROP_SECONDS)
-                && !why.is_empty()
-            {
-                return why;
-            }
+        } else if (self.delayed)() && over.pane != picked.pane {
+            return self.give(&picked, &over);
         }
+        self.dropped(&over)
+    }
+
+    /// Drag from one target straight to another and let go, with the line to say, as a screen
+    /// that drags only on letting go has it (`delayed`): Berry Picker's keys, a berry's and then a
+    /// Pokémon's, give it this way (ADR-0009 as amended 2026-10-29).
+    pub fn give(&self, picked: &Target, over: &Target) -> String {
+        let Some(slide) = &self.slide else {
+            return own("touch-off", &[]);
+        };
+        let (x, y) = over.drop.unwrap_or((over.x, over.y));
+        let path = [(picked.x, picked.y), (picked.x, picked.y), (x, y), (x, y)];
+        let listed: Vec<String> = path.iter().map(|(x, y)| format!("({x}, {y})")).collect();
+        (self.log)(&format!(
+            "touch: drag {} to {} along [{}]",
+            picked.name,
+            over.name,
+            listed.join(", ")
+        ));
+        if let Some(why) = slide(&path, DROP_SECONDS / (self.pace)())
+            && !why.is_empty()
+        {
+            return why;
+        }
+        self.dropped(over)
+    }
+
+    /// The sound of letting go, or where there is none the words.
+    fn dropped(&self, over: &Target) -> String {
         if let Some(sound) = &self.sound {
             sound(false);
             return String::new();

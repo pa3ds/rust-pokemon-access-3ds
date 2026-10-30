@@ -80,7 +80,7 @@ does, and touch mode says "nothing to touch".
 | `I` and `O` | The button above and below: the nearest in the previous and next row. |
 | `K` | The chosen button again. |
 | `U` | Tap the chosen button. |
-| `Shift` | In Pokémon-Amie, pick up the chosen button to drag it, with a short touch sound. Keep Shift down: `J`, `L`, `I` and `O` choose where to, and `K` says where it is. Let go of Shift to drop it there, with another sound. With the `drag` setting at `"toggle"`, press once to pick up and again to drop; with `drag_sounds` at 0, "holding" and "let go on" are said instead of the sounds. Nothing else drags. A key of your own can drag too (Changing keys, below). |
+| `Shift` | In Pokémon-Amie, pick up the chosen button to drag it, with a short touch sound. Keep Shift down: `J`, `L`, `I` and `O` choose where to, and `K` says where it is. Let go of Shift to drop it there, with another sound. With the `drag` setting at `"toggle"`, press once to pick up and again to drop; with `feedback_sounds` at 0, "holding" and "let go on" are said instead of the sounds. Nothing else drags. A key of your own can drag too (Changing keys, below). |
 
 In the AreaNav, touch mode offers each place on the map by name, and a tap chooses it.
 
@@ -102,8 +102,17 @@ go of Shift: the berry goes straight to it. Nothing moves until you let go, so c
 another Pokémon is safe, but a wrong berry sends a Pokémon away. A Pokémon waits only about two
 seconds. A tap knocks a berry off the tree for nobody. For a higher score, lower Azahar's speed
 limit in its general settings: at 50 percent each Pokémon waits twice as long, and the round
-lasts two minutes. Turn on realtime audio in Azahar's audio settings, or the sound stutters. In a
-Super Training regimen, touch mode offers each goal the
+lasts two minutes. Turn on realtime audio in Azahar's audio settings, or the sound stutters.
+
+Berry Picker also has keys of its own, in any mode. `1` to `7` pick up a berry, in the game's own
+order: Razz, Bluk and Pinap on Easy, then Wepear and Magost on Normal, and Durin and Nomel on Hard;
+on Easy and Normal that is left to right. `8`, `9` and `0` are the round's three Pokémon, each
+keeping its key all round. With a berry picked up, a Pokémon's key gives it the berry; with none,
+it says what that Pokémon wants, so pressing `8`, `9` and `0` as the round starts says which is
+which. Another berry's key picks that one up instead. A key with nothing to do, as `7` on Easy,
+plays the game's error sound. Outside Berry Picker these keys are Azahar's as ever.
+
+In a Super Training regimen, touch mode offers each goal the
 Balloon Bot puts up: the tap key's first press says the goal, and each press after that shoots at
 it, wherever it has moved. pa3ds says "shot coming" about a second before the bot's ball arrives:
 move with the Circle Pad, or raise a shield with L.
@@ -204,6 +213,9 @@ its line: a line you delete is put back the next time pa3ds starts.
 - `"drag"` has no key of its own: Shift drags. To drag with another key as well, add one under
   `[pa3ds.navigation.touch]`, such as `"d" = "drag"`. It works as Shift does, held or pressed
   as the `drag` setting says, and elsewhere says "nothing to drag".
+- `[pa3ds.amie.berry_picker]` holds Berry Picker's own keys, `"first berry"` to `"seventh berry"`
+  and `"first pokemon"` to `"third pokemon"`. pa3ds takes them only while Berry Picker runs,
+  and there they win over the keys above.
 - `[azahar]` rebinds Azahar's own buttons, and `[azahar.circle_pad]` and `[azahar.c_stick]` its
   two sticks. Changes apply the next time pa3ds starts with Azahar closed.
 

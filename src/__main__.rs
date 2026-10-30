@@ -14,7 +14,7 @@ use crate::core::rpc::{DEFAULT_PORT, Rpc, UdpRpc};
 use crate::core::speech::{self, Backend, Category, Speech};
 use crate::core::words::{self, ENGLISH, Words, own};
 use crate::core::{config, instance, keyfile, window};
-use crate::games::common::field::keys::{DEFAULT_BINDINGS, EXPLAINED, UNBOUND};
+use crate::games::common::field::keys::{DEFAULT_BINDINGS, DEFAULT_CONTEXTS, EXPLAINED, UNBOUND};
 use crate::py::{self, Log, time};
 use crate::ux::folder;
 use crate::ux::settings as settings_dialog;
@@ -342,6 +342,7 @@ fn run(args: Args, hooks: &Hooks) -> py::Result<()> {
     let mut said = vec![settings.said.clone()];
     let mut warning = settings.warning;
     let mut bindings = None;
+    let mut contexts = DEFAULT_CONTEXTS.clone();
     if settings.general.keys && !args.no_keys {
         let explained: IndexMap<String, String> = EXPLAINED
             .iter()
@@ -355,6 +356,7 @@ fn run(args: Args, hooks: &Hooks) -> py::Result<()> {
             running,
             Some(&explained),
             &UNBOUND,
+            Some(&*DEFAULT_CONTEXTS),
         )?;
         for note in &keys.notes {
             log(note);
@@ -362,6 +364,7 @@ fn run(args: Args, hooks: &Hooks) -> py::Result<()> {
         said.push(keys.said);
         warning = warning || keys.warning;
         bindings = Some(keys.bindings);
+        contexts = keys.contexts;
     }
     let sentence = said
         .iter()
@@ -397,6 +400,7 @@ fn run(args: Args, hooks: &Hooks) -> py::Result<()> {
             navigation: settings.navigation.clone(),
             extras: settings.extras.clone(),
             keys: bindings,
+            contexts,
             names_home: Some(keyfile::home_path()?),
             rom: args.rom,
             restarted: replaced,

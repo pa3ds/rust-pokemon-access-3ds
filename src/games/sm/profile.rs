@@ -725,4 +725,9 @@ impl Profile for SunProfile {
     fn press(&self, key: &str) -> Result<()> {
         self.phase("keys", || self.navigator.borrow_mut().press_key(key))
     }
+
+    /// No screen of Sun and Moon has keys of its own yet.
+    fn context(&self) -> Option<&'static str> {
+        None
+    }
 }

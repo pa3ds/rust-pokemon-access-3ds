@@ -1,9 +1,12 @@
 //! The navigation keys: the modes, the actions, and which key does which in each mode, as the
-//! keys file says (`<pa3ds>\user\keys.toml`, ADR-0022).
+//! keys file says (`<pa3ds>\user\keys.toml`, ADR-0022); and the keys of a context, which mean
+//! something only while one screen runs (`DEFAULT_CONTEXTS`).
 //!
 //! Bound by:
-//! - ADR-0009: touch mode's drag is Shift alone's, and the player's to bind to no key by default.
-//! - ADR-0022: the navigation keys by mode, list, direction and touch, rebindable in `keys.toml`.
+//! - ADR-0009: touch mode's drag is Shift alone's, and the player's to bind to no key by default;
+//!   Berry Picker's berries and Pokémon are a key each.
+//! - ADR-0022: the navigation keys by mode, list, direction and touch, rebindable in `keys.toml`; a
+//!   context's keys are taken only while its screen runs.
 
 use std::collections::HashSet;
 use std::sync::LazyLock;
@@ -107,7 +110,23 @@ pub const ITEM_COORDINATES: &str = "item coordinates";
 /// What the keys file says above an action's key, where its name does not say it all. The
 /// horde's order is Orion's, heard by fainting the bottom left Zigzagoon and the fifth going to 0%
 /// (movie16, 2026-10-01): the enemy side is said by battle position (`gen6.screens.battle`).
-pub const EXPLAINED: [(&str, &str); 3] = [
+/// Berry Picker's berries, a key each, in the game's own order of their pictures
+/// (`berry_picker.BERRIES`), left to right on Easy's tree and Normal's: picked up, for a Pokémon's
+/// key to give.
+pub const BERRIES: [&str; 7] = [
+    "first berry",
+    "second berry",
+    "third berry",
+    "fourth berry",
+    "fifth berry",
+    "sixth berry",
+    "seventh berry",
+];
+/// Berry Picker's three Pokémon, a key each, in the game's own order of them, in which each keeps
+/// its place all round wherever it pops up (spike C): given the berry picked up.
+pub const POKEMON: [&str; 3] = ["first pokemon", "second pokemon", "third pokemon"];
+
+pub const EXPLAINED: [(&str, &str); 5] = [
     (
         ENEMY_SIDE,
         "The enemy's Pokémon are said in the order the battle places them. In a horde of five that \
@@ -122,6 +141,17 @@ pub const EXPLAINED: [(&str, &str); 3] = [
     (
         TAP,
         "Touches the button touch mode last said, and nothing else.",
+    ),
+    (
+        BERRIES[0],
+        "In Berry Picker, picks up a berry on the tree, the first, second and on in the game's own \
+         order, left to right on Easy and Normal; a Pokémon's key then gives it, and another \
+         berry's key picks that one up instead.",
+    ),
+    (
+        POKEMON[0],
+        "In Berry Picker, gives the berry picked up to one of the round's three Pokémon, in the \
+         game's own order of them; with none picked up, says what it wants.",
     ),
 ];
 
@@ -254,4 +284,38 @@ pub fn drag_keys(bindings: &Bindings) -> HashSet<String> {
                 .map(|(key, _)| key.clone())
         })
         .collect()
+}
+
+/// Pokémon-Amie's Berry Picker while it runs: `[pa3ds.amie.berry_picker]` in the keys file.
+pub const BERRY_PICKER: &str = "amie.berry_picker";
+
+/// Context -> key -> action: keys that mean something only while one screen runs, in every mode,
+/// and are taken from the emulator only then, so a key that is a button of Azahar's elsewhere stays
+/// one there (Orion, 2026-10-29).
+pub type Contexts = IndexMap<String, IndexMap<String, String>>;
+
+/// The number row in Berry Picker: 1 to 7 the berries, which no difficulty has more of, and 8, 9
+/// and 0 the Pokémon (Orion, 2026-10-29), for a player who would rather not walk to each with touch
+/// mode's keys, which still drag there as ever.
+pub static DEFAULT_CONTEXTS: LazyLock<Contexts> = LazyLock::new(|| {
+    let mut keys: IndexMap<String, String> = BERRIES
+        .iter()
+        .enumerate()
+        .map(|(i, berry)| ((i + 1).to_string(), berry.to_string()))
+        .collect();
+    keys.insert("8".to_string(), POKEMON[0].to_string());
+    keys.insert("9".to_string(), POKEMON[1].to_string());
+    keys.insert("0".to_string(), POKEMON[2].to_string());
+    IndexMap::from([(BERRY_PICKER.to_string(), keys)])
+});
+
+/// The keys a context binds: those the hook takes while its screen runs.
+pub fn context_keys(contexts: &Contexts, context: Option<&str>) -> HashSet<String> {
+    match context {
+        None => HashSet::new(),
+        Some(context) => contexts
+            .get(context)
+            .map(|keys| keys.keys().cloned().collect())
+            .unwrap_or_default(),
+    }
 }

@@ -11,6 +11,8 @@
 //! - **`[pa3ds.navigation]`** — key to action. A key that means the same thing in both navigation
 //!   modes lives here; a key that does not lives in `[pa3ds.navigation.list]` or
 //!   `[pa3ds.navigation.direction]`, which win over it. A key may carry modifiers: `shift+k`.
+//! - **`[pa3ds.<context>]`** — the keys of a screen that has its own, `[pa3ds.amie.berry_picker]`:
+//!   they win over the modes' while it runs, and pa3ds takes them from the emulator only then.
 //! - **`[azahar]`** — button to key, and `[azahar.circle_pad]` / `[azahar.c_stick]` for the two
 //!   sticks, which hold four directions, a modifier and a scale rather than one key. pa3ds patches
 //!   these into Azahar's `qt-config.ini` at startup. It ships **empty**, so nothing is rebound
@@ -878,17 +880,20 @@ fn line(key: &str, action: &str, explained: &IndexMap<String, String>) -> Vec<St
 /// The keys file as it is first written: the defaults, and the emulator's own bindings set
 /// down as a comment so a player can read their layout without Azahar's settings dialog.
 /// `explained` is what an action does where its name does not say it all, written above each
-/// key that does it.
+/// key that does it. `contexts` are the keys of each screen that has its own, a table each.
 pub fn render(
     bindings: &Bindings,
     emulator: &IndexMap<String, Vec<String>>,
     sticks: Option<&IndexMap<String, IndexMap<String, String>>>,
     explained: Option<&IndexMap<String, String>>,
+    contexts: Option<&Bindings>,
 ) -> Result<String> {
     let no_sticks = IndexMap::new();
     let sticks = sticks.unwrap_or(&no_sticks);
     let no_explained = IndexMap::new();
     let explained = explained.unwrap_or(&no_explained);
+    let no_contexts = IndexMap::new();
+    let contexts = contexts.unwrap_or(&no_contexts);
 
     let line = |key: &str, action: &str| -> Vec<String> { self::line(key, action, explained) };
 
@@ -922,6 +927,21 @@ pub fn render(
             if !both.contains_key(key) {
                 lines.extend(line(key, action));
             }
+        }
+    }
+    for (context, keys) in contexts {
+        lines.push("".into());
+        lines.push(format!(
+            "# What a key means while {context} runs, in every mode, winning over the keys"
+        ));
+        lines.push(
+            "# above. pa3ds takes these only then: a key that is one of Azahar's buttons stays"
+                .into(),
+        );
+        lines.push("# that button everywhere else.".into());
+        lines.push(format!("[{SECTION}.{context}]"));
+        for (key, action) in keys {
+            lines.extend(line(key, action));
         }
     }
     lines.extend([
@@ -1051,6 +1071,40 @@ fn read_keys(
     Some(bindings)
 }
 
+/// The table a dotted name leads to, `pa3ds.amie.berry_picker`, or None where there is none.
+fn table_at(loaded: &IndexMap<String, ::toml::Value>, name: &str) -> Option<::toml::Value> {
+    let mut parts = name.split('.');
+    let mut at: Option<::toml::Value> = loaded.get(parts.next()?).cloned();
+    for part in parts {
+        // `_is_table(at)` before each step: the whole file is a table, and None is not.
+        let value = at.filter(is_table)?;
+        at = toml::table(Some(&value)).get(part).cloned();
+    }
+    at.filter(is_table)
+}
+
+/// Each context's own table, `[pa3ds.<context>]`, its defaults where the file has none.
+fn read_contexts(
+    path: &Path,
+    loaded: &IndexMap<String, ::toml::Value>,
+    defaults: &Bindings,
+    notes: &mut Vec<String>,
+) -> Bindings {
+    let mut out: Bindings = IndexMap::new();
+    for (context, keys) in defaults {
+        let table = table_at(loaded, &format!("{SECTION}.{context}"));
+        let read = match table {
+            None => keys.clone(),
+            Some(table) => {
+                let known: HashSet<&str> = keys.values().map(String::as_str).collect();
+                actions(path, Some(&table), &known, notes)
+            }
+        };
+        out.insert(context.clone(), read);
+    }
+    out
+}
+
 /// A table of key to action, with the actions pa3ds does not have said and dropped.
 fn actions(
     path: &Path,
@@ -1137,6 +1191,8 @@ pub struct Keys {
     /// Whether `said` has something the player must act on: a new key left commented out, or a
     /// file that will not parse.
     pub warning: bool,
+    /// Each context's keys, which the hook takes only while its screen runs.
+    pub contexts: Bindings,
 }
 
 /// A key `fill` added to the file, and the key of the player's that kept it commented out.
@@ -1155,22 +1211,27 @@ pub struct Added {
 /// has a line for it, commented out or not: one commented out is the player unbinding it. A key
 /// every mode lacks, and that is the same key in each, goes under `[pa3ds.navigation]` once; the
 /// rest under their modes. A key the player already has in a mode it would land in is added
-/// commented out, with a comment saying what has it, so nothing they bound changes meaning.
+/// commented out, with a comment saying what has it, so nothing they bound changes meaning. A
+/// context's keys go in its own table, `[pa3ds.<context>]`, which wins over the modes' while its
+/// screen runs, so only a key of its own table keeps one out.
 pub fn fill(
     text: &str,
     loaded: &IndexMap<String, ::toml::Value>,
     defaults: &Bindings,
     explained: Option<&IndexMap<String, String>>,
+    contexts: Option<&Bindings>,
 ) -> Result<(String, Vec<Added>)> {
     let no_explained = IndexMap::new();
     let explained = explained.unwrap_or(&no_explained);
+    let no_contexts = IndexMap::new();
+    let contexts = contexts.unwrap_or(&no_contexts);
     let have = toml::offered(text);
     let group = ::toml::Value::Table(
         toml::table(toml::table(loaded.get(SECTION)).get(GROUP))
             .into_iter()
             .collect(),
     );
-    let live: IndexMap<&String, IndexMap<String, String>> = defaults
+    let mut live: IndexMap<&String, IndexMap<String, String>> = defaults
         .keys()
         .map(|mode| {
             let mut keys = strings(Some(&group));
@@ -1178,6 +1239,10 @@ pub fn fill(
             (mode, keys)
         })
         .collect();
+    for context in contexts.keys() {
+        let table = table_at(loaded, &format!("{SECTION}.{context}"));
+        live.insert(context, strings(table.as_ref()));
+    }
 
     let offered = |mode: &str, action: &str| -> bool {
         [
@@ -1231,6 +1296,21 @@ pub fn fill(
                 action.clone(),
                 vec![*mode],
             ));
+        }
+    }
+    for (context, keys) in contexts {
+        let name = format!("{SECTION}.{context}");
+        let given: Vec<&::toml::Value> = have
+            .get(&name)
+            .map(|pairs| pairs.iter().map(|(_, value)| value).collect())
+            .unwrap_or_default();
+        for (key, action) in keys {
+            if !given
+                .iter()
+                .any(|value| matches!(value, ::toml::Value::String(value) if value == action))
+            {
+                adding.push((name.clone(), key.clone(), action.clone(), vec![context]));
+            }
         }
     }
 
@@ -1304,11 +1384,13 @@ pub fn prepare(
     running: bool,
     explained: Option<&IndexMap<String, String>>,
 ) -> Result<Keys> {
-    prepare_with(defaults, home, config, write, running, explained, &[])
+    prepare_with(defaults, home, config, write, running, explained, &[], None)
 }
 
 /// `prepare` with every argument: `unbound` are actions a player may bind that no default key
-/// does, never written into the file.
+/// does, never written into the file. `contexts` are the keys of each screen that has its own, by
+/// default.
+#[allow(clippy::too_many_arguments)]
 pub fn prepare_with(
     defaults: &Bindings,
     home: Option<&Path>,
@@ -1317,7 +1399,10 @@ pub fn prepare_with(
     running: bool,
     explained: Option<&IndexMap<String, String>>,
     unbound: &[&str],
+    contexts: Option<&Bindings>,
 ) -> Result<Keys> {
+    let no_contexts = IndexMap::new();
+    let contexts = contexts.unwrap_or(&no_contexts);
     let path = keys_path(home)?;
     let config = match config {
         None => emulator_config("")?,
@@ -1328,6 +1413,7 @@ pub fn prepare_with(
     let mut emulator = emulator_keys(&text)?;
 
     let mut read: Option<Bindings> = None;
+    let mut keyed: Bindings = contexts.clone();
     let mut wanted = Wanted::new();
     let mut added: Vec<Added> = Vec::new();
     let mut problem = String::new();
@@ -1346,6 +1432,7 @@ pub fn prepare_with(
                         &emulator,
                         Some(&emulator_sticks(&text)?),
                         explained,
+                        Some(contexts),
                     )?;
                     // `Path.write_text` opens the file in text mode, which writes each "\n" as the
                     // platform's line ending: a keys file pa3ds writes on Windows has CRLF lines,
@@ -1379,7 +1466,7 @@ pub fn prepare_with(
             ));
         } else {
             let filled;
-            (filled, added) = fill(&mine, &loaded, defaults, explained)?;
+            (filled, added) = fill(&mine, &loaded, defaults, explained, Some(contexts))?;
             for each in &added {
                 let held = match &each.taken {
                     None => String::new(),
@@ -1404,6 +1491,7 @@ pub fn prepare_with(
                 }
             }
             read = read_keys(&path, &loaded, defaults, &mut notes, unbound);
+            keyed = read_contexts(&path, &loaded, contexts, &mut notes);
             wanted = read_emulator(&path, &loaded, &mut notes);
         }
     }
@@ -1422,6 +1510,14 @@ pub fn prepare_with(
     let over = taken(bindings, &emulator);
     for (control, key, _) in &over {
         notes.push(format!("pa3ds takes {key}, which is {control}"));
+    }
+    for (context, keys) in &keyed {
+        let alone: Bindings = IndexMap::from([(context.clone(), keys.clone())]);
+        for (control, key, _) in taken(&alone, &emulator) {
+            notes.push(format!(
+                "pa3ds takes {key} while {context} runs, which is {control}"
+            ));
+        }
     }
     let mut held: Vec<(&str, &str, &str)> = Vec::new();
     for each in &added {
@@ -1456,6 +1552,7 @@ pub fn prepare_with(
         notes,
         said: parts.join(". "),
         warning: !held.is_empty() || !problem.is_empty(),
+        contexts: keyed,
     })
 }
 

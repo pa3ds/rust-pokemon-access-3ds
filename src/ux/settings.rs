@@ -71,7 +71,7 @@ pub const KINDS: [(&str, &str); 9] = [
     ("pa3ds.audio.tones", PERCENT),
     ("pa3ds.audio.footsteps", PERCENT),
     ("pa3ds.audio.ticks", PERCENT),
-    ("pa3ds.audio.drag_sounds", PERCENT),
+    ("pa3ds.audio.feedback_sounds", PERCENT),
     (config::CHOICES[0].0, CHOICE),
     (config::CHOICES[1].0, CHOICE),
 ];

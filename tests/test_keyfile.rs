@@ -207,7 +207,8 @@ fn test_a_stick_scale_that_is_not_a_number_is_written_unknown() {
         "circle_pad".to_string(),
         IndexMap::from([("modifier_scale".to_string(), "half".to_string())]),
     )]);
-    let rendered = keyfile::render(&bindings(), &IndexMap::new(), Some(&sticks), None).unwrap();
+    let rendered =
+        keyfile::render(&bindings(), &IndexMap::new(), Some(&sticks), None, None).unwrap();
     assert!(rendered.contains("#   modifier_scale = ?"));
 }
 
@@ -505,6 +506,7 @@ fn test_an_action_no_default_key_does_is_the_players_to_bind() {
         false,
         None,
         &["drag"],
+        None,
     )
     .unwrap();
     assert_eq!(keys.bindings[LIST]["d"], "drag");
@@ -518,9 +520,86 @@ fn test_an_action_no_default_key_does_is_the_players_to_bind() {
         false,
         None,
         &["drag"],
+        None,
     )
     .unwrap();
     assert!(!read_text(&fresh.join("keys.toml")).contains("drag"));
+}
+
+fn contexts() -> Bindings {
+    IndexMap::from([(
+        "amie.berry_picker".to_string(),
+        IndexMap::from([
+            ("1".to_string(), "first berry".to_string()),
+            ("a".to_string(), "first pokemon".to_string()),
+        ]),
+    )])
+}
+
+fn prepare_contexts(home: &Path, config: &Path) -> keyfile::Keys {
+    keyfile::prepare_with(
+        &bindings(),
+        Some(home),
+        Some(config),
+        true,
+        false,
+        None,
+        &[],
+        Some(&contexts()),
+    )
+    .unwrap()
+}
+
+/// ADR-0022 as amended 2026-10-29 (Orion): Berry Picker's number row is its own,
+/// `[pa3ds.amie.berry_picker]`, written with the file, filled into one written before it as any
+/// key gained is, and a key of it on one of Azahar's buttons is only logged: pa3ds takes it only
+/// while Berry Picker runs.
+#[test]
+fn test_a_screens_own_keys_have_a_table_of_their_own() {
+    let tmp_path = TmpPath::new();
+    let home = tmp_path.join("home");
+    fs::create_dir(&home).unwrap();
+    let keys = prepare_contexts(&home, &written(&tmp_path));
+    assert!(read_text(&home.join("keys.toml")).contains("[pa3ds.amie.berry_picker]"));
+    assert_eq!(keys.contexts, contexts());
+    assert!(
+        keys.notes
+            .iter()
+            .any(|note| note.contains("pa3ds takes a while amie.berry_picker runs"))
+    );
+    assert!(!keys.said.contains("A button"));
+    fs::write(
+        home.join("keys.toml"),
+        "[pa3ds.navigation]\nk = \"item read\"\n\n[pa3ds.amie.berry_picker]\n\"5\" = \"first berry\"\n\
+         \"6\" = \"item read\"\n",
+    )
+    .unwrap();
+    let keys = prepare_contexts(&home, &written(&tmp_path));
+    assert_eq!(
+        keys.contexts,
+        IndexMap::from([(
+            "amie.berry_picker".to_string(),
+            IndexMap::from([
+                ("5".to_string(), "first berry".to_string()),
+                ("a".to_string(), "first pokemon".to_string()),
+            ]),
+        )])
+    );
+    assert!(
+        keys.notes
+            .iter()
+            .any(|note| note.contains("'item read', which pa3ds does not do"))
+    );
+    let fresh = tmp_path.join("fresh");
+    fs::create_dir(&fresh).unwrap();
+    fs::write(
+        fresh.join("keys.toml"),
+        "[pa3ds.navigation]\nk = \"item read\"\n",
+    )
+    .unwrap();
+    let keys = prepare_contexts(&fresh, &written(&tmp_path));
+    assert_eq!(keys.contexts, contexts());
+    assert!(read_text(&fresh.join("keys.toml")).contains("[pa3ds.amie.berry_picker]"));
 }
 
 /// Windows repeats a key held down, which would pick a drag up and let it go over and over; a key
@@ -549,6 +628,7 @@ fn test_a_key_pa3ds_gained_is_added_to_its_table_and_nothing_else_changes() {
     let before = keyfile::render(
         &older,
         &keyfile::emulator_keys(&config()).unwrap(),
+        None,
         None,
         None,
     )

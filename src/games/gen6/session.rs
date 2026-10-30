@@ -100,10 +100,10 @@ pub fn start(
     if found.is_empty() {
         clips = None;
     }
-    let drag_sounds = setup.drag_sounds.clone();
-    if let Some(drag_sounds) = &drag_sounds {
-        for (name, sound) in touch_sounds(&setup, &game.rom)? {
-            drag_sounds.add(&name, sound);
+    let feedback = setup.feedback_sounds.clone();
+    if let Some(feedback) = &feedback {
+        for (name, sound) in feedback_sounds(&setup, &game.rom)? {
+            feedback.add(&name, sound);
         }
     }
     let profile = Rc::new(Gen6Profile::new(
@@ -118,6 +118,7 @@ pub fn start(
             navigation: Some(setup.navigation.clone()),
             extras: Some(setup.extras.clone()),
             keys: Some(setup.keys.clone()),
+            contexts: Some(setup.contexts.clone()),
             text,
             pictures,
             image: image.to_vec(),
@@ -127,7 +128,7 @@ pub fn start(
             tones: setup.tones.clone(),
             ticks: setup.ticks.clone(),
             clips,
-            drag_sounds,
+            feedback_sounds: feedback,
             swims: Some(swims),
             title: Some(setup.process.title_id),
             census: setup.census,
@@ -178,10 +179,11 @@ pub fn game_text(setup: &Setup, layout: &RomLayout) -> Result<GameText> {
 /// The game's own words out of the player's ROM, or `NO_TEXT`, with where the teleporters of
 /// the zones `teleporting` lists put the player; the log says which, and why.
 ///
-/// The game's own touch sounds touch mode picks up and lets go of a drag with
-/// (`amie.PICK_SOUND`), out of the player's ROM; none, and the log says why, where it cannot be
-/// read, and the drag is said in words.
-pub fn touch_sounds(setup: &Setup, layout: &RomLayout) -> Result<IndexMap<String, Sound>> {
+/// The game's own sounds for what a key has done, out of the player's ROM: the touch sounds touch
+/// mode picks up and lets go of a drag with (`amie.PICK_SOUND`), and its error sound
+/// (`amie.WRONG_SOUND`); none, and the log says why, where it cannot be read, and each is said in
+/// words.
+pub fn feedback_sounds(setup: &Setup, layout: &RomLayout) -> Result<IndexMap<String, Sound>> {
     let rom = setup.rom_path(None)?;
     let (Some(archive), Some(rom)) = (layout.sounds.as_deref(), rom) else {
         return Ok(IndexMap::new());
@@ -189,8 +191,13 @@ pub fn touch_sounds(setup: &Setup, layout: &RomLayout) -> Result<IndexMap<String
     if archive.is_empty() {
         return Ok(IndexMap::new());
     }
-    let read = Rom::new(&rom)
-        .and_then(|image| bcsar::sounds(&image, archive, [amie::PICK_SOUND, amie::DROP_SOUND]));
+    let read = Rom::new(&rom).and_then(|image| {
+        bcsar::sounds(
+            &image,
+            archive,
+            [amie::PICK_SOUND, amie::DROP_SOUND, amie::WRONG_SOUND],
+        )
+    });
     match read {
         Ok(sounds) => Ok(sounds),
         Err(error)
@@ -209,7 +216,7 @@ pub fn touch_sounds(setup: &Setup, layout: &RomLayout) -> Result<IndexMap<String
                 .map(|name| name.to_string_lossy().into_owned())
                 .unwrap_or_default();
             (setup.log)(&format!(
-                "drag sounds: the game's own are off, {name}: {}",
+                "feedback sounds: the game's own are off, {name}: {}",
                 error.message
             ));
             Ok(IndexMap::new())

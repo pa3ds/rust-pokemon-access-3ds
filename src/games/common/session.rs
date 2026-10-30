@@ -23,7 +23,7 @@ use crate::core::rpc::Process;
 use crate::core::tones::Tones;
 use crate::core::touch::Drag;
 use crate::core::{keyfile, rom};
-use crate::games::common::field::keys::{Bindings, DEFAULT_BINDINGS};
+use crate::games::common::field::keys::{Bindings, Contexts, DEFAULT_BINDINGS, DEFAULT_CONTEXTS};
 use crate::py::{self, Error, Kind, Log, Result};
 
 /// What the schedule asks of a game's readers, poll by poll (`gen6.profile`, `sm.profile`).
@@ -56,6 +56,10 @@ pub trait Profile {
     fn poll_renames(&self) -> Result<()>;
 
     fn press(&self, key: &str) -> Result<()>;
+
+    /// The screen running now that has keys of its own (`field.keys.DEFAULT_CONTEXTS`), or None:
+    /// the keys the hook takes besides the modes'.
+    fn context(&self) -> Option<&'static str>;
 
     fn sweep_wanted(&self) -> Result<bool>;
 }
@@ -133,10 +137,12 @@ pub struct Setup {
     /// Where the game's own sounds pa3ds plays go, its footsteps (`pa3ds.core.clips`); None where
     /// pa3ds takes no keys, as in a replay, or where `[pa3ds.audio] footsteps` is 0.
     pub clips: Option<Rc<Clips>>,
-    /// Where touch mode's sounds for picking up and letting go of a drag go, the game's own touch
-    /// sounds; None as `clips` is, or where `[pa3ds.audio] drag_sounds` is 0, and the drag is
-    /// said in words.
-    pub drag_sounds: Option<Rc<Clips>>,
+    /// Where the game's own sounds for what a key has done go, a drag picked up and let go of and
+    /// a key with nothing to do; None as `clips` is, or where `[pa3ds.audio] feedback_sounds` is
+    /// 0, and they are said in words.
+    pub feedback_sounds: Option<Rc<Clips>>,
+    /// A screen's own keys, which win over the modes' while it runs (`Profile.context`).
+    pub contexts: Contexts,
 }
 
 impl Setup {
@@ -160,7 +166,8 @@ impl Setup {
             tones: None,
             ticks: None,
             clips: None,
-            drag_sounds: None,
+            feedback_sounds: None,
+            contexts: DEFAULT_CONTEXTS.clone(),
         }
     }
 

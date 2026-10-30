@@ -20,10 +20,10 @@ use crate::games::common::field::ground::{
 };
 use crate::games::common::field::guide::{FieldSource, Guidance, Place};
 use crate::games::common::field::keys::{
-    CATEGORY_NEXT, CATEGORY_PREVIOUS, COORDINATES, DEFAULT_BINDINGS, DIRECTION, EAST, ENEMY_SIDE,
-    ITEM_COORDINATES, ITEM_NEXT, ITEM_PREVIOUS, ITEM_READ, LIST, MODE_TOGGLE, NORTH, OUR_SIDE,
-    PATH_NEXT, PATH_PREVIOUS, PATHFIND, PATHFIND_HM, PATHFIND_OFF, RENAME, RENAME_SPEAKER, SOUTH,
-    TOUCH, WEST, bound_keys,
+    BERRIES, BERRY_PICKER, CATEGORY_NEXT, CATEGORY_PREVIOUS, COORDINATES, DEFAULT_BINDINGS,
+    DEFAULT_CONTEXTS, DIRECTION, EAST, ENEMY_SIDE, ITEM_COORDINATES, ITEM_NEXT, ITEM_PREVIOUS,
+    ITEM_READ, LIST, MODE_TOGGLE, NORTH, OUR_SIDE, PATH_NEXT, PATH_PREVIOUS, PATHFIND, PATHFIND_HM,
+    PATHFIND_OFF, POKEMON, RENAME, RENAME_SPEAKER, SOUTH, TOUCH, WEST, bound_keys, context_keys,
 };
 use crate::games::common::field::navigate::{DoorSign, LeadsTo, Navigator, Options, Sides, Street};
 use crate::games::common::field::things::{
@@ -4548,6 +4548,23 @@ fn bound(mode: &str, key: &str) -> &'static str {
     // The bindings live as long as the program; a `LazyLock` hands out `&'static` to them.
     let keys = &DEFAULT_BINDINGS[mode];
     keys[key].as_str()
+}
+
+/// ADR-0022 as amended 2026-10-29 (Orion): a screen's own keys are taken from Azahar only while
+/// it runs, so a number that is a button elsewhere stays one there.
+#[test]
+fn test_berry_pickers_number_row_is_taken_only_while_it_runs() {
+    let digits: HashSet<String> = "1234567890".chars().map(|c| c.to_string()).collect();
+    assert!(bound_keys(&DEFAULT_BINDINGS).is_disjoint(&digits));
+    assert_eq!(context_keys(&DEFAULT_CONTEXTS, Some(BERRY_PICKER)), digits);
+    assert_eq!(
+        "17890"
+            .chars()
+            .map(|key| DEFAULT_CONTEXTS[BERRY_PICKER][&key.to_string()].as_str())
+            .collect::<Vec<_>>(),
+        [BERRIES[0], BERRIES[6], POKEMON[0], POKEMON[1], POKEMON[2]]
+    );
+    assert!(context_keys(&DEFAULT_CONTEXTS, None).is_empty());
 }
 
 #[test]

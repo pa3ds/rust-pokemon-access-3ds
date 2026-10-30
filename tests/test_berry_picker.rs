@@ -1,7 +1,7 @@
 //! Pokémon-Amie's Berry Picker: each bubble's berry is said with the Pokémon under it, and offered
 //! there to let a dragged berry go on.
 
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 use indexmap::IndexMap;
@@ -11,6 +11,7 @@ use super::fake_memory::{CODE, FakeClasses, FakeMemory};
 use super::test_battle::record_of;
 use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
+use crate::games::common::field::keys::{BERRIES, POKEMON};
 use crate::games::common::layout::Layouts;
 use crate::games::common::touch::Target;
 use crate::games::common::{lyt, pokemon, strbuf};
@@ -21,7 +22,29 @@ const MODEL: i64 = 0x08B00000;
 const PARAM: i64 = 0x08B10000;
 const DEMO: i64 = 0x08B20000;
 const TEXT: i64 = 0x08B21000;
+const APP: i64 = 0x08B30000;
 const TREECKO: i64 = 252;
+
+/// Easy's tree as touch mode offers it (as_amie_berry_picker).
+fn tree() -> Vec<Target> {
+    ["Razz Berry", "Bluk Berry", "Pinap Berry"]
+        .iter()
+        .enumerate()
+        .map(|(i, name)| Target::new(10 + i as i64, name, 52 + 108 * i as i64, 40, 80.0, 40.0))
+        .collect()
+}
+
+fn words() -> IndexMap<String, String> {
+    [
+        ("kinomi00.bclim", "Razz Berry"),
+        ("kinomi01.bclim", "Bluk Berry"),
+        ("kinomi02.bclim", "Pinap Berry"),
+        ("kinomi03.bclim", "Wepear Berry"),
+    ]
+    .into_iter()
+    .map(|(image, word)| (image.to_string(), word.to_string()))
+    .collect()
+}
 
 /// The fake memory, failing every read past 0xe0000000 once `mapped` is set: Python's test
 /// patches `memory.read` so.
@@ -56,6 +79,11 @@ struct Picker {
 /// bubble, its berry, the spare, its berry and the tree's) and the layouts. With `demo`, the
 /// opening's demonstration, saying it is over with 1 and not with 0.
 fn picker(demo: Option<i64>) -> Picker {
+    picker_with(demo, Rc::new(|| 0.0))
+}
+
+/// `picker(demo, clock)`.
+fn picker_with(demo: Option<i64>, clock: Rc<dyn Fn() -> f64>) -> Picker {
     let memory = FakeMemory::new();
     let classes = FakeClasses::new(memory.clone());
     let picture = classes.add(lyt::PICTURE_CLASS);
@@ -108,7 +136,7 @@ fn picker(demo: Option<i64>) -> Picker {
         memory: memory.clone(),
         mapped: Cell::new(false),
     });
-    let mut found = berry_picker::BerryPicker::new(
+    let mut found = berry_picker::BerryPicker::with_clock(
         reads.clone(),
         Rc::new(ClassNames::new(reads.clone(), CODE)),
         fake.layouts.clone(),
@@ -117,8 +145,14 @@ fn picker(demo: Option<i64>) -> Picker {
         Rc::new(|found: &pokemon::Pokemon| {
             (found.species == TREECKO).then(|| "Treecko".to_string())
         }),
+        clock,
     );
-    let mut tracked = IndexMap::from([(MODEL, berry_picker::MODEL.to_string())]);
+    memory.u32(APP, &[classes.add(berry_picker::APP)]);
+    memory.u32(APP + berry_picker::CLOCK, &[1800]);
+    let mut tracked = IndexMap::from([
+        (MODEL, berry_picker::MODEL.to_string()),
+        (APP, berry_picker::APP.to_string()),
+    ]);
     if let Some(demo) = demo {
         memory.u32(DEMO, &[classes.add(berry_picker::DEMO), TEXT]);
         memory.u32(TEXT, &[classes.add(strbuf::CLASS)]);
@@ -236,4 +270,199 @@ fn test_a_bubble_over_no_pokemon_that_can_be_read_says_its_berry_alone() {
         picked.found.poll(Some(berry_picker::APP)).unwrap(),
         ["Pinap Berry wanted"]
     );
+}
+
+/// Touch mode as Berry Picker's keys ask it: the tree's berries and the wants, and each drag given.
+struct Touched {
+    picker: Rc<RefCell<berry_picker::BerryPicker>>,
+    given: Vec<(String, String)>,
+}
+
+impl berry_picker::Touching for Touched {
+    fn targets(&mut self) -> Result<Vec<Target>> {
+        let mut found = tree();
+        found.extend(self.picker.borrow().targets(Some(berry_picker::APP))?);
+        Ok(found)
+    }
+
+    fn give(&mut self, picked: &Target, over: &Target) -> String {
+        self.given.push((picked.name.clone(), over.name.clone()));
+        format!("let go on {}", over.name)
+    }
+}
+
+struct Keys {
+    pressing: berry_picker::BerryKeys,
+    touched: Touched,
+    played: Rc<RefCell<Vec<String>>>,
+    memory: Rc<FakeMemory>,
+    panes: Vec<i64>,
+    layouts: Rc<Layouts>,
+}
+
+impl Keys {
+    fn press(&mut self, action: &str) -> String {
+        self.pressing.press(action, &mut self.touched).unwrap()
+    }
+}
+
+/// Berry Picker's keys over `picker`'s round, Treecko the second of its three and the other two
+/// not to be read: the keys, touch mode, the sounds played, and the round's memory, panes and
+/// layouts. With `sounds`, the game's own are heard in place of the words.
+fn keys(sounds: bool) -> Keys {
+    let picked = picker(None);
+    let found = Rc::new(RefCell::new(picked.found));
+    let touched = Touched {
+        picker: found.clone(),
+        given: Vec::new(),
+    };
+    let played: Rc<RefCell<Vec<String>>> = Rc::new(RefCell::new(Vec::new()));
+    let heard = {
+        let played = played.clone();
+        Rc::new(move |sound: &str, said: String| -> String {
+            if sounds {
+                played.borrow_mut().push(sound.to_string());
+                return String::new();
+            }
+            said
+        })
+    };
+    let pressing = berry_picker::BerryKeys::new(
+        found,
+        words(),
+        Rc::new(|| Some(berry_picker::APP.to_string())),
+        {
+            let heard = heard.clone();
+            Rc::new(move |berry: &str| heard("pick", format!("holding {berry}")))
+        },
+        Rc::new(move |why: &str| heard("wrong", why.to_string())),
+    );
+    Keys {
+        pressing,
+        touched,
+        played,
+        memory: picked.memory,
+        panes: picked.panes,
+        layouts: picked.layouts,
+    }
+}
+
+/// ADR-0009 as amended 2026-10-29 (Orion): a key a berry, in the game's own order of their
+/// pictures, and a key a Pokémon, in the game's own order of the round's three; the second makes
+/// the drag, from the tree straight to the Pokémon.
+#[test]
+fn test_a_berrys_key_then_a_pokemons_gives_it_the_berry() {
+    let mut keys = keys(false);
+    assert_eq!(keys.press(BERRIES[2]), "holding Pinap Berry");
+    assert!(keys.touched.given.is_empty());
+    assert_eq!(
+        keys.press(POKEMON[1]),
+        "let go on Treecko wants Pinap Berry"
+    );
+    assert_eq!(
+        keys.touched.given,
+        [(
+            "Pinap Berry".to_string(),
+            "Treecko wants Pinap Berry".to_string()
+        )]
+    );
+    assert_eq!(keys.press(POKEMON[1]), "Treecko wants Pinap Berry");
+    assert_eq!(keys.touched.given.len(), 1);
+}
+
+/// Pressed 1, then 2, the player means to give the second (Orion, 2026-10-29).
+#[test]
+fn test_another_berrys_key_picks_that_one_up_instead() {
+    let mut keys = keys(false);
+    keys.press(BERRIES[0]);
+    keys.press(BERRIES[2]);
+    keys.press(POKEMON[1]);
+    assert_eq!(
+        keys.touched.given,
+        [(
+            "Pinap Berry".to_string(),
+            "Treecko wants Pinap Berry".to_string()
+        )]
+    );
+}
+
+/// A berry the round has not, as 7 on Easy, a Pokémon not to be read, or one not up with a berry
+/// picked up, which stays picked up: the game's own error sound, `SEQ_SE_SYS_015`, with
+/// `feedback_sounds` on (Orion, 2026-10-29).
+#[test]
+fn test_a_key_with_nothing_to_do_plays_the_games_error_sound_or_says_why() {
+    let mut keys = keys(false);
+    assert_eq!(keys.press(BERRIES[3]), "no berry 4");
+    assert_eq!(keys.press(BERRIES[6]), "no berry 7");
+    assert_eq!(keys.press(POKEMON[0]), "no Pokémon 1");
+    keys.press(BERRIES[2]);
+    keys.memory
+        .write(keys.panes[1] + lyt::X, &(-300.0f32).to_le_bytes());
+    keys.layouts.refresh();
+    assert_eq!(keys.press(POKEMON[1]), "Treecko is not up");
+    keys.memory
+        .write(keys.panes[1] + lyt::X, &(-104.0f32).to_le_bytes());
+    keys.layouts.refresh();
+    assert_eq!(
+        keys.press(POKEMON[1]),
+        "let go on Treecko wants Pinap Berry"
+    );
+    assert!(
+        keys.touched.given
+            == [(
+                "Pinap Berry".to_string(),
+                "Treecko wants Pinap Berry".to_string()
+            )]
+            && keys.played.borrow().is_empty()
+    );
+    let mut sounding = self::keys(true);
+    assert!(sounding.press(BERRIES[6]).is_empty() && sounding.press(BERRIES[2]).is_empty());
+    assert_eq!(*sounding.played.borrow(), ["wrong", "pick"]);
+}
+
+/// A player lowers Azahar's speed limit for a higher score, and a drag is timed by the game's
+/// frames: the round's clock counts 30 a second at full speed (spike C).
+#[test]
+fn test_the_rounds_clock_says_how_fast_the_game_runs() {
+    let now = Rc::new(Cell::new(0.0));
+    let clock: Rc<dyn Fn() -> f64> = {
+        let now = now.clone();
+        Rc::new(move || now.get())
+    };
+    let mut picked = picker_with(None, clock);
+    let app = Some(berry_picker::APP);
+    assert_eq!(picked.found.speed(), 1.0);
+    picked.found.poll(app).unwrap();
+    now.set(1.0);
+    picked.memory.u32(APP + berry_picker::CLOCK, &[1800 - 9]);
+    picked.found.poll(app).unwrap();
+    assert_eq!(picked.found.speed(), 0.3);
+    now.set(2.0);
+    picked.found.poll(app).unwrap();
+    assert_eq!(picked.found.speed(), 0.3);
+    // A copy in the module's code, found first, holds an instruction where the clock is.
+    let r#false = APP - 0x1000;
+    picked
+        .memory
+        .write(r#false, &picked.memory.read(APP, 4).unwrap());
+    picked
+        .memory
+        .u32(r#false + berry_picker::CLOCK, &[0xE59F0010]);
+    picked
+        .found
+        .track(
+            &IndexMap::from([
+                (MODEL, berry_picker::MODEL.to_string()),
+                (r#false, berry_picker::APP.to_string()),
+                (APP, berry_picker::APP.to_string()),
+            ]),
+            false,
+        )
+        .unwrap();
+    for (at, frames) in [(3.0, 1800 - 9 - 15), (4.0, 1800 - 9 - 45)] {
+        now.set(at);
+        picked.memory.u32(APP + berry_picker::CLOCK, &[frames]);
+        picked.found.poll(app).unwrap();
+    }
+    assert_eq!(picked.found.speed(), 1.0);
 }

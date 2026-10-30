@@ -38,7 +38,9 @@ use crate::core::tones::Tones;
 use crate::core::touch::{self, SharedLog, TouchServer};
 use crate::core::words::own;
 use crate::games::catalog;
-use crate::games::common::field::keys::{Bindings, DEFAULT_BINDINGS, bound_keys, drag_keys};
+use crate::games::common::field::keys::{
+    Bindings, Contexts, DEFAULT_BINDINGS, DEFAULT_CONTEXTS, bound_keys, context_keys, drag_keys,
+};
 use crate::games::common::session::{Session, Setup};
 use crate::py::{Error, Kind, Log, Result, time};
 use crate::tape;
@@ -102,6 +104,8 @@ pub struct Settings {
     /// Navigation mode -> key -> action, answered while the emulator's window is in front, or
     /// None for no hook at all, as a replay in the rig wants.
     pub keys: Option<Bindings>,
+    /// Context -> key -> action: a screen's own keys, taken only while it runs.
+    pub contexts: Contexts,
     /// The player's ROM, for the game's own words RAM only numbers: a place's name, the
     /// rival's. None finds it among the ROMs Azahar has opened, by the running game's title id.
     pub rom: Option<PathBuf>,
@@ -140,6 +144,7 @@ impl Default for Settings {
             language: "en".to_string(),
             names_home: None,
             keys: None,
+            contexts: DEFAULT_CONTEXTS.clone(),
             rom: None,
             captures: None,
             restarted: false,
@@ -631,11 +636,11 @@ fn session(
             tones: 0.0,
             footsteps: 0.0,
             ticks: 0.0,
-            drag_sounds: 0.0,
+            feedback_sounds: 0.0,
         }
     };
     // `max(...)` of the four, keeping the first of equals as Python's does.
-    let loudest = [audio.footsteps, audio.ticks, audio.drag_sounds]
+    let loudest = [audio.footsteps, audio.ticks, audio.feedback_sounds]
         .into_iter()
         .fold(
             audio.tones,
@@ -659,6 +664,7 @@ fn session(
                 .keys
                 .clone()
                 .unwrap_or_else(|| DEFAULT_BINDINGS.clone()),
+            contexts: settings.contexts.clone(),
             ui: settings.ui.clone(),
             navigation: settings.navigation.clone(),
             extras: settings.extras.clone(),
@@ -697,9 +703,9 @@ fn session(
                 }
                 _ => None,
             },
-            drag_sounds: match &loudness {
-                Some(loudness) if audio.drag_sounds > 0.0 => {
-                    Some(Rc::new(Clips::new(loudness.clone(), audio.drag_sounds)))
+            feedback_sounds: match &loudness {
+                Some(loudness) if audio.feedback_sounds > 0.0 => {
+                    Some(Rc::new(Clips::new(loudness.clone(), audio.feedback_sounds)))
                 }
                 _ => None,
             },
@@ -727,11 +733,17 @@ fn session(
     };
     let answer_keys: Rc<dyn Fn() -> Result<()>> = {
         let (profile, hotkeys) = (profile.clone(), hotkeys.clone());
+        let contexts = settings.contexts.clone();
         Rc::new(move || {
             let pressed = hotkeys.borrow().as_ref().map(Hotkeys::pressed);
             if let Some(pressed) = pressed {
                 for key in pressed {
                     profile.press(&key)?;
+                }
+                // The screen's own keys are taken only while it runs: told every poll, so the hook
+                // lets them through to Azahar the moment another screen comes.
+                if let Some(hotkeys) = hotkeys.borrow().as_ref() {
+                    hotkeys.set_contextual(context_keys(&contexts, profile.context()));
                 }
                 // A rename dialog answers on its own thread, so its answer is picked up here
                 // rather than waited for: the game kept running while it was open.

@@ -4,7 +4,7 @@
 //! the walk: reading order row by row, the keys' moves, and that a tap only ever reaches the target
 //! pa3ds has just named.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::HashSet;
 use std::rc::Rc;
 
@@ -74,21 +74,23 @@ impl Screen {
 
     /// `Screen(found, drag)`.
     fn with_drag(found: Vec<Target>, drag: Option<Rc<Held>>) -> Self {
-        Screen::with_options(found, drag, true, true, false)
+        Screen::with_options(found, drag, true, true, false, None)
     }
 
     /// `Screen(found, wrap=wrap, next_row=next_row)`.
     fn wrapping(found: Vec<Target>, wrap: bool, next_row: bool) -> Self {
-        Screen::with_options(found, None, wrap, next_row, false)
+        Screen::with_options(found, None, wrap, next_row, false, None)
     }
 
-    /// `Screen(found, drag, wrap, next_row, delayed)`.
+    /// `Screen(found, drag, wrap, next_row, delayed, pace)`. Every slide's seconds are kept in
+    /// `slid`, where Python's keeps them in `seconds`.
     fn with_options(
         found: Vec<Target>,
         drag: Option<Rc<Held>>,
         wrap: bool,
         next_row: bool,
         delayed: bool,
+        pace: Option<Rc<dyn Fn() -> f64>>,
     ) -> Self {
         let tapped: Rc<RefCell<Vec<(i64, i64)>>> = Rc::new(RefCell::new(Vec::new()));
         let slid: Rc<RefCell<Vec<(Vec<(i64, i64)>, f64)>>> = Rc::new(RefCell::new(Vec::new()));
@@ -121,6 +123,7 @@ impl Screen {
                 wrap,
                 next_row,
                 delayed: Some(Rc::new(move || delayed)),
+                pace,
                 ..Options::default()
             },
         );
@@ -1209,7 +1212,7 @@ fn test_a_drag_let_go_where_it_was_picked_up_touches_nothing() {
 /// Orion, 2026-10-28: "holding" and "let go on" slowed a timed game; Amie's own touch sounds say
 /// it, and nothing names what was picked up.
 #[test]
-fn test_with_drag_sounds_a_drag_is_heard_not_said() {
+fn test_with_feedback_sounds_a_drag_is_heard_not_said() {
     let played: Rc<RefCell<Vec<bool>>> = Rc::new(RefCell::new(Vec::new()));
     let mut screen = Screen::with_drag(bar(), Some(Rc::new(Held::default())));
     let kept = played.clone();
@@ -1235,6 +1238,7 @@ fn test_where_the_screen_drags_on_letting_go_nothing_moves_until_then() {
         true,
         true,
         true,
+        None,
     );
     screen.start();
     assert_eq!(screen.press(touch::DRAG), "holding Pinap Berry");
@@ -1244,9 +1248,43 @@ fn test_where_the_screen_drags_on_letting_go_nothing_moves_until_then() {
     assert_eq!(screen.targets.drop(), "let go on Pikachu wants Pinap Berry");
     assert_eq!(
         *screen.slid.borrow(),
-        [(vec![(268, 40), (268, 40), (160, 215), (160, 215)], 0.6)]
+        [(
+            vec![(268, 40), (268, 40), (160, 215), (160, 215)],
+            touch::DROP_SECONDS
+        )]
     );
     assert!(held.touches.borrow().is_empty() && !screen.targets.holding());
+}
+
+/// Orion asked for the drag shorter (2026-10-29): 0.15 s fed the most berries at full speed, and a
+/// drag of a game frame and a half a third fed few (spike A), so at a lower speed limit, as a player
+/// sets for a higher score, it takes as much longer.
+#[test]
+fn test_a_drag_made_on_letting_go_lasts_as_many_of_the_games_frames_at_any_speed() {
+    let speed = Rc::new(Cell::new(1.0));
+    let berry = Target::new(1, "Pinap Berry", 268, 40, 80.0, 40.0);
+    let wants = Target::new(3, "Pikachu wants Pinap Berry", 160, 215, -95.0, 50.0);
+    let pace: Rc<dyn Fn() -> f64> = {
+        let speed = speed.clone();
+        Rc::new(move || speed.get())
+    };
+    let screen = Screen::with_options(
+        vec![berry.clone(), wants.clone()],
+        None,
+        true,
+        true,
+        true,
+        Some(pace),
+    );
+    assert_eq!(
+        screen.targets.give(&berry, &wants),
+        "let go on Pikachu wants Pinap Berry"
+    );
+    speed.set(0.3);
+    screen.targets.give(&berry, &wants);
+    let seconds: Vec<f64> = screen.slid.borrow().iter().map(|(_, s)| *s).collect();
+    assert_eq!(seconds, [touch::DROP_SECONDS, touch::DROP_SECONDS / 0.3]);
+    assert_eq!(touch::DROP_SECONDS, 0.15);
 }
 
 /// Pokémon-Amie's Pokémon is stroked, not tapped: its target's key slides along the path
