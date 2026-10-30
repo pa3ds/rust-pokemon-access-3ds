@@ -307,17 +307,15 @@ fn trampoline<'a>(name: &str, positional: &[FluentValue<'a>]) -> FluentValue<'a>
 }
 
 /// A value as Fluent should insert it: a number without its digits grouped, which the Rust
-/// library never groups, and anything else as text.
+/// library never groups, and anything else as text. A number keeps the library's default options:
+/// it compares a number with a variant's number key, `[0]`, options and all, and a key's are the
+/// defaults.
 fn fluent(value: Value) -> FluentValue<'static> {
     match value {
         Value::Text(text) => FluentValue::String(Cow::Owned(text)),
-        Value::Number(number) => FluentValue::Number(FluentNumber::new(
-            number,
-            FluentNumberOptions {
-                use_grouping: false,
-                ..Default::default()
-            },
-        )),
+        Value::Number(number) => {
+            FluentValue::Number(FluentNumber::new(number, FluentNumberOptions::default()))
+        }
     }
 }
 

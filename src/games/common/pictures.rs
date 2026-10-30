@@ -16,7 +16,7 @@
 //! - ADR-0036: a picture's words are a message of `pictures.ftl`, made from its texture's name only
 //!   where none has it.
 //! - ADR-0037: the DexNav's pictures in words: stars counted, the red mark after what it marks,
-//!   crowns by colour.
+//!   crowns by colour; and a result's stars in Pokémon-Amie's games.
 
 use std::sync::OnceLock;
 
@@ -108,22 +108,39 @@ pub const OFF: &str = "mark-off";
 
 pub const STAR: &str = "★";
 pub const NO_STAR: &str = "☆";
+pub const HALF_STAR: &str = "⯨";
 pub const SPECIAL: &str = "!";
 pub const HEART: &str = "♥";
 /// A heart hidden under the words of what it counts: one point of it not had (`screen`).
 pub const NO_HEART: &str = "♡";
+/// The colours of the stars Pokémon-Amie's games rate a result with, a difficulty's each: Easy's
+/// yellow, Hard's pink (or_amie_stars).
+pub const RATINGS: [&str; 4] = ["easy", "normal", "hard", "infinite"];
 /// What a picture shows, where the DexNav draws it in place of words: a star of Potential filled
 /// or not, three in a row, and the red mark beside what is better than usual, its level, its first
-/// move, its ability (spike 195); and where a contest does, a heart of a move's appeal, one a
-/// point (spike 196). Signs for the screen text reader to say in words of its own (`stars`,
-/// `hearts`, the `SPECIAL` marks), never said as signs.
-pub const DRAWN: [(&str, &str); 6] = [
+/// move, its ability (spike 195); where a contest does, a heart of a move's appeal, one a point
+/// (spike 196); and where Pokémon-Amie's games rate a result out of five, a star or the left half
+/// of one, an empty one drawn as a full one's faint shadow (or_amie_stars). Signs for the screen
+/// text reader to say in words of its own (`stars`, `hearts`, the `SPECIAL` marks), never said as
+/// signs.
+///
+/// Python builds the `star_<rating>` and `star_<rating>h` entries from `RATINGS`; they are
+/// written out here, in the same order.
+pub const DRAWN: [(&str, &str); 14] = [
     ("star01", STAR),
     ("star02", NO_STAR),
     ("sp_mark", SPECIAL),
     ("heart", HEART),
     ("heart00", HEART),
     ("heart01", HEART),
+    ("star_easy", STAR),
+    ("star_normal", STAR),
+    ("star_hard", STAR),
+    ("star_infinite", STAR),
+    ("star_easyh", HALF_STAR),
+    ("star_normalh", HALF_STAR),
+    ("star_hardh", HALF_STAR),
+    ("star_infiniteh", HALF_STAR),
 ];
 /// A contest's places, which its results draw as pictures beside each entrant, `one` to `four`
 /// (spike 196), said after the entrant: "Raiden & Metagross third place" (Orion, 2026-10-09).
@@ -158,9 +175,15 @@ pub fn place(texture: &str) -> Option<&'static str> {
         .map(|(_, words)| *words)
 }
 
-/// Potential's stars as words: "2 stars", "1 star", "0 stars".
-pub fn stars(filled: i64) -> String {
-    own("dexnav-stars", &[("count", &filled)])
+/// Stars as words: "2 stars", "1 star", "0 stars"; with `half` after them, "2 and a half
+/// stars", "half a star".
+pub fn stars(filled: i64, half: bool) -> String {
+    let id = if half {
+        "stars-and-a-half"
+    } else {
+        "dexnav-stars"
+    };
+    own(id, &[("count", &filled)])
 }
 
 /// A contest move's hearts as words: "4 hearts", "1 heart".

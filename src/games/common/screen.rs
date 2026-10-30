@@ -22,6 +22,8 @@
 //! Bound by:
 //! - ADR-0013: words a screen draws are heard as they come on screen and as they change; no commas
 //!   but under `pauses`.
+//! - ADR-0037: stars counted, Potential's and a result's, one drawn as a shadow not earned and
+//!   unsaid.
 
 use std::collections::{BTreeSet, HashSet};
 use std::rc::Rc;
@@ -34,7 +36,7 @@ use crate::core::rtti::ClassNames;
 use crate::core::words::own;
 use crate::games::common::layout::Layouts;
 use crate::games::common::pictures::{
-    HEART, NO_HEART, NO_STAR, PLACES, SPECIAL, STAR, hearts, stars,
+    HALF_STAR, HEART, NO_HEART, NO_STAR, PLACES, SPECIAL, STAR, hearts, stars,
 };
 use crate::games::common::text::pages;
 use crate::games::common::{lyt, msgwin};
@@ -833,6 +835,16 @@ impl ScreenTextReader {
                         Some(found) => words = found,
                         None => continue,
                     }
+                    if (words == STAR || words == HALF_STAR)
+                        && shadow(&self.memory.read(pane + lyt::PICTURE_COLOURS, 16)?)
+                    {
+                        // Pokémon-Amie's results draw each star not earned as a full one's faint
+                        // shadow, where an earned one lands over it (or_amie_stars), and are said
+                        // only with stars earned, as "caught" is never "not caught": shown seconds
+                        // before Berry Picker's rank, under "Berries", they read "Berries 0
+                        // stars".
+                        continue;
+                    }
                 }
                 let mut width = f32(&head, shape.width)? * f32(&head, shape.scale_x)?;
                 let mut height = f32(&head, shape.height)? * f32(&head, shape.scale_y)?;
@@ -1127,16 +1139,26 @@ pub fn after_the_name(found: &IndexMap<i64, ScreenText>) -> IndexMap<i64, Screen
     out
 }
 
+/// Whether a picture's four corners tint it a faint black (`lyt.PICTURE_COLOURS`).
+pub(crate) fn shadow(colours: &[u8]) -> bool {
+    (0..16)
+        .step_by(4)
+        .all(|at| py::slice(colours, at, at + 3) == b"\0\0\0" && colours[at as usize + 3] < 0x80)
+}
+
 /// Each group's stars as one piece, how many are filled: the DexNav's Potential draws three,
 /// filled or not, "Potential 2 stars" (Orion, 2026-10-06; spike 195). Side by side, three stars
 /// alike were one picture drawn three times. A contest move's hearts likewise, as many as are
-/// drawn: "Appeal 4 hearts" (spike 196).
+/// drawn: "Appeal 4 hearts" (spike 196). Pokémon-Amie's results rate out of five in halves, a
+/// half star where the whole ones end, under the fifth when all five are earned (or_amie_stars):
+/// a half star counts where no whole one covers it.
 ///
 /// Returns `Result` where Python's `int` of a row read out of freed memory would raise.
 pub(crate) fn counted_stars(
     pictures: &IndexMap<i64, ScreenText>,
 ) -> Result<IndexMap<i64, ScreenText>> {
-    let counted = |piece: &ScreenText| [STAR, NO_STAR, HEART, NO_HEART].contains(&&*piece.text);
+    let counted =
+        |piece: &ScreenText| [STAR, NO_STAR, HALF_STAR, HEART, NO_HEART].contains(&&*piece.text);
     let mut groups: IndexMap<(i64, i64, bool, i64), Vec<&ScreenText>> = IndexMap::new();
     for piece in pictures.values() {
         if counted(piece) {
@@ -1171,10 +1193,18 @@ pub(crate) fn counted_stars(
                 right = piece.right;
             }
         }
+        let whole: Vec<&ScreenText> = group
+            .iter()
+            .copied()
+            .filter(|piece| piece.text == STAR)
+            .collect();
+        let half = group.iter().any(|p| {
+            p.text == HALF_STAR && !whole.iter().any(|w| p.left < w.right && w.left < p.right)
+        });
         let text = if heart {
             hearts(group.iter().filter(|piece| piece.text == HEART).count() as i64)
         } else {
-            stars(group.iter().filter(|piece| piece.text == STAR).count() as i64)
+            stars(whole.len() as i64, half)
         };
         out.insert(
             first.r#box,

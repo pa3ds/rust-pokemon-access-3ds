@@ -79,6 +79,9 @@ pub const HEAD: i64 = 0x100;
 // nw::lyt::Picture and its nw::lyt::Material (spikes 128 and 198)
 /// -> the picture's material, which says what it draws now, whatever its layout file says.
 pub const PICTURE_MATERIAL: i64 = 0x13C;
+/// Its four corners' colours, RGBA a byte each, which tint what it draws: Pokémon-Amie's games
+/// draw a star not earned as a full star in black at alpha 0x3c, a faint shadow (or_amie_stars).
+pub const PICTURE_COLOURS: i64 = 0x140;
 /// The physical address of the image the material's first texture draws: FCRAM, or video memory
 /// for some the game builds itself.
 pub const MATERIAL_TEXTURE: i64 = 0x84;

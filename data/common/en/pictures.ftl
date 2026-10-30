@@ -132,10 +132,16 @@ dexnav-hidden-ability = hidden ability
 # Said after a Pokémon the DexNav shows in colour, caught, where the rest are its silhouettes:
 # only the caught are said so (Orion, 2026-10-06).
 dexnav-caught = caught
-# Potential's stars as words, three in a row filled or not.
+# Potential's stars as words, three in a row filled or not; and the stars Pokémon-Amie's games rate
+# a result with, out of five.
 dexnav-stars = { $count ->
     [one] { $count } star
    *[other] { $count } stars
+}
+# Those games' stars with half a star after the whole ones: "4 and a half stars".
+stars-and-a-half = { $count ->
+    [0] half a star
+   *[other] { $count } and a half stars
 }
 # A contest move's hearts as words, those hidden counted as none: "Appeal 4 hearts".
 contest-hearts = { $count ->

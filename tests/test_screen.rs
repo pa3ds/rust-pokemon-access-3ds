@@ -873,6 +873,51 @@ fn test_a_contest_moves_hearts_are_counted() {
     );
 }
 
+/// or_amie_stars: Puzzle Wizard's five stars landed in the five slots, Easy's half star under
+/// the fifth; a rating of four and a half would show the half star alone there.
+#[test]
+fn test_a_ratings_half_star_counts_only_where_no_whole_one_covers_it() {
+    let slots = [-66.0, -38.0, -10.0, 18.0, 46.0];
+    let rating = |whole: usize, half_at: Option<usize>| -> String {
+        let picture = |r#box: i64, text: &str, left: f64| ScreenText {
+            parent: 0x200,
+            picture: true,
+            ..ScreenText::placed(r#box, text, false, left, left + 20.0, -98.0, 20.0)
+        };
+        let mut drawn: Vec<ScreenText> = slots[..whole]
+            .iter()
+            .enumerate()
+            .map(|(i, &left)| picture(0x200 + 4 * i as i64, pictures::STAR, left))
+            .collect();
+        if let Some(at) = half_at {
+            drawn.push(picture(0x300, pictures::HALF_STAR, slots[at]));
+        }
+        let counted: Vec<ScreenText> = screen::counted_stars(
+            &drawn
+                .into_iter()
+                .map(|piece| (piece.r#box, piece))
+                .collect(),
+        )
+        .unwrap()
+        .into_values()
+        .collect();
+        let [counted] = counted.try_into().unwrap();
+        counted.text
+    };
+
+    assert_eq!(rating(5, Some(4)), "5 stars");
+    assert_eq!(rating(4, Some(4)), "4 and a half stars");
+    assert_eq!(rating(0, Some(0)), "half a star");
+}
+
+/// or_amie_stars: an empty slot's corners were 00 00 00 3c, an earned star's ff ff ff ff; the
+/// empty ones are left unsaid.
+#[test]
+fn test_a_star_drawn_as_a_faint_black_shadow_is_not_earned() {
+    assert!(screen::shadow(&[0, 0, 0, 0x3C].repeat(4)));
+    assert!(!screen::shadow(&[0xFF; 16]));
+}
+
 /// The Pokéblock Case's star draws "TOUGH" touching Electro Ball's icon on its row, and it
 /// read "Coolness/Toughness" (movie33).
 #[test]
