@@ -813,7 +813,9 @@ impl Navigator {
         if let Some(rise) = rise(r#where, item.height)? {
             way += &format!(", {rise}");
         }
-        if let Some(arrival) = item.arrival {
+        if let Some(arrival) = item.arrival
+            && !item.lands_apart
+        {
             way += &format!(
                 ", {}",
                 own(
@@ -821,9 +823,9 @@ impl Navigator {
                     &[("bearing", &things::bearing(r#where.cell, arrival))]
                 )
             );
-        }
-        if let Some(rise) = rise(r#where, item.landing)? {
-            way += &format!(", {rise}");
+            if let Some(rise) = rise(r#where, item.landing)? {
+                way += &format!(", {rise}");
+            }
         }
         let start = if self.wording.track_boulders {
             item.start

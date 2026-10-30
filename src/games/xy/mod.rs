@@ -259,6 +259,7 @@ pub fn rom() -> &'static RomLayout {
             first: 0x28,
         }),
         chunks: Some("a/0/4/1".to_string()),
+        gym_modules: vec!["DllUSGymEsper.cro".to_string()],
         story: owned(story_archives()),
         street_marks: Some("a/2/5/5".to_string()),
         street_names: Some(71),

@@ -62,6 +62,7 @@ key-no-path = nessun percorso
 key-no-battle = nessuna lotta
 key-one-way = una sola strada
 out-at = uscita a { $bearing }
+past-teleporter = oltre un teletrasportatore
 leads-to = { $thing } verso { $place }
 span = da { $low } a { $high }
 either = { $these } o { $last }

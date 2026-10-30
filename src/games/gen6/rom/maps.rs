@@ -1,5 +1,6 @@
 //! The ROM's map chunks a file at a time, as P's ground reaches past the chunks the game has loaded
-//! (spike 136), and Lumiose's streets in them (spike 106).
+//! (spike 136), Lumiose's streets in them (spike 106), and the teleports a Gym's module places on
+//! its streets (spike A).
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -7,10 +8,11 @@ use std::path::{Path, PathBuf};
 
 use indexmap::{IndexMap, IndexSet};
 
-use crate::core::binary::{u16, u32};
+use crate::core::binary::{f32, u16, u32};
 use crate::core::rom::{Rom, lz11};
 use crate::games::common::field::chunk::Floor;
 use crate::games::common::garc::{garc_files, garc_spans};
+use crate::games::gen6::field::zonedata::CELL;
 use crate::games::gen6::field::{mapblock, rail};
 use crate::py::{self, Error, Kind, Result};
 
@@ -334,4 +336,57 @@ fn chunk_streets(packed: &[u8]) -> Result<rail::Network> {
     } else {
         Ok(no_streets())
     }
+}
+
+/// One place of a Gym module's teleports: u32 a street's id, u32 a way, f32 along and f32 across
+/// it in world units, each a whole number of cells.
+pub const TELEPORT_ENTRY: i64 = 16;
+
+/// The teleports a Gym's module holds: the longest run of its places (`TELEPORT_ENTRY`), the
+/// first half where each teleport sends the player from and the second, in the same order, where
+/// it puts them. DllUSGymEsper.cro, Anistar City Gym's, holds 38 from 0x2020, just before
+/// `field::FieldUniqueSequenceGymEsper`'s name: the lobby's carpet at row 4 of its street is the
+/// first start, landing on the landing's joint, and the joint at the Gym's middle at 770 sends
+/// the player 3 across onto line 0x101df4b, as x_gym_7 and x_gym_7_teleporter did at 26.51 s
+/// and 18.46 s (spike A). The second word is not always the line's way, so only the run says
+/// what is a place.
+pub fn rail_teleports(module: &[u8]) -> Result<Vec<rail::Teleport>> {
+    let place = |at: i64| -> Result<Option<rail::Place>> {
+        let (line, way) = (u32(module, at)?, u32(module, at + 4)?);
+        let (along, across) = (f32(module, at + 8)?, f32(module, at + 12)?);
+        if line == 0
+            || way > 3
+            || ![along, across]
+                .iter()
+                .all(|&v| v.is_finite() && (v / CELL as f64).fract() == 0.0)
+        {
+            return Ok(None);
+        }
+        Ok(Some((line, along / CELL as f64, across / CELL as f64)))
+    };
+    let size = module.len() as i64;
+    let mut best: Vec<rail::Place> = Vec::new();
+    let mut start = 0;
+    while start + TELEPORT_ENTRY <= size {
+        let mut run: Vec<rail::Place> = Vec::new();
+        let mut at = start;
+        while at + TELEPORT_ENTRY <= size {
+            let Some(one) = place(at)? else {
+                break;
+            };
+            run.push(one);
+            at += TELEPORT_ENTRY;
+        }
+        start = if run.is_empty() { start + 4 } else { at + 4 };
+        if run.len() > best.len() {
+            best = run;
+        }
+    }
+    let half = best.len() / 2;
+    Ok((0..half)
+        .map(|i| rail::Teleport {
+            start: best[i],
+            lands: best[half + i],
+        })
+        .collect())
 }

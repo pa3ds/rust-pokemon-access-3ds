@@ -100,6 +100,10 @@ pub const VINE_SOURCE: i64 = 18 << 32;
 /// ends at, a map's own (spike 251).
 pub const OPENING_SOURCE: i64 = 19 << 32;
 
+/// A teleport a Gym's module places on streets: `TELEPORT_SOURCE | index`, its start's place in
+/// the module's table (`rail.Teleport`, spike A).
+pub const TELEPORT_SOURCE: i64 = 20 << 32;
+
 /// A place's `source` from its kind's tag and its own number. The number must leave the tag's
 /// bits clear, and no u16 the game holds can reach them, so one that does is a new encoding
 /// written wider than the tag allows for: a programmer's error, refused here rather than keyed as
@@ -267,6 +271,13 @@ pub struct Interactable {
     /// Whether it is taken from beside it, facing it, though its cell can be stood in: a hidden
     /// item, which A finds from the cell before it (spike 145).
     pub faced: bool,
+    /// Whether it is on streets the player's reach only through a teleporter, said "past a
+    /// teleporter" rather than how far it is: Anistar City Gym's parts lie apart in its corridor,
+    /// and the cells between them are no distance (`rail.lay_keyed`, spike A).
+    pub apart: bool,
+    /// For a teleporter, whether `arrival` is on streets its own reach only through another,
+    /// and so said with no "out at".
+    pub lands_apart: bool,
 }
 
 impl Interactable {
@@ -292,6 +303,8 @@ impl Interactable {
             way_in: None,
             shape: Vec::new(),
             faced: false,
+            apart: false,
+            lands_apart: false,
         }
     }
 
@@ -359,8 +372,12 @@ impl Interactable {
     }
 
     /// Direction and distance from `origin`, as "3 east 2 north", or "here"; for a player
-    /// heading one way on a rail, from where they face: "9 ahead 8 left".
+    /// heading one way on a rail, from where they face: "9 ahead 8 left"; "past a teleporter"
+    /// for one `apart`.
     pub fn bearing(&self, origin: (i64, i64), heading: Option<&str>) -> Result<String> {
+        if self.apart {
+            return Ok(own("past-teleporter", &[]));
+        }
         if let Some(heading) = heading {
             return pathfind::facing(origin, self.nearest(origin), heading);
         }
@@ -580,8 +597,8 @@ fn called_name(
 
 fn out(item: &Interactable, origin: (i64, i64)) -> String {
     match item.arrival {
-        None => String::new(),
-        Some(arrival) => format!(" out at {}", bearing(origin, arrival)),
+        Some(arrival) if !item.lands_apart => format!(" out at {}", bearing(origin, arrival)),
+        _ => String::new(),
     }
 }
 

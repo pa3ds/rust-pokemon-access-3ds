@@ -42,7 +42,9 @@
 //! behind the player, and the D-pad works from it: up walks the way it looks, down walks back from
 //! it, and left and right turn the player a quarter, the camera following only while the key is
 //! held (spike 105). So a way on a rail is said from the camera (`pathfind.turned`), whose heading
-//! the corridor gives as a bearing of its own (`bearing`).
+//! the corridor gives as a bearing of its own (`bearing`). On a **folded** map, Anistar City Gym's,
+//! the camera stays looking north and the corridor is laid by the keys, its ways said by the
+//! compass (`Network.folded`, spike A).
 
 use std::cell::{Cell as Slot, RefCell};
 use std::collections::{HashMap, VecDeque};
@@ -99,6 +101,8 @@ pub const SLOPE: f64 = 1.0;
 pub const SAMPLES: i64 = 4;
 /// World units a map chunk is across: 40 cells of 18.
 pub const CHUNK_UNITS: i64 = 720;
+/// Cells left between two parts of a folded map's streets in its corridor (`lay_keyed`).
+pub const APART: i64 = 8;
 pub const BLOCKED: i64 = 0x1;
 pub const MAX_TABLE: i64 = 0x4000;
 /// Cells a line's wall table may hold: rows along times columns across.
@@ -210,9 +214,60 @@ pub struct Network {
     pub sides: IndexMap<i64, (f64, f64)>,
 }
 
+impl Network {
+    /// Whether its streets place cameras and the world has both ends of one of them in one
+    /// spot, a street that climbs straight up: Anistar City Gym's, matrix 68, alone of X's ten
+    /// maps with streets, 17 of its 153 streets, as line 0x1019239 from (729, 1089) at 394 to (729,
+    /// 1089) at 303, 5 cells along. Its camera stays looking north, and with each line laid
+    /// along its own way and each track against it, every up press over x_gym_7 walked the
+    /// player a cell north and every left a cell west, across 8 lines and tracks. So the whole
+    /// map is walked as one corridor laid by the keys (`lay_keyed`), never on the grid, where a
+    /// street climbs 4 rows over 1 world unit and P said "up the ramp 12 north" for a way 3
+    /// west, 8 north (spike A).
+    pub fn folded(&self) -> bool {
+        // Python's `==` of one tuple with itself holds by identity, a NaN in it too: a line
+        // starting and ending at one point is at one spot.
+        self.cameras > 0
+            && self.lines.values().any(|line| {
+                self.places.get(&line.start).is_some_and(|start| {
+                    line.start == line.end || self.places.get(&line.end) == Some(start)
+                })
+            })
+    }
+}
+
+/// A place on a street as the game gives one: the line's id, and the cells along it and across
+/// it it measures (`mmodel.rail`).
+pub type Place = (i64, f64, f64);
+
+/// One teleport of a Gym's module: the place on a street that sends the player, and the place
+/// it puts them (`maps.rail_teleports`, spike A).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Teleport {
+    pub start: Place,
+    pub lands: Place,
+}
+
 /// One cell's step in the corridor, a way of the compass: north is (0, -1).
 pub type Step = (i64, i64);
 pub const NORTH: Step = (0, -1);
+/// The step a line's rows rise by under a camera looking north, by the way it is measured.
+pub const WAY_STEPS: [(i64, Step); 4] = [
+    (WAY_NORTH, NORTH),
+    (WAY_SOUTH, (0, 1)),
+    (WAY_WEST, (-1, 0)),
+    (WAY_EAST, (1, 0)),
+];
+
+/// The step `line`'s rows rise by on a folded map (`Network.folded`): along its way, and
+/// against it on a track, which the game measures from its joint (spike A).
+fn keyed(line: &Line) -> Step {
+    let step = WAY_STEPS
+        .iter()
+        .find(|(way, _)| *way == line.way)
+        .map_or((0, 1), |&(_, step)| step);
+    if line.track { turned(step, 2) } else { step }
+}
 
 /// The step a quarter turn left of `step`: west of north.
 fn left(step: Step) -> Step {
@@ -270,6 +325,9 @@ pub struct Laid {
     pub line: Line,
     pub origin: Cell,
     pub ahead: Step,
+    /// Which part of a folded map's streets it is in, the streets its points join it to, by the
+    /// lowest line id among them (`lay_keyed`); 0 elsewhere.
+    pub part: i64,
 }
 
 impl Laid {
@@ -337,7 +395,8 @@ impl World {
 /// falling northward and x rising eastward, the way right moves, and the first line runs north
 /// from (0, 0). A line goes on straight from the one it meets at a point, so a curving avenue
 /// is laid as it is walked, and turns at a joint by the quarter nearest the way it leaves it in
-/// the world (`lay_out`, spike 107).
+/// the world (`lay_out`, spike 107). On a folded map each line runs the way the keys walk it,
+/// and every part of its streets is laid, apart (`lay_keyed`).
 #[derive(Debug, Clone, PartialEq)]
 pub struct Corridor {
     pub laid: Vec<Laid>,
@@ -406,6 +465,21 @@ impl Corridor {
         false
     }
 
+    /// Which part of a folded map's streets a cell is in (`Laid.part`), or None where no line
+    /// holds it.
+    pub fn part(&self, cell: Cell) -> Option<i64> {
+        for laid in &self.laid {
+            let (row, offset) = laid.place(cell);
+            if 0 <= row
+                && row <= laid.line.along
+                && offset.abs() <= py::floordiv(laid.line.across, 2)
+            {
+                return Some(laid.part);
+            }
+        }
+        None
+    }
+
     pub fn r#box(&self) -> Result<Box> {
         let mut corners: Vec<Cell> = Vec::new();
         for laid in &self.laid {
@@ -441,11 +515,13 @@ impl Corridor {
 /// Where two lines meet at a point the next goes on straight; where three or more meet, at a
 /// joint, each is turned the quarter nearest the way it leaves the joint in the world, from
 /// `places`, the world's (x, z) of each point, and a line whose way there is not known is left
-/// out rather than laid across another.
+/// out rather than laid across another. `keyed`, on a folded map (`Network.folded`), lays each
+/// by the keys instead, along its own way and a track against it (`keyed`).
 pub fn lay_out(
     lines: &IndexMap<i64, Line>,
     through: i64,
     places: Option<&IndexMap<i64, (f64, f64)>>,
+    keyed: bool,
 ) -> Result<Option<Corridor>> {
     let Some(first) = lines.get(&through) else {
         return Ok(None);
@@ -471,7 +547,8 @@ pub fn lay_out(
         Laid {
             line: first.clone(),
             origin: (0, 0),
-            ahead: NORTH,
+            ahead: if keyed { self::keyed(first) } else { NORTH },
+            part: 0,
         },
     );
     let mut queue: VecDeque<i64> = VecDeque::from([first.id]);
@@ -489,7 +566,13 @@ pub fn lay_out(
                     continue;
                 }
                 let mut way = outward;
-                if met.len() > 2 {
+                if keyed {
+                    way = if other.start == point {
+                        self::keyed(other)
+                    } else {
+                        turned(self::keyed(other), 2)
+                    };
+                } else if met.len() > 2 {
                     let Some(quarters) = quarters(&here.line, other, point, places)? else {
                         continue;
                     };
@@ -506,6 +589,83 @@ pub fn lay_out(
     }))
 }
 
+/// A folded map's streets as one corridor laid by the keys (`lay_out`'s `keyed`): each part
+/// its points join, from its lowest line id, laid `APART` cells east of the parts before it, so
+/// no two share a cell. Two points the world has at one spot and height are one: the lobby's
+/// street and the landing's track meet so at (729, 1089) and 394 in Anistar City Gym. The Gym
+/// is then six parts, joined by its teleporters alone (`Teleport`). Laid where the screen
+/// shows each, 126 cells would be two parts' (spike A). A street's dead end a cell from
+/// another's point at its height is no way onto it: joined so, P said "1 west, 14 south" off
+/// the first teleporter's landing, and the keys met a wall (Khai, 2026-10-30).
+///
+/// A track's walls run from its joint, as the game measures places on it (`Line.direction`),
+/// and are turned round to run from its start as a line's do. Read from their starts, each of
+/// the Gym's 20 tracks of two cells or more that widens toward one end widened away from its
+/// joint and closed at it, and 22 cells met others only at a corner; turned, none does, and a
+/// walk from the landing reaches all seven people. Lumiose's tracks are read as they were:
+/// nothing there has said which way theirs run.
+pub fn lay_keyed(network: &Network) -> Result<Corridor> {
+    // Python's dict keyed by (x, z, height): a float key matches by `==`, so a NaN never does.
+    let mut first: Vec<((f64, f64, i64), i64)> = Vec::new();
+    let mut same: HashMap<i64, i64> = HashMap::new();
+    let mut points: Vec<(i64, (f64, f64))> = network
+        .places
+        .iter()
+        .map(|(&point, &place)| (point, place))
+        .collect();
+    points.sort_by_key(|&(point, _)| point);
+    for (point, place) in points {
+        if let Some(&height) = network.heights.get(&point) {
+            let key = (place.0, place.1, py::round(height)?);
+            let one = match first.iter().find(|(held, _)| *held == key) {
+                Some(&(_, one)) => one,
+                None => {
+                    first.push((key, point));
+                    point
+                }
+            };
+            same.insert(point, one);
+        }
+    }
+    let mut left: IndexMap<i64, Line> = network
+        .lines
+        .iter()
+        .map(|(&number, line)| {
+            (
+                number,
+                Line {
+                    start: same.get(&line.start).copied().unwrap_or(line.start),
+                    end: same.get(&line.end).copied().unwrap_or(line.end),
+                    walls: if line.track {
+                        line.walls.iter().rev().copied().collect()
+                    } else {
+                        line.walls.clone()
+                    },
+                    ..line.clone()
+                },
+            )
+        })
+        .collect();
+    let mut laid: Vec<Laid> = Vec::new();
+    let mut east = 0;
+    while let Some(&part) = left.keys().min() {
+        let corridor =
+            lay_out(&left, part, None, true)?.expect("a part is laid from a line it holds");
+        let r#box = corridor.r#box()?;
+        let shift = east - r#box.west;
+        laid.extend(corridor.laid.iter().map(|one| Laid {
+            origin: (one.origin.0 + shift, one.origin.1),
+            part,
+            ..one.clone()
+        }));
+        east = r#box.east + shift + APART;
+        for one in &corridor.laid {
+            left.shift_remove(&one.line.id);
+        }
+    }
+    Ok(Corridor { laid })
+}
+
 /// `line` laid so its end at `point` is the cell `at` and it runs on from there `way`.
 fn leaving(line: &Line, point: i64, at: Cell, way: Step) -> Laid {
     if line.start == point {
@@ -513,12 +673,14 @@ fn leaving(line: &Line, point: i64, at: Cell, way: Step) -> Laid {
             line: line.clone(),
             origin: at,
             ahead: way,
+            part: 0,
         };
     }
     Laid {
         line: line.clone(),
         origin: (at.0 + line.along * way.0, at.1 + line.along * way.1),
         ahead: turned(way, 2),
+        part: 0,
     }
 }
 
@@ -1088,14 +1250,28 @@ pub struct Rails {
     lanes: RefCell<((Vec<i64>, bool, i64), Rc<Lanes>)>,
     /// How many cameras the map's streets place (`Network.cameras`).
     cameras: Slot<i64>,
+    /// Those of the game's Gym modules, out of the ROM (`maps.rail_teleports`): a map's are
+    /// those on its streets.
+    pub teleports: Vec<Teleport>,
+    /// Whether the map's streets are folded (`Network.folded`), walked as one corridor laid by
+    /// the keys (`lay_keyed`).
+    pub folded: Slot<bool>,
+    /// A folded map's corridor, laid once for its streets as last read (`lay_keyed`).
+    keyed: RefCell<Option<Rc<Corridor>>>,
 }
 
 impl Rails {
+    /// `streets` reads every line and track in a map's chunks and where its joints are, out of
+    /// the ROM (`archives.Streets`); None where there is no ROM to read, and only the lines the
+    /// game has loaded are known, with no joint to turn at. `shape` is where the game's camera
+    /// block keeps where it looks (`Game.camera`). `teleports` are those of the game's Gym
+    /// modules, out of the ROM (`maps.rail_teleports`): a map's are those on its streets.
     pub fn new(
         memory: Rc<dyn Memory>,
         streets: Option<Streets>,
         records: Records,
         shape: camera::Shape,
+        teleports: Vec<Teleport>,
     ) -> Self {
         Rails {
             memory,
@@ -1112,6 +1288,9 @@ impl Rails {
             anchor: Slot::new(None),
             lanes: RefCell::new(((Vec::new(), false, 0), Rc::new(IndexMap::new()))),
             cameras: Slot::new(0),
+            teleports,
+            folded: Slot::new(false),
+            keyed: RefCell::new(None),
         }
     }
 
@@ -1173,8 +1352,9 @@ impl Rails {
     }
 
     /// Where the player's model `head` is in the corridor of the streets joined to its line, and
-    /// the way up walks them, or None while the line is not known. `files` are the map's chunk
-    /// files, as the field map lists them.
+    /// the way up walks them, or None while the line is not known; no way on a folded map, whose
+    /// corridor is the compass's (`Network.folded`). `files` are the map's chunk files, as the
+    /// field map lists them.
     pub fn poll(&self, head: &[u8], files: &[i64]) -> Result<Option<(Cell, Option<f64>)>> {
         *self.corridor.borrow_mut() = None;
         let (line, a, x) = mmodel::rail(head)?;
@@ -1190,7 +1370,12 @@ impl Rails {
             return Ok(None);
         };
         *self.corridor.borrow_mut() = Some(corridor.clone());
-        Ok(Some((at, self.bearing(&corridor, line, head)?)))
+        let way = if self.folded.get() {
+            None
+        } else {
+            self.bearing(&corridor, line, head)?
+        };
+        Ok(Some((at, way)))
     }
 
     /// Where up walks the player in the corridor: the camera's heading, turned from the world
@@ -1235,15 +1420,29 @@ impl Rails {
         if !self.lines.borrow().contains_key(&line) {
             return Ok(None);
         }
+        if let Some(keyed) = self.keyed.borrow().as_ref() {
+            return Ok(keyed.holds(line).then(|| keyed.clone()));
+        }
         if let Some(anchor) = self.anchor.get() {
-            let kept = lay_out(&self.lines.borrow(), anchor, Some(&self.places.borrow()))?;
+            let kept = lay_out(
+                &self.lines.borrow(),
+                anchor,
+                Some(&self.places.borrow()),
+                false,
+            )?;
             if let Some(kept) = kept
                 && kept.holds(line)
             {
                 return Ok(Some(Rc::new(kept)));
             }
         }
-        Ok(lay_out(&self.lines.borrow(), line, Some(&self.places.borrow()))?.map(Rc::new))
+        Ok(lay_out(
+            &self.lines.borrow(),
+            line,
+            Some(&self.places.borrow()),
+            false,
+        )?
+        .map(Rc::new))
     }
 
     /// Each dead end of the corridor's streets, a point or joint no other line or track
@@ -1360,6 +1559,19 @@ impl Rails {
         Ok(line.and_then(|line| self.heights.borrow().get(&line.start).copied()))
     }
 
+    /// How high a place on a street is, rising evenly along its line from its start's height to
+    /// its end's, as the ramp's do (`laid`); None where the ROM does not say.
+    pub fn place_height(&self, place: Place) -> Option<f64> {
+        let lines = self.lines.borrow();
+        let line = lines.get(&place.0)?;
+        if line.along == 0 {
+            return None;
+        }
+        let heights = self.heights.borrow();
+        let (low, high) = (*heights.get(&line.start)?, *heights.get(&line.end)?);
+        Some(low + (high - low) * line.upright(place.1, place.2).0 / line.along as f64)
+    }
+
     /// Where a player stands to use a record placed on a rail just off its street, and the
     /// way of the compass they face it: on a track, the track's start, the end of the street it
     /// runs off, faced the way the street runs into it; on a line, one cell nearer the street,
@@ -1428,12 +1640,15 @@ impl Rails {
     /// on Route 7's and Parfum Palace's streets, rather than one that follows them as Lumiose's
     /// does (`Network.cameras`): the keys walk the player the street's way nearest the one
     /// pressed on the screen, so the street is ground of the grid's, walked by the compass. Not
-    /// a line whose two ends the world has in one place, which the grid cannot lay out. `files`
-    /// are the map's chunk files, as the field map lists them.
+    /// a line whose two ends the world has in one place, which the grid cannot lay out, nor any
+    /// line of a folded map, walked as a corridor by the keys (`Network.folded`). `files` are
+    /// the map's chunk files, as the field map lists them.
     pub fn fixed(&self, files: &[i64], line: i64) -> Result<bool> {
         self.read_streets(files)?;
         let on = self.lines.borrow().get(&line).cloned();
-        Ok(self.cameras.get() > 0 && on.is_some_and(|on| self.in_world(&on).is_some()))
+        Ok(self.cameras.get() > 0
+            && !self.folded.get()
+            && on.is_some_and(|on| self.in_world(&on).is_some()))
     }
 
     /// The cells of the map's streets the player can stand in, laid on the grid where the
@@ -1539,13 +1754,23 @@ impl Rails {
         self.anchor.set(None);
         self.cameras.set(0);
         *self.heights.borrow_mut() = IndexMap::new();
+        self.folded.set(false);
+        *self.keyed.borrow_mut() = None;
         if let Some(streets) = &self.streets {
             let wanted: Vec<i64> = files.iter().copied().filter(|&file| file != 0).collect();
             let network = streets(&wanted)?;
+            let folded = network.folded();
+            let keyed = if folded {
+                Some(Rc::new(lay_keyed(&network)?))
+            } else {
+                None
+            };
             self.lines.borrow_mut().extend(network.lines);
             self.places.borrow_mut().extend(network.places);
             self.heights.borrow_mut().extend(network.heights);
             self.cameras.set(network.cameras);
+            self.folded.set(folded);
+            *self.keyed.borrow_mut() = keyed;
         }
         Ok(())
     }

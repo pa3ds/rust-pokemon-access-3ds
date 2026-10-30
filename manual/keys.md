@@ -179,6 +179,13 @@ answer and battle them; a wrong answer means battling another one, and after the
 game takes you up to the next room. With the `descriptions` setting on, pa3ds describes the
 picture each question shows.
 
+**Anistar Gym.** In Anistar City, in X and Y, the walkways in space are said by the compass, as
+the keys walk them: "12 north, 3 west, 8 north". The interactables list each teleporter, the
+carpet in the lobby among them: step onto the carpet's middle and the Gym appears round you.
+Each teleporter has a partner where it puts you, which sends you back once you step off it and
+on again. Anything you can reach only through one is "past a teleporter", and `P` leads you
+there, saying the way as far as the first teleporter and how many more.
+
 **Ramps.** In the Tower of Mastery, in X and Y, a ramp winds up round the tower twice, past the
 stairs on each landing to the top. `P` says each stretch of it as one step of the way, "8 west,
 up the ramp 22 east": hold that key and the ramp carries you round its curve to the next

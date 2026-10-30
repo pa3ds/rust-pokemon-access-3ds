@@ -62,6 +62,7 @@ key-no-path = 沒有路線
 key-no-battle = 不在對戰中
 key-one-way = 只有一條路
 out-at = 出口在{ $bearing }
+past-teleporter = 傳送裝置另一邊
 leads-to = 通往{ $place }的{ $thing }
 span = { $low }到{ $high }
 either = { $these }或{ $last }

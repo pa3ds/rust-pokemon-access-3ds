@@ -63,6 +63,7 @@ key-no-path = 경로 없음
 key-no-battle = 배틀 중 아님
 key-one-way = 가는 길이 하나뿐
 out-at = 나오는 곳 { $bearing }
+past-teleporter = 텔레포터 너머
 leads-to = { $place } 방면 { $thing }
 span = { $low }에서 { $high }까지
 either = { $these } 또는 { $last }

@@ -3041,6 +3041,7 @@ fn raised_lanes(points: &[(i64, (f64, f64))], lines: &[(i64, i64, i64)]) -> Resu
         Some(Rc::new(move |_files: &[i64]| Ok(network.clone()))),
         rail::Records::default(),
         camera::ORAS,
+        Vec::new(),
     );
     Ok(Ground {
         lanes: rails.lanes(&[1], true, 0)?,

@@ -46,8 +46,8 @@ use crate::games::common::field::ground::{
 use crate::games::common::field::things::{
     BIKE, BIKE_SOURCE, CLIMB_SOURCE, CLIMBING, CURRENT_SOURCE, CURRENTS_CATEGORY,
     DECORATION_SOURCE, DIVE_SOURCE, EDGE_SOURCE, FURNITURE_SOURCE, Field, Interactable, OBSTACLES,
-    OPENING_SOURCE, POKEMON, RIDE_SOURCE, RIDING, STAIRS_SOURCE, TELEPORTER, TILE_SOURCE,
-    TRIGGER_SOURCE, VINE_SOURCE, WARP_SOURCE, kind_said, place_source,
+    OPENING_SOURCE, POKEMON, RIDE_SOURCE, RIDING, STAIRS_SOURCE, TELEPORT_SOURCE, TELEPORTER,
+    TILE_SOURCE, TRIGGER_SOURCE, VINE_SOURCE, WARP_SOURCE, kind_said, place_source,
 };
 use crate::games::common::field::vines::{End, Vines, paired};
 use crate::games::gen6::field::conveyors::Switches;
@@ -612,6 +612,7 @@ impl FieldReader {
                 streets,
                 text.street_records.clone(),
                 game.camera,
+                text.rail_teleports.clone(),
             ),
             belts: game.belts.clone(),
             conveyors: game.conveyors.clone(),
@@ -1365,8 +1366,12 @@ impl FieldReader {
     pub fn interactables(&self, r#where: &Field) -> Result<Field> {
         let corridor = self.rails.corridor.borrow().clone();
         if let Some(corridor) = corridor.filter(|_| r#where.on_rail) {
+            let mut listed = self.on_the_rails(&corridor, r#where.zone)?;
+            if self.rails.folded.get() {
+                listed = self.in_parts(&corridor, r#where.cell, listed)?;
+            }
             return Ok(Field {
-                interactables: self.on_the_rails(&corridor, r#where.zone)?,
+                interactables: listed,
                 ..r#where.clone()
             });
         }
@@ -2033,6 +2038,58 @@ impl FieldReader {
             }
         }
         Ok(out)
+    }
+
+    /// A folded map's listing as the player at `at` meets it (`rail.lay_keyed`, spike A): with
+    /// the teleporters of the Gym's module between its parts, each where it sends the player from
+    /// with where it puts them (`rail.Teleport`); its furniture one thing a script where records
+    /// touch, and none in another part where its script has a record in the player's, as each of
+    /// Anistar City Gym's statues is three records, one on the lobby's street and two on the
+    /// landing's tracks, listed as three signs; and what stands in another part `apart`.
+    fn in_parts(
+        &self,
+        corridor: &rail::Corridor,
+        at: Cell,
+        listed: Vec<Interactable>,
+    ) -> Result<Vec<Interactable>> {
+        let here = corridor.part(at);
+        let mut listed = listed;
+        listed.extend(rail_teleporters(
+            &self.rails.teleports,
+            &|place| self.rails.place_height(place),
+            corridor,
+        )?);
+        let furnished =
+            |item: &Interactable| !item.move_model && item.place_kind() == Some(FURNITURE_SOURCE);
+        let furniture: Vec<Interactable> = listed
+            .iter()
+            .filter(|item| furnished(item))
+            .cloned()
+            .collect();
+        // A set only tested.
+        let near: HashSet<i64> = furniture
+            .iter()
+            .filter(|item| corridor.part(item.cell) == here)
+            .map(|item| item.code)
+            .collect();
+        let kept: Vec<Interactable> = furniture
+            .into_iter()
+            .filter(|item| corridor.part(item.cell) == here || !near.contains(&item.code))
+            .collect();
+        // `item not in furniture` by equality: what is not furniture by the same test.
+        let mut listed: Vec<Interactable> =
+            listed.into_iter().filter(|item| !furnished(item)).collect();
+        listed.extend(joined(kept, &|item| Some(self.furniture_key(item))));
+        Ok(listed
+            .into_iter()
+            .map(|item| Interactable {
+                apart: corridor.part(item.cell) != here,
+                lands_apart: item
+                    .arrival
+                    .is_some_and(|arrival| corridor.part(arrival) != corridor.part(item.cell)),
+                ..item
+            })
+            .collect())
     }
 
     /// Whether a cell the grid can be walked in lies within `OPENING_REACH` of `cell`, in the
@@ -3345,6 +3402,53 @@ fn one_a_spot(items: Vec<Interactable>) -> Vec<Interactable> {
 /// Whether `item` is one of the signs a spot stacks, read where it stands (`_one_a_spot`).
 fn layered(item: &Interactable) -> bool {
     item.category == "signs" && item.place_kind() != Some(TRIGGER_SOURCE)
+}
+
+/// `FieldReader._rail_teleporters`, over the rails' `teleports` and `place_height`, which
+/// Python's test hands a stand-in for: the teleports on the corridor's streets, each a teleporter
+/// where it sends the player from, carrying them to where it puts them (`Ground.teleports`), the
+/// first of several from one place. Anistar City Gym's lobby carpet puts the player on one of
+/// three tracks of one joint, the cell it is in once the lobby's street is laid onto them: it is
+/// listed, where the Gym appears, and carries the player nowhere (spike A). Each carries them
+/// back too: the module lists one way of most, and Khai stepping back onto the first one's
+/// landing was put on its start, three times (2026-10-30).
+pub(crate) fn rail_teleporters(
+    teleports: &[rail::Teleport],
+    place_height: &dyn Fn(rail::Place) -> Option<f64>,
+    corridor: &rail::Corridor,
+) -> Result<Vec<Interactable>> {
+    // A set only tested.
+    let mut seen: HashSet<Cell> = HashSet::new();
+    let back = teleports.iter().map(|t| rail::Teleport {
+        start: t.lands,
+        lands: t.start,
+    });
+    let mut out: Vec<Interactable> = Vec::new();
+    for (i, teleport) in teleports.iter().copied().chain(back).enumerate() {
+        let start = corridor.at(teleport.start.0, teleport.start.1, teleport.start.2)?;
+        let lands = corridor.at(teleport.lands.0, teleport.lands.1, teleport.lands.2)?;
+        let (Some(start), Some(lands)) = (start, lands) else {
+            continue;
+        };
+        if seen.contains(&start) {
+            continue;
+        }
+        seen.insert(start);
+        let moves = lands != start;
+        out.push(Interactable {
+            code: i as i64,
+            source: place_source(TELEPORT_SOURCE, i as i64)?,
+            height: place_height(teleport.start),
+            arrival: moves.then_some(lands),
+            landing: if moves {
+                place_height(teleport.lands)
+            } else {
+                None
+            },
+            ..Interactable::new("signs", TELEPORTER, start)
+        });
+    }
+    Ok(out)
 }
 
 /// `items` with those of one `key` that touch side to side as one thing over the box round

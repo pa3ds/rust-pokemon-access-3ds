@@ -62,6 +62,7 @@ key-no-path = 経路なし
 key-no-battle = バトル中ではない
 key-one-way = 行き方は一つだけ
 out-at = 出る先は{ $bearing }
+past-teleporter = ワープパネルの先
 leads-to = { $place }への{ $thing }
 span = { $low }から{ $high }
 either = { $these }または{ $last }

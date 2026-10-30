@@ -57,6 +57,9 @@ pub struct RomLayout {
     /// The map chunks' files, LZ11-compressed, by the number a map's field map lists each chunk
     /// under, where a game has streets placed on rails in them (`Streets`); None in one without.
     pub chunks: Option<String>,
+    /// The Gym modules holding teleports between places on streets (`maps.rail_teleports`):
+    /// X's Anistar City Gym's, `DllUSGymEsper.cro` (spike A).
+    pub gym_modules: Vec<String>,
     /// The sound archive, whose footsteps pa3ds plays where the game plays none (`footsteps`);
     /// None in a game whose footsteps are not measured.
     pub sounds: Option<String>,
@@ -195,6 +198,7 @@ impl RomLayout {
             characters: IndexMap::new(),
             protagonists: false,
             chunks: None,
+            gym_modules: Vec::new(),
             sounds: None,
             story: IndexMap::new(),
             street_marks: None,

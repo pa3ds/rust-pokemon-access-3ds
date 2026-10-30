@@ -135,7 +135,7 @@ fn test_the_table_is_found_through_the_line_the_player_is_on() -> Result<()> {
 fn test_lines_joined_at_a_point_are_laid_end_to_end_whichever_way_each_runs() -> Result<()> {
     let memory = FakeMemory::new();
     network(&memory);
-    let corridor = rail::lay_out(&table_lines(&memory)?, B, None)?;
+    let corridor = rail::lay_out(&table_lines(&memory)?, B, None, false)?;
     let corridor = corridor.expect("a corridor");
     assert_eq!(corridor.cell(B, 0.0, 0.0)?, Some((0, 0)));
     assert_eq!(corridor.cell(B, 2.0, -1.0)?, Some((1, -2)));
@@ -151,7 +151,7 @@ fn test_lines_joined_at_a_point_are_laid_end_to_end_whichever_way_each_runs() ->
 fn test_the_corridor_is_open_where_its_lines_are_and_walled_everywhere_else() -> Result<()> {
     let memory = FakeMemory::new();
     network(&memory);
-    let corridor = rail::lay_out(&table_lines(&memory)?, B, None)?;
+    let corridor = rail::lay_out(&table_lines(&memory)?, B, None, false)?;
     let corridor = corridor.expect("a corridor");
     assert!(corridor.open((0, -3)) && corridor.open((2, -3)));
     assert!(!corridor.open((3, -3)));
@@ -165,7 +165,7 @@ fn test_the_corridor_is_open_where_its_lines_are_and_walled_everywhere_else() ->
 fn test_a_record_on_a_rail_covers_its_cells_in_the_corridor() -> Result<()> {
     let memory = FakeMemory::new();
     network(&memory);
-    let corridor = rail::lay_out(&table_lines(&memory)?, A, None)?;
+    let corridor = rail::lay_out(&table_lines(&memory)?, A, None, false)?;
     let corridor = corridor.expect("a corridor");
     let mut record = Vec::new();
     record.extend(0x56u16.to_le_bytes());
@@ -191,7 +191,7 @@ fn test_a_record_on_a_rail_covers_its_cells_in_the_corridor() -> Result<()> {
 fn test_a_direction_on_a_line_is_a_bearing_in_the_corridor() -> Result<()> {
     let memory = FakeMemory::new();
     network(&memory);
-    let corridor = rail::lay_out(&table_lines(&memory)?, B, None)?;
+    let corridor = rail::lay_out(&table_lines(&memory)?, B, None, false)?;
     let corridor = corridor.expect("a corridor");
     assert_eq!(corridor.bearing(B, 0.0, 1.0), Some(0.0));
     assert_eq!(
@@ -381,7 +381,7 @@ fn test_a_record_on_a_line_measured_another_way_covers_its_cells() -> Result<()>
         ..Line::new(A, P0, P1, 10, ACROSS, walls(10, &[]))
     };
     let lines: IndexMap<i64, Line> = [(A, north)].into_iter().collect();
-    let corridor = rail::lay_out(&lines, A, None)?;
+    let corridor = rail::lay_out(&lines, A, None, false)?;
     let corridor = corridor.expect("a corridor");
     let mut record = Vec::new();
     record.extend(0x3Fu16.to_le_bytes());
@@ -431,14 +431,14 @@ fn test_at_a_joint_each_street_is_laid_the_quarter_it_leaves_the_joint_by() -> R
     ]
     .into_iter()
     .collect();
-    let corridor = rail::lay_out(&lines, stem, Some(&places))?;
+    let corridor = rail::lay_out(&lines, stem, Some(&places), false)?;
     let corridor = corridor.expect("a corridor");
     assert_eq!(corridor.cell(stem, 6.0, 0.0)?, Some((0, -6)));
     assert_eq!(corridor.cell(left, 4.0, 0.0)?, Some((-4, -6)));
     assert_eq!(corridor.cell(right, 0.0, 0.0)?, Some((5, -6)));
     assert_eq!(corridor.bearing(left, 0.0, 1.0), Some(270.0));
     assert!(corridor.open((-3, -6)) && corridor.open((4, -6)));
-    let unplaced = rail::lay_out(&lines, stem, None)?;
+    let unplaced = rail::lay_out(&lines, stem, None, false)?;
     let unplaced = unplaced.expect("a corridor");
     assert!(!unplaced.holds(left) && !unplaced.holds(right));
     Ok(())
@@ -479,12 +479,236 @@ fn test_a_streets_dead_ends_are_where_the_corridor_and_the_world_have_them() -> 
         Some(std::rc::Rc::new(move |_files: &[i64]| Ok(network.clone()))),
         rail::Records::default(),
         crate::games::gen6::field::camera::ORAS,
+        Vec::new(),
     );
     rails.lanes(&[1], false, 0)?;
-    let corridor = rail::lay_out(&lines, stem, Some(&places))?.expect("a corridor");
+    let corridor = rail::lay_out(&lines, stem, Some(&places), false)?.expect("a corridor");
     let mut ends = rails.ends(&corridor)?;
     ends.sort();
     assert_eq!(ends, [(south, (0, 0), (0, 6)), (plaza, (0, -7), (0, -1))]);
+    Ok(())
+}
+
+const CLIMB: i64 = 0x01;
+const TRACK: i64 = 0x02;
+const ON: i64 = 0x03;
+const BEYOND: i64 = 0x04;
+const ALONE: i64 = 0x05;
+const FOOT: i64 = 0x10;
+const TOP: i64 = 0x11;
+const JOINT: i64 = 0x12;
+const MEETS: i64 = 0x13;
+const FAR: i64 = 0x14;
+const NEXT: i64 = 0x15;
+const LAST: i64 = 0x16;
+const AWAY: i64 = 0x17;
+const END: i64 = 0x18;
+
+/// Anistar City Gym's streets in small (x_gym_7, spike A): a climb measured north, its ends at one
+/// spot 90 apart in height, as the lobby's is; a track measured west from its top to a joint; a
+/// line measured south from a point of its own at the joint's spot and height, ending a cell from
+/// where another goes on south; and a street no other meets. `folded()` with the top at (9, 9).
+fn folded(top: (f64, f64)) -> Network {
+    let lines = [
+        Line {
+            way: rail::WAY_NORTH,
+            ..Line::new(CLIMB, FOOT, TOP, 5, ACROSS, walls(5, &[]))
+        },
+        Line {
+            way: rail::WAY_WEST,
+            track: true,
+            ..Line::new(TRACK, TOP, JOINT, 3, ACROSS, walls(3, &[]))
+        },
+        Line::new(ON, MEETS, FAR, 4, ACROSS, walls(4, &[])),
+        Line::new(BEYOND, NEXT, LAST, 2, ACROSS, walls(2, &[])),
+        Line::new(ALONE, AWAY, END, 2, ACROSS, walls(2, &[])),
+    ];
+    let places = IndexMap::from([
+        (FOOT, (9.0, 9.0)),
+        (TOP, top),
+        (JOINT, (63.0, 9.0)),
+        (MEETS, (63.0, 9.0)),
+        (FAR, (63.0, 81.0)),
+        (NEXT, (63.0, 99.0)),
+        (LAST, (63.0, 135.0)),
+        (AWAY, (900.0, 9.0)),
+        (END, (900.0, 45.0)),
+    ]);
+    let heights = IndexMap::from([
+        (FOOT, 0.0),
+        (TOP, 90.0),
+        (JOINT, 90.0),
+        (MEETS, 90.0),
+        (FAR, 90.0),
+        (NEXT, 90.0),
+        (LAST, 90.0),
+        (AWAY, 0.0),
+        (END, 0.0),
+    ]);
+    Network {
+        lines: lines.into_iter().map(|line| (line.id, line)).collect(),
+        places,
+        cameras: 1,
+        heights,
+        ..Network::default()
+    }
+}
+
+/// Spike A: Anistar City Gym's camera stays looking north, and up walked the player a cell north
+/// along every street of x_gym_7, laid along its own way and a track against it; two points at one
+/// spot and height are one, as the lobby's street and the landing's track are; and a street joined
+/// to none is laid apart, with a part of its own, even a cell on from a dead end at its height: so
+/// joined off the first teleporter's landing, P's way south met a wall (Khai, 2026-10-30). The
+/// climb's two ends at one spot are no join: they are 90 apart in height.
+#[test]
+fn test_a_folded_maps_streets_are_laid_by_the_keys() -> Result<()> {
+    let network = folded((9.0, 9.0));
+    assert!(network.folded());
+    let corridor = rail::lay_keyed(&network)?;
+    let foot = corridor.cell(CLIMB, 0.0, 0.0)?.expect("the climb is laid");
+    let at = |line: i64, along: i64| -> Result<Option<(i64, i64)>> {
+        Ok(corridor
+            .cell(line, along as f64, 0.0)?
+            .map(|cell| (cell.0 - foot.0, cell.1 - foot.1)))
+    };
+    assert_eq!(at(CLIMB, 5)?, Some((0, -5)));
+    assert!(at(TRACK, 0)? == Some((0, -5)) && at(TRACK, 3)? == Some((3, -5)));
+    assert!(at(ON, 0)? == Some((3, -5)) && at(ON, 4)? == Some((3, -1)));
+    for apart in [BEYOND, ALONE] {
+        let cell = corridor.cell(apart, 0.0, 0.0)?;
+        assert!(
+            cell.is_some_and(|cell| cell.0 - foot.0 >= 3 + ACROSS / 2 + rail::APART),
+            "{apart}"
+        );
+        assert_ne!(corridor.part(cell.unwrap()), corridor.part(foot), "{apart}");
+    }
+    Ok(())
+}
+
+/// Spike A: in Anistar City Gym pa3ds said "20 behind 1 left" and "12 back, hold right" from a
+/// camera that never turns. A folded map is never the grid's ground, and its corridor gives no way
+/// up walks, so a way is said by the compass; with the climb's ends apart in the world the map is
+/// not folded, and the street is walked on the grid.
+#[test]
+fn test_a_folded_map_is_walked_as_a_corridor_said_by_the_compass() -> Result<()> {
+    use crate::games::gen6::field::{camera, mmodel};
+    let mut head = vec![0u8; mmodel::HEAD as usize];
+    head[mmodel::RAIL_LINE as usize..mmodel::RAIL_LINE as usize + 4]
+        .copy_from_slice(&(ON as u32).to_le_bytes());
+    head[mmodel::RAIL_ALONG as usize..mmodel::RAIL_ALONG as usize + 4]
+        .copy_from_slice(&2.0f32.to_le_bytes());
+    let rails = rail::Rails::new(
+        FakeMemory::new(),
+        Some(std::rc::Rc::new(|_files: &[i64]| Ok(folded((9.0, 9.0))))),
+        rail::Records::default(),
+        camera::ORAS,
+        Vec::new(),
+    );
+    assert!(!rails.fixed(&[1], ON)?);
+    let on = rails.poll(&head, &[1])?;
+    let corridor = rails.corridor.borrow().clone();
+    assert!(on.is_some_and(|on| on.1.is_none()) && corridor.is_some());
+    assert_eq!(Some(on.unwrap().0), corridor.unwrap().cell(ON, 2.0, 0.0)?);
+    let apart = rail::Rails::new(
+        FakeMemory::new(),
+        Some(std::rc::Rc::new(|_files: &[i64]| Ok(folded((9.0, -81.0))))),
+        rail::Records::default(),
+        camera::ORAS,
+        Vec::new(),
+    );
+    assert!(apart.fixed(&[1], ON)?);
+    Ok(())
+}
+
+/// Spike A: read from their starts, each of Anistar City Gym's tracks that widens toward one end
+/// widened away from its joint and closed at it; read from the joint, its walkways meet side to
+/// side, and a walk over them reaches every person in the Gym.
+#[test]
+fn test_on_a_folded_map_a_tracks_walls_run_from_its_joint() -> Result<()> {
+    let mut network = folded((9.0, 9.0));
+    let mut joint_side = vec![0x20; ACROSS as usize];
+    joint_side.extend(vec![0x21; (ACROSS * 3) as usize]);
+    let track = network.lines[&TRACK].clone();
+    network.lines.insert(
+        TRACK,
+        Line {
+            walls: joint_side.into(),
+            ..track
+        },
+    );
+    let corridor = rail::lay_keyed(&network)?;
+    let laid = corridor.line(TRACK).expect("the track is laid");
+    assert_eq!(
+        (0..4)
+            .map(|row| laid.open(row, ACROSS / 2))
+            .collect::<Vec<_>>(),
+        [false, false, false, true]
+    );
+    Ok(())
+}
+
+/// Spike A: DllUSGymEsper.cro holds 19 places where a teleport starts and then the 19 it puts the
+/// player, in the same order, each a street, a word, and along and across in world units: the
+/// lobby's carpet at 72 along its street, 4 cells, and the joint at the Gym's middle sending the
+/// player 54 across, 3 cells, onto line 0x101df4b.
+#[test]
+fn test_a_gym_modules_teleports_are_the_first_half_of_its_places_and_where_each_lands() -> Result<()>
+{
+    use crate::games::gen6::rom::maps;
+    let entries: [(u32, u32, f32, f32); 4] = [
+        (0x0101C50A, 1, 72.0, 0.0),
+        (0x01010122, 1, 0.0, 0.0),
+        (0x01013BF7, 1, 0.0, 0.0),
+        (0x0101DF4B, 2, 0.0, -54.0),
+    ];
+    let mut module: Vec<u8> = b"\x01\x00\x01\x01".repeat(4);
+    for (line, way, along, across) in entries {
+        module.extend(line.to_le_bytes());
+        module.extend(way.to_le_bytes());
+        module.extend(along.to_le_bytes());
+        module.extend(across.to_le_bytes());
+    }
+    module.extend([0u8; 16]);
+    assert_eq!(
+        maps::rail_teleports(&module)?,
+        [
+            rail::Teleport {
+                start: (0x0101C50A, 4.0, 0.0),
+                lands: (0x01013BF7, 0.0, 0.0)
+            },
+            rail::Teleport {
+                start: (0x01010122, 0.0, 0.0),
+                lands: (0x0101DF4B, 0.0, -3.0)
+            },
+        ]
+    );
+    Ok(())
+}
+
+/// Khai, 2026-10-30: stepping back onto the landing of Anistar City Gym's first teleporter put the
+/// player on its start, three times, though the module lists it one way. Each teleport is listed
+/// as a teleporter where it starts and another where it lands, sending back.
+///
+/// Python hands `FieldReader._rail_teleporters` a stand-in for the rails; here the function both
+/// call is handed their teleports and heights.
+#[test]
+fn test_a_gym_modules_teleport_is_a_teleporter_at_each_end() -> Result<()> {
+    use crate::games::gen6::field::reader;
+    let corridor = rail::lay_keyed(&folded((9.0, 9.0)))?;
+    let teleport = rail::Teleport {
+        start: (ON, 1.0, 0.0),
+        lands: (ALONE, 1.0, 0.0),
+    };
+    let listed = reader::rail_teleporters(&[teleport], &|_place| Some(90.0), &corridor)?;
+    let start = corridor.at(teleport.start.0, teleport.start.1, teleport.start.2)?;
+    let lands = corridor.at(teleport.lands.0, teleport.lands.1, teleport.lands.2)?;
+    assert_eq!(
+        listed
+            .iter()
+            .map(|item| (Some(item.cell), item.arrival))
+            .collect::<Vec<_>>(),
+        [(start, lands), (lands, start)]
+    );
     Ok(())
 }
 

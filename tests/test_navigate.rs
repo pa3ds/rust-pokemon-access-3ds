@@ -1192,6 +1192,41 @@ fn test_a_teleporter_onto_another_floor_says_how_far_above_or_below_it_puts_the_
     );
 }
 
+/// Anistar City Gym (spike A): its parts lie apart in the corridor, so a thing in another is
+/// "past a teleporter", and a teleporter landing in another says no "out at" nor how high.
+#[test]
+fn test_past_a_teleporter_a_thing_is_said_so_rather_than_how_far() {
+    let pad = Interactable {
+        source: 0,
+        arrival: Some((300, 180)),
+        landing: Some(90.0),
+        lands_apart: true,
+        ..Interactable::new("signs", "teleporter", (97, 172))
+    };
+    let leader = Interactable {
+        source: 1,
+        apart: true,
+        ..Interactable::new("people", "person", (300, 170))
+    };
+    let mut rig = navigator(Want {
+        r#where: Some(Field {
+            interactables: vec![pad, leader],
+            height: Some(2.0),
+            ..Field::new(town().zone, town().cell)
+        }),
+        ..Want::default()
+    });
+    rig.press(ITEM_READ);
+    rig.press(ITEM_NEXT);
+    assert_eq!(
+        said(&rig.backend),
+        [
+            "teleporter, 1 of 2, 3 east",
+            "person, 2 of 2, past a teleporter"
+        ]
+    );
+}
+
 #[test]
 fn test_without_the_games_words_an_exit_is_what_it_is() {
     let mut rig = navigator(Want {

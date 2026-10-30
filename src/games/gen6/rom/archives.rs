@@ -54,10 +54,13 @@ use crate::core::binary::{self, u16, u32};
 use crate::core::rom::{Rom, lz11};
 use crate::games::common::field::ground::{CUT, ROCK_SMASH, STRENGTH, SURF, WATERFALL};
 use crate::games::common::garc::{garc_files, message_lines, plain, singular};
+use crate::games::gen6::field::rail::Teleport;
 use crate::games::gen6::field::zonedata;
 use crate::games::gen6::rom::doors::{door_facilities, town_rows};
 use crate::games::gen6::rom::layout::{RomLayout, TownFacilities, zone_table};
-use crate::games::gen6::rom::maps::{ChunkSource, MapChunks, StreetSource, Streets};
+use crate::games::gen6::rom::maps::{
+    ChunkSource, MapChunks, StreetSource, Streets, rail_teleports,
+};
 use crate::games::gen6::rom::people::{
     pokemon_models, tagged_species, trainer_classes, trainer_sprites,
 };
@@ -361,6 +364,9 @@ pub struct GameText {
     /// (zone, a trigger's script) -> (x, how high in world units, z) of where the teleporter it
     /// is puts the player (`plates.teleports`): Laverre Gym's panels.
     pub teleports: IndexMap<(i64, i64), (i64, i64, i64)>,
+    /// The teleports the game's Gym modules place on streets (`RomLayout.gym_modules`):
+    /// Anistar City Gym's.
+    pub rail_teleports: Vec<Teleport>,
 }
 
 /// `Callable[[int], Sequence[bytes]]`: a text archive's file as its lines (`lines_of`).
@@ -458,6 +464,7 @@ impl Default for GameText {
             title: None,
             gates: IndexMap::new(),
             teleports: IndexMap::new(),
+            rail_teleports: Vec::new(),
         }
     }
 }
@@ -874,6 +881,7 @@ impl GameText {
             gates,
             title: rom.title(language)?,
             teleports: plates::teleports(&read, teleporting)?,
+            rail_teleports: rail_teleports_of(rom, layout)?,
         };
         if layout.protagonists && !text.protagonists_hold() {
             return Err(Error::new(
@@ -1128,6 +1136,20 @@ fn files_of(rom: &Rom, layout: &RomLayout) -> Result<IndexMap<String, Vec<u8>>> 
             Ok(blob) => {
                 out.insert(name.clone(), blob);
             }
+            Err(error) if error.is(Kind::RomError) => {}
+            Err(error) => return Err(error),
+        }
+    }
+    Ok(out)
+}
+
+/// The teleports of `RomLayout.gym_modules` (`rail_teleports`), less any module the ROM cannot
+/// give. (Python's `_rail_teleports`.)
+fn rail_teleports_of(rom: &Rom, layout: &RomLayout) -> Result<Vec<Teleport>> {
+    let mut out: Vec<Teleport> = Vec::new();
+    for module in &layout.gym_modules {
+        match rom.read(module).and_then(|blob| rail_teleports(&blob)) {
+            Ok(found) => out.extend(found),
             Err(error) if error.is(Kind::RomError) => {}
             Err(error) => return Err(error),
         }

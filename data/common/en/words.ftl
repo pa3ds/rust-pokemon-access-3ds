@@ -92,6 +92,9 @@ key-no-battle = no battle
 key-one-way = one way to it
 # An exit's arrival somewhere else on the map: "teleporter, 3 east, out at 10 north".
 out-at = out at { $bearing }
+# Said for a thing on streets reached only through a teleporter, in place of how far it
+# is: Anistar City Gym's walkways in space.
+past-teleporter = past a teleporter
 # What an exit is called, then where it leads, when that is another place, the game's own word
 # for it: "edge to Route 101".
 leads-to = { $thing } to { $place }
