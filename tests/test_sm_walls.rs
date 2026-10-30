@@ -230,14 +230,15 @@ fn way(
             .unwrap(),
     );
     let goals = IndexMap::from([(goal, None)]);
-    pathfind::find(
+    let found = pathfind::find(
         start,
         &goals,
         &|cell| land.passable(cell),
         land.r#box(start, [goal]).unwrap(),
         &Options::default(),
     )
-    .unwrap()
+    .unwrap();
+    found.map(|found| pathfind::cells(&found))
 }
 
 #[test]
@@ -327,7 +328,7 @@ fn test_a_way_is_found_round_the_walls_and_out_through_the_door() {
     let land = ground_of(ground.chunks(None, 0, None, 0, None).unwrap());
     let goal = IndexMap::from([((10, 19), None)]);
 
-    let path = pathfind::find(
+    let found = pathfind::find(
         (6, 12),
         &goal,
         &|cell| land.passable(cell),
@@ -336,7 +337,7 @@ fn test_a_way_is_found_round_the_walls_and_out_through_the_door() {
     )
     .unwrap();
 
-    let path = path.expect("a way");
+    let path = pathfind::cells(&found.expect("a way"));
     assert!(path.contains(&(10, 18)), "through the door");
     assert!(path.iter().all(|&cell| land.open(cell).unwrap()));
 }

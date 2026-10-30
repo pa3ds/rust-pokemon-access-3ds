@@ -228,14 +228,23 @@ fn slant(step: Cell) -> Option<&'static str> {
         .map(|&(name, _)| name)
 }
 
-/// What a step can change on the way besides where the player is: how far each of Fortree Gym's
-/// rotating doors has turned (`find`'s `through`).
-pub type Turns = Vec<i64>;
+/// What a step can change on the way besides where the player is, the game's to say (`find`'s
+/// `through`): whether they ride a Pokémon, hold a vine, how far each of Fortree Gym's rotating doors
+/// has turned, the floor they walk on.
+pub type State = Vec<i64>;
 
-/// A cell, the way the player came into it ("" at the start), and the turns behind them.
-type State<'a> = (Cell, &'a str, Turns);
+/// One cell of a way, with the state the player is in there (`State`).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Step {
+    pub cell: Cell,
+    pub state: State,
+}
+
+/// Where a search stands: a cell, the way the player came into it ("" at the start), and their
+/// state there.
+type Node<'a> = (Cell, &'a str, State);
 /// Where every goal leads once facing its way is paid for.
-const ARRIVED: State<'static> = ((0, 0), "arrived", Vec::new());
+const ARRIVED: Node<'static> = ((0, 0), "arrived", Vec::new());
 
 /// `find`'s arguments after `box`, each as the Python defaults it: pass what differs with
 /// `..Options::default()`. A callable that is None is the Python's default lambda.
@@ -245,8 +254,8 @@ pub struct Options<'a> {
     pub toll: Option<&'a dyn Fn(Cell, Cell) -> Result<i64>>,
     pub closest: bool,
     pub joined: Option<&'a dyn Fn(Cell, Cell) -> Result<bool>>,
-    pub turns: Turns,
-    pub through: Option<&'a dyn Fn(&[i64], Cell, Cell) -> Result<Option<Turns>>>,
+    pub state: State,
+    pub through: Option<&'a dyn Fn(&[i64], Cell, Cell) -> Result<Option<State>>>,
     pub over: Option<&'a dyn Fn(Cell) -> Result<bool>>,
     pub arrives: Option<&'a dyn Fn(Cell, &[i64]) -> Result<bool>>,
     pub carry: Option<&'a dyn Fn(Cell, &[i64]) -> Result<Option<&'static str>>>,
@@ -265,7 +274,7 @@ impl Default for Options<'_> {
             toll: None,
             closest: false,
             joined: None,
-            turns: Vec::new(),
+            state: Vec::new(),
             through: None,
             over: None,
             arrives: None,
@@ -313,7 +322,7 @@ impl<K: Hash + Eq, V: Copy> Cached<K, V> {
 /// share, so the order is total and any min-heap pops the entries in the order `heapq` does.
 struct Entry<'a> {
     key: (i64, i64, i64),
-    state: State<'a>,
+    node: Node<'a>,
 }
 
 impl PartialEq for Entry<'_> {
@@ -336,13 +345,17 @@ impl Ord for Entry<'_> {
     }
 }
 
-/// The cheapest path from `start` to any of `goals`, both ends included, or None when none
-/// can be walked inside `box`; with `closest`, the cheapest path to the cell nearest the goals
-/// of all those it can reach instead, which is `start` alone where none is nearer, and whether
-/// it got there is whether it ends in `goals`. `goals` maps each cell to the way the player
-/// should face on it, or None for any way. `start` is never asked about: the player is already
-/// standing on it. Nor is a goal: a door is walked round on the way to anything else, and into
-/// when it is the goal. `heading` is the way the player is walking, "" when that is not known.
+/// The cheapest path from `start` to any of `goals`, both ends included, each cell with the
+/// player's state there, or None when none can be walked inside `box`; with `closest`, the
+/// cheapest path to the cell nearest the goals of all those it can reach instead, which is
+/// `start` alone where none is nearer, and whether it got there is whether it ends in `goals`.
+/// `state` is the player's at `start`, and a jump's cells have the state it starts with, which
+/// a jump keeps. Its callers read the state the search found rather than walk the way again,
+/// and a caller wanting the cells takes them from it (`cells`). `goals` maps each cell to the
+/// way the player should face on it, or None for any way. `start` is never asked about: the
+/// player is already standing on it. Nor is a goal: a door is walked round on the way to
+/// anything else, and into when it is the goal. `heading` is the way the player is walking, ""
+/// when that is not known.
 ///
 /// `ledge` says which way a cell goes down, or None. A cell that cannot be walked is a ledge,
 /// crossed that way only, from the cell before it to the cell after, which must be walkable,
@@ -350,7 +363,7 @@ impl Ord for Entry<'_> {
 /// cell that can is a slope, stepped onto, along and off only the way it goes down. `over` says
 /// which cells that cannot be walked are crossed as a ledge is, but either way: the strip of
 /// shore Surf jumps the player over, getting on the water and off it. `carry` says which way a
-/// cell stood in with `turns` carries the player, a current, or a belt on its floor: entered any
+/// cell stood in with `state` carries the player, a current, or a belt on its floor: entered any
 /// way, and left only that way, a cell at a time, unless the cell that way cannot be walked. The
 /// player does not turn there, so the turns it
 /// makes cost nothing. `slide` says which cells are ice: entered any way, and left only the way
@@ -365,22 +378,22 @@ impl Ord for Entry<'_> {
 /// `joined` whether a step between two cells side by side can be taken at all: one off a
 /// platform onto the ground far below cannot, where both cells can be stood in.
 ///
-/// `through` is what a step does to `turns`, the state of what the player's steps turn: the
-/// turns after it, or None where it cannot be taken. Fortree Gym's doors turn as an arm is
-/// walked into, and whether the next can be depends on how each has turned, so the search is
-/// over every way they can be turned on the way as well. Which floor the player is on is such
-/// a state too, where one floor lies over another, and `arrives` says whether a cell stood on
-/// with `turns` is on the goals' floor: a goal is reached only there, not on the floor above
-/// it, and with `closest` the nearest cell on it comes before any nearer on another. `stops`
-/// says whether the player can stop on a cell with `turns` at all, every one where it is None:
+/// `through` is what a step does to `state`: the state after it, or None where it cannot be
+/// taken. Fortree Gym's doors turn as an arm is walked into, and whether the next can be depends
+/// on how each has turned, so the search is over every way they can be turned on the way as
+/// well. Which floor the player is on is such a state too, where one floor lies over another,
+/// and `arrives` says whether a cell stood on with `state` is on the goals' floor: a goal is
+/// reached only there, not on the floor above it, and with `closest` the nearest cell on it
+/// comes before any nearer on another. `stops`
+/// says whether the player can stop on a cell with `state` at all, every one where it is None:
 /// one a grind rail is carrying them along cannot, nor a vine's they hold, and no way ends
 /// there, at a goal or short of one. With Shalour Gym's centre shut, P to the gym leader's spot
 /// said "grind the rail 5 west, then can't continue", the cell 5 along a rail of 14 being the
 /// nearest the centre (spike 247).
 ///
-/// `leap` says where the player in a cell with `turns` is carried in one move, or None: there,
+/// `leap` says where the player in a cell with `state` is carried in one move, or None: there,
 /// and nowhere else, the one move from it, a step's worth and a turn, with no way of its own and
-/// through `through` for its turns. A vine in Coumarine Gym, grabbed from beside it, carries the
+/// through `through` for its state. A vine in Coumarine Gym, grabbed from beside it, carries the
 /// player up or down a level or across a gap, landing beside its other end (spike 250).
 ///
 /// A* over (cell, heading), since a turn has a price and the same cell entered two ways is two
@@ -394,14 +407,14 @@ pub fn find(
     walkable: &dyn Fn(Cell) -> Result<bool>,
     r#box: Box,
     options: &Options,
-) -> Result<Option<Vec<Cell>>> {
+) -> Result<Option<Vec<Step>>> {
     let Options {
         heading,
         ledge,
         toll,
         closest,
         joined,
-        turns,
+        state,
         through,
         over,
         arrives,
@@ -424,7 +437,7 @@ pub fn find(
     let over_cache: Cached<Cell, bool> = Cached::new();
     let toll_cache: Cached<(Cell, Cell), i64> = Cached::new();
     let joined_cache: Cached<(Cell, Cell), bool> = Cached::new();
-    let carry_cache: Cached<(Cell, Turns), Option<&'static str>> = Cached::new();
+    let carry_cache: Cached<(Cell, State), Option<&'static str>> = Cached::new();
     let slants_cache: Cached<(Cell, Cell), bool> = Cached::new();
     let slide_cache: Cached<Cell, bool> = Cached::new();
     let down = |cell: Cell| {
@@ -451,9 +464,9 @@ pub fn find(
             None => Ok(true),
         })
     };
-    let carry = |cell: Cell, turns: &[i64]| {
-        carry_cache.get((cell, turns.to_vec()), || match carry {
-            Some(carry) => carry(cell, turns),
+    let carry = |cell: Cell, state: &[i64]| {
+        carry_cache.get((cell, state.to_vec()), || match carry {
+            Some(carry) => carry(cell, state),
             None => Ok(None),
         })
     };
@@ -470,9 +483,9 @@ pub fn find(
         })
     };
 
-    let arrives = |cell: Cell, turns: &[i64]| -> Result<bool> {
+    let arrives = |cell: Cell, state: &[i64]| -> Result<bool> {
         match arrives {
-            Some(arrives) => arrives(cell, turns),
+            Some(arrives) => arrives(cell, state),
             None => Ok(true),
         }
     };
@@ -491,31 +504,31 @@ pub fn find(
         })
     };
 
-    let first: State = (start, heading, turns.clone());
-    let mut spent: HashMap<State, i64> = HashMap::from([(first.clone(), 0)]);
-    let mut came: HashMap<State, State> = HashMap::new();
-    let mut done: HashSet<State> = HashSet::new();
+    let first: Node = (start, heading, state.clone());
+    let mut spent: HashMap<Node, i64> = HashMap::from([(first.clone(), 0)]);
+    let mut came: HashMap<Node, Node> = HashMap::new();
+    let mut done: HashSet<Node> = HashSet::new();
     let mut order: i64 = 0;
     let mut frontier: BinaryHeap<Entry> = BinaryHeap::new();
     frontier.push(Entry {
         key: (estimate(start), 0, order),
-        state: first.clone(),
+        node: first.clone(),
     });
     order += 1;
     // On the goals' floor first, then nearest the goals' box, then cheapest: the box is the
     // goals for an edge's gap or a cell beside a thing, which is what a way that falls short is
     // walked to, and the floor under a thing is not beside it.
-    let mut nearest = (!arrives(start, turns)?, estimate(start), 0, first);
-    while let Some(Entry { state, .. }) = frontier.pop() {
-        if state == ARRIVED {
+    let mut nearest = (!arrives(start, state)?, estimate(start), 0, first);
+    while let Some(Entry { node, .. }) = frontier.pop() {
+        if node == ARRIVED {
             return Ok(Some(back(&came, &came[&ARRIVED])));
         }
-        if done.contains(&state) {
+        if done.contains(&node) {
             continue;
         }
-        done.insert(state.clone());
-        let (cell, going, turned) = (state.0, state.1, &state.2);
-        let cost = spent[&state];
+        done.insert(node.clone());
+        let (cell, going, now) = (node.0, node.1, &node.2);
+        let cost = spent[&node];
         let way = compass_way(going);
         let sliding = if !way.is_empty() && slide(cell)? {
             way
@@ -531,17 +544,17 @@ pub fn find(
         if !past
             && match stops {
                 None => true,
-                Some(stops) => stops(cell, turned)?,
+                Some(stops) => stops(cell, now)?,
             }
         {
-            // `min` keeps the first of equals, so a later state replaces it only by being less,
+            // `min` keeps the first of equals, so a later node replaces it only by being less,
             // and between equal estimates and costs the states themselves are compared, as tuples.
-            let candidate = (!arrives(cell, turned)?, estimate(cell), cost, state.clone());
+            let candidate = (!arrives(cell, now)?, estimate(cell), cost, node.clone());
             if candidate < nearest {
                 nearest = candidate;
             }
             if let Some(&face) = goals.get(&cell)
-                && arrives(cell, turned)?
+                && arrives(cell, now)?
             {
                 let arrived = cost
                     + if face.is_some_and(|way| way != going) {
@@ -551,19 +564,19 @@ pub fn find(
                     };
                 if arrived < spent.get(&ARRIVED).copied().unwrap_or(arrived + 1) {
                     spent.insert(ARRIVED, arrived);
-                    came.insert(ARRIVED, state.clone());
+                    came.insert(ARRIVED, node.clone());
                     frontier.push(Entry {
                         key: (arrived, 0, order),
-                        state: ARRIVED,
+                        node: ARRIVED,
                     });
                     order += 1;
                 }
             }
         }
-        let carried = carry(cell, turned)?;
+        let carried = carry(cell, now)?;
         onward(
             cell,
-            turned,
+            now,
             &can_walk,
             &r#box,
             &down,
@@ -575,7 +588,7 @@ pub fn find(
             sliding,
             *leap,
             &mut |direction, step, steps, after| {
-                let onward: State = (step, direction, after);
+                let onward: Node = (step, direction, after);
                 // Python's `going != direction != carried`: both inequalities, chained.
                 let turn = if !going.is_empty() && going != direction && carried != Some(direction)
                 {
@@ -586,11 +599,11 @@ pub fn find(
                 let price = cost + STEP * steps + turn + toll(cell, step)?;
                 if price < spent.get(&onward).copied().unwrap_or(price + 1) {
                     spent.insert(onward.clone(), price);
-                    came.insert(onward.clone(), state.clone());
+                    came.insert(onward.clone(), node.clone());
                     let left = if *straight { estimate(step) } else { 0 };
                     frontier.push(Entry {
                         key: (price + left, left, order),
-                        state: onward,
+                        node: onward,
                     });
                     order += 1;
                 }
@@ -664,32 +677,32 @@ fn moves(
     Ok(())
 }
 
-/// Each move a search takes from `cell` with `turned`, `find`'s and `reached`'s alike: its
-/// way, where it lands, how many cells on, and the turns after it (`through`), as they were
+/// Each move a search takes from `cell` in state `now`, `find`'s and `reached`'s alike: its
+/// way, where it lands, how many cells on, and the state after it (`through`), as it was
 /// over a jump; a move `through` refuses is not taken. Where `leap` carries the player, that is
 /// the one move, with no way.
 #[allow(clippy::too_many_arguments)]
 fn onward(
     cell: Cell,
-    turned: &[i64],
+    now: &[i64],
     can_walk: &dyn Fn(Cell) -> Result<bool>,
     r#box: &Box,
     down: &dyn Fn(Cell) -> Result<Option<&'static str>>,
     over: &dyn Fn(Cell) -> Result<bool>,
     joined: &dyn Fn(Cell, Cell) -> Result<bool>,
     carry: &dyn Fn(Cell, &[i64]) -> Result<Option<&'static str>>,
-    through: Option<&dyn Fn(&[i64], Cell, Cell) -> Result<Option<Turns>>>,
+    through: Option<&dyn Fn(&[i64], Cell, Cell) -> Result<Option<State>>>,
     slants: &dyn Fn(Cell, Cell) -> Result<bool>,
     sliding: &'static str,
     leap: Option<&dyn Fn(&[i64], Cell) -> Option<Cell>>,
-    each: &mut dyn FnMut(&'static str, Cell, i64, Turns) -> Result<()>,
+    each: &mut dyn FnMut(&'static str, Cell, i64, State) -> Result<()>,
 ) -> Result<()> {
     if let Some(leap) = leap
-        && let Some(to) = leap(turned, cell)
+        && let Some(to) = leap(now, cell)
     {
         let after = match through {
-            None => Some(turned.to_vec()),
-            Some(through) => through(turned, cell, to)?,
+            None => Some(now.to_vec()),
+            Some(through) => through(now, cell, to)?,
         };
         if let Some(after) = after
             && can_walk(to)?
@@ -705,13 +718,13 @@ fn onward(
         down,
         over,
         joined,
-        &|one| carry(one, turned),
+        &|one| carry(one, now),
         slants,
         sliding,
         &mut |direction, step, steps| {
             let after = match through {
-                Some(through) if steps != 2 => through(turned, cell, step)?,
-                _ => Some(turned.to_vec()),
+                Some(through) if steps != 2 => through(now, cell, step)?,
+                _ => Some(now.to_vec()),
             };
             if let Some(after) = after {
                 each(direction, step, steps, after)?;
@@ -729,16 +742,16 @@ pub struct Reach<'a> {
     pub over: Option<&'a dyn Fn(Cell) -> Result<bool>>,
     pub ends: Option<&'a dyn Fn(Cell) -> Result<bool>>,
     pub carry: Option<&'a dyn Fn(Cell, &[i64]) -> Result<Option<&'static str>>>,
-    pub turns: Turns,
-    pub through: Option<&'a dyn Fn(&[i64], Cell, Cell) -> Result<Option<Turns>>>,
+    pub state: State,
+    pub through: Option<&'a dyn Fn(&[i64], Cell, Cell) -> Result<Option<State>>>,
     pub slants: Option<&'a dyn Fn(Cell, Cell) -> Result<bool>>,
     pub slide: Option<&'a dyn Fn(Cell) -> Result<bool>>,
     pub stops: Option<&'a dyn Fn(Cell, &[i64]) -> Result<bool>>,
     pub leap: Option<&'a dyn Fn(&[i64], Cell) -> Option<Cell>>,
 }
 
-/// Every cell inside `box` a way from `start` can end on, by `find`'s moves, with each state
-/// of `turns` it can be reached in (`through`, as `find` has them): a cell that can be walked, or
+/// Every cell inside `box` a way from `start` can end on, by `find`'s moves, with each
+/// `node` it can be reached in (`through`, as `find` has them): a cell that can be walked, or
 /// one of `ends`, which a way may step into and not on from, as `find` steps into a goal it would
 /// walk round on the way to anything else. What `find` would reach from `start`, found once for
 /// every goal at a time. On ice (`slide`), the way the player slides is part of where they are,
@@ -750,11 +763,11 @@ pub fn reached(
     walkable: &dyn Fn(Cell) -> Result<bool>,
     r#box: Box,
     options: &Reach,
-) -> Result<IndexMap<Cell, HashSet<Turns>>> {
+) -> Result<IndexMap<Cell, HashSet<State>>> {
     let down_cache: Cached<Cell, Option<&'static str>> = Cached::new();
     let walk_cache: Cached<Cell, bool> = Cached::new();
     let walked_cache: Cached<Cell, bool> = Cached::new();
-    let carry_cache: Cached<(Cell, Turns), Option<&'static str>> = Cached::new();
+    let carry_cache: Cached<(Cell, State), Option<&'static str>> = Cached::new();
     let slants_cache: Cached<(Cell, Cell), bool> = Cached::new();
     let slide_cache: Cached<Cell, bool> = Cached::new();
     let down = |cell: Cell| {
@@ -763,9 +776,9 @@ pub fn reached(
             None => Ok(None),
         })
     };
-    let carry = |cell: Cell, turns: &[i64]| {
-        carry_cache.get((cell, turns.to_vec()), || match options.carry {
-            Some(carry) => carry(cell, turns),
+    let carry = |cell: Cell, state: &[i64]| {
+        carry_cache.get((cell, state.to_vec()), || match options.carry {
+            Some(carry) => carry(cell, state),
             None => Ok(None),
         })
     };
@@ -800,21 +813,21 @@ pub fn reached(
         Some(joined) => joined(cell, step),
         None => Ok(true),
     };
-    let mut out: IndexMap<Cell, HashSet<Turns>> =
-        IndexMap::from([(start, HashSet::from([options.turns.clone()]))]);
-    let mut seen: HashSet<(Cell, Turns, &'static str)> =
-        HashSet::from([(start, options.turns.clone(), "")]);
-    let mut todo: Vec<(Cell, Turns, &'static str)> = vec![(start, options.turns.clone(), "")];
+    let mut out: IndexMap<Cell, HashSet<State>> =
+        IndexMap::from([(start, HashSet::from([options.state.clone()]))]);
+    let mut seen: HashSet<(Cell, State, &'static str)> =
+        HashSet::from([(start, options.state.clone(), "")]);
+    let mut todo: Vec<(Cell, State, &'static str)> = vec![(start, options.state.clone(), "")];
     let mut at = 0;
     while at < todo.len() {
-        let (cell, turned, sliding) = todo[at].clone();
+        let (cell, now, sliding) = todo[at].clone();
         at += 1;
         if cell != start && !walk(cell)? {
             continue;
         }
         onward(
             cell,
-            &turned,
+            &now,
             &can_walk,
             &r#box,
             &down,
@@ -832,12 +845,12 @@ pub fn reached(
                 } else {
                     ""
                 };
-                let state = (step, after.clone(), on);
-                if seen.contains(&state) {
+                let node = (step, after.clone(), on);
+                if seen.contains(&node) {
                     return Ok(());
                 }
-                seen.insert(state.clone());
-                todo.push(state);
+                seen.insert(node.clone());
+                todo.push(node);
                 // A cell slid over is no end: the player is past it before they can stop. Nor is a
                 // rail's, ridden.
                 let past = !on.is_empty() && {
@@ -1054,22 +1067,36 @@ impl Cover {
     }
 }
 
-fn back(came: &HashMap<State, State>, state: &State) -> Vec<Cell> {
-    let mut state = state;
-    let mut cells = vec![state.0];
-    while let Some(was) = came.get(state) {
-        // A jump comes two cells from the last, in a line: the ledge between goes in too. A
-        // diagonal step is two cells off by the same count and jumps nothing, nor a leap, which
-        // has no way.
-        let ((x, z), (x0, z0)) = (state.0, was.0);
-        if !state.1.is_empty() && (x - x0).abs() + (z - z0).abs() == 2 && (x == x0 || z == z0) {
-            cells.push((py::floordiv(x + x0, 2), py::floordiv(z + z0, 2)));
+fn back(came: &HashMap<Node, Node>, node: &Node) -> Vec<Step> {
+    let mut node = node;
+    let mut steps = vec![Step {
+        cell: node.0,
+        state: node.2.clone(),
+    }];
+    while let Some(was) = came.get(node) {
+        // A jump comes two cells from the last, in a line: the ledge between goes in too, in the
+        // state the jump keeps. A diagonal step is two cells off by the same count and jumps
+        // nothing, nor a leap, which has no way.
+        let ((x, z), (x0, z0)) = (node.0, was.0);
+        if !node.1.is_empty() && (x - x0).abs() + (z - z0).abs() == 2 && (x == x0 || z == z0) {
+            steps.push(Step {
+                cell: (py::floordiv(x + x0, 2), py::floordiv(z + z0, 2)),
+                state: node.2.clone(),
+            });
         }
-        state = was;
-        cells.push(state.0);
+        node = was;
+        steps.push(Step {
+            cell: node.0,
+            state: node.2.clone(),
+        });
     }
-    cells.reverse();
-    cells
+    steps.reverse();
+    steps
+}
+
+/// A way's cells, its states left out.
+pub fn cells(way: &[Step]) -> Vec<Cell> {
+    way.iter().map(|step| step.cell).collect()
 }
 
 /// `legs(path, how)`, with no step walked by a key other than its way's.

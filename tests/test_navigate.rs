@@ -2604,7 +2604,7 @@ fn laverre_gym(items: &[Interactable], at: Cell, level: f64) -> (Rig, Field) {
 
 fn gym_way(rig: &Rig, r#where: &Field, item: &Interactable) -> (Ground, Vec<Cell>) {
     let ground = rig.field.ground(r#where).unwrap();
-    let path = ground
+    let way = ground
         .find(
             r#where.cell,
             &ground.goals(item).unwrap(),
@@ -2615,7 +2615,7 @@ fn gym_way(rig: &Rig, r#where: &Field, item: &Interactable) -> (Ground, Vec<Cell
         )
         .unwrap()
         .expect("a way");
-    (ground, path)
+    (ground, pathfind::cells(&way))
 }
 
 /// Laverre Gym (spike 258): a teleporter stepped onto puts the player on its partner's panel on

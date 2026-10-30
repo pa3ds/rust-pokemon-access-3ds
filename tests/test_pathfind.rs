@@ -7,8 +7,8 @@ use std::rc::Rc;
 use indexmap::IndexMap;
 
 use crate::core::pathfind::{
-    Box, Cell, EAST, Leg, NORTH, Options, Reach, SOUTH, WEST, cover, facing, find, legs, nearest,
-    off, reached, spoken, towards, turned, walked, way,
+    self, Box, Cell, EAST, Leg, NORTH, Options, Reach, SOUTH, State, Step, WEST, cells, cover,
+    facing, find, legs, nearest, off, reached, spoken, towards, turned, walked, way,
 };
 use crate::py::Result;
 
@@ -44,8 +44,8 @@ fn ledges(rows: &[&str]) -> Rc<dyn Fn(Cell) -> Result<Option<&'static str>>> {
     )
 }
 
-fn said(path: Option<Vec<Cell>>) -> Option<String> {
-    path.map(|path| spoken(&legs(&path, None).unwrap()))
+fn said(way: Option<Vec<Step>>) -> Option<String> {
+    way.map(|way| spoken(&legs(&cells(&way), None).unwrap()))
 }
 
 fn plain() -> Options<'static> {
@@ -271,7 +271,10 @@ fn test_a_ledge_is_jumped_down_and_never_climbed() {
         ..plain()
     };
     let down = find((0, 0), &goals(&[((0, 2), None)]), &*walkable, box_, &ledged).unwrap();
-    assert_eq!(down, Some(vec![(0, 0), (0, 1), (0, 2)]));
+    assert_eq!(
+        down.map(|down| cells(&down)),
+        Some(vec![(0, 0), (0, 1), (0, 2)])
+    );
     let up = find((0, 2), &goals(&[((0, 0), None)]), &*walkable, box_, &ledged).unwrap();
     assert_eq!(said(up).as_deref(), Some("5 east, 2 north, 5 west"));
     let walled = ["......", "vvvvvv", "......"];
@@ -302,7 +305,10 @@ fn test_a_diagonal_step_is_taken_only_where_slants_allows_it_and_said_by_its_cor
         ..plain()
     };
     let way = find((0, 3), &to, &*walkable, box_, &slanted).unwrap();
-    assert_eq!(way, Some(vec![(0, 3), (1, 2), (2, 1), (3, 0)]));
+    assert_eq!(
+        way.as_deref().map(cells),
+        Some(vec![(0, 3), (1, 2), (2, 1), (3, 0)])
+    );
     assert_eq!(said(way).as_deref(), Some("3 north-east"));
     let back = find(
         (3, 0),
@@ -386,7 +392,7 @@ fn test_a_current_carries_the_player_its_way_until_that_way_is_shut() {
     let carry = move |cell: Cell| -> Result<Option<&'static str>> {
         Ok((cells[cell.1 as usize][cell.0 as usize] == b'<').then_some(WEST))
     };
-    let runs = |path: Option<Vec<Cell>>| -> Option<String> {
+    let runs = |way: Option<Vec<Step>>| -> Option<String> {
         let how = |cell: Cell, step: Cell| -> Result<String> {
             Ok(if carry(cell)? == Some(towards(cell, step)) {
                 "current".to_string()
@@ -394,7 +400,7 @@ fn test_a_current_carries_the_player_its_way_until_that_way_is_shut() {
                 String::new()
             })
         };
-        path.map(|path| spoken(&legs(&path, Some(&how)).unwrap()))
+        way.map(|way| spoken(&legs(&pathfind::cells(&way), Some(&how)).unwrap()))
     };
 
     let turned = |cell: Cell, _turns: &[i64]| carry(cell);
@@ -633,8 +639,56 @@ fn test_standing_on_a_goal_is_a_path_of_one_cell() {
             &plain()
         )
         .unwrap(),
-        Some(vec![(1, 0)])
+        Some(vec![Step {
+            cell: (1, 0),
+            state: Vec::new()
+        }])
     );
+}
+
+/// The search gives back each step with its state, so nothing walks the way again to learn it;
+/// a jump keeps the state it starts with, the ledge's cell too.
+#[test]
+fn test_each_cell_of_a_way_has_the_state_the_search_found_there() {
+    let rows = ["......", "vvvvv.", "......"];
+    let (walkable, box_) = drawn(&rows);
+    let counted = |state: &[i64], _cell: Cell, _step: Cell| -> Result<Option<State>> {
+        Ok(Some(vec![state[0] + 1]))
+    };
+    let walked = find(
+        (0, 0),
+        &goals(&[((2, 0), None)]),
+        &*walkable,
+        box_,
+        &Options {
+            state: vec![0],
+            through: Some(&counted),
+            ..plain()
+        },
+    )
+    .unwrap()
+    .unwrap();
+    let states: Vec<State> = walked.into_iter().map(|step| step.state).collect();
+    assert_eq!(states, [vec![0], vec![1], vec![2]]);
+    let ledge = ledges(&rows);
+    let jumped = find(
+        (0, 0),
+        &goals(&[((0, 2), None)]),
+        &*walkable,
+        box_,
+        &Options {
+            ledge: Some(&*ledge),
+            state: vec![0],
+            through: Some(&counted),
+            ..plain()
+        },
+    )
+    .unwrap();
+    let step = |cell: Cell| Step {
+        cell,
+        state: vec![0],
+    };
+    assert_eq!(jumped, Some(vec![step((0, 0)), step((0, 1)), step((0, 2))]));
 }
 
 #[test]

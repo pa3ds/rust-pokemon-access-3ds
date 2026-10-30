@@ -572,6 +572,12 @@ pub trait FieldSource {
 /// `Callable[[], float]`: `time.monotonic` unless a test or a tape says otherwise.
 pub type Clock = Rc<dyn Fn() -> f64>;
 
+/// The cells of a way found, or None where none was. Python's `_cells`, named apart from the
+/// `cells` its callers keep.
+fn way_cells(way: Option<Vec<pathfind::Step>>) -> Option<Vec<Cell>> {
+    way.map(|way| pathfind::cells(&way))
+}
+
 /// Where a way falls short by a room of thin ice not yet cleared, the way onto it and over every
 /// whole tile once, ending on one of its exits, which clears it; None where there is no such
 /// room, or no such way. Each of Sootopolis Gym's corridors up to Wallace is shut until the room
@@ -670,14 +676,14 @@ fn over_ice(
             ..Interactable::new("exits", "ice", entry)
         };
         let goals: IndexMap<Cell, Option<&'static str>> = IndexMap::from([(entry, None)]);
-        let onto = ground.find(
+        let onto = way_cells(ground.find(
             r#where.cell,
             &goals,
             heading,
             Some(&aim),
             false,
             Some(&|cell: Cell| Ok(!cells.contains_key(&cell) && ground.passable(cell)?)),
-        )?;
+        )?);
         if !reached(ground, &aim, &goals, &onto)? {
             continue;
         }
@@ -726,7 +732,7 @@ fn dive_again(
     let walkable = |cell: Cell| ground.passable(cell);
     let ledge = |cell: Cell| ground.ledge(cell);
     let toll = |cell: Cell, step: Cell| ground.toll(cell, step);
-    let up = pathfind::find(
+    let up = way_cells(pathfind::find(
         start,
         &aim,
         &walkable,
@@ -737,7 +743,7 @@ fn dive_again(
             toll: Some(&toll),
             ..pathfind::Options::default()
         },
-    )?;
+    )?);
     let Some(up) = up else {
         return Ok(None);
     };
@@ -1429,7 +1435,8 @@ impl Guide {
             return Ok(None);
         }
         let to_switch = aims(ground, switch, None)?;
-        let there = ground.find(r#where.cell, &to_switch, heading, Some(switch), false, None)?;
+        let there =
+            way_cells(ground.find(r#where.cell, &to_switch, heading, Some(switch), false, None)?);
         if there.is_none() || !reached(ground, switch, &to_switch, &there)? {
             return Ok(None);
         }
@@ -1439,7 +1446,7 @@ impl Guide {
             .ok_or_else(|| Error::index("tuple index out of range"))?;
         let turned = ground.turned();
         let goals = aims(&turned, item, None)?;
-        let on = turned.find(end, &goals, "", Some(item), false, None)?;
+        let on = way_cells(turned.find(end, &goals, "", Some(item), false, None)?);
         Ok(if reached(&turned, item, &goals, &on)? {
             Some(switch.clone())
         } else {
@@ -1518,7 +1525,8 @@ impl Guide {
             return Ok(None);
         }
         let goals = aims(&ground, item, push)?;
-        let mut path = ground.find(r#where.cell, &goals, heading, Some(item), true, None)?;
+        let mut path =
+            way_cells(ground.find(r#where.cell, &goals, heading, Some(item), true, None)?);
         let mut short = !reached(&ground, item, &goals, &path)?;
         let over = if short {
             over_ice(r#where, &ground, &path, heading)?
@@ -2185,7 +2193,7 @@ impl Guide {
         clear.smashed = ground.smashed.difference(&crowd).copied().collect();
         clear.crowd = crowd;
         let goals = aimed(clear.goals(item)?, sides);
-        let way = clear.find(r#where.cell, &goals, heading, Some(item), false, None)?;
+        let way = way_cells(clear.find(r#where.cell, &goals, heading, Some(item), false, None)?);
         let Some(way) = way else {
             return Ok(None);
         };

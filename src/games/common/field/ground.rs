@@ -12,7 +12,7 @@ use std::rc::Rc;
 
 use indexmap::{IndexMap, IndexSet};
 
-use crate::core::pathfind::{self, Box, Cell, EAST, NORTH, SOUTH, WEST};
+use crate::core::pathfind::{self, Box, Cell, EAST, NORTH, SOUTH, Step, WEST};
 use crate::games::common::field::chunk::{
     ANY_FLOOR, BLOCKED, BOARD, CHUNK, CLIMB, COUNTER, Chunk, LAUNCH, RISE, SHORE, STONE,
 };
@@ -1850,12 +1850,13 @@ impl Ground {
         })
     }
 
-    /// The way across this ground from `start` to any of `goals` by every move it has
-    /// (`pathfind.find`), to `item` where one is walked to, whose floor a stacked ground ends
-    /// on (`_walk`, `_arrives`). `walkable` is where it may step, `passable` where it is not
-    /// given. Across a teleporter the distance to the goals is no measure of the way left, a
-    /// teleport crossing Laverre Gym in one move, so the search goes by cost alone. A way to a
-    /// teleporter or an arrow ends on it, though it carries the player on.
+    /// The way across this ground from `start` to any of `goals` by every move it has, each
+    /// cell with the player's state there (`pathfind.find`), to `item` where one is walked to,
+    /// whose floor a stacked ground ends on (`_walk`, `_arrives`). `walkable` is where it may
+    /// step, `passable` where it is not given. Across a teleporter the distance to the goals is
+    /// no measure of the way left, a teleport crossing Laverre Gym in one move, so the search
+    /// goes by cost alone. A way to a teleporter or an arrow ends on it, though it carries the
+    /// player on.
     ///
     /// Python's `heading`, `item`, `closest` and `walkable` default to "", None, False and None.
     pub fn find(
@@ -1866,7 +1867,7 @@ impl Ground {
         item: Option<&Interactable>,
         closest: bool,
         walkable: Option<&dyn Fn(Cell) -> Result<bool>>,
-    ) -> Result<Option<Vec<Cell>>> {
+    ) -> Result<Option<Vec<Step>>> {
         let passable = |cell: Cell| self.passable(cell);
         let walkable: &dyn Fn(Cell) -> Result<bool> = walkable.unwrap_or(&passable);
         let r#box = self.r#box(start, goals.keys().copied())?;
@@ -1903,7 +1904,7 @@ impl Ground {
                 toll: Some(&toll),
                 closest,
                 joined: Some(&joined),
-                turns: walk.turns.clone(),
+                state: walk.state.clone(),
                 through: if walk.active { Some(&through) } else { None },
                 over: Some(&over),
                 arrives: if at.is_some() { Some(&arrives) } else { None },
@@ -1979,7 +1980,7 @@ impl Ground {
                 over: Some(&over),
                 ends: Some(&open),
                 carry: Some(&carry),
-                turns: walk.turns.clone(),
+                state: walk.state.clone(),
                 through: if walk.active { Some(&through) } else { None },
                 slants: Some(&slants),
                 slide: Some(&slide),
@@ -2071,7 +2072,7 @@ impl Ground {
                 teleporting,
                 pushing,
                 ends,
-                turns: Vec::new(),
+                state: Vec::new(),
                 crossings: None,
                 arrows: RefCell::new(HashMap::new()),
                 ahead_open: RefCell::new(HashMap::new()),
@@ -2122,7 +2123,7 @@ impl Ground {
             teleporting,
             pushing,
             ends,
-            turns,
+            state: turns,
             crossings,
             arrows: RefCell::new(HashMap::new()),
             ahead_open: RefCell::new(HashMap::new()),
@@ -2185,7 +2186,7 @@ struct Walk<'a> {
     pushing: bool,
     /// The cells a way may end on a teleporter at.
     ends: HashSet<Cell>,
-    turns: pathfind::Turns,
+    state: pathfind::State,
     crossings: Option<Rc<HashMap<(Cell, Cell), i64>>>,
     /// Each state asks its cell's arrow once a step it tries and again as it may stop there:
     /// Python's `cache(self.arrow)`, and `cache(self.passable)` of the cell a push goes on to.
@@ -2292,7 +2293,7 @@ impl Walk<'_> {
         self.fires(turns, cell).map(|sent| sent.0)
     }
 
-    fn through(&self, turns: &[i64], cell: Cell, step: Cell) -> Result<Option<pathfind::Turns>> {
+    fn through(&self, turns: &[i64], cell: Cell, step: Cell) -> Result<Option<pathfind::State>> {
         let ground = self.ground;
         let sent = self.fires(turns, cell);
         if let Some(sent) = sent

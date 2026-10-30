@@ -1855,7 +1855,7 @@ fn test_a_warp_is_walked_round_unless_it_is_where_the_path_goes() -> Result<()> 
         ground.r#box(r#where.cell, goals.keys().copied())?,
         &pathfind::Options::default(),
     )?;
-    assert!(path.is_some_and(|path| path[path.len() - 1] == (106, 171)));
+    assert!(path.is_some_and(|path| path[path.len() - 1].cell == (106, 171)));
     Ok(())
 }
 
@@ -1898,7 +1898,10 @@ fn test_a_conveyor_belt_is_ridden_the_way_it_runs_and_walked_round_against_it() 
         &walk,
     )?
     .expect("a way down");
-    assert_eq!(pathfind::spoken(&pathfind::legs(&down, None)?), "2 south");
+    assert_eq!(
+        pathfind::spoken(&pathfind::legs(&pathfind::cells(&down), None)?),
+        "2 south"
+    );
     let up = pathfind::find(
         (91, 176),
         &goals_of(&[((91, 174), None)]),
@@ -1907,7 +1910,7 @@ fn test_a_conveyor_belt_is_ridden_the_way_it_runs_and_walked_round_against_it() 
         &walk,
     )?
     .expect("a way up");
-    for &cell in &up {
+    for cell in pathfind::cells(&up) {
         assert!(ground.ledge(cell)?.is_none());
     }
     Ok(())
@@ -1964,7 +1967,10 @@ fn test_dewford_gyms_switches_and_belts_are_listed_and_walked_over() -> Result<(
         },
     )?;
     let down = down.expect("a way down");
-    assert_eq!(pathfind::spoken(&pathfind::legs(&down, None)?), "5 south");
+    assert_eq!(
+        pathfind::spoken(&pathfind::legs(&pathfind::cells(&down), None)?),
+        "5 south"
+    );
     Ok(())
 }
 
@@ -2283,7 +2289,7 @@ fn test_a_gyms_switches_and_passages_are_listed_and_walked_round_unless_the_goal
         ground.r#box((91, 172), goals.keys().copied())?,
         &pathfind::Options::default(),
     )?;
-    assert!(path.is_some_and(|path| path[path.len() - 1] == (91, 175)));
+    assert!(path.is_some_and(|path| path[path.len() - 1].cell == (91, 175)));
     Ok(())
 }
 
@@ -2663,8 +2669,9 @@ fn test_two_open_cells_touching_at_a_corner_are_joined_only_by_a_strand() -> Res
         }
     };
     let goals = goals_of(&[((6, 6), None)]);
+    let way = ground(strand, 0x8).find((5, 5), &goals, "", None, false, None)?;
     assert_eq!(
-        ground(strand, 0x8).find((5, 5), &goals, "", None, false, None)?,
+        way.map(|way| pathfind::cells(&way)),
         Some(vec![(5, 5), (6, 6)])
     );
     assert_eq!(
@@ -2938,7 +2945,10 @@ fn test_a_chunk_with_a_deck_at_the_players_height_is_walked_a_floor_at_a_time() 
             None,
         )?
         .expect("a way to Maxie");
-    assert_eq!(pathfind::spoken(&pathfind::legs(&path, None)?), "10 east");
+    assert_eq!(
+        pathfind::spoken(&pathfind::legs(&pathfind::cells(&path), None)?),
+        "10 east"
+    );
     Ok(())
 }
 
@@ -3051,7 +3061,7 @@ fn test_a_stair_is_where_the_ground_meets_a_floor_over_it() {
 fn test_a_step_up_a_street_is_said_by_the_way_it_runs_not_the_way_it_is_measured() -> Result<()> {
     let ground = raised_lanes(&[(1, (9.0, 81.0)), (2, (9.0, 9.0))], &[(1, 2, 4)])?;
     let path = ground.find((0, 4), &goals_of(&[((0, 0), None)]), "", None, false, None)?;
-    let path = path.expect("a way");
+    let path = pathfind::cells(&path.expect("a way"));
     let key = |cell, step| ground.key(cell, step);
     assert_eq!(
         pathfind::spoken(&pathfind::legs_with(&path, None, Some(&key), None)?),
@@ -3218,9 +3228,10 @@ fn test_a_ramp_in_the_streets_is_climbed_from_the_ground_to_the_landing_it_reach
             level: Some(0.0),
             ..Ground::default()
         };
-        let path = ground.find((1, 8), &goal, "", None, false, None)?;
-        assert_eq!(path.is_some(), found, "found {found}");
-        if let Some(path) = path {
+        let way = ground.find((1, 8), &goal, "", None, false, None)?;
+        assert_eq!(way.is_some(), found, "found {found}");
+        if let Some(way) = way {
+            let path = pathfind::cells(&way);
             let mut heights = Vec::new();
             for (&cell, floor) in path.iter().zip(ground.walked(&path)?) {
                 let floors = ground.floors(cell)?;
@@ -5510,7 +5521,7 @@ fn test_a_diagonal_street_is_one_leg_said_by_the_key_that_walks_it() -> Result<(
         false,
         None,
     )?;
-    let path = path.expect("a way along the street");
+    let path = pathfind::cells(&path.expect("a way along the street"));
     assert_eq!(
         pathfind::spoken(&pathfind::legs(&path, None)?),
         "4 north-west"
