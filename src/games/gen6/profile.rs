@@ -420,8 +420,21 @@ impl Gen6Profile {
         // stone, beside "ABLE!" or "UNABLE!": "Metagross UNABLE!" (movie31). The AreaNav's
         // Pokémon Distribution draws the place's Pokémon as icons whose buttons take no tap, so
         // they are named here for its reader to say whole (or_area_nav, spike 232).
+        // Made here, before the screen text reader, which names pictures by it: Python's closure
+        // reaches `self.files` once it is made, later. Making either reads nothing.
+        let files = Rc::new(LayoutFiles::new(memory.clone()));
+        let image_of: ImageOf = {
+            let (memory, files) = (memory.clone(), files.clone());
+            Rc::new(move |pane: i64| {
+                let at = textures::drawn_at(&*memory, pane)?;
+                Ok(at.and_then(|at| files.image_at(at)))
+            })
+        };
+        // Pokémon-Amie's games draw a result's count a digit a picture, `0.bclim` to `9.bclim`, too
+        // large for the index (or_amie_stars): named by their files.
         let on_screen_named: Pictures = {
             let (named_by_image, party_icons) = (named_by_image.clone(), party_icons.clone());
+            let image_of = image_of.clone();
             let (apps, distribution, partners) =
                 (apps.clone(), distribution.clone(), partners.clone());
             Rc::new(move |pane: i64| {
@@ -435,6 +448,14 @@ impl Gen6Profile {
                     && !name.is_empty()
                 {
                     return Ok(Some(name));
+                }
+                let running = apps.borrow().running.clone();
+                if running
+                    .as_deref()
+                    .is_some_and(|app| amie::GAMES.contains(&app))
+                    && let Some(digit) = amie::digit(image_of(pane)?.as_deref())
+                {
+                    return Ok(Some(digit));
                 }
                 if let Some(name) = party_icons.borrow().name(pane)?
                     && !name.is_empty()
@@ -463,7 +484,6 @@ impl Gen6Profile {
             text.labels.clone(),
             text.plain.clone(),
         )));
-        let files = Rc::new(LayoutFiles::new(memory.clone()));
         let battlers = Rc::new(Battlers::new(memory.clone(), names.clone()));
         let gauges = Rc::new(Gauges::new(memory.clone(), names.clone()));
         let battle = BattleReader::new(layouts.clone(), battlers.clone(), gauges.clone());
@@ -522,13 +542,6 @@ impl Gen6Profile {
         // Touch mode walks the bottom screen's touch areas, and taps one on the player's key
         // (`games.common.touch`, ADR-0009 as amended 2026-10-01).
 
-        let image_of: ImageOf = {
-            let (memory, files) = (memory.clone(), files.clone());
-            Rc::new(move |pane: i64| {
-                let at = textures::drawn_at(&*memory, pane)?;
-                Ok(at.and_then(|at| files.image_at(at)))
-            })
-        };
         let file_of: FileOf = {
             let (files, layouts) = (files.clone(), layouts.clone());
             Rc::new(move |root: i64| -> Option<Rc<LayoutFile>> {

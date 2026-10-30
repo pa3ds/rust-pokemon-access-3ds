@@ -989,6 +989,25 @@ fn test_pictures_of_two_groups_side_by_side_are_two() {
     assert_eq!(texts, ["Coolness", "Toughness"]);
 }
 
+/// Pokémon-Amie's results draw a count a digit a picture (or_amie_stars, spike A): "11", not
+/// "1" said once nor "1/1".
+#[test]
+fn test_digits_drawn_side_by_side_are_one_number() {
+    let tens = ScreenText {
+        parent: 7,
+        picture: true,
+        ..ScreenText::placed(1, "1", false, -22.0, 0.0, 0.0, 44.0)
+    };
+    let ones = ScreenText {
+        parent: 7,
+        picture: true,
+        ..ScreenText::placed(2, "1", false, 0.0, 22.0, 0.0, 44.0)
+    };
+    let found = screen::side_by_side(&IndexMap::from([(1, tens), (2, ones)]));
+    let texts: Vec<String> = found.into_values().map(|piece| piece.text).collect();
+    assert_eq!(texts, ["11"]);
+}
+
 /// A summary hangs Appeal's hearts and Jamming's in one window (movie33).
 #[test]
 fn test_hearts_on_two_rows_of_one_group_are_counted_apart() {

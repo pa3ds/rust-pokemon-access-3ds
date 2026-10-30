@@ -1448,7 +1448,16 @@ pub(crate) fn side_by_side(pictures: &IndexMap<i64, ScreenText>) -> IndexMap<i64
             && before.parent == piece.parent
             && touching(&before, piece)
         {
-            if !before.text.split('/').any(|part| part == piece.text) {
+            // A count drawn a digit a picture is one number: Pokémon-Amie's games' results.
+            if py::isdigit(&before.text) && py::isdigit(&piece.text) {
+                let joined = ScreenText {
+                    text: format!("{}{}", before.text, piece.text),
+                    right: piece.right,
+                    ..before
+                };
+                out.insert(joined.r#box, joined.clone());
+                last = Some(joined);
+            } else if !before.text.split('/').any(|part| part == piece.text) {
                 let joined = ScreenText {
                     text: format!("{}/{}", before.text, piece.text),
                     right: piece.right,

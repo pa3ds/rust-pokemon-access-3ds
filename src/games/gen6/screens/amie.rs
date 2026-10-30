@@ -58,6 +58,16 @@ pub const GAMES: [&str; 3] = [
     "N3app7heading7ProcessE",
     "N3app6puzzle7ProcessE",
 ];
+/// A digit of a count the games' results draw a picture a digit: Berry Picker's berries and Head
+/// It's total (or_amie_stars). Python's `DIGIT`, `(\d)\.bclim` matched whole.
+pub fn digit(image: Option<&str>) -> Option<String> {
+    let image = image.filter(|image| !image.is_empty())?;
+    let stem = image.strip_suffix(".bclim")?;
+    let mut chars = stem.chars();
+    let first = chars.next()?;
+    (chars.next().is_none() && py::is_decimal(first)).then(|| first.to_string())
+}
+
 /// Back and forth across the middle of the screen, over the Pokémon's body: Sceptile stood from
 /// about 110 to 200 across and 60 to 170 down, and the hand followed every pass (spike 200).
 pub const STROKE: [(i64, i64); 6] = [
