@@ -34,3 +34,17 @@ kind-lift = lift
 # Lavaridge Gym's (spike 157).
 kind-trapdoor = trapdoor
 kind-geyser = geyser
+
+## Tile Puzzle's backgrounds (spike D)
+
+# Where Pokémon-Amie's Tile Puzzle puts its three Pokémon, drawn at random each time it opens and
+# never named by the game: said after them, "Blaze on the right, on a sandy beach". By the number
+# the puzzle holds for it, one of the eleven its module lists; one without words here is left out:
+# 1, 6, 9 and 47 have not been seen.
+puzzle-background-4 = in a sunlit forest
+puzzle-background-5 = on a sandy beach
+puzzle-background-8 = on a town street
+puzzle-background-12 = in shallow water before a wooded bank
+puzzle-background-13 = out on the open sea
+puzzle-background-43 = among sand dunes
+puzzle-background-44 = on rocky ground

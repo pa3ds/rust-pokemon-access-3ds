@@ -189,16 +189,24 @@ fn test_records_out_of_order_or_two_in_one_slot_are_no_board() {
 
 const PICTURE: i64 = 0x08500000;
 const PARAMS: i64 = 0x08600000;
+const BACKGROUND: i64 = 0x08700000;
 /// Where or_amie_tile_puzzle_easy's three stood: right and behind, in front, left and behind.
 const STANDING: [(f32, f32); 3] = [(170.0, -335.0), (0.0, -200.0), (-170.0, -335.0)];
 
 /// A picture of a Pokémon a record, each a PokemonParam pointing to its record at +0x40, in
-/// the places or_amie_tile_puzzle_easy's stood, or all at 0 unless `placed` (spike D); and an
-/// Easy board, every piece home, as under Begin.
+/// the places or_amie_tile_puzzle_easy's stood, or all at 0 unless `placed`, before `background`,
+/// its shallow water by default (spike D); and an Easy board, every piece home, as under Begin.
 fn picture(records: &[Vec<u8>], placed: bool) -> puzzle::TilePuzzle {
+    picture_before(records, placed, 12)
+}
+
+/// `picture(records, placed, background)`.
+fn picture_before(records: &[Vec<u8>], placed: bool, background: i64) -> puzzle::TilePuzzle {
     let memory = FakeMemory::new();
     let classes = FakeClasses::new(memory.clone());
     memory.u32(PICTURE, &[classes.add(puzzle::PICTURE)]);
+    memory.u32(BACKGROUND, &[classes.add(puzzle::BACKGROUND)]);
+    memory.u32(BACKGROUND + puzzle::DRAWN, &[background]);
     for (i, (raw, (x, z))) in records.iter().zip(STANDING).enumerate() {
         let param = PARAMS + i as i64 * 0x200;
         memory.u32(PICTURE + puzzle::MODELS[i], &[param]);
@@ -238,6 +246,7 @@ fn picture(records: &[Vec<u8>], placed: bool) -> puzzle::TilePuzzle {
             &IndexMap::from([
                 (PICTURE, puzzle::PICTURE.to_string()),
                 (BOARD, puzzle::CLASS.to_string()),
+                (BACKGROUND, puzzle::BACKGROUND.to_string()),
             ]),
             false,
         )
@@ -277,8 +286,48 @@ fn test_the_picture_is_three_of_the_party_said_left_to_right() {
         [(257, 0), (25, 1), (376, 0)]
     );
     assert_eq!(
-        puzzle::described(&shown, &named).as_deref(),
+        puzzle::described(&shown, &named, None).as_deref(),
         Some("Metagross on the left, Pikachu Rock Star in front, Blaze on the right")
+    );
+}
+
+#[test]
+fn test_the_background_is_said_after_the_pokemon_by_its_number() {
+    // ADR-0038: or_amie_tile_puzzle_easy drew background 12, the shallow water (spike D); a
+    // number with no words in the data is left out, its Pokémon said all the same.
+    let party = [
+        record(0x1, 257, "Blaze", true),
+        record_form(0x2, 25, "Pikachu", false, 1),
+    ];
+    let reader = picture(&party, true);
+    let shown = reader.picture().unwrap().expect("a picture");
+    assert_eq!(reader.background().unwrap(), Some(12));
+    assert_eq!(
+        puzzle::described(&shown, &named, reader.background().unwrap()).as_deref(),
+        Some(
+            "Pikachu Rock Star in front, Blaze on the right, in shallow water before a wooded bank"
+        )
+    );
+    let unknown = picture_before(&party, true, 99);
+    assert_eq!(
+        puzzle::described(&shown, &named, unknown.background().unwrap()).as_deref(),
+        Some("Pikachu Rock Star in front, Blaze on the right")
+    );
+}
+
+#[test]
+fn test_the_picture_waits_for_its_background_to_be_drawn() {
+    // Spike D: in two of six replays shifted inside Amie, the puzzle's Bg held 0 as its Pokémon
+    // were placed, and the picture was said without its background.
+    let party = [
+        record(0x1, 257, "Blaze", true),
+        record(0x2, 25, "Pikachu", false),
+    ];
+    assert!(
+        picture_before(&party, true, 0)
+            .new_picture()
+            .unwrap()
+            .is_none()
     );
 }
 

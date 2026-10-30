@@ -1,8 +1,8 @@
 //! Pokémon-Amie's Tile Puzzle: which piece of the picture each tile holds (spike A), and who is
 //! in the picture (spike D).
 //!
-//! The puzzle shows its picture whole, three of the player's Pokémon on the shore under the sky,
-//! then cuts it into tiles and shuffles them at Begin; two taps swap two tiles, and the clock runs
+//! The puzzle shows its picture whole, three of the player's Pokémon before a background, then
+//! cuts it into tiles and shuffles them at Begin; two taps swap two tiles, and the clock runs
 //! until every piece is home (or_amie_tile_puzzle_easy). Easy cuts it into 20, five across and four
 //! down; Normal into 30, six across and five down (as_amie_tile_puzzle_normal); Hard into 48, eight
 //! across and six down (as_amie_tile_puzzle_hard). Each tile is a group of a touch area, a picture
@@ -36,8 +36,11 @@
 //! to a `PokemonParam` each, a copy of the party's whose record checks, and four points a Pokémon,
 //! where it stands among them. The one Amie plays with stands in front in the middle, x 0, and two
 //! more behind it, x below 0 on the left and above on the right (or_amie_tile_puzzle_easy's
-//! Metagross, Pikachu and Blaze; as_amie_tile_puzzle_normal's Poochyena, Ralts and rowan). With
-//! descriptions on, the picture is said once the puzzle holds them, left to right.
+//! Metagross, Pikachu and Blaze; as_amie_tile_puzzle_normal's Poochyena, Ralts and rowan). The two
+//! behind are drawn afresh each time it opens, and the background too, whatever the place:
+//! `app::puzzle::Bg` holds its number, which pa3ds's own words describe, as the game never names
+//! it. With descriptions on, the picture is said once the puzzle holds them, left to right, then
+//! its background.
 //!
 //! Bound by:
 //! - ADR-0038: the picture is Narration's, said once an app, off unless asked for.
@@ -49,7 +52,7 @@ use indexmap::IndexMap;
 
 use crate::core::binary::{f32, u32};
 use crate::core::memory::Memory;
-use crate::core::words::own;
+use crate::core::words::{current, own};
 use crate::games::common::layout::Layouts;
 use crate::games::common::touch::Target;
 use crate::games::common::{lyt, pokemon};
@@ -80,6 +83,11 @@ pub const MODELS: [i64; 3] = [0x0C, 0x1C, 0x2C];
 pub const POINTS: i64 = 0x38;
 pub const STANDS: i64 = 0x18;
 pub const PICTURE_SIZE: i64 = POINTS + MODELS.len() as i64 * 0x30;
+/// The picture's background (spike D).
+pub const BACKGROUND: &str = "N3app6puzzle2BgE";
+/// Where `BACKGROUND` holds the number of the background drawn, at random whatever the place, from
+/// the eleven at `DllPuzzle.cro` +0xF21C: 13 the open sea, 44 rocky ground and so on.
+pub const DRAWN: i64 = 0x1DC;
 
 pub const GRID: &str = "slot-grid";
 pub const ROW: &str = "puzzle-row";
@@ -90,18 +98,24 @@ pub const PICKED_WORD: &str = "puzzle-picked";
 pub const LEFT: &str = "puzzle-picture-left";
 pub const FRONT: &str = "puzzle-picture-front";
 pub const RIGHT: &str = "puzzle-picture-right";
+/// A background's words, by its number: `puzzle-background-13`, a game's own.
+pub const SETTING: &str = "puzzle-background-";
 
 /// The picture's Pokémon, each with where it stands: x, right the greater, and z, nearer the
 /// greater.
 pub type Picture = Vec<(pokemon::Pokemon, f64, f64)>;
 
-/// The picture in words, left to right, each Pokémon called by `name`: "Metagross on the left,
-/// Pikachu Rock Star in front, Blaze on the right"; None where one has no name. The one the player
-/// plays with stands in front in the middle, x 0, and two more behind it to either side
-/// (or_amie_tile_puzzle_easy, as_amie_tile_puzzle_normal).
+/// The picture in words, left to right, each Pokémon called by `name`, then the background
+/// where the data has words for its number: "Metagross on the left, Pikachu Rock Star in front,
+/// Blaze on the right, in shallow water before a wooded bank"; None where a Pokémon has no name.
+/// The one the player plays with stands in front in the middle, x 0, and two more behind it to
+/// either side (or_amie_tile_puzzle_easy, as_amie_tile_puzzle_normal).
+///
+/// Python's `background` defaults to None.
 pub fn described(
     picture: &Picture,
     name: &dyn Fn(&pokemon::Pokemon) -> Option<String>,
+    background: Option<i64>,
 ) -> Option<String> {
     let mut said: Vec<String> = Vec::new();
     for (found, x, _) in py::sorted_by_lt(picture.clone(), |a, b| a.1 < b.1) {
@@ -114,6 +128,12 @@ pub fn described(
             FRONT
         };
         said.push(own(word, &[("pokemon", &called)]));
+    }
+    if let Some(background) = background
+        && let Some(r#where) = current().get(&format!("{SETTING}{background}"), &[])
+        && !r#where.is_empty()
+    {
+        said.push(r#where);
     }
     Some(said.join(", "))
 }
@@ -179,6 +199,8 @@ pub struct TilePuzzle {
     pieces: IndexMap<i64, i64>,
     /// PokeModel object -> the vtable it was found with.
     pictures: IndexMap<i64, i64>,
+    /// Bg object -> the vtable it was found with.
+    backgrounds: IndexMap<i64, i64>,
     shown: Cell<bool>,
 }
 
@@ -189,34 +211,37 @@ impl TilePuzzle {
             layouts,
             pieces: IndexMap::new(),
             pictures: IndexMap::new(),
+            backgrounds: IndexMap::new(),
             shown: Cell::new(false),
         }
     }
 
-    /// The boards and pictures a sweep found, by class: all of them, or with `adding` the new
-    /// ones.
+    /// The boards, pictures and backgrounds a sweep found, by class: all of them, or with
+    /// `adding` the new ones.
     pub fn track(&mut self, found: &IndexMap<i64, String>, adding: bool) -> Result<()> {
-        let mut pieces = if adding {
-            self.pieces.clone()
-        } else {
-            IndexMap::new()
-        };
-        let mut pictures = if adding {
-            self.pictures.clone()
-        } else {
-            IndexMap::new()
-        };
-        for (&at, name) in found {
-            if name == CLASS || name == PICTURE {
-                let vtable = u32(&self.memory.read(at, 4)?, 0)?;
-                if name == CLASS {
-                    pieces.insert(at, vtable);
-                } else {
-                    pictures.insert(at, vtable);
-                }
+        let kept = |objects: &IndexMap<i64, i64>| {
+            if adding {
+                objects.clone()
+            } else {
+                IndexMap::new()
             }
+        };
+        let (mut pieces, mut pictures, mut backgrounds) = (
+            kept(&self.pieces),
+            kept(&self.pictures),
+            kept(&self.backgrounds),
+        );
+        for (&at, name) in found {
+            let tracked = match name.as_str() {
+                CLASS => &mut pieces,
+                PICTURE => &mut pictures,
+                BACKGROUND => &mut backgrounds,
+                _ => continue,
+            };
+            tracked.insert(at, u32(&self.memory.read(at, 4)?, 0)?);
         }
         (self.pieces, self.pictures) = (pieces, pictures);
+        self.backgrounds = backgrounds;
         Ok(())
     }
 
@@ -226,11 +251,12 @@ impl TilePuzzle {
         self.shown.set(false);
     }
 
-    /// The picture's Pokémon the first time the puzzle holds them, then None until another app
-    /// starts: each look is four reads a poll.
+    /// The picture's Pokémon the first time the puzzle holds them and its background is drawn,
+    /// then None until another app starts: each look is five reads a poll. Its `Bg` held 0 still
+    /// as its Pokémon were placed in two of six replays (spike D).
     pub fn new_picture(&self) -> Result<Option<Picture>> {
         // ponytail: one picture an app; if Play Again draws another, watch MODELS' pointers.
-        if self.shown.get() || self.board()?.is_none() {
+        if self.shown.get() || self.board()?.is_none() || self.background()? == Some(0) {
             return Ok(None);
         }
         let found = self.picture()?;
@@ -272,6 +298,18 @@ impl TilePuzzle {
             }
             if !shown.is_empty() {
                 return Ok(Some(shown));
+            }
+        }
+        Ok(None)
+    }
+
+    /// The number of the background drawn, 0 until it is, or None where no background is
+    /// found.
+    pub fn background(&self) -> Result<Option<i64>> {
+        for (&at, &vtable) in &self.backgrounds {
+            let raw = self.memory.read(at, DRAWN + 4)?;
+            if u32(&raw, 0)? == vtable {
+                return Ok(Some(u32(&raw, DRAWN)?));
             }
         }
         Ok(None)

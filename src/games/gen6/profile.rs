@@ -106,7 +106,7 @@ use crate::py::{self, Error, Log, PySet, Result};
 /// Not TextBoxes or cursor windows: walking each layout's tree finds every one that can be placed on
 /// screen (spike 62). And the linear heap is not swept: the battle builds its layouts there, and its
 /// message window leads to their pool (spike 64).
-pub const HEAP_CLASSES: [&str; 38] = [
+pub const HEAP_CLASSES: [&str; 39] = [
     msgwin::CLASSES[0],
     msgwin::CLASSES[1],
     talk::CLASSES[0],
@@ -133,6 +133,7 @@ pub const HEAP_CLASSES: [&str; 38] = [
     amie::G2D_CLASS,
     puzzle::CLASS,
     puzzle::PICTURE,
+    puzzle::BACKGROUND,
     training::CLASS,
     training::MISSILE,
     partners::CLASS,
@@ -1519,9 +1520,20 @@ impl Gen6Profile {
         }
         if self.text.loaded() && self.apps.borrow().running.as_deref() == Some(puzzle::APP) {
             let shown = self.puzzle.borrow().new_picture()?;
-            if let Some(shown) = shown
-                && let Some(said) = puzzle::described(&shown, &|found| self.yours(found))
-            {
+            let mut background = None;
+            let said = match shown {
+                Some(shown) => {
+                    background = self.puzzle.borrow().background()?;
+                    puzzle::described(&shown, &|found| self.yours(found), background)
+                }
+                None => None,
+            };
+            if let Some(said) = said {
+                // The number too, as a background with no words yet is left out.
+                (self.log)(&format!(
+                    "puzzle background: {}",
+                    background.map_or("None".to_string(), |number| number.to_string())
+                ));
                 if self.describing {
                     self.announcements.borrow_mut().narrate(&said);
                 } else {
