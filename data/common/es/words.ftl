@@ -150,8 +150,12 @@ p-gone = { $thing } ya no está
 ## Touch mode
 
 touch-nothing = nada que tocar
+touch-no-drag = nada que arrastrar
+touch-continue = continuar
 touch-off = el táctil está desactivado
 touch-not-listening = Azahar no recibe toques de pa3ds
+touch-holding = sujetando { $target }
+touch-dropped = soltado en { $target }
 
 ## What the field shows without words
 
@@ -178,6 +182,20 @@ training-red-goal = portería roja
 training-shot-coming = disparo en camino
 training-left = quedan { $time }
 amie-stroke = acariciar a { $pokemon }
+puzzle-cell = { $column }{ $row }
+puzzle-home = { $tile }, en su sitio
+puzzle-goes = { $tile }, va a { $home }
+puzzle-picture-left = { $pokemon } a la izquierda
+puzzle-picture-front = { $pokemon } delante
+puzzle-picture-right = { $pokemon } a la derecha
+puzzle-picked = { $tile }, elegida
+berry-picker-wants = { $pokemon } quiere { $berry }
+berry-picker-for = { $berry } para { $pokemon }
+berry-picker-wanted = se pide { $berry }
+berry-picker-lineup = { $first }, { $second } y { $third }
+berry-picker-not-up = { $pokemon } no ha salido
+berry-picker-no-berry = sin baya { $number }
+berry-picker-no-pokemon = sin Pokémon { $number }
 
 ## What pa3ds says of itself
 
@@ -224,6 +242,10 @@ setting-pa3ds-audio-tones = Volumen relativo de los tonos
 setting-pa3ds-audio-tones-about = Lo fuerte que suena el tono corto al moverse el cursor de un mapa o del modo táctil, más agudo cuanto más arriba y más hacia la derecha cuanto más a la derecha, para indicar dónde está el cursor: 1 tan fuerte como el juego, 0.5 la mitad, 1.5 más fuerte, 0 nada; en el diálogo de ajustes, en porcentaje, 100 tan fuerte como el juego.
 setting-pa3ds-audio-footsteps = Volumen relativo de los pasos
 setting-pa3ds-audio-footsteps-about = Lo fuertes que suenan los pasos propios de pa3ds en el suelo donde el juego no reproduce ninguno, como calles, suelos interiores y cuevas: 1 tan fuerte como los reproduciría el juego, 0.5 la mitad, 1.5 más fuerte, 0 nada; en el diálogo de ajustes, en porcentaje, 100 tan fuerte como el juego.
+setting-pa3ds-audio-ticks = Volumen relativo del tictac del reloj
+setting-pa3ds-audio-ticks-about = Lo fuerte que suena un tono corto en cada segundo del reloj de un juego, como en los juegos del Poké Recreo; el propio reloj se dice cada medio minuto y en sus últimos segundos: 1 tan fuerte como el juego, 0.5 la mitad, 1.5 más fuerte, 0 nada, como viene de serie; en el diálogo de ajustes, en porcentaje, 100 tan fuerte como el juego.
+setting-pa3ds-audio-feedback_sounds = Volumen relativo de los sonidos de respuesta
+setting-pa3ds-audio-feedback_sounds-about = Lo fuertes que suenan los sonidos cortos del propio juego para lo que ha hecho una tecla: los de las cajas del PC al coger y dejar un Pokémon, cuando el modo táctil coge algo para arrastrarlo y lo suelta, y el sonido de error del juego para una tecla que no tiene nada que hacer, como una baya que la ronda de Recogebayas no tiene. A 0, pa3ds lo dice en su lugar, "sujetando", "soltado en" y el motivo: 1 tan fuerte como el juego, 0.5 la mitad, 1.5 más fuerte; en el diálogo de ajustes, en porcentaje, 100 tan fuerte como el juego.
 setting-pa3ds-navigation-positions = Anunciar la posición en la lista
 setting-pa3ds-navigation-positions-about = Decir en qué lugar de la lista está algo, como en "puerta, 1 de 3".
 setting-pa3ds-navigation-position_first = Posición en la lista antes de las direcciones
@@ -240,6 +262,18 @@ setting-pa3ds-navigation-show_y = Anunciar la altura
 setting-pa3ds-navigation-show_y-about = Decir también la altura, como y después de x y z, cuando C dice dónde estás y Mayús+C dónde está lo elegido: "x 71, z 35, y 20"; en las unidades del propio juego, 18 por el ancho de una casilla, y se omite donde pa3ds no la conoce, como en Sol y Luna.
 setting-pa3ds-navigation-sort_by_distance = Ordenar por distancia
 setting-pa3ds-navigation-sort_by_distance-about = Ordenar la lista del modo lista de lo más cercano a lo más lejano, lo que cambia mientras caminas; con false cada cosa tiene un sitio fijo en ella, el orden de las tablas del propio juego, para que sepas en qué casa has estado por el lugar que ocupa; el modo dirección va de lo más cercano a lo más lejano en ambos casos.
+setting-pa3ds-touch-wrap = Volver al principio
+setting-pa3ds-touch-wrap-about = En modo táctil, pasar del último botón al primero, y de la fila de abajo a la de arriba; con false se detiene en los extremos, así que pulsar O unas cuantas veces siempre acaba en la fila de abajo.
+setting-pa3ds-touch-next_row = Pasar a la fila siguiente
+setting-pa3ds-touch-next_row-about = En modo táctil, J y L pasan a la fila de arriba o de abajo al final de una fila; con false se quedan en su fila, así que pulsar L unas cuantas veces siempre acaba a su derecha.
+setting-pa3ds-touch-drag = Cómo arrastrar
+setting-pa3ds-touch-drag-about = Arrastrar con Mayús pulsada, o con una tecla propia asignada a arrastrar en keys.toml, soltando el toque al levantarla ("hold"), o pulsarla para coger y pulsarla otra vez para soltar ("toggle"). Solo se arrastra en el Poké Recreo.
+setting-pa3ds-touch-drag-hold = Mantener Mayús
+setting-pa3ds-touch-drag-toggle = Pulsar para coger, pulsar para soltar
+setting-pa3ds-amie-berry_first = Recogebayas dice primero la baya
+setting-pa3ds-amie-berry_first-about = Decir cada Pokémon que quiere una baya en el orden en que se la das, la baya y luego el Pokémon, "Baya Pinia para Pikachu"; con false dice primero el Pokémon, "Pikachu quiere Baya Pinia".
+setting-pa3ds-amie-one_at_a_time = Recogebayas dice un Pokémon cada vez
+setting-pa3ds-amie-one_at_a_time-about = Decir un solo Pokémon que quiere una baya cada vez, y el siguiente cuando le hayas dado una baya o el que se ha dicho se haya ido; con false dice cada uno según llega.
 setting-pa3ds-extras-conditions = Condiciones de concurso como números
 setting-pa3ds-extras-conditions-about = Decir las condiciones de concurso de un Pokémon como números donde el juego las dibuja como una estrella, en la ficha del Pokémon y en el Kit de Pokécubos: la estrella se muestra a todos pero pa3ds no puede leerla, así que sus números son todo lo que puede dar, y son más exactos que la estrella.
 setting-pa3ds-extras-hidden_items = Objetos ocultos
@@ -252,6 +286,8 @@ settings-page-general = General
 settings-page-speech = Voz
 settings-page-audio = Audio
 settings-page-navigation = Navegación
+settings-page-touch = Modo táctil
+settings-page-amie = Poké Recreo
 settings-page-extras = Extras
 settings-browse = &Examinar...
 settings-language-game = El idioma del propio juego

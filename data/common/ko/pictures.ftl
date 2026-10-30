@@ -48,6 +48,9 @@ texture-bgbutton_L = 이전
 texture-bgbutton_R = 다음
 texture-button_back = 돌아가기
 texture-button_exit = 끝내기
+texture-button_food = 포플레
+texture-button_play = 게임
+texture-button_ball = 돌아가기
 
 ## The ◀ and ▶ in the top bar's corners
 
@@ -76,6 +79,10 @@ dexnav-hidden-ability = 숨겨진 특성
 dexnav-caught = 잡았음
 dexnav-stars = { $count ->
    *[other] 별 { $count }개
+}
+stars-and-a-half = { $count ->
+    [0] 별 반 개
+   *[other] 별 { $count }개 반
 }
 contest-hearts = { $count ->
    *[other] 하트 { $count }개

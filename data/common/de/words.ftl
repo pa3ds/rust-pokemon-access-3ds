@@ -150,8 +150,12 @@ p-gone = { $thing } ist weg
 ## Touch mode
 
 touch-nothing = nichts zum Antippen
+touch-no-drag = nichts zum Ziehen
+touch-continue = weiter
 touch-off = Touch ist aus
 touch-not-listening = Azahar nimmt keine Berührungen von pa3ds an
+touch-holding = { $target } gehalten
+touch-dropped = losgelassen auf { $target }
 
 ## What the field shows without words
 
@@ -178,6 +182,20 @@ training-red-goal = rotes Tor
 training-shot-coming = Schuss kommt
 training-left = noch { $time }
 amie-stroke = { $pokemon } streicheln
+puzzle-cell = { $column }{ $row }
+puzzle-home = { $tile }, am richtigen Platz
+puzzle-goes = { $tile }, gehört nach { $home }
+puzzle-picture-left = { $pokemon } links
+puzzle-picture-front = { $pokemon } vorne
+puzzle-picture-right = { $pokemon } rechts
+puzzle-picked = { $tile }, ausgewählt
+berry-picker-wants = { $pokemon } möchte { $berry }
+berry-picker-for = { $berry } für { $pokemon }
+berry-picker-wanted = { $berry } gewünscht
+berry-picker-lineup = { $first }, { $second } und { $third }
+berry-picker-not-up = { $pokemon } ist gerade nicht da
+berry-picker-no-berry = keine Beere { $number }
+berry-picker-no-pokemon = kein Pokémon { $number }
 
 ## What pa3ds says of itself
 
@@ -224,7 +242,11 @@ setting-pa3ds-audio-tones = Relative Lautstärke der Töne
 setting-pa3ds-audio-tones-about = Wie laut der kurze Ton ist, wenn sich der Cursor einer Karte oder der Touch-Modus bewegt, höher, je weiter oben, und weiter rechts, je weiter rechts, damit du hörst, wo der Cursor ist: 1 so laut wie das Spiel, 0.5 halb so laut, 1.5 lauter, 0 gar nicht; im Einstellungsdialog in Prozent, 100 so laut wie das Spiel.
 setting-pa3ds-audio-footsteps = Relative Lautstärke der Schritte
 setting-pa3ds-audio-footsteps-about = Wie laut die eigenen Schritte von pa3ds auf Boden sind, auf dem das Spiel keine abspielt, etwa auf Straßen, Fußböden und in Höhlen: 1 so laut, wie das Spiel sie abspielen würde, 0.5 halb so laut, 1.5 lauter, 0 gar nicht; im Einstellungsdialog in Prozent, 100 so laut wie das Spiel.
-setting-pa3ds-navigation-positions = Listenposition ansagen
+setting-pa3ds-audio-ticks = Relative Lautstärke des Uhrtickens
+setting-pa3ds-audio-ticks-about = Wie laut ein kurzer Ton bei jeder Sekunde der Uhr eines Spiels ist, etwa in den Spielen von PokéMonAmi; die Uhr selbst wird jede halbe Minute und in ihren letzten Sekunden angesagt: 1 so laut wie das Spiel, 0.5 halb so laut, 1.5 lauter, 0 gar nicht, die Voreinstellung; im Einstellungsdialog in Prozent, 100 so laut wie das Spiel.
+setting-pa3ds-audio-feedback_sounds = Relative Lautstärke der Rückmeldetöne
+setting-pa3ds-audio-feedback_sounds-about = Wie laut die eigenen kurzen Töne des Spiels für das sind, was eine Taste getan hat: die Töne der PC-Boxen beim Aufnehmen und Absetzen eines Pokémon, wenn der Touch-Modus etwas zum Ziehen aufnimmt und loslässt, und der Fehlerton des Spiels für eine Taste, die nichts zu tun hat, etwa für eine Beere, die eine Runde von Beerenernte nicht hat. Bei 0 sagt pa3ds sie stattdessen an, „gehalten“, „losgelassen auf“ und warum: 1 so laut wie das Spiel, 0.5 halb so laut, 1.5 lauter; im Einstellungsdialog in Prozent, 100 so laut wie das Spiel.
+setting-pa3ds-navigation-positions =Listenposition ansagen
 setting-pa3ds-navigation-positions-about = Sagen, wo ein Ding in der Liste steht, wie in „Tür, 1 von 3“.
 setting-pa3ds-navigation-position_first = Listenposition vor der Richtung
 setting-pa3ds-navigation-position_first-about = Die Stelle in der Liste vor dem Weg dorthin sagen, „Tür, 1 von 3, 1 Norden“; false sagt „Tür, 1 Norden, 1 von 3“.
@@ -240,6 +262,18 @@ setting-pa3ds-navigation-show_y = Höhe ansagen
 setting-pa3ds-navigation-show_y-about = Auch sagen, wie hoch, als y nach x und z, wenn C sagt, wo du stehst, und Umschalt und C, wo das gewählte Ding ist: „x 71, z 35, y 20“; in den Einheiten des Spiels, 18 auf die Breite eines Feldes, und weggelassen, wo pa3ds sie nicht kennt, wie in Sonne und Mond.
 setting-pa3ds-navigation-sort_by_distance = Nach Entfernung sortieren
 setting-pa3ds-navigation-sort_by_distance-about = Die Liste des Listenmodus mit dem Nächsten zuerst, was sich beim Gehen ändert; false hält jedes Ding an einem festen Platz darin, in der Reihenfolge der Tabellen des Spiels, damit du an seinem Platz erkennst, in welchem Haus du schon warst; der Richtungsmodus zeigt so oder so das Nächste zuerst.
+setting-pa3ds-touch-wrap = Am Ende von vorn beginnen
+setting-pa3ds-touch-wrap-about = Im Touch-Modus von der letzten Schaltfläche zurück zur ersten gehen und von der untersten Reihe zurück zur obersten; false hält an den Enden an, sodass ein paar Mal O drücken immer in der untersten Reihe endet.
+setting-pa3ds-touch-next_row = In die nächste Reihe weitergehen
+setting-pa3ds-touch-next_row-about = Im Touch-Modus gehen J und L am Ende einer Reihe in die Reihe darüber oder darunter weiter; false hält sie in ihrer Reihe, sodass ein paar Mal L drücken immer an ihrem rechten Ende endet.
+setting-pa3ds-touch-drag = Wie gezogen wird
+setting-pa3ds-touch-drag-about = Mit gehaltener Umschalttaste ziehen, oder mit einer eigenen Taste, die in keys.toml auf Ziehen gelegt ist, und die Berührung loslassen, wenn die Taste losgelassen wird („hold“), oder die Taste einmal drücken zum Aufnehmen und noch einmal zum Loslassen („toggle“). Nur in PokéMonAmi wird gezogen.
+setting-pa3ds-touch-drag-hold = Umschalt halten
+setting-pa3ds-touch-drag-toggle = Drücken zum Aufnehmen, drücken zum Loslassen
+setting-pa3ds-amie-berry_first = Beerenernte nennt die Beere zuerst
+setting-pa3ds-amie-berry_first-about = Jedes Pokémon, das eine Beere möchte, in der Reihenfolge ansagen, in der du sie gibst, erst die Beere und dann das Pokémon, „Sananabeere für Pikachu“; false nennt zuerst das Pokémon, „Pikachu möchte Sananabeere“.
+setting-pa3ds-amie-one_at_a_time = Beerenernte nennt ein Pokémon nach dem anderen
+setting-pa3ds-amie-one_at_a_time-about = Immer nur ein Pokémon ansagen, das eine Beere möchte, und das nächste, sobald du eine Beere gegeben hast oder das angesagte weg ist; false sagt jedes an, sobald es kommt.
 setting-pa3ds-extras-conditions = Wettbewerbswerte als Zahlen
 setting-pa3ds-extras-conditions-about = Die Wettbewerbswerte eines Pokémon als Zahlen sagen, wo das Spiel sie als Stern zeichnet, auf der Statusseite und in der Knurspbox: Der Stern ist für alle sichtbar, aber pa3ds kann ihn nicht lesen, also sind seine Zahlen alles, was es geben kann, und sie sind genauer als der Stern.
 setting-pa3ds-extras-hidden_items = Versteckte Items
@@ -252,6 +286,8 @@ settings-page-general = Allgemein
 settings-page-speech = Sprachausgabe
 settings-page-audio = Audio
 settings-page-navigation = Navigation
+settings-page-touch = Touch-Modus
+settings-page-amie = PokéMonAmi
 settings-page-extras = Extras
 settings-browse = &Durchsuchen...
 settings-language-game = Die Sprache des Spiels

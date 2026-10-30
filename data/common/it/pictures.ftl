@@ -48,6 +48,9 @@ texture-bgbutton_L = precedente
 texture-bgbutton_R = successivo
 texture-button_back = indietro
 texture-button_exit = esci
+texture-button_food = Pokébignè
+texture-button_play = giochi
+texture-button_ball = indietro
 
 ## The ◀ and ▶ in the top bar's corners
 
@@ -77,6 +80,11 @@ dexnav-caught = catturato
 dexnav-stars = { $count ->
     [one] { $count } stella
    *[other] { $count } stelle
+}
+stars-and-a-half = { $count ->
+    [0] mezza stella
+    [one] { $count } stella e mezza
+   *[other] { $count } stelle e mezza
 }
 contest-hearts = { $count ->
     [one] { $count } cuore

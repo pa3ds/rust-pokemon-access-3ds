@@ -148,8 +148,12 @@ p-gone = { $thing }不見了
 ## Touch mode
 
 touch-nothing = 沒有可觸碰的
+touch-no-drag = 沒有可拖曳的
+touch-continue = 繼續
 touch-off = 觸控已關閉
 touch-not-listening = Azahar不接受pa3ds的觸控
+touch-holding = 按住{ $target }
+touch-dropped = 在{ $target }上放開
 
 ## What the field shows without words
 
@@ -176,6 +180,20 @@ training-red-goal = 紅色球門
 training-shot-coming = 來球了
 training-left = 剩餘{ $time }
 amie-stroke = 撫摸{ $pokemon }
+puzzle-cell = { $column }{ $row }
+puzzle-home = { $tile }，已歸位
+puzzle-goes = { $tile }，應放在{ $home }
+puzzle-picture-left = { $pokemon }在左邊
+puzzle-picture-front = { $pokemon }在前面
+puzzle-picture-right = { $pokemon }在右邊
+puzzle-picked = { $tile }，已選取
+berry-picker-wants = { $pokemon }想要{ $berry }
+berry-picker-for = { $berry }給{ $pokemon }
+berry-picker-wanted = 想要{ $berry }
+berry-picker-lineup = { $first }、{ $second }和{ $third }
+berry-picker-not-up = { $pokemon }沒有出來
+berry-picker-no-berry = 沒有樹果{ $number }
+berry-picker-no-pokemon = 沒有寶可夢{ $number }
 
 ## What pa3ds says of itself
 
@@ -222,6 +240,10 @@ setting-pa3ds-audio-tones = 提示音相對音量
 setting-pa3ds-audio-tones-about = 地圖游標或觸控模式移動時那聲短提示音的音量；音調越高表示越往上，聲音越偏右表示越往右，用來告訴你游標在哪裡：1與遊戲一樣大聲，0.5為一半，1.5更大聲，0為無聲；在設定對話方塊中以百分比表示，100與遊戲一樣大聲。
 setting-pa3ds-audio-footsteps = 腳步聲相對音量
 setting-pa3ds-audio-footsteps-about = 在遊戲本身不播放腳步聲的地面上，例如街道、地板和洞窟，pa3ds自己的腳步聲有多大聲：1與遊戲播放時一樣大聲，0.5為一半，1.5更大聲，0為無聲；在設定對話方塊中以百分比表示，100與遊戲一樣大聲。
+setting-pa3ds-audio-ticks = 時鐘滴答聲相對音量
+setting-pa3ds-audio-ticks-about = 遊戲計時器每過一秒時那聲短提示音的音量，例如在寶可拍樂樂的小遊戲中；剩餘時間本身會在每半分鐘和最後幾秒朗讀出來：1與遊戲一樣大聲，0.5為一半，1.5更大聲，0為無聲，也是預設值；在設定對話方塊中以百分比表示，100與遊戲一樣大聲。
+setting-pa3ds-audio-feedback_sounds = 回饋音效相對音量
+setting-pa3ds-audio-feedback_sounds-about = 遊戲本身用來表示按鍵結果的短音效有多大聲：電腦盒子裡拿起和放下寶可夢的音效，用於觸控模式拿起和放開拖曳；還有遊戲的錯誤音效，用於無事可做的按鍵，例如採果樂這一輪沒有的樹果。設為0時，pa3ds改為說出來：「按住」、「在……上放開」以及原因：1與遊戲一樣大聲，0.5為一半，1.5更大聲；在設定對話方塊中以百分比表示，100與遊戲一樣大聲。
 setting-pa3ds-navigation-positions = 報出清單位置
 setting-pa3ds-navigation-positions-about = 說出物件在清單中的位置，例如「門，第1，共3」。
 setting-pa3ds-navigation-position_first = 清單位置在方向之前
@@ -238,6 +260,18 @@ setting-pa3ds-navigation-show_y = 報出高度
 setting-pa3ds-navigation-show_y-about = 按C說出你所在的位置、按Shift加C說出所選物件的位置時，也在x和z之後以y說出高度：「x 71, z 35, y 20」；使用遊戲本身的單位，一格寬為18；pa3ds不知道高度時則省略，例如在《太陽／月亮》中。
 setting-pa3ds-navigation-sort_by_distance = 依距離排序
 setting-pa3ds-navigation-sort_by_distance-about = 清單模式的清單由近到遠排列，會隨著你走動而改變；設為false則每個物件在清單中的位置固定，依照遊戲本身資料表的順序，讓你能從位置分辨進過哪間房子；方向模式不論如何都由近到遠排列。
+setting-pa3ds-touch-wrap = 循環移動
+setting-pa3ds-touch-wrap-about = 在觸控模式中，從最後一個按鈕回到第一個，從最下面一列回到最上面一列；設為false則停在兩端，這樣按幾次O一定會停在最下面一列。
+setting-pa3ds-touch-next_row = 繼續到下一列
+setting-pa3ds-touch-next_row-about = 在觸控模式中，J和L到了一列的盡頭時繼續進入上一列或下一列；設為false則讓它們停留在同一列，這樣按幾次L一定會停在該列的最右邊。
+setting-pa3ds-touch-drag = 拖曳方式
+setting-pa3ds-touch-drag-about = 按住Shift拖曳，或使用你在keys.toml中綁定為拖曳的按鍵，放開按鍵時觸控也跟著放開（「hold」）；或按一下拿起，再按一下放開（「toggle」）。目前只有寶可拍樂樂需要拖曳。
+setting-pa3ds-touch-drag-hold = 按住Shift
+setting-pa3ds-touch-drag-toggle = 按一下拿起，再按一下放開
+setting-pa3ds-amie-berry_first = 採果樂先說樹果
+setting-pa3ds-amie-berry_first-about = 依照你給樹果的順序說出每隻想要樹果的寶可夢，先說樹果再說寶可夢，例如「凰梨果給皮卡丘」；設為false則先說寶可夢，例如「皮卡丘想要凰梨果」。
+setting-pa3ds-amie-one_at_a_time = 採果樂一次說一隻寶可夢
+setting-pa3ds-amie-one_at_a_time-about = 一次只說一隻想要樹果的寶可夢，等你給了樹果，或說到的那隻離開後，再說下一隻；設為false則每隻一出現就說。
 setting-pa3ds-extras-conditions = 以數字說出華麗大賽狀態
 setting-pa3ds-extras-conditions-about = 在寶可夢資訊畫面和寶可方塊盒中，遊戲以星星表示寶可夢的華麗大賽狀態，這裡改以數字說出：星星人人都看得到，但pa3ds無法讀取，所以只能提供數字，而數字比星星更精確。
 setting-pa3ds-extras-hidden_items = 隱藏道具
@@ -250,6 +284,8 @@ settings-page-general = 一般
 settings-page-speech = 語音
 settings-page-audio = 音訊
 settings-page-navigation = 導覽
+settings-page-touch = 觸控模式
+settings-page-amie = 寶可拍樂樂
 settings-page-extras = 額外功能
 settings-browse = 瀏覽(&B)...
 settings-language-game = 遊戲本身的語言

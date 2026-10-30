@@ -25,3 +25,17 @@ kind-ladder-down = 내려가는 사다리
 kind-lift = 리프트
 kind-trapdoor = 함정 문
 kind-geyser = 간헐천
+
+## Tile Puzzle's backgrounds
+
+puzzle-background-1 = 풀이 우거진 초원에서
+puzzle-background-4 = 햇살 비치는 숲에서
+puzzle-background-5 = 모래사장에서
+puzzle-background-6 = 어두운 바위산 앞, 먼지 이는 주황빛 땅에서
+puzzle-background-8 = 마을 거리에서
+puzzle-background-9 = 초록 덤불 앞 모랫길에서
+puzzle-background-12 = 숲이 우거진 물가 앞 얕은 물에서
+puzzle-background-13 = 탁 트인 바다 위에서
+puzzle-background-43 = 모래언덕 사이에서
+puzzle-background-44 = 바위투성이 땅에서
+puzzle-background-47 = 먼 언덕 앞 청록빛 바다에서

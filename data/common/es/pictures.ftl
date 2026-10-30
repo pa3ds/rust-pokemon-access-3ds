@@ -48,6 +48,9 @@ texture-bgbutton_L = anterior
 texture-bgbutton_R = siguiente
 texture-button_back = volver
 texture-button_exit = salir
+texture-button_food = Pokélitos
+texture-button_play = juegos
+texture-button_ball = volver
 
 ## The ◀ and ▶ in the top bar's corners
 
@@ -77,6 +80,11 @@ dexnav-caught = capturado
 dexnav-stars = { $count ->
     [one] { $count } estrella
    *[other] { $count } estrellas
+}
+stars-and-a-half = { $count ->
+    [0] media estrella
+    [one] { $count } estrella y media
+   *[other] { $count } estrellas y media
 }
 contest-hearts = { $count ->
     [one] { $count } corazón

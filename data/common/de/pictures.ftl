@@ -48,6 +48,9 @@ texture-bgbutton_L = zurück
 texture-bgbutton_R = weiter
 texture-button_back = zurück
 texture-button_exit = beenden
+texture-button_food = Pofflés
+texture-button_play = Spiele
+texture-button_ball = zurück
 
 ## The ◀ and ▶ in the top bar's corners
 
@@ -77,6 +80,11 @@ dexnav-caught = gefangen
 dexnav-stars = { $count ->
     [one] { $count } Stern
    *[other] { $count } Sterne
+}
+stars-and-a-half = { $count ->
+    [0] ein halber Stern
+    [one] eineinhalb Sterne
+   *[other] { $count } einhalb Sterne
 }
 contest-hearts = { $count ->
     [one] { $count } Herz

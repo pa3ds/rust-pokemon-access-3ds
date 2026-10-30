@@ -25,3 +25,17 @@ kind-ladder-down = Leiter runter
 kind-lift = Hebebühne
 kind-trapdoor = Falltür
 kind-geyser = Geysir
+
+## Tile Puzzle's backgrounds
+
+puzzle-background-1 = auf einer grünen Wiese
+puzzle-background-4 = in einem sonnigen Wald
+puzzle-background-5 = an einem Sandstrand
+puzzle-background-6 = auf staubiger orangefarbener Erde vor dunklen Felszacken
+puzzle-background-8 = auf einer Straße in der Stadt
+puzzle-background-9 = auf einem sandigen Weg vor grünen Büschen
+puzzle-background-12 = in seichtem Wasser vor einem bewaldeten Ufer
+puzzle-background-13 = draußen auf offener See
+puzzle-background-43 = zwischen Sanddünen
+puzzle-background-44 = auf felsigem Boden
+puzzle-background-47 = in einem türkisen Meer vor fernen Hügeln

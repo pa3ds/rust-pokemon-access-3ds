@@ -150,8 +150,12 @@ p-gone = { $thing } non c'è più
 ## Touch mode
 
 touch-nothing = niente da toccare
+touch-no-drag = niente da trascinare
+touch-continue = continua
 touch-off = il touch è disattivato
 touch-not-listening = Azahar non riceve tocchi da pa3ds
+touch-holding = tenendo { $target }
+touch-dropped = lasciato su { $target }
 
 ## What the field shows without words
 
@@ -178,6 +182,20 @@ training-red-goal = porta rossa
 training-shot-coming = tiro in arrivo
 training-left = mancano { $time }
 amie-stroke = accarezza { $pokemon }
+puzzle-cell = { $column }{ $row }
+puzzle-home = { $tile }, al suo posto
+puzzle-goes = { $tile }, va in { $home }
+puzzle-picture-left = { $pokemon } a sinistra
+puzzle-picture-front = { $pokemon } davanti
+puzzle-picture-right = { $pokemon } a destra
+puzzle-picked = { $tile }, selezionata
+berry-picker-wants = { $pokemon } vuole { $berry }
+berry-picker-for = { $berry } per { $pokemon }
+berry-picker-wanted = si chiede { $berry }
+berry-picker-lineup = { $first }, { $second } e { $third }
+berry-picker-not-up = { $pokemon } non è fuori
+berry-picker-no-berry = nessuna bacca { $number }
+berry-picker-no-pokemon = nessun Pokémon { $number }
 
 ## What pa3ds says of itself
 
@@ -224,6 +242,10 @@ setting-pa3ds-audio-tones = Volume relativo dei toni
 setting-pa3ds-audio-tones-about = Quanto è forte il breve tono che suona quando si sposta il cursore di una mappa o della modalità touch, più acuto quanto più è in alto e spostato a destra quanto più è a destra, per dire dove si trova il cursore: 1 forte quanto il gioco, 0.5 a metà volume, 1.5 più forte, 0 nessun tono; nella finestra delle impostazioni, in percentuale, 100 forte quanto il gioco.
 setting-pa3ds-audio-footsteps = Volume relativo dei passi
 setting-pa3ds-audio-footsteps-about = Quanto sono forti i passi di pa3ds sul terreno dove il gioco non ne riproduce, come strade, pavimenti e grotte: 1 forti quanto li riprodurrebbe il gioco, 0.5 a metà volume, 1.5 più forti, 0 nessun passo; nella finestra delle impostazioni, in percentuale, 100 forti quanto il gioco.
+setting-pa3ds-audio-ticks = Volume relativo del ticchettio dell'orologio
+setting-pa3ds-audio-ticks-about = Quanto è forte un breve tono a ogni secondo dell'orologio di un gioco, come nei giochi di Poké io&te; l'orologio stesso viene detto ogni mezzo minuto e negli ultimi secondi: 1 forte quanto il gioco, 0.5 a metà volume, 1.5 più forte, 0 nessun tono, come di serie; nella finestra delle impostazioni, in percentuale, 100 forte quanto il gioco.
+setting-pa3ds-audio-feedback_sounds = Volume relativo dei suoni di risposta
+setting-pa3ds-audio-feedback_sounds-about = Quanto sono forti i brevi suoni del gioco per ciò che un tasto ha fatto: i suoni del Box del PC quando si prende e si posa un Pokémon, quando la modalità touch prende qualcosa da trascinare e lo lascia, e il suono di errore del gioco per un tasto che non ha niente da fare, come una bacca che il turno di Cogli la Bacca non ha. A 0 pa3ds li dice invece, "tenendo", "lasciato su" e il motivo: 1 forte quanto il gioco, 0.5 a metà volume, 1.5 più forte; nella finestra delle impostazioni, in percentuale, 100 forte quanto il gioco.
 setting-pa3ds-navigation-positions = Annuncia la posizione nell'elenco
 setting-pa3ds-navigation-positions-about = Dice dove si trova una cosa nell'elenco, come in "porta, 1 di 3".
 setting-pa3ds-navigation-position_first = Posizione nell'elenco prima delle direzioni
@@ -240,6 +262,18 @@ setting-pa3ds-navigation-show_y = Annuncia l'altezza
 setting-pa3ds-navigation-show_y-about = Dice anche l'altezza, come y dopo x e z, quando C dice dove ti trovi e Maiusc e C dove si trova la cosa scelta: "x 71, z 35, y 20"; nelle unità del gioco, 18 per la larghezza di un riquadro, e omessa dove pa3ds non la conosce, come in Sole e Luna.
 setting-pa3ds-navigation-sort_by_distance = Ordina per distanza
 setting-pa3ds-navigation-sort_by_distance-about = Ordina l'elenco della modalità elenco dal più vicino, e l'ordine cambia mentre cammini; false tiene ogni cosa sempre allo stesso posto, nell'ordine delle tabelle del gioco, così puoi capire in quale casa sei già entrato da dove si trova; la modalità direzione ordina sempre dal più vicino.
+setting-pa3ds-touch-wrap = Ricomincia dall'inizio
+setting-pa3ds-touch-wrap-about = In modalità touch, passa dall'ultimo pulsante al primo, e dalla riga in basso a quella in alto; false si ferma agli estremi, così premendo O qualche volta si finisce sempre sulla riga in basso.
+setting-pa3ds-touch-next_row = Passa alla riga successiva
+setting-pa3ds-touch-next_row-about = In modalità touch, J e L passano alla riga sopra o sotto alla fine di una riga; false li tiene nella loro riga, così premendo L qualche volta si finisce sempre a destra.
+setting-pa3ds-touch-drag = Come trascinare
+setting-pa3ds-touch-drag-about = Trascina tenendo premuto Maiusc, o un tuo tasto assegnato al trascinamento in keys.toml, e lascia il tocco quando lo rilasci ("hold"), oppure premilo per prendere e premilo di nuovo per lasciare ("toggle"). Si trascina solo in Poké io&te.
+setting-pa3ds-touch-drag-hold = Tieni premuto Maiusc
+setting-pa3ds-touch-drag-toggle = Premi per prendere, premi per lasciare
+setting-pa3ds-amie-berry_first = Cogli la Bacca dice prima la bacca
+setting-pa3ds-amie-berry_first-about = Dice ogni Pokémon che vuole una bacca nell'ordine in cui la dai, la bacca e poi il Pokémon, "Baccananas per Pikachu"; false dice prima il Pokémon, "Pikachu vuole Baccananas".
+setting-pa3ds-amie-one_at_a_time = Cogli la Bacca dice un Pokémon alla volta
+setting-pa3ds-amie-one_at_a_time-about = Dice un solo Pokémon che vuole una bacca alla volta, e il successivo quando hai dato una bacca o quello detto se n'è andato; false li dice man mano che arrivano.
 setting-pa3ds-extras-conditions = Caratteristiche da gara in numeri
 setting-pa3ds-extras-conditions-about = Dice le caratteristiche da gara di un Pokémon in numeri dove il gioco le disegna come una stella, nella schermata del Pokémon e nel Portapokémelle: la stella è visibile a tutti ma pa3ds non la sa leggere, quindi i numeri sono tutto ciò che può dare, e sono più precisi della stella.
 setting-pa3ds-extras-hidden_items = Strumenti nascosti
@@ -252,6 +286,8 @@ settings-page-general = Generale
 settings-page-speech = Voce
 settings-page-audio = Audio
 settings-page-navigation = Navigazione
+settings-page-touch = Modalità touch
+settings-page-amie = Poké io&&te
 settings-page-extras = Extra
 settings-browse = &Sfoglia...
 settings-language-game = La lingua del gioco

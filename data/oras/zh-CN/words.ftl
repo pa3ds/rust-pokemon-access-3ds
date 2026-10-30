@@ -25,3 +25,17 @@ kind-ladder-down = 下行梯子
 kind-lift = 升降台
 kind-trapdoor = 活板门
 kind-geyser = 间歇泉
+
+## Tile Puzzle's backgrounds
+
+puzzle-background-1 = 在草原上
+puzzle-background-4 = 在阳光照耀的森林里
+puzzle-background-5 = 在沙滩上
+puzzle-background-6 = 在深色山崖前布满尘土的橙色土地上
+puzzle-background-8 = 在城镇街道上
+puzzle-background-9 = 在绿色灌木丛前的沙土小路上
+puzzle-background-12 = 在长满树木的岸边前的浅水中
+puzzle-background-13 = 在开阔的大海上
+puzzle-background-43 = 在沙丘之间
+puzzle-background-44 = 在岩石地面上
+puzzle-background-47 = 在远处山丘前的青绿色海中

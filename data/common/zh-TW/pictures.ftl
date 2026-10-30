@@ -48,6 +48,9 @@ texture-bgbutton_L = 上一頁
 texture-bgbutton_R = 下一頁
 texture-button_back = 返回
 texture-button_exit = 退出
+texture-button_food = 寶芙蕾
+texture-button_play = 小遊戲
+texture-button_ball = 返回
 
 ## The ◀ and ▶ in the top bar's corners
 
@@ -76,6 +79,10 @@ dexnav-hidden-ability = 隱藏特性
 dexnav-caught = 已捕獲
 dexnav-stars = { $count ->
    *[other] { $count }顆星
+}
+stars-and-a-half = { $count ->
+    [0] 半顆星
+   *[other] { $count }顆半星
 }
 contest-hearts = { $count ->
    *[other] { $count }顆心

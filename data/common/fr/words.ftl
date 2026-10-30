@@ -150,8 +150,12 @@ p-gone = { $thing } a disparu
 ## Touch mode
 
 touch-nothing = rien à toucher
+touch-no-drag = rien à faire glisser
+touch-continue = continuer
 touch-off = le tactile est désactivé
 touch-not-listening = Azahar ne reçoit pas les touches de pa3ds
+touch-holding = maintenu sur { $target }
+touch-dropped = relâché sur { $target }
 
 ## What the field shows without words
 
@@ -178,6 +182,20 @@ training-red-goal = but rouge
 training-shot-coming = tir en approche
 training-left = encore { $time }
 amie-stroke = caresser { $pokemon }
+puzzle-cell = { $column }{ $row }
+puzzle-home = { $tile }, à sa place
+puzzle-goes = { $tile }, va en { $home }
+puzzle-picture-left = { $pokemon } à gauche
+puzzle-picture-front = { $pokemon } devant
+puzzle-picture-right = { $pokemon } à droite
+puzzle-picked = { $tile }, choisie
+berry-picker-wants = { $pokemon } veut { $berry }
+berry-picker-for = { $berry } pour { $pokemon }
+berry-picker-wanted = { $berry } demandée
+berry-picker-lineup = { $first }, { $second } et { $third }
+berry-picker-not-up = { $pokemon } n'est pas là
+berry-picker-no-berry = pas de baie { $number }
+berry-picker-no-pokemon = pas de Pokémon { $number }
 
 ## What pa3ds says of itself
 
@@ -224,7 +242,11 @@ setting-pa3ds-audio-tones = Volume relatif des tonalités
 setting-pa3ds-audio-tones-about = Le volume de la courte tonalité quand le curseur d'une carte ou du mode tactile bouge, plus aiguë plus il est haut et plus à droite plus il est à droite, pour dire où est le curseur : 1 aussi fort que le jeu, 0.5 moitié moins fort, 1.5 plus fort, 0 aucune ; dans la boîte de dialogue des paramètres, en pourcentage, 100 aussi fort que le jeu.
 setting-pa3ds-audio-footsteps = Volume relatif des pas
 setting-pa3ds-audio-footsteps-about = Le volume des bruits de pas de pa3ds sur les sols où le jeu n'en joue pas, comme les rues, les planchers et les grottes : 1 aussi fort que le jeu les jouerait, 0.5 moitié moins fort, 1.5 plus fort, 0 aucun ; dans la boîte de dialogue des paramètres, en pourcentage, 100 aussi fort que le jeu.
-setting-pa3ds-navigation-positions = Annoncer la position dans la liste
+setting-pa3ds-audio-ticks = Volume relatif du tic-tac de l'horloge
+setting-pa3ds-audio-ticks-about = Le volume d'une courte tonalité à chaque seconde de l'horloge d'un jeu, comme dans les jeux de Poké Récré ; l'horloge elle-même est annoncée toutes les demi-minutes et dans ses dernières secondes : 1 aussi fort que le jeu, 0.5 moitié moins fort, 1.5 plus fort, 0 aucune, la valeur par défaut ; dans la boîte de dialogue des paramètres, en pourcentage, 100 aussi fort que le jeu.
+setting-pa3ds-audio-feedback_sounds = Volume relatif des sons de retour
+setting-pa3ds-audio-feedback_sounds-about = Le volume des courts sons du jeu pour ce qu'une touche a fait : les sons des Boîtes du PC quand on prend et pose un Pokémon, lorsque le mode tactile prend un élément à faire glisser et le relâche, et le son d'erreur du jeu pour une touche qui n'a rien à faire, comme pour une baie qu'une manche de Cueille-Baies n'a pas. À 0, pa3ds les annonce à la place, « maintenu sur », « relâché sur » et pourquoi : 1 aussi fort que le jeu, 0.5 moitié moins fort, 1.5 plus fort ; dans la boîte de dialogue des paramètres, en pourcentage, 100 aussi fort que le jeu.
+setting-pa3ds-navigation-positions =Annoncer la position dans la liste
 setting-pa3ds-navigation-positions-about = Dire où se trouve un élément dans la liste, comme dans « porte, 1 sur 3 ».
 setting-pa3ds-navigation-position_first = Position dans la liste avant les directions
 setting-pa3ds-navigation-position_first-about = Dire la place dans la liste avant le chemin pour y aller, « porte, 1 sur 3, 1 nord » ; false dit « porte, 1 nord, 1 sur 3 ».
@@ -240,6 +262,18 @@ setting-pa3ds-navigation-show_y = Annoncer la hauteur
 setting-pa3ds-navigation-show_y-about = Dire aussi la hauteur, en y après x et z, quand C dit où vous êtes et Maj et C où se trouve l'élément choisi : « x 71, z 35, y 20 » ; dans les unités du jeu, 18 pour la largeur d'une case, et omise là où pa3ds ne la connaît pas, comme dans Soleil et Lune.
 setting-pa3ds-navigation-sort_by_distance = Trier par distance
 setting-pa3ds-navigation-sort_by_distance-about = Trier la liste du mode liste du plus proche au plus loin, ce qui change à mesure que vous marchez ; false garde chaque élément à la même place, dans l'ordre des tables du jeu, pour que vous sachiez à sa place dans quelle maison vous êtes déjà entré ; le mode direction trie toujours du plus proche au plus loin.
+setting-pa3ds-touch-wrap = Boucler
+setting-pa3ds-touch-wrap-about = En mode tactile, passer du dernier bouton au premier, et de la rangée du bas à celle du haut ; false s'arrête aux extrémités, pour qu'appuyer quelques fois sur O finisse toujours sur la rangée du bas.
+setting-pa3ds-touch-next_row = Passer à la rangée suivante
+setting-pa3ds-touch-next_row-about = En mode tactile, J et L passent à la rangée du dessus ou du dessous au bout d'une rangée ; false les garde dans leur rangée, pour qu'appuyer quelques fois sur L finisse toujours à son extrémité droite.
+setting-pa3ds-touch-drag = Comment faire glisser
+setting-pa3ds-touch-drag-about = Faire glisser en maintenant Maj, ou une touche de votre choix assignée au glissement dans keys.toml, et relâcher le toucher quand la touche est relâchée (« hold »), ou appuyer une fois pour prendre et une autre fois pour relâcher (« toggle »). Seul Poké Récré fait glisser.
+setting-pa3ds-touch-drag-hold = Maintenir Maj
+setting-pa3ds-touch-drag-toggle = Appuyer pour prendre, appuyer pour relâcher
+setting-pa3ds-amie-berry_first = Cueille-Baies annonce la baie d'abord
+setting-pa3ds-amie-berry_first-about = Annoncer chaque Pokémon qui veut une baie dans l'ordre où vous la donnez, la baie puis le Pokémon, « Baie Nanana pour Pikachu » ; false annonce le Pokémon d'abord, « Pikachu veut Baie Nanana ».
+setting-pa3ds-amie-one_at_a_time = Cueille-Baies annonce un Pokémon à la fois
+setting-pa3ds-amie-one_at_a_time-about = Annoncer un seul Pokémon qui veut une baie à la fois, et le suivant une fois que vous avez donné une baie ou que celui annoncé est parti ; false annonce chacun dès qu'il arrive.
 setting-pa3ds-extras-conditions = Conditions de concours en chiffres
 setting-pa3ds-extras-conditions-about = Dire les conditions de concours d'un Pokémon en chiffres là où le jeu les dessine sous forme d'étoile, dans le résumé et dans la Boîte Pokéblocs : l'étoile est visible de tous mais pa3ds ne peut pas la lire, donc ses chiffres sont tout ce qu'il peut donner, et ils sont plus précis que l'étoile.
 setting-pa3ds-extras-hidden_items = Objets cachés
@@ -252,6 +286,8 @@ settings-page-general = Général
 settings-page-speech = Parole
 settings-page-audio = Audio
 settings-page-navigation = Navigation
+settings-page-touch = Mode tactile
+settings-page-amie = Poké Récré
 settings-page-extras = Extras
 settings-browse = &Parcourir...
 settings-language-game = La langue du jeu

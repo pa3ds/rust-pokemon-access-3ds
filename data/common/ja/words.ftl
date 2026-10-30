@@ -148,8 +148,12 @@ p-gone = { $thing }がいなくなった
 ## Touch mode
 
 touch-nothing = タッチするものがない
+touch-no-drag = ドラッグするものがない
+touch-continue = 続ける
 touch-off = タッチはオフ
 touch-not-listening = Azaharはpa3dsからのタッチを受け付けていない
+touch-holding = { $target }をつかんでいる
+touch-dropped = { $target }の上で離した
 
 ## What the field shows without words
 
@@ -176,6 +180,20 @@ training-red-goal = 赤いゴール
 training-shot-coming = シュートが来る
 training-left = 残り{ $time }
 amie-stroke = { $pokemon }をなでる
+puzzle-cell = { $column }{ $row }
+puzzle-home = { $tile }、正しい位置
+puzzle-goes = { $tile }、{ $home }へ
+puzzle-picture-left = 左に{ $pokemon }
+puzzle-picture-front = 手前に{ $pokemon }
+puzzle-picture-right = 右に{ $pokemon }
+puzzle-picked = { $tile }、選んだ
+berry-picker-wants = { $pokemon }は{ $berry }がほしい
+berry-picker-for = { $berry }を{ $pokemon }に
+berry-picker-wanted = { $berry }がほしい
+berry-picker-lineup = { $first }、{ $second }と{ $third }
+berry-picker-not-up = { $pokemon }は出ていない
+berry-picker-no-berry = きのみ{ $number }はない
+berry-picker-no-pokemon = ポケモン{ $number }はいない
 
 ## What pa3ds says of itself
 
@@ -222,7 +240,11 @@ setting-pa3ds-audio-tones = トーンの相対音量
 setting-pa3ds-audio-tones-about = マップのカーソルやタッチモードが動くときに鳴る短いトーンの大きさ。トーンはカーソルが上にあるほど高く、右にあるほど右から聞こえ、カーソルの位置を伝える。1でゲームと同じ大きさ、0.5で半分、1.5でより大きく、0で鳴らない。設定ダイアログではパーセントで、100がゲームと同じ大きさ。
 setting-pa3ds-audio-footsteps = 足音の相対音量
 setting-pa3ds-audio-footsteps-about = 通りや床、洞くつなど、ゲームが足音を鳴らさない地面でpa3ds自身が鳴らす足音の大きさ。1でゲームが鳴らす場合と同じ大きさ、0.5で半分、1.5でより大きく、0で鳴らない。設定ダイアログではパーセントで、100がゲームと同じ大きさ。
-setting-pa3ds-navigation-positions = リスト内の位置を読み上げる
+setting-pa3ds-audio-ticks = 時計の刻み音の相対音量
+setting-pa3ds-audio-ticks-about = ポケパルレのミニゲームのように、ゲームの時計が1秒進むごとに鳴る短いトーンの大きさ。時計そのものは30秒ごとと最後の数秒に読み上げる。1でゲームと同じ大きさ、0.5で半分、1.5でより大きく、0で鳴らない（初期設定）。設定ダイアログではパーセントで、100がゲームと同じ大きさ。
+setting-pa3ds-audio-feedback_sounds = 操作音の相対音量
+setting-pa3ds-audio-feedback_sounds-about = キーで何が起きたかを伝える、ゲーム自体の短い音の大きさ。タッチモードでドラッグをつかんだり離したりするときの、パソコンのボックスでポケモンを持ち上げる音と置く音。そして、もぎってナッツのラウンドにないきのみのキーのように、何もすることのないキーで鳴るゲームのエラー音。0にすると、pa3dsが代わりに「つかんでいる」「の上で離した」とその理由を言う。1でゲームと同じ大きさ、0.5で半分、1.5でより大きく。設定ダイアログではパーセントで、100がゲームと同じ大きさ。
+setting-pa3ds-navigation-positions =リスト内の位置を読み上げる
 setting-pa3ds-navigation-positions-about = 「ドア、3中1」のように、リストの何番目にあるかを言う。
 setting-pa3ds-navigation-position_first = 方向の前に位置を読み上げる
 setting-pa3ds-navigation-position_first-about = リスト内の位置を、そこへの行き方より先に言う：「ドア、3中1、北1」。falseにすると「ドア、北1、3中1」と言う。
@@ -238,6 +260,18 @@ setting-pa3ds-navigation-show_y = 高さを読み上げる
 setting-pa3ds-navigation-show_y-about = Cで今いる場所を、ShiftとCで選んだものの場所を言うとき、xとzの後にyとして高さも言う：「x 71、z 35、y 20」。単位はゲーム自体のもので、1マスの幅が18。サン・ムーンのようにpa3dsが高さを知らない場合は言わない。
 setting-pa3ds-navigation-sort_by_distance = 距離順に並べる
 setting-pa3ds-navigation-sort_by_distance-about = リストモードのリストを近い順に並べる。歩くと順番が変わる。falseにすると、ゲーム自体の表の順番でそれぞれの位置が固定され、リストのどこにあるかで、どの家に入ったことがあるかがわかる。方向モードはどちらでも近い順。
+setting-pa3ds-touch-wrap = 端で最初に戻る
+setting-pa3ds-touch-wrap-about = タッチモードで、最後のボタンから最初のボタンへ、一番下の行から一番上の行へ戻る。falseにすると端で止まるので、Oを何回か押せば必ず一番下の行で止まる。
+setting-pa3ds-touch-next_row = 次の行へ進む
+setting-pa3ds-touch-next_row-about = タッチモードで、行の端に来たらJとLで上または下の行へ進む。falseにすると行の中にとどまるので、Lを何回か押せば必ずその行の右端で止まる。
+setting-pa3ds-touch-drag = ドラッグの方法
+setting-pa3ds-touch-drag-about = Shift、またはkeys.tomlでドラッグに割り当てた自分のキーを押したままドラッグし、キーを離すとタッチも離す（"hold"）。または、キーを一度押してつかみ、もう一度押して離す（"toggle"）。ドラッグするのはポケパルレだけ。
+setting-pa3ds-touch-drag-hold = Shiftを押したまま
+setting-pa3ds-touch-drag-toggle = 押してつかみ、もう一度押して離す
+setting-pa3ds-amie-berry_first = もぎってナッツできのみを先に言う
+setting-pa3ds-amie-berry_first-about = きのみをほしがるポケモンを、きのみをあげる順に、きのみ、ポケモンの順で言う：「パイルのみをピカチュウに」。falseにするとポケモンを先に言う：「ピカチュウはパイルのみがほしい」。
+setting-pa3ds-amie-one_at_a_time = もぎってナッツでポケモンを一匹ずつ言う
+setting-pa3ds-amie-one_at_a_time-about = きのみをほしがるポケモンを一匹ずつ言い、きのみをあげるか、言ったポケモンがいなくなると次を言う。falseにすると、現れるたびにそれぞれを言う。
 setting-pa3ds-extras-conditions = コンテストのコンディションを数値で
 setting-pa3ds-extras-conditions-about = ステータス画面やポロックケースでゲームが星で表示するポケモンのコンテストのコンディションを、数値で言う。星は誰にでも見えるがpa3dsは読み取れないので、伝えられるのは数値だけ。数値は星より正確。
 setting-pa3ds-extras-hidden_items = 隠された道具
@@ -250,6 +284,8 @@ settings-page-general = 全般
 settings-page-speech = 読み上げ
 settings-page-audio = オーディオ
 settings-page-navigation = ナビゲーション
+settings-page-touch = タッチモード
+settings-page-amie = ポケパルレ
 settings-page-extras = 追加機能
 settings-browse = 参照(&B)...
 settings-language-game = ゲーム自体の言語

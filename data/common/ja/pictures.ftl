@@ -48,6 +48,9 @@ texture-bgbutton_L = 前へ
 texture-bgbutton_R = 次へ
 texture-button_back = もどる
 texture-button_exit = おわる
+texture-button_food = ポフレ
+texture-button_play = ミニゲーム
+texture-button_ball = もどる
 
 ## The ◀ and ▶ in the top bar's corners
 
@@ -76,6 +79,10 @@ dexnav-hidden-ability = 隠れ特性
 dexnav-caught = 捕まえた
 dexnav-stars = { $count ->
    *[other] 星{ $count }つ
+}
+stars-and-a-half = { $count ->
+    [0] 星半分
+   *[other] 星{ $count }つ半
 }
 contest-hearts = { $count ->
    *[other] ハート{ $count }つ

@@ -25,3 +25,17 @@ kind-ladder-down = échelle descendante
 kind-lift = monte-charge
 kind-trapdoor = trappe
 kind-geyser = geyser
+
+## Tile Puzzle's backgrounds
+
+puzzle-background-1 = dans une prairie verdoyante
+puzzle-background-4 = dans une forêt ensoleillée
+puzzle-background-5 = sur une plage de sable
+puzzle-background-6 = sur une terre orange et poussiéreuse devant des rochers sombres
+puzzle-background-8 = dans une rue de ville
+puzzle-background-9 = sur un chemin de sable devant des buissons verts
+puzzle-background-12 = en eau peu profonde devant une rive boisée
+puzzle-background-13 = en pleine mer
+puzzle-background-43 = parmi des dunes de sable
+puzzle-background-44 = sur un sol rocheux
+puzzle-background-47 = dans une mer turquoise devant des collines lointaines

@@ -25,3 +25,17 @@ kind-ladder-down = escalera de mano abajo
 kind-lift = elevador
 kind-trapdoor = trampilla
 kind-geyser = géiser
+
+## Tile Puzzle's backgrounds
+
+puzzle-background-1 = en un prado de hierba
+puzzle-background-4 = en un bosque soleado
+puzzle-background-5 = en una playa de arena
+puzzle-background-6 = en tierra naranja y polvorienta ante riscos oscuros
+puzzle-background-8 = en la calle de un pueblo
+puzzle-background-9 = en un camino de arena ante arbustos verdes
+puzzle-background-12 = en aguas poco profundas ante una orilla arbolada
+puzzle-background-13 = en mar abierto
+puzzle-background-43 = entre dunas de arena
+puzzle-background-44 = en un terreno rocoso
+puzzle-background-47 = en un mar turquesa ante colinas lejanas

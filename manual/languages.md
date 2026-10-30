@@ -17,9 +17,8 @@ They are in the `data` folder beside pa3ds: every game's in `data\common`, and e
 `data\oras`, `data\xy` and `data\sm`, with a folder for each language inside. They are plain
 text: each line is a word's name, `=`, and the words.
 
-Every language the games come in has every file, except that Chinese has no names for the people
-and things on the maps of Omega Ruby, Alpha Sapphire, X and Y. The translations began as a
-machine's, so some words may sound wrong. A word missing from a language is said in English.
+Every language the games come in has every file. The translations began as a machine's, so some
+words may sound wrong; names are each language's official ones where the games have one. A word missing from a language is said in English.
 
 ## Translating
 

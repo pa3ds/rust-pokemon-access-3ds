@@ -149,8 +149,12 @@ p-gone = { $thing } 사라짐
 ## Touch mode
 
 touch-nothing = 터치할 것 없음
+touch-no-drag = 드래그할 것 없음
+touch-continue = 계속
 touch-off = 터치 꺼짐
 touch-not-listening = Azahar가 pa3ds의 터치를 받지 않음
+touch-holding = { $target } 잡고 있음
+touch-dropped = { $target }에 놓음
 
 ## What the field shows without words
 
@@ -177,6 +181,20 @@ training-red-goal = 빨간 골
 training-shot-coming = 슛이 온다
 training-left = 남은 시간 { $time }
 amie-stroke = { $pokemon } 쓰다듬기
+puzzle-cell = { $column }{ $row }
+puzzle-home = { $tile }, 제자리
+puzzle-goes = { $tile }, 갈 곳 { $home }
+puzzle-picture-left = 왼쪽에 { $pokemon }
+puzzle-picture-front = 앞에 { $pokemon }
+puzzle-picture-right = 오른쪽에 { $pokemon }
+puzzle-picked = { $tile }, 선택함
+berry-picker-wants = { $pokemon }, { $berry } 원함
+berry-picker-for = { $berry }, { $pokemon }에게
+berry-picker-wanted = { $berry } 원함
+berry-picker-lineup = { $first }, { $second }, { $third }
+berry-picker-not-up = { $pokemon } 나와 있지 않음
+berry-picker-no-berry = 나무열매 { $number } 없음
+berry-picker-no-pokemon = 포켓몬 { $number } 없음
 
 ## What pa3ds says of itself
 
@@ -223,6 +241,10 @@ setting-pa3ds-audio-tones = 신호음 상대 음량
 setting-pa3ds-audio-tones-about = 지도의 커서나 터치 모드가 움직일 때 나는 짧은 신호음의 크기입니다. 신호음은 커서가 위에 있을수록 높고, 오른쪽에 있을수록 오른쪽에서 들려 커서의 위치를 알려 줍니다. 1은 게임과 같은 크기, 0.5는 절반, 1.5는 더 크게, 0은 소리 없음. 설정 창에서는 퍼센트로, 100이 게임과 같은 크기입니다.
 setting-pa3ds-audio-footsteps = 발소리 상대 음량
 setting-pa3ds-audio-footsteps-about = 거리, 바닥, 동굴처럼 게임이 발소리를 내지 않는 곳에서 pa3ds가 내는 발소리의 크기입니다. 1은 게임이 낼 크기, 0.5는 절반, 1.5는 더 크게, 0은 소리 없음. 설정 창에서는 퍼센트로, 100이 게임과 같은 크기입니다.
+setting-pa3ds-audio-ticks = 시계 째깍 소리 상대 음량
+setting-pa3ds-audio-ticks-about = 포켓파를레의 게임처럼 게임에 시계가 있을 때, 1초마다 나는 짧은 신호음의 크기입니다. 시계 자체는 30초마다, 그리고 마지막 몇 초 동안 말합니다. 1은 게임과 같은 크기, 0.5는 절반, 1.5는 더 크게, 0은 소리 없음으로 기본값입니다. 설정 창에서는 퍼센트로, 100이 게임과 같은 크기입니다.
+setting-pa3ds-audio-feedback_sounds = 피드백 효과음 상대 음량
+setting-pa3ds-audio-feedback_sounds-about = 키로 한 일을 알리는 게임 자체의 짧은 효과음의 크기입니다. 터치 모드가 드래그로 잡고 놓을 때 나는 박스의 포켓몬을 집고 내려놓는 소리, 그리고 너츠를 따자의 이번 판에 없는 나무열매처럼 할 일이 없는 키에 나는 게임의 오류음입니다. 0이면 pa3ds가 소리 대신 "잡고 있음", "놓음"과 그 이유를 말합니다. 1은 게임과 같은 크기, 0.5는 절반, 1.5는 더 크게. 설정 창에서는 퍼센트로, 100이 게임과 같은 크기입니다.
 setting-pa3ds-navigation-positions = 목록 위치 알리기
 setting-pa3ds-navigation-positions-about = "문, 3개 중 1"처럼, 대상이 목록에서 몇 번째인지 말합니다.
 setting-pa3ds-navigation-position_first = 방향보다 목록 위치 먼저
@@ -239,6 +261,18 @@ setting-pa3ds-navigation-show_y = 높이 알리기
 setting-pa3ds-navigation-show_y-about = C로 지금 선 곳을, Shift와 C로 고른 대상의 위치를 말할 때, x와 z 다음에 y로 높이도 말합니다: "x 71, z 35, y 20". 단위는 게임 자체의 것으로 한 칸의 폭이 18이며, 썬·문처럼 pa3ds가 높이를 모르는 곳에서는 뺍니다.
 setting-pa3ds-navigation-sort_by_distance = 거리순 정렬
 setting-pa3ds-navigation-sort_by_distance-about = 목록 모드의 목록을 가까운 순으로 늘어놓습니다. 걸으면 순서가 바뀝니다. false이면 게임 자체의 표 순서대로 각 대상이 늘 같은 자리에 있어서, 어느 집에 들어가 봤는지 그 자리로 알 수 있습니다. 방향 모드는 어느 쪽이든 가까운 순입니다.
+setting-pa3ds-touch-wrap = 끝에서 처음으로 돌아가기
+setting-pa3ds-touch-wrap-about = 터치 모드에서 마지막 버튼에서 첫 버튼으로, 맨 아래 줄에서 맨 위 줄로 돌아갑니다. false이면 끝에서 멈추므로, O를 몇 번 누르면 언제나 맨 아래 줄에서 멈춥니다.
+setting-pa3ds-touch-next_row = 다음 줄로 넘어가기
+setting-pa3ds-touch-next_row-about = 터치 모드에서 J와 L이 줄 끝에 이르면 위나 아래 줄로 넘어갑니다. false이면 그 줄 안에 머무르므로, L을 몇 번 누르면 언제나 줄의 오른쪽 끝에서 멈춥니다.
+setting-pa3ds-touch-drag = 드래그 방법
+setting-pa3ds-touch-drag-about = Shift, 또는 keys.toml에서 드래그에 할당한 키를 누른 채로 드래그하고 키를 떼면 터치를 놓거나("hold"), 키를 한 번 눌러 집고 다시 눌러 놓습니다("toggle"). 드래그는 포켓파를레에서만 합니다.
+setting-pa3ds-touch-drag-hold = Shift 누른 채로
+setting-pa3ds-touch-drag-toggle = 한 번 눌러 집고, 다시 눌러 놓기
+setting-pa3ds-amie-berry_first = 너츠를 따자에서 나무열매 먼저 말하기
+setting-pa3ds-amie-berry_first-about = 나무열매를 원하는 포켓몬을, 나무열매를 줄 때의 순서대로 나무열매 다음 포켓몬으로 말합니다: "파인열매, 피카츄에게". false이면 포켓몬을 먼저 말합니다: "피카츄, 파인열매 원함".
+setting-pa3ds-amie-one_at_a_time = 너츠를 따자에서 포켓몬을 하나씩 말하기
+setting-pa3ds-amie-one_at_a_time-about = 나무열매를 원하는 포켓몬을 한 번에 하나씩 말하고, 나무열매를 주거나 말한 포켓몬이 사라지면 다음 포켓몬을 말합니다. false이면 나올 때마다 하나하나 말합니다.
 setting-pa3ds-extras-conditions = 콘테스트 컨디션을 숫자로
 setting-pa3ds-extras-conditions-about = 정보 화면과 포켓블록 케이스에서 게임이 별 모양으로 그리는 포켓몬의 콘테스트 컨디션을 숫자로 말합니다. 별은 누구에게나 보이지만 pa3ds는 별을 읽을 수 없어서 숫자만 알려 줄 수 있고, 숫자는 별보다 더 정확합니다.
 setting-pa3ds-extras-hidden_items = 숨겨진 도구
@@ -251,6 +285,8 @@ settings-page-general = 일반
 settings-page-speech = 음성
 settings-page-audio = 오디오
 settings-page-navigation = 내비게이션
+settings-page-touch = 터치 모드
+settings-page-amie = 포켓파를레
 settings-page-extras = 추가 기능
 settings-browse = 찾아보기(&B)...
 settings-language-game = 게임 자체의 언어
