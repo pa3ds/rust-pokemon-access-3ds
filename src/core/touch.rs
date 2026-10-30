@@ -22,11 +22,16 @@
 //!
 //! A slide is a press that moves, along a path walked evenly in time and let go at its end:
 //! Pokémon-Amie is stroked so, and answers it with its hand on the Pokémon (spike 200). A tap is a
-//! slide that stays on one point. ADR-0009 allows pa3ds a tap alone; the slide is an exploration
+//! slide that stays on one point. ADR-0009 allowed pa3ds a tap alone; the slide is an exploration
 //! Khai asked for (2026-10-08), for Orion to keep or take back.
 //!
+//! A drag is a press the player holds between keys (`Drag`): held on one point, slid on to the
+//! next in `MOVE` seconds each time the player moves it, and let go when they let go, or after
+//! `HELD` seconds whatever happens, so a finger is never left down for good.
+//!
 //! Bound by:
-//! - ADR-0009: a tap, a press and a release, is the one input pa3ds ever sends the game.
+//! - ADR-0009: a touch, on the player's keys and on targets pa3ds has just named, is the one input
+//!   pa3ds ever sends the game: a tap, or a drag the player holds.
 
 use std::io;
 use std::net::{SocketAddr, UdpSocket};
@@ -64,6 +69,14 @@ pub const TICK: f64 = 1.0 / 120.0;
 pub const COUNTS: i64 = 240;
 /// How long a client is sent states after its last request; it asks every three seconds.
 pub const LISTENING: f64 = 6.0;
+/// How long a held press takes to slide from one target to the next: a fifth of a second
+/// (ADR-0009), not yet measured against a screen that takes a drop.
+pub const MOVE: f64 = 0.2;
+/// How long a held press is kept down at most, should its letting go never come.
+///
+/// A server keeps its own (`State.held_for`), which a test shortens where Python's sets the
+/// module's `HELD`.
+pub const HELD: f64 = 30.0;
 
 /// Said for a tap Azahar is not listening for: its touch device is not pa3ds's.
 pub const NOT_LISTENING: &str = "touch-not-listening";
@@ -156,6 +169,23 @@ pub fn along(path: &[(i64, i64)], start: f64, until: f64, now: f64) -> Option<(i
     Some((x, y))
 }
 
+/// A press the player holds between keys (`TouchServer`).
+pub trait Drag {
+    /// Press at (x, y) and keep it down; says why not as `TouchServer.tap` does.
+    fn hold(&self, x: i64, y: i64) -> Option<String>;
+
+    /// Slide a held press on to (x, y), still down.
+    fn r#move(&self, x: i64, y: i64);
+
+    /// Let a held press go where it is.
+    fn release(&self);
+}
+
+/// A point kept to the touch screen's pixels.
+fn on_screen(x: i64, y: i64) -> (i64, i64) {
+    (x.clamp(0, WIDTH - 1), y.clamp(0, HEIGHT - 1))
+}
+
 /// The type of a client's request, or None for anything that is not one.
 pub fn request(packet: &[u8]) -> Option<i64> {
     if packet.len() < 20 || &packet[..4] != CLIENT {
@@ -197,6 +227,10 @@ struct State {
     path: Vec<(i64, i64)>,
     start: f64,
     until: f64,
+    /// When a press held between keys is let go whatever happens, or 0 with none held.
+    held: f64,
+    /// `HELD`, as this server keeps it.
+    held_for: f64,
     counter: i64,
     clients: IndexMap<SocketAddr, f64>,
 }
@@ -251,6 +285,8 @@ impl TouchServer {
                 path: Vec::new(),
                 start: 0.0,
                 until: 0.0,
+                held: 0.0,
+                held_for: HELD,
                 counter: 0,
                 clients: IndexMap::new(),
             }),
@@ -293,10 +329,7 @@ impl TouchServer {
         if !self.listened() {
             return Some(own(NOT_LISTENING, &[]));
         }
-        let points: Vec<(i64, i64)> = path
-            .iter()
-            .map(|&(x, y)| (x.clamp(0, WIDTH - 1), y.clamp(0, HEIGHT - 1)))
-            .collect();
+        let points: Vec<(i64, i64)> = path.iter().map(|&(x, y)| on_screen(x, y)).collect();
         if points.is_empty() {
             return None;
         }
@@ -305,14 +338,52 @@ impl TouchServer {
         state.until = state.start + seconds;
         state.touch = Some(points[0]);
         state.path = points;
+        state.held = 0.0;
         None
+    }
+
+    /// Press the touch screen at (x, y) and keep it down, until `release` or `HELD` seconds.
+    /// Says why not as `tap` does.
+    pub fn hold(&self, x: i64, y: i64) -> Option<String> {
+        if !self.listened() {
+            return Some(own(NOT_LISTENING, &[]));
+        }
+        let point = on_screen(x, y);
+        let mut state = self.inner.locked();
+        state.start = time::monotonic();
+        state.path = vec![point];
+        state.until = state.start;
+        state.touch = Some(point);
+        state.held = state.start + state.held_for;
+        None
+    }
+
+    /// Slide a held press from where it is on to (x, y) over `MOVE` seconds, still down.
+    pub fn r#move(&self, x: i64, y: i64) {
+        let mut state = self.inner.locked();
+        let Some(touch) = state.touch.filter(|_| state.held != 0.0) else {
+            return;
+        };
+        state.path = vec![touch, on_screen(x, y)];
+        state.start = time::monotonic();
+        state.until = state.start + MOVE;
+    }
+
+    /// Let a held press go where it is.
+    pub fn release(&self) {
+        let mut state = self.inner.locked();
+        (state.touch, state.path, state.held) = (None, Vec::new(), 0.0);
+    }
+
+    /// `touch.HELD = seconds` for this server, as a test shortens it.
+    pub fn set_held(&self, seconds: f64) {
+        self.inner.locked().held_for = seconds;
     }
 
     pub fn close(&self) {
         {
             let mut state = self.inner.locked();
-            state.touch = None;
-            state.path = Vec::new();
+            (state.touch, state.path, state.held) = (None, Vec::new(), 0.0);
         }
         self.inner.send();
         self.inner.stop.store(true, Ordering::SeqCst);
@@ -332,6 +403,20 @@ impl TouchServer {
             }
         }
         // `socket.close()` is the socket dropping with the server.
+    }
+}
+
+impl Drag for TouchServer {
+    fn hold(&self, x: i64, y: i64) -> Option<String> {
+        TouchServer::hold(self, x, y)
+    }
+
+    fn r#move(&self, x: i64, y: i64) {
+        TouchServer::r#move(self, x, y);
+    }
+
+    fn release(&self) {
+        TouchServer::release(self);
     }
 }
 
@@ -368,8 +453,19 @@ impl Inner {
             }
             {
                 let mut state = self.locked();
-                state.touch = along(&state.path, state.start, state.until, time::monotonic());
-                if state.touch.is_none() {
+                let now = time::monotonic();
+                let mut touch = along(&state.path, state.start, state.until, now);
+                if touch.is_none() && !state.path.is_empty() && now < state.held {
+                    touch = state.path.last().copied();
+                } else if touch.is_none() && state.held != 0.0 {
+                    (self.log)(&format!(
+                        "touch: a press held {} s let go",
+                        py::fixed(state.held_for, 0)
+                    ));
+                    state.held = 0.0;
+                }
+                state.touch = touch;
+                if touch.is_none() {
                     state.path = Vec::new();
                 }
             }

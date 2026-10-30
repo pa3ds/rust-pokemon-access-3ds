@@ -92,6 +92,59 @@ fn test_a_tap_presses_and_lets_go_for_a_client_that_asked() {
     server.close();
 }
 
+/// A drag: Poké Puffs are dragged to the Pokémon (ADR-0009). Held, a press is sent until it is
+/// let go; moved, it slides on to its new point still down; and one never let go is let go after
+/// `HELD` seconds.
+#[test]
+fn test_a_held_press_stays_down_moves_and_lets_go_when_released_or_held_too_long() {
+    let server = touch::TouchServer::new(Arc::new(|_line: &str| {}), 0).unwrap();
+    let port = server.port().unwrap();
+    let client = UdpSocket::bind((touch::HOST, 0)).unwrap();
+    client
+        .set_read_timeout(Some(Duration::from_secs(1)))
+        .unwrap();
+    let touches = |seconds: f64| -> Vec<(u8, u8, i64, i64)> {
+        let mut out: Vec<(u8, u8, i64, i64)> = Vec::new();
+        let deadline = time::monotonic() + seconds;
+        let mut buffer = [0u8; 100];
+        while time::monotonic() < deadline {
+            let size = client.recv(&mut buffer).unwrap();
+            let data = &buffer[20..size];
+            out.push((data[36], data[37], u16_at(data, 38), u16_at(data, 40)));
+        }
+        out
+    };
+    let mut ask = b"DSUC".to_vec();
+    ask.extend_from_slice(&1001u16.to_le_bytes());
+    ask.extend_from_slice(&12u16.to_le_bytes());
+    ask.extend_from_slice(&0u32.to_le_bytes());
+    ask.extend_from_slice(&1u32.to_le_bytes());
+    ask.extend_from_slice(&(touch::PAD_DATA as u32).to_le_bytes());
+    ask.extend_from_slice(&[0; 8]);
+    client.send_to(&ask, (touch::HOST, port as u16)).unwrap();
+    time::sleep(0.05);
+    assert_eq!(server.hold(95, 23), None);
+    touches(0.05);
+    let held: std::collections::HashSet<(u8, u8, i64, i64)> = touches(0.3).into_iter().collect();
+    assert_eq!(held, std::collections::HashSet::from([(1, 0, 95, 23)]));
+    server.r#move(160, 120);
+    let moving = touches(touch::MOVE + 0.2);
+    assert!(moving.iter().all(|state| state.0 != 0) && *moving.last().unwrap() == (1, 0, 160, 120));
+    let across: Vec<i64> = moving.iter().map(|state| state.2).collect();
+    let mut sorted = across.clone();
+    sorted.sort();
+    let distinct: std::collections::HashSet<i64> = across.iter().copied().collect();
+    assert!(across == sorted && across[0] < 120 && distinct.len() > 3);
+    server.release();
+    assert_eq!(touches(0.1).last().unwrap().0, 0);
+    server.r#move(50, 50);
+    assert_eq!(touches(0.1).last().unwrap().0, 0);
+    server.set_held(0.2);
+    server.hold(10, 10);
+    assert_eq!(touches(0.4).last().unwrap().0, 0);
+    server.close();
+}
+
 /// Azahar takes a pad's state only when its counter is past every one it has taken since it
 /// opened, from any server: one game read after another, or a pa3ds started in another's place,
 /// had its taps dropped while it counted up from one again (2026-10-20).
