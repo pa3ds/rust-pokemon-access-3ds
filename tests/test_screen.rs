@@ -1664,6 +1664,61 @@ fn test_two_icons_side_by_side_are_said_with_a_slash_between() {
     );
 }
 
+/// Tile Puzzle's difficulty buttons box each star of the best result in a Bounding pane of its
+/// own, and Easy read "Easy 1 star1 star1 star1 star1 star 1 star", the last Normal's first star
+/// peeking in at the screen's edge, 152 to 170 (as_amie_tile_puzzle_hard).
+#[test]
+fn test_stars_boxed_one_by_one_are_counted_by_their_button_and_only_wholly_on_screen() {
+    let mut game = Game::new();
+    let classes = FakeClasses::starting(game.memory.clone(), CODE.0 + 0x8000);
+    let (picture, bounding) = (
+        classes.add(lyt::PICTURE_CLASS),
+        classes.add(lyt::BOUNDING_CLASS),
+    );
+    let (_work, group) = game.screen(BOTTOM);
+    let (easy, normal) = (BOTTOM + 0x1000, BOTTOM + 0x6000);
+    game.fake.pane(easy, group);
+    game.fake.pane(normal, group);
+    let label = game.text_box(easy + 0x200, easy, "Easy");
+    game.place(label, (0.0, -30.0), 40.0, 12.5);
+    let mut stars: Vec<(i64, f64)> = (0..5).map(|i| (easy, -39.0 + 19.5 * i as f64)).collect();
+    stars.push((normal, 161.0));
+    let mut named: HashMap<i64, &str> = HashMap::new();
+    for (i, (button, x)) in stars.into_iter().enumerate() {
+        let r#box = BOTTOM + 0x2000 + 0x400 * i as i64;
+        game.fake.pane_with_vtable(r#box, button, Some(bounding));
+        game.fake
+            .pane_with_vtable(r#box + 0x200, r#box, Some(picture));
+        write_floats(
+            &game.memory,
+            r#box + 0x200,
+            &[
+                (lyt::X, x),
+                (lyt::Y, -52.0),
+                (lyt::WIDTH, 18.0),
+                (lyt::HEIGHT, 18.0),
+                (lyt::SCALE_X, 1.0),
+                (lyt::SCALE_Y, 1.0),
+            ],
+        );
+        game.memory
+            .write(r#box + 0x200 + lyt::PICTURE_COLOURS, &[0xFF; 16]);
+        game.memory.u32(r#box + lyt::CHILD_COUNT, &[1]);
+        named.insert(r#box + 0x200, pictures::STAR);
+    }
+    game.memory.u32(BOTTOM + 0x400 + lyt::CHILD_COUNT, &[1]);
+    game.memory.u32(group + lyt::CHILD_COUNT, &[2]);
+    game.memory.u32(easy + lyt::CHILD_COUNT, &[6]);
+    game.memory.u32(normal + lyt::CHILD_COUNT, &[1]);
+    game.reader = reader_with(
+        &game,
+        Rc::new(move |pane| Ok(named.get(&pane).map(|words| words.to_string()))),
+    );
+    game.sweep();
+    game.heard();
+    assert_eq!(game.heard(), words(&[("Easy", false), ("5 stars", false)]));
+}
+
 /// The Pokédex entry's group of Name holds its value and the type icon, and moved after the
 /// label, the icon read "Name Fire Torchic" (movie7, after "Name" became one of the labels the
 /// game's text names).

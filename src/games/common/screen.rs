@@ -813,7 +813,7 @@ impl ScreenTextReader {
                     continue;
                 };
                 let mut head = self.layouts.pane(pane)?;
-                let parent = u32(&head, lyt::PARENT)?;
+                let mut parent = u32(&head, lyt::PARENT)?;
                 let words: String;
                 if !placement.shown {
                     // A contest hides the hearts of Jamming a move does not have, and said bare,
@@ -835,16 +835,28 @@ impl ScreenTextReader {
                         Some(found) => words = found,
                         None => continue,
                     }
-                    if (words == STAR || words == HALF_STAR)
-                        && shadow(&self.memory.read(pane + lyt::PICTURE_COLOURS, 16)?)
-                    {
-                        // Pokémon-Amie's results draw each star not earned as a full one's faint
-                        // shadow, where an earned one lands over it (or_amie_stars), and are said
-                        // only with stars earned, as "caught" is never "not caught": shown seconds
-                        // before Berry Picker's rank, under "Berries", they read "Berries 0
-                        // stars".
-                        continue;
-                    }
+                }
+                let star = [STAR, NO_STAR, HALF_STAR].contains(&words.as_str());
+                if (words == STAR || words == HALF_STAR)
+                    && shadow(&self.memory.read(pane + lyt::PICTURE_COLOURS, 16)?)
+                {
+                    // Pokémon-Amie's results draw each star not earned as a full one's faint
+                    // shadow, where an earned one lands over it (or_amie_stars), and are said only
+                    // with stars earned, as "caught" is never "not caught": shown seconds before
+                    // Berry Picker's rank, under "Berries", they read "Berries 0 stars".
+                    continue;
+                }
+                if star
+                    && self
+                        .names
+                        .of_vtable(u32(&self.layouts.pane(parent)?, 0)?)?
+                        .as_deref()
+                        == Some(lyt::BOUNDING_CLASS)
+                {
+                    // Tile Puzzle's difficulty buttons box each star of the best result alone, and
+                    // counted by its box each read "Easy 1 star1 star1 star1 star1 star"
+                    // (as_amie_tile_puzzle_hard): counted by the button instead.
+                    parent = u32(&self.layouts.pane(parent)?, lyt::PARENT)?;
                 }
                 let mut width = f32(&head, shape.width)? * f32(&head, shape.scale_x)?;
                 let mut height = f32(&head, shape.height)? * f32(&head, shape.scale_y)?;
@@ -857,9 +869,12 @@ impl ScreenTextReader {
                     (x, width, height) = (x + width / 2.0 + GLYPH_SPOT, GLYPH_SPOT, GLYPH_SPOT);
                 }
                 // Wholly off its screen is not on it: the summary keeps a fifth move's type icon
-                // 140 above the bottom screen's middle, 130 to 150, its edge at 120 (movie7).
-                let across = (x - f32(&root_head, shape.x)?).abs() - width / 2.0;
-                let up = (y - f32(&root_head, shape.y)?).abs() - height / 2.0;
+                // 140 above the bottom screen's middle, 130 to 150, its edge at 120 (movie7). A
+                // star is on it only wholly: the next difficulty button's first star peeks in at
+                // the edge, 152 to 170, and Easy's read "Easy 5 stars 1 star".
+                let outside = if star { -1.0 } else { 1.0 };
+                let across = (x - f32(&root_head, shape.x)?).abs() - outside * width / 2.0;
+                let up = (y - f32(&root_head, shape.y)?).abs() - outside * height / 2.0;
                 if up >= SCREEN_HALF_HEIGHT
                     || across >= SCREEN_HALF_WIDTH[usize::from(placement.top)]
                 {
