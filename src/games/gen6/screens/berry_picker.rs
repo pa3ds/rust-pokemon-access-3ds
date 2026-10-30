@@ -173,6 +173,11 @@ pub struct BerryPicker {
 }
 
 impl BerryPicker {
+    /// What the heap is swept for: the app's own object, whose clock says how fast the game
+    /// runs, the Pokémon, who want each berry, and the opening, which says whether the round
+    /// has begun.
+    pub const CLASSES: [&'static str; 3] = [APP, MODEL, DEMO];
+
     /// `BerryPicker(...)` with Python's default clock, `time.monotonic`.
     pub fn new(
         memory: Rc<dyn Memory>,

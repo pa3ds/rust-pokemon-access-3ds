@@ -213,6 +213,10 @@ pub struct TilePuzzle {
 }
 
 impl TilePuzzle {
+    /// What the heap is swept for: the board, which says where each tile's piece belongs,
+    /// and the picture and its background, which say who and what the picture shows.
+    pub const CLASSES: [&'static str; 3] = [CLASS, PICTURE, BACKGROUND];
+
     pub fn new(memory: Rc<dyn Memory>, layouts: Rc<Layouts>, image_of: ImageOf) -> Self {
         TilePuzzle {
             memory,

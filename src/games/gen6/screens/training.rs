@@ -188,6 +188,9 @@ pub struct TrainingPage {
 }
 
 impl TrainingPage {
+    /// What the heap is swept for: the page, which says whose each party slot's icon is.
+    pub const CLASSES: [&'static str; 1] = [CLASS];
+
     pub fn new(memory: Rc<dyn Memory>, names: Rc<ClassNames>, species: Vec<String>) -> Self {
         TrainingPage::with_icons(memory, names, species, ICONS)
     }
@@ -608,6 +611,9 @@ pub struct Round {
 }
 
 impl Round {
+    /// What the heap is swept for: the Balloon Bots' balls, which say when a shot is coming.
+    pub const CLASSES: [&'static str; 1] = [MISSILE];
+
     /// `now` None is `time.monotonic`.
     pub fn new(
         layouts: Rc<Layouts>,

@@ -6,7 +6,8 @@
 //! built from what they share and answered for together. Each reader answers whichever of these it
 //! has, by the same name, for the app running, and nothing in any other app:
 //!
-//! - `track(found, adding)`, what a sweep found of its objects, by class;
+//! - `classes`, what the heap is swept for to find its objects, and `track(found, adding)`, what a
+//!   sweep found of them, by class;
 //! - `name(picture, running)`, what touch mode calls a picture of its screen's;
 //! - `targets(running)`, the targets it offers touch mode beside the touch areas;
 //! - `poll(running)`, what it says as its screen changes: (what the log calls it, the line, its
@@ -23,7 +24,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 
 use crate::core::config::Amie;
 use crate::core::memory::Memory;
@@ -43,6 +44,8 @@ use crate::py::{self, Result};
 
 /// A reader handed what a sweep found of its objects, by class.
 pub trait Tracked {
+    /// What the heap is swept for to find its objects.
+    fn classes(&self) -> &'static [&'static str];
     fn track(&self, found: &IndexMap<i64, String>, adding: bool) -> Result<()>;
 }
 
@@ -64,6 +67,9 @@ pub trait Polled {
 macro_rules! tracked {
     ($($reader:ty),*) => {$(
         impl Tracked for RefCell<$reader> {
+            fn classes(&self) -> &'static [&'static str] {
+                &<$reader>::CLASSES
+            }
             fn track(&self, found: &IndexMap<i64, String>, adding: bool) -> Result<()> {
                 self.borrow_mut().track(found, adding)
             }
@@ -156,6 +162,8 @@ impl Polled for RefCell<BerryPicker> {
 pub struct PlayNav {
     pub puzzle: Rc<RefCell<TilePuzzle>>,
     pub berry_picker: Rc<RefCell<BerryPicker>>,
+    /// What the heap is swept for, each reader's `classes`.
+    pub classes: Vec<&'static str>,
     tracked: Vec<Rc<dyn Tracked>>,
     named: Vec<Rc<dyn Named>>,
     offering: Vec<Rc<dyn Offering>>,
@@ -245,16 +253,22 @@ impl PlayNav {
         )));
         // A round says its score, clock and banners, and warns of a Bot's shot.
         let sparring = Rc::new(RefCell::new(Round::new(layouts, image_of, memory, None)));
+        let tracked: Vec<Rc<dyn Tracked>> = vec![
+            amie.clone(),
+            puffs.clone(),
+            goods.clone(),
+            puzzle.clone(),
+            berry_picker.clone(),
+            training.clone(),
+            sparring.clone(),
+        ];
+        let classes: IndexSet<&'static str> = tracked
+            .iter()
+            .flat_map(|reader| reader.classes().iter().copied())
+            .collect();
         PlayNav {
-            tracked: vec![
-                amie.clone(),
-                puffs.clone(),
-                goods.clone(),
-                puzzle.clone(),
-                berry_picker.clone(),
-                training.clone(),
-                sparring.clone(),
-            ],
+            classes: classes.into_iter().collect(),
+            tracked,
             named: vec![amie.clone(), training, puffs, goods, puzzle.clone()],
             offering: vec![amie, goals, berry_picker.clone(), waiting, bags],
             polled: vec![sparring, berry_picker.clone()],

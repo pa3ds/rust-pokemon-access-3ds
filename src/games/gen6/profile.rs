@@ -94,21 +94,16 @@ use crate::py::{self, Error, Log, PySet, Result};
 /// that says which app is running, and the button managers, touch bars and the field's menu that
 /// say whose buttons take taps (`buttons`), and the AreaNav's navigator, which says whose icon each
 /// picture of its Pokémon Distribution draws, and its views, which say which of its layouts it
-/// draws; the party and the icons the Bag draws it with; the Pokémon-Amie page, which says whose
-/// icon its Pokémon is; the texture systems Amie's decorate screen draws its Poké Puffs and items
-/// from, and the layout helpers its item pages point at; its Tile Puzzle's board, which says where
-/// each tile's piece belongs; its Berry Picker's Pokémon and opening, which say who wants each
-/// berry and whether the round has begun; Super Training's page, which says whose each party slot's
-/// is; and the balls of its Balloon Bots, which say when a shot is coming; the Battle Maison's
-/// partner screen, which says whose portrait each picture draws; and the save's trainer record, which says
-/// the game's language (`mystatus`). A game's own readers add what
-/// they find their objects by (`Gen6Profile.classes`): ORAS's DexNav, the player's work its hidden Pokémon's record is found
-/// through.
+/// draws; the party and the icons the Bag draws it with; the Battle Maison's partner screen,
+/// which says whose portrait each picture draws; and the save's trainer record, which says the
+/// game's language (`mystatus`). The PlayNav's screens add what they find their objects by
+/// (`PlayNav.classes`), and a game's own readers theirs (`Gen6Profile.classes`): ORAS's DexNav, the
+/// player's work its hidden Pokémon's record is found through.
 ///
 /// Not TextBoxes or cursor windows: walking each layout's tree finds every one that can be placed on
 /// screen (spike 62). And the linear heap is not swept: the battle builds its layouts there, and its
 /// message window leads to their pool (spike 64).
-pub const HEAP_CLASSES: [&str; 42] = [
+pub const HEAP_CLASSES: [&str; 31] = [
     msgwin::CLASSES[0],
     msgwin::CLASSES[1],
     talk::CLASSES[0],
@@ -130,17 +125,6 @@ pub const HEAP_CLASSES: [&str; 42] = [
     townmap::VIEWS[2].0,
     townmap::VIEWS[3].0,
     townmap::VIEWS[4].0,
-    amie::CLASS,
-    distribution::REPLACE_CLASS,
-    amie::G2D_CLASS,
-    puzzle::CLASS,
-    puzzle::PICTURE,
-    puzzle::BACKGROUND,
-    berry_picker::APP,
-    berry_picker::MODEL,
-    berry_picker::DEMO,
-    training::CLASS,
-    training::MISSILE,
     partners::CLASS,
     pokemon::PARAM_CLASS,
     partyicons::ICON_CLASS,
@@ -280,8 +264,8 @@ pub struct Gen6Profile {
     field: Rc<RefCell<Rc<FieldReader>>>,
     /// The Pokémon its save keeps for its credits, which their descriptions name (spike 222).
     pub memories: Option<Rc<dyn MemoriesReader>>,
-    /// What the heap is swept for in this game: `HEAP_CLASSES`, and what the game's own
-    /// readers find their objects by.
+    /// What the heap is swept for in this game: `HEAP_CLASSES`, the PlayNav's screens'
+    /// classes, and what the game's own readers find their objects by.
     pub classes: Vec<String>,
     pub distribution: Rc<RefCell<Distribution>>,
     pub views: Rc<RefCell<townmap::Views>>,
@@ -554,13 +538,6 @@ impl Gen6Profile {
         );
         // The Pokémon its save keeps for its credits, which their descriptions name (spike 222).
         let memories = game.memories.map(|make| make(memory.clone()));
-        let classes: IndexSet<String> = HEAP_CLASSES
-            .iter()
-            .copied()
-            .chain(field.classes())
-            .map(String::from)
-            .chain(memories.iter().flat_map(|memories| memories.classes()))
-            .collect();
         // The navigator says what it finds by the name it has been given, and renames it on a
         // key: the player standing in front of a sign is the only one who can name it.
         let ui = ui.unwrap_or_default();
@@ -763,6 +740,14 @@ impl Gen6Profile {
             },
             off.clone(),
         ));
+        let classes: IndexSet<String> = HEAP_CLASSES
+            .iter()
+            .chain(playnav.classes.iter())
+            .copied()
+            .chain(field.borrow().classes())
+            .map(String::from)
+            .chain(memories.iter().flat_map(|memories| memories.classes()))
+            .collect();
         let picture_name: PictureName = {
             let (apps, distribution, playnav) =
                 (apps.clone(), distribution.clone(), playnav.clone());

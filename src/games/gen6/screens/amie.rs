@@ -136,6 +136,9 @@ pub struct AmiePage {
 }
 
 impl AmiePage {
+    /// What the heap is swept for: the page, which says whose icon its Pokémon is.
+    pub const CLASSES: [&'static str; 1] = [CLASS];
+
     pub fn new(memory: Rc<dyn Memory>, names: Rc<ClassNames>, species: Vec<String>) -> Self {
         AmiePage::with_number(memory, names, species, NUMBER)
     }
@@ -382,6 +385,9 @@ pub struct Puffs {
 }
 
 impl Puffs {
+    /// What the heap is swept for: the texture systems the puffs are drawn from.
+    pub const CLASSES: [&'static str; 1] = [d::REPLACE_CLASS];
+
     pub fn new(memory: Rc<dyn Memory>, names: Rc<ClassNames>, puffs: Vec<String>) -> Self {
         Puffs {
             replaced: Replaced::new(memory, names),
@@ -437,6 +443,10 @@ pub struct Goods {
 }
 
 impl Goods {
+    /// What the heap is swept for: the texture systems the items are drawn from, and the
+    /// layout helpers the pages' block points at.
+    pub const CLASSES: [&'static str; 2] = [d::REPLACE_CLASS, G2D_CLASS];
+
     pub fn new(memory: Rc<dyn Memory>, names: Rc<ClassNames>, goods: Vec<String>) -> Self {
         Goods {
             replaced: Replaced::new(memory, names),
