@@ -144,11 +144,11 @@ you.
 **Jumping stones.** In Pokémon X, `P` crosses a mud pit by its stones: each press of the way hops
 you two squares, onto the next stone.
 
-**Riding Rhyhorn.** On Route 9, in X and Y, only a Rhyhorn crosses the spiky ground. The riding
-category lists each patch of flat ground, where you get on the Rhyhorn by facing it and pressing A, and get off
-with B. `P` walks you to the Rhyhorn, "Rhyhorn 1 east", across the spikes and off again, "get off
-3 north". Rocks are obstacles: on the Rhyhorn, face one and press A to smash it, which `P` says as
-"smash 1 east".
+**Riding Rhyhorn and Mamoswine.** In X and Y, only a Rhyhorn crosses Route 9's spiky ground, and
+only a Mamoswine Route 17's deep snow. The riding category lists each patch of flat ground, where
+you get on by facing the Pokémon and pressing A, and get off with B. `P` walks you to it,
+"Mamoswine 1 east", across and off again, "get off 3 north". Rocks are obstacles: riding, face one
+and press A to smash it, which `P` says as "smash 1 east".
 
 **Climbing walls.** In Cyllage Gym, in X and Y, the rock walls are climbed from the blue spots at
 their foot. The climbing category lists the blue spots and each wall ledge, where you step off a
