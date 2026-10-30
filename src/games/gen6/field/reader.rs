@@ -1210,7 +1210,7 @@ impl FieldReader {
     /// street is where the street has it on the grid, as high as its line's start: Coumarine
     /// Gym's way down, on its top level (spike 250). Each teleporter the ROM says puts the player
     /// somewhere in the zone, while it is armed, a sign with where it puts them (`arrival`,
-    /// `landing`): Laverre Gym's panels (spike A).
+    /// `landing`): Laverre Gym's panels (spike 258).
     fn listed_triggers(&self, data: &ZoneData, zone: i64) -> Result<Vec<Interactable>> {
         let home = if self.triggers.is_empty()
             && self.hidden_triggers.is_empty()
@@ -3261,7 +3261,7 @@ fn over(item: &Interactable) -> i64 {
 /// 211). A sign that reaches past what covers it, a shelf longer than what stands on it, stays.
 /// A trigger is no layer of a spot: it is stepped on, not read, and on a floor of its own, as
 /// Laverre Gym's teleporter at (29, 1) on its middle floor is under the cells of a bureau's
-/// record, which has no floor (spike A).
+/// record, which has no floor (spike 258).
 fn one_a_spot(items: Vec<Interactable>) -> Vec<Interactable> {
     let covered: Vec<(i64, HashSet<Cell>)> = items
         .iter()

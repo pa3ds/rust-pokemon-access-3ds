@@ -149,8 +149,10 @@ pub struct Leg {
     /// Whether it is the guide's subclass `Vined`, the step that grabs a vine and its ride:
     /// Python's `isinstance(leg, Vined)`.
     pub vined: bool,
-    /// Whether it is the guide's subclass `Teleported`, a teleport as a leg of its own:
-    /// Python's `isinstance(leg, Teleported)`.
+    /// Whether it is the guide's subclass `Teleported`: Python's `isinstance(leg, Teleported)`.
+    /// A teleport, the step from a teleporter to where it puts the player, as a leg of its own:
+    /// "6 north, teleporter, 2 east". Nothing is said as the player stands on the teleporter: the
+    /// game is moving them, and the leg after it is said where it puts them (spike 258).
     pub teleported: bool,
 }
 

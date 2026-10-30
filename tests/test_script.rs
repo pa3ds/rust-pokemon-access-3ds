@@ -216,7 +216,7 @@ fn test_a_case_that_hands_a_shared_scripts_number_to_a_native_runs_it() {
 }
 
 /// Each of Laverre Gym's panels calls a function that pushes z, the floor and x, the last
-/// argument first, and calls native 56 with their 12 bytes (spike A); one handing a native
+/// argument first, and calls native 56 with their 12 bytes (spike 258); one handing a native
 /// anything but constants is no call.
 #[test]
 fn test_a_case_handing_a_native_constants_gives_them_first_argument_first() {

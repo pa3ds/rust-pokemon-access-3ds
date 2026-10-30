@@ -269,7 +269,7 @@ impl Script {
     /// The native the case `number` hands constants to, and the constants, the first
     /// argument first, or None: its first call is to a function that pushes only constants,
     /// the last argument first, and calls the native with their size. Each of Laverre Gym's
-    /// panels hands native 56 three, x, the floor in squares of height and z (spike A).
+    /// panels hands native 56 three, x, the floor in squares of height and z (spike 258).
     pub fn call(&self, number: i64) -> Result<Option<(i64, Vec<i64>)>> {
         let case = self.cases()?.get(&number).copied();
         let function = match case {

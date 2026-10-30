@@ -179,7 +179,7 @@ p-more-vines = { $count ->
    *[other] then { $count } more vines
 }
 # How many more teleporters a way takes past its first, said after it in place of the rest: "6
-# north, teleporter, then 3 more teleporters" (spike A).
+# north, teleporter, then 3 more teleporters" (spike 258).
 p-more-teleporters = { $count ->
     [one] then 1 more teleporter
    *[other] then { $count } more teleporters

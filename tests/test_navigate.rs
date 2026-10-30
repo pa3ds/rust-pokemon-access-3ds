@@ -1143,7 +1143,7 @@ fn test_a_teleporter_says_where_it_comes_out_after_the_way_to_it() {
     );
 }
 
-/// Laverre Gym's panels (spike A): one on the player's floor putting them on the floor above,
+/// Laverre Gym's panels (spike 258): one on the player's floor putting them on the floor above,
 /// 90 up, says so after where.
 #[test]
 fn test_a_teleporter_onto_another_floor_says_how_far_above_or_below_it_puts_the_player() {
@@ -2412,7 +2412,7 @@ fn test_a_vines_cell_is_floor_on_another_level_and_never_walked_into_at_its_own(
     }
 }
 
-/// A teleporter as the reader lists Laverre Gym's (spike A).
+/// A teleporter as the reader lists Laverre Gym's (spike 258).
 fn panel(i: i64, cell: Cell, height: f64, lands: Cell, landing: f64) -> Interactable {
     Interactable {
         source: place_source(TRIGGER_SOURCE, i).unwrap(),
@@ -2437,7 +2437,7 @@ fn laverre_panels() -> Vec<Interactable> {
 
 /// Three rooms of Laverre Gym's side by side, the middle a floor above the others and no floor
 /// joining them, x 90 to 94 at 0, 100 to 104 at 90 and 110 to 114 at 0, z 170 to 174, with
-/// `LAVERRE_PANELS` and `items`, the player at `at` on the floor at `level` (spike A).
+/// `LAVERRE_PANELS` and `items`, the player at `at` on the floor at `level` (spike 258).
 ///
 /// Python's `at` and `level` default to (92, 172) and 0.0.
 fn laverre_gym(items: &[Interactable], at: Cell, level: f64) -> (Rig, Field) {
@@ -2481,7 +2481,7 @@ fn gym_way(rig: &Rig, r#where: &Field, item: &Interactable) -> (Ground, Vec<Cell
     (ground, path)
 }
 
-/// Laverre Gym (spike A): a teleporter stepped onto puts the player on its partner's panel on
+/// Laverre Gym (spike 258): a teleporter stepped onto puts the player on its partner's panel on
 /// the floor above, and the way goes on from there, that panel doing nothing until stepped off
 /// and back onto.
 #[test]
@@ -2531,7 +2531,7 @@ fn test_the_walk_out_reaches_the_room_a_teleporter_leads_to_and_the_teleporter()
     assert_eq!(reached[&(91, 172)], HashSet::from([0]));
 }
 
-/// Laverre Gym (spike A): the way to a person two rooms off is said as far as the first
+/// Laverre Gym (spike 258): the way to a person two rooms off is said as far as the first
 /// teleporter, then how many more it takes.
 #[test]
 fn test_p_says_a_way_through_teleporters_as_far_as_the_first_and_how_many_more() {
@@ -2576,7 +2576,7 @@ fn gym_step(rig: &mut Rig, cell: Cell, height: f64) {
     rig.nav.follow(&r#where).unwrap();
 }
 
-/// ADR-0024: a teleport keeps the player's model (spike A), and the way goes on across it.
+/// ADR-0024: a teleport keeps the player's model (spike 258), and the way goes on across it.
 #[test]
 fn test_guiding_says_nothing_on_a_teleporter_and_the_next_leg_where_it_puts_the_player() {
     let grant = Interactable {

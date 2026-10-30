@@ -811,7 +811,7 @@ fn test_furniture_whose_case_runs_a_shared_script_is_that_script() -> Result<()>
 }
 
 /// Laverre Gym's panels are triggers whose case hands native 56 x, the floor in squares of
-/// height and z (spike A); the same native in a zone not listed, as Coumarine Gym's vine swing
+/// height and z (spike 258); the same native in a zone not listed, as Coumarine Gym's vine swing
 /// is, is left alone.
 #[test]
 fn test_a_teleporter_of_a_listed_zone_puts_the_player_where_its_native_says() -> Result<()> {

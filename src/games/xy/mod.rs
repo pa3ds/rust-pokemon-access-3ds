@@ -457,7 +457,7 @@ pub const WAY_DOWN: i64 = 0x2B;
 /// joined by 23 one-cell triggers the player is teleported by: each one's case calls a function that
 /// pushes three constants and calls native 56, x, the floor in squares of height and z. Eleven pairs
 /// land on each other's panel, and the one at (11, 1) on the top floor lands by the entrance, armed
-/// while work 0x40f3 is 1. A teleport keeps the player's model (spike A).
+/// while work 0x40f3 is 1. A teleport keeps the player's model (spike 258).
 pub const LAVERRE_GYM: i64 = 0xCB;
 
 pub const PRISM_LOBBY: i64 = 0x4D;

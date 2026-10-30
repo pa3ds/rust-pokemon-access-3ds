@@ -174,7 +174,7 @@ pub const RIDING: &str = "riding";
 pub const CLIMBING: &str = "climbing";
 
 /// What a teleporter that moves the player within its zone is listed as, under signs, and the
-/// leg that is its teleport said with (`guide.Teleported`): the game names none (spike A).
+/// leg that is its teleport said with (`guide.Teleported`): the game names none (spike 258).
 pub const TELEPORTER: &str = "teleporter";
 
 /// In the order they are walked and logged.
@@ -241,7 +241,7 @@ pub struct Interactable {
     /// within the zone with no warp, where it puts them (`landing`).
     pub arrival: Option<(i64, i64)>,
     /// For a teleporter that moves the player within the zone with no warp, how high `arrival`
-    /// is: which floor it puts them on, Laverre Gym's panels (spike A). Set only with `arrival`;
+    /// is: which floor it puts them on, Laverre Gym's panels (spike 258). Set only with `arrival`;
     /// None for anything else, a warp's teleporter pad among them, whose warp builds the field
     /// anew.
     pub landing: Option<f64>,

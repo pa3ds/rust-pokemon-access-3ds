@@ -2355,7 +2355,7 @@ fn test_an_item_a_trigger_gives_is_a_hidden_item_while_the_trigger_is_armed() ->
     Ok(())
 }
 
-/// Laverre Gym's panels (spike A): each trigger the ROM says puts the player somewhere in the
+/// Laverre Gym's panels (spike 258): each trigger the ROM says puts the player somewhere in the
 /// zone is listed under signs as a teleporter, with where and how high; the one by the entrance,
 /// armed by work 0x40f3 at 1, only while the work holds it, the Extra off as it ships.
 #[test]

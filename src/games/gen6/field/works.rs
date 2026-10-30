@@ -61,7 +61,7 @@ impl Works {
     }
 
     /// Whether a trigger armed by `work` at `value` is armed now: always for work 0, which
-    /// arms nothing, as every Laverre Gym panel's but one (spike A).
+    /// arms nothing, as every Laverre Gym panel's but one (spike 258).
     pub fn armed(&self, work: i64, value: i64) -> Result<bool> {
         Ok(work == 0 || self.holds(work, value)?)
     }

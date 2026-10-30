@@ -514,7 +514,7 @@ pub struct Ground {
     /// Each listed teleporter's cell and the floor it is on, `floor`'s and `ANY_FLOOR` off a
     /// stacked ground, with where it puts the player and on what floor: Laverre Gym's panels. Not
     /// in `stepped`: a step onto one is the way on, the teleport the one move from it, and one the
-    /// player is put onto does nothing until they step off it and back on (`_walk`, spike A).
+    /// player is put onto does nothing until they step off it and back on (`_walk`, spike 258).
     pub teleports: IndexMap<(Cell, i64), (Cell, i64)>,
 }
 
