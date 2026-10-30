@@ -778,7 +778,9 @@ impl Gen6Profile {
                         return Ok(Some(name));
                     }
                 }
-                if running.as_deref() == Some(amie::ARRANGE) {
+                if running.as_deref() == Some(amie::ARRANGE)
+                    || running.as_deref() == Some(amie::AMIE)
+                {
                     if let Some(name) = puffs.borrow_mut().name(pane)?
                         && !name.is_empty()
                     {

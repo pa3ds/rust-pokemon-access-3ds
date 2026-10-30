@@ -339,7 +339,8 @@ impl Replaced {
     }
 }
 
-/// Names a picture of a Poké Puff in Amie's decorate screen by its kind, in the game's words.
+/// Names a picture of a Poké Puff in Amie's decorate screen, or in Amie's own bar of them, by
+/// its kind, in the game's words.
 ///
 /// The screen draws each puff, in its grid and set out before the Pokémon, with an image of one
 /// `LytTexReplaceSystem` that holds a texture for every kind, in the order the game's text names
@@ -347,7 +348,9 @@ impl Replaced {
 /// texture i's image is a puff of kind i. Read off or_pokemon-me's grid, enlarged: Sweet, Mint,
 /// Citrus, Mocha and Spice, then Frosted Sweet and Fancy Sweet, textures 0 to 5 and 10 (spike 228).
 /// Its other replace systems hold fewer textures, the Interior Items' only those owned, and none
-/// as many as there are kinds.
+/// as many as there are kinds. Amie itself draws the bar its Poké Puffs button opens the same
+/// way, a puff a picture of `okashi_00.bclim`, said "okashi 00" by its file: "Sweet Poké Puff",
+/// "Mint Poké Puff" and on (or_amie_pokepuffs). Its button's icon draws the first kind too.
 pub struct Puffs {
     replaced: Replaced,
     puffs: Vec<String>,
