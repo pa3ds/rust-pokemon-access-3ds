@@ -999,12 +999,23 @@ impl FieldReader {
             .upgrade()
             .expect("a reader is made in an Rc, which its holders keep");
         let far_covered = covered.clone();
-        let far: Far = Rc::new(move |column, row| match me.terrain.far(column, row)? {
-            None => Ok(None),
-            Some(chunk) => Ok(Some(opened(
-                laid(&me.terrain, &chunk, stacked, level)?,
-                &far_covered,
-            ))),
+        // A walk asks for the chunk at every cell it steps on, and opening one scans every cell
+        // of X's streets: most of the half a second Ctrl and P's walk took on Route 7 (spike 233).
+        // `functools.cache`: an answer kept once made, a raise not.
+        let made: RefCell<HashMap<(i64, i64), Option<Rc<Chunk>>>> = RefCell::new(HashMap::new());
+        let far: Far = Rc::new(move |column, row| {
+            if let Some(kept) = made.borrow().get(&(column, row)) {
+                return Ok(kept.clone());
+            }
+            let chunk = match me.terrain.far(column, row)? {
+                None => None,
+                Some(chunk) => Some(opened(
+                    laid(&me.terrain, &chunk, stacked, level)?,
+                    &far_covered,
+                )),
+            };
+            made.borrow_mut().insert((column, row), chunk.clone());
+            Ok(chunk)
         });
         let (conveyors, switched, switch) = self.belts_now(r#where)?;
         let grid = if trusted {
