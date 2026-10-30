@@ -14,7 +14,7 @@ use indexmap::{IndexMap, IndexSet};
 
 use crate::core::pathfind::{self, Box, Cell, EAST, NORTH, SOUTH, WEST};
 use crate::games::common::field::chunk::{
-    ANY_FLOOR, BLOCKED, BOARD, CHUNK, CLIMB, COUNTER, Chunk, LAUNCH, SHORE, STONE,
+    ANY_FLOOR, BLOCKED, BOARD, CHUNK, CLIMB, COUNTER, Chunk, LAUNCH, RISE, SHORE, STONE,
 };
 use crate::games::common::field::climb::{FOOT, Walls};
 use crate::games::common::field::grind::{GrindRails, OFF};
@@ -1001,8 +1001,10 @@ impl Ground {
     /// nobody stands on, the nearest the height left, the same floor first; None where there is
     /// none and the step is not taken, and `ANY_FLOOR` where `step` has no floors to choose
     /// between. Another floor is stepped onto only within `CLIMB`; along one floor a step is
-    /// taken as on any ground, a drop being a cliff: each of Sootopolis Gym's two stairs climbs
-    /// its lower floor 18 or 19 a cell to 189, and steps across onto the entrance's room at 198
+    /// taken as on any ground, rising no more than `RISE`, a drop being a cliff: the Poké Ball
+    /// Factory's floor at (1, 20) is 36 under the switch's at (1, 21), whose stair steps from it
+    /// onto another floor at 45 (spike A). Each of Sootopolis Gym's two stairs climbs its lower
+    /// floor 18 or 19 a cell to 189, and steps across onto the entrance's room at 198
     /// (spike 167), and on Route 119 the way north goes on along the bridge at 99 where the path
     /// under it has dropped to 50 (spike 159). Where either cell has no height, no step goes onto
     /// another floor: the lower floor's table has the Gym's pool's edges open with no floor under
@@ -1036,6 +1038,15 @@ impl Ground {
             } else if let (Some(here), Some(height)) = (here, height) {
                 away = (height - here).abs();
                 if away > CLIMB && k != floor {
+                    continue;
+                }
+                // Along one floor too a step rises no more than `RISE`: a drop past `2 * CLIMB`
+                // is a cliff (`cliffs`), and a climber steps off a face onto its ledge.
+                if k == floor
+                    && RISE < away
+                    && away <= 2.0 * CLIMB
+                    && !self.walls.sideways(cell, step)
+                {
                     continue;
                 }
             } else if k == floor || floor == ANY_FLOOR {

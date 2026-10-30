@@ -3870,6 +3870,39 @@ fn test_a_walkway_over_a_conveyor_belt_is_walked_across_and_the_belt_carries_onl
     assert_eq!(last(&rig.backend), "ride the belt 6 north");
 }
 
+/// X's Poké Ball Factory: the floor at (1, 20) is 36 under the switch's at (1, 21), and P's way
+/// stepped straight up it, "1 south, 15 north", Khai pressing south and hearing it again (Khai,
+/// 2026-10-29, spike A). Along one floor a step rises no more than a stair's: the way goes up the
+/// ramp beside it.
+#[test]
+fn test_along_one_floor_a_step_up_a_wall_is_not_taken_and_a_ramp_beside_it_is() {
+    let grunt = Interactable {
+        height: Some(36.0),
+        ..somebody((98, 170), 0x08D269E8)
+    };
+    let mut rig = navigator(on(Field {
+        interactables: vec![grunt],
+        ..Field::new(0x136, (90, 170))
+    }));
+    {
+        let mut floors = rig.field.floors.borrow_mut();
+        for x in 90..96 {
+            floors.insert((x, 170), (Some(0.0), None));
+        }
+        for x in [96, 97] {
+            floors.insert((x, 170), (Some(36.0), None));
+        }
+        floors.insert((90, 171), (Some(0.0), None));
+        for x in 90..97 {
+            floors.insert((x, 172), (Some(6.0 * (x - 90) as f64), None));
+        }
+        floors.insert((96, 171), (Some(36.0), None));
+    }
+    rig.field.level.set(Some(0.0));
+    rig.press(PATHFIND);
+    assert_eq!(said(&rig.backend), ["2 south, 6 east, 2 north, 1 east"]);
+}
+
 /// x_tower_2 (spike 248): the Tower of Mastery's ramp curves round its statue, and P said each
 /// curve of it as a leg of its own, "4 south-east, 9 south, 5 south-west, 11 west", which Khai
 /// walked a key at a time, where one key held carries the player round. A run up a ramp is one

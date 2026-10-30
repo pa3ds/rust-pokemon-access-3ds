@@ -80,6 +80,15 @@ pub fn footstep_at(word: i64, shift: i64) -> i64 {
     (word >> shift) & 0x1F
 }
 
+/// How far a step along one floor may rise or fall and still be taken: a stair's steps in X climb
+/// 18 to 20 a cell, and in the Poké Ball Factory the player could not step from (29, 22) at 30 onto
+/// (29, 23) at 0, nor from the floor at (1, 20) at 0 onto the switch's raised floor at (1, 21) at 36,
+/// and P's way went both ways, Khai pressing south at (1, 20) and P saying it again (spike A).
+/// Across every floor of X's chunks six pairs of open cells side by side are more than this apart and
+/// no more than a drop (`mapblock.DROP`), three in the factory and three in Cyllage Gym; ORAS's have
+/// one, in zone 0x177's file 632, 27, never walked.
+pub const RISE: f64 = 24.0;
+
 /// The floor a cell of a chunk with one floor is on, and one with floors where which is not
 /// asked: whichever is open (`Ground.floor`).
 pub const ANY_FLOOR: i64 = -1;
