@@ -24,7 +24,7 @@
 //! so a slot is said alone, with the name of the Pokémon in it where the game's own reader knows
 //! it: "BOX 1, row 1, column 2, erza" (Orion, or_organize_boxes).
 
-use std::collections::{BTreeSet, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::rc::Rc;
 
 use indexmap::IndexMap;
@@ -118,10 +118,28 @@ pub fn slot(
     for &pane in &group {
         places.insert(pane, place(layouts, pane)?);
     }
+    let grids = grids(&places)?;
+    let icons = match file {
+        None => Vec::new(),
+        Some(file) => icons(layouts, file, root)?,
+    };
+    let grid_of = |pane: i64| -> Result<Option<Rc<PySet>>> {
+        grids
+            .get(&pane)
+            .cloned()
+            .ok_or_else(|| Error::key(pane.to_string()))
+    };
     let mut found: Option<(String, Held)> = None;
     let mut listed: Vec<i64> = group.clone();
     if parent != root {
-        found = in_grid(layouts, touch, &places, root, on_screen)?;
+        found = in_grid(
+            layouts,
+            touch,
+            grid_of(touch)?.as_deref(),
+            &places,
+            root,
+            on_screen,
+        )?;
     } else {
         // The Battle Box's six lie under the root beside the box's thirty, and both stay shown
         // whichever is drawn, overlapping: a tap on one was taken for the other (or_battle_box).
@@ -129,24 +147,23 @@ pub fn slot(
         // screen reads as the box behind it; the wallpaper drawn, `box_wp_battle_box`, would tell.
         let mut loose: Vec<i64> = Vec::new();
         for &pane in &group {
-            if grid(&places, pane)?.is_none() {
+            if grid_of(pane)?.is_none() {
                 loose.push(pane);
             }
         }
-        let mut battle = false;
-        if let Some(file) = file {
-            for pane in &loose {
-                if holds_icon(layouts, file, root, places[pane])? {
-                    battle = true;
-                    break;
-                }
-            }
-        }
+        let battle = loose.iter().any(|pane| holds_icon(&icons, places[pane]));
         if !loose.contains(&touch) {
             if battle {
                 return Ok(Some((touch, String::new(), true)));
             }
-            found = in_grid(layouts, touch, &places, root, on_screen)?;
+            found = in_grid(
+                layouts,
+                touch,
+                grid_of(touch)?.as_deref(),
+                &places,
+                root,
+                on_screen,
+            )?;
         }
         listed = if battle { loose } else { Vec::new() };
     }
@@ -181,13 +198,10 @@ pub fn slot(
         return Ok(None);
     };
     let place = place(layouts, touch)?;
-    let Some(file) = file else {
-        return Ok(Some((touch, own(EMPTY_SLOT, &[("slot", &r#where)]), true)));
-    };
-    if !holds_icon(layouts, file, root, place)? {
+    if !holds_icon(&icons, place) {
         return Ok(Some((touch, own(EMPTY_SLOT, &[("slot", &r#where)]), true)));
     }
-    if !holds_icon(layouts, file, root, (place.0, place.1 + CARRIED))? {
+    if !holds_icon(&icons, (place.0, place.1 + CARRIED)) {
         return Ok(Some((touch, r#where, false)));
     }
     // The summary is the carried one's, so the Pokémon in the slot is named from the save.
@@ -255,17 +269,17 @@ pub fn button(
     Ok(None)
 }
 
-/// The slot's row and column, in the full grid of touch areas it shares rows and columns with,
-/// after the words just above the grid, and which slot it is; None when those make no grid two
-/// by two or more.
+/// The slot's row and column, in its grid (`grids`), after the words just above the grid, and
+/// which slot it is; None outside one.
 fn in_grid(
     layouts: &Layouts,
     touch: i64,
+    grid: Option<&PySet>,
     places: &IndexMap<i64, (f64, f64)>,
     root: i64,
     on_screen: &[ScreenText],
 ) -> Result<Option<(String, Held)>> {
-    let Some(grid) = grid(places, touch)? else {
+    let Some(grid) = grid else {
         return Ok(None);
     };
     let mut xs: BTreeSet<i64> = BTreeSet::new();
@@ -301,36 +315,52 @@ fn in_grid(
     }))
 }
 
-/// The touch areas sharing rows and columns with this one, where they fill a grid two by two
-/// or more; None where they do not.
-fn grid(places: &IndexMap<i64, (f64, f64)>, touch: i64) -> Result<Option<PySet>> {
-    // `grid` is a set of ints iterated by its callers, so it is kept as the order its members
-    // were added in and laid out as Python lays it out.
-    let mut grid: Vec<i64> = vec![touch];
-    let mut frontier: Vec<i64> = vec![touch];
-    while let Some(next) = frontier.pop() {
-        let here = *places
-            .get(&next)
-            .ok_or_else(|| Error::key(next.to_string()))?;
-        for (&pane, place) in places {
-            if !grid.contains(&pane)
-                && ((place.0 - here.0).abs() <= SAME_SPOT || (place.1 - here.1).abs() <= SAME_SPOT)
-            {
-                grid.push(pane);
-                frontier.push(pane);
+/// Each touch area -> the touch areas sharing rows and columns with it, where they fill a grid
+/// two by two or more, or None where they do not. Each grid is walked once for all its members:
+/// walked again for each of the Box's 36 under its root, as each of its slots was named, it made
+/// touch mode's every key there wait a quarter of a second (or_drag_attempts).
+///
+/// Only looked up, never iterated, so a `HashMap`; each grid is one `Rc` its members share, as
+/// Python's dict holds one set for them all.
+fn grids(places: &IndexMap<i64, (f64, f64)>) -> Result<HashMap<i64, Option<Rc<PySet>>>> {
+    let mut grids: HashMap<i64, Option<Rc<PySet>>> = HashMap::new();
+    for &touch in places.keys() {
+        if grids.contains_key(&touch) {
+            continue;
+        }
+        // `grid` is a set of ints iterated by its callers, so it is kept as the order its members
+        // were added in and laid out as Python lays it out.
+        let mut grid: Vec<i64> = vec![touch];
+        let mut frontier: Vec<i64> = vec![touch];
+        while let Some(next) = frontier.pop() {
+            let here = *places
+                .get(&next)
+                .ok_or_else(|| Error::key(next.to_string()))?;
+            for (&pane, place) in places {
+                if !grid.contains(&pane)
+                    && ((place.0 - here.0).abs() <= SAME_SPOT
+                        || (place.1 - here.1).abs() <= SAME_SPOT)
+                {
+                    grid.push(pane);
+                    frontier.push(pane);
+                }
             }
         }
+        let members = Rc::new(PySet::of(grid.iter().copied()));
+        let mut xs: HashSet<i64> = HashSet::new();
+        let mut ys: HashSet<i64> = HashSet::new();
+        for pane in members.iter() {
+            xs.insert(py::round(places[&pane].0)?);
+        }
+        for pane in members.iter() {
+            ys.insert(py::round(places[&pane].1)?);
+        }
+        let filled = xs.len() >= 2 && ys.len() >= 2 && xs.len() * ys.len() == grid.len();
+        for pane in members.iter() {
+            grids.insert(pane, filled.then(|| members.clone()));
+        }
     }
-    let members = PySet::of(grid.iter().copied());
-    let mut xs: HashSet<i64> = HashSet::new();
-    let mut ys: HashSet<i64> = HashSet::new();
-    for pane in members.iter() {
-        xs.insert(py::round(places[&pane].0)?);
-    }
-    for pane in members.iter() {
-        ys.insert(py::round(places[&pane].1)?);
-    }
-    Ok((xs.len() >= 2 && ys.len() >= 2 && xs.len() * ys.len() == grid.len()).then_some(members))
+    Ok(grids)
 }
 
 /// The words just above these slots, between their first and last column: the box's name.
@@ -408,20 +438,32 @@ fn mark_of(
     Ok(None)
 }
 
-/// Does a Pokémon's icon sit exactly on this place?
-fn holds_icon(layouts: &Layouts, file: &LayoutFile, root: i64, at: (f64, f64)) -> Result<bool> {
+/// Where the layout draws a Pokémon's icon, looked for once a slot.
+fn icons(layouts: &Layouts, file: &LayoutFile, root: i64) -> Result<Vec<(f64, f64)>> {
+    let mut out: Vec<(f64, f64)> = Vec::new();
     for (pane, kind) in &layouts.tree(root) {
         let pane = *pane;
-        if kind == lyt::PICTURE_CLASS && on(place(layouts, pane)?, at) && shown(layouts, pane)? {
-            let name = name(layouts, pane)?;
-            if let Some(textures) = file.textures.get(&name)
-                && textures.iter().any(|texture| texture.starts_with(ICON))
-            {
-                return Ok(true);
-            }
+        if kind != lyt::PICTURE_CLASS {
+            continue;
+        }
+        let name = name(layouts, pane)?;
+        if !file
+            .textures
+            .get(&name)
+            .is_some_and(|textures| textures.iter().any(|texture| texture.starts_with(ICON)))
+        {
+            continue;
+        }
+        if shown(layouts, pane)? {
+            out.push(place(layouts, pane)?);
         }
     }
-    Ok(false)
+    Ok(out)
+}
+
+/// Does a Pokémon's icon sit exactly on this place?
+fn holds_icon(icons: &[(f64, f64)], at: (f64, f64)) -> bool {
+    icons.iter().any(|&icon| on(icon, at))
 }
 
 fn shown(layouts: &Layouts, pane: i64) -> Result<bool> {
