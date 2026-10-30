@@ -718,7 +718,6 @@ impl Gen6Profile {
                 }),
             )
         };
-        // And the training bags in its page's list, pictures with no touch area of their own.
         let off: touch::Off = {
             let buttons = buttons.clone();
             Rc::new(move || buttons.borrow().off())
@@ -750,11 +749,6 @@ impl Gen6Profile {
             text.clone(),
             game,
             &amie_settings,
-            {
-                let buttons = buttons.clone();
-                Rc::new(move || buttons.borrow_mut().idle()) as Idle
-            },
-            off.clone(),
             {
                 let heard = heard.clone();
                 Rc::new(move |berry: &str| heard(PICK_SOUND, own(HOLDING, &[("target", &berry)])))
@@ -867,6 +861,10 @@ impl Gen6Profile {
                 gestures: Some({
                     let (subscreens, apps) = (subscreens.clone(), apps.clone());
                     Rc::new(move || subscreens.targets(apps.borrow().running.as_deref()))
+                }),
+                pictured: Some({
+                    let (subscreens, apps) = (subscreens.clone(), apps.clone());
+                    Rc::new(move || subscreens.offer(apps.borrow().running.as_deref()))
                 }),
             },
         )));

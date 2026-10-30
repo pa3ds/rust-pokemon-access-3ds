@@ -1,6 +1,5 @@
 //! The subscreens answer for their readers as one, each reader in its own apps alone.
 
-use std::collections::HashSet;
 use std::rc::Rc;
 
 use indexmap::IndexMap;
@@ -42,8 +41,6 @@ fn subscreens() -> Subscreens {
         }),
         oras::game(),
         &Amie::default(),
-        Rc::new(|| Ok(HashSet::new())),
-        Rc::new(|| Ok(HashSet::new())),
         Rc::new(|said: &str| said.to_string()),
         Rc::new(|said: &str| said.to_string()),
         false,

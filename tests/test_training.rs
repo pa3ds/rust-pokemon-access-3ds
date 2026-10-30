@@ -2,7 +2,6 @@
 //! that shoots them, and the training bags in the page's list are offered by the game's names.
 
 use std::cell::Cell;
-use std::collections::HashSet;
 use std::rc::Rc;
 
 use indexmap::IndexMap;
@@ -187,93 +186,65 @@ fn test_a_goal_shown_while_a_round_runs_is_offered_at_the_pixel_that_shoots_it()
     );
 }
 
-/// The Bags over a bottom-screen layout drawing a Strength Bag in view, another off the
-/// screen's left edge, and the bag beside the Pokémon: with those panes in order, and the root.
-/// With `idle` the layout's buttons are locked, and with `off` the Strength Bag's is switched
-/// off.
-fn bags(idle: bool, off: bool) -> (super_training::Bags, Vec<i64>, i64) {
+/// A bottom-screen layout drawing a picture of each image, with what each draws, and the
+/// pictures in order.
+fn drawing(images: &[&'static str]) -> (FakeLayouts, ImageOf, Vec<i64>) {
     let memory = FakeMemory::new();
     let classes = FakeClasses::new(memory.clone());
     let picture = classes.add(lyt::PICTURE_CLASS);
     let fake = FakeLayouts::new(&memory, &classes);
-    let (work, group) = fake.screen(0x14B00000);
-    let root = group - 0x200;
-    memory.u32(root + lyt::CHILD_COUNT, &[1]);
-    memory.u32(group + lyt::CHILD_COUNT, &[3]);
-    memory.write(root + lyt::X, &floats(&[-5.0]));
-    let panes = vec![group + 0x100, group + 0x200, group + 0x300];
-    for ((&pane, x), name) in panes
-        .iter()
-        .zip([-145.0f32, -245.0, -145.0])
-        .zip([b"1d", b"1f", b"4e"])
-    {
+    let (_work, group) = fake.screen(0x14B00000);
+    let panes: Vec<i64> = (0..images.len() as i64)
+        .map(|i| group + 0x100 * (i + 1))
+        .collect();
+    for &pane in &panes {
         fake.pane_with_vtable(pane, group, Some(picture));
-        memory.write(pane + lyt::NAME, name);
-        memory.write(pane + lyt::X, &floats(&[x]));
-        memory.write(pane + lyt::Y, &floats(&[76.0]));
-        memory.write(pane + lyt::HEIGHT, &floats(&[30.0]));
     }
     fake.track().unwrap();
-    let images = drawn(IndexMap::from([
-        (panes[0], "sand_bag19.bclim"),
-        (panes[1], "sand_bag19.bclim"),
-        (panes[2], "sand_bag00.bclim"),
-    ]));
-    let offered = super_training::Bags::new(
+    let drawn = drawn(panes.iter().copied().zip(images.iter().copied()).collect());
+    (fake, drawn, panes)
+}
+
+/// Touch mode places each and leaves it out as it does a touch area (`test_touch_targets`);
+/// the bag beside the Pokémon has no word in the game's text.
+#[test]
+fn test_training_bags_are_offered_by_the_games_names_on_the_field() {
+    let (fake, drawn, panes) = drawing(&[
+        "sand_bag19.bclim",
+        "sand_bag00.bclim",
+        "f_msg_win_c01.bclim",
+    ]);
+    let bags = super_training::Bags::new(
         fake.layouts.clone(),
-        images,
+        drawn,
         IndexMap::from([("sand_bag19.bclim".to_string(), "Strength Bag".to_string())]),
-        Some(Rc::new(move || {
-            Ok(if idle {
-                HashSet::from([work])
-            } else {
-                HashSet::new()
-            })
-        })),
-        Some(Rc::new(move || {
-            Ok(if off {
-                HashSet::from([(work, "1d".to_string())])
-            } else {
-                HashSet::new()
-            })
-        })),
     );
-    (offered, panes, root)
-}
-
-#[test]
-fn test_a_training_bag_is_offered_by_the_games_name_where_it_is_drawn_if_on_the_screen() {
-    let (offered, panes, root) = bags(false, false);
     assert_eq!(
-        offered.targets(Some(FIELD)).unwrap(),
-        [Target {
-            layer: 0,
-            root,
-            ..Target::new(panes[0], "Strength Bag", 20, 44, 76.0, 30.0)
-        }]
+        bags.offer(Some(FIELD)).unwrap(),
+        IndexMap::from([(panes[0], "Strength Bag".to_string())])
     );
-}
-
-#[test]
-fn test_training_bags_are_offered_only_on_the_field() {
     assert!(
-        bags(false, false)
-            .0
-            .targets(Some(super_training::SPARRING))
+        bags.offer(Some(super_training::SPARRING))
             .unwrap()
             .is_empty()
     );
 }
 
+/// Super Training's welcome waits for a tap on no button (spike 253).
 #[test]
-fn test_a_training_bag_is_left_out_while_its_layouts_buttons_are_locked() {
-    assert!(bags(true, false).0.targets(Some(FIELD)).unwrap().is_empty());
-}
-
-/// Under the page's Yes and No a tap on a bag did nothing (spike 228).
-#[test]
-fn test_a_training_bag_is_left_out_while_its_button_is_switched_off() {
-    assert!(bags(false, true).0.targets(Some(FIELD)).unwrap().is_empty());
+fn test_a_messages_waiting_arrow_is_offered_as_continue_on_the_field() {
+    let (fake, drawn, panes) = drawing(&["sand_bag19.bclim", super_training::ARROW]);
+    let waiting = super_training::Waiting::new(fake.layouts.clone(), drawn);
+    assert_eq!(
+        waiting.offer(Some(FIELD)).unwrap(),
+        IndexMap::from([(panes[1], "continue".to_string())])
+    );
+    assert!(
+        waiting
+            .offer(Some(super_training::SPARRING))
+            .unwrap()
+            .is_empty()
+    );
 }
 
 /// Pictures of a text's characters 20 apart from `x`, "/" the score's slash.

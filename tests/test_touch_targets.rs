@@ -660,6 +660,110 @@ fn test_a_button_switched_off_whose_picture_is_said_all_the_same_is_offered() {
     );
 }
 
+/// Touch mode over a bottom-screen layout drawing two of Super Training's training bags, a
+/// Strength Bag in view and another off the screen's left edge, and a third picture, no touch
+/// area holding any and a screen offering the bags: with those panes in order, and the root.
+/// With `idle` the layout's buttons are locked, with `off` the Strength Bag's is switched off,
+/// and with `over` a layout drawn over it holds a touch area across the screen.
+fn offering(idle: bool, off: bool, over: bool) -> (TouchTargets, Vec<i64>, i64) {
+    let memory = FakeMemory::new();
+    let classes = FakeClasses::new(memory.clone());
+    let fake = FakeLayouts::new(&memory, &classes);
+    let (bounding, picture) = (
+        classes.add(lyt::BOUNDING_CLASS),
+        classes.add(lyt::PICTURE_CLASS),
+    );
+    let (work, group) = fake.screen(0x14B00000);
+    let root = group - 0x200;
+    memory.write(root + lyt::X, &(-5.0f32).to_le_bytes());
+    let panes = vec![group + 0x100, group + 0x200, group + 0x300];
+    for ((&pane, x), name) in panes
+        .iter()
+        .zip([-145.0f32, -245.0, -145.0])
+        .zip([b"1d", b"1f", b"4e"])
+    {
+        fake.pane_with_vtable(pane, group, Some(picture));
+        memory.write(pane + lyt::NAME, name);
+        memory.write(pane + lyt::X, &x.to_le_bytes());
+        memory.write(pane + lyt::Y, &76.0f32.to_le_bytes());
+        memory.write(pane + lyt::HEIGHT, &30.0f32.to_le_bytes());
+    }
+    if over {
+        let (menu, cover) = fake.screen(0x14C00000);
+        memory.write(menu + lyt::WORK_LAYER, &1u16.to_le_bytes());
+        fake.pane_with_vtable(cover + 0x100, cover, Some(bounding));
+        memory.write(
+            cover + 0x100 + lyt::WIDTH,
+            &[320.0f32.to_le_bytes(), 240.0f32.to_le_bytes()].concat(),
+        );
+    }
+    fake.track().unwrap();
+    let bags: Vec<i64> = panes[..2].to_vec();
+    let targets = TouchTargets::new(
+        fake.layouts.clone(),
+        Rc::new(Vec::new),
+        Rc::new(|_box| Ok(String::new())),
+        Rc::new(|_pane| Ok(None)),
+        Rc::new(|_root| None),
+        Rc::new(|_line: &str| {}),
+        Options {
+            pictured: Some(Rc::new(move || {
+                Ok(bags
+                    .iter()
+                    .map(|&pane| (pane, "Strength Bag".to_string()))
+                    .collect())
+            })),
+            idle: Some(Rc::new(move || {
+                Ok(if idle {
+                    HashSet::from([work])
+                } else {
+                    HashSet::new()
+                })
+            })),
+            off: Some(Rc::new(move || {
+                Ok(if off {
+                    HashSet::from([(work, "1d".to_string())])
+                } else {
+                    HashSet::new()
+                })
+            })),
+            ..Options::default()
+        },
+    );
+    (targets, panes, root)
+}
+
+/// Super Training's bags have no touch area, and a tap on the Strength Bag at its own place
+/// less its root's opened its panel (omega_ruby_bottom-screen5).
+#[test]
+fn test_a_picture_a_screen_offers_is_a_target_where_it_is_drawn_if_on_the_screen() {
+    let (mut targets, panes, root) = offering(false, false, false);
+    assert_eq!(
+        targets.targets().unwrap(),
+        [Target {
+            layer: 0,
+            root,
+            ..Target::new(panes[0], "Strength Bag", 20, 44, 76.0, 30.0)
+        }]
+    );
+}
+
+#[test]
+fn test_a_picture_offered_is_left_out_while_its_layouts_buttons_are_locked() {
+    assert!(offering(true, false, false).0.targets().unwrap().is_empty());
+}
+
+/// Under Super Training's Yes and No a tap on a bag did nothing (spike 228).
+#[test]
+fn test_a_picture_offered_is_left_out_while_its_button_is_switched_off() {
+    assert!(offering(false, true, false).0.targets().unwrap().is_empty());
+}
+
+/// A tap lands on the layout drawn on top, as a touch area's does (`uncovered`).
+#[test]
+fn test_a_picture_offered_under_a_layout_drawn_over_it_is_left_out() {
+    assert!(offering(false, false, true).0.targets().unwrap().is_empty());
+}
 /// Screen text names pictures as touch mode does: the Bag's party slots were offered as
 /// "Torchic Torchic L14" and the Battle Maison's partners as "May May"
 /// (or_multi_battle_partners).

@@ -100,7 +100,7 @@ use crate::core::speech::Category;
 use crate::core::words::own;
 use crate::games::common::layout::Layouts;
 use crate::games::common::pictures::words as picture_words;
-use crate::games::common::touch::{HEIGHT, Idle, ImageOf, Off, Target, WIDTH};
+use crate::games::common::touch::{ImageOf, Target};
 use crate::games::common::{lyt, pokemon};
 use crate::games::gen6::apps::FIELD;
 use crate::games::gen6::screens::distribution as d;
@@ -412,94 +412,42 @@ impl Goals {
     }
 }
 
-/// The training bags the page's list shows, as touch targets named by the game's own words.
+/// The training bags the page's list shows, pictures with no touch area of their own, offered
+/// by the game's own words.
 pub struct Bags {
     layouts: Rc<Layouts>,
     image_of: ImageOf,
     /// An image -> the game's word for it (`touch_words`).
     words: IndexMap<String, String>,
-    /// The works of the layouts whose buttons take no tap now (`Buttons.idle`).
-    idle: Option<Idle>,
-    /// (work, pane name) of the buttons switched off now (`Buttons.off`): each bag is one, by
-    /// its picture, off under the page's Yes and No (spike 228).
-    off: Option<Off>,
 }
 
 impl Bags {
-    pub fn new(
-        layouts: Rc<Layouts>,
-        image_of: ImageOf,
-        words: IndexMap<String, String>,
-        idle: Option<Idle>,
-        off: Option<Off>,
-    ) -> Self {
+    pub fn new(layouts: Rc<Layouts>, image_of: ImageOf, words: IndexMap<String, String>) -> Self {
         Bags {
             layouts,
             image_of,
             words,
-            idle,
-            off,
         }
     }
 
-    /// The bags on the touch screen while the field runs, each where it is drawn.
-    pub fn targets(&self, running: Option<&str>) -> Result<Vec<Target>> {
+    /// The bags shown on the bottom screen while the field runs, by pane, with their words.
+    /// Touch mode places each and leaves it out as it does a touch area: under a menu, under the
+    /// page's Yes and No, which switch each bag's picture off (spike 228), and off the screen.
+    pub fn offer(&self, running: Option<&str>) -> Result<IndexMap<i64, String>> {
         if running != Some(FIELD) {
-            return Ok(Vec::new());
+            return Ok(IndexMap::new());
         }
-        let layouts = &self.layouts;
-        let mut found: Vec<Target> = Vec::new();
-        let idle = match &self.idle {
-            Some(idle) => idle()?,
-            None => Default::default(),
-        };
-        let off = match &self.off {
-            Some(off) => off()?,
-            None => Default::default(),
-        };
-        let works: IndexMap<i64, i64> = layouts
-            .works()
-            .into_iter()
-            .map(|(work, root)| (root, work))
-            .collect();
-        for (pane, root, image, across, up) in pictures(layouts, &self.image_of, false, &|image| {
-            image.starts_with(BAG_IMAGE)
-        })? {
-            // The list is a layout like any other: under a menu it takes no tap (`TouchTargets`).
-            let work = works.get(&root).copied();
-            let raw = layouts.name(pane)?;
-            let end = raw.iter().position(|&byte| byte == 0).unwrap_or(raw.len());
-            let name = py::decode_ascii(&raw[..end]);
-            if layouts.taken_off(root)?
-                || work.is_some_and(|work| idle.contains(&work))
-                || work.is_some_and(|work| off.contains(&(work, name)))
-            {
-                continue;
-            }
-            let word = self.words.get(&image).filter(|word| !word.is_empty());
-            let (x, y) = (
-                py::round(WIDTH as f64 / 2.0 + across)?,
-                py::round(HEIGHT as f64 / 2.0 - up)?,
-            );
-            if let Some(word) = word
-                && (0..WIDTH).contains(&x)
-                && (0..HEIGHT).contains(&y)
-            {
-                found.push(Target {
-                    layer: layouts.layer(root)?,
-                    root,
-                    ..Target::new(
-                        pane,
-                        word,
-                        x,
-                        y,
-                        up,
-                        f32(&layouts.pane(pane)?, layouts.shape.height)?,
-                    )
-                });
+        let mut out: IndexMap<i64, String> = IndexMap::new();
+        for (pane, _root, image, _across, _up) in
+            pictures(&self.layouts, &self.image_of, false, &|image| {
+                image.starts_with(BAG_IMAGE)
+            })?
+        {
+            if let Some(word) = self.words.get(&image).filter(|word| !word.is_empty()) {
+                out.insert(pane, word.clone());
             }
         }
-        Ok(found)
+        Ok(out)
     }
 }
 
@@ -508,7 +456,7 @@ fn by_place(items: Vec<(f64, String)>) -> Vec<(f64, String)> {
     py::sorted_by_lt(items, |a, b| if a.0 != b.0 { a.0 < b.0 } else { a.1 < b.1 })
 }
 
-/// The bottom screen's message waiting for a tap, as a touch target: Super Training's
+/// The bottom screen's message waiting for a tap, offered at its ▼: Super Training's
 /// welcome.
 pub struct Waiting {
     layouts: Rc<Layouts>,
@@ -520,27 +468,18 @@ impl Waiting {
         Waiting { layouts, image_of }
     }
 
-    /// The ▼ of each message waiting on the bottom screen of the field, "continue".
-    pub fn targets(&self, running: Option<&str>) -> Result<Vec<Target>> {
+    /// The ▼ of each message waiting on the field's bottom screen, "continue".
+    pub fn offer(&self, running: Option<&str>) -> Result<IndexMap<i64, String>> {
         if running != Some(FIELD) {
-            return Ok(Vec::new());
+            return Ok(IndexMap::new());
         }
-        let layouts = &self.layouts;
-        let mut found = Vec::new();
-        for (pane, root, _image, across, up) in
-            pictures(layouts, &self.image_of, false, &|image| image == ARROW)?
-        {
-            let x = py::round(WIDTH as f64 / 2.0 + across)?;
-            let y = py::round(HEIGHT as f64 / 2.0 - up)?;
-            let height = f32(&layouts.pane(pane)?, layouts.shape.height)?;
-            let layer = layouts.layer(root)?;
-            found.push(Target {
-                layer,
-                root,
-                ..Target::new(pane, &own(CONTINUE, &[]), x, y, up, height)
-            });
+        let mut out: IndexMap<i64, String> = IndexMap::new();
+        for (pane, ..) in pictures(&self.layouts, &self.image_of, false, &|image| {
+            image == ARROW
+        })? {
+            out.insert(pane, own(CONTINUE, &[]));
         }
-        Ok(found)
+        Ok(out)
     }
 }
 

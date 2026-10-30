@@ -183,6 +183,9 @@ pub type SaidOff = Rc<dyn Fn(i64) -> Result<bool>>;
 pub type Places = Rc<dyn Fn() -> Result<Rc<IndexMap<String, String>>>>;
 /// `Callable[[], list[Target]]`: targets no touch area draws. It reads memory.
 pub type Gestures = Rc<dyn Fn() -> Result<Vec<Target>>>;
+/// `Callable[[], Mapping[int, str]]`: the pictures a screen offers as targets of their own, by
+/// pane with their names. It reads memory.
+pub type Pictured = Rc<dyn Fn() -> Result<IndexMap<i64, String>>>;
 
 /// `Callable[[], list[Target]]`: the targets on the bottom screen now, in reading order, as touch
 /// mode walks them (`TouchTargets.targets`). It reads memory.
@@ -224,6 +227,7 @@ pub struct Options {
     pub lists: Option<Lists>,
     pub idle: Option<Idle>,
     pub gestures: Option<Gestures>,
+    pub pictured: Option<Pictured>,
     pub off: Option<Off>,
     pub said_off: Option<SaidOff>,
     pub places: Option<Places>,
@@ -543,9 +547,14 @@ pub struct TouchTargets {
     lists: Option<Lists>,
     /// The works of the layouts whose buttons take no tap now (`Buttons.idle`).
     idle: Option<Idle>,
-    /// Targets a screen offers that no touch area draws, each a stroke: Pokémon-Amie's
-    /// Pokémon, stroked by sliding over it (spike 200).
+    /// Targets a screen offers at points no pane of the bottom screen places: Pokémon-Amie's
+    /// Pokémon, stroked by sliding over it (spike 200), a round's goals, shot from the bottom
+    /// screen, and Berry Picker's Pokémon.
     gestures: Option<Gestures>,
+    /// The pictures a screen offers as targets of their own, where no touch area holds them,
+    /// by pane with their names: Super Training's training bags and a message's ▼ waiting for a
+    /// tap. Placed and left out as a touch area is (`_pictures`).
+    pictured: Option<Pictured>,
     /// (work, pane name) of the buttons switched off now, which take no tap (`Buttons.off`).
     off: Option<Off>,
     /// Whether a picture's button is offered though switched off: the DexNav switches off the
@@ -586,6 +595,7 @@ impl TouchTargets {
             lists,
             idle,
             gestures,
+            pictured,
             off,
             said_off,
             places,
@@ -603,6 +613,7 @@ impl TouchTargets {
             lists,
             idle,
             gestures,
+            pictured,
             off,
             said_off,
             places,
@@ -1003,6 +1014,12 @@ impl TouchTargets {
                 .collect();
             found.extend(kept);
         }
+        // The pictures a screen offers come after the touch areas: where one lies under a touch
+        // area's pixel, the tap is the touch area's.
+        if let Some(pictured) = &self.pictured {
+            let offered = pictured()?;
+            found.extend(self.pictures(&offered, &works, &idle, &off)?);
+        }
         // Two touch areas under one pixel are one target: a tap cannot tell them apart. The party
         // list lays a second over each Pokémon's plate, and each was said twice (movie22).
         let mut once: IndexMap<(i64, i64), Target> = IndexMap::new();
@@ -1278,6 +1295,58 @@ impl TouchTargets {
             && middle.is_some_and(|middle| {
                 (middle.0 - across).abs() * 2.0 <= width && (middle.1 - down).abs() * 2.0 <= height
             }))
+    }
+
+    /// The pictures a screen offers (`pictured`), each where it is drawn, as a touch area is
+    /// placed, and left out as one is: where its layout is not drawn on the bottom screen or its
+    /// buttons are locked, as under a menu (spike 189); where its button is switched off, as a
+    /// training bag's is under Super Training's Yes and No (spike 228); and off the screen, as
+    /// the bags are while their list is closed.
+    fn pictures(
+        &self,
+        offered: &IndexMap<i64, String>,
+        works: &IndexMap<i64, i64>,
+        idle: &HashSet<i64>,
+        off: &HashSet<(i64, String)>,
+    ) -> Result<Vec<Target>> {
+        let (layouts, shape) = (&self.layouts, self.layouts.shape);
+        let mut found: Vec<Target> = Vec::new();
+        for (&pane, name) in offered {
+            let Some(placement) = layouts.placement(pane)? else {
+                continue;
+            };
+            if !placement.shown || placement.top {
+                continue;
+            }
+            let root = placement.root;
+            let work = works.get(&root).copied();
+            if layouts.taken_off(root)? || work.is_some_and(|work| idle.contains(&work)) {
+                continue;
+            }
+            // Python builds `(work, self._name(pane))` before asking `off`, a None work too.
+            let pane_name = self.name(pane)?;
+            if work.is_some_and(|work| off.contains(&(work, pane_name))) {
+                continue;
+            }
+            let (head, top) = (layouts.pane(pane)?, layouts.pane(root)?);
+            let root_y = f32(&top, shape.y)?;
+            let (x, y) = pixel(&head, &shape, f32(&top, shape.x)?, root_y)?;
+            if (0..WIDTH).contains(&x) && (0..HEIGHT).contains(&y) {
+                found.push(Target {
+                    layer: layouts.layer(root)?,
+                    root,
+                    ..Target::new(
+                        pane,
+                        name,
+                        x,
+                        y,
+                        f32(&head, shape.y)? - root_y,
+                        f32(&head, shape.height)?,
+                    )
+                });
+            }
+        }
+        Ok(found)
     }
 
     fn name(&self, pane: i64) -> Result<String> {

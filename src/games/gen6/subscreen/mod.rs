@@ -12,7 +12,10 @@
 //! - `classes`, what the heap is swept for to find its objects, and `track(found, adding)`, what a
 //!   sweep found of them, by class;
 //! - `name(picture, running)`, what touch mode calls a picture of its screen's;
-//! - `targets(running)`, the targets it offers touch mode beside the touch areas;
+//! - `targets(running)`, the targets it offers touch mode at points no pane places, beside the
+//!   touch areas;
+//! - `offer(running)`, the pictures no touch area holds that it offers touch mode as targets, by
+//!   pane with their names, which touch mode places and checks as it does a touch area;
 //! - `poll(running)`, what it says as its screen changes: (what the log calls it, the line, its
 //!   category), read with the screen's words;
 //! - `describe(running)`, what it describes of a picture the game shows without words (ADR-0038),
@@ -52,7 +55,7 @@ use crate::core::rtti::ClassNames;
 use crate::core::speech::Category;
 use crate::games::common::layout::Layouts;
 use crate::games::common::pokemon;
-use crate::games::common::touch::{Idle, ImageOf, Off, Target};
+use crate::games::common::touch::{ImageOf, Target};
 use crate::games::gen6::game::Game;
 use crate::games::gen6::rom::archives::GameText;
 use crate::py::{self, Result};
@@ -88,9 +91,14 @@ pub trait Named {
     fn name(&self, picture: i64, running: Option<&str>) -> Result<Option<String>>;
 }
 
-/// A reader offering touch mode targets beside the touch areas.
+/// A reader offering touch mode targets at points no pane places, beside the touch areas.
 pub trait Offering {
     fn targets(&self, running: Option<&str>) -> Result<Vec<Target>>;
+}
+
+/// A reader offering touch mode pictures no touch area holds, by pane with their names.
+pub trait Pictured {
+    fn offer(&self, running: Option<&str>) -> Result<IndexMap<i64, String>>;
 }
 
 /// A reader saying what it has as its screen changes.
@@ -206,15 +214,15 @@ impl Offering for Goals {
     }
 }
 
-impl Offering for Waiting {
-    fn targets(&self, running: Option<&str>) -> Result<Vec<Target>> {
-        Waiting::targets(self, running)
+impl Pictured for Waiting {
+    fn offer(&self, running: Option<&str>) -> Result<IndexMap<i64, String>> {
+        Waiting::offer(self, running)
     }
 }
 
-impl Offering for Bags {
-    fn targets(&self, running: Option<&str>) -> Result<Vec<Target>> {
-        Bags::targets(self, running)
+impl Pictured for Bags {
+    fn offer(&self, running: Option<&str>) -> Result<IndexMap<i64, String>> {
+        Bags::offer(self, running)
     }
 }
 
@@ -239,6 +247,7 @@ pub struct Subscreens {
     tracked: Vec<Rc<dyn Tracked>>,
     named: Vec<Rc<dyn Named>>,
     offering: Vec<Rc<dyn Offering>>,
+    pictured: Vec<Rc<dyn Pictured>>,
     polled: Vec<Rc<dyn Polled>>,
     described: Vec<Rc<dyn Described>>,
     keyed: Vec<Rc<dyn Keyed>>,
@@ -274,8 +283,6 @@ impl Subscreens {
         text: Rc<GameText>,
         game: &Game,
         settings: &Amie,
-        idle: Idle,
-        off: Off,
         picked: Rc<dyn Fn(&str) -> String>,
         wrong: Rc<dyn Fn(&str) -> String>,
         describing: bool,
@@ -324,13 +331,7 @@ impl Subscreens {
         // A message on the bottom screen waits for a tap on no button: Super Training's welcome.
         let waiting = Rc::new(Waiting::new(layouts.clone(), image_of.clone()));
         // And the training bags in its page's list, pictures with no touch area of their own.
-        let bags = Rc::new(Bags::new(
-            layouts.clone(),
-            image_of.clone(),
-            images.clone(),
-            Some(idle),
-            Some(off),
-        ));
+        let bags = Rc::new(Bags::new(layouts.clone(), image_of.clone(), images.clone()));
         // Amie's Berry Picker draws the berry each Pokémon wants in a bubble, and says nothing of
         // who wants which.
         let berry_picker = Rc::new(RefCell::new(BerryPicker::with_settings(
@@ -371,7 +372,8 @@ impl Subscreens {
             classes: classes.into_iter().collect(),
             tracked,
             named: vec![page.clone(), training, puffs, goods, puzzle.clone()],
-            offering: vec![page, goals, berry_picker.clone(), waiting, bags],
+            offering: vec![page, goals, berry_picker.clone()],
+            pictured: vec![waiting, bags],
             polled: vec![sparring, berry_picker.clone()],
             described: vec![puzzle.clone()],
             keyed: vec![berry_keys],
@@ -400,11 +402,21 @@ impl Subscreens {
         Ok(None)
     }
 
-    /// The targets these screens offer touch mode beside its touch areas.
+    /// The targets these screens offer touch mode at points no pane places.
     pub fn targets(&self, running: Option<&str>) -> Result<Vec<Target>> {
         let mut found = Vec::new();
         for reader in &self.offering {
             found.extend(reader.targets(running)?);
+        }
+        Ok(found)
+    }
+
+    /// The pictures these screens offer touch mode as targets of their own, by pane, with
+    /// their names.
+    pub fn offer(&self, running: Option<&str>) -> Result<IndexMap<i64, String>> {
+        let mut found: IndexMap<i64, String> = IndexMap::new();
+        for reader in &self.pictured {
+            found.extend(reader.offer(running)?);
         }
         Ok(found)
     }
