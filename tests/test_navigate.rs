@@ -79,6 +79,13 @@ const FLAT: i64 = 0x31000020;
 const RHYHORN: i64 = 0x100F;
 /// Route 9's rocks, `IROCK02`, which the Rhyhorn smashes with A.
 const ROCK: i64 = 0x200D;
+/// X's Route 17's deep snow, blocked, crossed only riding a Mamoswine (x_route_17_mamoswine,
+/// spike A).
+const SNOW: i64 = 0x34007825;
+/// The flat ground between the snow and plain ground, where the Mamoswine is got on and off.
+const SNOW_FLAT: i64 = 0x33003820;
+/// The Mamoswine's character, waiting on flat ground to be ridden.
+const MAMOSWINE: i64 = 0x1007;
 
 /// What `FakeField.ground` is run through before it is handed over: Python's tests replace the
 /// method itself, which Rust cannot do to a value behind a trait.
@@ -124,6 +131,8 @@ struct FakeField {
     launches: RefCell<HashSet<Cell>>,
     spiky: RefCell<HashSet<Cell>>,
     flat: RefCell<HashSet<Cell>>,
+    /// The words of `spiky` and `flat`: Route 9's unless set.
+    ridden: Slot<(i64, i64)>,
     walls: RefCell<Rc<Walls>>,
     grinds: RefCell<Rc<GrindRails>>,
     vines: RefCell<Rc<Vines>>,
@@ -168,6 +177,7 @@ impl FakeField {
             launches: RefCell::new(HashSet::new()),
             spiky: RefCell::new(HashSet::new()),
             flat: RefCell::new(HashSet::new()),
+            ridden: Slot::new((SPIKY, FLAT)),
             walls: RefCell::new(Rc::new(Walls::default())),
             grinds: RefCell::new(Rc::new(GrindRails::default())),
             vines: RefCell::new(Rc::new(Vines::default())),
@@ -240,9 +250,9 @@ impl FieldSource for FakeField {
                 } else if launches.contains(cell) {
                     LAUNCH
                 } else if spiky.contains(cell) {
-                    SPIKY
+                    self.ridden.get().0
                 } else if flat.contains(cell) {
-                    FLAT
+                    self.ridden.get().1
                 } else if blocked.contains(cell) {
                     BLOCKED
                 } else {
@@ -336,12 +346,13 @@ impl FieldSource for FakeField {
         ground.switched = self.switched.borrow().clone();
         ground.switch = self.switch.get();
         if !spiky.is_empty() {
+            let rides = xy::rides();
             ground = ground.mounted(
                 r#where,
-                &HashSet::from([SPIKY >> 24]),
-                &HashSet::from([FLAT >> 24]),
-                &HashSet::from([RHYHORN]),
-                &HashSet::from([ROCK]),
+                &rides.ground,
+                &rides.stops,
+                &rides.mounts,
+                &rides.smashes,
             )?;
         }
         let edit = self.edit.borrow().clone();
@@ -1824,6 +1835,38 @@ fn test_p_on_foot_gets_on_the_rhyhorn_waiting_on_flat_ground_to_cross_the_spikes
     assert_eq!(
         last(&rig.backend),
         "1 east, Rhyhorn 1 east, 9 east, get off 2 east"
+    );
+}
+
+/// Route 17 (spike A): the player faced the Mamoswine waiting on flat ground at (66, 54) and
+/// pressed A, and was moved into its cell riding, as on Route 9's Rhyhorn. P stopped at the snow,
+/// "then can't continue".
+#[test]
+fn test_p_on_foot_gets_on_the_mamoswine_waiting_on_flat_ground_to_cross_the_snow() {
+    let beside = Field {
+        interactables: vec![
+            Interactable {
+                code: MAMOSWINE,
+                source: 0x08D21F18,
+                move_model: true,
+                ..Interactable::new("people", "Mamoswine", (90, 175))
+            },
+            person_at((102, 175)),
+        ],
+        ..Field::new(street().zone, (88, 175))
+    };
+    let mut rig = navigator(Want {
+        blocked: vec![(102, 175)],
+        ..on(beside)
+    });
+    *rig.field.spiky.borrow_mut() = spikes();
+    *rig.field.flat.borrow_mut() = flats();
+    rig.field.ridden.set((SNOW, SNOW_FLAT));
+    rig.press(ITEM_NEXT);
+    rig.press(PATHFIND);
+    assert_eq!(
+        last(&rig.backend),
+        "1 east, Mamoswine 1 east, 9 east, get off 2 east"
     );
 }
 

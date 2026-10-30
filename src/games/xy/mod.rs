@@ -359,7 +359,9 @@ pub const ENEMY3D: i64 = 0x95;
 /// it is X's alone (spike 223).
 pub const STRAND: i64 = 0x8;
 
-/// Route 9 (zone 0x10b, chunk files 187 to 222 of `a/0/4/1`), crossed on a Rhyhorn. Its spiky
+/// Route 9 crossed on a Rhyhorn, and Route 17 on a Mamoswine, the same way: each zone has the
+/// ground one Pokémon crosses and flat ground of its own, never the other's. Route 9 (zone 0x10b,
+/// chunk files 187 to 222 of `a/0/4/1`): its spiky
 /// ground, kind 0x32 with the blocked bit set (`0x32000025`), 490 cells, the executable counts as tall
 /// grass (it tests 0x32 with 0x20 to 0x23 at `0x003e1054`), so wild Pokémon are met on it. Its flat
 /// ground, kind 0x31 and open (`0x31000020`), 161 cells in five patches, always lies between the spikes
@@ -373,16 +375,22 @@ pub const STRAND: i64 = 0x8;
 /// (`IROCK02`), the Rhyhorn smashes with A ("press A button to smash any boulders in your path", the
 /// walkthroughs say): two at (51, 58) and (51, 60) close the only way east across the spikes, listed
 /// "18 north" and "18 north 2 west" from (33, 61) at 91.76 s, gone from the list after 103 s, and the
-/// player was at (58, 59) by 130 s. Route 17's Mamoswine, whose kinds 0x33 and 0x34 the executable
-/// tests beside these, is left out: no recording shows it (spike 238).
+/// player was at (58, 59) by 130 s (spike 238). Route 17 (zone 0x116, matrix 32, chunk files 269 to
+/// 293): its deep snow, kind 0x34 and blocked (`0x34007825`), 452 cells, touches only walls and its
+/// flat ground, kind 0x33 and open (`0x33003820`), 241 cells, the kinds the executable tests beside
+/// Route 9's. In the tape of x_route_17_mamoswine the player walked from Dendemille Gate to (65, 54),
+/// faced the Mamoswine, character `0x1007`, waiting on flat ground at (66, 54), pressed A and was
+/// moved into its cell with the bike's bits set, as on the Rhyhorn, then rode south onto the snow at
+/// (66, 58). Its ten rocks, sprite `0x2035` (`ISNOW01`), are "nothing against Mamoswine's
+/// strength!" (story 70:5) (spike A).
 ///
 /// Python's `RIDES` constant: a function, since a `HashSet` is no const.
 pub fn rides() -> Rides {
     Rides {
-        ground: HashSet::from([0x32]),
-        stops: HashSet::from([0x31]),
-        mounts: HashSet::from([0x100F]),
-        smashes: HashSet::from([0x200D]),
+        ground: HashSet::from([0x32, 0x34]),
+        stops: HashSet::from([0x31, 0x33]),
+        mounts: HashSet::from([0x100F, 0x1007]),
+        smashes: HashSet::from([0x200D, 0x2035]),
     }
 }
 
