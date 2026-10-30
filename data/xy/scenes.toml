@@ -238,3 +238,77 @@ zone = 0x52
 
 [[scene.beat]]
 id = "prism-booths-4"
+
+# AZ's story in Lysandre Labs (x_az_flashback, 2026-10-30): after his "Listen, one who will face
+# Lysandre." on B2, zone 0x5e, a field demo of 185 s tells it in painted pictures under sixteen
+# captions of screen text, said as each comes. Each beat comes a second or so after the caption
+# over its picture, so the caption is heard first. X's alone: no replay has shown Y's.
+[[scene]]
+after = "story:380:0"
+zone = 0x5e
+title = 0x0004000000055D00
+
+[[scene.beat]]
+demo = true
+at = 5.5
+id = "az-shore"
+
+[[scene.beat]]
+at = 14.5
+id = "az-friend"
+
+[[scene.beat]]
+at = 23.5
+id = "az-war"
+
+[[scene.beat]]
+at = 28
+id = "az-war-flies"
+
+[[scene.beat]]
+at = 46.5
+id = "az-box"
+
+[[scene.beat]]
+at = 55.5
+id = "az-bud"
+
+[[scene.beat]]
+at = 66.5
+id = "az-spire"
+
+[[scene.beat]]
+at = 75.5
+id = "az-revived"
+
+[[scene.beat]]
+at = 82
+id = "az-flower"
+
+[[scene.beat]]
+at = 91
+id = "az-night"
+
+[[scene.beat]]
+at = 104
+id = "az-light"
+
+[[scene.beat]]
+at = 120.5
+id = "az-blast"
+
+[[scene.beat]]
+at = 123.5
+id = "az-beam"
+
+[[scene.beat]]
+at = 135.5
+id = "az-leaves"
+
+[[scene.beat]]
+at = 147
+id = "az-alone"
+
+[[scene.beat]]
+at = 178.5
+id = "az-stones"

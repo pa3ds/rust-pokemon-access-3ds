@@ -66,3 +66,22 @@ prism-booths-1 = At the back stand three booths, a trainer in each, with big num
 prism-booths-2 = { prism-booths-1 }
 prism-booths-3 = { prism-booths-1 }
 prism-booths-4 = { prism-booths-1 }
+
+# AZ's story in Lysandre Labs (x_az_flashback): painted pictures under the game's own captions,
+# which say it is a man and a Pokémon; neither is named, as the captions name neither.
+az-shore = The story is told in pictures like old paintings, in browns and gold. A wide, empty land of sand and scrub lies under a cloudy sky, tall red crags rising at its edge as the sun comes out behind them.
+az-friend = A man with long dark hair and a cloth tied round his head holds out his hand. On it stands a small, pale Pokémon, holding up a dark flower on a long stem, taller than itself.
+az-war = Fire and smoke. Pokémon of every shape charge and clash, beams of light cross the sky, and sparks fly.
+az-war-flies = High in the smoke, a small Pokémon flies among the fighting, lightning and fire bursting round it. The battle fades into darkness and drifting embers.
+az-box = The man sits hunched in a dark cloak, his long hair hanging over his face. Beside him stands a small six-sided box, rimmed with gold and carved with patterns.
+az-bud = The view moves close into the box. Inside lies the Pokémon's flower, closed into a dark, glossy bud on a red stem with thin red leaves.
+az-spire = A tall green spire rises into a blazing sky, a ring round its top, where a small cloaked figure stands.
+az-revived = In a burst of light and stars, the small Pokémon rises over three pale crystal points, and the man, a dark shape below, reaches up to it.
+az-flower = A flash. The Pokémon floats among the stars, alive, its flower open again above it, dark petals edged with red.
+az-night = Night. On a hilltop under bare branches, the man stands alone, his long cloak blowing in the wind, as embers drift past.
+az-light = Beside him a cold green light blazes up: a shining orb, cradled in great pale petals like a flower of crystal.
+az-blast = A flash. The man flings out his arm, his cloak streaming, as a vast column of white light bursts up from the crystal flower.
+az-beam = Seen from high above, the land curves away under a dark red sky full of stars. The light shoots up, bends, and plunges back down, striking the land in a swirl of blue and purple. Everything turns white.
+az-leaves = Dry leaves drift down through the white.
+az-alone = Close up, the small Pokémon holds the stem of its flower, alone, its head bowed and its eyes cast down.
+az-stones = The picture fades to white. Through the mist, great grey stones shaped like crouching Pokémon stand on either side of a low stone gateway. Shafts of pale light fall, and dry leaves drift down. Darkness.
