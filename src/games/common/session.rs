@@ -98,6 +98,10 @@ pub struct Session {
     pub language: Rc<dyn Fn() -> Option<String>>,
 }
 
+/// `Callable[[], AbstractContextManager[None]]`: what is read inside it is run as the closure
+/// handed it, `with ways(): ...` (`app.Settings.ways`).
+pub type Ways = Rc<dyn Fn(&mut dyn FnMut() -> Result<()>) -> Result<()>>;
+
 /// What a game is started with, besides the emulator and speech: the process running, the log,
 /// and the settings its readers read by (`app.Settings`).
 ///
@@ -119,6 +123,8 @@ pub struct Setup {
     pub names_home: Option<PathBuf>,
     /// Log touch mode's targets as they change (`app.Settings.census`).
     pub census: bool,
+    /// Log P's ways at each listing, read inside this (`app.Settings.ways`).
+    pub ways: Option<Ways>,
     pub rom: Option<PathBuf>,
     /// Azahar's `qt-config.ini`, where `rom_path` finds the ROMs it opened; None is AppData's.
     pub emulator: Option<PathBuf>,
@@ -157,6 +163,7 @@ impl Setup {
             language: "en".to_string(),
             names_home: None,
             census: false,
+            ways: None,
             rom: None,
             emulator: None,
             sweep_chunk: 512,

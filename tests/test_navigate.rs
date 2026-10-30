@@ -1707,6 +1707,32 @@ fn test_p_keeps_to_land_and_shift_p_says_the_leg_to_surf_when_the_player_reaches
     assert_eq!(tail(&rig.backend, 2), ["1 south", "person, 1 south"]);
 }
 
+/// ADR-0041: a replay presses no key of pa3ds's, so what P and Shift and P say of the way to
+/// each thing listed is logged for a tape's diff to show, Shift and P's only where it differs:
+/// Route 120's bridges taken for the pond under them went unheard 23 days (801d7b8). Nothing is
+/// said, and the way being walked is left as it was.
+#[test]
+fn test_a_replays_census_logs_each_things_way_on_foot_and_with_hms_where_they_differ() {
+    let mut rig = navigator(Want {
+        blocked: house_front(),
+        sea: sea_band(),
+        ..on(street())
+    });
+    rig.press(CATEGORY_PREVIOUS);
+    rig.press(PATHFIND);
+    let walking = guidance(&rig).unwrap();
+    rig.backend.spoken.borrow_mut().clear();
+    let lines = rig.nav.ways(&street()).unwrap();
+    let [door, person] = lines.as_slice() else {
+        panic!("{lines:?}");
+    };
+    assert!(door.starts_with("way to door at (95, 172): ") && !door.contains("; with HMs"));
+    assert!(person.starts_with("way to person at (100, 180): "));
+    assert!(person.ends_with("; with HMs: 10 east, 1 south, Surf 2 south, 1 south"));
+    assert!(said(&rig.backend).is_empty());
+    assert!(Rc::ptr_eq(&guidance(&rig).unwrap(), &walking));
+}
+
 #[test]
 fn test_p_from_the_water_crosses_it_without_saying_so() {
     let here = street();

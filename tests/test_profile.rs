@@ -17,6 +17,7 @@ use crate::core::rtti::ClassNames;
 use crate::core::speech::Speech;
 use crate::games::common::field::keys::{ITEM_NEXT, MODE_TOGGLE, PATHFIND};
 use crate::games::common::field::things::WARP_SOURCE;
+use crate::games::common::session::Ways;
 use crate::games::common::touch::Target;
 use crate::games::gen6::apps::{BATTLE, DEMO, FIELD};
 use crate::games::gen6::field::mapblock;
@@ -143,6 +144,51 @@ fn test_the_place_is_said_on_arriving_and_not_on_walking_into_a_building() {
     town.model(0, TOWN, PLAYER_INDEX, 0xAC, (99, 150));
     made.poll_field().unwrap();
     assert_eq!(backend.spoken(), ["Littleroot Town", "Route 101"]);
+}
+
+/// ADR-0041: what P says of each thing listed is logged where a tape replay asks for it, read
+/// inside what it gives; a recording and a player's run log none (Orion, 2026-10-29).
+#[test]
+fn test_a_tape_replay_logs_ps_ways_at_each_listing_and_any_other_run_never() {
+    let town = Town::new();
+    let entered: Rc<RefCell<Vec<bool>>> = Rc::new(RefCell::new(Vec::new()));
+    let aside: Ways = {
+        let entered = entered.clone();
+        Rc::new(move |inside: &mut dyn FnMut() -> crate::py::Result<()>| {
+            entered.borrow_mut().push(true);
+            inside()
+        })
+    };
+    let made = |ways: Option<Ways>| -> Vec<String> {
+        let logged: Rc<RefCell<Vec<String>>> = Rc::new(RefCell::new(Vec::new()));
+        let log: Log = {
+            let logged = logged.clone();
+            Rc::new(move |line: &str| logged.borrow_mut().push(line.to_string()))
+        };
+        let profile = Gen6Profile::new(
+            Phased::new(town.memory.clone()),
+            Rc::new(ClassNames::new(town.memory.clone(), CODE)),
+            Rc::new(Speech::plain(Recorder::new())),
+            log,
+            oras::game(),
+            Options {
+                text: Rc::new(GameText::new(places(), trainers())),
+                ways,
+                ..Options::default()
+            },
+        );
+        profile.set_field(town.reader.clone());
+        town.reader.track(&town.found()).unwrap();
+        profile.poll_field().unwrap();
+        logged
+            .borrow()
+            .iter()
+            .filter(|line| line.starts_with("field way to "))
+            .cloned()
+            .collect()
+    };
+    assert!(!made(Some(aside)).is_empty() && *entered.borrow() == [true]);
+    assert_eq!(made(None), Vec::<String>::new());
 }
 
 /// `[pa3ds.navigation] guide_to_hidden`, on by default (Orion, movie26): a find, not every

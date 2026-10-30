@@ -42,7 +42,10 @@ described, but for `census`: both runtimes log touch mode's targets as they chan
 targets: ...", since no movie presses the key that would say them (ADR-0041). A tape recorded
 before 6b42273c holds none of the reads that takes, and is recorded again. Name it
 `<replay>_described` to play `<replay>` with descriptions on: both runtimes turn them on for a
-tape of that name.
+tape of that name. At each listing both log what P and Shift and P say of the way to each thing
+listed, "field way to ...", answered aside from what the tape holds, taking none of the replay's
+own answers and counting none (`Tape.aside`, ADR-0041); the Python's replay against the
+recording leaves it out.
 
 `tools/tape/record_all.sh <replay>...` records each replay, makes its references under the label
 `port`, and replays it through the Rust runtime against them.

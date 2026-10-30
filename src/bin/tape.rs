@@ -40,8 +40,9 @@ impl Backend for Heard {
 /// change (`census`), as no key of pa3ds's is pressed in a replay to hear them (ADR-0041): every
 /// tape, so the "touch targets" lines the Python's replay logs are logged here too. A tape whose
 /// name ends in `DESCRIBED` was recorded with `descriptions` on, as `spikes/tape_replay.py`
-/// records it.
-fn replay_settings(name: &str) -> Settings {
+/// records it. P's ways are logged at each listing, read aside from the tape (`Tape.aside`), as
+/// the Python's replay against its labels does (ADR-0041).
+fn replay_settings(name: &str, tape: &Rc<Tape>) -> Settings {
     let home = std::env::var_os("LOCALAPPDATA")
         .map(PathBuf::from)
         .map(|local| local.join("pa3ds").join("captures").join("replay-home"));
@@ -49,6 +50,10 @@ fn replay_settings(name: &str) -> Settings {
     Settings {
         names_home: home,
         census: true,
+        ways: Some({
+            let tape = tape.clone();
+            Rc::new(move |inside: &mut dyn FnMut() -> pa3ds::py::Result<()>| tape.aside(inside))
+        }),
         ui: Ui {
             descriptions: name.ends_with(DESCRIBED),
             ..defaults.ui.clone()
@@ -148,7 +153,7 @@ fn replay(path: &Path, against: &Path) -> Result<bool, String> {
     let rpc: Rc<dyn Rpc> = Rc::new(TapeRpc::new(tape.clone()));
     let speech = Rc::new(Speech::plain(Rc::new(Heard(said.clone()))));
     let ran = panic::catch_unwind(AssertUnwindSafe(|| {
-        app::run(rpc, speech, replay_settings(name), &|| false, log)
+        app::run(rpc, speech, replay_settings(name, &tape), &|| false, log)
     }));
     time::set_clock(previous);
     let ending = match ran {

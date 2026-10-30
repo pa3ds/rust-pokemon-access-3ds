@@ -50,6 +50,8 @@
 //!   direction mode a half-box 10 cells deep, nearest first always.
 //! - ADR-0037: a search's find is guided to, and the detector's only with the DexNav open in touch
 //!   mode.
+//! - ADR-0041: a tape replay's census of P's ways says what P and Shift and P would, and touches
+//!   nothing the player hears or walks (`ways`).
 
 use std::rc::Rc;
 
@@ -868,6 +870,33 @@ impl Navigator {
     /// Say where a current takes the player as it catches them (`Guide.swept`).
     pub fn swept(&mut self, r#where: &Field) -> Result<()> {
         self.guide.swept(r#where)
+    }
+
+    /// What P and Shift and P say of the way to each thing listed, from where the player
+    /// stands, a line a thing, Shift and P's only where it differs: a tape replay's census, as no
+    /// key of pa3ds's is pressed in one (ADR-0041). Nothing where P has nothing to say, the
+    /// player unable to walk or an app of the game's own steering.
+    pub fn ways(&mut self, r#where: &Field) -> Result<Vec<String>> {
+        if !r#where.walkable || r#where.steer.is_some() {
+            return Ok(Vec::new());
+        }
+        let mut lines: Vec<String> = Vec::new();
+        let naming = self.naming.clone();
+        self.guide.ways(r#where, &mut |item, on_foot, with_hms| {
+            let line = format!(
+                "way to {} at ({}, {}): {on_foot}",
+                naming.label(item, r#where.zone)?,
+                item.cell.0,
+                item.cell.1
+            );
+            lines.push(if with_hms == on_foot {
+                line
+            } else {
+                format!("{line}; with HMs: {with_hms}")
+            });
+            Ok(())
+        })?;
+        Ok(lines)
     }
 
     /// What to call this: the name it has been given, or what it is when it has none.

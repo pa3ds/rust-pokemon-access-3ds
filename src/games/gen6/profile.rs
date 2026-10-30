@@ -9,7 +9,8 @@
 //! Bound by:
 //! - ADR-0009: touch mode offers targets only in the apps that need a touch (`TOUCHED`, and the
 //!   subscreens' among them), and Shift alone drags only where the subscreens say.
-//! - ADR-0041: a replay logs touch mode's targets as they change, so a tape holds them.
+//! - ADR-0041: a replay logs touch mode's targets as they change, so a tape holds them, and a tape
+//!   replay P's ways at each listing (`ways`).
 
 use std::cell::{Cell, RefCell};
 use std::collections::HashSet;
@@ -52,7 +53,7 @@ use crate::games::common::scenes::{
 };
 use crate::games::common::screen::{Pictures, ScreenPoll, ScreenText, ScreenTextReader};
 use crate::games::common::screen_announce::ScreenAnnouncer;
-use crate::games::common::session::Profile;
+use crate::games::common::session::{Profile, Ways};
 use crate::games::common::slots::Occupant;
 use crate::games::common::touch::{
     self, FileOf, HOLDING, Idle, ImageOf, Lists, OnScreen, PictureName, TextOf, TouchMode,
@@ -86,7 +87,7 @@ use crate::games::gen6::screens::{
 use crate::games::gen6::subscreen::{self, Subscreens};
 use crate::games::gen6::subscreen::{amie, puzzle};
 use crate::games::gen6::{frames, gflheap, mystatus};
-use crate::py::{self, Error, Log, PySet, Result};
+use crate::py::{self, Error, Kind, Log, PySet, Result};
 
 /// What the heap is swept for: message windows, list controllers, the device manager a choice box
 /// holds, layout works through their DrawInfo, the battlers' names and HP gauges, the map's move
@@ -208,6 +209,7 @@ pub struct Options {
     pub swims: Option<IndexMap<String, f64>>,
     pub title: Option<i64>,
     pub census: bool,
+    pub ways: Option<Ways>,
     /// None is `DEFAULT_CONTEXTS`.
     pub contexts: Option<Contexts>,
     /// None is `Touch()`.
@@ -227,6 +229,9 @@ pub struct Gen6Profile {
     names: Rc<ClassNames>,
     /// Touch mode's targets as last logged, or None where they are not (`census`).
     census: RefCell<Option<String>>,
+    /// What P's ways at each listing are read inside, or None where they are not logged
+    /// (`app.Settings.ways`).
+    ways: Option<Ways>,
     /// The game's own words out of the player's ROM, or `NO_TEXT` when it could not be read.
     text: Rc<GameText>,
     /// The place-name index of the zone the player was last polled in.
@@ -392,6 +397,7 @@ impl Gen6Profile {
             swims,
             title,
             census,
+            ways,
             contexts,
             touch,
             amie_settings,
@@ -1073,6 +1079,7 @@ impl Gen6Profile {
             memory: cache,
             names: names.clone(),
             census: RefCell::new(census.then(String::new)),
+            ways,
             text,
             place: Cell::new(None),
             layouts,
@@ -1839,6 +1846,25 @@ impl Gen6Profile {
         };
         for line in describe(&at, Some(&called), Some(&leads)) {
             (self.log)(&format!("field {}", line?));
+        }
+        if let Some(ways) = &self.ways {
+            // A replay presses no key of pa3ds's, so what P says is logged for its tape's diff to
+            // show (ADR-0041): Route 120's bridges taken for the pond under them went unheard for
+            // 23 days (801d7b8). Outside any phase, which would read its pages every poll after.
+            ways(&mut || {
+                match self.navigator.borrow_mut().ways(&at) {
+                    Ok(lines) => {
+                        for line in lines {
+                            (self.log)(&format!("field {line}"));
+                        }
+                    }
+                    Err(error) if error.is(Kind::RpcError) => {
+                        (self.log)(&format!("field ways: not read, {error}"));
+                    }
+                    Err(error) => return Err(error),
+                }
+                Ok(())
+            })?;
         }
         Ok(())
     }

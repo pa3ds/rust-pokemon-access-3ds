@@ -1181,6 +1181,9 @@ pub struct Guide {
     after: Option<After>,
     /// When to look next at whether the switch has been pressed.
     after_next: f64,
+    /// The ground the census reads once for every way it finds (`ways`), or None, where each
+    /// way reads the field's afresh.
+    ground: Option<Ground>,
 }
 
 /// What `reachable` is asked: the zone, the player's cell, what is listed and the visit.
@@ -1236,7 +1239,54 @@ impl Guide {
             reached: RefCell::new(None),
             after: None,
             after_next: 0.0,
+            ground: None,
         }
+    }
+
+    /// What P and Shift and P say of the way to each thing listed in `where`, from where the
+    /// player stands, as `to` would: the ground read once for them all, and the way being
+    /// walked, if any, left as it was (ADR-0041's census). Python yields each thing with what is
+    /// said of it; here each is handed to `each` as it is found.
+    pub fn ways(
+        &mut self,
+        r#where: &Field,
+        each: &mut dyn FnMut(&Interactable, String, String) -> Result<()>,
+    ) -> Result<()> {
+        let kept = (self.guidance.take(), self.after.take());
+        let found = self.census(r#where, each);
+        (self.guidance, self.after) = kept;
+        self.ground = None;
+        found
+    }
+
+    /// `ways`' walk over the things listed, inside its `try`.
+    fn census(
+        &mut self,
+        r#where: &Field,
+        each: &mut dyn FnMut(&Interactable, String, String) -> Result<()>,
+    ) -> Result<()> {
+        self.ground = Some(self.field.ground(r#where)?);
+        for item in &r#where.interactables {
+            let mut said: [String; 2] = Default::default();
+            for (hm, words) in [false, true].into_iter().zip(said.iter_mut()) {
+                let heard: RefCell<Vec<String>> = RefCell::new(Vec::new());
+                self.to(
+                    r#where,
+                    item,
+                    &|text: &str| heard.borrow_mut().push(text.to_string()),
+                    "",
+                    hm,
+                    None,
+                    false,
+                    true,
+                    None,
+                )?;
+                *words = heard.into_inner().join(" ");
+            }
+            let [on_foot, with_hms] = said;
+            each(item, on_foot, with_hms)?;
+        }
+        Ok(())
     }
 
     /// The keys of the things listed in `where` that Shift and P finds a way to, ending at
@@ -2286,7 +2336,10 @@ impl Guide {
     /// through a bush. A slope is ridden up with HMs and by a player on the bike, not on a
     /// Pokémon they ride, which sets the bike's bits too (`Ground.riding`, spike 238).
     pub fn ground(&self, r#where: &Field, hm: bool) -> Result<Ground> {
-        let mut ground = self.field.ground(r#where)?;
+        let mut ground = match &self.ground {
+            Some(ground) => ground.clone(),
+            None => self.field.ground(r#where)?,
+        };
         ground.surf = hm || ground.water(r#where.cell, None)?;
         ground.hm = hm;
         ground.bike = r#where.on_bike && !ground.riding;

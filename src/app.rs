@@ -10,7 +10,7 @@
 //! - ADR-0019: a reader that throws is logged with a snapshot, and says "Reader error" once a bug a
 //!   minute.
 //! - ADR-0041: a replay logs touch mode's targets as they change (`Settings.census`), a player's
-//!   run never.
+//!   run never; and only a tape replay P's ways (`Settings.ways`).
 
 use std::any::Any;
 use std::cell::{Cell, RefCell};
@@ -41,7 +41,7 @@ use crate::games::catalog;
 use crate::games::common::field::keys::{
     Bindings, Contexts, DEFAULT_BINDINGS, DEFAULT_CONTEXTS, bound_keys, context_keys, drag_keys,
 };
-use crate::games::common::session::{Session, Setup};
+use crate::games::common::session::{Session, Setup, Ways};
 use crate::py::{Error, Kind, Log, Result, time};
 use crate::tape;
 
@@ -126,6 +126,11 @@ pub struct Settings {
     /// pa3ds's, so without it nothing touch mode offers is on a tape (ADR-0041). On for replays,
     /// never for a player.
     pub census: bool,
+    /// Log what P and Shift and P say of the way to each thing listed, at each listing, read
+    /// inside this: a tape replay's, which answers from what the tape holds and takes nothing from
+    /// the replay's own answers. None logs none: a player's run, and a recording, where the
+    /// searches would only make the replays drift (ADR-0041, Orion, 2026-10-29).
+    pub ways: Option<Ways>,
 }
 
 impl Default for Settings {
@@ -154,6 +159,7 @@ impl Default for Settings {
             restarted: false,
             emulator: None,
             census: false,
+            ways: None,
         }
     }
 }
@@ -677,6 +683,7 @@ fn session(
             language: language.to_string(),
             names_home: settings.names_home.clone(),
             census: settings.census,
+            ways: settings.ways.clone(),
             rom: settings.rom.clone(),
             emulator: settings.emulator.clone(),
             sweep_chunk: settings.sweep_chunk,

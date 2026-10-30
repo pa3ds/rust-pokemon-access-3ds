@@ -132,6 +132,7 @@ pub fn start(
             swims: Some(swims),
             title: Some(setup.process.title_id),
             census: setup.census,
+            ways: setup.ways.clone(),
         },
     ));
     // What the game allocates is found where it was allocated, the look after (spike 110).

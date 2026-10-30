@@ -25,7 +25,7 @@
 //! same way (`is_stop`).
 
 use std::any::Any;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, VecDeque};
 use std::io::{BufReader, Read};
 use std::path::Path;
@@ -137,6 +137,8 @@ struct State {
 pub struct Tape {
     state: RefCell<State>,
     stopped: RefCell<Option<Stop>>,
+    /// Whether what is asked now is the census of P's ways, answered aside (`aside`).
+    aside: Cell<bool>,
 }
 
 impl Tape {
@@ -175,9 +177,21 @@ impl Tape {
                 now: 0.0,
             }),
             stopped: RefCell::new(None),
+            aside: Cell::new(false),
         });
         tape.load();
         Ok(tape)
+    }
+
+    /// Answer what is asked inside from what the tape holds, taking no record and counting
+    /// nothing: the census of P's ways, which only a tape replay logs (`Settings.ways`,
+    /// ADR-0041), so the replay's own answers stay its own. A read the tape holds nowhere raises
+    /// as one missing does, and the clock stands where the replay left it.
+    pub fn aside(&self, inside: &mut dyn FnMut() -> Result<()>) -> Result<()> {
+        self.aside.set(true);
+        let done = inside();
+        self.aside.set(false);
+        done
     }
 
     /// Records read off the tape.
@@ -401,10 +415,14 @@ impl Tape {
 
     // -- the lookup ----------------------------------------------------------------------------
 
-    /// (place, reply) of the tick's oldest unanswered record of this question, or None.
+    /// (place, reply) of the tick's oldest unanswered record of this question, or None:
+    /// always None aside, where nothing is taken.
     fn take(&self, kind: u8, key: Vec<(i64, i64)>) -> Option<(i64, Reply)> {
         if self.state.borrow().ended {
             self.stop(Stop::End);
+        }
+        if self.aside.get() {
+            return None;
         }
         let mut state = self.state.borrow_mut();
         let taken = state.queue.get_mut(&(kind, key))?.pop_front()?;
@@ -482,8 +500,11 @@ impl Tape {
         }
     }
 
-    /// Count an answer; a stale or missing one is kept.
+    /// Count an answer; a stale or missing one is kept. Aside, none is.
     fn tally(&self, kind: u8, how: usize, what: &str) {
+        if self.aside.get() {
+            return;
+        }
         let mut state = self.state.borrow_mut();
         *state.counts.entry((name(kind), how)).or_insert(0) += 1;
         if how != STALE && how != MISSING {
