@@ -23,7 +23,6 @@ kind-secret-base-spot = lugar para base secreta
 kind-ladder-up = escalera de mano arriba
 kind-ladder-down = escalera de mano abajo
 kind-switch = interruptor
-kind-conveyor-belt = cinta transportadora
 kind-lift = elevador
 kind-trapdoor = trampilla
 kind-geyser = géiser

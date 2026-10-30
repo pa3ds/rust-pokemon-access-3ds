@@ -400,6 +400,8 @@ pub struct FieldReader {
     pub rails: Rails,
     /// (zone, a trigger's script) -> the way the conveyor belt it is runs (`Game.belts`).
     belts: IndexMap<(i64, i64), &'static str>,
+    /// Zone -> the cells of its belts that carry the player (`Game.conveyors`).
+    conveyors: IndexMap<i64, IndexMap<(i64, i64), &'static str>>,
     /// (zone, a trigger's script) of the listed triggers P walks over (`Game.crossed`).
     crossed: HashSet<(i64, i64)>,
     /// Zones walked about in as outdoors that are not their own parent, out of the ROM
@@ -601,6 +603,7 @@ impl FieldReader {
                 game.camera,
             ),
             belts: game.belts.clone(),
+            conveyors: game.conveyors.clone(),
             crossed: game.crossed.clone(),
             outdoors: text.outdoors.clone(),
             drawn: game.drawn,
@@ -1013,6 +1016,11 @@ impl FieldReader {
             raised: self.terrain.raised()?,
             walls: self.walls()?,
             grind_rails: self.grind_rails()?,
+            conveyors: self
+                .conveyors
+                .get(&r#where.zone)
+                .cloned()
+                .unwrap_or_default(),
             ..Ground::of(
                 r#where,
                 Of {

@@ -283,6 +283,10 @@ pub struct Game {
     /// is stepped round: Dewford Gym's switches, in the corridor its belts carry the player down,
     /// which light its side passages and turn nothing (spike 132). A belt is walked over too.
     pub crossed: HashSet<(i64, i64)>,
+    /// Zone -> each cell of its conveyor belts that carry the player, with the way it carries
+    /// them (`Ground.conveyors`): X's Poké Ball Factory, whose belts a native of the game's runs
+    /// with nothing in the zone, its chunks or the trigger saying where (spike A).
+    pub conveyors: IndexMap<i64, IndexMap<(i64, i64), &'static str>>,
     /// The readers of what else it has on its field to list, each in its own words: ORAS's berry
     /// spots and Route 113's ash piles (`games.oras.field.berries`, `games.oras.field.ash`).
     pub features: Vec<FeatureFactory>,
@@ -420,6 +424,7 @@ impl Game {
             hidden_items: 0x44C,
             hidden_triggers: HashSet::new(),
             crossed: HashSet::new(),
+            conveyors: IndexMap::new(),
             features: Vec::new(),
             doors: None,
             ice: None,

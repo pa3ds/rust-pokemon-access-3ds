@@ -166,6 +166,10 @@ how-slide = slide
 # where it lands the player: "3 east, grind the rail 17 east" (spike 247).
 how-grind-the-rail = grind the rail
 p-grind = grind the rail { $bearing }
+# A leg a conveyor belt carries the player along, and a run of them, by where it leaves
+# them: "3 north, ride the belt 7 west 4 north" (X's Poké Ball Factory, spike A).
+how-ride-the-belt = ride the belt
+p-belt = ride the belt { $bearing }
 # The step that grabs a vine and its ride, as one leg, said with the way faced to grab it and
 # what the ride does: "3 north, face north, climb the vine up, 2 east" (spike 250).
 how-climb-the-vine-up = climb the vine up
@@ -417,6 +421,8 @@ kind-way-out = way out
 # The way off Coumarine Gym's top level, walked onto east, which drops the player to the
 # ground (spike 250).
 kind-way-down = way down
+# Dewford Gym's belts (spike 132), and each way onto one of the Poké Ball Factory's (spike A).
+kind-conveyor-belt = conveyor belt
 kind-warp = warp
 kind-path = path
 kind-edge = edge

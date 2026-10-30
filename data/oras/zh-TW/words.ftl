@@ -23,7 +23,6 @@ kind-secret-base-spot = 秘密基地位置
 kind-ladder-up = 上行梯子
 kind-ladder-down = 下行梯子
 kind-switch = 開關
-kind-conveyor-belt = 輸送帶
 kind-lift = 升降台
 kind-trapdoor = 活板門
 kind-geyser = 間歇泉

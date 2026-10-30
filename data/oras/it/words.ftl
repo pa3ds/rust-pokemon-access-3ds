@@ -23,7 +23,6 @@ kind-secret-base-spot = punto per base segreta
 kind-ladder-up = scala a pioli su
 kind-ladder-down = scala a pioli giù
 kind-switch = interruttore
-kind-conveyor-belt = nastro trasportatore
 kind-lift = piattaforma mobile
 kind-trapdoor = botola
 kind-geyser = geyser

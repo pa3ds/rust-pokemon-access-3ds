@@ -460,6 +460,62 @@ pub const WAY_DOWN: i64 = 0x2B;
 /// while work 0x40f3 is 1. A teleport keeps the player's model (spike 258).
 pub const LAVERRE_GYM: i64 = 0xCB;
 
+pub const BALL_FACTORY: i64 = 0x136;
+/// The Poké Ball Factory's floor, and the script of its 11 one-cell triggers, each a way onto one of
+/// its conveyor belts: its case calls one native with nothing, which carries the player along the belt
+/// (spike A).
+pub const BELT_ENTRANCE: i64 = 0x6;
+/// The factory's four belts, each from its first cell as runs of cells carried one way, the player
+/// set down on the cell past the last. Nothing in the zone, its chunks, its meshes or the trigger says
+/// where one goes, so each was ridden, in x_poke_ball_factory_belts cut short with presses added:
+/// from (15, 20) up its column and west to (8, 16), from (9, 15) north to (9, 10), from (8, 11) west,
+/// north and east to (10, 3), and from (17, 3) east, south, east and south to (27, 19), with no key
+/// held, through the triggers along each (spike A). Each walkway is one cell wide, and every cell a
+/// belt is stepped onto from off it is one of the triggers: stepped onto from where it sets the player
+/// down, a belt carries them straight back. The field's code names a native
+/// `BallFactoryReverseConveyor`, so the belts may run the other way once something turns them, never
+/// seen.
+pub const BELT_ROUTES: [((i64, i64), &[(&str, i64)]); 4] = [
+    ((15, 20), &[(pathfind::NORTH, 4), (pathfind::WEST, 7)]),
+    ((9, 15), &[(pathfind::NORTH, 5)]),
+    (
+        (8, 11),
+        &[
+            (pathfind::WEST, 4),
+            (pathfind::NORTH, 8),
+            (pathfind::EAST, 6),
+        ],
+    ),
+    (
+        (17, 3),
+        &[
+            (pathfind::EAST, 8),
+            (pathfind::SOUTH, 11),
+            (pathfind::EAST, 2),
+            (pathfind::SOUTH, 5),
+        ],
+    ),
+];
+
+/// Each cell of `routes` with the way it carries the player.
+fn carried(routes: &[((i64, i64), &[(&'static str, i64)])]) -> IndexMap<(i64, i64), &'static str> {
+    let mut out: IndexMap<(i64, i64), &'static str> = IndexMap::new();
+    for &((mut x, mut z), runs) in routes {
+        for &(way, cells) in runs {
+            let (dx, dz) = pathfind::STEPS
+                .iter()
+                .find(|(known, _)| *known == way)
+                .map(|&(_, step)| step)
+                .expect("a belt runs a way of the compass");
+            for _ in 0..cells {
+                out.insert((x, z), way);
+                (x, z) = (x + dx, z + dz);
+            }
+        }
+    }
+    out
+}
+
 pub const PRISM_LOBBY: i64 = 0x4D;
 pub const CLEMONT_ROOM: i64 = 0x4E;
 /// Prism Tower's Gym: its lobby, Clemont's room at the top, and Bonnie's four quiz rooms under it,
@@ -626,6 +682,10 @@ pub fn game() -> &'static Game {
                 ("exits".to_string(), "way down".to_string(), None),
             ),
             (
+                (BALL_FACTORY, BELT_ENTRANCE),
+                ("signs".to_string(), "conveyor belt".to_string(), None),
+            ),
+            (
                 (PRISM_LOBBY, LOBBY_LIFT),
                 (
                     "exits".to_string(),
@@ -672,6 +732,8 @@ pub fn game() -> &'static Game {
         teleporting: IndexMap::from([(LAVERRE_GYM, 56)]),
         gates: true,
         steps: STEPS,
+        conveyors: IndexMap::from([(BALL_FACTORY, carried(&BELT_ROUTES))]),
+        crossed: HashSet::from([(BALL_FACTORY, BELT_ENTRANCE)]),
         training: TRAINING,
         amie: AMIE,
         field_menu: FIELD_MENU,

@@ -100,6 +100,8 @@ struct FakeField {
     falls: RefCell<HashSet<Cell>>,
     /// Cells of a current carrying the player west.
     currents: RefCell<HashSet<Cell>>,
+    /// Cells of a conveyor belt, each with the way it carries the player on foot.
+    conveyors: RefCell<IndexMap<Cell, &'static str>>,
     surfaces: RefCell<IndexMap<Cell, Rc<HashSet<Cell>>>>,
     /// A stacked ground's cells, each with its lower floor's height and its upper's, None where
     /// that floor is closed; no cell, and the ground is not stacked.
@@ -148,6 +150,7 @@ impl FakeField {
             shore: RefCell::new(HashSet::new()),
             falls: RefCell::new(HashSet::new()),
             currents: RefCell::new(HashSet::new()),
+            conveyors: RefCell::new(IndexMap::new()),
             surfaces: RefCell::new(IndexMap::new()),
             floors: RefCell::new(IndexMap::new()),
             bare: RefCell::new(HashSet::new()),
@@ -323,6 +326,7 @@ impl FieldSource for FakeField {
             .collect::<IndexSet<_>>();
         ground.level = self.level.get();
         ground.grind_rails = self.grinds.borrow().clone();
+        ground.conveyors = self.conveyors.borrow().clone();
         if !spiky.is_empty() {
             ground = ground.mounted(
                 r#where,
@@ -2978,6 +2982,62 @@ fn test_a_current_off_the_way_is_said_as_it_catches_the_player_and_the_way_found
         said(&rig.backend)[spoken..],
         ["ride the current 10 west", "5 north, 9 east"]
     );
+}
+
+/// A conveyor belt up a column and west along a walkway, setting the player down at (90, 169).
+fn belt() -> IndexMap<Cell, &'static str> {
+    (170..173)
+        .map(|z| ((100, z), pathfind::NORTH))
+        .chain((91..101).map(|x| ((x, 169), pathfind::WEST)))
+        .collect()
+}
+
+fn factory_walks() -> HashSet<Cell> {
+    (173..177)
+        .map(|z| (100, z))
+        .chain(belt().into_keys())
+        .chain((164..170).map(|z| (90, z)))
+        .collect()
+}
+
+/// X's Poké Ball Factory: the player south of a belt's first cell, a Team Flare Grunt up the
+/// walkway past where it sets them down (spike A).
+fn factory() -> Field {
+    Field {
+        interactables: vec![somebody((90, 163), 0x08D1E9A8)],
+        ..Field::new(0x136, (100, 176))
+    }
+}
+
+/// X's Poké Ball Factory: a belt carries a player on foot along its walkway to its end,
+/// turning corners, whatever they hold, and P's way was found again at each cell it carried them,
+/// the player never getting where it led (x_poke_ball_factory_belts, spike A). P's way says the
+/// ride as one leg, by where it sets the player down, and nothing while it carries them.
+#[test]
+fn test_p_rides_a_conveyor_belt_as_one_leg_and_finds_no_way_again_while_it_carries() {
+    let walks = factory_walks();
+    let walls: Vec<Cell> = (80..120)
+        .flat_map(|x| (160..200).map(move |z| (x, z)))
+        .filter(|cell| !walks.contains(cell))
+        .collect();
+    let mut rig = navigator(Want {
+        blocked: walls,
+        ..on(factory())
+    });
+    *rig.field.conveyors.borrow_mut() = belt();
+    rig.press(PATHFIND);
+    assert_eq!(
+        last(&rig.backend),
+        "4 north, ride the belt 10 west 3 north, 5 north"
+    );
+    drift(&mut rig, &[(100, 173), (100, 172)]);
+    let spoken = said(&rig.backend).len();
+    let mut carried: Vec<Cell> = vec![(100, 171), (100, 170), (100, 169)];
+    carried.extend((91..100).rev().map(|x| (x, 169)));
+    drift(&mut rig, &carried);
+    assert_eq!(said(&rig.backend).len(), spoken);
+    drift(&mut rig, &[(90, 169)]);
+    assert_eq!(last(&rig.backend), "5 north");
 }
 
 /// A sandy slope going down south, the one way up through a cliff across the chunk at z 170.

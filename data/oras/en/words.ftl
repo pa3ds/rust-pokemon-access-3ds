@@ -29,7 +29,6 @@ kind-ladder-up = ladder up
 kind-ladder-down = ladder down
 # Mossdeep Gym's (spike 163), Mauville Gym's (spike 146) and Dewford Gym's (spike 132).
 kind-switch = switch
-kind-conveyor-belt = conveyor belt
 kind-lift = lift
 # Lavaridge Gym's (spike 157).
 kind-trapdoor = trapdoor

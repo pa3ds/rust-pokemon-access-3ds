@@ -129,9 +129,16 @@ fn vined(legs: Vec<Leg>) -> Vec<Leg> {
     out
 }
 
+/// What a leg a conveyor belt carries the player along is said with, a run of them as one by where
+/// it leaves them: "3 north, ride the belt 7 west 4 north". In X's Poké Ball Factory the player stepped
+/// north onto (15, 20) and was carried up its column and west along a walkway to (8, 16), turning a
+/// corner, with up held all the way (spike A). The game names no such thing.
+pub const BELT: &str = "ride the belt";
+
 /// The legs a player is carried along rather than walks, each with the message a run of them is
 /// said by, where it leaves them (`_spoken`).
-pub const CARRIED: [(&str, &str); 2] = [(CURRENT, "p-current"), (GRIND, "p-grind")];
+pub const CARRIED: [(&str, &str); 3] =
+    [(CURRENT, "p-current"), (GRIND, "p-grind"), (BELT, "p-belt")];
 
 /// A carried leg's way -> its step: a rail's bends are diagonal (Python's `_CARRIED_STEPS`, the
 /// two tables one after the other).
@@ -1013,8 +1020,8 @@ fn crossings(
 
 /// Legs as the player's keys walk them: by the compass on the grid, and on a rail or under a
 /// camera behind the player, where the keys work from it, from the way it looks (spikes 105 and
-/// A). A run of legs a current or a grind rail carries the player along is said as one, by
-/// where it leaves them (`CARRIED`). A leg into another place says it (`_crossings`). The way
+/// A). A run of legs a current, a grind rail or a belt carries the player along is said as one,
+/// by where it leaves them (`CARRIED`). A leg into another place says it (`_crossings`). The way
 /// is said as far as its first vine, then how many more it rides: up Coumarine Gym, every
 /// press said all 17 vines and the legs between, again at each step (Khai, 2026-10-26). So is
 /// a way through Laverre Gym's teleporters, "6 north, teleporter, then 3 more teleporters".
@@ -1496,6 +1503,9 @@ impl Guide {
                 || ground.slide(step)?
             {
                 return Ok(SLIDE.to_string());
+            }
+            if ground.conveyors.get(&cell).copied() == Some(pathfind::towards(cell, step)) {
+                return Ok(BELT.to_string());
             }
             if ground.carry(cell)? == Some(pathfind::towards(cell, step)) {
                 return Ok(CURRENT.to_string());

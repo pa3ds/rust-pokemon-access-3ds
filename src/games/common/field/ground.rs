@@ -352,8 +352,9 @@ pub type GroundHeight = Rc<dyn Fn(Cell) -> Result<Option<f64>>>;
 /// A cell cannot be walked where its chunk's blocked bit is set — a tree, a wall, a door, a sign,
 /// a ledge — where the matrix has no zone, or where a move model stands. A ledge is jumped the
 /// way it drops, from the cell before it to the cell after, and a slope, which is open, walked
-/// only the way it goes down, as a conveyor belt is the way it runs (`ledge`); a current in the
-/// sea carries a player on it its own way (`carry`). Only the four chunks around the player are loaded; the rest of the matrix is the ROM's (`far`). A cell
+/// only the way it goes down, as Dewford Gym's conveyor belts are the way they run (`ledge`); a
+/// current in the sea carries a player on it its own way, as the Poké Ball Factory's belts carry
+/// one on foot (`carry`). Only the four chunks around the player are loaded; the rest of the matrix is the ROM's (`far`). A cell
 /// neither holds is taken to be open, and a path that turns out to cross a wall is found again
 /// once the chunk with the wall in it loads.
 /// Water is a wall too, unless the ground is one to `surf`, and a bush or a rock a move clears
@@ -380,6 +381,11 @@ pub struct Ground {
     /// Cells of a conveyor belt, each with the way it runs: open, and walked only that way, as a
     /// slope is. The cell table has plain floor there; the belt is a trigger (spike 132).
     pub belts: IndexMap<Cell, &'static str>,
+    /// Cells of a conveyor belt that carries the player, each with the way it carries them on to
+    /// the next: open, and left only that way until the belt ends, as a current is (`carry`). X's
+    /// Poké Ball Factory's run along its walkways, turning corners, and set the player down on the
+    /// cell past the last (spike A).
+    pub conveyors: IndexMap<Cell, &'static str>,
     /// Whether water is crossed, as Surf crosses it: Shift and P's ground, and P's for a player
     /// already on the water. P walked into the sea on Route 109 while the blocked bit was all it
     /// read (omega_ruby_surf.ctm, spike 136).
@@ -532,6 +538,7 @@ impl Default for Ground {
             corridor: None,
             reach: 1,
             belts: IndexMap::new(),
+            conveyors: IndexMap::new(),
             surf: false,
             far: None,
             cleared: IndexMap::new(),
@@ -578,6 +585,7 @@ impl fmt::Debug for Ground {
             .field("corridor", &self.corridor.is_some())
             .field("reach", &self.reach)
             .field("belts", &self.belts)
+            .field("conveyors", &self.conveyors)
             .field("surf", &self.surf)
             .field("far", &self.far.is_some())
             .field("cleared", &self.cleared)
@@ -1291,7 +1299,12 @@ impl Ground {
     /// on foot down a climbing wall's slide (`Walls.slides`), or None: the search's `carry`
     /// (`CURRENTS`).
     pub fn carry(&self, cell: Cell) -> Result<Option<&'static str>> {
-        if let Some(&way) = self.walls.slides.get(&cell) {
+        if let Some(&way) = self
+            .walls
+            .slides
+            .get(&cell)
+            .or_else(|| self.conveyors.get(&cell))
+        {
             return Ok(Some(way));
         }
         let chunk = if self.corridor.is_some() {

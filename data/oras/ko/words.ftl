@@ -23,7 +23,6 @@ kind-secret-base-spot = 비밀기지 장소
 kind-ladder-up = 올라가는 사다리
 kind-ladder-down = 내려가는 사다리
 kind-switch = 스위치
-kind-conveyor-belt = 컨베이어 벨트
 kind-lift = 리프트
 kind-trapdoor = 함정 문
 kind-geyser = 간헐천
