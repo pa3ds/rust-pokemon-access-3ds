@@ -173,9 +173,6 @@ pub type Places = Rc<dyn Fn() -> Result<Rc<IndexMap<String, String>>>>;
 pub type Slide = Rc<dyn Fn(&[(i64, i64)], f64) -> Option<String>>;
 /// `Callable[[], list[Target]]`: targets no touch area draws. It reads memory.
 pub type Gestures = Rc<dyn Fn() -> Result<Vec<Target>>>;
-/// `Callable[[Target, Target], str | None]`: what a key moving from one target to another says.
-/// It reads memory.
-pub type Moved = Rc<dyn Fn(&Target, &Target) -> Result<Option<String>>>;
 
 /// `TouchTargets.__init__`'s keyword arguments, each as the Python defaults it: set what differs
 /// with `..Options::default()`.
@@ -192,7 +189,6 @@ pub struct Options {
     pub off: Option<Off>,
     pub said_off: Option<SaidOff>,
     pub places: Option<Places>,
-    pub moved: Option<Moved>,
     pub drag: Option<Rc<dyn Drag>>,
     pub wrap: bool,
     pub next_row: bool,
@@ -215,7 +211,6 @@ impl Default for Options {
             off: None,
             said_off: None,
             places: None,
-            moved: None,
             drag: None,
             wrap: true,
             next_row: true,
@@ -261,9 +256,6 @@ pub struct TouchTargets {
     /// The AreaNav's map's touch areas by pane name -> the place each is, while the map is the
     /// screen's and not the field's window onto it; none otherwise.
     places: Option<Places>,
-    /// What a key moving from one target to another says in place of the second's name, or
-    /// None for its name: Tile Puzzle's tiles say only the row or column that changed.
-    moved: Option<Moved>,
     /// A press held between keys (`DRAG`).
     drag: Option<Rc<dyn Drag>>,
     /// Whether the screen drags only as the drag is let go, straight from where it was picked up
@@ -327,7 +319,6 @@ impl TouchTargets {
             off,
             said_off,
             places,
-            moved,
             drag,
             wrap,
             next_row,
@@ -352,7 +343,6 @@ impl TouchTargets {
             off,
             said_off,
             places,
-            moved,
             drag,
             delayed: delayed.unwrap_or_else(|| Rc::new(|| false)),
             sound,
@@ -377,7 +367,7 @@ impl TouchTargets {
         let found = self.targets()?;
         self.chosen = found.first().map(|target| target.pane);
         Ok(match found.first() {
-            Some(first) => self.said(first, None),
+            Some(first) => self.said(first),
             None => own(NOTHING, &[]),
         })
     }
@@ -398,7 +388,7 @@ impl TouchTargets {
         else {
             self.chosen = Some(found[0].pane);
             self.carry(&found[0]);
-            return Ok(self.said(&found[0], None));
+            return Ok(self.said(&found[0]));
         };
         if action == DRAG {
             let target = found[at].clone();
@@ -490,11 +480,7 @@ impl TouchTargets {
         if found[at].pane != before.pane {
             self.carry(&found[at]);
         }
-        let moved = match &self.moved {
-            Some(moved) => moved(&before, &found[at])?,
-            None => None,
-        };
-        Ok(self.said(&found[at], moved))
+        Ok(self.said(&found[at]))
     }
 
     /// Whether a target is picked up to drag (`DRAG`), pressed yet or not.
@@ -574,18 +560,15 @@ impl TouchTargets {
         (self.log)(&format!("touch: carry to {} at ({x}, {y})", target.name));
     }
 
-    /// A target's name, or `line` in its place, with its tone, as the key chooses it.
-    fn said(&self, target: &Target, line: Option<String>) -> String {
+    /// A target's name, with its tone, as the key chooses it.
+    fn said(&self, target: &Target) -> String {
         if let Some(tone) = &self.tone {
             tone(
                 target.x as f64 / WIDTH as f64,
                 target.y as f64 / HEIGHT as f64,
             );
         }
-        match line {
-            Some(line) if !line.is_empty() => line,
-            _ => target.name.clone(),
-        }
+        target.name.clone()
     }
 
     /// Every touch area drawn on the bottom screen that can be named, in reading order.

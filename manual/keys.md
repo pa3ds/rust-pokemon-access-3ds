@@ -89,10 +89,9 @@ In Pokémon-Amie, touch mode offers to stroke your Pokémon, and the tap key str
 experiment. Its Poké Puffs button opens a bar of puffs, each said by its kind. To give one, hold
 Shift on it and carry it to your Pokémon, and keep Shift down while your Pokémon eats it: let go
 once you hear it finish and cry, a few seconds, longer for some Pokémon than others. In its Tile
-Puzzle, each tile is said by its row and column and where the piece of the
-picture on it belongs, "row 1, column 2, goes to row 3, column 4", or "in place". Moving to the next
-tile says only the row or the column that changed, "column 3, in place", and `K` says the whole.
-Tap a tile, then the tile where its piece belongs, to swap them. Over the finished picture there
+Puzzle, each tile is said as a spreadsheet names a cell, its column a letter from A and its row a
+number from 1, and then where the piece of the picture on it belongs: "B1, goes to D3", or "in
+place". Tap a tile, then the tile where its piece belongs, to swap them. Over the finished picture there
 is nothing to touch: B goes back. In its Berry Picker, touch mode offers the berries on the tree
 by name, and each Pokémon that pops up wanting one, "Treecko wants Pinap Berry", which pa3ds also
 says as it comes. Hold Shift on that berry, choose the Pokémon with `J`, `L`, `I` and `O`, and let

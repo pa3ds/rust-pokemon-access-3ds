@@ -7,7 +7,6 @@ use indexmap::IndexMap;
 use super::fake_layouts::FakeLayouts;
 use super::fake_memory::{FakeClasses, FakeMemory};
 use super::test_memories::{record, record_form};
-use crate::games::common::touch::Target;
 use crate::games::common::{lyt, pokemon};
 use crate::games::gen6::screens::puzzle;
 
@@ -76,16 +75,8 @@ fn board(
     (reader, frames, areas)
 }
 
-fn tile(area: i64) -> Target {
-    Target::new(area, "", 0, 0, 0.0, 40.0)
-}
-
 fn name(reader: &puzzle::TilePuzzle, picture: i64) -> Option<String> {
     reader.name(picture).unwrap()
-}
-
-fn moved(reader: &puzzle::TilePuzzle, before: i64, now: i64) -> Option<String> {
-    reader.moved(&tile(before), &tile(now)).unwrap()
 }
 
 #[test]
@@ -97,16 +88,10 @@ fn test_a_tile_says_its_place_and_where_its_piece_belongs() {
     let (reader, frames, _) = board(&slots, Some(0), 0);
     assert_eq!(
         name(&reader, frames[0]).as_deref(),
-        Some("row 1, column 1, goes to row 3, column 5, picked")
+        Some("A1, goes to E3, picked")
     );
-    assert_eq!(
-        name(&reader, frames[14]).as_deref(),
-        Some("row 3, column 5, goes to row 1, column 1")
-    );
-    assert_eq!(
-        name(&reader, frames[7]).as_deref(),
-        Some("row 2, column 3, in place")
-    );
+    assert_eq!(name(&reader, frames[14]).as_deref(), Some("E3, goes to A1"));
+    assert_eq!(name(&reader, frames[7]).as_deref(), Some("C2, in place"));
 }
 
 #[test]
@@ -116,23 +101,13 @@ fn test_normals_thirty_tiles_lie_under_touch_areas_numbered_from_955() {
     // 2, column 6 (spike 254).
     let mut slots: Vec<i64> = (0..30).collect();
     (slots[4], slots[29]) = (29, 4);
-    let (reader, frames, areas) = board(&slots, Some(29), 955);
+    let (reader, frames, _) = board(&slots, Some(29), 955);
     assert_eq!(
         name(&reader, frames[29]).as_deref(),
-        Some("row 5, column 6, goes to row 1, column 5, picked")
+        Some("F5, goes to E1, picked")
     );
-    assert_eq!(
-        name(&reader, frames[4]).as_deref(),
-        Some("row 1, column 5, goes to row 5, column 6")
-    );
-    assert_eq!(
-        name(&reader, frames[11]).as_deref(),
-        Some("row 2, column 6, in place")
-    );
-    assert_eq!(
-        moved(&reader, areas[23], areas[29]).as_deref(),
-        Some("row 5, goes to row 1, column 5, picked")
-    );
+    assert_eq!(name(&reader, frames[4]).as_deref(), Some("E1, goes to F5"));
+    assert_eq!(name(&reader, frames[11]).as_deref(), Some("F2, in place"));
 }
 
 #[test]
@@ -142,41 +117,12 @@ fn test_hards_forty_eight_tiles_are_named_at_either_end_of_a_row() {
     let mut slots: Vec<i64> = (0..48).collect();
     (slots[0], slots[47]) = (47, 0);
     let (reader, frames, _) = board(&slots, Some(47), 666);
-    assert_eq!(
-        name(&reader, frames[0]).as_deref(),
-        Some("row 1, column 1, goes to row 6, column 8")
-    );
+    assert_eq!(name(&reader, frames[0]).as_deref(), Some("A1, goes to H6"));
     assert_eq!(
         name(&reader, frames[47]).as_deref(),
-        Some("row 6, column 8, goes to row 1, column 1, picked")
+        Some("H6, goes to A1, picked")
     );
-    assert_eq!(
-        name(&reader, frames[15]).as_deref(),
-        Some("row 2, column 8, in place")
-    );
-}
-
-#[test]
-fn test_a_move_says_only_the_row_or_column_that_changed() {
-    // Orion, 2026-10-26: O, O, O and L from row 1, column 2 say "row 2", "row 3", "row 4",
-    // "column 3", each with where the tile's piece belongs.
-    let mut slots: Vec<i64> = (0..20).collect();
-    (slots[14], slots[0]) = (0, 14);
-    let (reader, _, areas) = board(&slots, Some(0), 0);
-    assert_eq!(
-        moved(&reader, areas[1], areas[6]).as_deref(),
-        Some("row 2, in place")
-    );
-    assert_eq!(
-        moved(&reader, areas[13], areas[14]).as_deref(),
-        Some("column 5, goes to row 1, column 1")
-    );
-    assert_eq!(
-        moved(&reader, areas[19], areas[0]).as_deref(),
-        Some("row 1, column 1, goes to row 3, column 5, picked")
-    );
-    assert_eq!(moved(&reader, areas[7], areas[7]), None);
-    assert_eq!(moved(&reader, areas[7], SCREEN + 0x600), None);
+    assert_eq!(name(&reader, frames[15]).as_deref(), Some("H2, in place"));
 }
 
 #[test]

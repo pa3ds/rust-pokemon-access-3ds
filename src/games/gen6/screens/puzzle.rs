@@ -24,10 +24,10 @@
 //! and Normal's do, were "frame" at either end of a row, and a picked one fell out of touch mode,
 //! taking its cursor back to the first tile (Orion, 2026-10-27).
 //!
-//! Each tile is said by its row and column and where its piece belongs: "row 1, column 2, in
-//! place", "row 1, column 2, goes to row 3, column 4"; touch mode's keys moving from tile to tile
-//! say only the row or the column that changed, "column 3, in place". Saying where a piece belongs
-//! is more than a sighted player is told, who sees the picture whole and matches each piece by
+//! Each tile is said as a spreadsheet names a cell, its column a letter and its row a number, and
+//! where its piece belongs: "B1, in place", "B1, goes to D3" (Orion, 2026-10-28, shorter than "row
+//! 1, column 2, goes to row 3, column 4", and than the row or column alone that a move said
+//! before). Saying where a piece belongs is more than a sighted player is told, who sees the picture whole and matches each piece by
 //! what is on it; it is on for now (Orion, 2026-10-26), until movies of more puzzles show how the
 //! game chooses its pictures and cuts them, and the tiles can be said as they look. Then where a
 //! piece belongs becomes an Extra, an easy mode a player turns on.
@@ -54,7 +54,6 @@ use crate::core::binary::{f32, u32};
 use crate::core::memory::Memory;
 use crate::core::words::{current, own};
 use crate::games::common::layout::Layouts;
-use crate::games::common::touch::Target;
 use crate::games::common::{lyt, pokemon};
 use crate::py::{self, Result};
 
@@ -95,9 +94,7 @@ pub const COPY: i64 = 0x20;
 /// (or_amie_tile_puzzle_play_again's backgrounds 1, 4 and 9, each with two Pokémon of its own).
 pub const IMAGE: i64 = 0x88;
 
-pub const GRID: &str = "slot-grid";
-pub const ROW: &str = "puzzle-row";
-pub const COLUMN: &str = "puzzle-column";
+pub const CELL: &str = "puzzle-cell";
 pub const HOME: &str = "puzzle-home";
 pub const GOES: &str = "puzzle-goes";
 pub const PICKED_WORD: &str = "puzzle-picked";
@@ -170,14 +167,15 @@ impl Board {
         self.tiles.contains_key(&slot).then_some(slot)
     }
 
-    /// A slot by its row and column, counted from 1.
+    /// A slot as a spreadsheet names a cell, its column a letter from A and its row a number
+    /// from 1: "B3" the second column of the third row (Orion, 2026-10-28).
     pub fn place(&self, slot: i64) -> String {
+        let column = char::from_u32('A' as u32 + (slot % self.across) as u32)
+            .expect("a column is a letter")
+            .to_string();
         own(
-            GRID,
-            &[
-                ("row", &(slot / self.across + 1)),
-                ("column", &(slot % self.across + 1)),
-            ],
+            CELL,
+            &[("column", &column), ("row", &(slot / self.across + 1))],
         )
     }
 
@@ -414,37 +412,6 @@ impl TilePuzzle {
             return Ok(None);
         };
         Ok(Some(board.said(slot, &board.place(slot))))
-    }
-
-    /// Touch mode's key moving from one tile to another: only the row or the column that
-    /// changed, then where its piece belongs, "column 3, in place" (Orion, 2026-10-26); None
-    /// for its whole name, staying on one or moving off the board.
-    pub fn moved(&self, before: &Target, now: &Target) -> Result<Option<String>> {
-        let Some(board) = self.board()? else {
-            return Ok(None);
-        };
-        let (old, new) = (
-            board.slot(self.number(before.pane)?),
-            board.slot(self.number(now.pane)?),
-        );
-        let (Some(old), Some(new)) = (old, new) else {
-            return Ok(None);
-        };
-        if old == new {
-            return Ok(None);
-        }
-        let ((row, column), (was_row, was_column)) = (
-            (new / board.across, new % board.across),
-            (old / board.across, old % board.across),
-        );
-        let tile = if row != was_row && column != was_column {
-            board.place(new)
-        } else if row != was_row {
-            own(ROW, &[("row", &(row + 1))])
-        } else {
-            own(COLUMN, &[("column", &(column + 1))])
-        };
-        Ok(Some(board.said(new, &tile)))
     }
 
     /// The number of the touch area in a picture's group; None on the top screen or with

@@ -274,15 +274,13 @@ training-left = { $time } left
 # Touch mode's one gesture that is not a tap, a slide back and forth over the Pokémon, the
 # manual's word: "stroke Sceptile".
 amie-stroke = stroke { $pokemon }
-# A tile of Pokémon-Amie's Tile Puzzle, by its row and column (slot-grid), and where the piece of
-# the picture it shows belongs: "row 1, column 2, in place", "row 1, column 2, goes to row 3,
-# column 4". The game says neither.
+# A tile of Pokémon-Amie's Tile Puzzle, as a spreadsheet names a cell, its column a letter from A
+# and its row a number from 1 (puzzle-cell): "B3" the second column of the third row. Then where
+# the piece of the picture it shows belongs: "B1, in place", "B1, goes to D3". The game says
+# neither.
+puzzle-cell = { $column }{ $row }
 puzzle-home = { $tile }, in place
 puzzle-goes = { $tile }, goes to { $home }
-# Moving to the next tile says only the row or the column that changed, in place of slot-grid:
-# "column 3, in place".
-puzzle-row = row { $row }
-puzzle-column = column { $column }
 # Tile Puzzle's picture, described once a puzzle where descriptions are on: three of the player's
 # Pokémon, said left to right, "Metagross on the left, Pikachu Rock Star in front, Blaze on the
 # right". The game says nothing of it.

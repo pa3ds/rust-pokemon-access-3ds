@@ -69,28 +69,22 @@ struct Screen {
 
 impl Screen {
     fn new(found: Vec<Target>) -> Self {
-        Screen::with_moved(found, None)
+        Screen::with_drag(found, None)
     }
 
-    /// `Screen(found, moved)`.
-    fn with_moved(found: Vec<Target>, moved: Option<touch::Moved>) -> Self {
-        Screen::with_drag(found, moved, None)
-    }
-
-    /// `Screen(found, moved, drag)`.
-    fn with_drag(found: Vec<Target>, moved: Option<touch::Moved>, drag: Option<Rc<Held>>) -> Self {
-        Screen::with_options(found, moved, drag, true, true, false)
+    /// `Screen(found, drag)`.
+    fn with_drag(found: Vec<Target>, drag: Option<Rc<Held>>) -> Self {
+        Screen::with_options(found, drag, true, true, false)
     }
 
     /// `Screen(found, wrap=wrap, next_row=next_row)`.
     fn wrapping(found: Vec<Target>, wrap: bool, next_row: bool) -> Self {
-        Screen::with_options(found, None, None, wrap, next_row, false)
+        Screen::with_options(found, None, wrap, next_row, false)
     }
 
-    /// `Screen(found, moved, drag, wrap, next_row, delayed)`.
+    /// `Screen(found, drag, wrap, next_row, delayed)`.
     fn with_options(
         found: Vec<Target>,
-        moved: Option<touch::Moved>,
         drag: Option<Rc<Held>>,
         wrap: bool,
         next_row: bool,
@@ -123,7 +117,6 @@ impl Screen {
                     kept.borrow_mut().push((path.to_vec(), seconds));
                     None
                 })),
-                moved,
                 drag: drag.map(|drag| drag as Rc<dyn crate::core::touch::Drag>),
                 wrap,
                 next_row,
@@ -271,22 +264,6 @@ fn test_with_the_next_row_off_left_and_right_keep_to_their_row() {
             .collect::<Vec<_>>(),
         ["a1", "a2", "a2"]
     );
-}
-
-#[test]
-fn test_a_move_can_be_said_otherwise_than_by_the_name() {
-    // Tile Puzzle says only the row or the column that changed; staying put says the name.
-    let moved: touch::Moved = Rc::new(|before: &Target, now: &Target| {
-        Ok(if before == now {
-            None
-        } else {
-            Some(format!("from {}", before.name))
-        })
-    });
-    let mut screen = Screen::with_moved(bar(), Some(moved));
-    screen.start();
-    assert_eq!(screen.press(touch::ITEM_NEXT), "from POKÉMON");
-    assert_eq!(screen.press(touch::ITEM_READ), "POKÉDEX");
 }
 
 /// ADR-0009: with nothing chosen, and once the chosen target has left the screen, the tap key
@@ -1163,7 +1140,7 @@ fn test_a_drag_holds_the_target_named_carries_it_with_the_keys_and_lets_go() {
         drop: Some((160, 157)),
         ..Target::new(2, "stroke Pikachu", 160, 120, 0.0, 240.0)
     };
-    let mut screen = Screen::with_drag(vec![puff, pokemon], None, Some(held.clone()));
+    let mut screen = Screen::with_drag(vec![puff, pokemon], Some(held.clone()));
     assert_eq!(screen.press(touch::ITEM_READ), "Sweet Poké Puff");
     assert!(screen.press(touch::DRAG) == "holding Sweet Poké Puff" && screen.targets.holding());
     assert!(screen.press(touch::DRAG).is_empty() && screen.press(touch::TAP).is_empty());
@@ -1183,7 +1160,7 @@ fn test_a_drag_holds_the_target_named_carries_it_with_the_keys_and_lets_go() {
 #[test]
 fn test_a_drag_let_go_where_it_was_picked_up_touches_nothing() {
     let held = Rc::new(Held::default());
-    let mut screen = Screen::with_drag(bar(), None, Some(held.clone()));
+    let mut screen = Screen::with_drag(bar(), Some(held.clone()));
     screen.start();
     assert_eq!(screen.press(touch::DRAG), "holding POKÉMON");
     assert_eq!(screen.targets.drop(), "let go on POKÉMON");
@@ -1199,7 +1176,7 @@ fn test_a_drag_let_go_where_it_was_picked_up_touches_nothing() {
 #[test]
 fn test_with_drag_sounds_a_drag_is_heard_not_said() {
     let played: Rc<RefCell<Vec<bool>>> = Rc::new(RefCell::new(Vec::new()));
-    let mut screen = Screen::with_drag(bar(), None, Some(Rc::new(Held::default())));
+    let mut screen = Screen::with_drag(bar(), Some(Rc::new(Held::default())));
     let kept = played.clone();
     screen.targets.sound = Some(Rc::new(move |up| kept.borrow_mut().push(up)));
     screen.start();
@@ -1219,7 +1196,6 @@ fn test_where_the_screen_drags_on_letting_go_nothing_moves_until_then() {
     let wants = Target::new(3, "Pikachu wants Pinap Berry", 160, 215, -95.0, 50.0);
     let mut screen = Screen::with_options(
         vec![berry, other, wants],
-        None,
         Some(held.clone()),
         true,
         true,
