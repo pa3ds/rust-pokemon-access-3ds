@@ -12,6 +12,7 @@ use indexmap::IndexMap;
 
 use super::fake_layouts::FakeLayouts;
 use super::fake_memory::{CODE, FakeClasses, FakeMemory};
+use crate::core::config::Touch;
 use crate::core::rtti::ClassNames;
 use crate::games::common::layout::Layouts;
 use crate::games::common::lyt;
@@ -123,8 +124,11 @@ impl Screen {
             Rc::new(|_line: &str| {}),
             ModeOptions {
                 screen: Some(pressed.clone()),
-                wrap,
-                next_row,
+                settings: Touch {
+                    wrap,
+                    next_row,
+                    ..Touch::default()
+                },
                 delayed: Some(Rc::new(move || delayed)),
                 pace,
                 sound,

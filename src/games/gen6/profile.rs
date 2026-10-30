@@ -874,8 +874,7 @@ impl Gen6Profile {
                         let _ = tones.play(across, down);
                     }) as touch::Tone
                 }),
-                wrap: touch_settings.wrap,
-                next_row: touch_settings.next_row,
+                settings: touch_settings.clone(),
                 delayed: Some({
                     let apps = apps.clone();
                     Rc::new(move || {

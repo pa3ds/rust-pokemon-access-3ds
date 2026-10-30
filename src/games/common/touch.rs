@@ -53,6 +53,7 @@ use std::rc::Rc;
 use indexmap::{IndexMap, IndexSet};
 
 use crate::core::binary::{f32, u32};
+use crate::core::config::Touch;
 use crate::core::touch::TouchScreen;
 use crate::core::words::own;
 use crate::games::common::layout::Layouts;
@@ -104,6 +105,10 @@ pub const DROPPED: &str = "touch-dropped";
 /// 0.15, the quicker giving the more before each Pokémon left, and 12 of 31 at 0.05, where each
 /// third is a game frame and a half.
 pub const DROP_SECONDS: f64 = 0.15;
+/// `[pa3ds.touch]` as it ships.
+pub fn default_touch() -> Touch {
+    Touch::default()
+}
 /// How far across its width a pane's place is, by its anchor: left, centre, right.
 pub const ANCHOR: [f64; 3] = [0.0, 0.5, 1.0];
 
@@ -188,8 +193,7 @@ pub type Targets = Rc<dyn Fn() -> Result<Vec<Target>>>;
 pub struct ModeOptions {
     pub screen: Option<Rc<dyn TouchScreen>>,
     pub tone: Option<Tone>,
-    pub wrap: bool,
-    pub next_row: bool,
+    pub settings: Touch,
     /// None is never.
     pub delayed: Option<Rc<dyn Fn() -> bool>>,
     pub sound: Option<Rc<dyn Fn(bool)>>,
@@ -202,8 +206,7 @@ impl Default for ModeOptions {
         ModeOptions {
             screen: None,
             tone: None,
-            wrap: true,
-            next_row: true,
+            settings: default_touch(),
             delayed: None,
             sound: None,
             pace: None,
@@ -251,12 +254,10 @@ pub struct TouchMode {
     /// How fast the game runs beside full speed, which a drag made on letting go is timed by
     /// (`DROP_SECONDS`): Berry Picker's clock says (`berry_picker.BerryPicker.speed`).
     pace: Rc<dyn Fn() -> f64>,
-    /// Whether the keys go round from the last target to the first and the bottom row to the
-    /// top, or stop at the ends (`[pa3ds.touch] wrap`).
-    wrap: bool,
-    /// Whether J and L go on into the next row at a row's end, or stay in their row
-    /// (`[pa3ds.touch] next_row`).
-    next_row: bool,
+    /// `[pa3ds.touch]`: whether the keys go round from the last target to the first and the
+    /// bottom row to the top, or stop at the ends (`wrap`), and whether J and L go on into the
+    /// next row at a row's end, or stay in their row (`next_row`).
+    settings: Touch,
     /// The target picked up to drag, while one is.
     picked: Option<Target>,
     /// The target the keys have chosen to drag it to, while one is picked up.
@@ -272,8 +273,7 @@ impl TouchMode {
         let ModeOptions {
             screen,
             tone,
-            wrap,
-            next_row,
+            settings,
             delayed,
             sound,
             pace,
@@ -286,8 +286,7 @@ impl TouchMode {
             delayed: delayed.unwrap_or_else(|| Rc::new(|| false)),
             sound,
             pace: pace.unwrap_or_else(|| Rc::new(|| 1.0)),
-            wrap,
-            next_row,
+            settings,
             picked: None,
             over: None,
             pressed: false,
@@ -391,7 +390,7 @@ impl TouchMode {
         if action == ITEM_NEXT || action == ITEM_PREVIOUS {
             // The whole list in reading order, or with `next_row` off the row alone; past its
             // end, round to the other or, with `wrap` off, stay (`[pa3ds.navigation]`).
-            let walked: Vec<usize> = if self.next_row {
+            let walked: Vec<usize> = if self.settings.next_row {
                 (0..found.len()).collect()
             } else {
                 lines[row].clone()
@@ -401,7 +400,7 @@ impl TouchMode {
                 .position(|&i| i == at)
                 .expect("the target chosen is among those walked") as i64
                 + if action == ITEM_NEXT { 1 } else { -1 };
-            at = walked[stepped(step, walked.len() as i64, self.wrap) as usize];
+            at = walked[stepped(step, walked.len() as i64, self.settings.wrap) as usize];
         } else if action == ROW_NEXT || action == ROW_PREVIOUS {
             // Straight up or down, to the nearest across: a grid's column kept (Orion,
             // 2026-10-26, Tile Puzzle).
@@ -409,7 +408,7 @@ impl TouchMode {
             let row = stepped(
                 row as i64 + if action == ROW_NEXT { 1 } else { -1 },
                 lines.len() as i64,
-                self.wrap,
+                self.settings.wrap,
             );
             at = *lines[row as usize]
                 .iter()
