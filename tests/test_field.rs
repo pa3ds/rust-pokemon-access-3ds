@@ -35,7 +35,7 @@ use crate::games::gen6::field::fieldmap::{
     MAP_BLOCK_SIZE, MAP_CHUNK_FILES, MAP_CHUNKS_TALL, MAP_CHUNKS_WIDE, MAP_GRID, MAP_KIND, MAP_MARK,
 };
 use crate::games::gen6::field::hidden_items::HIDDEN_ITEM;
-use crate::games::gen6::field::landform::{ArrowTiles, Landform, Rides, gen6};
+use crate::games::gen6::field::landform::{ArrowTiles, Belts, Landform, Rides, gen6};
 use crate::games::gen6::field::mmodel::PROP_MODEL;
 use crate::games::gen6::field::reader::PC_TILE as PC_KIND;
 use crate::games::gen6::field::reader::{
@@ -1883,7 +1883,13 @@ fn test_a_conveyor_belt_is_ridden_the_way_it_runs_and_walked_round_against_it() 
         town.memory.clone(),
         Given::default(),
         Game {
-            belts: IndexMap::from([((TOWN, 0x9), pathfind::SOUTH)]),
+            landforms: [
+                gen6(),
+                vec![Arc::new(Belts {
+                    ways: IndexMap::from([((TOWN, 0x9), pathfind::SOUTH)]),
+                }) as Arc<dyn Landform>],
+            ]
+            .concat(),
             ..game()
         },
     );
@@ -1941,7 +1947,13 @@ fn test_dewford_gyms_switches_and_belts_are_listed_and_walked_over() -> Result<(
         town.memory.clone(),
         Given::default(),
         Game {
-            belts: IndexMap::from([((TOWN, 0x9), pathfind::SOUTH)]),
+            landforms: [
+                gen6(),
+                vec![Arc::new(Belts {
+                    ways: IndexMap::from([((TOWN, 0x9), pathfind::SOUTH)]),
+                }) as Arc<dyn Landform>],
+            ]
+            .concat(),
             triggers: IndexMap::from([
                 ((TOWN, 0x9), owned(oras::BELT)),
                 ((TOWN, 0x5), owned(oras::SWITCH)),
@@ -4375,7 +4387,7 @@ fn test_vines_are_listed_under_climbing_each_end_by_what_its_ride_does() -> Resu
             ..Given::default()
         },
         Game {
-            vining: Some(xy::VINING),
+            landforms: [gen6(), vec![Arc::new(xy::VINING) as Arc<dyn Landform>]].concat(),
             ..game()
         },
     );

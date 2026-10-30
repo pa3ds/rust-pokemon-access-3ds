@@ -7,7 +7,7 @@
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::rc::Rc;
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 
 use indexmap::IndexMap;
 
@@ -19,6 +19,7 @@ use crate::games::common::pictures;
 use crate::games::gen6::field::features::{
     DoorReader, Feature, HiddenReader, IceReader, SecretBaseReader,
 };
+use crate::games::gen6::field::landform::{Belts, Landform, gen6};
 use crate::games::gen6::field::mmodel;
 use crate::games::gen6::field::reader::{FLAG, PC_TILE};
 use crate::games::gen6::game::{Data, FurnitureKind, Game};
@@ -905,7 +906,6 @@ pub fn game() -> &'static Game {
     static GAME: OnceLock<Game> = OnceLock::new();
     GAME.get_or_init(|| Game {
         hidden: Some(dex_nav),
-        belts: belts().clone(),
         clears: IndexMap::from([
             (BUSH, CUT),
             (CRACKED_BOULDER, ROCK_SMASH),
@@ -924,6 +924,13 @@ pub fn game() -> &'static Game {
         elevators: ELEVATORS.collect(),
         hidden_triggers: HashSet::from([(CONTROL_ROOM, SCANNER)]),
         crossed: HashSet::from(DEWFORD_SWITCHES),
+        landforms: [
+            gen6(),
+            vec![Arc::new(Belts {
+                ways: belts().clone(),
+            }) as Arc<dyn Landform>],
+        ]
+        .concat(),
         player_looks: PLAYER_LOOKS.collect(),
         stairs: HashSet::from([SOOTOPOLIS_GYM]),
         apps: vec![Soaring::of],

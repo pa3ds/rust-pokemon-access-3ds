@@ -41,19 +41,18 @@ use crate::games::common::field::ground::{
 };
 use crate::games::common::field::ride::riding;
 use crate::games::common::field::things::{
-    CLIMBING, DECORATION_SOURCE, EDGE_SOURCE, FURNITURE_SOURCE, Field, Interactable, OBSTACLES,
+    DECORATION_SOURCE, EDGE_SOURCE, FURNITURE_SOURCE, Field, Interactable, OBSTACLES,
     OPENING_SOURCE, POKEMON, STAIRS_SOURCE, TELEPORT_SOURCE, TELEPORTER, TILE_SOURCE,
-    TRIGGER_SOURCE, VINE_SOURCE, WARP_SOURCE, kind_said, place_source,
+    TRIGGER_SOURCE, WARP_SOURCE, kind_said, place_source,
 };
-use crate::games::common::field::vines::{End, Vines, paired};
 use crate::games::gen6::field::conveyors::Switches;
 use crate::games::gen6::field::features::{
     DoorReader, Feature, HiddenReader, Hiding, IceReader, SecretBaseReader, Tracked,
 };
 use crate::games::gen6::field::hidden_items::{HIDDEN_ITEM, HiddenItems, Only};
 use crate::games::gen6::field::landform::{
-    Found as Worked, HOLE, Here, Holes, Landform, Matrix, Rides, as_form, beside, cell_number,
-    dropped, holes_found, runs, spread,
+    Conveyors, Found as Worked, HOLE, Here, Holes, Landform, Matrix, Rides, as_form, beside,
+    cell_number, dropped, holes_found, runs, spread,
 };
 use crate::games::gen6::field::rail::{self, Rails, keep};
 use crate::games::gen6::field::terrain::{FarCells, FarFloors, FarHeights, FarMatrices, Terrain};
@@ -67,14 +66,10 @@ use crate::games::gen6::field::zonedata::{
 };
 use crate::games::gen6::field::zonetable::{INFO_SIZE, ZoneTable};
 use crate::games::gen6::field::{fieldmap, mapblock, mmodel};
-use crate::games::gen6::game::{Conveyors, FurnitureKind, Game, Vining};
+use crate::games::gen6::game::{FurnitureKind, Game};
 use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::rom::maps::{ChunkSource, StreetSource};
 use crate::py::{self, PySet, Result};
-
-/// What the vines' ends and the vines were read for (`_ends_of`, `_vines_of`): the zone's home
-/// and the map's chunk files, None before any were.
-type VinesKey = Option<(Option<i64>, Vec<i64>)>;
 
 /// What a sweep looks for. The slot's own shape is `mmodel`'s, as every structure's is.
 pub const MOVE_MODEL_CLASS: &str = mmodel::CLASS;
@@ -289,19 +284,12 @@ pub struct FieldReader {
     /// What the game's ridden Pokémon cross, or None in a game without one: who is in the way
     /// and who is listed asks it too.
     rides: Option<Rides>,
-    /// The natives of the vines the game lets the player grab, or None in a game without
-    /// them (`Game.vining`).
-    vining: Option<Vining>,
     /// (zone, a furniture record's script) -> the native its case hands one constant to, and
     /// the constant (`plates.native_furniture`).
     natives: IndexMap<(i64, i64), (i64, i64)>,
     /// (zone, a trigger's script) -> (x, how high, z) of where the teleporter it is puts the
     /// player (`plates.teleports`).
     teleports: IndexMap<(i64, i64), (i64, i64, i64)>,
-    /// The zone and map the vines' ends were read for, and the ends (`_vine_ends`).
-    ends_of: RefCell<(VinesKey, Rc<Vec<End>>)>,
-    /// The zone and map the vines were found for, and the vines (`_vines`).
-    vines_of: RefCell<(VinesKey, Rc<Vines>)>,
     /// Whether a row of models drawn as nothing with a script of its own is a gate
     /// (`Game.gates`).
     gates: bool,
@@ -309,7 +297,7 @@ pub struct FieldReader {
     secret_bases: Option<Rc<dyn SecretBaseReader>>,
     /// The save's works and flags, which arm triggers and say which hidden items are found.
     works: Rc<Works>,
-    /// Whether each zone's belts are turned round by its switch (`Game.conveyors`).
+    /// Whether each zone's belts are turned round by its switch (`landform.Conveyors`).
     switches: Option<Switches>,
     /// The hidden items still to be found, where the Extra lists them (spike 249).
     hidden_items: Option<HiddenItems>,
@@ -340,10 +328,6 @@ pub struct FieldReader {
     clock: Rc<dyn Fn() -> f64>,
     /// Lumiose's streets, which X places things on rather than on cells.
     pub rails: Rails,
-    /// (zone, a trigger's script) -> the way the conveyor belt it is runs (`Game.belts`).
-    belts: IndexMap<(i64, i64), &'static str>,
-    /// Zone -> the cells of its belts that carry the player (`Game.conveyors`).
-    conveyors: IndexMap<i64, Conveyors>,
     /// (zone, a trigger's script) of the listed triggers P walks over (`Game.crossed`).
     crossed: HashSet<(i64, i64)>,
     /// Zones walked about in as outdoors that are not their own parent, out of the ROM
@@ -502,13 +486,18 @@ impl FieldReader {
             me: me.clone(),
             hidden_items: hidden_items(me),
             works,
-            switches: if game.conveyors.is_empty() {
-                None
-            } else {
-                Some(Switches::new(
-                    memory.clone(),
-                    game.conveyors.values().map(|belts| belts.state).collect(),
-                ))
+            switches: {
+                let states: IndexSet<(&'static str, i64)> = game
+                    .landforms
+                    .iter()
+                    .filter_map(as_form::<Conveyors>)
+                    .map(|form| form.state)
+                    .collect();
+                if states.is_empty() {
+                    None
+                } else {
+                    Some(Switches::new(memory.clone(), states))
+                }
             },
             zones: ZoneTable::new(memory.clone(), text.zone_table.clone()),
             warp_words: game.warps.clone(),
@@ -527,11 +516,8 @@ impl FieldReader {
             landforms: game.landforms.clone(),
             found_of: RefCell::new(HashMap::new()),
             rides: game.landforms.iter().find_map(as_form::<Rides>).cloned(),
-            vining: game.vining,
             natives: text.natives.clone(),
             teleports: text.teleports.clone(),
-            ends_of: RefCell::new((None, Rc::new(Vec::new()))),
-            vines_of: RefCell::new((None, Rc::new(Vines::default()))),
             gates: game.gates,
             secret_bases,
             barriers: game.barriers.clone(),
@@ -552,8 +538,6 @@ impl FieldReader {
                 game.camera,
                 text.rail_teleports.clone(),
             ),
-            belts: game.belts.clone(),
-            conveyors: game.conveyors.clone(),
             crossed: game.crossed.clone(),
             outdoors: text.outdoors.clone(),
             drawn: game.drawn,
@@ -928,13 +912,11 @@ impl FieldReader {
             made.borrow_mut().insert((column, row), chunk.clone());
             Ok(chunk)
         });
-        let (conveyors, switched, switch) = self.belts_now(r#where)?;
         let grid = if trusted {
             self.grid.borrow().clone()
         } else {
             None
         };
-        let belts = self.belts_here(r#where.zone)?;
         let crossed: HashSet<Cell> = self
             .trigger_cells(r#where.zone, self.crossed.is_empty(), &|key| {
                 self.crossed.contains(&key)
@@ -960,15 +942,11 @@ impl FieldReader {
             strands: self.strands,
             lanes,
             raised: self.terrain.raised()?,
-            conveyors,
-            switched,
-            switch,
             ..Ground::of(
                 r#where,
                 Of {
                     chunks,
                     grid,
-                    belts,
                     crossed,
                     far: if trusted && self.terrain.known() {
                         Some(far)
@@ -983,11 +961,7 @@ impl FieldReader {
                 },
             )?
         };
-        if let Some(vines) = self.vines(r#where.zone)? {
-            ground.vines = vines;
-        }
-        let people = || self.people(r#where.zone);
-        let here = self.here(r#where, &people);
+        let here = self.here(r#where, None);
         for (form, found) in self.landforms.iter().zip(self.found(r#where.zone)?.iter()) {
             ground = form.laid(found, ground, &here)?;
         }
@@ -1065,55 +1039,6 @@ impl FieldReader {
             return Ok(WALL.to_string());
         };
         Ok(base_tile(held.kind(cell)?).unwrap_or(WALL).to_string())
-    }
-
-    /// The zone's conveyor belts as its switch has them now, the other way it has them, and
-    /// the switch's cell (`Ground.conveyors`, `Ground.switched`, `Ground.switch`); the belts as
-    /// they run untouched until a sweep finds whether they are turned.
-    #[allow(clippy::type_complexity)]
-    fn belts_now(
-        &self,
-        r#where: &Field,
-    ) -> Result<(
-        IndexMap<Cell, &'static str>,
-        IndexMap<Cell, &'static str>,
-        Option<Cell>,
-    )> {
-        let Some(belts) = self.conveyors.get(&r#where.zone) else {
-            return Ok((IndexMap::new(), IndexMap::new(), None));
-        };
-        let mut flipped = belts.ways.clone();
-        flipped.extend(belts.turned.iter().map(|(&cell, &way)| (cell, way)));
-        let turned = match &self.switches {
-            None => false,
-            Some(switches) => switches.turned(belts.state)? == Some(true),
-        };
-        // From the zone's own records, not the listing: guiding asks with nothing listed.
-        let data = self.current()?;
-        let switch = match &data {
-            None => None,
-            Some(data) => read_furniture(&*self.memory, data)?
-                .into_iter()
-                .find(|item| item.code == belts.switch)
-                .map(|item| item.cell),
-        };
-        Ok(if turned {
-            (flipped, belts.ways.clone(), switch)
-        } else {
-            (belts.ways.clone(), flipped, switch)
-        })
-    }
-
-    /// The cells of the zone's conveyor belts, each with the way it runs: its triggers whose
-    /// scripts `Game.belts` knows as belts.
-    fn belts_here(&self, zone: i64) -> Result<IndexMap<Cell, &'static str>> {
-        Ok(self
-            .trigger_cells(zone, self.belts.is_empty(), &|key| {
-                self.belts.contains_key(&key)
-            })?
-            .into_iter()
-            .map(|(cell, key)| (cell, self.belts[&key]))
-            .collect())
     }
 
     /// The cells of the zone's triggers whose (zone, script) `known` holds, each with it.
@@ -1345,18 +1270,9 @@ impl FieldReader {
         items.extend(self.boulders(people.clone(), r#where.zone, data.as_ref(), home)?);
         items.extend(self.edges(r#where.zone, !r#where.on_rail)?);
         items.extend(self.use_tiles(r#where.zone)?);
-        let listed = || Ok(people.clone());
-        let here = self.here(r#where, &listed);
+        let here = self.here(r#where, Some(people.clone()));
         for (form, found) in self.landforms.iter().zip(self.found(r#where.zone)?.iter()) {
             items.extend(form.listed(found, &here)?);
-        }
-        for (end, _, ride) in paired(&self.vine_ends(r#where.zone)?.1) {
-            items.push(Interactable {
-                height: Some(end.height),
-                home: Some(r#where.zone),
-                source: place_source(VINE_SOURCE, end.number)?,
-                ..Interactable::new(CLIMBING, ride, end.cell)
-            });
         }
         items.extend(self.stairs_in(r#where.zone)?);
         items.extend(self.base_tiles(r#where.zone)?);
@@ -2577,70 +2493,6 @@ impl FieldReader {
         Ok(out)
     }
 
-    /// What the zone's vines' ends were read for, and the ends: its furniture records on
-    /// streets whose zone script case runs a vine (`Game.vining`), each on its one cell of the
-    /// grid, as high as its line's start, with the spot it is grabbed from (`Rails.on_grid`,
-    /// `Rails.height`, `Rails.spot`); read once a zone, and none in a game without them (spike
-    /// 250).
-    fn vine_ends(&self, zone: i64) -> Result<(VinesKey, Rc<Vec<End>>)> {
-        let data = self.current()?;
-        let (Some(data), Some(vining)) = (data, self.vining) else {
-            return Ok((None, Rc::new(Vec::new())));
-        };
-        let (home, files) = (
-            self.home(&data, &[zone])?,
-            self.terrain.files.borrow().1.clone(),
-        );
-        let key = Some((home, files.to_vec()));
-        if self.ends_of.borrow().0 != key {
-            let (swing, climb) = (vining.swing, vining.climb);
-            let mut ends: Vec<End> = Vec::new();
-            for record in read_records(&*self.memory, &data, FURNITURE)? {
-                let number = u16(&record, FURNITURE_SCRIPT)?;
-                let native = home.and_then(|home| self.natives.get(&(home, number)).copied());
-                let cells = self.rails.on_grid(&record, &files)?;
-                let height = self.rails.height(&record, &files)?;
-                let spot = self.rails.spot(&record, &files)?;
-                if let (Some(native), Some(cells), Some(height), Some((stand, faces))) =
-                    (native, cells, height, spot)
-                    && (native.0 == swing || native.0 == climb)
-                    && cells.len() == 1
-                {
-                    let mut cell = cells[0];
-                    if cell == stand {
-                        // Within a cell of each other, as the north-west climb's top at (53.8,
-                        // 49.9) and its spot at (53.2, 49.0) are: the vine is the cell faced.
-                        let ahead = pathfind::step_of(faces)?;
-                        cell = (stand.0 + ahead.0, stand.1 + ahead.1);
-                    }
-                    ends.push(End {
-                        number,
-                        cell,
-                        height,
-                        swing: native.0 == swing,
-                        stand,
-                        faces,
-                    });
-                }
-            }
-            *self.ends_of.borrow_mut() = (key, Rc::new(ends));
-        }
-        Ok(self.ends_of.borrow().clone())
-    }
-
-    /// The zone's vines, off its vines' ends (`Vines.found`), found once a zone: None for
-    /// Python's `NO_VINES`, where the zone has no ends.
-    fn vines(&self, zone: i64) -> Result<Option<Rc<Vines>>> {
-        let (key, ends) = self.vine_ends(zone)?;
-        if ends.is_empty() {
-            return Ok(None);
-        }
-        if self.vines_of.borrow().0 != key {
-            *self.vines_of.borrow_mut() = (key, Rc::new(Vines::found(&ends)));
-        }
-        Ok(Some(self.vines_of.borrow().1.clone()))
-    }
-
     /// What each landform worked out of the zone's matrix (`Landform.found`), in
     /// `Game.landforms`' order: once a map, off every chunk of the matrix where the ROM's are
     /// read, and off the chunks loaded without them. The game loads the quarter round the
@@ -2697,16 +2549,28 @@ impl FieldReader {
         Ok(found)
     }
 
-    /// What the landforms are listed and laid on, where `where` is.
-    fn here<'a>(
-        &'a self,
-        r#where: &'a Field,
-        people: &'a dyn Fn() -> Result<Vec<Interactable>>,
-    ) -> Here<'a> {
+    /// What the landforms are listed and laid on, where `where` is: its `people` where the
+    /// listing has read them, and else read only where a landform asks.
+    fn here<'a>(&'a self, r#where: &'a Field, people: Option<Vec<Interactable>>) -> Here<'a> {
+        let zone = r#where.zone;
         Here {
             r#where,
-            people,
+            people: match people {
+                Some(people) => Box::new(move || Ok(people.clone())),
+                None => Box::new(move || self.people(zone)),
+            },
             clears: &self.clears,
+            memory: &*self.memory,
+            data: Box::new(|| self.current()),
+            home: Box::new(move |data| self.home(data, &[zone])),
+            trigger_cells: Box::new(move |none, known| self.trigger_cells(zone, none, known)),
+            rails: &self.rails,
+            files: self.terrain.files.borrow().1.clone(),
+            natives: &self.natives,
+            turned: Box::new(|state| match &self.switches {
+                None => Ok(false),
+                Some(switches) => Ok(switches.turned(state)? == Some(true)),
+            }),
             terrain: &self.terrain,
             zones: &self.zones,
         }

@@ -508,7 +508,6 @@ pub struct Of {
     pub chunks: Vec<Rc<Chunk>>,
     pub grid: Option<Grid>,
     pub corridor: Option<Rc<dyn Corridor>>,
-    pub belts: IndexMap<Cell, &'static str>,
     /// A `frozenset`, only tested.
     pub crossed: HashSet<Cell>,
     pub far: Option<Far>,
@@ -531,8 +530,8 @@ impl Ground {
     /// Secret Base's desks and chairs, which the cell table has as open floor (spike 154), and
     /// the game's invisible blockers (spike 167). A move model drawn as a sprite in `through`
     /// neither stands in its cells nor is stepped round: Glittering Cave's lurking Pokémon,
-    /// walked through once its battle is over (spike 239). A listed trigger in `crossed`, or on
-    /// a belt, is walked over: Dewford Gym's switches and belts (`Game.crossed`). So is a
+    /// walked through once its battle is over (spike 239). A listed trigger in `crossed`
+    /// is walked over: Dewford Gym's switches, and so is a belt (`landform.Belts`). So is a
     /// teleporter that moves the player within the zone, and it carries them (`teleports`);
     /// `stacked` is whether the ground is, which says the floor each is on.
     pub fn of(r#where: &Field, of: Of) -> Result<Ground> {
@@ -540,7 +539,6 @@ impl Ground {
             chunks,
             grid,
             corridor,
-            belts,
             crossed,
             far,
             clears,
@@ -589,9 +587,7 @@ impl Ground {
             }
         }
         stepped.retain(|cell| {
-            !crossed.contains(cell)
-                && !belts.contains_key(cell)
-                && !panels.iter().any(|(panel, ..)| panel == cell)
+            !crossed.contains(cell) && !panels.iter().any(|(panel, ..)| panel == cell)
         });
         let mut cleared: IndexMap<Cell, i64> = IndexMap::new();
         for item in &r#where.interactables {
@@ -617,7 +613,6 @@ impl Ground {
             standing,
             stepped,
             corridor,
-            belts,
             far,
             cleared,
             shoves,

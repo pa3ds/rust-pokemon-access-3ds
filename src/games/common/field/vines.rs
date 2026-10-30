@@ -3,7 +3,7 @@
 //! (`traversal`): its state is the vine held, or `OFF`.
 //!
 //! Bound by:
-//! - ADR-0006: nothing here names a game's natives; `gen6.game.Vining` carries them.
+//! - ADR-0006: nothing here names a game's natives; `gen6.field.landform.Vining` carries them.
 //! - ADR-0024: a ride on a vine is said as a leg, the step that grabs it with the ride.
 
 use std::collections::{HashMap, HashSet};

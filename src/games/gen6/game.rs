@@ -173,31 +173,6 @@ pub type ConditionsFactory = fn(
 /// `Callable[[Memory, str], OpeningReader]`.
 pub type OpeningFactory = fn(Rc<dyn Memory>, &str) -> Box<dyn OpeningReader>;
 
-/// One zone's conveyor belts that carry the player (`Ground.conveyors`), and the switch that
-/// turns some of them round, as X's Poké Ball Factory's (spike 259).
-#[derive(Debug, Clone, PartialEq)]
-pub struct Conveyors {
-    /// Each cell of a belt with the way it carries the player while the switch has turned none.
-    pub ways: IndexMap<(i64, i64), &'static str>,
-    /// The cells the switch turns round, each with the way it carries the player once turned.
-    pub turned: IndexMap<(i64, i64), &'static str>,
-    /// The script of the furniture record that is the switch, pressed with A at it.
-    pub switch: i64,
-    /// The class of the object, and where in it, that points at the byte saying whether the
-    /// switch has turned the belts, 0 for not: the save keeps it.
-    pub state: (&'static str, i64),
-}
-
-/// The natives the zone script's case of a vine's end hands one constant to, as X's Coumarine
-/// City Gym's (`vines.Vines`, `Script.native`).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Vining {
-    /// A vine swung on across a gap.
-    pub swing: i64,
-    /// A vine climbed, up from its lower end and down from its upper.
-    pub climb: i64,
-}
-
 /// One game as the gen 6 readers read it.
 ///
 /// Not `PartialEq`: the dataclass compares its callables by identity, which a `fn` pointer does
@@ -218,9 +193,6 @@ pub struct Game {
     /// The reader of its hidden Pokémon, for the field to list, or None in a game with none: ORAS's
     /// DexNav (`games.oras.field.hidden`).
     pub hidden: Option<HiddenFactory>,
-    /// (zone, a trigger's script) -> the way the conveyor belt that trigger is runs (`field`,
-    /// spike 132). Nothing in a trigger's record says it is a belt, so each is known one by one.
-    pub belts: IndexMap<(i64, i64), &'static str>,
     /// Sprite -> the move that clears the thing drawn as it, which Shift and P's way goes through:
     /// a bush Cut clears, a rock Rock Smash does, a boulder Strength pushes.
     pub clears: IndexMap<i64, i64>,
@@ -262,16 +234,13 @@ pub struct Game {
     /// is stepped round: Dewford Gym's switches, in the corridor its belts carry the player down,
     /// which light its side passages and turn nothing (spike 132). A belt is walked over too.
     pub crossed: HashSet<(i64, i64)>,
-    /// Zone -> its conveyor belts that carry the player, and the switch that turns some round:
-    /// X's Poké Ball Factory, whose belts a native of the game's runs with nothing in the zone, its
-    /// chunks or the trigger saying where (spike 259).
-    pub conveyors: IndexMap<i64, Conveyors>,
     /// The readers of what else it has on its field to list, each in its own words: ORAS's berry
     /// spots and Route 113's ash piles (`games.oras.field.berries`, `games.oras.field.ash`).
     pub features: Vec<FeatureFactory>,
     /// Its kinds of special ground in P's way, each saying what it lists and how it is walked,
     /// worked out once a map (`gen6.field.landform`): gen 6's own, which every game's chunks can
-    /// hold, and its own after them, X's ridden Pokémon.
+    /// hold, and its own after them: X's ridden Pokémon, climbing walls, grind rails, vines and
+    /// Poké Ball Factory belts, and Dewford Gym's belts.
     pub landforms: Vec<Arc<dyn Landform>>,
     /// The reader of its rotating doors, or None in a game with none: ORAS's, in Fortree Gym
     /// (`games.oras.field.doors`).
@@ -340,9 +309,6 @@ pub struct Game {
     /// game with none: X's Santalune Gym is a web of them, and ORAS's chunks use the same bit for
     /// other things (`Ground.strands`, spike 223).
     pub strands: i64,
-    /// The vines it lets the player grab, or None in a game with none: X's Coumarine City Gym
-    /// (spike 250).
-    pub vining: Option<Vining>,
     /// Zone -> the native its teleporters' cases hand where they put the player, x, the floor in
     /// squares of height and z (`plates.teleports`): X's Laverre City Gym (spike 258). By zone, since a
     /// native's number is its zone script's own: Coumarine Gym's 56 swings a vine.
@@ -393,7 +359,6 @@ impl Game {
             rom,
             drawn,
             hidden: None,
-            belts: IndexMap::new(),
             clears: IndexMap::new(),
             dowsing: None,
             barriers: HashSet::new(),
@@ -403,7 +368,6 @@ impl Game {
             hidden_items: 0x44C,
             hidden_triggers: HashSet::new(),
             crossed: HashSet::new(),
-            conveyors: IndexMap::new(),
             features: Vec::new(),
             landforms: gen6(),
             doors: None,
@@ -425,7 +389,6 @@ impl Game {
             opening: None,
             memories: None,
             strands: 0,
-            vining: None,
             teleporting: IndexMap::new(),
             gates: false,
             form: None,

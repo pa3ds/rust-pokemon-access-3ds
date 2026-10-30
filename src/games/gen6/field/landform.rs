@@ -3,16 +3,17 @@
 //! A landform says what it works out once a map from plain data, the ROM's chunks and the zone it
 //! is in (`found`), what of it is listed (`listed`), and what it gives the ground the search walks:
 //! its traversal or its rules (`laid`). Gen 6's own, which every game's chunks can hold, are
-//! `GEN6`; a game's `Game.landforms` starts from them and adds its own: X's ridden Pokémon. The
-//! field reader works each out once a map and keeps it (`FieldReader._found`), and never names
-//! one.
+//! `GEN6`; a game's `Game.landforms` starts from them and adds its own, as X's climbing walls. The
+//! field reader works each out once a map and keeps it (`FieldReader._found`); it names one only
+//! where more than the ground reads it: who rides and what they smash, the boulders' holes, and the
+//! belts' switch.
 //!
 //! Bound by:
 //! - ADR-0006: a landform names no game's kinds; a game's own data is given to it on its `Game`.
 
 use std::any::Any;
 use std::cell::RefCell;
-use std::collections::{BTreeSet, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::fmt::Debug;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -20,6 +21,7 @@ use std::sync::Arc;
 use indexmap::{IndexMap, IndexSet};
 
 use crate::core::binary::u16;
+use crate::core::memory::Memory;
 use crate::core::pathfind::{self, Cell};
 use crate::games::common::field::chunk::HOLE as BOULDER_HOLE;
 use crate::games::common::field::chunk::{
@@ -31,9 +33,14 @@ use crate::games::common::field::ground::{Ground, STRENGTH};
 use crate::games::common::field::things::{
     ARROW_SOURCE, ARROWS, BIKE, BIKE_SOURCE, CLIMB_SOURCE, CLIMBING, CURRENT_SOURCE,
     CURRENTS_CATEGORY, DIVE_SOURCE, Field, Interactable, OBSTACLES, RIDE_SOURCE, RIDING,
-    TILE_SOURCE, place_source,
+    TILE_SOURCE, VINE_SOURCE, place_source,
 };
+use crate::games::common::field::vines::{End, Vines, paired};
+use crate::games::gen6::field::rail::Rails;
 use crate::games::gen6::field::terrain::Terrain;
+use crate::games::gen6::field::zonedata::{
+    FURNITURE, FURNITURE_SCRIPT, ZoneData, read_furniture, read_records,
+};
 use crate::games::gen6::field::zonetable::{
     INFO_KIND, INFO_MATRIX, INFO_NAME, INFO_PARENT, INFO_SIZE, NAME_MASK, UNDERWATER, ZONE_LIMIT,
     ZoneTable,
@@ -137,9 +144,28 @@ pub struct Here<'a> {
     /// The zone's move models, as the field reader lists them, whether the listing has them or
     /// not: guiding asks for the ground with nothing listed. Read only where a landform asks, as a
     /// zone with holes does.
-    pub people: &'a dyn Fn() -> Result<Vec<Interactable>>,
+    pub people: Box<dyn Fn() -> Result<Vec<Interactable>> + 'a>,
     /// Sprite -> the move that clears the thing drawn as it (`Game.clears`).
     pub clears: &'a IndexMap<i64, i64>,
+    pub memory: &'a dyn Memory,
+    /// The zone data in use now, read only where a landform asks, as its records are.
+    pub data: Box<dyn Fn() -> Result<Option<ZoneData>> + 'a>,
+    /// Which zone a zone data file is (`ZoneTable.home`).
+    pub home: Box<dyn Fn(&ZoneData) -> Result<Option<i64>> + 'a>,
+    /// The cells of the zone's triggers whose (zone, script) is one of those given, each with
+    /// it: whether none is given, and whether one is.
+    #[allow(clippy::type_complexity)]
+    pub trigger_cells:
+        Box<dyn Fn(bool, &dyn Fn((i64, i64)) -> bool) -> Result<IndexMap<Cell, (i64, i64)>> + 'a>,
+    /// The streets, which the vines' ends are placed on (`Rails.on_grid`).
+    pub rails: &'a Rails,
+    /// The chunk files the field map lists, which say the matrix.
+    pub files: Rc<Vec<i64>>,
+    /// (zone, a furniture record's script) -> the native its case hands one constant to, and the
+    /// constant (`plates.native_furniture`).
+    pub natives: &'a IndexMap<(i64, i64), (i64, i64)>,
+    /// Whether the switch the object of a state keeps has turned its belts (`Switches.turned`).
+    pub turned: Box<dyn Fn((&'static str, i64)) -> Result<bool> + 'a>,
     pub terrain: &'a Terrain,
     pub zones: &'a ZoneTable,
 }
@@ -834,6 +860,183 @@ impl Landform for Grinding {
     fn laid(&self, found: &Found, ground: Ground, _here: &Here) -> Result<Ground> {
         Ok(Ground {
             grind_rails: found_as::<Rc<GrindRails>>(found).clone(),
+            ..ground
+        })
+    }
+}
+
+/// The vines a player grabs, by the natives the zone script's case of a vine's end hands one
+/// constant to, as X's Coumarine City Gym's (`vines.Vines`, `Script.native`, spike 250): each end
+/// a furniture record on the Gym's streets, on its one cell of the grid, as high as its line's
+/// start, with the spot it is grabbed from (`Rails.on_grid`, `Rails.height`, `Rails.spot`), read
+/// once a zone. Each end is listed under climbing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Vining {
+    /// A vine swung on across a gap.
+    pub swing: i64,
+    /// A vine climbed, up from its lower end and down from its upper.
+    pub climb: i64,
+}
+
+/// What `Vining` finds: the zone's vines' ends and its vines, by the zone its data is, filled in
+/// as they are asked for. None for Python's `NO_VINES`.
+type Vined = RefCell<HashMap<Option<i64>, (Rc<Vec<End>>, Option<Rc<Vines>>)>>;
+
+impl Landform for Vining {
+    fn found(&self, _matrix: &Matrix) -> Result<Found> {
+        // The ends are read off the zone's records, the game's memory, where they are asked for.
+        let found: Vined = RefCell::new(HashMap::new());
+        Ok(Rc::new(found))
+    }
+
+    fn listed(&self, found: &Found, here: &Here) -> Result<Vec<Interactable>> {
+        let mut out: Vec<Interactable> = Vec::new();
+        for (end, _, ride) in paired(&self.ends(found_as::<Vined>(found), here)?.0) {
+            out.push(Interactable {
+                height: Some(end.height),
+                home: Some(here.r#where.zone),
+                source: place_source(VINE_SOURCE, end.number)?,
+                ..Interactable::new(CLIMBING, ride, end.cell)
+            });
+        }
+        Ok(out)
+    }
+
+    fn laid(&self, found: &Found, ground: Ground, here: &Here) -> Result<Ground> {
+        Ok(match self.ends(found_as::<Vined>(found), here)?.1 {
+            None => ground,
+            Some(vines) => Ground { vines, ..ground },
+        })
+    }
+}
+
+impl Vining {
+    /// The zone's vines' ends, and its vines (`Vines.found`), by the zone its data is, once a
+    /// zone; none without its zone data.
+    fn ends(&self, found: &Vined, here: &Here) -> Result<(Rc<Vec<End>>, Option<Rc<Vines>>)> {
+        let Some(data) = (here.data)()? else {
+            return Ok((Rc::new(Vec::new()), None));
+        };
+        let home = (here.home)(&data)?;
+        if let Some(got) = found.borrow().get(&home) {
+            return Ok(got.clone());
+        }
+        let mut ends: Vec<End> = Vec::new();
+        for record in read_records(here.memory, &data, FURNITURE)? {
+            let number = u16(&record, FURNITURE_SCRIPT)?;
+            let native = home.and_then(|home| here.natives.get(&(home, number)).copied());
+            let cells = here.rails.on_grid(&record, &here.files)?;
+            let height = here.rails.height(&record, &here.files)?;
+            let spot = here.rails.spot(&record, &here.files)?;
+            if let (Some(native), Some(cells), Some(height), Some((stand, faces))) =
+                (native, cells, height, spot)
+                && (native.0 == self.swing || native.0 == self.climb)
+                && cells.len() == 1
+            {
+                let mut cell = cells[0];
+                if cell == stand {
+                    // Within a cell of each other, as the north-west climb's top at (53.8, 49.9)
+                    // and its spot at (53.2, 49.0) are: the vine is the cell faced.
+                    let ahead = pathfind::step_of(faces)?;
+                    cell = (stand.0 + ahead.0, stand.1 + ahead.1);
+                }
+                ends.push(End {
+                    number,
+                    cell,
+                    height,
+                    swing: native.0 == self.swing,
+                    stand,
+                    faces,
+                });
+            }
+        }
+        let vines = if ends.is_empty() {
+            None
+        } else {
+            Some(Rc::new(Vines::found(&ends)))
+        };
+        let got = (Rc::new(ends), vines);
+        found.borrow_mut().insert(home, got.clone());
+        Ok(got)
+    }
+}
+
+/// Conveyor belts that are triggers, walked only the way they run, as a slope is, and over rather
+/// than round: Dewford Gym's (spike 132). Nothing in a trigger's record says it is a belt, so each
+/// is known one by one. Listed with the zone's triggers (`Game.triggers`).
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Belts {
+    /// (zone, a trigger's script) -> the way the belt that trigger is runs.
+    pub ways: IndexMap<(i64, i64), &'static str>,
+}
+
+impl Landform for Belts {
+    fn laid(&self, _found: &Found, ground: Ground, here: &Here) -> Result<Ground> {
+        let belts: IndexMap<Cell, &'static str> =
+            (here.trigger_cells)(self.ways.is_empty(), &|key| self.ways.contains_key(&key))?
+                .into_iter()
+                .map(|(cell, key)| (cell, self.ways[&key]))
+                .collect();
+        if belts.is_empty() {
+            return Ok(ground);
+        }
+        let mut stepped = ground.stepped.clone();
+        stepped.retain(|cell| !belts.contains_key(cell));
+        Ok(Ground {
+            belts,
+            stepped,
+            ..ground
+        })
+    }
+}
+
+/// One zone's conveyor belts that carry the player (`Ground.conveyors`), and the switch that turns
+/// some of them round, as X's Poké Ball Factory's, whose belts a native of the game's runs with
+/// nothing in the zone, its chunks or the trigger saying where (spike 259). Its switch and the
+/// triggers it is stepped onto at are listed as the zone's furniture and triggers
+/// (`Game.furniture`, `Game.triggers`).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Conveyors {
+    pub zone: i64,
+    /// Each cell of a belt with the way it carries the player while the switch has turned none.
+    pub ways: IndexMap<Cell, &'static str>,
+    /// The cells the switch turns round, each with the way it carries the player once turned.
+    pub turned: IndexMap<Cell, &'static str>,
+    /// The script of the furniture record that is the switch, pressed with A at it.
+    pub switch: i64,
+    /// The class of the object, and where in it, that points at the byte saying whether the
+    /// switch has turned the belts, 0 for not: the save keeps it.
+    pub state: (&'static str, i64),
+}
+
+impl Landform for Conveyors {
+    /// The belts as the switch has them now, the other way it has them, and the switch's cell
+    /// (`Ground.conveyors`, `Ground.switched`, `Ground.switch`); the belts as they run untouched
+    /// until a sweep finds whether they are turned.
+    fn laid(&self, _found: &Found, ground: Ground, here: &Here) -> Result<Ground> {
+        if here.r#where.zone != self.zone {
+            return Ok(ground);
+        }
+        let mut flipped = self.ways.clone();
+        flipped.extend(self.turned.iter().map(|(&cell, &way)| (cell, way)));
+        // From the zone's own records, not the listing: guiding asks with nothing listed.
+        let data = (here.data)()?;
+        let switch = match &data {
+            None => None,
+            Some(data) => read_furniture(here.memory, data)?
+                .into_iter()
+                .find(|item| item.code == self.switch)
+                .map(|item| item.cell),
+        };
+        let (now, other) = if (here.turned)(self.state)? {
+            (flipped, self.ways.clone())
+        } else {
+            (self.ways.clone(), flipped)
+        };
+        Ok(Ground {
+            conveyors: now,
+            switched: other,
+            switch,
             ..ground
         })
     }

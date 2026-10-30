@@ -1,5 +1,5 @@
 //! Whether a zone's conveyor belts are turned round, by the switch the game has for them
-//! (`Game.conveyors`).
+//! (`landform.Conveyors`).
 //!
 //! In X's Poké Ball Factory the field's module keeps a `field::FieldUniqueSequenceBallFactory`
 //! while the player is in it, whose +0x14 points at a byte that is 0, or 1 once the switch has turned
@@ -32,7 +32,7 @@ pub struct Switches {
 }
 
 impl Switches {
-    /// Python's `states` is a set of (class, offset) built from `Game.conveyors`, whose order
+    /// Python's `states` is a set of (class, offset) built from the game's `landform.Conveyors`, whose order
     /// its strings make Python's own; here the `Game`'s order, each once.
     pub fn new(memory: Rc<dyn Memory>, states: IndexSet<(&'static str, i64)>) -> Self {
         let states: IndexMap<&'static str, i64> = states.into_iter().collect();

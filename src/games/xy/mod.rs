@@ -18,8 +18,10 @@ use crate::core::pathfind;
 use crate::games::common::field::ground::{CUT, ROCK_SMASH, STRENGTH};
 use crate::games::gen6::field::camera;
 use crate::games::gen6::field::footsteps::{RUN, Steps, WALK};
-use crate::games::gen6::field::landform::{ArrowTiles, Climbing, Grinding, Landform, Rides, gen6};
-use crate::games::gen6::game::{Conveyors, Data, FurnitureKind, Game, Vining};
+use crate::games::gen6::field::landform::{
+    ArrowTiles, Climbing, Conveyors, Grinding, Landform, Rides, Vining, gen6,
+};
+use crate::games::gen6::game::{Data, FurnitureKind, Game};
 use crate::games::gen6::rom::layout::{RomLayout, TownFacilities, owned};
 use crate::games::gen6::subscreen::berry_picker;
 use crate::games::xy::intro::IntroReader;
@@ -553,6 +555,19 @@ fn carried(routes: &[((i64, i64), &[(&'static str, i64)])]) -> IndexMap<(i64, i6
     out
 }
 
+/// The Poké Ball Factory's belts that carry the player, and the switch that turns one round.
+///
+/// Python's `BELTS` constant: a function, since an `IndexMap` is no const.
+pub fn belts() -> Conveyors {
+    Conveyors {
+        zone: BALL_FACTORY,
+        ways: carried(&BELT_ROUTES),
+        turned: carried(&BELT_TURNED),
+        switch: BELT_SWITCH,
+        state: BALL_FACTORY_SEQUENCE,
+    }
+}
+
 pub const PRISM_LOBBY: i64 = 0x4D;
 pub const CLEMONT_ROOM: i64 = 0x4E;
 /// Prism Tower's Gym: its lobby, Clemont's room at the top, and Bonnie's four quiz rooms under it,
@@ -800,22 +815,14 @@ pub fn game() -> &'static Game {
                 }),
                 Arc::new(climbing()),
                 Arc::new(GRINDING),
+                Arc::new(VINING),
+                Arc::new(belts()),
             ],
         ]
         .concat(),
-        vining: Some(VINING),
         teleporting: IndexMap::from([(LAVERRE_GYM, 56)]),
         gates: true,
         steps: STEPS,
-        conveyors: IndexMap::from([(
-            BALL_FACTORY,
-            Conveyors {
-                ways: carried(&BELT_ROUTES),
-                turned: carried(&BELT_TURNED),
-                switch: BELT_SWITCH,
-                state: BALL_FACTORY_SEQUENCE,
-            },
-        )]),
         crossed: HashSet::from([(BALL_FACTORY, BELT_ENTRANCE)]),
         training: TRAINING,
         amie: AMIE,
