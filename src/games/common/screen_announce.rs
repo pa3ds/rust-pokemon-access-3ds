@@ -37,9 +37,14 @@
 //!   change.
 //! - **A clock is said at its marks** (Orion, 2026-10-26): while a game that times the player
 //!   runs, Pokémon-Amie's three, a number going one up or down a second after it last changed is
-//!   its clock ticking, said each half minute and, counting down, at 10 and each of the last 5.
-//!   They said "Time Left" every second for a minute. Every tick can sound a tone,
-//!   `[pa3ds.audio] ticks`.
+//!   its clock ticking, said each half minute and, counting down, at 10 and each of the last 5,
+//!   once while it bounces round one. They said "Time Left" every second for a minute. Every tick
+//!   can sound a tone, `[pa3ds.audio] ticks`. While the player plays, a Tile Puzzle with a piece
+//!   away from home, its numbers are the play's, unsaid but for the clock's marks (Orion,
+//!   2026-10-28).
+//! - **Words coming back where words of their panel are leaving come alone**, and so does every
+//!   word coming back while a game that times the player runs: neither is a screen coming back
+//!   (2026-10-28).
 //! - The item under a cursor comes first, then its details, then what changed, then what came on
 //!   screen. Nothing interrupts unless the speech policy says so.
 //!
@@ -189,6 +194,9 @@ pub struct ScreenAnnouncer {
     pauses: bool,
     tick: Option<Rc<dyn Fn()>>,
     timed: Option<Rc<dyn Fn() -> bool>>,
+    playing: Option<Rc<dyn Fn() -> Result<bool>>>,
+    /// Clock's TextBox -> the mark it was said at last, said once while it bounces round it.
+    marks: IndexMap<i64, i64>,
     /// TextBox -> the words it came on screen with or changed to lately, and the poll, for
     /// telling a clock's tick (`_ticked`).
     set: IndexMap<i64, (String, i64)>,
@@ -238,17 +246,21 @@ impl ScreenAnnouncer {
 
     /// `ScreenAnnouncer(speech, log, pauses)`: no clock.
     pub fn with(speech: Rc<Speech>, log: Log, pauses: bool) -> Self {
-        ScreenAnnouncer::with_clock(speech, log, pauses, None, None)
+        ScreenAnnouncer::with_clock(speech, log, pauses, None, None, None)
     }
 
     /// `timed` says whether a game that times the player runs, whose clock is said at its
-    /// marks (`_ticked`), none where it is None; `tick` sounds each tick of the clock.
+    /// marks (`_ticked`), none where it is None; `tick` sounds each tick of the clock; `playing`
+    /// whether its player is in the middle of play, whose numbers are left unsaid.
+    ///
+    /// `playing` returns `Result`: it reads the game.
     pub fn with_clock(
         speech: Rc<Speech>,
         log: Log,
         pauses: bool,
         tick: Option<Rc<dyn Fn()>>,
         timed: Option<Rc<dyn Fn() -> bool>>,
+        playing: Option<Rc<dyn Fn() -> Result<bool>>>,
     ) -> Self {
         ScreenAnnouncer {
             speech,
@@ -256,6 +268,8 @@ impl ScreenAnnouncer {
             pauses,
             tick,
             timed,
+            playing,
+            marks: IndexMap::new(),
             set: IndexMap::new(),
             clocks: HashSet::new(),
             menus: HashSet::new(),
@@ -539,12 +553,20 @@ impl ScreenAnnouncer {
             .cloned()
             .collect();
         let timed = self.timed.as_ref().is_some_and(|timed| timed());
-        let mut ticks: HashSet<i64> = HashSet::new();
+        let mut steps: IndexMap<i64, bool> = IndexMap::new();
         for p in &heard {
-            if timed && p.changed && self.ticked(p)? {
-                ticks.insert(p.r#box);
+            if timed
+                && p.changed
+                && let Some(tick) = self.ticked(p)?
+            {
+                steps.insert(p.r#box, tick);
             }
         }
+        let mut ticks: HashSet<i64> = steps
+            .iter()
+            .filter(|(_, tick)| **tick)
+            .map(|(&r#box, _)| r#box)
+            .collect();
         // Kept for two beats, so a clock whose second the reader missed still ticks.
         let polls = self.polls;
         self.set
@@ -554,6 +576,43 @@ impl ScreenAnnouncer {
         }
         let set = &self.set;
         self.clocks.retain(|r#box| set.contains_key(r#box));
+        let clocks = &self.clocks;
+        self.marks.retain(|r#box, _| clocks.contains(r#box));
+        // While the player plays, the numbers are the play's but for the clock's marks, and the
+        // signs beside them: at each piece put home Unlimited said its total and the gain it
+        // popped up, "Puzzle No. 2, 102 Points", "+2 Points", its "+" a TextBox of its own, and
+        // the second it gave back, "Time Remaining: 00:30" (or_amie_tile_puzzle_unlimited).
+        // Nothing is said of a swap, the total as a puzzle starts and once it is solved (Orion,
+        // 2026-10-28). The last swap's are said: the board lies solved 0.4 s before its total
+        // changes, and the results come a second after that.
+        let played: HashSet<i64> = heard
+            .iter()
+            .filter(|p| {
+                !steps.contains_key(&p.r#box)
+                    && (NUMBERS.is_match(&p.text) || !p.text.chars().any(py::is_alpha))
+            })
+            .map(|p| p.r#box)
+            .collect();
+        let mut heard = heard;
+        if timed && !played.is_empty() {
+            let playing = match &self.playing {
+                Some(playing) => playing()?,
+                None => false,
+            };
+            if playing {
+                (self.log)(&format!(
+                    "screen played, unsaid: {}",
+                    heard
+                        .iter()
+                        .filter(|p| played.contains(&p.r#box))
+                        .map(|p| p.text.as_str())
+                        .collect::<Vec<&str>>()
+                        .join(", ")
+                ));
+                heard.retain(|p| !played.contains(&p.r#box));
+                ticks.extend(played.iter().copied());
+            }
+        }
         let mut changed: Vec<ScreenText> = heard
             .iter()
             .filter(|p| p.changed && !ticks.contains(&p.r#box))
@@ -646,7 +705,7 @@ impl ScreenAnnouncer {
         // Words arriving now are said with the rest of this poll, not taken for what moved on.
         let coming: HashSet<i64> = ready.iter().map(|p| p.r#box).collect();
         let kept: HashSet<i64> = cursored.union(&coming).copied().collect();
-        self.say_shown(&moved_on, on_screen, &mut said, labels, &kept);
+        self.say_shown(&moved_on, on_screen, &mut said, labels, &kept, left);
 
         // A changed value's row is what was already there: what comes on screen with it is said
         // after, and was said twice when a panel took it in.
@@ -673,47 +732,62 @@ impl ScreenAnnouncer {
             self.speech.say(&text, Category::Menu);
         }
 
-        self.say_shown(&ready, on_screen, &mut said, labels, &cursored);
+        self.say_shown(&ready, on_screen, &mut said, labels, &cursored, left);
         self.say_what_is_left(left, on_screen, &mut said)
     }
 
-    /// Is a changed piece a clock's tick, left unsaid? Its number has gone one up or down a
-    /// second after the words were last set, and nothing else of them has changed: "Time Left:
-    /// 58", "Time: 00:10". Asked only while a game that times the player runs (`timed`). Once a
-    /// clock, a step of two, a second the reader missed, or one coming soon after a late one,
-    /// is a tick too: Berry Picker went 41 then 39, and 10 then 9 at 0.4 s. Every tick sounds
-    /// `tick`; one reaching or passing a mark is said.
-    fn ticked(&mut self, piece: &ScreenText) -> Result<bool> {
+    /// Is a changed piece a clock's tick, left unsaid (True), or one at a mark, said
+    /// (False)? None for no tick. Its number has gone one up or down a second after the words
+    /// were last set, and nothing else of them has changed: "Time Left: 58", "Time: 00:10".
+    /// Asked only while a game that times the player runs (`timed`). Once a clock, a step of
+    /// two, a second the reader missed, or one coming soon after a late one, is a tick too:
+    /// Berry Picker went 41 then 39, and 10 then 9 at 0.4 s. Every tick sounds `tick`; one
+    /// reaching or passing a mark is said, but a mark said last, as a second won back bounces
+    /// the clock round it: Unlimited said "Time Remaining: 01:00" twice in a second
+    /// (or_amie_tile_puzzle_unlimited). A clock changing on no tick passes its marks afresh.
+    fn ticked(&mut self, piece: &ScreenText) -> Result<Option<bool>> {
         let Some(before) = self.set.get(&piece.r#box).cloned() else {
-            return Ok(false);
+            return Ok(None);
         };
         let (now, then) = (seconds(&piece.text)?, seconds(&before.0)?);
         let (Some(now), Some(then)) = (now, then) else {
-            return Ok(false);
+            return Ok(None);
         };
         if NUMBERS.replace_all(&piece.text, "#") != NUMBERS.replace_all(&before.0, "#") {
-            return Ok(false);
+            return Ok(None);
         }
         let step = (now - then).abs();
         if !((step == 1 && CLOCK_POLLS.contains(&(self.polls - before.1)))
             || (self.clocks.contains(&piece.r#box) && 0 < step && step <= 2))
         {
-            return Ok(false);
+            self.marks.shift_remove(&piece.r#box);
+            return Ok(None);
         }
         self.clocks.insert(piece.r#box);
         let down = now < then;
         if let Some(tick) = &self.tick {
             tick();
         }
-        let mut passed = if down { now..then } else { then + 1..now + 1 };
-        if passed.any(|seconds| marked(seconds, down)) {
-            return Ok(false);
+        let passed = if down { now..then } else { then + 1..now + 1 };
+        let marks: Vec<i64> = passed.filter(|&seconds| marked(seconds, down)).collect();
+        if !marks.is_empty() {
+            // `min(marks, key=lambda s: abs(s - now))`: the first of equals.
+            let mut mark = marks[0];
+            for &seconds in &marks[1..] {
+                if (seconds - now).abs() < (mark - now).abs() {
+                    mark = seconds;
+                }
+            }
+            if self.marks.get(&piece.r#box) != Some(&mark) {
+                self.marks.insert(piece.r#box, mark);
+                return Ok(Some(false));
+            }
         }
         (self.log)(&format!(
             "screen ticked: {}  [layout {:#x}]",
             piece.text, piece.root
         ));
-        Ok(true)
+        Ok(Some(true))
     }
 
     /// Say the letters left in a name a letter has just been deleted from.
@@ -758,7 +832,8 @@ impl ScreenAnnouncer {
 
     /// Say what came on screen: one utterance per panel, queued in build order, rather than one
     /// run for the whole poll. Two panels are two things, and the battle's HP box proved it: the
-    /// player's level and HP and the wild Pokemon's level ran together as "6 22/ 22 2".
+    /// player's level and HP and the wild Pokemon's level ran together as "6 22/ 22 2". `left`
+    /// is what left the screen this poll (`_with_what_stayed`).
     fn say_shown(
         &mut self,
         shown: &[ScreenText],
@@ -766,12 +841,13 @@ impl ScreenAnnouncer {
         said: &mut HashSet<i64>,
         labels: &HashSet<String>,
         kept: &HashSet<i64>,
+        left: &[ScreenText],
     ) {
         if shown.is_empty() {
             return;
         }
         let shown = with_row_mates(shown, on_screen, kept, labels);
-        let stayed = self.with_what_stayed(&shown, on_screen, said, labels);
+        let stayed = self.with_what_stayed(&shown, on_screen, said, labels, left);
         for pieces in panels(&stayed, on_screen) {
             if pieces.is_empty() {
                 continue;
@@ -1215,17 +1291,37 @@ impl ScreenAnnouncer {
     /// ID No. …", where opening the summary read its stats and name as well: the move list keeps
     /// those on screen. A screen coming back is read as it opened (the user, 2026-09-14), so words
     /// coming back to a layout bring what stayed in it. A menu's layout is left to its cursor, and
-    /// words new to a layout come alone, as a question does.
+    /// words new to a layout come alone, as a question does. So do words that came back where
+    /// words of their panel were leaving, `left`, and what comes with them: the screen changed
+    /// what it shows there, and did not come back. Each of Tile Puzzle's difficulty buttons, one
+    /// panel slid or swapped in for the last, read "Select a difficulty level." over it twice
+    /// (or_amie_tile_puzzle_play_again). Not words of another panel: the summary's "OT" panel
+    /// comes back where the move list leaves, and brings its stats and name (or_menus). A screen
+    /// coming back by sliding in is still one coming
+    /// back: the decorate screen's counts slide back up as it returns, and bring its wallpaper's
+    /// name and "Interior Items Poké Puffs" (or_amie_interior_items). And while a game that times
+    /// the player runs every word comes alone, as its pop-ups come back where they were:
+    /// Unlimited's "+2 Points", popped up at each piece put home, read its instructions and its
+    /// clock again each time (or_amie_tile_puzzle_unlimited).
     fn with_what_stayed(
         &self,
         shown: &[ScreenText],
         on_screen: &[ScreenText],
         said: &HashSet<i64>,
         labels: &HashSet<String>,
+        left: &[ScreenText],
     ) -> Vec<ScreenText> {
+        if self.timed.as_ref().is_some_and(|timed| timed()) {
+            return shown.to_vec();
+        }
+        let swapped: HashSet<i64> = shown
+            .iter()
+            .filter(|p| left.iter().any(|gone| p.over(gone)))
+            .map(|p| p.root)
+            .collect();
         let back: HashSet<i64> = shown
             .iter()
-            .filter(|p| p.returned && !self.menus.contains(&p.root))
+            .filter(|p| p.returned && !self.menus.contains(&p.root) && !swapped.contains(&p.root))
             .map(|p| p.root)
             .collect();
         if back.is_empty() {

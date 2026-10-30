@@ -1,6 +1,6 @@
 //! Screen announcing tests: what is said of screen text and cursors, and in what order.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
@@ -121,11 +121,16 @@ impl Screen {
     }
 
     fn with(pauses: bool) -> Self {
-        Screen::with_clock(pauses, None, false)
+        Screen::with_clock(pauses, None, false, None)
     }
 
-    /// `Screen(pauses, tick, timed)`.
-    fn with_clock(pauses: bool, tick: Option<Rc<dyn Fn()>>, timed: bool) -> Self {
+    /// `Screen(pauses, tick, timed, playing)`.
+    fn with_clock(
+        pauses: bool,
+        tick: Option<Rc<dyn Fn()>>,
+        timed: bool,
+        playing: Option<Rc<dyn Fn() -> Result<bool>>>,
+    ) -> Self {
         let backend = Recorder::new();
         let announcer = ScreenAnnouncer::with_clock(
             Rc::new(Speech::plain(backend.clone())),
@@ -133,6 +138,7 @@ impl Screen {
             pauses,
             tick,
             Some(Rc::new(move || timed)),
+            playing,
         );
         Screen { backend, announcer }
     }
@@ -912,6 +918,80 @@ fn test_part_of_a_screen_coming_back_brings_back_the_rest_of_it() {
 }
 
 #[test]
+fn test_words_coming_back_where_words_are_leaving_come_alone() {
+    // Each of Tile Puzzle's difficulty buttons, slid or swapped in for the last, came back to
+    // its screen, and read "Select a difficulty level." again over it (or_amie_tile_puzzle_play_
+    // again).
+    let title = piece(1, "Select a difficulty level.", -80.0, 105.0, PANEL);
+    let easy = ScreenText {
+        returned: true,
+        ..piece_kw(
+            2,
+            "Easy",
+            -12.0,
+            -29.0,
+            PANEL,
+            Kw {
+                with_layout: false,
+                ..PLAIN
+            },
+        )
+    };
+    let normal = piece(3, "Normal", -19.0, -29.0, PANEL);
+    assert_eq!(
+        Screen::new().say(Args {
+            left: vec![normal],
+            ..args(&one(&easy), vec![], &[title, easy.clone()])
+        }),
+        ["Easy"]
+    );
+}
+
+#[test]
+fn test_words_coming_back_where_another_panels_words_leave_bring_the_rest() {
+    // The summary's "OT" panel comes back where the move list leaves, and read the stats and
+    // name again as it opened them (or_menus).
+    let stats = vec![
+        piece(1, "HP", 50.0, 85.0, SUMMARY),
+        piece(2, "20", 110.0, 85.0, SUMMARY),
+    ];
+    let back = ScreenText {
+        returned: true,
+        ..piece_kw(
+            3,
+            "OT",
+            -150.0,
+            -40.0,
+            SUMMARY,
+            Kw {
+                with_layout: false,
+                panel: 8,
+                ..PLAIN
+            },
+        )
+    };
+    let moves = piece_kw(
+        4,
+        "Scratch",
+        -150.0,
+        -40.0,
+        SUMMARY,
+        Kw { panel: 9, ..PLAIN },
+    );
+    assert_eq!(
+        Screen::new().say(Args {
+            left: vec![moves],
+            ..args(
+                &one(&back),
+                vec![],
+                &cat(&[&stats, std::slice::from_ref(&back)])
+            )
+        }),
+        ["HP 20", "OT"]
+    );
+}
+
+#[test]
 fn test_words_new_to_a_screen_already_up_come_alone() {
     let mut screen = Screen::new();
     let stats = vec![
@@ -1278,6 +1358,7 @@ fn test_a_countdown_is_said_each_half_minute_at_10_and_its_last_5() {
         false,
         Some(Rc::new(move || counting.borrow_mut().push(1))),
         true,
+        None,
     );
     let countdown: Vec<String> = (0..=60)
         .rev()
@@ -1305,7 +1386,7 @@ fn test_a_clock_counting_up_is_said_each_half_minute() {
     let up: Vec<String> = (28..33)
         .map(|seconds| format!("Time: 00:{seconds:02}"))
         .collect();
-    let said = run_clock_5(&mut Screen::with_clock(false, None, true), &up);
+    let said = run_clock_5(&mut Screen::with_clock(false, None, true, None), &up);
     assert_eq!(said, ["Time: 00:28", "Time: 00:30"]);
 }
 
@@ -1314,7 +1395,7 @@ fn test_a_clock_still_ticks_past_a_missed_second_and_after_a_late_one() {
     // Berry Picker's replay read 41 then 39 two seconds later, and 10 then 9 two polls after
     // (as_amie_berry_picker); 31 to 29 passes the half minute, which is said.
     let said = run_clock(
-        &mut Screen::with_clock(false, None, true),
+        &mut Screen::with_clock(false, None, true, None),
         &words(&[
             "Time Left: 42",
             "Time Left: 41",
@@ -1327,7 +1408,7 @@ fn test_a_clock_still_ticks_past_a_missed_second_and_after_a_late_one() {
     );
     assert_eq!(said, ["Time Left: 42"]);
     let said = run_clock(
-        &mut Screen::with_clock(false, None, true),
+        &mut Screen::with_clock(false, None, true, None),
         &words(&[
             "Time Left: 33",
             "Time Left: 32",
@@ -1337,6 +1418,125 @@ fn test_a_clock_still_ticks_past_a_missed_second_and_after_a_late_one() {
         &[5, 5, 10],
     );
     assert_eq!(said, ["Time Left: 33", "Time Left: 29"]);
+}
+
+#[test]
+fn test_a_mark_is_said_once_as_a_second_won_back_bounces_the_clock_round_it() {
+    // Tile Puzzle's Unlimited gives a second back for a piece put home, and said "Time
+    // Remaining: 01:00" twice in a second (or_amie_tile_puzzle_unlimited). A clock jumping, as a
+    // finished puzzle's 28 seconds won back do, passes its marks afresh.
+    let bouncing: Vec<String> = ["01:02", "01:01", "01:00", "01:01", "01:00", "00:59"]
+        .iter()
+        .map(|seconds| format!("Time Remaining: {seconds}"))
+        .collect();
+    let said = run_clock(
+        &mut Screen::with_clock(false, None, true, None),
+        &bouncing,
+        &[5, 5, 3, 3, 5],
+    );
+    assert_eq!(said, ["Time Remaining: 01:02", "Time Remaining: 01:00"]);
+    let jumping: Vec<String> = [31, 30]
+        .into_iter()
+        .chain((30..=58).rev())
+        .map(|seconds| format!("Time Remaining: 00:{seconds}"))
+        .collect();
+    let said = run_clock_5(&mut Screen::with_clock(false, None, true, None), &jumping);
+    assert_eq!(
+        said,
+        [
+            "Time Remaining: 00:31",
+            "Time Remaining: 00:30",
+            "Time Remaining: 00:58",
+            "Time Remaining: 00:30"
+        ]
+    );
+}
+
+#[test]
+fn test_numbers_are_the_plays_while_the_player_plays() {
+    // At each piece put home Unlimited said its total and the gain it popped up, "Puzzle No. 2,
+    // 102 Points", "+2 Points" (or_amie_tile_puzzle_unlimited): nothing is said of a swap, the
+    // total only as a puzzle starts and once it is solved (Orion, 2026-10-28). Words are said.
+    let playing = Rc::new(Cell::new(false));
+    let asked = playing.clone();
+    let mut screen = Screen::with_clock(false, None, true, Some(Rc::new(move || Ok(asked.get()))));
+    let in_panel = Kw { parent: 5, ..PLAIN };
+    let puzzle = piece_kw(1, "Puzzle No. 2", -100.0, 20.0, PANEL, in_panel);
+    let total = piece_kw(2, "100 Points", 0.0, 20.0, PANEL, in_panel);
+    let both = [puzzle.clone(), total.clone()];
+    assert_eq!(
+        screen.say(args(&both, vec![], &both)),
+        ["Puzzle No. 2 100 Points"]
+    );
+    playing.set(true);
+    let more = ScreenText {
+        text: "102 Points".into(),
+        changed: true,
+        with_layout: false,
+        ..total.clone()
+    };
+    let alone = Kw {
+        with_layout: false,
+        ..PLAIN
+    };
+    let gain = [
+        piece_kw(3, "+", 44.0, 0.0, PANEL, alone),
+        piece_kw(5, "2 Points", 50.0, 0.0, PANEL, alone),
+    ];
+    let question = piece(4, "Quit the puzzle?", 0.0, -50.0, MENU);
+    assert_eq!(
+        screen.say(args(
+            &cat(&[
+                std::slice::from_ref(&more),
+                &gain,
+                std::slice::from_ref(&question)
+            ]),
+            vec![],
+            &cat(&[&[puzzle.clone(), more.clone()], &gain, &[question]]),
+        )),
+        ["Quit the puzzle?"]
+    );
+    playing.set(false);
+    let solved = ScreenText {
+        text: "202 Points".into(),
+        ..more
+    };
+    assert_eq!(
+        screen.say(args(&one(&solved), vec![], &[puzzle, solved.clone()])),
+        ["Puzzle No. 2 202 Points"]
+    );
+}
+
+#[test]
+fn test_words_coming_back_while_a_game_times_the_player_come_alone() {
+    // Unlimited pops "+28 Seconds" up again as a puzzle is solved, and it brought the
+    // instructions and the clock with it (or_amie_tile_puzzle_unlimited).
+    let rules = [
+        piece(1, "How to Play", -100.0, 100.0, PANEL),
+        piece(2, "Time: 00:47", -100.0, 60.0, PANEL),
+    ];
+    let gain = ScreenText {
+        returned: true,
+        ..piece_kw(
+            3,
+            "+28 Seconds",
+            50.0,
+            0.0,
+            PANEL,
+            Kw {
+                with_layout: false,
+                ..PLAIN
+            },
+        )
+    };
+    assert_eq!(
+        Screen::with_clock(false, None, true, None).say(args(
+            &one(&gain),
+            vec![],
+            &cat(&[&rules, std::slice::from_ref(&gain)]),
+        )),
+        ["+28 Seconds"]
+    );
 }
 
 #[test]
@@ -1356,7 +1556,7 @@ fn test_a_number_changing_by_one_off_a_seconds_beat_is_said() {
     // A score going up by one a poll after it came, or a play time a minute after, is no clock.
     assert_eq!(
         run_clock(
-            &mut Screen::with_clock(false, None, true),
+            &mut Screen::with_clock(false, None, true, None),
             &words(&["SCORE 7", "SCORE 8"]),
             &[1]
         ),
@@ -1364,7 +1564,7 @@ fn test_a_number_changing_by_one_off_a_seconds_beat_is_said() {
     );
     assert_eq!(
         run_clock(
-            &mut Screen::with_clock(false, None, true),
+            &mut Screen::with_clock(false, None, true, None),
             &words(&["Play time: 14", "Play time: 15"]),
             &[300]
         ),

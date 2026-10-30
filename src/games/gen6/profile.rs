@@ -965,6 +965,13 @@ impl Gen6Profile {
                         .is_some_and(|running| amie::GAMES.contains(&running))
                 })
             }),
+            Some({
+                let (apps, puzzle) = (apps.clone(), puzzle.clone());
+                Rc::new(move || {
+                    Ok(apps.borrow().running.as_deref() == Some(puzzle::APP)
+                        && puzzle.borrow().playing()?)
+                })
+            }),
         );
         // The scenes the game shows without words, described where the player asks and the game
         // has descriptions in their language (ADR-0038), those of the other version left out.

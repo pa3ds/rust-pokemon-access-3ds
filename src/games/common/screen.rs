@@ -183,6 +183,15 @@ impl ScreenText {
             },
         )
     }
+
+    /// Do the two stand in one place in one panel, one over the other?
+    pub fn over(&self, other: &ScreenText) -> bool {
+        self.root == other.root
+            && self.panel == other.panel
+            && self.left < other.right
+            && other.left < self.right
+            && (self.row - other.row).abs() < py_max(self.glyph, other.glyph)
+    }
 }
 
 /// What one screen text poll found (`ScreenTextReader.poll`).
@@ -442,8 +451,11 @@ pub struct ScreenTextReader {
     layouts: Rc<Layouts>,
     windows: Vec<String>,
     boxes: Vec<i64>,
-    /// TextBox -> its words at the last poll, for TextBoxes that were on screen.
-    seen: IndexMap<i64, String>,
+    /// TextBox -> its words at the last poll and where they started and stood, for TextBoxes
+    /// that were on screen.
+    seen: IndexMap<i64, (String, f64, f64)>,
+    /// TextBoxes held at the last poll as words of their layout slid (`poll`).
+    moving: HashSet<i64>,
     /// TextBox -> the words last reported, for TextBoxes still on screen.
     said: IndexMap<i64, String>,
     /// TextBox -> the piece last reported for it, to say what a word that left was.
@@ -520,6 +532,7 @@ impl ScreenTextReader {
             windows,
             boxes: Vec::new(),
             seen: IndexMap::new(),
+            moving: HashSet::new(),
             said: IndexMap::new(),
             last_said: IndexMap::new(),
             gone: IndexMap::new(),
@@ -566,7 +579,16 @@ impl ScreenTextReader {
     /// this poll found (`ScreenPoll`).
     ///
     /// `exclude` is the TextBoxes message windows lay their pages out in. With `hold`, words are
-    /// reported only once they read the same on two polls in a row; without it, at once.
+    /// reported only once they read the same on two polls in a row; without it, at once. Words
+    /// that moved more than a glyph since the last poll hold their layout's words back a poll,
+    /// so that what slides in together is heard together, once it has stopped: Tile Puzzle's
+    /// difficulty buttons slide in from the screen's edge over two polls, and heard as their
+    /// words held, the button sliding out was heard with them, "Normal 5 stars Hard 2 stars", the
+    /// two of its stars still on screen (or_amie_tile_puzzle_play_again). A word only bobbing, as
+    /// "MISS!" does over the two polls it is up (as_amie_head_it), is heard at once, and so are
+    /// words sliding as their layout opens, which arrive as a screen does (`ARRIVAL_POLLS`): a
+    /// level up's stats cascade in, and held, they were gone before their values were heard
+    /// (or_victory_road_boulders).
     ///
     /// Python's `exclude` defaults to no TextBoxes and `hold` to True.
     pub fn poll(&mut self, exclude: &HashSet<i64>, hold: bool) -> Result<ScreenPoll> {
@@ -687,10 +709,41 @@ impl ScreenTextReader {
             .collect();
 
         let mut out: Vec<ScreenText> = Vec::new();
-        for (r#box, piece) in &found {
-            if self.said.get(r#box) == Some(&piece.text)
-                || (hold && self.seen.get(r#box) != Some(&piece.text))
+        let seen: IndexMap<i64, (String, f64, f64)> = now
+            .iter()
+            .map(|(&r#box, piece)| (r#box, (piece.text.clone(), piece.left, piece.row)))
+            .collect();
+        let ready: IndexMap<i64, &ScreenText> = found
+            .iter()
+            .filter(|(r#box, piece)| {
+                self.said.get(*r#box) != Some(&piece.text)
+                    && (!hold
+                        || self.seen.get(*r#box).map_or("", |seen| seen.0.as_str()) == piece.text)
+            })
+            .map(|(&r#box, piece)| (r#box, piece))
+            .collect();
+        let mut sliding: HashSet<i64> = HashSet::new();
+        for (r#box, piece) in &ready {
+            if hold
+                && moved(
+                    self.seen
+                        .get(r#box)
+                        .ok_or_else(|| Error::key(r#box.to_string()))?,
+                    piece,
+                )
+                && !self.moving.contains(r#box)
+                && self.polls - get(&self.root_since, piece.root)? > ARRIVAL_POLLS
             {
+                sliding.insert(piece.root);
+            }
+        }
+        let moving: HashSet<i64> = ready
+            .iter()
+            .filter(|(r#box, piece)| sliding.contains(&piece.root) && !self.moving.contains(*r#box))
+            .map(|(&r#box, _)| r#box)
+            .collect();
+        for (r#box, piece) in &ready {
+            if moving.contains(r#box) {
                 continue;
             }
             let with_layout =
@@ -703,7 +756,7 @@ impl ScreenTextReader {
                 with_layout,
                 returned,
                 scrolled,
-                ..piece.clone()
+                ..(*piece).clone()
             });
             self.said.insert(*r#box, piece.text.clone());
             self.last_said.insert(*r#box, out[out.len() - 1].clone());
@@ -731,10 +784,8 @@ impl ScreenTextReader {
                 .filter(|(r#box, p)| self.said.get(*r#box) != Some(&p.text))
                 .map(|(_, p)| p.root),
         );
-        self.seen = now
-            .iter()
-            .map(|(&r#box, piece)| (r#box, piece.text.clone()))
-            .collect();
+        self.seen = seen;
+        self.moving = moving;
         out.sort_by_key(reading_order);
         Ok(ScreenPoll {
             texts: out,
@@ -1030,6 +1081,20 @@ impl ScreenTextReader {
         let pages: Vec<&str> = spoken.iter().map(|page| page.text.as_str()).collect();
         Ok(py::split(&pages.join(" ")).join(" "))
     }
+}
+
+/// Have the piece's words moved more than a glyph since they were `seen`? A difficulty button
+/// slides 40 to 160 a poll (or_amie_tile_puzzle_play_again), a Pokédex entry's panel 17; Berry
+/// Picker's last seconds bob 1 to 3, "MISS!" and "START!" 5 (as_amie_berry_picker,
+/// as_amie_head_it).
+fn moved(seen: &(String, f64, f64), piece: &ScreenText) -> bool {
+    let (_text, left, row) = seen;
+    piece.glyph > 0.0 && py_max((piece.left - left).abs(), (piece.row - row).abs()) > piece.glyph
+}
+
+/// `max(a, b)` of floats: `a` unless `b` is strictly greater, as Python's.
+fn py_max(a: f64, b: f64) -> f64 {
+    if b > a { b } else { a }
 }
 
 /// Is the piece wholly outside its screen, judged from its layout's root at (root_x, root_y)?

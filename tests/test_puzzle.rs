@@ -178,6 +178,15 @@ fn test_a_move_says_only_the_row_or_column_that_changed() {
 }
 
 #[test]
+fn test_the_player_plays_while_a_piece_is_away_from_home() {
+    // The board lies whole until Begin shuffles it (or_amie_tile_puzzle_play_again).
+    let mut slots: Vec<i64> = (0..20).collect();
+    assert!(!board(&slots, None, 0).0.playing().unwrap());
+    (slots[14], slots[0]) = (0, 14);
+    assert!(board(&slots, None, 0).0.playing().unwrap());
+}
+
+#[test]
 fn test_records_out_of_order_or_two_in_one_slot_are_no_board() {
     // The module's own data held words like a Piece's vtable (spike A).
     let mut slots: Vec<i64> = (0..20).collect();

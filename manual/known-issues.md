@@ -11,8 +11,10 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
   screen calls each party member "button pokémon" and says no hearts, puffs or notes after
   Affection, Fullness and Enjoyment. Of its games, Berry Picker's berries are said by file names,
   "kinomi00", and not which Pokémon wants which, nor how many you picked; Head It offers nothing
-  to tap, and its total is not said; Tile Puzzle's Unlimited has not been tried, "Yes" is said as
-  a puzzle begins, and a tile says where its piece of the picture belongs, not what is on it.
+  to tap, and its total is not said; in Tile Puzzle "Yes" is said as a puzzle begins, the last
+  swap's points are said as it is solved, and a tile says where its piece of the picture belongs,
+  not what is on it. Poké Puffs are named by file, "okashi 00", and cannot be given, as they are
+  dragged.
 - **X, Y, Sun and Moon** are read less completely than Omega Ruby and Alpha Sapphire.
 
 ## The map

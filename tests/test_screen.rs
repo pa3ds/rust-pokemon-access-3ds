@@ -205,6 +205,57 @@ fn test_words_on_screen_are_heard_once_they_hold_for_a_poll() {
     assert_eq!(game.heard(), words(&[]));
 }
 
+/// Tile Puzzle's difficulty buttons slide in from the screen's edge over two polls, and heard
+/// as their words held, the button sliding out was heard with them, "Normal 5 stars Hard 2
+/// stars" (or_amie_tile_puzzle_play_again). Words new beside them wait with them, a poll at
+/// most. Sliding as their layout opens, as a level up's stats cascade in, they are heard as a
+/// screen arriving is (or_victory_road_boulders).
+#[test]
+fn test_words_sliding_in_hold_their_layout_back_a_poll() {
+    let mut game = Game::new();
+    let (_, group) = game.screen(BOTTOM);
+    let button = game.text_box(BOTTOM + 0x1000, group, "");
+    let note = game.text_box(BOTTOM + 0x1100, group, "");
+    let title = game.text_box(BOTTOM + 0x1200, group, "Select a difficulty level.");
+    game.place(title, (0.0, 100.0), 200.0, 12.5);
+    game.place(note, (0.0, -60.0), 60.0, 12.5);
+    game.sweep();
+    for _ in 0..4 {
+        game.heard();
+    }
+    game.write(button, "Normal");
+    game.write(note, "Best");
+    game.place(button, (-120.0, 0.0), 60.0, 12.5);
+    assert_eq!(game.heard(), words(&[]));
+    game.place(button, (-40.0, 0.0), 60.0, 12.5);
+    assert_eq!(game.heard(), words(&[]));
+    game.place(button, (0.0, 0.0), 60.0, 12.5);
+    let mut heard = game.heard();
+    heard.sort();
+    assert_eq!(heard, words(&[("Best", false), ("Normal", false)]));
+    let mut opening = Game::new();
+    let (_, group) = opening.screen(BOTTOM);
+    let stat = opening.text_box(BOTTOM + 0x1000, group, "ATTACK");
+    opening.place(stat, (100.0, 0.0), 60.0, 12.5);
+    opening.sweep();
+    assert_eq!(opening.heard(), words(&[]));
+    opening.place(stat, (50.0, 0.0), 60.0, 12.5);
+    assert_eq!(opening.heard(), words(&[("ATTACK", false)]));
+}
+
+/// Head It's "MISS!" bounces 5 units over the two polls it is up (as_amie_head_it).
+#[test]
+fn test_words_only_bobbing_are_heard_at_once() {
+    let mut game = Game::new();
+    let (_, group) = game.screen(BOTTOM);
+    let miss = game.text_box(BOTTOM + 0x1000, group, "MISS!");
+    game.place(miss, (30.0, -84.0), 30.0, 12.5);
+    game.sweep();
+    assert_eq!(game.heard(), words(&[]));
+    game.place(miss, (30.0, -89.0), 30.0, 12.5);
+    assert_eq!(game.heard(), words(&[("MISS!", false)]));
+}
+
 #[test]
 fn test_without_holding_words_on_screen_are_heard_at_once() {
     let (mut game, ..) = options();

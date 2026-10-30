@@ -328,6 +328,13 @@ impl TilePuzzle {
         Ok(drawing)
     }
 
+    /// Is the player in the middle of play, a piece away from home? The board lies whole until
+    /// Begin shuffles it, and once solved.
+    pub fn playing(&self) -> Result<bool> {
+        let board = self.board()?;
+        Ok(board.is_some_and(|board| board.tiles.iter().any(|(slot, (home, _))| home != slot)))
+    }
+
     /// The board, or None. A count of pieces of no difficulty's, a record out of its order or
     /// two pieces in one slot is no board: the module's own data holds words like a Piece's
     /// vtable. Read as Easy's first, and again whole for more pieces.
