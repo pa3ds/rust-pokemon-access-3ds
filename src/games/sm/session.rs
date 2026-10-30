@@ -31,11 +31,11 @@ use crate::py::{PySet, Result};
 /// reads are fetched together at the next poll of its kind, kept to the small blocks that may be
 /// read now.
 pub fn start(rpc: Rc<dyn Rpc>, speech: Rc<Speech>, setup: Setup) -> Result<Session> {
-    let setup = if setup.ui.language.is_empty() {
+    let setup = if setup.tables.ui.language.is_empty() {
         setup
     } else {
         Setup {
-            language: setup.ui.language.clone(),
+            language: setup.tables.ui.language.clone(),
             ..setup
         }
     };
@@ -144,7 +144,7 @@ pub fn start(rpc: Rc<dyn Rpc>, speech: Rc<Speech>, setup: Setup) -> Result<Sessi
     )?);
     // Sun's scenes are found by their demo's number, so none follows a line and none names a
     // thing the game does (ADR-0038).
-    let loaded = if setup.ui.descriptions {
+    let loaded = if setup.tables.ui.descriptions {
         let known = {
             let described = described.clone();
             move |message: &str| described.known(message)
@@ -165,8 +165,8 @@ pub fn start(rpc: Rc<dyn Rpc>, speech: Rc<Speech>, setup: Setup) -> Result<Sessi
         speech,
         setup.log.clone(),
         Options {
-            ui: Some(setup.ui.clone()),
-            navigation: Some(setup.navigation.clone()),
+            ui: Some(setup.tables.ui.clone()),
+            navigation: Some(setup.tables.navigation.clone()),
             text,
             zones,
             named: Some(named),

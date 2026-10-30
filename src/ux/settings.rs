@@ -50,7 +50,7 @@ pub const PAGES: [(&str, &str); 7] = [
     ("settings-page-amie", "pa3ds.amie"),
     ("settings-page-extras", "pa3ds.extras"),
 ];
-/// Where `config.Config` keeps each table.
+/// Where `config.Tables` keeps each table.
 pub const ON_CONFIG: [(&str, &str); 7] = [
     ("pa3ds", "general"),
     ("pa3ds.ui", "ui"),
@@ -193,13 +193,13 @@ pub fn values(settings: &Config) -> IndexMap<String, Value> {
         .iter()
         .map(|(table, on)| {
             let held = match *on {
-                "general" => settings.general.fields(),
-                "ui" => settings.ui.fields(),
-                "audio" => settings.audio.fields(),
-                "navigation" => settings.navigation.fields(),
-                "touch" => settings.touch.fields(),
-                "amie" => settings.amie.fields(),
-                _ => settings.extras.fields(),
+                "general" => settings.tables.general.fields(),
+                "ui" => settings.tables.ui.fields(),
+                "audio" => settings.tables.audio.fields(),
+                "navigation" => settings.tables.navigation.fields(),
+                "touch" => settings.tables.touch.fields(),
+                "amie" => settings.tables.amie.fields(),
+                _ => settings.tables.extras.fields(),
             };
             (*table, held)
         })

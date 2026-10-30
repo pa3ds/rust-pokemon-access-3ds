@@ -134,8 +134,16 @@ fn test_the_first_run_writes_every_default_and_reads_them_back() {
     assert_eq!(written["azahar"], toml::Value::Table(shipped));
     let again = prepare(&home, &none, false);
     assert_eq!(
-        (again.general, again.ui, again.navigation),
-        (first.general, first.ui, first.navigation)
+        (
+            again.tables.general,
+            again.tables.ui,
+            again.tables.navigation
+        ),
+        (
+            first.tables.general,
+            first.tables.ui,
+            first.tables.navigation
+        )
     );
     assert!(
         !again
@@ -192,15 +200,15 @@ fn test_a_setting_of_the_wrong_kind_is_logged_and_left_at_its_default() {
     )
     .unwrap();
     let settings = prepare(&home, &tmp_path.join("none.ini"), false);
-    assert_eq!(settings.general.poll_rate, 30.0);
+    assert_eq!(settings.tables.general.poll_rate, 30.0);
     assert_eq!(
-        settings.ui,
+        settings.tables.ui,
         Ui {
             interrupt: true,
             ..Ui::default()
         }
     );
-    assert_eq!(settings.navigation, Navigation::default());
+    assert_eq!(settings.tables.navigation, Navigation::default());
     assert!(settings.notes.iter().any(|note| note.contains("pauses")));
     assert!(settings.notes.iter().any(|note| note.contains("wibble")));
     assert!(
@@ -226,7 +234,7 @@ fn test_the_tones_turned_off_stay_off_as_they_move_to_the_audio_table() {
     let none = tmp_path.join("none.ini");
     let settings = config::prepare(Some(&home), Some(&none), true, false).unwrap();
     assert_eq!(
-        settings.audio,
+        settings.tables.audio,
         config::Audio {
             tones: 0.0,
             footsteps: 0.5,
@@ -247,6 +255,7 @@ fn test_the_tones_turned_off_stay_off_as_they_move_to_the_audio_table() {
     assert_eq!(
         config::prepare(Some(&tmp_path.join("new")), Some(&none), true, false)
             .unwrap()
+            .tables
             .audio,
         config::Audio {
             tones: 1.0,
@@ -274,14 +283,14 @@ fn test_touch_modes_settings_move_to_a_table_of_their_own_as_the_player_had_them
     config::prepare(Some(&home), Some(&none), true, false).unwrap();
     let settings = config::prepare(Some(&home), Some(&none), true, false).unwrap();
     assert_eq!(
-        settings.touch,
+        settings.tables.touch,
         config::Touch {
             wrap: false,
             next_row: false,
             drag: "toggle".to_string()
         }
     );
-    assert_eq!(settings.audio.feedback_sounds, 0.5);
+    assert_eq!(settings.tables.audio.feedback_sounds, 0.5);
     assert!(
         settings
             .notes
@@ -290,7 +299,7 @@ fn test_touch_modes_settings_move_to_a_table_of_their_own_as_the_player_had_them
         "{:?}",
         settings.notes
     );
-    assert_eq!(settings.amie, config::Amie::default());
+    assert_eq!(settings.tables.amie, config::Amie::default());
 }
 
 #[test]
@@ -305,6 +314,7 @@ fn test_an_extra_is_on_only_when_asked_for() {
     .unwrap();
     assert!(
         prepare(&home, &tmp_path.join("none.ini"), false)
+            .tables
             .extras
             .conditions
     );
@@ -315,7 +325,7 @@ fn test_an_extra_is_on_only_when_asked_for() {
         false,
     )
     .unwrap();
-    assert!(!other.extras.conditions);
+    assert!(!other.tables.extras.conditions);
 }
 
 /// The first file was flat, `positions = true` at the top; it is never overwritten.
@@ -326,7 +336,7 @@ fn test_a_file_from_before_the_tables_says_what_it_has_lost() {
     fs::create_dir(&home).unwrap();
     fs::write(home.join("config.toml"), "positions = true\n").unwrap();
     let settings = prepare(&home, &tmp_path.join("none.ini"), false);
-    assert_eq!(settings.ui, Ui::default());
+    assert_eq!(settings.tables.ui, Ui::default());
     assert!(
         settings
             .notes
@@ -373,7 +383,7 @@ fn test_a_setting_pa3ds_gained_is_added_and_nothing_else_changes() {
         read(&home.join("config.toml")).replace("\r\n", "\n"),
         full.replace("pauses = false", "pauses = true")
     );
-    assert!(settings.ui.pauses);
+    assert!(settings.tables.ui.pauses);
     assert!(
         settings
             .notes
@@ -406,7 +416,7 @@ fn test_a_name_every_table_has_and_no_setting_is_logged() {
     fs::create_dir(&home).unwrap();
     fs::write(home.join("config.toml"), "[pa3ds]\n__doc__ = \"x\"\n").unwrap();
     let settings = prepare(&home, &tmp_path.join("none.ini"), false);
-    assert_eq!(settings.general, General::default());
+    assert_eq!(settings.tables.general, General::default());
     assert!(settings.notes.iter().any(|note| note.contains("__doc__")));
 }
 
@@ -419,7 +429,7 @@ fn test_files_that_are_not_utf_8_read_as_nothing() {
     let ini = tmp_path.join("qt-config.ini");
     fs::write(&ini, b"enable_rpc_server=\xff\n").unwrap();
     let settings = config::prepare(Some(&home), Some(&ini), false, false).unwrap();
-    assert_eq!(settings.general, General::default());
+    assert_eq!(settings.tables.general, General::default());
     assert!(
         settings
             .notes
@@ -531,6 +541,7 @@ fn test_choosing_a_folder_sets_it_and_changes_nothing_else() {
     );
     assert_eq!(
         prepare(&home, &tmp_path.join("none.ini"), false)
+            .tables
             .general
             .azahar_folder,
         py::path_str(&second)

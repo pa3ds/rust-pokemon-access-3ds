@@ -20,7 +20,7 @@ use indexmap::{IndexMap, IndexSet};
 
 use crate::core::binary::u32;
 use crate::core::clips::Clips;
-use crate::core::config::{Amie, DRAG_TOGGLE, Extras, Navigation, Touch, Ui};
+use crate::core::config::{DRAG_TOGGLE, Tables};
 use crate::core::discovery::{Discovery, Found, HEAP_SPAN, LINEAR_SPAN, within};
 use crate::core::memory::{Cache, Memory, phase};
 use crate::core::names::{FURNITURE, GamePlace, GameSprite, Names, TILES};
@@ -189,11 +189,6 @@ pub const ARRIVAL_QUIET: f64 = 1.5;
 pub struct Options {
     /// None is `Names()`.
     pub named: Option<Rc<Names>>,
-    /// None is `Ui()`.
-    pub ui: Option<Ui>,
-    pub navigation: Option<Navigation>,
-    /// None is `Extras()`.
-    pub extras: Option<Extras>,
     /// None is `DEFAULT_BINDINGS`.
     pub keys: Option<Bindings>,
     pub text: Rc<GameText>,
@@ -212,10 +207,8 @@ pub struct Options {
     pub ways: Option<Ways>,
     /// None is `DEFAULT_CONTEXTS`.
     pub contexts: Option<Contexts>,
-    /// None is `Touch()`.
-    pub touch: Option<Touch>,
-    /// None is `Amie()`.
-    pub amie_settings: Option<Amie>,
+    /// None is `Tables()`.
+    pub tables: Option<Tables>,
 }
 
 /// The gen 6 readers, and what each sweep and poll does with them, for ORAS or for X and Y.
@@ -382,9 +375,6 @@ impl Gen6Profile {
     ) -> Gen6Profile {
         let Options {
             named,
-            ui,
-            navigation,
-            extras,
             keys,
             text,
             pictures,
@@ -399,11 +389,11 @@ impl Gen6Profile {
             census,
             ways,
             contexts,
-            touch,
-            amie_settings,
+            tables,
         } = options;
-        let touch_settings = touch.unwrap_or_default();
-        let amie_settings = amie_settings.unwrap_or_default();
+        // The settings file's tables, each handed to the readers it is for (`config.Tables`).
+        let tables = tables.unwrap_or_default();
+        let (ui, touch_settings) = (tables.ui.clone(), tables.touch.clone());
         let contexts = contexts.unwrap_or_else(|| DEFAULT_CONTEXTS.clone());
         let tone = tones.clone();
         let cache = memory;
@@ -534,13 +524,10 @@ impl Gen6Profile {
             Rc::new(py::time::monotonic),
             Some(&named.words(TILES)),
             Some(&named.words(FURNITURE)),
-            &extras.clone().unwrap_or_default().hidden_items,
+            &tables.extras.hidden_items,
         );
         // The Pokémon its save keeps for its credits, which their descriptions name (spike 222).
         let memories = game.memories.map(|make| make(memory.clone()));
-        // The navigator says what it finds by the name it has been given, and renames it on a
-        // key: the player standing in front of a sign is the only one who can name it.
-        let ui = ui.unwrap_or_default();
         let announcements = Rc::new(RefCell::new(Announcements::with(
             speech.clone(),
             log.clone(),
@@ -748,7 +735,7 @@ impl Gen6Profile {
             images.clone(),
             text.clone(),
             game,
-            &amie_settings,
+            &tables.amie,
             {
                 let heard = heard.clone();
                 Rc::new(move |berry: &str| heard(PICK_SOUND, own(HOLDING, &[("target", &berry)])))
@@ -917,6 +904,8 @@ impl Gen6Profile {
                 game.form,
             ))
         });
+        // The navigator says what it finds by the name it has been given, and renames it on a
+        // key: the player standing in front of a sign is the only one who can name it.
         let navigator = Navigator::new(
             Rc::new(OwnApps {
                 field: field.clone(),
@@ -934,7 +923,7 @@ impl Gen6Profile {
             NavigatorOptions {
                 bindings: keys,
                 names: Some(named.clone()),
-                navigation,
+                navigation: Some(tables.navigation.clone()),
                 speaker: Some({
                     let speaker = speaker.clone();
                     Rc::new(move || {
@@ -1043,19 +1032,17 @@ impl Gen6Profile {
         let distribution_reader = DistributionReader::new(distribution.clone(), ui.pauses);
         // An Extra: the conditions the game draws as a star, said as numbers (ADR-0017).
         let conditions = match game.conditions {
-            Some(make) if extras.unwrap_or_default().conditions && text.loaded() => {
-                Some(RefCell::new(make(
-                    memory.clone(),
-                    names.clone(),
-                    layouts.clone(),
-                    files.clone(),
-                    apps.clone(),
-                    &text,
-                    speech.clone(),
-                    log.clone(),
-                    ui.pauses,
-                )))
-            }
+            Some(make) if tables.extras.conditions && text.loaded() => Some(RefCell::new(make(
+                memory.clone(),
+                names.clone(),
+                layouts.clone(),
+                files.clone(),
+                apps.clone(),
+                &text,
+                speech.clone(),
+                log.clone(),
+                ui.pauses,
+            ))),
             _ => None,
         };
         // X's opening draws its boy or girl and their looks as models, with no word (spike 216).

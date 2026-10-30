@@ -18,7 +18,7 @@ use crate::app::{
     Busy, DATA_IN_TEST, Every, Failure, Faults, MISSING_DATA, PATIENCE, Settings, run, run_with,
     wait_for_game,
 };
-use crate::core::config::Ui;
+use crate::core::config::{Tables, Ui};
 use crate::core::memory::{self, Memory};
 use crate::core::rpc::{MAX_READ, Process, Rpc, UdpRpc};
 use crate::core::speech::{Backend, Category, Speech};
@@ -552,8 +552,8 @@ fn test_the_settings_file_reaches_the_readers() {
         &hooks,
     );
     let seen = seen.borrow();
-    assert!(seen[0].ui.pauses && !seen[0].ui.interrupt);
-    assert!(!seen[0].navigation.turn_by_turn);
+    assert!(seen[0].tables.ui.pauses && !seen[0].tables.ui.interrupt);
+    assert!(!seen[0].tables.navigation.turn_by_turn);
 }
 
 /// An exception raised here, as one caught in the loop is.
@@ -1052,8 +1052,8 @@ fn emulator_running_a_save_in(language: u8) -> HashMap<i64, Vec<u8>> {
     served
 }
 
-/// `run(rpc, Speech(backend), Settings(tick=0.0, wait=0.0, ui=ui), ticks_up_to(40), log)` on an
-/// emulator whose save says `language`.
+/// `run(rpc, Speech(backend), Settings(tick=0.0, wait=0.0, tables=Tables(ui=ui)),
+/// ticks_up_to(40), log)` on an emulator whose save says `language`.
 fn run_a_save_in(language: u8, backend: &Rc<Recorder>, ui: Ui, log: Log) {
     let emu = FakeEmulator::with(emulator_running_a_save_in(language), game(), 0, 0);
     run(
@@ -1062,7 +1062,10 @@ fn run_a_save_in(language: u8, backend: &Rc<Recorder>, ui: Ui, log: Log) {
         Settings {
             tick: 0.0,
             wait: 0.0,
-            ui,
+            tables: Tables {
+                ui,
+                ..Tables::default()
+            },
             ..Settings::default()
         },
         &ticks_up_to(40),

@@ -41,10 +41,10 @@ pub fn start(
     image: &[u8],
 ) -> Result<Session> {
     let memory = Rc::new(PageCache::new(rpc));
-    let language = if setup.ui.language.is_empty() {
+    let language = if setup.tables.ui.language.is_empty() {
         &setup.language
     } else {
-        &setup.ui.language
+        &setup.tables.ui.language
     };
     words::r#use(Some(Rc::new(Words::new(
         language,
@@ -114,11 +114,7 @@ pub fn start(
         game,
         Options {
             named: Some(named),
-            ui: Some(setup.ui.clone()),
-            navigation: Some(setup.navigation.clone()),
-            extras: Some(setup.extras.clone()),
-            touch: Some(setup.touch.clone()),
-            amie_settings: Some(setup.amie.clone()),
+            tables: Some(setup.tables.clone()),
             keys: Some(setup.keys.clone()),
             contexts: Some(setup.contexts.clone()),
             text,

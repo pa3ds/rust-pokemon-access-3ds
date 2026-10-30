@@ -23,7 +23,7 @@ use std::sync::{Arc, mpsc};
 use indexmap::IndexMap;
 
 use crate::core::clips::Clips;
-use crate::core::config::{Amie, Audio, Extras, Navigation, Touch, Ui};
+use crate::core::config::{Audio, Tables};
 use crate::core::discovery::{CODE_SPAN, Discovery};
 use crate::core::heaps::Block;
 use crate::core::keyfile::{data_path, emulator_config};
@@ -81,19 +81,8 @@ pub struct Settings {
     pub screen_tick: f64,
     /// Seconds between attempts to reach an emulator that is not running a game yet.
     pub wait: f64,
-    /// How menus, lists and screens are said (`config.toml`'s `[pa3ds.ui]`). Pauses are off unless
-    /// asked for, since a screen reader reads "Torchic, ♂, L, 5" more clumsily than "Torchic ♂ L 5"
-    /// (the user, 2026-09-14).
-    pub ui: Ui,
-    /// How loud pa3ds's own tones and footsteps are (`[pa3ds.audio]`).
-    pub audio: Audio,
-    /// How the map's list and the way to a thing are said (`[pa3ds.navigation]`).
-    pub navigation: Navigation,
-    pub touch: Touch,
-    pub amie: Amie,
-    /// What the game shows in a way pa3ds cannot read, said from its numbers
-    /// (`[pa3ds.extras]`).
-    pub extras: Extras,
+    /// The player's settings file's tables, handed whole to the game's readers (`config.Tables`).
+    pub tables: Tables,
     /// The language a game is read in until its save says another, which it is read in from then
     /// on (ADR-0040): its text out of the ROM, and pa3ds's own words where `[pa3ds.ui] language`
     /// does not say otherwise.
@@ -144,12 +133,7 @@ impl Default for Settings {
             whole_rescan: 30.0,
             screen_tick: 0.2,
             wait: 1.0,
-            ui: Ui::default(),
-            audio: Audio::default(),
-            navigation: Navigation::default(),
-            touch: Touch::default(),
-            amie: Amie::default(),
-            extras: Extras::default(),
+            tables: Tables::default(),
             language: "en".to_string(),
             names_home: None,
             keys: None,
@@ -640,7 +624,7 @@ fn session(
     };
     // pa3ds's own sounds, as loud as Azahar plays the game; none in a replay, which takes no keys.
     let audio = if settings.keys.is_some() {
-        settings.audio.clone()
+        settings.tables.audio.clone()
     } else {
         Audio {
             tones: 0.0,
@@ -675,11 +659,7 @@ fn session(
                 .clone()
                 .unwrap_or_else(|| DEFAULT_BINDINGS.clone()),
             contexts: settings.contexts.clone(),
-            ui: settings.ui.clone(),
-            navigation: settings.navigation.clone(),
-            touch: settings.touch.clone(),
-            amie: settings.amie.clone(),
-            extras: settings.extras.clone(),
+            tables: settings.tables.clone(),
             language: language.to_string(),
             names_home: settings.names_home.clone(),
             census: settings.census,

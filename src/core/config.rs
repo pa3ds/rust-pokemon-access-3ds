@@ -113,6 +113,8 @@ impl Table for General {
 /// `[pa3ds.ui]`: how menus, lists and screens are said.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Ui {
+    /// Off unless asked for, since a screen reader reads "Torchic, ♂, L, 5" more clumsily than
+    /// "Torchic ♂ L 5" (the user, 2026-09-14).
     pub pauses: bool,
     pub interrupt: bool,
     pub unfocused: bool,
@@ -363,6 +365,20 @@ impl Table for Extras {
     }
 }
 
+/// The settings file's tables as read, carried whole from the file to the readers, each
+/// taking its own: a new table is a class here and its reader, with nothing between to copy it
+/// through (the deepening round, 2026-10-30).
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Tables {
+    pub general: General,
+    pub ui: Ui,
+    pub audio: Audio,
+    pub navigation: Navigation,
+    pub touch: Touch,
+    pub amie: Amie,
+    pub extras: Extras,
+}
+
 pub const HIDDEN_OFF: &str = "off";
 pub const HIDDEN_UNDERWATER: &str = "underwater";
 pub const HIDDEN_ALL: &str = "all";
@@ -505,11 +521,7 @@ pub fn azahar() -> IndexMap<&'static str, (Value, &'static str)> {
 /// What the settings file settled, and what to log and say about it.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Config {
-    pub general: General,
-    pub ui: Ui,
-    pub audio: Audio,
-    pub navigation: Navigation,
-    pub extras: Extras,
+    pub tables: Tables,
     pub notes: Vec<String>,
     pub said: String,
     /// Whether `said` is something the player must do: before Azahar has pa3ds's settings, or
@@ -518,8 +530,6 @@ pub struct Config {
     /// The `qt-config.ini` this run patched, or would have: the portable Azahar's when
     /// `azahar_folder` names one.
     pub emulator: PathBuf,
-    pub touch: Touch,
-    pub amie: Amie,
 }
 
 /// `<pa3ds>/user/config.toml`, or under `home` instead.
@@ -906,10 +916,11 @@ pub fn prepare(
     }
     for name in loaded.keys() {
         if !TABLES.contains(&name.as_str()) && name != EMULATOR_SECTION {
+            let only: Vec<String> = TABLES.iter().map(|table| format!("[{table}]")).collect();
             notes.push(format!(
-                "{}: there is no [{name}] table, only [pa3ds], [pa3ds.ui], \
-                 [pa3ds.audio], [pa3ds.navigation], [pa3ds.extras] and [azahar]",
-                py::path_str(&path)
+                "{}: there is no [{name}] table, only {} and [{EMULATOR_SECTION}]",
+                py::path_str(&path),
+                only.join(", ")
             ));
         }
     }
@@ -1021,17 +1032,19 @@ pub fn prepare(
         keyfile::unreadable(&path, &problem)
     };
     Ok(Config {
-        general,
-        ui,
-        audio,
-        navigation,
-        extras,
+        tables: Tables {
+            general,
+            ui,
+            audio,
+            navigation,
+            touch,
+            amie,
+            extras,
+        },
         notes,
         said,
         warning: !problem.is_empty() || matches!(saved.as_str(), "waiting" | "missing"),
         emulator: config,
-        touch,
-        amie,
     })
 }
 

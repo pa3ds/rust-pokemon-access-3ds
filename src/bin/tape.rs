@@ -16,7 +16,7 @@ use std::process::ExitCode;
 use std::rc::Rc;
 
 use pa3ds::app::{self, Settings};
-use pa3ds::core::config::Ui;
+use pa3ds::core::config::{Tables, Ui};
 use pa3ds::core::rpc::Rpc;
 use pa3ds::core::speech::{Backend, Speech};
 use pa3ds::py::{Log, time};
@@ -54,9 +54,12 @@ fn replay_settings(name: &str, tape: &Rc<Tape>) -> Settings {
             let tape = tape.clone();
             Rc::new(move |inside: &mut dyn FnMut() -> pa3ds::py::Result<()>| tape.aside(inside))
         }),
-        ui: Ui {
-            descriptions: name.ends_with(DESCRIBED),
-            ..defaults.ui.clone()
+        tables: Tables {
+            ui: Ui {
+                descriptions: name.ends_with(DESCRIBED),
+                ..defaults.tables.ui.clone()
+            },
+            ..defaults.tables.clone()
         },
         ..defaults
     }

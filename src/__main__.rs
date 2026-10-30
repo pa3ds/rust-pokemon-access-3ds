@@ -245,7 +245,7 @@ fn run(args: Args, hooks: &Hooks) -> py::Result<()> {
     if !args.silent && !running && !settings.emulator.is_file() {
         settings = ask_for_azahar(settings, &mut asked)?;
     }
-    let ui = settings.ui.clone();
+    let (general, ui) = (settings.tables.general.clone(), settings.tables.ui.clone());
 
     let backend: Rc<dyn Backend> = if args.silent {
         hooks.silent.clone()
@@ -310,7 +310,7 @@ fn run(args: Args, hooks: &Hooks) -> py::Result<()> {
         log("replaced the pa3ds that was running, whose log this carries on");
     }
     let hide_window: Option<Rc<dyn Fn()>> = match &own_window {
-        Some(window) if settings.general.hide_window => {
+        Some(window) if general.hide_window => {
             let window = window.clone();
             Some(Rc::new(move || window.hide()))
         }
@@ -343,7 +343,7 @@ fn run(args: Args, hooks: &Hooks) -> py::Result<()> {
     let mut warning = settings.warning;
     let mut bindings = None;
     let mut contexts = DEFAULT_CONTEXTS.clone();
-    if settings.general.keys && !args.no_keys {
+    if general.keys && !args.no_keys {
         let explained: IndexMap<String, String> = EXPLAINED
             .iter()
             .map(|(key, why)| (key.to_string(), why.to_string()))
@@ -394,13 +394,8 @@ fn run(args: Args, hooks: &Hooks) -> py::Result<()> {
         rpc,
         speech,
         Settings {
-            tick: 1.0 / settings.general.poll_rate,
-            ui,
-            audio: settings.audio.clone(),
-            navigation: settings.navigation.clone(),
-            touch: settings.touch.clone(),
-            amie: settings.amie.clone(),
-            extras: settings.extras.clone(),
+            tick: 1.0 / general.poll_rate,
+            tables: settings.tables.clone(),
             keys: bindings,
             contexts,
             names_home: Some(keyfile::home_path()?),

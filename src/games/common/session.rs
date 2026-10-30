@@ -14,7 +14,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 use crate::core::clips::Clips;
-use crate::core::config::{Amie, Extras, Navigation, Touch, Ui};
+use crate::core::config::Tables;
 use crate::core::discovery::{Discovery, Found, Walk};
 use crate::core::heaps::{Block, Heaps};
 use crate::core::memory::{Cache, PageCache};
@@ -105,7 +105,7 @@ pub type Ways = Rc<dyn Fn(&mut dyn FnMut() -> Result<()>) -> Result<()>>;
 /// What a game is started with, besides the emulator and speech: the process running, the log,
 /// and the settings its readers read by (`app.Settings`).
 ///
-/// Python's defaults are `DEFAULT_BINDINGS`, `Ui()`, `Navigation()`, `Extras()`, `"en"`, no
+/// Python's defaults are `DEFAULT_BINDINGS`, `Tables()`, `"en"`, no
 /// `names_home`, no `census`, no `rom`, no `emulator`, a `sweep_chunk` of 512, and no `tap`,
 /// `tones` or `clips`:
 /// [`Setup::new`] has them, and the rest is set with `Setup { language, ..Setup::new(process, log) }`.
@@ -114,11 +114,8 @@ pub struct Setup {
     pub process: Process,
     pub log: Log,
     pub keys: Bindings,
-    pub ui: Ui,
-    pub navigation: Navigation,
-    pub touch: Touch,
-    pub amie: Amie,
-    pub extras: Extras,
+    /// The settings file's tables, each reader taking its own (`config.Tables`).
+    pub tables: Tables,
     pub language: String,
     pub names_home: Option<PathBuf>,
     /// Log touch mode's targets as they change (`app.Settings.census`).
@@ -155,11 +152,7 @@ impl Setup {
             process,
             log,
             keys: DEFAULT_BINDINGS.clone(),
-            ui: Ui::default(),
-            navigation: Navigation::default(),
-            touch: Touch::default(),
-            amie: Amie::default(),
-            extras: Extras::default(),
+            tables: Tables::default(),
             language: "en".to_string(),
             names_home: None,
             census: false,
