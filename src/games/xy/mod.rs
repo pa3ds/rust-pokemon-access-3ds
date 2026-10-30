@@ -22,6 +22,7 @@ use crate::games::gen6::game::{
     Climbing, Conveyors, Data, FurnitureKind, Game, Grinding, Rides, Vining,
 };
 use crate::games::gen6::rom::layout::{RomLayout, TownFacilities, owned};
+use crate::games::gen6::screens::berry_picker;
 use crate::games::xy::intro::IntroReader;
 use crate::py::PySet;
 
@@ -149,6 +150,11 @@ pub const GOODS_NAMES: i64 = 92;
 /// Ball at 4, which the title screen's film throws (x_intro_and_title_screen). File 98 holds the same
 /// lines, and 95 and 97 the plurals.
 pub const ITEM_NAMES: i64 = 96;
+/// Pokémon-Amie's Berry Picker's berries, as ORAS's (`oras.BERRY_PICKER`); not seen in X.
+pub fn berry_picker() -> &'static (i64, IndexMap<&'static str, i64>) {
+    static BERRY_PICKER: OnceLock<(i64, IndexMap<&'static str, i64>)> = OnceLock::new();
+    BERRY_PICKER.get_or_init(|| (ITEM_NAMES, berry_picker::BERRIES.into_iter().collect()))
+}
 /// Super Training's bags in the list its page opens, as ORAS's (`oras.TRAINING_BAGS`): line N of
 /// text file 23 is the bag of `sand_bagNN.bclim`, HP Bag S at 1, Strength Bag at 19 (spike 228).
 pub fn training_bags() -> &'static (i64, IndexMap<&'static str, i64>) {
@@ -271,6 +277,7 @@ pub fn rom() -> &'static RomLayout {
             training_regimens(),
             training_button(),
             fitting_tabs(),
+            berry_picker(),
         ]
         .into_iter()
         .map(|(file, lines)| {

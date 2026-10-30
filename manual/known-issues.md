@@ -9,8 +9,8 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
   the PSS. Super Training's regimen descriptions read their two columns run together, and
   turning a PlayNav page with its arrows says nothing of the new page. Pokémon-Amie's Switch
   screen calls each party member "button pokémon" and says no hearts, puffs or notes after
-  Affection, Fullness and Enjoyment. Of its games, Berry Picker's berries are said by file names,
-  "kinomi00", and not which Pokémon wants which, nor how many you picked; Head It offers nothing
+  Affection, Fullness and Enjoyment. Of its games, Berry Picker's berries on Normal and Hard are
+  untested, and it does not say when a Pokémon has eaten a berry or gone away; Head It offers nothing
   to tap, and its total is not said; in Tile Puzzle "Yes" is said as a puzzle begins, the last
   swap's points are said as it is solved, and a tile says where its piece of the picture belongs,
   not what is on it. pa3ds does not say when your Pokémon has eaten a Poké Puff, and only the five

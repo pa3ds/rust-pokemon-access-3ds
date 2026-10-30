@@ -24,6 +24,7 @@ use crate::games::gen6::field::reader::{FLAG, PC_TILE};
 use crate::games::gen6::game::{Data, FurnitureKind, Game};
 use crate::games::gen6::rom::archives::{BOY, GIRL, GameText};
 use crate::games::gen6::rom::layout::{RomLayout, TownFacilities};
+use crate::games::gen6::screens::berry_picker;
 use crate::games::oras::field::ash::AshPiles;
 use crate::games::oras::field::berries::BerrySpots;
 use crate::games::oras::field::doors::RotatingDoors;
@@ -275,6 +276,12 @@ pub fn training_regimens() -> &'static (i64, IndexMap<&'static str, i64>) {
         (44, names.collect())
     })
 }
+/// Pokémon-Amie's Berry Picker's berries, drawn as pictures alone, by the line of the items' names
+/// each is: "Razz Berry" for `kinomi00.bclim` (spike A).
+pub fn berry_picker() -> &'static (i64, IndexMap<&'static str, i64>) {
+    static BERRY_PICKER: OnceLock<(i64, IndexMap<&'static str, i64>)> = OnceLock::new();
+    BERRY_PICKER.get_or_init(|| (ITEM_NAMES, berry_picker::BERRIES.into_iter().collect()))
+}
 /// Pictures a button draws only while what it shows is caught: said "caught" after its name.
 pub const CAUGHT_IMAGES: [&str; 1] = ["search_get_button.bclim"];
 /// The DexNav's labels, each over its value or beside it: Name, Search Level, Level, Type,
@@ -495,6 +502,7 @@ pub fn rom() -> &'static RomLayout {
             dexnav_words(),
             training_bags(),
             training_regimens(),
+            berry_picker(),
         ]
         .into_iter()
         .map(|(file, lines)| {

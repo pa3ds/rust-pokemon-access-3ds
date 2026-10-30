@@ -291,6 +291,12 @@ puzzle-picture-front = { $pokemon } in front
 puzzle-picture-right = { $pokemon } on the right
 # The tile tapped first, which the next tap swaps with.
 puzzle-picked = { $tile }, picked
+# A Pokémon of Pokémon-Amie's Berry Picker and the berry its bubble shows, said as the bubble comes
+# and offered in touch mode to let a dragged berry go on: "Treecko wants Pinap Berry". The game
+# shows the berry and says nothing. Without the Pokémon, where its record cannot be read: "Pinap
+# Berry wanted".
+berry-picker-wants = { $pokemon } wants { $berry }
+berry-picker-wanted = { $berry } wanted
 
 ## What pa3ds says of itself
 

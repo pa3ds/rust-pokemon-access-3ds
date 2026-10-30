@@ -14,6 +14,7 @@ pub mod summary;
 pub mod townmap;
 
 pub mod amie;
+pub mod berry_picker;
 pub mod boxes;
 pub mod partners;
 pub mod puzzle;

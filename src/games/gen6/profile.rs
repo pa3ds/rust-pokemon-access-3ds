@@ -82,7 +82,8 @@ use crate::games::gen6::screens::puzzle::TilePuzzle;
 use crate::games::gen6::screens::training::{Bags, Goals, Round, TrainingPage};
 use crate::games::gen6::screens::waiting::Waiting;
 use crate::games::gen6::screens::{
-    amie, boxes, buttons, distribution, partners, partyicons, puzzle, summary, townmap, training,
+    amie, berry_picker, boxes, buttons, distribution, partners, partyicons, puzzle, summary,
+    townmap, training,
 };
 use crate::games::gen6::{frames, gflheap, mystatus};
 use crate::py::{self, Error, Log, PySet, Result};
@@ -97,9 +98,10 @@ use crate::py::{self, Error, Log, PySet, Result};
 /// draws; the party and the icons the Bag draws it with; the Pokémon-Amie page, which says whose
 /// icon its Pokémon is; the texture systems Amie's decorate screen draws its Poké Puffs and items
 /// from, and the layout helpers its item pages point at; its Tile Puzzle's board, which says where
-/// each tile's piece belongs; Super Training's page, which says whose each party slot's is; and
-/// the balls of its Balloon Bots, which say when a shot is coming; the Battle Maison's partner
-/// screen, which says whose portrait each picture draws; and the save's trainer record, which says
+/// each tile's piece belongs; its Berry Picker's Pokémon and opening, which say who wants each
+/// berry and whether the round has begun; Super Training's page, which says whose each party slot's
+/// is; and the balls of its Balloon Bots, which say when a shot is coming; the Battle Maison's
+/// partner screen, which says whose portrait each picture draws; and the save's trainer record, which says
 /// the game's language (`mystatus`). A game's own readers add what
 /// they find their objects by (`Gen6Profile.classes`): ORAS's DexNav, the player's work its hidden Pokémon's record is found
 /// through.
@@ -107,7 +109,7 @@ use crate::py::{self, Error, Log, PySet, Result};
 /// Not TextBoxes or cursor windows: walking each layout's tree finds every one that can be placed on
 /// screen (spike 62). And the linear heap is not swept: the battle builds its layouts there, and its
 /// message window leads to their pool (spike 64).
-pub const HEAP_CLASSES: [&str; 39] = [
+pub const HEAP_CLASSES: [&str; 41] = [
     msgwin::CLASSES[0],
     msgwin::CLASSES[1],
     talk::CLASSES[0],
@@ -135,6 +137,8 @@ pub const HEAP_CLASSES: [&str; 39] = [
     puzzle::CLASS,
     puzzle::PICTURE,
     puzzle::BACKGROUND,
+    berry_picker::MODEL,
+    berry_picker::DEMO,
     training::CLASS,
     training::MISSILE,
     partners::CLASS,
@@ -253,6 +257,7 @@ pub struct Gen6Profile {
     pub goals: Rc<Goals>,
     pub waiting: Rc<Waiting>,
     pub bags: Rc<Bags>,
+    pub berry_picker: Rc<RefCell<berry_picker::BerryPicker>>,
     pub sparring: RefCell<Round>,
     pub buttons: Rc<RefCell<buttons::Buttons>>,
     pub party_icons: Rc<RefCell<PartyIcons>>,
@@ -745,6 +750,19 @@ impl Gen6Profile {
             }),
             Some(off.clone()),
         ));
+        // Amie's Berry Picker draws the berry each Pokémon wants in a bubble, and says nothing of
+        // who wants which.
+        let berry_picker = Rc::new(RefCell::new(berry_picker::BerryPicker::new(
+            memory.clone(),
+            names.clone(),
+            layouts.clone(),
+            image_of.clone(),
+            images.clone(),
+            {
+                let text = text.clone();
+                Rc::new(move |found: &pokemon::Pokemon| yours_in(&text, found))
+            },
+        )));
         // A round says its score, clock and banners, and warns of a Bot's shot.
         let sparring = Round::new(layouts.clone(), image_of.clone(), memory.clone(), None);
         let picture_name: PictureName = {
@@ -887,10 +905,12 @@ impl Gen6Profile {
                         bags.clone(),
                         apps.clone(),
                     );
+                    let berry_picker = berry_picker.clone();
                     Rc::new(move || {
                         let running = apps.borrow().running.clone();
                         let mut found = amie.borrow_mut().strokes(running.as_deref())?;
                         found.extend(goals.targets(running.as_deref())?);
+                        found.extend(berry_picker.borrow().targets(running.as_deref())?);
                         found.extend(waiting.targets(running.as_deref())?);
                         found.extend(bags.targets(running.as_deref())?);
                         Ok(found)
@@ -1103,6 +1123,7 @@ impl Gen6Profile {
             goals,
             waiting,
             bags,
+            berry_picker,
             sparring: RefCell::new(sparring),
             buttons,
             party_icons,
@@ -1175,6 +1196,7 @@ impl Gen6Profile {
         self.puffs.borrow_mut().track(&found.heap, adding)?;
         self.goods.borrow_mut().track(&found.heap, adding)?;
         self.puzzle.borrow_mut().track(&found.heap, adding)?;
+        self.berry_picker.borrow_mut().track(&found.heap, adding)?;
         self.training.borrow_mut().track(&found.heap, adding)?;
         self.partners.borrow_mut().track(&found.heap, adding)?;
         self.occupants.borrow_mut().track(&found.heap);
@@ -1370,10 +1392,7 @@ impl Gen6Profile {
     /// A Pokémon of the player's by the nickname they gave it, or else as the game calls its
     /// species and form (Orion, 2026-10-16, for the credits).
     fn yours(&self, found: &pokemon::Pokemon) -> Option<String> {
-        if found.nicknamed && !found.nickname.is_empty() {
-            return Some(found.nickname.clone());
-        }
-        self.text.pokemon(found.species, found.form)
+        yours_in(&self.text, found)
     }
 
     fn look_for_speakers(&self, shown: &[Shown]) -> Result<()> {
@@ -1456,49 +1475,55 @@ impl Gen6Profile {
     /// `poll_screen(hold, with_choices)`. Named apart from `poll_screen` because the runtime's
     /// `Profile::poll_screen` takes neither.
     pub fn poll_screen_with(&self, hold: bool, with_choices: bool) -> Result<()> {
-        let (screen, sides, listed, cursors, round_lines) = phase(&*self.memory, "screen", || {
-            // The field's layouts come back where they were when a menu screen closes, and a
-            // layout found before it was built is taken in once it is.
-            let revived = self.layouts.revive()?;
-            let put_away = self.views.borrow().put_away()?;
-            self.layouts.put_away(put_away);
-            // The battle's layouts are built into a pool its message window leads to.
-            let failed: RefCell<Option<Error>> = RefCell::new(None);
-            self.layouts.watch_pools(self.linear_handles(&failed))?;
-            if let Some(error) = failed.into_inner() {
-                return Err(error);
-            }
-            if self.layouts.poll_pools()? || revived {
-                self.cursors
+        let (screen, sides, listed, cursors, round_lines, wants) =
+            phase(&*self.memory, "screen", || {
+                // The field's layouts come back where they were when a menu screen closes, and a
+                // layout found before it was built is taken in once it is.
+                let revived = self.layouts.revive()?;
+                let put_away = self.views.borrow().put_away()?;
+                self.layouts.put_away(put_away);
+                // The battle's layouts are built into a pool its message window leads to.
+                let failed: RefCell<Option<Error>> = RefCell::new(None);
+                self.layouts.watch_pools(self.linear_handles(&failed))?;
+                if let Some(error) = failed.into_inner() {
+                    return Err(error);
+                }
+                if self.layouts.poll_pools()? || revived {
+                    self.cursors
+                        .borrow_mut()
+                        .track(self.layouts.panes(lyt::WINDOW_CLASS))?;
+                }
+                let exclude: HashSet<i64> = self.dialogue.borrow().line_objects().iter().collect();
+                let screen = self.screen.borrow_mut().poll(&exclude, hold)?;
+                // A message box's lines lead to a window typing into them before any sweep finds it.
+                let lines: Vec<i64> = screen.message_lines.iter().copied().collect();
+                self.dialogue.borrow_mut().watch(&lines);
+                let on_screen = &screen.on_screen;
+                // The HP box is the battle reader's to say, whole and once it holds still.
+                let sides = self.battle.borrow_mut().poll(on_screen)?;
+                self.habitat.borrow_mut().poll(on_screen)?;
+                let in_townmap = self.apps.borrow().running.as_deref() == Some(townmap::APP);
+                let listed = self
+                    .distribution_reader
                     .borrow_mut()
-                    .track(self.layouts.panes(lyt::WINDOW_CLASS))?;
-            }
-            let exclude: HashSet<i64> = self.dialogue.borrow().line_objects().iter().collect();
-            let screen = self.screen.borrow_mut().poll(&exclude, hold)?;
-            // A message box's lines lead to a window typing into them before any sweep finds it.
-            let lines: Vec<i64> = screen.message_lines.iter().copied().collect();
-            self.dialogue.borrow_mut().watch(&lines);
-            let on_screen = &screen.on_screen;
-            // The HP box is the battle reader's to say, whole and once it holds still.
-            let sides = self.battle.borrow_mut().poll(on_screen)?;
-            self.habitat.borrow_mut().poll(on_screen)?;
-            let in_townmap = self.apps.borrow().running.as_deref() == Some(townmap::APP);
-            let listed = self
-                .distribution_reader
-                .borrow_mut()
-                .poll(on_screen, in_townmap)?;
-            if let Some(standings) = &self.standings {
-                standings.borrow_mut().poll(on_screen)?;
-            }
-            self.map_cursor.borrow_mut().poll()?;
-            let running = self.apps.borrow().running.clone();
-            let round_lines = self.sparring.borrow_mut().poll(running.as_deref())?;
-            let cursors = self.cursors.borrow_mut().poll(on_screen)?;
-            Ok((screen, sides, listed, cursors, round_lines))
-        })?;
+                    .poll(on_screen, in_townmap)?;
+                if let Some(standings) = &self.standings {
+                    standings.borrow_mut().poll(on_screen)?;
+                }
+                self.map_cursor.borrow_mut().poll()?;
+                let running = self.apps.borrow().running.clone();
+                let round_lines = self.sparring.borrow_mut().poll(running.as_deref())?;
+                let wants = self.berry_picker.borrow_mut().poll(running.as_deref())?;
+                let cursors = self.cursors.borrow_mut().poll(on_screen)?;
+                Ok((screen, sides, listed, cursors, round_lines, wants))
+            })?;
         for (line, category) in &round_lines {
             (self.log)(&format!("round: {line}"));
             self.speech.say(line, *category);
+        }
+        for line in &wants {
+            (self.log)(&format!("berry picker: {line}"));
+            self.speech.say(line, Category::Screen);
         }
         let mut labels = self.lists.borrow().labels();
         labels.extend(self.announcements.borrow_mut().recent_labels());
@@ -2085,6 +2110,15 @@ fn line_of(text: Rc<GameText>) -> Lines {
             None
         })
     })
+}
+
+/// `Gen6Profile._yours` over the game's text, which the readers made before the profile are
+/// handed: a Pokémon of the player's by its nickname, or else its species and form.
+fn yours_in(text: &GameText, found: &pokemon::Pokemon) -> Option<String> {
+    if found.nicknamed && !found.nickname.is_empty() {
+        return Some(found.nickname.clone());
+    }
+    text.pokemon(found.species, found.form)
 }
 
 /// `Gen6Profile._recall`: the word for what a scene names as it is said: `memory`, the Pokémon

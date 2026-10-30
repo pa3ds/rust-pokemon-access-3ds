@@ -14,6 +14,7 @@ mod test_app;
 mod test_apps;
 mod test_archives;
 mod test_battle;
+mod test_berry_picker;
 mod test_boxes;
 mod test_buttons;
 mod test_catalog;
