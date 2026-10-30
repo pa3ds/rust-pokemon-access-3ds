@@ -1,4 +1,4 @@
-//! The PlayNav's screens answer for their readers as one, each reader in its own apps alone.
+//! The subscreens answer for their readers as one, each reader in its own apps alone.
 
 use std::collections::HashSet;
 use std::rc::Rc;
@@ -14,9 +14,9 @@ use crate::games::common::field::keys::{BERRIES, BERRY_PICKER};
 use crate::games::common::touch::Target;
 use crate::games::gen6::apps::FIELD;
 use crate::games::gen6::rom::archives::GameText;
-use crate::games::gen6::screens::amie;
-use crate::games::gen6::screens::berry_picker::{self, Touching};
-use crate::games::gen6::screens::playnav::PlayNav;
+use crate::games::gen6::subscreen::Subscreens;
+use crate::games::gen6::subscreen::amie;
+use crate::games::gen6::subscreen::berry_picker::{self, Touching};
 use crate::games::oras;
 use crate::py::Result;
 
@@ -31,7 +31,7 @@ fn test_the_amie_pages_pokemon_is_named_on_the_field_and_offered_to_stroke_in_am
     )
     .layouts
     .clone();
-    let playnav = PlayNav::new(
+    let subscreens = Subscreens::new(
         memory.clone(),
         Rc::new(ClassNames::new(memory.clone(), CODE)),
         layouts,
@@ -49,28 +49,31 @@ fn test_the_amie_pages_pokemon_is_named_on_the_field_and_offered_to_stroke_in_am
         Rc::new(|said: &str| said.to_string()),
         false,
     );
-    playnav
+    subscreens
         .track(&IndexMap::from([(PAGE, amie::CLASS.to_string())]), false)
         .unwrap();
     assert_eq!(
-        playnav.name(WALKER, Some(FIELD)).unwrap().as_deref(),
+        subscreens.name(WALKER, Some(FIELD)).unwrap().as_deref(),
         Some("Sceptile")
     );
-    assert_eq!(playnav.name(WALKER, Some(amie::AMIE)).unwrap(), None);
-    assert!(playnav.targets(Some(FIELD)).unwrap().is_empty());
-    let names: Vec<String> = playnav
+    assert_eq!(subscreens.name(WALKER, Some(amie::AMIE)).unwrap(), None);
+    assert!(subscreens.targets(Some(FIELD)).unwrap().is_empty());
+    let names: Vec<String> = subscreens
         .targets(Some(amie::AMIE))
         .unwrap()
         .into_iter()
         .map(|target| target.name)
         .collect();
     assert_eq!(names, ["stroke Sceptile"]);
-    assert!(playnav.poll(Some(FIELD)).unwrap().is_empty());
+    assert!(subscreens.poll(Some(FIELD)).unwrap().is_empty());
     // Keys of its own only while the screen that has them runs.
-    assert_eq!(playnav.context(Some(berry_picker::APP)), Some(BERRY_PICKER));
-    assert_eq!(playnav.context(Some(FIELD)), None);
     assert_eq!(
-        playnav
+        subscreens.context(Some(berry_picker::APP)),
+        Some(BERRY_PICKER)
+    );
+    assert_eq!(subscreens.context(Some(FIELD)), None);
+    assert_eq!(
+        subscreens
             .press(BERRIES[0], Some(FIELD), &mut Untouched)
             .unwrap(),
         ""

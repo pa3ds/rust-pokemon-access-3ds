@@ -79,10 +79,11 @@ use crate::games::gen6::screens::lists::{CONTROLLER_CLASS, ListReader};
 use crate::games::gen6::screens::mapcursor::MapCursor;
 use crate::games::gen6::screens::partners::Partners;
 use crate::games::gen6::screens::partyicons::PartyIcons;
-use crate::games::gen6::screens::playnav::PlayNav;
 use crate::games::gen6::screens::{
-    amie, boxes, buttons, distribution, partners, partyicons, puzzle, summary, townmap, training,
+    boxes, buttons, distribution, partners, partyicons, summary, townmap,
 };
+use crate::games::gen6::subscreen::Subscreens;
+use crate::games::gen6::subscreen::{amie, puzzle, super_training};
 use crate::games::gen6::{frames, gflheap, mystatus};
 use crate::py::{self, Error, Log, PySet, Result};
 
@@ -95,9 +96,9 @@ use crate::py::{self, Error, Log, PySet, Result};
 /// picture of its Pokémon Distribution draws, and its views, which say which of its layouts it
 /// draws; the party and the icons the Bag draws it with; the Battle Maison's partner screen,
 /// which says whose portrait each picture draws; and the save's trainer record, which says the
-/// game's language (`mystatus`). The PlayNav's screens add what they find their objects by
-/// (`PlayNav.classes`), and a game's own readers theirs (`Gen6Profile.classes`): ORAS's DexNav, the
-/// player's work its hidden Pokémon's record is found through.
+/// game's language (`mystatus`). The subscreens add what they find their objects by
+/// (`Subscreens.classes`), and a game's own readers theirs (`Gen6Profile.classes`): ORAS's DexNav,
+/// the player's work its hidden Pokémon's record is found through.
 ///
 /// Not TextBoxes or cursor windows: walking each layout's tree finds every one that can be placed on
 /// screen (spike 62). And the linear heap is not swept: the battle builds its layouts there, and its
@@ -154,8 +155,8 @@ pub const TOUCHED: [&str; 10] = [
     amie::SCREENS[2],
     amie::SCREENS[3],
     amie::SCREENS[4],
-    training::MENU,
-    training::SPARRING,
+    super_training::MENU,
+    super_training::SPARRING,
 ];
 pub const PICK_SOUND: &str = "SEQ_SE_CATCH";
 /// The PC Box's sounds for picking up a Pokémon and putting it down, the game's own for moving
@@ -263,14 +264,14 @@ pub struct Gen6Profile {
     field: Rc<RefCell<Rc<FieldReader>>>,
     /// The Pokémon its save keeps for its credits, which their descriptions name (spike 222).
     pub memories: Option<Rc<dyn MemoriesReader>>,
-    /// What the heap is swept for in this game: `HEAP_CLASSES`, the PlayNav's screens'
-    /// classes, and what the game's own readers find their objects by.
+    /// What the heap is swept for in this game: `HEAP_CLASSES`, the subscreens' classes, and
+    /// what the game's own readers find their objects by.
     pub classes: Vec<String>,
     pub distribution: Rc<RefCell<Distribution>>,
     pub views: Rc<RefCell<townmap::Views>>,
-    /// Pokémon-Amie's and Super Training's screens, which name what they draw and offer what no
-    /// touch area does.
-    pub playnav: Rc<PlayNav>,
+    /// The subscreens, Pokémon-Amie's and Super Training's and the apps they open, which name
+    /// what they draw, offer what no touch area does, and answer keys of their own.
+    pub subscreens: Rc<Subscreens>,
     /// A screen's own keys, answered before the navigator's while it runs (`context`).
     contexts: Contexts,
     pub buttons: Rc<RefCell<buttons::Buttons>>,
@@ -733,9 +734,10 @@ impl Gen6Profile {
                 said
             })
         };
-        // Pokémon-Amie's and Super Training's screens, which name what they draw, offer what no
-        // touch area does, and answer keys of their own, Berry Picker's.
-        let playnav = Rc::new(PlayNav::new(
+        // The subscreens, Pokémon-Amie's and Super Training's and the apps they open, which name
+        // what they draw, offer what no touch area does, and answer keys of their own, Berry
+        // Picker's.
+        let subscreens = Rc::new(Subscreens::new(
             memory.clone(),
             names.clone(),
             layouts.clone(),
@@ -758,15 +760,15 @@ impl Gen6Profile {
         ));
         let classes: IndexSet<String> = HEAP_CLASSES
             .iter()
-            .chain(playnav.classes.iter())
+            .chain(subscreens.classes.iter())
             .copied()
             .chain(field.borrow().classes())
             .map(String::from)
             .chain(memories.iter().flat_map(|memories| memories.classes()))
             .collect();
         let picture_name: PictureName = {
-            let (apps, distribution, playnav) =
-                (apps.clone(), distribution.clone(), playnav.clone());
+            let (apps, distribution, subscreens) =
+                (apps.clone(), distribution.clone(), subscreens.clone());
             let partners = partners.clone();
             Rc::new(move |pane: i64| {
                 // The AreaNav's navigators are the field's and its own app's: elsewhere they are
@@ -789,7 +791,7 @@ impl Gen6Profile {
                         return Ok(Some(name));
                     }
                 }
-                if let Some(name) = playnav.name(pane, running.as_deref())?
+                if let Some(name) = subscreens.name(pane, running.as_deref())?
                     && !name.is_empty()
                 {
                     return Ok(Some(name));
@@ -836,8 +838,8 @@ impl Gen6Profile {
                 wrap: touch_settings.wrap,
                 next_row: touch_settings.next_row,
                 pace: Some({
-                    let playnav = playnav.clone();
-                    Rc::new(move || playnav.berry_picker.borrow().speed())
+                    let subscreens = subscreens.clone();
+                    Rc::new(move || subscreens.berry_picker.borrow().speed())
                 }),
                 sound: dragged(feedback_sounds.clone()),
                 offered: Some({
@@ -853,7 +855,7 @@ impl Gen6Profile {
                     let apps = apps.clone();
                     Rc::new(move || {
                         apps.borrow().running.as_deref()
-                            == Some(crate::games::gen6::screens::berry_picker::APP)
+                            == Some(crate::games::gen6::subscreen::berry_picker::APP)
                     })
                 }),
                 said_off: Some({
@@ -882,8 +884,8 @@ impl Gen6Profile {
                     })
                 }),
                 gestures: Some({
-                    let (playnav, apps) = (playnav.clone(), apps.clone());
-                    Rc::new(move || playnav.targets(apps.borrow().running.as_deref()))
+                    let (subscreens, apps) = (subscreens.clone(), apps.clone());
+                    Rc::new(move || subscreens.targets(apps.borrow().running.as_deref()))
                 }),
             },
         );
@@ -984,10 +986,10 @@ impl Gen6Profile {
                 })
             }),
             Some({
-                let (apps, playnav) = (apps.clone(), playnav.clone());
+                let (apps, subscreens) = (apps.clone(), subscreens.clone());
                 Rc::new(move || {
                     Ok(apps.borrow().running.as_deref() == Some(puzzle::APP)
-                        && playnav.puzzle.borrow().playing()?)
+                        && subscreens.puzzle.borrow().playing()?)
                 })
             }),
         );
@@ -1092,7 +1094,7 @@ impl Gen6Profile {
             classes: classes.into_iter().collect(),
             distribution,
             views,
-            playnav,
+            subscreens,
             contexts,
             buttons,
             party_icons,
@@ -1160,7 +1162,7 @@ impl Gen6Profile {
             .borrow_mut()
             .track(found.of(&[distribution::CLASS]), adding);
         self.views.borrow_mut().track(&found.heap, adding)?;
-        self.playnav.track(&found.heap, adding)?;
+        self.subscreens.track(&found.heap, adding)?;
         self.partners.borrow_mut().track(&found.heap, adding)?;
         self.occupants.borrow_mut().track(&found.heap);
         self.buttons.borrow_mut().track(
@@ -1278,7 +1280,7 @@ impl Gen6Profile {
         self.archived.borrow_mut().clear();
         // A battle's sides are said again on a key only while it lasts.
         self.announcements.borrow_mut().forget_sides();
-        self.playnav.puzzle.borrow().started();
+        self.subscreens.puzzle.borrow().started();
         if started == BATTLE {
             self.battle.borrow_mut().begin();
         }
@@ -1467,7 +1469,7 @@ impl Gen6Profile {
             }
             self.map_cursor.borrow_mut().poll()?;
             let running = self.apps.borrow().running.clone();
-            let played = self.playnav.poll(running.as_deref())?;
+            let played = self.subscreens.poll(running.as_deref())?;
             let cursors = self.cursors.borrow_mut().poll(on_screen)?;
             Ok((screen, sides, listed, cursors, played))
         })?;
@@ -1523,7 +1525,7 @@ impl Gen6Profile {
         // only logged beside it: Tile Puzzle's picture. Read outside the screen's phase, which
         // would fetch its pages every poll after.
         let running = self.apps.borrow().running.clone();
-        for (logged, line, category) in self.playnav.describe(running.as_deref())? {
+        for (logged, line, category) in self.subscreens.describe(running.as_deref())? {
             if category == Some(Category::Scene) {
                 self.announcements.borrow_mut().narrate(&line);
             } else if category.is_none() {
@@ -1600,7 +1602,7 @@ impl Gen6Profile {
                     .as_mut()
                     .expect("the gen 6 navigator is given touch targets");
                 let running = self.apps.borrow().running.clone();
-                self.playnav.press(&action, running.as_deref(), touch)?
+                self.subscreens.press(&action, running.as_deref(), touch)?
             };
             if !said.is_empty() {
                 (self.log)(&format!("key: {said}"));
@@ -1611,9 +1613,10 @@ impl Gen6Profile {
     }
 
     /// The table of the keys file of the screen running now, where it has keys of its own:
-    /// Berry Picker's (`PlayNav.context`).
+    /// Berry Picker's (`Subscreens.context`).
     pub fn context(&self) -> Option<&'static str> {
-        self.playnav.context(self.apps.borrow().running.as_deref())
+        self.subscreens
+            .context(self.apps.borrow().running.as_deref())
     }
 
     /// Play a footstep where the player's foot came down on silent ground, every tick: the

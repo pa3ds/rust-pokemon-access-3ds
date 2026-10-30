@@ -53,7 +53,7 @@ use crate::games::common::field::keys::POKEMON as POKEMON_KEYS;
 use crate::games::common::layout::Layouts;
 use crate::games::common::touch::{HEIGHT, ImageOf, Target, TouchTargets, WIDTH};
 use crate::games::common::{pokemon, strbuf};
-use crate::games::gen6::screens::training::pictures;
+use crate::games::gen6::subscreen::super_training::pictures;
 use crate::py::{self, Error, Result};
 
 pub const APP: &str = "N3app5nuts27ProcessE";
@@ -586,8 +586,7 @@ impl Touching for TouchTargets {
 /// `picked` and `wrong` are what is heard as a berry is picked up, and for a key with nothing to
 /// do, a berry the round has not or a Pokémon not up: a sound, and "", or else the words.
 ///
-/// Python's holds touch mode, which is built after the PlayNav's screens, as it offers their
-/// targets; here touch mode, which the navigator owns, is handed to `press`.
+/// Python's holds touch mode, which is built after the subscreens, as it offers their targets; here touch mode, which the navigator owns, is handed to `press`.
 pub struct BerryKeys {
     picker: Rc<RefCell<BerryPicker>>,
     /// An image -> the game's word for it: a berry's item name, the tree's targets' names.

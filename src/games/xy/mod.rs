@@ -22,7 +22,7 @@ use crate::games::gen6::game::{
     Climbing, Conveyors, Data, FurnitureKind, Game, Grinding, Rides, Vining,
 };
 use crate::games::gen6::rom::layout::{RomLayout, TownFacilities, owned};
-use crate::games::gen6::screens::berry_picker;
+use crate::games::gen6::subscreen::berry_picker;
 use crate::games::xy::intro::IntroReader;
 use crate::py::PySet;
 

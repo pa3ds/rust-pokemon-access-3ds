@@ -24,7 +24,7 @@ use crate::games::gen6::field::reader::{FLAG, PC_TILE};
 use crate::games::gen6::game::{Data, FurnitureKind, Game};
 use crate::games::gen6::rom::archives::{BOY, GIRL, GameText};
 use crate::games::gen6::rom::layout::{RomLayout, TownFacilities};
-use crate::games::gen6::screens::berry_picker;
+use crate::games::gen6::subscreen::berry_picker;
 use crate::games::oras::field::ash::AshPiles;
 use crate::games::oras::field::berries::BerrySpots;
 use crate::games::oras::field::doors::RotatingDoors;

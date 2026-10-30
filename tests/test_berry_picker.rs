@@ -15,7 +15,7 @@ use crate::games::common::field::keys::{BERRIES, BERRY_PICKER, POKEMON};
 use crate::games::common::layout::Layouts;
 use crate::games::common::touch::Target;
 use crate::games::common::{lyt, pokemon, strbuf};
-use crate::games::gen6::screens::berry_picker;
+use crate::games::gen6::subscreen::berry_picker;
 use crate::py::{Error, Kind, Result};
 
 const MODEL: i64 = 0x08B00000;

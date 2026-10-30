@@ -1,10 +1,11 @@
-//! Super Training: the PlayNav's page names its party slots, a round offers its goals to tap, and
-//! the field offers the training bags in the page's list (omega_ruby_bottom-screen5).
+//! Super Training: its page, the PlayNav's in ORAS and the bottom screen's own in X, names its
+//! party slots, a round offers its goals to tap, and the field offers the training bags in the
+//! page's list (omega_ruby_bottom-screen5).
 //!
 //! The page shows the party as six pictures, each a 40 by 30 button with a touch area, and the game
 //! names none: touch mode said "mapnews icon 02" and "pmn 1pix org" by the address of the image, or
 //! left them out. They are the icons of a `common::resource::PokeIcon` (`screens.distribution`,
-//! `screens.amie`), in the party's order. The page's object is a class of its module, Game Freak's
+//! `subscreen.amie`), in the party's order. The page's object is a class of its module, Game Freak's
 //! "training" (Super Training), `field::subscreen::training::FM_Training`, which holds the party's
 //! `pml::pokepara::PokemonParam`s a record of 0x20 bytes each:
 //!
@@ -102,8 +103,8 @@ use crate::games::common::pictures::words as picture_words;
 use crate::games::common::touch::{HEIGHT, Idle, ImageOf, Off, Target, WIDTH};
 use crate::games::common::{lyt, pokemon};
 use crate::games::gen6::apps::FIELD;
-use crate::games::gen6::screens::amie::PAGE_APPS;
 use crate::games::gen6::screens::distribution as d;
+use crate::games::gen6::subscreen::amie::PAGE_APPS;
 use crate::py::{self, Result};
 
 pub const CLASS: &str = "N5field9subscreen8training11FM_TrainingE";

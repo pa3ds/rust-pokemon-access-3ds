@@ -25,3 +25,4 @@ pub mod profile;
 pub mod rom;
 pub mod screens;
 pub mod session;
+pub mod subscreen;

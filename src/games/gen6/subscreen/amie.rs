@@ -1,4 +1,5 @@
-//! The PlayNav's Pokémon-Amie page, whose Pokémon is a picture named by its species (spike 198).
+//! The Pokémon-Amie page, the PlayNav's in ORAS and the bottom screen's own in X, whose Pokémon is a
+//! picture named by its species (spike 198); and Amie itself, and its decorate screen.
 //!
 //! After the tutorial the page shows one Pokémon of the player's walking in its ring, a 40 by 30
 //! touch area on a picture of its own, and the game names neither: touch mode said "touch: 2 of
@@ -48,9 +49,9 @@ use crate::games::gen6::screens::townmap;
 use crate::py::{self, Error, Result};
 
 pub const CLASS: &str = "N5field9subscreen9kawaigari12FM_KawaigariE";
-/// The apps a PlayNav page's Pokémon are named in: the field, whose bottom screen the PlayNav is,
-/// before any app is known, and the AreaNav, as touch mode asks of every icon in the field's other
-/// app (Super Training's page too, `screens.training`).
+/// The apps a subscreen page's Pokémon are named in: the field, whose bottom screen the subscreens
+/// are, before any app is known, and the AreaNav, as touch mode asks of every icon in the field's
+/// other app (Super Training's page too, `subscreen.super_training`).
 pub const PAGE_APPS: [Option<&str>; 3] = [Some(FIELD), None, Some(townmap::APP)];
 /// Amie's decorate screen, the app DECORATE starts, where its Poké Puffs are named (`Puffs`).
 pub const ARRANGE: &str = "N3app17kawaigari_arrange4ProcE";

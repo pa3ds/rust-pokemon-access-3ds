@@ -9,7 +9,7 @@ use super::fake_memory::{FakeClasses, FakeMemory};
 use super::test_memories::{record, record_form};
 use crate::core::speech::Category;
 use crate::games::common::{lyt, pokemon};
-use crate::games::gen6::screens::puzzle;
+use crate::games::gen6::subscreen::puzzle;
 
 const SCREEN: i64 = 0x08300000;
 const BOARD: i64 = 0x08400000;

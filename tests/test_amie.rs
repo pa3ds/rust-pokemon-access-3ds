@@ -11,8 +11,8 @@ use crate::core::words::{self, ENGLISH, Words};
 use crate::games::common::lyt;
 use crate::games::common::pictures::named;
 use crate::games::gen6::apps::FIELD;
-use crate::games::gen6::screens::amie;
 use crate::games::gen6::screens::distribution as d;
+use crate::games::gen6::subscreen::amie;
 use crate::games::xy;
 
 pub(crate) const PAGE: i64 = 0x08A00000;

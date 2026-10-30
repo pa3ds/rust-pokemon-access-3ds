@@ -10,13 +10,8 @@ pub mod habitat;
 pub mod lists;
 pub mod mapcursor;
 pub mod partyicons;
-pub mod playnav;
 pub mod summary;
 pub mod townmap;
 
-pub mod amie;
-pub mod berry_picker;
 pub mod boxes;
 pub mod partners;
-pub mod puzzle;
-pub mod training;

@@ -16,7 +16,7 @@ use crate::games::common::touch::{ImageOf, Target};
 use crate::games::common::{lyt, pokemon};
 use crate::games::gen6::apps::FIELD;
 use crate::games::gen6::screens::distribution as d;
-use crate::games::gen6::screens::training;
+use crate::games::gen6::subscreen::super_training;
 
 const PAGE: i64 = 0x08B00000;
 const ICON: i64 = 0x08B02000;
@@ -42,10 +42,10 @@ fn floats(values: &[f32]) -> Vec<u8> {
         .collect()
 }
 
-fn page(icons: i64) -> training::TrainingPage {
+fn page(icons: i64) -> super_training::TrainingPage {
     let memory = FakeMemory::new();
     let classes = FakeClasses::new(memory.clone());
-    memory.u32(PAGE, &[classes.add(training::CLASS)]);
+    memory.u32(PAGE, &[classes.add(super_training::CLASS)]);
     memory.u32(PAGE + icons, &[ICON]);
     memory.u32(ICON, &[classes.add(d::ICON_CLASS)]);
     memory.u32(ICON + d::REPLACE, &[REPLACE]);
@@ -59,9 +59,10 @@ fn page(icons: i64) -> training::TrainingPage {
         memory.write(param + pokemon::RECORD_IN_PARAM, &record_of("", 0, species));
         // The records are rotated to start at the selected member, Sceptile (1): each holds its
         // member's party index, and the textures stay in party order.
-        let record_at = PAGE + icons + training::PARAMS + training::PARAM_STRIDE * (1 - i);
+        let record_at =
+            PAGE + icons + super_training::PARAMS + super_training::PARAM_STRIDE * (1 - i);
         memory.u32(record_at, &[param]);
-        memory.u32(record_at + training::INDEX, &[i]);
+        memory.u32(record_at + super_training::INDEX, &[i]);
         memory.u32(TABLE + 4 * i, &[TEXTURES + 0x100 * i]);
         memory.u32(TEXTURES + 0x100 * i + d::IMAGE, &[IMAGE + 0x1000 * i]);
     }
@@ -74,7 +75,7 @@ fn page(icons: i64) -> training::TrainingPage {
         memory.u32(picture + lyt::PICTURE_MATERIAL, &[material]);
         memory.u32(material + lyt::MATERIAL_TEXTURE, &[image]);
     }
-    let mut found = training::TrainingPage::with_icons(
+    let mut found = super_training::TrainingPage::with_icons(
         memory.clone(),
         Rc::new(ClassNames::new(memory.clone(), CODE)),
         species(),
@@ -82,7 +83,7 @@ fn page(icons: i64) -> training::TrainingPage {
     );
     found
         .track(
-            &IndexMap::from([(PAGE, training::CLASS.to_string())]),
+            &IndexMap::from([(PAGE, super_training::CLASS.to_string())]),
             false,
         )
         .unwrap();
@@ -91,7 +92,7 @@ fn page(icons: i64) -> training::TrainingPage {
 
 #[test]
 fn test_a_party_slot_is_named_by_the_member_whose_icon_it_draws_however_the_records_rotate() {
-    let found = page(training::ICONS);
+    let found = page(super_training::ICONS);
     assert_eq!(
         (
             found.name(FIRST, Some(FIELD)).unwrap(),
@@ -99,7 +100,10 @@ fn test_a_party_slot_is_named_by_the_member_whose_icon_it_draws_however_the_reco
         ),
         (Some("Breloom".to_string()), Some("Sceptile".to_string()))
     );
-    assert_eq!(found.name(FIRST, Some(training::SPARRING)).unwrap(), None);
+    assert_eq!(
+        found.name(FIRST, Some(super_training::SPARRING)).unwrap(),
+        None
+    );
 }
 
 #[test]
@@ -117,17 +121,19 @@ fn test_xs_page_is_read_where_x_keeps_its_icons_and_records() {
 #[test]
 fn test_a_picture_drawing_another_image_is_not_named() {
     assert_eq!(
-        page(training::ICONS).name(OTHER, Some(FIELD)).unwrap(),
+        page(super_training::ICONS)
+            .name(OTHER, Some(FIELD))
+            .unwrap(),
         None
     );
 }
 
 #[test]
 fn test_the_pixel_that_shoots_a_goal_is_four_fifths_of_its_place_on_the_top_screen() {
-    assert_eq!(training::aim(198.0, 153.0).unwrap(), Some((158, 122)));
-    assert_eq!(training::aim(375.0, 25.0).unwrap(), Some((300, 20)));
-    assert_eq!(training::aim(400.0, 25.0).unwrap(), None);
-    assert_eq!(training::aim(200.0, 240.0).unwrap(), None);
+    assert_eq!(super_training::aim(198.0, 153.0).unwrap(), Some((158, 122)));
+    assert_eq!(super_training::aim(375.0, 25.0).unwrap(), Some((300, 20)));
+    assert_eq!(super_training::aim(400.0, 25.0).unwrap(), None);
+    assert_eq!(super_training::aim(200.0, 240.0).unwrap(), None);
 }
 
 fn drawn(images: IndexMap<i64, &'static str>) -> ImageOf {
@@ -157,7 +163,7 @@ fn test_a_goal_shown_while_a_round_runs_is_offered_at_the_pixel_that_shoots_it()
     }
     fake.visible(hidden, false);
     fake.track().unwrap();
-    let goals = training::Goals::new(
+    let goals = super_training::Goals::new(
         fake.layouts.clone(),
         drawn(IndexMap::from([
             (goal, "target01_8.bclim"),
@@ -167,7 +173,7 @@ fn test_a_goal_shown_while_a_round_runs_is_offered_at_the_pixel_that_shoots_it()
         ])),
     );
     assert_eq!(
-        goals.targets(Some(training::SPARRING)).unwrap(),
+        goals.targets(Some(super_training::SPARRING)).unwrap(),
         [
             Target::new(goal, "goal", 126, 98, -3.0, 32.0),
             Target::new(red, "red goal", 126, 98, -3.0, 32.0)
@@ -185,7 +191,7 @@ fn test_a_goal_shown_while_a_round_runs_is_offered_at_the_pixel_that_shoots_it()
 /// screen's left edge, and the bag beside the Pokémon: with those panes in order, and the root.
 /// With `idle` the layout's buttons are locked, and with `off` the Strength Bag's is switched
 /// off.
-fn bags(idle: bool, off: bool) -> (training::Bags, Vec<i64>, i64) {
+fn bags(idle: bool, off: bool) -> (super_training::Bags, Vec<i64>, i64) {
     let memory = FakeMemory::new();
     let classes = FakeClasses::new(memory.clone());
     let picture = classes.add(lyt::PICTURE_CLASS);
@@ -213,7 +219,7 @@ fn bags(idle: bool, off: bool) -> (training::Bags, Vec<i64>, i64) {
         (panes[1], "sand_bag19.bclim"),
         (panes[2], "sand_bag00.bclim"),
     ]));
-    let offered = training::Bags::new(
+    let offered = super_training::Bags::new(
         fake.layouts.clone(),
         images,
         IndexMap::from([("sand_bag19.bclim".to_string(), "Strength Bag".to_string())]),
@@ -253,7 +259,7 @@ fn test_training_bags_are_offered_only_on_the_field() {
     assert!(
         bags(false, false)
             .0
-            .targets(Some(training::SPARRING))
+            .targets(Some(super_training::SPARRING))
             .unwrap()
             .is_empty()
     );
@@ -271,7 +277,7 @@ fn test_a_training_bag_is_left_out_while_its_button_is_switched_off() {
 }
 
 /// Pictures of a text's characters 20 apart from `x`, "/" the score's slash.
-fn digits(text: &str, y: f64, x: f64, image: &str) -> Vec<training::Seen> {
+fn digits(text: &str, y: f64, x: f64, image: &str) -> Vec<super_training::Seen> {
     text.chars()
         .enumerate()
         .map(|(i, c)| {
@@ -285,12 +291,12 @@ fn digits(text: &str, y: f64, x: f64, image: &str) -> Vec<training::Seen> {
         .collect()
 }
 
-fn score(text: &str) -> Vec<training::Seen> {
+fn score(text: &str) -> Vec<super_training::Seen> {
     digits(text, 203.0, 257.0, "score_nom{}.bclim")
 }
 
 /// The clock's face and its digits, as measured: "2:28" at x 352, 373, 391.
-fn clock(left: i64) -> Vec<training::Seen> {
+fn clock(left: i64) -> Vec<super_training::Seen> {
     let (minutes, seconds) = (left / 60, left % 60);
     let mut out = vec![("timer_c.bclim".to_string(), 325.0, 30.0)];
     out.extend(digits(
@@ -302,7 +308,7 @@ fn clock(left: i64) -> Vec<training::Seen> {
     out
 }
 
-fn seen(items: &[(&str, f64, f64)]) -> Vec<training::Seen> {
+fn seen(items: &[(&str, f64, f64)]) -> Vec<super_training::Seen> {
     items
         .iter()
         .map(|(image, x, y)| (image.to_string(), *x, *y))
@@ -322,14 +328,14 @@ fn test_the_score_and_the_target_are_read_from_the_row_of_the_shown_slash() {
         ("score_nom9.bclim", 300.0, 64.0),
         ("score_nom8.bclim", 300.0, 292.0),
     ]);
-    assert_eq!(training::read_score(&row).unwrap(), Some((157, 300)));
+    assert_eq!(super_training::read_score(&row).unwrap(), Some((157, 300)));
 }
 
-fn rounds(times: Rc<Cell<f64>>) -> (training::Round, Rc<FakeMemory>, FakeClasses) {
+fn rounds(times: Rc<Cell<f64>>) -> (super_training::Round, Rc<FakeMemory>, FakeClasses) {
     let memory = FakeMemory::new();
     let classes = FakeClasses::new(memory.clone());
     let fake = FakeLayouts::new(&memory, &classes);
-    let sparring = training::Round::new(
+    let sparring = super_training::Round::new(
         fake.layouts.clone(),
         Rc::new(|_pane| Ok(None)),
         memory.clone(),
@@ -401,7 +407,7 @@ fn test_the_banners_are_said_by_their_textures_words() {
     assert_eq!(
         ["start", "clear", "cleared", "gameover_c", "target01_8"]
             .iter()
-            .map(|image| training::banner(&format!("{image}.bclim")))
+            .map(|image| super_training::banner(&format!("{image}.bclim")))
             .collect::<Vec<_>>(),
         [
             Some("start".to_string()),
@@ -416,24 +422,24 @@ fn test_the_banners_are_said_by_their_textures_words() {
 #[test]
 fn test_a_ball_of_the_bots_going_into_flight_warns_once() {
     let (mut sparring, memory, classes) = rounds(Rc::new(Cell::new(0.0)));
-    let vtable = classes.add(training::MISSILE);
+    let vtable = classes.add(super_training::MISSILE);
     memory.u32(0x08C00000, &[vtable]);
     sparring
         .track(
-            &IndexMap::from([(0x08C00000, training::MISSILE.to_string())]),
+            &IndexMap::from([(0x08C00000, super_training::MISSILE.to_string())]),
             false,
         )
         .unwrap();
     let mut said = Vec::new();
     for state in [0u32, 1, 1, 2] {
         memory.write(0x08C00004, &state.to_le_bytes());
-        memory.u32(0x08C00000 + training::BOT_BALL, &[0x08D00000]);
-        said.extend(sparring.poll(Some(training::SPARRING)).unwrap());
+        memory.u32(0x08C00000 + super_training::BOT_BALL, &[0x08D00000]);
+        said.extend(sparring.poll(Some(super_training::SPARRING)).unwrap());
     }
     assert_eq!(
         said,
         [(
-            training::ROUND_LOG.to_string(),
+            super_training::ROUND_LOG.to_string(),
             "shot coming".to_string(),
             Category::Warning
         )]
@@ -443,17 +449,17 @@ fn test_a_ball_of_the_bots_going_into_flight_warns_once() {
 #[test]
 fn test_a_ball_with_no_pointer_going_into_flight_does_not_warn() {
     let (mut sparring, memory, classes) = rounds(Rc::new(Cell::new(0.0)));
-    memory.u32(0x08C00000, &[classes.add(training::MISSILE)]);
+    memory.u32(0x08C00000, &[classes.add(super_training::MISSILE)]);
     sparring
         .track(
-            &IndexMap::from([(0x08C00000, training::MISSILE.to_string())]),
+            &IndexMap::from([(0x08C00000, super_training::MISSILE.to_string())]),
             false,
         )
         .unwrap();
     let mut said = Vec::new();
     for state in [2, 1] {
         memory.u32(0x08C00004, &[state]);
-        said.extend(sparring.poll(Some(training::SPARRING)).unwrap());
+        said.extend(sparring.poll(Some(super_training::SPARRING)).unwrap());
     }
     assert!(said.is_empty());
 }

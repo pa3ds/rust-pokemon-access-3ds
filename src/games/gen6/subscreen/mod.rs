@@ -1,10 +1,13 @@
-//! The PlayNav's screens: Pokémon-Amie's and Super Training's readers, answered for as one.
+//! The subscreens: the field's bottom-screen pages, as the game names them, and the apps they open.
 //!
-//! The PlayNav's pages, and the apps they open, Amie itself, its decorate screen, its games and
-//! Super Training's rounds, each have a reader or a few of their own, and the profile wired each one
-//! by hand: Berry Picker alone at eleven places (the deepening round, 2026-10-29). Here they are
-//! built from what they share and answered for together. Each reader answers whichever of these it
-//! has, by the same name, for the app running, and nothing in any other app:
+//! A subscreen is a class of the game's `field::subscreen`: ORAS's PokéNav Plus (`pmn`) and the PSS
+//! (`pss`) in both games, and Pokémon-Amie's page (`kawaigari`) and Super Training's (`training`),
+//! which ORAS's PlayNav shows and X's bottom screen shows itself. Gen 6 reads Amie's and Super
+//! Training's, in ORAS and X alike, and the apps they open: Amie itself, its decorate screen, its
+//! games, and Super Training's rounds. Each has a reader or a few of its own, and the profile wired
+//! each one by hand, Berry Picker alone at eleven places (the deepening round, 2026-10-29). Here
+//! they are built from what they share and answered for together. Each reader answers whichever of
+//! these it has, by the same name, for the app running, and nothing in any other app:
 //!
 //! - `classes`, what the heap is swept for to find its objects, and `track(found, adding)`, what a
 //!   sweep found of them, by class;
@@ -27,6 +30,11 @@
 //! Python asks each reader by the same name, duck-typed; here each answer is a trait, implemented
 //! for the `RefCell` a reader is shared in, and the tuples are lists of them.
 
+pub mod amie;
+pub mod berry_picker;
+pub mod puzzle;
+pub mod super_training;
+
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -41,11 +49,11 @@ use crate::games::common::pokemon;
 use crate::games::common::touch::{Idle, ImageOf, Off, Target};
 use crate::games::gen6::game::Game;
 use crate::games::gen6::rom::archives::GameText;
-use crate::games::gen6::screens::amie::{AmiePage, Goods, Puffs};
-use crate::games::gen6::screens::berry_picker::{BerryKeys, BerryPicker, Touching};
-use crate::games::gen6::screens::puzzle::TilePuzzle;
-use crate::games::gen6::screens::training::{Bags, Goals, Round, TrainingPage, Waiting};
 use crate::py::{self, Result};
+use amie::{AmiePage, Goods, Puffs};
+use berry_picker::{BerryKeys, BerryPicker, Touching};
+use puzzle::TilePuzzle;
+use super_training::{Bags, Goals, Round, TrainingPage, Waiting};
 
 /// A reader handed what a sweep found of its objects, by class.
 pub trait Tracked {
@@ -201,8 +209,8 @@ impl Polled for RefCell<BerryPicker> {
     }
 }
 
-/// The PlayNav's screens' readers, and what each answers for the app running.
-pub struct PlayNav {
+/// The subscreens' readers, and what each answers for the app running.
+pub struct Subscreens {
     pub puzzle: Rc<RefCell<TilePuzzle>>,
     pub berry_picker: Rc<RefCell<BerryPicker>>,
     /// What the heap is swept for, each reader's `classes`.
@@ -234,7 +242,7 @@ fn short(text: &GameText, found: &pokemon::Pokemon) -> Option<String> {
     text.pokemon(found.species, 0)
 }
 
-impl PlayNav {
+impl Subscreens {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         memory: Rc<dyn Memory>,
@@ -250,9 +258,9 @@ impl PlayNav {
         picked: Rc<dyn Fn(&str) -> String>,
         wrong: Rc<dyn Fn(&str) -> String>,
         describing: bool,
-    ) -> PlayNav {
-        // The PlayNav's Pokémon-Amie page draws its Pokémon's icon, and says nothing of whose;
-        // Amie itself is stroked by a slide over it.
+    ) -> Subscreens {
+        // The Pokémon-Amie page draws its Pokémon's icon, and says nothing of whose; Amie itself is
+        // stroked by a slide over it.
         let amie = Rc::new(RefCell::new(AmiePage::with_number(
             memory.clone(),
             names.clone(),
@@ -338,7 +346,7 @@ impl PlayNav {
             .iter()
             .flat_map(|reader| reader.classes().iter().copied())
             .collect();
-        PlayNav {
+        Subscreens {
             classes: classes.into_iter().collect(),
             tracked,
             named: vec![amie.clone(), training, puffs, goods, puzzle.clone()],

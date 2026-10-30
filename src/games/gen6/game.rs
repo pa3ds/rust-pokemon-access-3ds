@@ -32,9 +32,9 @@ use crate::games::gen6::field::features::{
 use crate::games::gen6::field::footsteps::{ORAS, Steps};
 use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::rom::layout::RomLayout;
-use crate::games::gen6::screens::amie::NUMBER;
 use crate::games::gen6::screens::buttons::MENU;
-use crate::games::gen6::screens::training::ICONS;
+use crate::games::gen6::subscreen::amie::NUMBER;
+use crate::games::gen6::subscreen::super_training::ICONS;
 use crate::py::{Log, Result};
 
 /// An app only one game has, read by that game's own package: ORAS's soaring
@@ -403,10 +403,10 @@ pub struct Game {
     /// (`footsteps.Steps`): ORAS's, or X's (spike 231).
     pub steps: Steps,
     /// Where its Super Training page keeps the PokeIcon of its party's icons, its records following
-    /// (`screens.training`): ORAS's 0xF0, X's 0xC8 (spike 228).
+    /// (`subscreen.super_training`): ORAS's 0xF0, X's 0xC8 (spike 228).
     pub training: i64,
     /// Where its Pokémon-Amie page keeps its Pokémon's number, its icon's holder following
-    /// (`screens.amie`): ORAS's 0x14C, X's 0x124 (spike 228).
+    /// (`subscreen.amie`): ORAS's 0x14C, X's 0x124 (spike 228).
     pub amie: i64,
     /// Textures a game draws as a button's words with no line of its text to name them, named
     /// instead by pa3ds's own words for the picture (`pictures.named`) and offered as a button of
