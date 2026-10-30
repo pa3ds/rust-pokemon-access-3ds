@@ -32,6 +32,9 @@ sprite-0x97 = Mega Evolution guru
 sprite-0x98 = Game Director
 # PCWOMAN1: at the counter in all 16 Pokémon Centers (spike 101); also the Battle Maison's receptionist
 sprite-0x3b = Nurse
+# MYSTERYW and MYSTERYM: Geosenge Town, the Kalos Power Plant and a room of Lysandre Labs, zone 0x61, where "We're the masked heroes!" (story 35:25)
+sprite-0x8 = masked hero
+sprite-0x9 = masked hero
 
 # The game's own words, copied from the ROM's English text by `spikes/108_x_people.py table`: the
 # story's people by the trainer each is (`xy.CHARACTERS`), and every other sprite that two
@@ -707,3 +710,10 @@ place-0x37-furniture-6 = photograph
 place-0x37-furniture-7 = photograph
 # story 313:4, Lumiose City, zone 0x43: the plate of script 22, which no record shows, so no door is paired with it
 place-0x43-warp-1 = Lysandre Café
+# bed: story 374:0, Lysandre Labs, zone 0x64: "The bed looks nice and comfortable."
+place-0x64-furniture-0 = bed
+place-0x64-furniture-1 = bed
+place-0x64-furniture-2 = bed
+place-0x64-furniture-3 = bed
+place-0x64-furniture-4 = bed
+place-0x64-furniture-5 = bed

@@ -32,6 +32,9 @@ sprite-0x97 = 메가진화 아저씨
 sprite-0x98 = 게임 디렉터
 # Nurse: PCWOMAN1, at the counter in all 16 Pokémon Centers (spike 101)
 sprite-0x3b = 간호사
+# en masked hero: MYSTERYW and MYSTERYM: Geosenge Town, the Kalos Power Plant and a room of Lysandre Labs, zone 0x61, where "We're the masked heroes!" (story 35:25)
+sprite-0x8 = 정체 모를 사람
+sprite-0x9 = 정체 모를 사람
 
 # The game's own words for the story's people and for kinds of trainer, as `archives`
 # reads them (findings, spikes 90 and 108): spikes/108_x_people.py table ko.
@@ -649,3 +652,10 @@ place-0x37-furniture-6 = 사진
 place-0x37-furniture-7 = 사진
 # Lysandre Café: story 313:4, Lumiose City, zone 0x43: the plate of script 22, which no record shows, so no door is paired with it
 place-0x43-warp-1 = 플라드리 카페
+# bed: story 374:0, Lysandre Labs, zone 0x64: "The bed looks nice and comfortable."
+place-0x64-furniture-0 = 침대
+place-0x64-furniture-1 = 침대
+place-0x64-furniture-2 = 침대
+place-0x64-furniture-3 = 침대
+place-0x64-furniture-4 = 침대
+place-0x64-furniture-5 = 침대

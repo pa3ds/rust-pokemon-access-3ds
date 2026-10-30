@@ -305,7 +305,8 @@ fn sprites(game: &Game, language: &str) -> IndexMap<String, String> {
     let id: unic_langid::LanguageIdentifier = language.parse().unwrap();
     let mut bundle = fluent_bundle::FluentBundle::<&fluent_bundle::FluentResource>::new(vec![id]);
     bundle.set_use_isolating(false);
-    bundle.add_resource(&resource).unwrap();
+    // A message the file names twice keeps its first words, as Python's `add_resource` does.
+    let _ = bundle.add_resource(&resource);
     let mut table = IndexMap::new();
     for entry in resource.entries() {
         let fluent_syntax::ast::Entry::Message(message) = entry else {

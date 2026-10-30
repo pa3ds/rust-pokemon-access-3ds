@@ -34,6 +34,9 @@ sprite-0x97 = 超级进化大叔
 sprite-0x98 = 游戏总监
 # Nurse: PCWOMAN1, at the counter in all 16 Pokémon Centers (spike 101); ORAS's word
 sprite-0x3b = 乔伊小姐
+# en masked hero, pa3ds's own word as no official one was found: MYSTERYW and MYSTERYM: Geosenge Town, the Kalos Power Plant and a room of Lysandre Labs, zone 0x61, where "We're the masked heroes!" (story 35:25)
+sprite-0x8 = 蒙面英雄
+sprite-0x9 = 蒙面英雄
 
 # The story's people by the trainer each is, and kinds of trainer by their class (findings,
 # spikes 90 and 108), in the official names 52poke lists for X and Y's trainers and classes.
@@ -650,3 +653,10 @@ place-0x37-furniture-6 = 照片
 place-0x37-furniture-7 = 照片
 # Lysandre Café: story 313:4, Lumiose City, zone 0x43; pa3ds's own word, Lysandre's name above and café, since no official one was found
 place-0x43-warp-1 = 弗拉达利咖啡馆
+# bed: story 374:0, Lysandre Labs, zone 0x64: "The bed looks nice and comfortable."; pa3ds's own word
+place-0x64-furniture-0 = 床
+place-0x64-furniture-1 = 床
+place-0x64-furniture-2 = 床
+place-0x64-furniture-3 = 床
+place-0x64-furniture-4 = 床
+place-0x64-furniture-5 = 床
