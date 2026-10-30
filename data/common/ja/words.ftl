@@ -116,6 +116,9 @@ p-vine = { $way }を向いて、{ $how }
 p-more-vines = { $count ->
    *[other] あと{ $count }本のつる
 }
+p-more-teleporters = { $count ->
+   *[other] あと{ $count }枚のワープパネル
+}
 how-up-the-ramp = 坂を上る
 how-down-the-ramp = 坂を下る
 p-current = 海流に乗って{ $bearing }

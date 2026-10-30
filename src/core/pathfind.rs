@@ -28,6 +28,7 @@ use indexmap::IndexMap;
 
 use crate::core::words::{own, said};
 use crate::games::common::field::guide::Held;
+use crate::games::common::field::things::{TELEPORTER, kind_said};
 use crate::py::{self, Error, Result};
 
 pub type Cell = (i64, i64);
@@ -148,6 +149,9 @@ pub struct Leg {
     /// Whether it is the guide's subclass `Vined`, the step that grabs a vine and its ride:
     /// Python's `isinstance(leg, Vined)`.
     pub vined: bool,
+    /// Whether it is the guide's subclass `Teleported`, a teleport as a leg of its own:
+    /// Python's `isinstance(leg, Teleported)`.
+    pub teleported: bool,
 }
 
 impl Leg {
@@ -160,6 +164,7 @@ impl Leg {
             how: String::new(),
             held: None,
             vined: false,
+            teleported: false,
         }
     }
 }
@@ -182,6 +187,10 @@ impl fmt::Display for Leg {
                     ]
                 )
             );
+        }
+        if self.teleported {
+            // `Teleported.__str__`.
+            return write!(f, "{}", kind_said(TELEPORTER));
         }
         if !self.how.is_empty() {
             return write!(
@@ -1095,6 +1104,7 @@ pub fn legs_with(
                     how: walked,
                     held: None,
                     vined: false,
+                    teleported: false,
                 };
             }
             _ => out.push(Leg {
@@ -1104,6 +1114,7 @@ pub fn legs_with(
                 how: walked,
                 held: None,
                 vined: false,
+                teleported: false,
             }),
         }
     }

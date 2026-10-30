@@ -178,6 +178,12 @@ p-more-vines = { $count ->
     [one] then 1 more vine
    *[other] then { $count } more vines
 }
+# How many more teleporters a way takes past its first, said after it in place of the rest: "6
+# north, teleporter, then 3 more teleporters" (spike A).
+p-more-teleporters = { $count ->
+    [one] then 1 more teleporter
+   *[other] then { $count } more teleporters
+}
 # A run of steps up or down a ramp, said as one leg by the way it starts, the key held all along
 # it: "up the ramp 25 south-east" (spike 248).
 how-up-the-ramp = up the ramp

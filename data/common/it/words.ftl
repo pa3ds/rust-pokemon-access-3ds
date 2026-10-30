@@ -117,6 +117,10 @@ p-more-vines = { $count ->
     [one] poi ancora 1 liana
    *[other] poi ancora { $count } liane
 }
+p-more-teleporters = { $count ->
+    [one] poi ancora 1 teletrasportatore
+   *[other] poi ancora { $count } teletrasportatori
+}
 how-up-the-ramp = sali la rampa
 how-down-the-ramp = scendi la rampa
 p-current = segui la corrente { $bearing }

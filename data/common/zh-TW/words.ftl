@@ -116,6 +116,9 @@ p-vine = 面向{ $way }，{ $how }
 p-more-vines = { $count ->
    *[other] 然後還有{ $count }根藤蔓
 }
+p-more-teleporters = { $count ->
+   *[other] 然後還有{ $count }個傳送裝置
+}
 how-up-the-ramp = 上坡道
 how-down-the-ramp = 下坡道
 p-current = 順著海流{ $bearing }

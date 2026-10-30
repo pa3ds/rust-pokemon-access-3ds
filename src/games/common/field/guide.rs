@@ -14,11 +14,12 @@ use indexmap::IndexMap;
 use crate::core::config::Navigation;
 use crate::core::pathfind::{self, Cell, Leg};
 use crate::core::words::own;
+use crate::games::common::field::chunk::ANY_FLOOR;
 use crate::games::common::field::climb::Climb;
 use crate::games::common::field::ground::{
     BLOCK, CUT, Ground, IceRoom, NO_ZONE, Of, ROCK_SMASH, SOLID, STRENGTH, SURF, WATERFALL, WHOLE,
 };
-use crate::games::common::field::things::{self as field, Field, Interactable};
+use crate::games::common::field::things::{self as field, Field, Interactable, TELEPORTER};
 use crate::games::common::field::vines;
 use crate::py::{self, Error, Log, Result};
 
@@ -96,7 +97,8 @@ fn vine_word(ride: &str) -> Result<&'static str> {
 }
 
 /// `legs` with each step that grabs a vine and the ride after it one leg (`Vined`, a `Leg` whose
-/// `vined` is set).
+/// `vined` is set), and each teleport a leg of its own (`Teleported`, one whose `teleported`
+/// is).
 fn vined(legs: Vec<Leg>) -> Vec<Leg> {
     let mut out: Vec<Leg> = Vec::new();
     for leg in legs {
@@ -109,8 +111,18 @@ fn vined(legs: Vec<Leg>) -> Vec<Leg> {
                     how: grab.how.clone(),
                     held: None,
                     vined: true,
+                    teleported: false,
                 };
             }
+            _ if leg.how == TELEPORTER => out.push(Leg {
+                direction: leg.direction,
+                steps: leg.steps,
+                end: leg.end,
+                how: leg.how,
+                held: None,
+                vined: false,
+                teleported: true,
+            }),
             _ => out.push(leg),
         }
     }
@@ -420,9 +432,10 @@ pub struct Guidance {
     pub visit: Option<(i64, i64)>,
     pub path: Vec<Cell>,
     pub legs: Vec<Leg>,
-    /// Each cell of the path and how far along it is, the first time where it is crossed twice
-    /// (`at`).
-    pub along: HashMap<Cell, i64>,
+    /// The floor each cell of the path is walked on (`Ground.walked`): a way through Laverre Gym
+    /// walks (1, 1) on two floors, and a teleporter off the way can put the player on a cell of it
+    /// on another floor, which is off it.
+    pub floors: Vec<i64>,
     /// Where the player was last seen.
     pub cell: Cell,
     /// The leg last said: the whole path is said first, so the first leg is said already.
@@ -472,9 +485,12 @@ pub struct Guidance {
 }
 
 impl Guidance {
-    /// How far along the path `cell` is: where the path crosses it more than once, as a way over
-    /// Sootopolis Gym's thin ice crosses its floor, the first time from the leg being walked on.
-    pub fn at(&self, cell: Cell) -> Result<Option<i64>> {
+    /// How far along the path `cell` is, on `floor` where it is known: where the path crosses
+    /// it more than once, as a way over Sootopolis Gym's thin ice crosses its floor, the first
+    /// time from the leg being walked on.
+    ///
+    /// Python's `floor` defaults to `ANY_FLOOR`.
+    pub fn at(&self, cell: Cell, floor: i64) -> Result<Option<i64>> {
         let start = if self.leg != 0 {
             let at = self.leg - 1;
             usize::try_from(at)
@@ -485,11 +501,27 @@ impl Guidance {
         } else {
             0
         };
-        let later = (start..self.path.len() as i64).find(|&i| self.path[i as usize] == cell);
-        Ok(match later {
-            None => self.along.get(&cell).copied(),
-            Some(later) => Some(later),
-        })
+        let mut on: Vec<i64> = Vec::new();
+        for (i, &walked) in self.path.iter().enumerate() {
+            if walked != cell {
+                continue;
+            }
+            if floor != ANY_FLOOR {
+                let there = *self
+                    .floors
+                    .get(i)
+                    .ok_or_else(|| Error::index("tuple index out of range"))?;
+                if there != ANY_FLOOR && there != floor {
+                    continue;
+                }
+            }
+            on.push(i as i64);
+        }
+        Ok(on
+            .iter()
+            .copied()
+            .find(|&i| i >= start)
+            .or_else(|| on.first().copied()))
     }
 }
 
@@ -984,7 +1016,8 @@ fn crossings(
 /// A). A run of legs a current or a grind rail carries the player along is said as one, by
 /// where it leaves them (`CARRIED`). A leg into another place says it (`_crossings`). The way
 /// is said as far as its first vine, then how many more it rides: up Coumarine Gym, every
-/// press said all 17 vines and the legs between, again at each step (Khai, 2026-10-26).
+/// press said all 17 vines and the legs between, again at each step (Khai, 2026-10-26). So is
+/// a way through Laverre Gym's teleporters, "6 north, teleporter, then 3 more teleporters".
 fn spoken(legs: &[Leg], r#where: &Field, crossings: &IndexMap<i64, String>) -> Result<String> {
     if let Some(heading) = r#where.heading {
         let angled = match r#where.bearing {
@@ -993,10 +1026,17 @@ fn spoken(legs: &[Leg], r#where: &Field, crossings: &IndexMap<i64, String>) -> R
         };
         return pathfind::turned(legs, heading, angled, r#where.turning);
     }
-    let vined: Vec<usize> = (0..legs.len()).filter(|&i| legs[i].vined).collect();
-    let more = vined.len() as i64 - 1;
+    let jumps: Vec<usize> = (0..legs.len())
+        .filter(|&i| legs[i].vined || legs[i].teleported)
+        .collect();
+    let more = jumps.len() as i64 - 1;
+    let tail = if !jumps.is_empty() && legs[jumps[0]].teleported {
+        "p-more-teleporters"
+    } else {
+        "p-more-vines"
+    };
     let legs = if more > 0 {
-        &legs[..vined[0] + 1]
+        &legs[..jumps[0] + 1]
     } else {
         legs
     };
@@ -1025,7 +1065,7 @@ fn spoken(legs: &[Leg], r#where: &Field, crossings: &IndexMap<i64, String>) -> R
         }
     }
     if more > 0 {
-        parts.push(own("p-more-vines", &[("count", &more)]));
+        parts.push(own(tail, &[("count", &more)]));
     }
     Ok(parts.join(", "))
 }
@@ -1329,7 +1369,9 @@ impl Guide {
         let sides = sides(item, push);
         if short {
             let at = match &held {
-                Some(held) if held.borrow().key == item.key() => held.borrow().at(r#where.cell)?,
+                Some(held) if held.borrow().key == item.key() => held
+                    .borrow()
+                    .at(r#where.cell, ground.floor(r#where.cell, r#where.height)?)?,
                 _ => None,
             };
             if let Some(held) = &held
@@ -1498,6 +1540,9 @@ impl Guide {
         for (&i, vine) in &grabs {
             placed.insert(i, (vine_word(vine.ride)?.to_string(), Some(vine.faces)));
         }
+        for i in ground.teleported(&path)? {
+            placed.insert(i, (TELEPORTER.to_string(), None));
+        }
         let legs = vined(self::held(
             ramps(
                 pathfind::legs_with(&path, Some(&how), Some(&key), Some(&placed))?,
@@ -1506,14 +1551,9 @@ impl Guide {
             &climbs,
         )?);
         let visit = self.field.visit();
-        let along: HashMap<Cell, i64> = path
-            .iter()
-            .enumerate()
-            .rev()
-            .map(|(i, &cell)| (cell, i as i64))
-            .collect();
         let nudge = nudge(&ground, r#where.place, &path, 0)?;
         let crossings = crossings(&ground, &path, &legs, &self.place)?;
+        let floors = ground.walked(&path)?;
         let since = (self.clock)();
         let first = legs.first().map(|leg| leg.direction);
         self.guidance = Some(Rc::new(RefCell::new(Guidance {
@@ -1522,7 +1562,7 @@ impl Guide {
             visit,
             path,
             legs: legs.clone(),
-            along,
+            floors,
             cell: r#where.cell,
             leg: 0,
             camera: r#where.bearing,
@@ -1570,7 +1610,10 @@ impl Guide {
     }
 
     /// Keep up with the player along the path being walked: the next leg as they reach each
-    /// turn, the thing itself when they arrive, and a new path when they leave this one.
+    /// turn, the thing itself when they arrive, and a new path when they leave this one. A
+    /// teleporter on the way says nothing as they step onto it, and the leg after it once it
+    /// has put them where the way goes on, on its floor; one that puts them elsewhere puts them
+    /// off the way (ADR-0024).
     pub fn follow(&mut self, r#where: &Field) -> Result<()> {
         let Some(guidance) = self.guidance.clone() else {
             return Ok(());
@@ -1608,8 +1651,15 @@ impl Guide {
             // floor, and the way goes on from there, found again where it is not the way's.
             return Ok(());
         }
-        let heading = pathfind::towards(was, r#where.cell);
-        let mut at = guidance.borrow().at(r#where.cell)?;
+        // A teleport puts the player further than any step or jump, walking no way at all.
+        let jumped = (r#where.cell.0 - was.0).abs() + (r#where.cell.1 - was.1).abs() > 2;
+        let heading = if jumped {
+            ""
+        } else {
+            pathfind::towards(was, r#where.cell)
+        };
+        let floor = ground.floor(r#where.cell, r#where.height)?;
+        let mut at = guidance.borrow().at(r#where.cell, floor)?;
         // A step along a diagonal street lands up to a cell off the diagonal the way was laid on
         // the grid by (the tape of x_route-6-2.ctm, 2026-10-20).
         let slack = if self.slack != 0 {
@@ -1699,7 +1749,7 @@ impl Guide {
             };
             let mut run = vec![self::rest(&now, at)];
             run.extend(rest.into_iter().take_while(|one| one.how == now.how));
-            if !riding {
+            if !riding && !now.teleported {
                 let text = spoken(&run, r#where, &guidance.borrow().crossings)?;
                 (self.tell)(&text);
             }
@@ -1724,7 +1774,7 @@ impl Guide {
         let guidance = self.guidance.clone();
         let off_the_way = match &guidance {
             None => true,
-            Some(guidance) => guidance.borrow().at(r#where.cell)?.is_none(),
+            Some(guidance) => guidance.borrow().at(r#where.cell, ANY_FLOOR)?.is_none(),
         };
         if drift.len() > 1 && off_the_way {
             let text = own(
@@ -1773,7 +1823,7 @@ impl Guide {
             }
             guidance.judged = Some(place);
         }
-        let Some(at) = guidance.borrow().at(r#where.cell)? else {
+        let Some(at) = guidance.borrow().at(r#where.cell, ANY_FLOOR)? else {
             return Ok(());
         };
         let hm = guidance.borrow().hm;
@@ -1904,7 +1954,7 @@ impl Guide {
         {
             return Ok(());
         }
-        let at = guidance.borrow().at(r#where.cell)?;
+        let at = guidance.borrow().at(r#where.cell, ANY_FLOOR)?;
         let last = guidance.borrow().path.len() as i64 - 1;
         let Some(at) = at else {
             return Ok(());

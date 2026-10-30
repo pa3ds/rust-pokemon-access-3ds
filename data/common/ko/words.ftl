@@ -117,6 +117,9 @@ p-vine = { $way }을 보고, { $how }
 p-more-vines = { $count ->
    *[other] 그다음 덩굴 { $count }개 더
 }
+p-more-teleporters = { $count ->
+   *[other] 그다음 텔레포터 { $count }개 더
+}
 how-up-the-ramp = 경사로 오르기
 how-down-the-ramp = 경사로 내려가기
 p-current = 해류 타기 { $bearing }

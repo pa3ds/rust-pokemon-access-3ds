@@ -10,9 +10,9 @@ use crate::core::config::Navigation;
 use crate::core::keyfile;
 use crate::core::keys::{SHIFT_UP, key_name};
 use crate::core::names::Names;
-use crate::core::pathfind::{self, Cell, nearest};
+use crate::core::pathfind::{self, Cell, Leg, nearest};
 use crate::core::speech::{Backend, Category, Speech, default_interrupts};
-use crate::games::common::field::chunk::{BLOCKED, CHUNK, Chunk, Floor};
+use crate::games::common::field::chunk::{ANY_FLOOR, BLOCKED, CHUNK, Chunk, Floor};
 use crate::games::common::field::climb::Walls;
 use crate::games::common::field::grind::GrindRails;
 use crate::games::common::field::ground::{
@@ -2423,19 +2423,21 @@ fn panel(i: i64, cell: Cell, height: f64, lands: Cell, landing: f64) -> Interact
     }
 }
 
-/// A pair of panels each putting the player on the other, and one from by the player up to the
-/// far side of the room above.
+/// A pair of panels each putting the player on the other, one from by the player up to the far
+/// side of the room above, and a pair from there down to the room past it.
 fn laverre_panels() -> Vec<Interactable> {
     vec![
         panel(0, (94, 172), 0.0, (100, 172), 90.0),
         panel(1, (100, 172), 90.0, (94, 172), 0.0),
         panel(2, (91, 172), 0.0, (103, 171), 90.0),
+        panel(3, (104, 174), 90.0, (110, 172), 0.0),
+        panel(4, (110, 172), 0.0, (104, 174), 90.0),
     ]
 }
 
-/// Two rooms of Laverre Gym's a floor apart and side by side, no floor joining them, the lower
-/// x 90 to 94 at 0, the upper x 100 to 104 at 90, z 170 to 174, with `LAVERRE_PANELS` and
-/// `items`, the player at `at` on the floor at `level` (spike A).
+/// Three rooms of Laverre Gym's side by side, the middle a floor above the others and no floor
+/// joining them, x 90 to 94 at 0, 100 to 104 at 90 and 110 to 114 at 0, z 170 to 174, with
+/// `LAVERRE_PANELS` and `items`, the player at `at` on the floor at `level` (spike A).
 ///
 /// Python's `at` and `level` default to (92, 172) and 0.0.
 fn laverre_gym(items: &[Interactable], at: Cell, level: f64) -> (Rig, Field) {
@@ -2451,7 +2453,7 @@ fn laverre_gym(items: &[Interactable], at: Cell, level: f64) -> (Rig, Field) {
     {
         let mut floors = rig.field.floors.borrow_mut();
         for z in 170..175 {
-            for x in 90..95 {
+            for x in (90..95).chain(110..115) {
                 floors.insert((x, z), (Some(0.0), None));
             }
             for x in 100..105 {
@@ -2527,6 +2529,132 @@ fn test_the_walk_out_reaches_the_room_a_teleporter_leads_to_and_the_teleporter()
         .unwrap();
     assert_eq!(reached[&(104, 174)], HashSet::from([1]));
     assert_eq!(reached[&(91, 172)], HashSet::from([0]));
+}
+
+/// Laverre Gym (spike A): the way to a person two rooms off is said as far as the first
+/// teleporter, then how many more it takes.
+#[test]
+fn test_p_says_a_way_through_teleporters_as_far_as_the_first_and_how_many_more() {
+    let grant = Interactable {
+        height: Some(0.0),
+        ..somebody((113, 172), 0x08D1E9A8)
+    };
+    let (mut rig, r#where) = laverre_gym(std::slice::from_ref(&grant), (92, 172), 0.0);
+    let heard: RefCell<Vec<String>> = RefCell::new(Vec::new());
+    rig.nav
+        .guide
+        .to(
+            &r#where,
+            &grant,
+            &|line: &str| heard.borrow_mut().push(line.to_string()),
+            "",
+            false,
+            None,
+            false,
+            true,
+            None,
+        )
+        .unwrap();
+    assert_eq!(
+        heard.into_inner(),
+        vec!["1 west, teleporter, then 1 more teleporter"]
+    );
+}
+
+/// The player at `cell` at `height`, the runtime following them as it polls.
+fn gym_step(rig: &mut Rig, cell: Cell, height: f64) {
+    {
+        let mut slot = rig.field.r#where.borrow_mut();
+        let was = slot.as_ref().expect("a field").clone();
+        *slot = Some(Field {
+            cell,
+            height: Some(height),
+            ..was
+        });
+    }
+    let r#where = rig.field.poll().unwrap().expect("a field");
+    rig.nav.follow(&r#where).unwrap();
+}
+
+/// ADR-0024: a teleport keeps the player's model (spike A), and the way goes on across it.
+#[test]
+fn test_guiding_says_nothing_on_a_teleporter_and_the_next_leg_where_it_puts_the_player() {
+    let grant = Interactable {
+        height: Some(90.0),
+        ..somebody((100, 170), 0x08D1E9A8)
+    };
+    let (mut rig, r#where) = laverre_gym(std::slice::from_ref(&grant), (92, 172), 0.0);
+    let heard: RefCell<Vec<String>> = RefCell::new(Vec::new());
+    rig.nav
+        .guide
+        .to(
+            &r#where,
+            &grant,
+            &|line: &str| heard.borrow_mut().push(line.to_string()),
+            "",
+            false,
+            None,
+            false,
+            true,
+            None,
+        )
+        .unwrap();
+    for (cell, height) in [
+        ((93, 172), 2.0),
+        ((94, 172), 2.0),
+        ((100, 172), 92.0),
+        ((100, 171), 92.0),
+    ] {
+        gym_step(&mut rig, cell, height);
+    }
+    let mut all = heard.into_inner();
+    all.extend(said(&rig.backend));
+    assert_eq!(
+        all,
+        vec!["2 east, teleporter, 1 north", "1 north", "person, 1 north"]
+    );
+}
+
+/// Laverre Gym's floors are the same cells: a teleporter off the way can put the player on a
+/// cell of it on another floor, which is not that far along.
+#[test]
+fn test_a_cell_the_way_walks_on_two_floors_is_along_it_on_the_floor_the_player_is_on() {
+    let guidance = Guidance {
+        key: ("people".to_string(), "person".to_string(), 0, None),
+        name: "person".to_string(),
+        visit: None,
+        path: vec![(1, 1), (2, 1), (1, 1)],
+        legs: vec![
+            Leg::new(pathfind::EAST, 1, 1),
+            Leg::new(pathfind::WEST, 1, 2),
+        ],
+        floors: vec![0, 0, 1],
+        cell: (2, 1),
+        leg: 1,
+        camera: None,
+        seen: None,
+        since: 0.0,
+        hm: false,
+        ice: false,
+        short: false,
+        blocker: String::new(),
+        asked: true,
+        push: None,
+        place: None,
+        still: 0.0,
+        judged: None,
+        nudge: None,
+        crossings: IndexMap::new(),
+    };
+    assert_eq!(
+        [
+            guidance.at((1, 1), 1).unwrap(),
+            guidance.at((1, 1), 0).unwrap(),
+            guidance.at((1, 1), ANY_FLOOR).unwrap()
+        ],
+        [Some(2), Some(0), Some(2)]
+    );
+    assert_eq!(guidance.at((2, 1), 1).unwrap(), None);
 }
 
 /// X's Cyllage Gym (x_gym_2, spike 245): the player walked from the entrance to the blue spot at
