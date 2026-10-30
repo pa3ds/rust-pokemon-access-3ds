@@ -2,6 +2,7 @@
 //! keys file says (`<pa3ds>\user\keys.toml`, ADR-0022).
 //!
 //! Bound by:
+//! - ADR-0009: touch mode's drag is Shift alone's, and the player's to bind to no key by default.
 //! - ADR-0022: the navigation keys by mode, list, direction and touch, rebindable in `keys.toml`.
 
 use std::collections::HashSet;
@@ -9,7 +10,7 @@ use std::sync::LazyLock;
 
 use indexmap::IndexMap;
 
-use crate::games::common::touch::{ROW_NEXT, ROW_PREVIOUS, TAP};
+use crate::games::common::touch::{DRAG, ROW_NEXT, ROW_PREVIOUS, TAP};
 
 pub const LIST: &str = "list";
 
@@ -146,8 +147,8 @@ fn keys(pairs: &[(&str, &str)]) -> IndexMap<String, String> {
 /// battle again and shift and R the enemy's (2026-09-29). The apostrophe steps on to touch mode
 /// after direction mode (Orion, 2026-10-02; it was shift and T for a day), where J and L walk the
 /// bottom screen's buttons, I and O a row at a time, K says the one chosen again and U taps it.
-/// Shift alone drags it, in Pokémon-Amie, and no key is bound to it: Shift and U did from
-/// 2026-10-26 to 2026-10-29, when Shift alone took its place (Orion, ADR-0009).
+/// Shift alone drags it, in Pokémon-Amie, and no key is bound to it (`UNBOUND`): Shift and U did
+/// from 2026-10-26 to 2026-10-29, when Shift alone took its place (Orion, ADR-0009).
 /// C says the player's cell and alt and P stops guiding (2026-10-10), and shift and C the cells of
 /// the thing chosen (Orion, 2026-10-15). All of these are the player's to change in
 /// `<pa3ds>\user\keys.toml`.
@@ -231,10 +232,26 @@ pub static DEFAULT_BINDINGS: LazyLock<Bindings> = LazyLock::new(|| {
     ])
 });
 
+/// The actions a player may bind that no key does by default: touch mode's drag, which Shift alone
+/// does, for a player who would rather hold or tap a key of their own (Orion, 2026-10-29).
+pub const UNBOUND: [&str; 1] = [DRAG];
+
 /// Every key bound in any mode: what the hook keeps from the emulator.
 pub fn bound_keys(bindings: &Bindings) -> HashSet<String> {
     bindings
         .values()
         .flat_map(|keys| keys.keys().cloned())
+        .collect()
+}
+
+/// The keys bound to drag in any mode: those whose release the hook says.
+pub fn drag_keys(bindings: &Bindings) -> HashSet<String> {
+    bindings
+        .values()
+        .flat_map(|keys| {
+            keys.iter()
+                .filter(|(_, action)| *action == DRAG)
+                .map(|(key, _)| key.clone())
+        })
         .collect()
 }

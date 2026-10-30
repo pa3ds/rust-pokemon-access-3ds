@@ -1018,7 +1018,7 @@ impl Gen6Profile {
                     .flat_map(|app| app.categories())
                     .map(String::from)
                     .collect(),
-                shift_drags: Some({
+                drags: Some({
                     let apps = apps.clone();
                     Rc::new(move || {
                         apps.borrow()

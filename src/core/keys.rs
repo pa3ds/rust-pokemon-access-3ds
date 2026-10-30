@@ -17,10 +17,12 @@
 //! `pa3ds.core.keyfile`'s; this module only turns a key press into the name that was bound.
 //!
 //! Bound by:
+//! - ADR-0009: a drag held on Shift alone or a key bound to drag is let go as it comes up, in front
+//!   of any window.
 //! - ADR-0022: pa3ds's keys are taken only while the game's window is in front, and none while the
 //!   screen reader's modifier is held.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 #[cfg(windows)]
 use std::cell::RefCell;
@@ -113,8 +115,12 @@ pub fn key_name(virtual_key: i64) -> String {
 }
 
 pub const SHIFT: &str = "shift";
+/// What follows a key's name as it comes up, for a key whose release is said (`Released`).
+pub const UP: &str = " up";
 /// What is pressed when Shift comes up after a key of pa3ds's taken with it, or after it went down
 /// alone: touch mode lets go of a drag held with it (`common.touch`'s drag). Never a key bound.
+///
+/// `SHIFT + UP` in Python; a const cannot join two here.
 pub const SHIFT_UP: &str = "shift up";
 /// What is pressed when Shift goes down alone in front of the emulator, once however long it is
 /// held, and passed on to the emulator all the same: touch mode drags with it on the screens that
@@ -152,6 +158,49 @@ pub fn track(held: &mut HashSet<i64>, virtual_key: i64, message: i64) {
         held.insert(virtual_key);
     } else if message == WM_KEYUP || message == WM_SYSKEYUP {
         held.remove(&virtual_key);
+    }
+}
+
+/// The keys whose release is said, `d up`, and whose repeats are not: a key the player binds to
+/// touch mode's drag, which lets go as it comes up, and which Windows repeats while it is held,
+/// presses that would pick up and let go over and over with `drag` "toggle".
+///
+/// A release the hook never sees leaves the key held, and its next press is taken for a repeat.
+pub struct Released {
+    names: HashSet<String>,
+    /// The name each key held down was taken as, by its virtual key.
+    down: HashMap<i64, String>,
+}
+
+impl Released {
+    pub fn new<S: AsRef<str>>(names: impl IntoIterator<Item = S>) -> Self {
+        Released {
+            names: names
+                .into_iter()
+                .map(|name| name.as_ref().to_lowercase())
+                .collect(),
+            down: HashMap::new(),
+        }
+    }
+
+    /// Whether a press taken as `name` is new, rather than Windows repeating one held.
+    pub fn down(&mut self, virtual_key: i64, name: &str) -> bool {
+        if !self.names.contains(name) {
+            return true;
+        }
+        if self.down.contains_key(&virtual_key) {
+            return false;
+        }
+        self.down.insert(virtual_key, name.to_string());
+        true
+    }
+
+    /// What is pressed as a key comes up: its name and `UP`, or "" for a key not said.
+    pub fn up(&mut self, virtual_key: i64) -> String {
+        match self.down.remove(&virtual_key) {
+            None => String::new(),
+            Some(name) => name + UP,
+        }
     }
 }
 
@@ -277,6 +326,7 @@ fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
 struct State {
     keys: HashSet<String>,
     emulator: String,
+    released: Mutex<Released>,
     pressed: Mutex<VecDeque<String>>,
     elsewhere: Mutex<HashSet<i64>>,
     /// Whether a key of pa3ds's has been taken with Shift since Shift last came up, or Shift went
@@ -332,6 +382,14 @@ impl State {
             let event = unsafe { &*(lparam as *const KeyboardHookStruct) };
             let message = wparam as i64;
             track(&mut lock(&self.elsewhere), event.vkCode as i64, message);
+            if message == WM_KEYUP || message == WM_SYSKEYUP {
+                let up = lock(&self.released).up(event.vkCode as i64);
+                if !up.is_empty() {
+                    // In front of any window, as Shift's: a press held is let go wherever the
+                    // player has gone.
+                    lock(&self.pressed).push_back(up);
+                }
+            }
             if (message == WM_KEYUP || message == WM_SYSKEYUP)
                 && SHIFTS.contains(&(event.vkCode as i64))
             {
@@ -372,10 +430,12 @@ impl State {
                     !lock(&self.elsewhere).is_empty() || ELSEWHERE.iter().any(|&key| held(key));
                 let key = bound(&name, &self.keys, ctrl, alt, elsewhere);
                 if !key.is_empty() && window::in_front(&self.emulator) {
-                    if shift {
-                        self.shifted.store(true, Ordering::SeqCst);
+                    if lock(&self.released).down(event.vkCode as i64, &key) {
+                        if shift {
+                            self.shifted.store(true, Ordering::SeqCst);
+                        }
+                        lock(&self.pressed).push_back(key);
                     }
-                    lock(&self.pressed).push_back(key);
                     return 1;
                 }
             }
@@ -405,7 +465,11 @@ pub struct Hotkeys {
 
 #[cfg(windows)]
 impl Hotkeys {
-    pub fn new<S: AsRef<str>>(keys: impl IntoIterator<Item = S>, emulator: &str) -> Self {
+    pub fn new<S: AsRef<str>, R: AsRef<str>>(
+        keys: impl IntoIterator<Item = S>,
+        emulator: &str,
+        released: impl IntoIterator<Item = R>,
+    ) -> Self {
         // Python keeps the hook's ctypes callback on the object, because ctypes frees it with the
         // last reference and the hook would call freed code; a Rust function is never freed.
         Hotkeys {
@@ -415,6 +479,7 @@ impl Hotkeys {
                     .map(|key| key.as_ref().to_lowercase())
                     .collect(),
                 emulator: emulator.to_string(),
+                released: Mutex::new(Released::new(released)),
                 pressed: Mutex::new(VecDeque::new()),
                 elsewhere: Mutex::new(HashSet::new()),
                 shifted: AtomicBool::new(false),
@@ -427,9 +492,12 @@ impl Hotkeys {
         }
     }
 
-    /// Hotkeys for the emulator pa3ds is made for.
-    pub fn of<S: AsRef<str>>(keys: impl IntoIterator<Item = S>) -> Self {
-        Hotkeys::new(keys, EMULATOR)
+    /// Hotkeys for the emulator pa3ds is made for, `released` the keys whose release is said.
+    pub fn of<S: AsRef<str>, R: AsRef<str>>(
+        keys: impl IntoIterator<Item = S>,
+        released: impl IntoIterator<Item = R>,
+    ) -> Self {
+        Hotkeys::new(keys, EMULATOR, released)
     }
 
     /// Install the hook on a thread of its own. Returns why it could not, or "".

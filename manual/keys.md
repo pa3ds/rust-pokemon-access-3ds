@@ -80,7 +80,7 @@ does, and touch mode says "nothing to touch".
 | `I` and `O` | The button above and below: the nearest in the previous and next row. |
 | `K` | The chosen button again. |
 | `U` | Tap the chosen button. |
-| `Shift` | In Pokémon-Amie, pick up the chosen button to drag it, with a short touch sound. Keep Shift down: `J`, `L`, `I` and `O` choose where to, and `K` says where it is. Let go of Shift to drop it there, with another sound. With the `drag` setting at `"toggle"`, press once to pick up and again to drop; with `drag_sounds` at 0, "holding" and "let go on" are said instead of the sounds. Nothing else drags. |
+| `Shift` | In Pokémon-Amie, pick up the chosen button to drag it, with a short touch sound. Keep Shift down: `J`, `L`, `I` and `O` choose where to, and `K` says where it is. Let go of Shift to drop it there, with another sound. With the `drag` setting at `"toggle"`, press once to pick up and again to drop; with `drag_sounds` at 0, "holding" and "let go on" are said instead of the sounds. Nothing else drags. A key of your own can drag too (Changing keys, below). |
 
 In the AreaNav, touch mode offers each place on the map by name, and a tap chooses it.
 
@@ -201,6 +201,9 @@ its line: a line you delete is put back the next time pa3ds starts.
 - `[pa3ds.navigation]` holds the keys of every mode. `[pa3ds.navigation.list]`,
   `[pa3ds.navigation.direction]` and `[pa3ds.navigation.touch]` hold one mode's, and win over it.
   A key can have modifiers: `"shift+k"`.
+- `"drag"` has no key of its own: Shift drags. To drag with another key as well, add one under
+  `[pa3ds.navigation.touch]`, such as `"d" = "drag"`. It works as Shift does, held or pressed
+  as the `drag` setting says, and elsewhere says "nothing to drag".
 - `[azahar]` rebinds Azahar's own buttons, and `[azahar.circle_pad]` and `[azahar.c_stick]` its
   two sticks. Changes apply the next time pa3ds starts with Azahar closed.
 

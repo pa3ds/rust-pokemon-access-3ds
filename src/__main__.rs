@@ -14,7 +14,7 @@ use crate::core::rpc::{DEFAULT_PORT, Rpc, UdpRpc};
 use crate::core::speech::{self, Backend, Category, Speech};
 use crate::core::words::{self, ENGLISH, Words, own};
 use crate::core::{config, instance, keyfile, window};
-use crate::games::common::field::keys::{DEFAULT_BINDINGS, EXPLAINED};
+use crate::games::common::field::keys::{DEFAULT_BINDINGS, EXPLAINED, UNBOUND};
 use crate::py::{self, Log, time};
 use crate::ux::folder;
 use crate::ux::settings as settings_dialog;
@@ -347,13 +347,14 @@ fn run(args: Args, hooks: &Hooks) -> py::Result<()> {
             .iter()
             .map(|(key, why)| (key.to_string(), why.to_string()))
             .collect();
-        let keys = keyfile::prepare(
+        let keys = keyfile::prepare_with(
             &DEFAULT_BINDINGS,
             None,
             Some(&settings.emulator),
             true,
             running,
             Some(&explained),
+            &UNBOUND,
         )?;
         for note in &keys.notes {
             log(note);

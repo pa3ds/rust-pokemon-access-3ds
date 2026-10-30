@@ -56,7 +56,7 @@ use std::rc::Rc;
 use indexmap::IndexMap;
 
 use crate::core::config::{DRAG_TOGGLE, Navigation};
-use crate::core::keys::{SHIFT, SHIFT_DOWN, SHIFT_UP};
+use crate::core::keys::{SHIFT, SHIFT_DOWN, SHIFT_UP, UP};
 use crate::core::names::Names;
 use crate::core::pathfind::{self, AHEAD, BEHIND, Cell, LEFT, RIGHT};
 use crate::core::speech::{Category, Speech};
@@ -76,7 +76,7 @@ use crate::games::common::field::things::{
 use crate::games::common::touch::ACTIONS as TOUCH_ACTIONS;
 use crate::games::common::touch::NOTHING as TOUCH_NOTHING;
 use crate::games::common::touch::TouchTargets;
-use crate::games::common::touch::{DRAG, TAP};
+use crate::games::common::touch::{DRAG, NO_DRAG, TAP};
 use crate::py::{self, Error, Log, Result};
 use crate::ux::dialog::Asker;
 
@@ -176,7 +176,7 @@ pub struct Options {
     /// What the game calls the place a zone is in, which a leg of P's way into another says.
     pub place: Option<Place>,
     /// None is never.
-    pub shift_drags: Option<Rc<dyn Fn() -> bool>>,
+    pub drags: Option<Rc<dyn Fn() -> bool>>,
 }
 
 impl Default for Options {
@@ -200,7 +200,7 @@ impl Default for Options {
             categories: Vec::new(),
             door_sign: None,
             place: None,
-            shift_drags: None,
+            drags: None,
         }
     }
 }
@@ -291,9 +291,9 @@ pub struct Navigator {
     /// The gen 6 profile's `census` walks them too, where the Python's holds the same object as
     /// `self.touch`.
     pub(crate) touch: Option<TouchTargets>,
-    /// Whether Shift alone drags in touch mode now: on a screen that drags (ADR-0009 as amended
-    /// 2026-10-28).
-    shift_drags: Rc<dyn Fn() -> bool>,
+    /// Whether Shift alone, or a key bound to drag, drags in touch mode now: on a screen that
+    /// drags (ADR-0009 as amended 2026-10-28).
+    drags: Rc<dyn Fn() -> bool>,
     /// How an item and the way to it are said (`config.toml`'s `[pa3ds.navigation]`).
     wording: Navigation,
     speech: Rc<Speech>,
@@ -350,7 +350,7 @@ impl Navigator {
             categories,
             door_sign,
             place,
-            shift_drags,
+            drags,
         } = options;
         let wording = navigation.unwrap_or_default();
         let names = names.unwrap_or_else(|| Rc::new(Names::default()));
@@ -395,7 +395,7 @@ impl Navigator {
                 .chain(categories)
                 .collect(),
             touch,
-            shift_drags: shift_drags.unwrap_or_else(|| Rc::new(|| false)),
+            drags: drags.unwrap_or_else(|| Rc::new(|| false)),
             wording,
             speech,
             log,
@@ -431,25 +431,28 @@ impl Navigator {
     ///
     /// While touch mode holds a press, Shift is held all the while (`SHIFT_UP` lets it go), so
     /// a key with Shift means what it means without: Shift and J walks back as J does, where
-    /// Shift and J would rename the speaker (ADR-0009).
+    /// Shift and J would rename the speaker (ADR-0009). A key the player binds to drag does as
+    /// Shift alone does, and comes up as `UP` after its name.
     pub fn press_key(&mut self, key: &str) -> Result<()> {
         let holding = self.touch.as_ref().is_some_and(TouchTargets::holding);
         let toggle = self.wording.drag == DRAG_TOGGLE;
         if key == SHIFT_DOWN || key == SHIFT_UP {
-            return self.shift(key == SHIFT_DOWN, holding, toggle);
+            return self.drag(key == SHIFT_DOWN, holding, toggle, false);
         }
-        let prefix = format!("{SHIFT}+");
-        let key = if holding {
-            key.strip_prefix(&prefix).unwrap_or(key)
-        } else {
-            key
-        };
-        let action = self
-            .bindings
-            .get(self.mode)
-            .and_then(|keys| keys.get(&key.to_lowercase()))
-            .cloned();
-        if holding
+        let up = key.ends_with(UP);
+        let key = key.strip_suffix(UP).unwrap_or(key).to_lowercase();
+        let table = self.bindings.get(self.mode);
+        let mut action = table.and_then(|keys| keys.get(&key)).cloned();
+        if holding && action.as_deref() != Some(DRAG) {
+            let prefix = format!("{SHIFT}+");
+            let bare = key.strip_prefix(&prefix).unwrap_or(&key);
+            action = table.and_then(|keys| keys.get(bare)).cloned();
+        }
+        if action.as_deref() == Some(DRAG) {
+            self.drag(!up, holding, toggle, true)?;
+        } else if up {
+            return Ok(());
+        } else if holding
             && toggle
             && action.as_deref() == Some(TAP)
             && let Some(touch) = &mut self.touch
@@ -463,17 +466,22 @@ impl Navigator {
         Ok(())
     }
 
-    /// Shift alone. In touch mode on a screen that drags it drags: held, it picks up the target
-    /// said and lets go as it comes up; or, with `[pa3ds.navigation] drag` "toggle", one press
-    /// picks up and the next lets go. A drag is let go however the screen has changed (ADR-0009
-    /// as amended 2026-10-28).
-    fn shift(&mut self, down: bool, holding: bool, toggle: bool) -> Result<()> {
+    /// Shift alone, or a key bound to drag. In touch mode on a screen that drags it drags: held,
+    /// it picks up the target said and lets go as it comes up; or, with `[pa3ds.navigation] drag`
+    /// "toggle", one press picks up and the next lets go. A drag is let go however the screen has
+    /// changed (ADR-0009 as amended 2026-10-28). Elsewhere in touch mode a key bound to drag says
+    /// there is nothing to drag, where Shift alone, typed with every capital, is quiet.
+    fn drag(&mut self, down: bool, holding: bool, toggle: bool, bound: bool) -> Result<()> {
         if self.touch.is_none() {
             return Ok(());
         }
-        if down && !holding && self.mode == TOUCH && (self.shift_drags)() {
-            let said = self.touch.as_mut().expect("checked above").press(DRAG)?;
-            self.say(&said);
+        if down && !holding && self.mode == TOUCH {
+            if (self.drags)() {
+                let said = self.touch.as_mut().expect("checked above").press(DRAG)?;
+                self.say(&said);
+            } else if bound {
+                self.say(&own(NO_DRAG, &[]));
+            }
         } else if holding && down == toggle {
             let dropped = self.touch.as_mut().expect("checked above").drop();
             self.say(&dropped);

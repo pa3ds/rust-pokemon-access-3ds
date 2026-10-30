@@ -39,7 +39,7 @@ they take effect the next time pa3ds starts.
 | `show_y` | `false` | `C` and `Shift+C` say how high as well, after x and z, in the game's units: 18 to a square. |
 | `touch_wrap` | `true` | In touch mode, go from the last button back to the first, and from the bottom row back to the top. `false` stops at the ends, so pressing `O` a few times always ends on the bottom row. |
 | `touch_next_row` | `true` | In touch mode, `J` and `L` go on into the next row at a row's end. `false` keeps them in their row, so pressing `L` a few times always ends at its right. |
-| `drag` | `"hold"` | How touch mode drags: `"hold"` holds Shift while you choose where to and lets go as Shift comes up; `"toggle"` picks up with one press of Shift and lets go with the next. Only Pokémon-Amie drags. |
+| `drag` | `"hold"` | How touch mode drags: `"hold"` holds Shift, or a key you bind to drag, while you choose where to and lets go as it comes up; `"toggle"` picks up with one press and lets go with the next. Only Pokémon-Amie drags. |
 | **`[pa3ds.extras]`** | | See [Extras](#extras). |
 | `conditions` | `false` | Say a Pokémon's contest conditions as numbers, on its summary and in the Pokéblock Case. |
 | `hidden_items` | `"off"` | List the hidden items you have not found yet among the items, as "hidden item": `"underwater"` under the sea alone, `"all"` everywhere. |

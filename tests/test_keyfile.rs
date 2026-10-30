@@ -13,7 +13,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use indexmap::IndexMap;
 
 use crate::core::keyfile::{self, Asked, Bindings, Wanted};
-use crate::core::keys::{WM_KEYDOWN, WM_KEYUP, WM_SYSKEYDOWN, bound, modified, track};
+use crate::core::keys::{Released, WM_KEYDOWN, WM_KEYUP, WM_SYSKEYDOWN, bound, modified, track};
 
 const LIST: &str = "list";
 const DIRECTION: &str = "direction";
@@ -483,6 +483,56 @@ fn test_an_action_pa3ds_does_not_do_is_said_and_dropped() {
             .iter()
             .any(|note| note.contains("'item reed', which pa3ds does not do"))
     );
+}
+
+/// Touch mode's drag is Shift alone's, and a key of the player's too where they bind one (Orion,
+/// 2026-10-29); the file pa3ds writes binds no key to it.
+#[test]
+fn test_an_action_no_default_key_does_is_the_players_to_bind() {
+    let tmp_path = TmpPath::new();
+    let home = tmp_path.join("home");
+    fs::create_dir(&home).unwrap();
+    fs::write(
+        home.join("keys.toml"),
+        "[pa3ds.navigation.list]\nd = \"drag\"\n",
+    )
+    .unwrap();
+    let keys = keyfile::prepare_with(
+        &bindings(),
+        Some(&home),
+        Some(&written(&tmp_path)),
+        true,
+        false,
+        None,
+        &["drag"],
+    )
+    .unwrap();
+    assert_eq!(keys.bindings[LIST]["d"], "drag");
+    let fresh = tmp_path.join("fresh");
+    fs::create_dir(&fresh).unwrap();
+    keyfile::prepare_with(
+        &bindings(),
+        Some(&fresh),
+        Some(&written(&tmp_path)),
+        true,
+        false,
+        None,
+        &["drag"],
+    )
+    .unwrap();
+    assert!(!read_text(&fresh.join("keys.toml")).contains("drag"));
+}
+
+/// Windows repeats a key held down, which would pick a drag up and let it go over and over; a key
+/// bound to drag is taken once and said as it comes up, and other keys repeat as ever.
+#[test]
+fn test_a_key_held_is_said_once_and_its_release_after() {
+    let (d, j) = (0x44, 0x4A);
+    let mut released = Released::new(["d", "shift+d"]);
+    assert!(released.down(d, "d") && !released.down(d, "d"));
+    assert!(released.down(j, "j") && released.down(j, "j"));
+    assert!(released.up(j).is_empty() && released.up(d) == "d up" && released.up(d).is_empty());
+    assert!(released.down(d, "shift+d") && released.up(d) == "shift+d up");
 }
 
 // ---------------------------------------------------------------- keys pa3ds gains

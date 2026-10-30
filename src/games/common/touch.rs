@@ -92,6 +92,8 @@ pub const ACTIONS: [&str; 7] = [
 ];
 /// Said where the bottom screen has nothing to touch.
 pub const NOTHING: &str = "touch-nothing";
+/// Said by a key bound to drag where nothing drags.
+pub const NO_DRAG: &str = "touch-no-drag";
 pub const HOLDING: &str = "touch-holding";
 pub const DROPPED: &str = "touch-dropped";
 /// How long a drag made as it is let go takes (`delayed`): a fifth of a second pressed where it

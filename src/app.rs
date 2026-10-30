@@ -38,7 +38,7 @@ use crate::core::tones::Tones;
 use crate::core::touch::{self, SharedLog, TouchServer};
 use crate::core::words::own;
 use crate::games::catalog;
-use crate::games::common::field::keys::{Bindings, DEFAULT_BINDINGS, bound_keys};
+use crate::games::common::field::keys::{Bindings, DEFAULT_BINDINGS, bound_keys, drag_keys};
 use crate::games::common::session::{Session, Setup};
 use crate::py::{Error, Kind, Log, Result, time};
 use crate::tape;
@@ -1098,7 +1098,7 @@ fn start_hotkeys(settings: &Settings, log: &Log) -> Option<Hotkeys> {
         log("keys need Windows; none bound");
         return None;
     }
-    let mut hotkeys = Hotkeys::of(bound_keys(keys));
+    let mut hotkeys = Hotkeys::of(bound_keys(keys), drag_keys(keys));
     match hotkeys.start() {
         Ok(error) if !error.is_empty() => {
             log(&format!("{error}; no keys bound"));

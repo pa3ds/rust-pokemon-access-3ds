@@ -991,6 +991,7 @@ fn strings(section: Option<&::toml::Value>) -> IndexMap<String, String> {
 }
 
 /// `[pa3ds.navigation]` and its modes, merged: a mode's own key wins over a shared one.
+/// `unbound` are the actions pa3ds has that no default key does.
 ///
 /// None is the defaults themselves, which `prepare` tells from a file that happens to say the same
 /// (`bindings is defaults` in Python).
@@ -999,6 +1000,7 @@ fn read_keys(
     loaded: &IndexMap<String, ::toml::Value>,
     defaults: &Bindings,
     notes: &mut Vec<String>,
+    unbound: &[&str],
 ) -> Option<Bindings> {
     let group = toml::table(loaded.get(SECTION)).get(GROUP).cloned();
     let Some(group) = group else {
@@ -1014,6 +1016,7 @@ fn read_keys(
     let known: HashSet<&str> = defaults
         .values()
         .flat_map(|keys| keys.values().map(String::as_str))
+        .chain(unbound.iter().copied())
         .collect();
     let both = actions(path, Some(&group), &known, notes);
     let mut bindings: Bindings = IndexMap::new();
@@ -1301,6 +1304,20 @@ pub fn prepare(
     running: bool,
     explained: Option<&IndexMap<String, String>>,
 ) -> Result<Keys> {
+    prepare_with(defaults, home, config, write, running, explained, &[])
+}
+
+/// `prepare` with every argument: `unbound` are actions a player may bind that no default key
+/// does, never written into the file.
+pub fn prepare_with(
+    defaults: &Bindings,
+    home: Option<&Path>,
+    config: Option<&Path>,
+    write: bool,
+    running: bool,
+    explained: Option<&IndexMap<String, String>>,
+    unbound: &[&str],
+) -> Result<Keys> {
     let path = keys_path(home)?;
     let config = match config {
         None => emulator_config("")?,
@@ -1386,7 +1403,7 @@ pub fn prepare(
                     notes.push(format!("{} could not be written", py::path_str(&path)));
                 }
             }
-            read = read_keys(&path, &loaded, defaults, &mut notes);
+            read = read_keys(&path, &loaded, defaults, &mut notes, unbound);
             wanted = read_emulator(&path, &loaded, &mut notes);
         }
     }

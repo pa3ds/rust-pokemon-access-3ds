@@ -4865,7 +4865,7 @@ fn test_while_a_touch_is_held_shift_keys_walk_and_letting_go_of_shift_lets_go() 
         Rc::new(|_line: &str| {}),
         Options {
             touch: Some(targets),
-            shift_drags: Some(Rc::new(|| true)),
+            drags: Some(Rc::new(|| true)),
             ..Options::default()
         },
     );
@@ -4897,7 +4897,8 @@ fn test_while_a_touch_is_held_shift_keys_walk_and_letting_go_of_shift_lets_go() 
 /// the Rust stand-in for Python's `Holding`, which records the actions asked of touch mode.
 fn holding_navigator(
     navigation: Navigation,
-    shift_drags: Option<Rc<dyn Fn() -> bool>>,
+    drags: Option<Rc<dyn Fn() -> bool>>,
+    bindings: Option<crate::games::common::field::keys::Bindings>,
 ) -> (Navigator, Rc<Holding>, Rc<Recorder>) {
     use crate::core::rtti::ClassNames;
     use crate::games::common::layout::Layouts;
@@ -4939,7 +4940,8 @@ fn holding_navigator(
         Options {
             touch: Some(targets),
             navigation: Some(navigation),
-            shift_drags,
+            drags,
+            bindings,
             ..Options::default()
         },
     );
@@ -4948,10 +4950,10 @@ fn holding_navigator(
     (nav, held, backend)
 }
 
-/// ADR-0009 as amended 2026-10-28 (Orion): in touch mode on a screen that drags, Pokémon-Amie's
-/// or the PC Box's, Shift alone picks up and lets go as it comes up, or with `drag` "toggle" one
-/// press picks up and the next lets go; elsewhere Shift alone drags nothing, and touch mode keeps
-/// its keys with Shift.
+/// ADR-0009 as amended 2026-10-28 (Orion): in touch mode on a screen that drags, Pokémon-Amie's,
+/// Shift alone picks up and lets go as it comes up, or with `drag` "toggle" one press picks up and
+/// the next lets go; elsewhere Shift alone drags nothing, and touch mode keeps its keys with
+/// Shift.
 ///
 /// Python's stand-in records the actions asked, DRAG and ITEM_NEXT; here the drag's touches say
 /// them: pressed on the move to the Pokémon, and let go.
@@ -4965,7 +4967,7 @@ fn test_shift_alone_drags_on_the_screens_that_drag_held_or_tapped() {
         ),
     ] {
         let amie = Rc::new(Slot::new(true));
-        let shift_drags: Rc<dyn Fn() -> bool> = {
+        let drags: Rc<dyn Fn() -> bool> = {
             let amie = amie.clone();
             Rc::new(move || amie.get())
         };
@@ -4974,7 +4976,8 @@ fn test_shift_alone_drags_on_the_screens_that_drag_held_or_tapped() {
                 drag: drag.to_string(),
                 ..Navigation::default()
             },
-            Some(shift_drags),
+            Some(drags),
+            None,
         );
         for key in keys {
             nav.press_key(key).unwrap();
@@ -4995,6 +4998,58 @@ fn test_shift_alone_drags_on_the_screens_that_drag_held_or_tapped() {
     }
 }
 
+/// ADR-0009 as amended 2026-10-29 (Orion): a player may bind drag to a key of their own, held or
+/// tapped as `drag` says, with Shift or without; where nothing drags it says so, a key the player
+/// chose that would otherwise be heard doing nothing.
+#[test]
+fn test_a_key_bound_to_drag_drags_as_shift_alone_does() {
+    for (drag, key, keys) in [
+        ("hold", "d", vec!["d", "l", "d up"]),
+        ("toggle", "d", vec!["d", "d up", "l", "d", "d up"]),
+        ("hold", "shift+d", vec!["shift+d", "shift+l", "shift+d up"]),
+        (
+            "toggle",
+            "shift+d",
+            vec!["shift+d", "shift+d up", "shift+l", "shift+d"],
+        ),
+    ] {
+        let amie = Rc::new(Slot::new(true));
+        let drags: Rc<dyn Fn() -> bool> = {
+            let amie = amie.clone();
+            Rc::new(move || amie.get())
+        };
+        let mut bindings = DEFAULT_BINDINGS.clone();
+        bindings
+            .get_mut(TOUCH)
+            .unwrap()
+            .insert(key.to_string(), DRAG.to_string());
+        let (mut nav, held, backend) = holding_navigator(
+            Navigation {
+                drag: drag.to_string(),
+                ..Navigation::default()
+            },
+            Some(drags),
+            Some(bindings),
+        );
+        for each in &keys {
+            nav.press_key(each).unwrap();
+        }
+        let touched = [("hold", 95, 23), ("move", 160, 120), ("release", 0, 0)];
+        assert_eq!(*held.touches.borrow(), touched, "{keys:?}");
+        assert!(
+            last(&backend) == "let go on stroke Pikachu" && !nav.touch.as_ref().unwrap().holding(),
+            "{keys:?}"
+        );
+        amie.set(false);
+        nav.press_key(key).unwrap();
+        nav.press_key(&format!("{key} up")).unwrap();
+        assert!(
+            *held.touches.borrow() == touched && last(&backend) == "nothing to drag",
+            "{keys:?}"
+        );
+    }
+}
+
 /// A press is never left down (ADR-0009): picked up on a screen that drags, it is let go by Shift
 /// however the screen has changed since, held or tapped; and with `drag` "toggle" the tap key lets
 /// go too, as it taps.
@@ -5006,7 +5061,7 @@ fn test_a_drag_is_let_go_after_its_screen_has_gone() {
         ("toggle", vec![SHIFT_DOWN, SHIFT_UP, "l", "u"]),
     ] {
         let dragging = Rc::new(Slot::new(true));
-        let shift_drags: Rc<dyn Fn() -> bool> = {
+        let drags: Rc<dyn Fn() -> bool> = {
             let dragging = dragging.clone();
             Rc::new(move || dragging.get())
         };
@@ -5015,7 +5070,8 @@ fn test_a_drag_is_let_go_after_its_screen_has_gone() {
                 drag: drag.to_string(),
                 ..Navigation::default()
             },
-            Some(shift_drags),
+            Some(drags),
+            None,
         );
         nav.press_key(keys[0]).unwrap();
         dragging.set(false);
