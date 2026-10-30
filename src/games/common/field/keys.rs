@@ -123,7 +123,7 @@ pub const BERRIES: [&str; 7] = [
     "seventh berry",
 ];
 /// Berry Picker's three Pokémon, a key each, in the game's own order of them, in which each keeps
-/// its place all round wherever it pops up (spike C): given the berry picked up.
+/// its place all round wherever it pops up (spike 262): given the berry picked up.
 pub const POKEMON: [&str; 3] = ["first pokemon", "second pokemon", "third pokemon"];
 
 pub const EXPLAINED: [(&str, &str); 5] = [

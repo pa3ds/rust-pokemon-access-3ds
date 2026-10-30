@@ -1,4 +1,4 @@
-//! Pokémon-Amie's Berry Picker: which berry each Pokémon wants, and where it is given (spike A).
+//! Pokémon-Amie's Berry Picker: which berry each Pokémon wants, and where it is given (spike 260).
 //!
 //! Three berries hang in the tree along the top of the bottom screen, and the player's Pokémon pop up
 //! along the bottom, each with a bubble showing the berry it wants; a berry dragged from the tree to
@@ -23,12 +23,12 @@
 //! offered in touch mode as "Treecko wants Pinap Berry", a place a drag lets go on, at the Pokémon's
 //! body under the bubble, and said as the bubble comes. Let go there, or on the bubble, the berry
 //! was eaten and a note showed in the bubble; the misses were Pokémon gone before the berry came
-//! (spike A, live from as_amie_berry_picker cut at the round's start). The opening before READY
+//! (spike 260, live from as_amie_berry_picker cut at the round's start). The opening before READY
 //! shows three Pokémon wanting berries too, a demonstration, and is said nothing of: its
 //! `app::nuts2::Demo` says when it is over (`OVER`).
 //!
 //! The round's three Pokémon are drawn from the party, and each keeps its record all round wherever
-//! it pops up (spike C), so Berry Picker's own keys name them by it: a key a berry, picked up off
+//! it pops up (spike 262), so Berry Picker's own keys name them by it: a key a berry, picked up off
 //! the tree, and a key a Pokémon, given it (`BerryKeys`).
 //!
 //! Bound by:
@@ -56,10 +56,10 @@ use crate::py::{self, Error, Result};
 
 pub const APP: &str = "N3app5nuts27ProcessE";
 /// Where the app's object counts the round's clock down in frames, 30 a second at full speed from
-/// 1800, through the round and on to 0 (spike A, spike C).
+/// 1800, through the round and on to 0 (spike 260, spike 262).
 pub const CLOCK: i64 = 0x38;
 pub const CLOCK_RATE: i64 = 30;
-/// What the clock stands at before a round's START!, and again from each Play Again (spike A).
+/// What the clock stands at before a round's START!, and again from each Play Again (spike 260).
 pub const FULL: i64 = 60 * CLOCK_RATE;
 /// More frames than any round's clock counts: a word past it is not one.
 pub const LONGEST: i64 = 20 * 60 * CLOCK_RATE;
@@ -71,7 +71,7 @@ pub const MODEL: &str = "N3app5nuts25ModelE";
 /// Pokémon wanting berries before the round: a demonstration, said nothing of (Orion, 2026-10-28).
 pub const DEMO: &str = "N3app5nuts24DemoE";
 /// Where `DEMO` says whether it is over: 0 while it plays, 1 from just after START!, through the
-/// round and its results (spike A).
+/// round and its results (spike 260).
 pub const OVER: i64 = 0x1C;
 /// Where `DEMO` points at a `gfl::str::StrBuf` of its words, which tells it from the words like
 /// its vtable the sweep finds in the module's code.
@@ -80,7 +80,7 @@ pub const TEXT: i64 = 0x04;
 /// Easy's Razz, Bluk and Pinap, read off the screen (as_amie_berry_picker), and Normal's Wepear and
 /// Magost and Hard's Durin and Nomel, by their textures in the ROM, as Bulbapedia's Berry Picker page
 /// adds them, and played by those names (or_amie_berry_picker_normal and _hard). In this order they
-/// hang left to right on every difficulty's tree (spike C). `kinomi07` to `kinomi09` were seen in
+/// hang left to right on every difficulty's tree (spike 262). `kinomi07` to `kinomi09` were seen in
 /// no game.
 pub const BERRIES: [(&str, i64); 7] = [
     ("kinomi00.bclim", 164),
@@ -96,7 +96,7 @@ pub const BERRY: &str = "kinomi";
 pub const IN_BUBBLE: f64 = 50.0;
 /// A bubble's berry is drawn 50 above the bubble's place and level with it, within `NEAR`. The
 /// game's opening, "Pick Berries for your Pokémon!", draws two empty bubbles in the layout of a tree
-/// of its own, and each berry of that tree was said wanted, twice (spike A).
+/// of its own, and each berry of that tree was said wanted, twice (spike 260).
 pub const NEAR: f64 = 10.0;
 pub const RECORDS: i64 = 0x0C;
 pub const SIZE: i64 = 0x2C;
@@ -375,8 +375,8 @@ impl BerryPicker {
     }
 
     /// The round's `index`-th Pokémon in the game's own order, which keeps each its place in it
-    /// all round wherever it pops up (spike C), and where to give it a berry while it is up wanting
-    /// one, else None; None with no such Pokémon.
+    /// all round wherever it pops up (spike 262), and where to give it a berry while it is up
+    /// wanting one, else None; None with no such Pokémon.
     pub fn pokemon(
         &self,
         index: usize,

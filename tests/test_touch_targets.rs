@@ -1194,7 +1194,7 @@ fn test_a_drag_holds_the_target_named_carries_it_with_the_keys_and_lets_go() {
 }
 
 /// ADR-0009 as amended 2026-10-28: Shift alone picks up, and Shift pressed and let go to pause a
-/// screen reader would otherwise tap; Berry Picker's tree drops a berry tapped (spike A).
+/// screen reader would otherwise tap; Berry Picker's tree drops a berry tapped (spike 260).
 #[test]
 fn test_a_drag_let_go_where_it_was_picked_up_touches_nothing() {
     let held = Rc::new(Held::default());
@@ -1224,7 +1224,7 @@ fn test_with_feedback_sounds_a_drag_is_heard_not_said() {
 }
 
 /// ADR-0009 as amended 2026-10-28: in Berry Picker a berry carried over a Pokémon wanting another
-/// sends it off at once (spike A), so the keys only choose, and letting go drags the berry
+/// sends it off at once (spike 260), so the keys only choose, and letting go drags the berry
 /// straight from the tree to the Pokémon chosen.
 #[test]
 fn test_where_the_screen_drags_on_letting_go_nothing_moves_until_then() {
@@ -1257,8 +1257,8 @@ fn test_where_the_screen_drags_on_letting_go_nothing_moves_until_then() {
 }
 
 /// Orion asked for the drag shorter (2026-10-29): 0.15 s fed the most berries at full speed, and a
-/// drag of a game frame and a half a third fed few (spike A), so at a lower speed limit, as a player
-/// sets for a higher score, it takes as much longer.
+/// drag of a game frame and a half a third fed few (spike 260), so at a lower speed limit, as a
+/// player sets for a higher score, it takes as much longer.
 #[test]
 fn test_a_drag_made_on_letting_go_lasts_as_many_of_the_games_frames_at_any_speed() {
     let speed = Rc::new(Cell::new(1.0));

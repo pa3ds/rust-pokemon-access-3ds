@@ -100,9 +100,9 @@ pub const DROPPED: &str = "touch-dropped";
 /// was picked up, a third sliding, a third on the target, and as much longer as the game runs
 /// slower (`pace`): a player lowers Azahar's speed limit for a higher score. Orion asked for it
 /// shorter than the first 0.6 s (2026-10-29), and in rounds played live by touch mode's keys
-/// (spike A's `--keys`) it fed 32 berries of 33 drags at 0.6 s, 31 of 35 at 0.3, 42 of 46 at 0.15,
-/// the quicker giving the more before each Pokémon left, and 12 of 31 at 0.05, where each third is
-/// a game frame and a half.
+/// (spike 260's `--keys`) it fed 32 berries of 33 drags at 0.6 s, 31 of 35 at 0.3, 42 of 46 at
+/// 0.15, the quicker giving the more before each Pokémon left, and 12 of 31 at 0.05, where each
+/// third is a game frame and a half.
 pub const DROP_SECONDS: f64 = 0.15;
 /// How far across its width a pane's place is, by its anchor: left, centre, right.
 pub const ANCHOR: [f64; 3] = [0.0, 0.5, 1.0];
@@ -274,7 +274,7 @@ pub struct TouchTargets {
     drag: Option<Rc<dyn Drag>>,
     /// Whether the screen drags only as the drag is let go, straight from where it was picked up
     /// to where the keys chose: Berry Picker, where a berry carried over a Pokémon wanting
-    /// another sends it off (spike A). Elsewhere the press goes with the keys, as a Poké Puff
+    /// another sends it off (spike 260). Elsewhere the press goes with the keys, as a Poké Puff
     /// must, held at the Pokémon's mouth until it has been eaten (spike 257).
     delayed: Rc<dyn Fn() -> bool>,
     /// A sound for picking up a drag, with True, and letting go of it, played in place of saying

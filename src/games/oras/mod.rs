@@ -277,7 +277,7 @@ pub fn training_regimens() -> &'static (i64, IndexMap<&'static str, i64>) {
     })
 }
 /// Pokémon-Amie's Berry Picker's berries, drawn as pictures alone, by the line of the items' names
-/// each is: "Razz Berry" for `kinomi00.bclim` (spike A).
+/// each is: "Razz Berry" for `kinomi00.bclim` (spike 260).
 pub fn berry_picker() -> &'static (i64, IndexMap<&'static str, i64>) {
     static BERRY_PICKER: OnceLock<(i64, IndexMap<&'static str, i64>)> = OnceLock::new();
     BERRY_PICKER.get_or_init(|| (ITEM_NAMES, berry_picker::BERRIES.into_iter().collect()))

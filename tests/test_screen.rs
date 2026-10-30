@@ -989,7 +989,7 @@ fn test_pictures_of_two_groups_side_by_side_are_two() {
     assert_eq!(texts, ["Coolness", "Toughness"]);
 }
 
-/// Pokémon-Amie's results draw a count a digit a picture (or_amie_stars, spike A): "11", not
+/// Pokémon-Amie's results draw a count a digit a picture (or_amie_stars, spike 260): "11", not
 /// "1" said once nor "1/1".
 #[test]
 fn test_digits_drawn_side_by_side_are_one_number() {

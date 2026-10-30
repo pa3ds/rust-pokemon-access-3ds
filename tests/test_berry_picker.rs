@@ -86,9 +86,9 @@ struct Picker {
 }
 
 /// A bubble on the left showing a Pinap Berry, a spare bubble parked off the screen, a berry
-/// in a tree outside any bubble, as the game's opening draws in the bubbles' layout (spike A), and
-/// Treecko standing on the left: the picker, the memory, the bubble layout's panes in order (the
-/// bubble, its berry, the spare, its berry and the tree's) and the layouts. With `demo`, the
+/// in a tree outside any bubble, as the game's opening draws in the bubbles' layout (spike 260),
+/// and Treecko standing on the left: the picker, the memory, the bubble layout's panes in order
+/// (the bubble, its berry, the spare, its berry and the tree's) and the layouts. With `demo`, the
 /// opening's demonstration, saying it is over with 1 and not with 0.
 fn picker(demo: Option<i64>) -> Picker {
     picker_with(demo, Rc::new(|| 0.0))
@@ -191,7 +191,7 @@ fn picker_saying(
     }
 }
 
-/// ADR-0009: let go at its body, the berry was eaten (spike A, live).
+/// ADR-0009: let go at its body, the berry was eaten (spike 260, live).
 #[test]
 fn test_a_bubbles_berry_is_offered_at_the_pokemon_under_it_by_the_games_names() {
     let picked = picker(None);
@@ -443,7 +443,7 @@ fn test_a_key_with_nothing_to_do_plays_the_games_error_sound_or_says_why() {
 }
 
 /// A player lowers Azahar's speed limit for a higher score, and a drag is timed by the game's
-/// frames: the round's clock counts 30 a second at full speed (spike C).
+/// frames: the round's clock counts 30 a second at full speed (spike 262).
 #[test]
 fn test_the_rounds_clock_says_how_fast_the_game_runs() {
     let now = Rc::new(Cell::new(0.0));
