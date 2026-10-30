@@ -23,7 +23,7 @@ use std::sync::{Arc, mpsc};
 use indexmap::IndexMap;
 
 use crate::core::clips::Clips;
-use crate::core::config::{Audio, Extras, Navigation, Ui};
+use crate::core::config::{Amie, Audio, Extras, Navigation, Touch, Ui};
 use crate::core::discovery::{CODE_SPAN, Discovery};
 use crate::core::heaps::Block;
 use crate::core::keyfile::{data_path, emulator_config};
@@ -89,6 +89,8 @@ pub struct Settings {
     pub audio: Audio,
     /// How the map's list and the way to a thing are said (`[pa3ds.navigation]`).
     pub navigation: Navigation,
+    pub touch: Touch,
+    pub amie: Amie,
     /// What the game shows in a way pa3ds cannot read, said from its numbers
     /// (`[pa3ds.extras]`).
     pub extras: Extras,
@@ -140,6 +142,8 @@ impl Default for Settings {
             ui: Ui::default(),
             audio: Audio::default(),
             navigation: Navigation::default(),
+            touch: Touch::default(),
+            amie: Amie::default(),
             extras: Extras::default(),
             language: "en".to_string(),
             names_home: None,
@@ -667,6 +671,8 @@ fn session(
             contexts: settings.contexts.clone(),
             ui: settings.ui.clone(),
             navigation: settings.navigation.clone(),
+            touch: settings.touch.clone(),
+            amie: settings.amie.clone(),
             extras: settings.extras.clone(),
             language: language.to_string(),
             names_home: settings.names_home.clone(),

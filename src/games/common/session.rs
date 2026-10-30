@@ -14,7 +14,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 use crate::core::clips::Clips;
-use crate::core::config::{Extras, Navigation, Ui};
+use crate::core::config::{Amie, Extras, Navigation, Touch, Ui};
 use crate::core::discovery::{Discovery, Found, Walk};
 use crate::core::heaps::{Block, Heaps};
 use crate::core::memory::{Cache, PageCache};
@@ -112,6 +112,8 @@ pub struct Setup {
     pub keys: Bindings,
     pub ui: Ui,
     pub navigation: Navigation,
+    pub touch: Touch,
+    pub amie: Amie,
     pub extras: Extras,
     pub language: String,
     pub names_home: Option<PathBuf>,
@@ -153,6 +155,8 @@ impl Setup {
             keys: DEFAULT_BINDINGS.clone(),
             ui: Ui::default(),
             navigation: Navigation::default(),
+            touch: Touch::default(),
+            amie: Amie::default(),
             extras: Extras::default(),
             language: "en".to_string(),
             names_home: None,

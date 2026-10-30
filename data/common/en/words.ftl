@@ -292,9 +292,11 @@ puzzle-picture-right = { $pokemon } on the right
 puzzle-picked = { $tile }, picked
 # A Pokémon of Pokémon-Amie's Berry Picker and the berry its bubble shows, said as the bubble comes
 # and offered in touch mode to let a dragged berry go on: "Treecko wants Pinap Berry". The game
-# shows the berry and says nothing. Without the Pokémon, where its record cannot be read: "Pinap
-# Berry wanted".
+# shows the berry and says nothing. With `[pa3ds.amie] berry_first`, the berry first, in the order
+# it is given, its key and then the Pokémon's: "Pinap Berry for Treecko". Without the Pokémon,
+# where its record cannot be read: "Pinap Berry wanted".
 berry-picker-wants = { $pokemon } wants { $berry }
+berry-picker-for = { $berry } for { $pokemon }
 berry-picker-wanted = { $berry } wanted
 # Berry Picker's three Pokémon in the game's own order, which its keys go by, said as a round is
 # about to start: "Blaze, Pikachu Rock Star and Windsong".
@@ -380,14 +382,18 @@ setting-pa3ds-navigation-show_y = Announce height
 setting-pa3ds-navigation-show_y-about = Say how high as well, as y after x and z, when C says where you stand and shift and C where the thing chosen is: "x 71, z 35, y 20"; in the game's own units, 18 to a square's width, and left out where pa3ds does not know it, as in Sun and Moon.
 setting-pa3ds-navigation-sort_by_distance = Sort by distance
 setting-pa3ds-navigation-sort_by_distance-about = List mode's list nearest first, which changes as you walk; false keeps each thing in one place in it, the order the game's own tables have, so you can tell which house you have been in by where it is; direction mode is nearest first either way.
-setting-pa3ds-navigation-touch_wrap = Touch mode wraps around
-setting-pa3ds-navigation-touch_wrap-about = In touch mode, go from the last button back to the first, and from the bottom row back to the top; false stops at the ends, so pressing O a few times always ends on the bottom row.
-setting-pa3ds-navigation-touch_next_row = Touch mode goes on to the next row
-setting-pa3ds-navigation-touch_next_row-about = In touch mode, J and L go on into the row above or below at a row's end; false keeps them in their row, so pressing L a few times always ends at its right.
-setting-pa3ds-navigation-drag = How touch mode drags
-setting-pa3ds-navigation-drag-about = Drag with Shift held, or a key of your own bound to drag in keys.toml, letting go of the touch as it comes up ("hold"), or tap it to pick up and tap it again to let go ("toggle"). Only Pokémon-Amie drags.
-setting-pa3ds-navigation-drag-hold = Hold Shift
-setting-pa3ds-navigation-drag-toggle = Tap to pick up, tap to let go
+setting-pa3ds-touch-wrap = Wrap around
+setting-pa3ds-touch-wrap-about = In touch mode, go from the last button back to the first, and from the bottom row back to the top; false stops at the ends, so pressing O a few times always ends on the bottom row.
+setting-pa3ds-touch-next_row = Go on to the next row
+setting-pa3ds-touch-next_row-about = In touch mode, J and L go on into the row above or below at a row's end; false keeps them in their row, so pressing L a few times always ends at its right.
+setting-pa3ds-touch-drag = How to drag
+setting-pa3ds-touch-drag-about = Drag with Shift held, or a key of your own bound to drag in keys.toml, letting go of the touch as it comes up ("hold"), or tap it to pick up and tap it again to let go ("toggle"). Only Pokémon-Amie drags.
+setting-pa3ds-touch-drag-hold = Hold Shift
+setting-pa3ds-touch-drag-toggle = Tap to pick up, tap to let go
+setting-pa3ds-amie-berry_first = Berry Picker says the berry first
+setting-pa3ds-amie-berry_first-about = Say each Pokémon wanting a berry in the order you give it, the berry and then the Pokémon, "Pinap Berry for Pikachu"; false says the Pokémon first, "Pikachu wants Pinap Berry".
+setting-pa3ds-amie-one_at_a_time = Berry Picker says one Pokémon at a time
+setting-pa3ds-amie-one_at_a_time-about = Say one Pokémon wanting a berry at a time, and the next once you have given a berry or the one said has gone; false says each as it comes.
 setting-pa3ds-extras-conditions = Contest conditions as numbers
 setting-pa3ds-extras-conditions-about = Say a Pokémon's contest conditions as numbers where the game draws them as a star, on the summary and in the Pokéblock Case: the star is shown to everyone but pa3ds cannot read it, so its numbers are all it can give, and they are more exact than the star.
 setting-pa3ds-extras-hidden_items = Hidden items
@@ -402,6 +408,8 @@ settings-page-general = General
 settings-page-speech = Speech
 settings-page-audio = Audio
 settings-page-navigation = Navigation
+settings-page-touch = Touch mode
+settings-page-amie = Pokémon-Amie
 settings-page-extras = Extras
 settings-browse = &Browse...
 # The first of the languages pa3ds can speak in: none chosen.

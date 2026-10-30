@@ -96,6 +96,16 @@ fn picker(demo: Option<i64>) -> Picker {
 
 /// `picker(demo, clock)`.
 fn picker_with(demo: Option<i64>, clock: Rc<dyn Fn() -> f64>) -> Picker {
+    picker_saying(demo, clock, false, false)
+}
+
+/// `picker(demo, clock, berry_first, one_at_a_time)`.
+fn picker_saying(
+    demo: Option<i64>,
+    clock: Rc<dyn Fn() -> f64>,
+    berry_first: bool,
+    one_at_a_time: bool,
+) -> Picker {
     let memory = FakeMemory::new();
     let classes = FakeClasses::new(memory.clone());
     let picture = classes.add(lyt::PICTURE_CLASS);
@@ -148,14 +158,16 @@ fn picker_with(demo: Option<i64>, clock: Rc<dyn Fn() -> f64>) -> Picker {
         memory: memory.clone(),
         mapped: Cell::new(false),
     });
-    let mut found = berry_picker::BerryPicker::with_clock(
+    let mut found = berry_picker::BerryPicker::with_settings(
         reads.clone(),
         Rc::new(ClassNames::new(reads.clone(), CODE)),
         fake.layouts.clone(),
         Rc::new(move |pane: i64| Ok(drawn.get(&pane).map(|image| image.to_string()))),
-        IndexMap::from([("kinomi02.bclim".to_string(), "Pinap Berry".to_string())]),
+        words(),
         Rc::new(|found: &pokemon::Pokemon| named(found.species)),
         clock,
+        berry_first,
+        one_at_a_time,
     );
     memory.u32(APP, &[classes.add(berry_picker::APP)]);
     memory.u32(APP + berry_picker::CLOCK, &[1800]);
@@ -522,5 +534,70 @@ fn test_the_rounds_three_pokemon_are_said_in_their_keys_order_before_it_starts()
     assert_eq!(
         picked.found.poll(Some("N3app6puzzle7ProcessE")).unwrap(),
         Vec::<String>::new()
+    );
+}
+
+/// Torchic up in the middle wanting a Razz Berry, the spare bubble brought on, the round under way.
+fn second_want(memory: &FakeMemory, panes: &[i64], layouts: &Layouts) {
+    let param = PARAM + 0x1000;
+    memory.write(param, &memory.read(PARAM, 4).unwrap());
+    memory.u32(param + 4, &[param + pokemon::RECORD_IN_PARAM]);
+    memory.write(param + pokemon::RECORD_IN_PARAM, &record_of("", 0, TORCHIC));
+    let mut place = 0.0f32.to_le_bytes().to_vec();
+    place.extend(15.0f32.to_le_bytes());
+    memory.write(MODEL + berry_picker::RECORDS + berry_picker::PLACE, &place);
+    for (pane, y) in [(panes[2], -80.0f32), (panes[3], -30.0f32)] {
+        memory.write(pane + lyt::X, &0.0f32.to_le_bytes());
+        memory.write(pane + lyt::Y, &y.to_le_bytes());
+    }
+    layouts.refresh();
+    memory.u32(APP + berry_picker::CLOCK, &[1700]);
+}
+
+/// Orion, 2026-10-29: a berry is given by its key and then the Pokémon's (`[pa3ds.amie]
+/// berry_first`).
+#[test]
+fn test_berry_first_says_a_want_in_the_order_its_berry_is_given() {
+    let mut picked = picker_saying(None, Rc::new(|| 0.0), true, false);
+    assert_eq!(
+        picked.found.poll(Some(berry_picker::APP)).unwrap(),
+        ["Pinap Berry for Treecko"]
+    );
+}
+
+/// Orion, 2026-10-29: three wants said together took 1.5 s, the first all a player can act on
+/// (`[pa3ds.amie] one_at_a_time`); without it each is said as it comes.
+#[test]
+fn test_one_at_a_time_the_next_is_said_once_a_berry_is_given_or_the_one_said_goes() {
+    let app = Some(berry_picker::APP);
+    let mut picked = picker(None);
+    second_want(&picked.memory, &picked.panes, &picked.layouts);
+    assert_eq!(
+        picked.found.poll(app).unwrap(),
+        ["Treecko wants Pinap Berry", "Torchic wants Razz Berry"]
+    );
+    let mut picked = picker_saying(None, Rc::new(|| 0.0), false, true);
+    second_want(&picked.memory, &picked.panes, &picked.layouts);
+    assert_eq!(
+        picked.found.poll(app).unwrap(),
+        ["Treecko wants Pinap Berry"]
+    );
+    assert_eq!(picked.found.poll(app).unwrap(), Vec::<String>::new());
+    picked.found.given();
+    assert_eq!(
+        picked.found.poll(app).unwrap(),
+        ["Torchic wants Razz Berry"]
+    );
+    assert_eq!(picked.found.poll(app).unwrap(), Vec::<String>::new());
+    let mut picked = picker_saying(None, Rc::new(|| 0.0), false, true);
+    second_want(&picked.memory, &picked.panes, &picked.layouts);
+    picked.found.poll(app).unwrap();
+    picked
+        .memory
+        .write(picked.panes[1] + lyt::X, &(-300.0f32).to_le_bytes());
+    picked.layouts.refresh();
+    assert_eq!(
+        picked.found.poll(app).unwrap(),
+        ["Torchic wants Razz Berry"]
     );
 }

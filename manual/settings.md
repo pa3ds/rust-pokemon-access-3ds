@@ -37,9 +37,13 @@ they take effect the next time pa3ds starts.
 | `hide_door_signs` | `true` | Leave a sign out of the list when all it says is the name of the door beside it. |
 | `sort_by_distance` | `true` | List mode's list nearest first. `false` keeps each thing in one place in the list as you walk, so you can tell by its place which house you have been in. Direction mode is nearest first either way. |
 | `show_y` | `false` | `C` and `Shift+C` say how high as well, after x and z, in the game's units: 18 to a square. |
-| `touch_wrap` | `true` | In touch mode, go from the last button back to the first, and from the bottom row back to the top. `false` stops at the ends, so pressing `O` a few times always ends on the bottom row. |
-| `touch_next_row` | `true` | In touch mode, `J` and `L` go on into the next row at a row's end. `false` keeps them in their row, so pressing `L` a few times always ends at its right. |
-| `drag` | `"hold"` | How touch mode drags: `"hold"` holds Shift, or a key you bind to drag, while you choose where to and lets go as it comes up; `"toggle"` picks up with one press and lets go with the next. Only Pokémon-Amie drags. |
+| **`[pa3ds.touch]`** | | Touch mode. These were `touch_wrap`, `touch_next_row` and `drag` under `[pa3ds.navigation]`, and pa3ds carries your values over. |
+| `wrap` | `true` | Go from the last button back to the first, and from the bottom row back to the top. `false` stops at the ends, so pressing `O` a few times always ends on the bottom row. |
+| `next_row` | `true` | `J` and `L` go on into the next row at a row's end. `false` keeps them in their row, so pressing `L` a few times always ends at its right. |
+| `drag` | `"hold"` | How to drag: `"hold"` holds Shift, or a key you bind to drag, while you choose where to and lets go as it comes up; `"toggle"` picks up with one press and lets go with the next. Only Pokémon-Amie drags. |
+| **`[pa3ds.amie]`** | | Pokémon-Amie's games. |
+| `berry_first` | `true` | Berry Picker says the berry first, in the order you give it: "Pinap Berry for Pikachu". `false` says "Pikachu wants Pinap Berry". |
+| `one_at_a_time` | `true` | Berry Picker says one Pokémon wanting a berry at a time, and the next once you have given a berry or the one said has gone. `false` says each as it comes. |
 | **`[pa3ds.extras]`** | | See [Extras](#extras). |
 | `conditions` | `false` | Say a Pokémon's contest conditions as numbers, on its summary and in the Pokéblock Case. |
 | `hidden_items` | `"off"` | List the hidden items you have not found yet among the items, as "hidden item": `"underwater"` under the sea alone, `"all"` everywhere. |

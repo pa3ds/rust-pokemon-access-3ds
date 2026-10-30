@@ -79,7 +79,9 @@ pub const TEXT: i64 = 0x04;
 /// Each berry's picture and its item number, the line of the items' names the game calls it by:
 /// Easy's Razz, Bluk and Pinap, read off the screen (as_amie_berry_picker), and Normal's Wepear and
 /// Magost and Hard's Durin and Nomel, by their textures in the ROM, as Bulbapedia's Berry Picker page
-/// adds them. `kinomi07` to `kinomi09` were seen in no game.
+/// adds them, and played by those names (or_amie_berry_picker_normal and _hard). In this order they
+/// hang left to right on every difficulty's tree (spike C). `kinomi07` to `kinomi09` were seen in
+/// no game.
 pub const BERRIES: [(&str, i64); 7] = [
     ("kinomi00.bclim", 164),
     ("kinomi01.bclim", 165),
@@ -109,6 +111,7 @@ pub const APART: i64 = 50;
 /// and Poochyena on the left, in the middle and on the right.
 pub const BODY: i64 = 215;
 pub const WANTS: &str = "berry-picker-wants";
+pub const FOR: &str = "berry-picker-for";
 pub const WANTED: &str = "berry-picker-wanted";
 pub const LINEUP: &str = "berry-picker-lineup";
 pub const NOT_UP: &str = "berry-picker-not-up";
@@ -155,6 +158,15 @@ pub struct BerryPicker {
     speed: f64,
     /// Whether the round about to start has had its three Pokémon said (`lineup`).
     told: bool,
+    /// Whether a want is said berry first, "Pinap Berry for Pikachu" (`[pa3ds.amie]`).
+    berry_first: bool,
+    /// Whether one want is said at a time, the next once a berry is given or the one said
+    /// has gone (`[pa3ds.amie]`).
+    one_at_a_time: bool,
+    /// The bubbles come and not yet said, by pane and words, in the order they came.
+    waiting: Vec<(i64, String)>,
+    /// The bubble said last, waiting to be given a berry or to go.
+    current: Option<(i64, String)>,
 }
 
 impl BerryPicker {
@@ -187,6 +199,24 @@ impl BerryPicker {
         name: Name,
         clock: Rc<dyn Fn() -> f64>,
     ) -> Self {
+        BerryPicker::with_settings(
+            memory, names, layouts, image_of, words, name, clock, false, false,
+        )
+    }
+
+    /// `BerryPicker(...)` with every argument, `berry_first` and `one_at_a_time` among them.
+    #[allow(clippy::too_many_arguments)]
+    pub fn with_settings(
+        memory: Rc<dyn Memory>,
+        names: Rc<ClassNames>,
+        layouts: Rc<Layouts>,
+        image_of: ImageOf,
+        words: IndexMap<String, String>,
+        name: Name,
+        clock: Rc<dyn Fn() -> f64>,
+        berry_first: bool,
+        one_at_a_time: bool,
+    ) -> Self {
         BerryPicker {
             memory,
             names,
@@ -202,6 +232,10 @@ impl BerryPicker {
             paced: None,
             speed: 1.0,
             told: false,
+            berry_first,
+            one_at_a_time,
+            waiting: Vec::new(),
+            current: None,
         }
     }
 
@@ -249,22 +283,54 @@ impl BerryPicker {
         if !self.playing(running)? {
             self.said = HashSet::new();
             self.paced = None;
+            (self.waiting, self.current) = (Vec::new(), None);
             return Ok(lineup);
         }
         self.pace()?;
-        let wants = self.wants()?;
-        let shown: HashSet<(i64, String)> = wants
-            .iter()
-            .map(|want| (want.pane, want.said.clone()))
+        let shown: Vec<(i64, String)> = self
+            .wants()?
+            .into_iter()
+            .map(|want| (want.pane, want.said))
             .collect();
-        let new: Vec<String> = wants
+        let new: Vec<(i64, String)> = shown
             .iter()
-            .filter(|want| !self.said.contains(&(want.pane, want.said.clone())))
-            .map(|want| want.said.clone())
+            .filter(|each| !self.said.contains(*each))
+            .cloned()
             .collect();
-        self.said = shown;
-        lineup.extend(new);
+        self.said = shown.into_iter().collect();
+        if !self.one_at_a_time {
+            lineup.extend(new.into_iter().map(|(_, said)| said));
+            return Ok(lineup);
+        }
+        // One at a time (Orion, 2026-10-29): three said together took 1.5 s, the first of them
+        // all a player can act on. The next waits until a berry is given or the one said goes.
+        let mut waiting: Vec<(i64, String)> = self
+            .waiting
+            .iter()
+            .filter(|each| self.said.contains(*each))
+            .cloned()
+            .collect();
+        waiting.extend(new);
+        self.waiting = waiting;
+        if self
+            .current
+            .as_ref()
+            .is_none_or(|current| !self.said.contains(current))
+        {
+            self.current = None;
+        }
+        if self.current.is_none() && !self.waiting.is_empty() {
+            let current = self.waiting.remove(0);
+            lineup.push(current.1.clone());
+            self.current = Some(current);
+        }
         Ok(lineup)
+    }
+
+    /// A berry has been given, rightly or not: the next Pokémon waiting is said
+    /// (`one_at_a_time`).
+    pub fn given(&mut self) {
+        self.current = None;
     }
 
     /// The round's three Pokémon in the game's own order, Berry Picker's own keys' order, said
@@ -358,8 +424,9 @@ impl BerryPicker {
             };
             let who = standing.get(&place(across));
             let said = match who {
-                Some(who) => own(WANTS, &[("pokemon", who), ("berry", &berry)]),
                 None => own(WANTED, &[("berry", &berry)]),
+                Some(who) if self.berry_first => own(FOR, &[("berry", &berry), ("pokemon", who)]),
+                Some(who) => own(WANTS, &[("pokemon", who), ("berry", &berry)]),
             };
             found.push(Want {
                 pane,
@@ -568,6 +635,7 @@ impl BerryKeys {
             return Ok((self.wrong)(&own(NOT_UP, &[("pokemon", &called)])));
         };
         self.berry = None;
+        self.picker.borrow_mut().given();
         Ok(touch.give(&berry, &target))
     }
 }

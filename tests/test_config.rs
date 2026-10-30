@@ -257,6 +257,42 @@ fn test_the_tones_turned_off_stay_off_as_they_move_to_the_audio_table() {
     );
 }
 
+/// Orion, 2026-10-29: touch mode's settings go to `[pa3ds.touch]`, without their prefix, and
+/// `drag_sounds` is `feedback_sounds`; a player's values come with them.
+#[test]
+fn test_touch_modes_settings_move_to_a_table_of_their_own_as_the_player_had_them() {
+    let tmp_path = TmpPath::new();
+    let home = tmp_path.join("home");
+    fs::create_dir(&home).unwrap();
+    fs::write(
+        home.join("config.toml"),
+        "[pa3ds.audio]\ndrag_sounds = 0.5\n\n[pa3ds.navigation]\ntouch_wrap = false\n\
+         touch_next_row = false\ndrag = \"toggle\"\n",
+    )
+    .unwrap();
+    let none = tmp_path.join("none.ini");
+    config::prepare(Some(&home), Some(&none), true, false).unwrap();
+    let settings = config::prepare(Some(&home), Some(&none), true, false).unwrap();
+    assert_eq!(
+        settings.touch,
+        config::Touch {
+            wrap: false,
+            next_row: false,
+            drag: "toggle".to_string()
+        }
+    );
+    assert_eq!(settings.audio.feedback_sounds, 0.5);
+    assert!(
+        settings
+            .notes
+            .iter()
+            .any(|note| note.contains("[pa3ds.navigation] touch_wrap is [pa3ds.touch] wrap now")),
+        "{:?}",
+        settings.notes
+    );
+    assert_eq!(settings.amie, config::Amie::default());
+}
+
 #[test]
 fn test_an_extra_is_on_only_when_asked_for() {
     let tmp_path = TmpPath::new();
@@ -342,7 +378,7 @@ fn test_a_setting_pa3ds_gained_is_added_and_nothing_else_changes() {
         settings
             .notes
             .iter()
-            .any(|note| note.ends_with("[pa3ds.navigation] drag"))
+            .any(|note| note.ends_with("[pa3ds.touch] drag"))
     );
     assert!(!settings.said.contains("could not be read"));
 }

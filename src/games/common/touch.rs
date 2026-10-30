@@ -288,10 +288,10 @@ pub struct TouchTargets {
     /// (`DROP_SECONDS`): Berry Picker's clock says (`berry_picker.BerryPicker.speed`).
     pace: Rc<dyn Fn() -> f64>,
     /// Whether the keys go round from the last target to the first and the bottom row to the
-    /// top, or stop at the ends (`[pa3ds.navigation] touch_wrap`).
+    /// top, or stop at the ends (`[pa3ds.touch] wrap`).
     wrap: bool,
     /// Whether J and L go on into the next row at a row's end, or stay in their row
-    /// (`[pa3ds.navigation] touch_next_row`).
+    /// (`[pa3ds.touch] next_row`).
     next_row: bool,
     /// The target picked up to drag, while one is.
     picked: Option<Target>,

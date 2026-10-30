@@ -19,7 +19,7 @@ use indexmap::{IndexMap, IndexSet};
 
 use crate::core::binary::u32;
 use crate::core::clips::Clips;
-use crate::core::config::{Extras, Navigation, Ui};
+use crate::core::config::{Amie, DRAG_TOGGLE, Extras, Navigation, Touch, Ui};
 use crate::core::discovery::{Discovery, Found, HEAP_SPAN, LINEAR_SPAN, within};
 use crate::core::memory::{Cache, Memory, phase};
 use crate::core::names::{FURNITURE, GamePlace, GameSprite, Names, TILES};
@@ -229,6 +229,10 @@ pub struct Options {
     pub census: bool,
     /// None is `DEFAULT_CONTEXTS`.
     pub contexts: Option<Contexts>,
+    /// None is `Touch()`.
+    pub touch: Option<Touch>,
+    /// None is `Amie()`.
+    pub amie_settings: Option<Amie>,
 }
 
 /// The gen 6 readers, and what each sweep and poll does with them, for ORAS or for X and Y.
@@ -421,7 +425,11 @@ impl Gen6Profile {
             title,
             census,
             contexts,
+            touch,
+            amie_settings,
         } = options;
+        let touch_settings = touch.unwrap_or_default();
+        let amie_settings = amie_settings.unwrap_or_default();
         let contexts = contexts.unwrap_or_else(|| DEFAULT_CONTEXTS.clone());
         let tone = tones.clone();
         let cache = memory;
@@ -794,7 +802,7 @@ impl Gen6Profile {
         ));
         // Amie's Berry Picker draws the berry each Pokémon wants in a bubble, and says nothing of
         // who wants which.
-        let berry_picker = Rc::new(RefCell::new(berry_picker::BerryPicker::new(
+        let berry_picker = Rc::new(RefCell::new(berry_picker::BerryPicker::with_settings(
             memory.clone(),
             names.clone(),
             layouts.clone(),
@@ -802,8 +810,11 @@ impl Gen6Profile {
             images.clone(),
             {
                 let text = text.clone();
-                Rc::new(move |found: &pokemon::Pokemon| yours_in(&text, found))
+                Rc::new(move |found: &pokemon::Pokemon| short_in(&text, found))
             },
+            Rc::new(py::time::monotonic),
+            amie_settings.berry_first,
+            amie_settings.one_at_a_time,
         )));
         // A round says its score, clock and banners, and warns of a Bot's shot.
         let sparring = Round::new(layouts.clone(), image_of.clone(), memory.clone(), None);
@@ -903,12 +914,8 @@ impl Gen6Profile {
                 off: Some(off),
                 slide,
                 drag,
-                wrap: navigation
-                    .as_ref()
-                    .is_none_or(|navigation| navigation.touch_wrap),
-                next_row: navigation
-                    .as_ref()
-                    .is_none_or(|navigation| navigation.touch_next_row),
+                wrap: touch_settings.wrap,
+                next_row: touch_settings.next_row,
                 pace: Some({
                     let berry_picker = berry_picker.clone();
                     Rc::new(move || berry_picker.borrow().speed())
@@ -1079,6 +1086,7 @@ impl Gen6Profile {
                             .is_some_and(|running| amie::SCREENS.contains(&running))
                     })
                 }),
+                toggle: touch_settings.drag == DRAG_TOGGLE,
                 ..NavigatorOptions::default()
             },
         );
@@ -2244,6 +2252,16 @@ fn yours_in(text: &GameText, found: &pokemon::Pokemon) -> Option<String> {
         return Some(found.nickname.clone());
     }
     text.pokemon(found.species, found.form)
+}
+
+/// `Gen6Profile._short` over the game's text: a Pokémon of the player's by its nickname, or else
+/// its species alone, with no form: Berry Picker's, where "Pikachu Rock Star wants Pinap Berry"
+/// took half a second against a Pokémon's two (Orion, 2026-10-29).
+fn short_in(text: &GameText, found: &pokemon::Pokemon) -> Option<String> {
+    if found.nicknamed && !found.nickname.is_empty() {
+        return Some(found.nickname.clone());
+    }
+    text.pokemon(found.species, 0)
 }
 
 /// `Gen6Profile._recall`: the word for what a scene names as it is said: `memory`, the Pokémon

@@ -207,9 +207,6 @@ pub struct Navigation {
     pub hide_door_signs: bool,
     pub show_y: bool,
     pub sort_by_distance: bool,
-    pub touch_wrap: bool,
-    pub touch_next_row: bool,
-    pub drag: String,
 }
 
 impl Default for Navigation {
@@ -223,9 +220,6 @@ impl Default for Navigation {
             hide_door_signs: true,
             show_y: false,
             sort_by_distance: true,
-            touch_wrap: true,
-            touch_next_row: true,
-            drag: DRAG_HOLD.to_string(),
         }
     }
 }
@@ -241,9 +235,6 @@ impl Table for Navigation {
             ("hide_door_signs", Value::Bool(self.hide_door_signs)),
             ("show_y", Value::Bool(self.show_y)),
             ("sort_by_distance", Value::Bool(self.sort_by_distance)),
-            ("touch_wrap", Value::Bool(self.touch_wrap)),
-            ("touch_next_row", Value::Bool(self.touch_next_row)),
-            ("drag", Value::Str(self.drag.clone())),
         ]
     }
 
@@ -257,9 +248,82 @@ impl Table for Navigation {
             ("hide_door_signs", Value::Bool(value)) => self.hide_door_signs = value,
             ("show_y", Value::Bool(value)) => self.show_y = value,
             ("sort_by_distance", Value::Bool(value)) => self.sort_by_distance = value,
-            ("touch_wrap", Value::Bool(value)) => self.touch_wrap = value,
-            ("touch_next_row", Value::Bool(value)) => self.touch_next_row = value,
+            _ => {}
+        }
+    }
+}
+
+/// `[pa3ds.touch]`: how touch mode walks the bottom screen's buttons and drags, out of
+/// `[pa3ds.navigation]` since touch mode gained settings of its own (Orion, 2026-10-29).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Touch {
+    pub wrap: bool,
+    pub next_row: bool,
+    pub drag: String,
+}
+
+impl Default for Touch {
+    fn default() -> Self {
+        Touch {
+            wrap: true,
+            next_row: true,
+            drag: DRAG_HOLD.to_string(),
+        }
+    }
+}
+
+impl Table for Touch {
+    fn fields(&self) -> Vec<(&'static str, Value)> {
+        vec![
+            ("wrap", Value::Bool(self.wrap)),
+            ("next_row", Value::Bool(self.next_row)),
+            ("drag", Value::Str(self.drag.clone())),
+        ]
+    }
+
+    fn set(&mut self, setting: &str, value: Value) {
+        match (setting, value) {
+            ("wrap", Value::Bool(value)) => self.wrap = value,
+            ("next_row", Value::Bool(value)) => self.next_row = value,
             ("drag", Value::Str(value)) => self.drag = value,
+            _ => {}
+        }
+    }
+}
+
+/// `[pa3ds.amie]`: how Pokémon-Amie's games are said (Orion, 2026-10-29).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Amie {
+    /// Berry Picker says the berry before the Pokémon, "Pinap Berry for Pikachu", in the order a
+    /// berry is given, its key and then the Pokémon's; or the Pokémon first, "Pikachu wants Pinap
+    /// Berry".
+    pub berry_first: bool,
+    /// Berry Picker says one Pokémon wanting a berry at a time, the next once a berry has been
+    /// given or the one said has gone: three said together took 1.5 s (Orion).
+    pub one_at_a_time: bool,
+}
+
+impl Default for Amie {
+    fn default() -> Self {
+        Amie {
+            berry_first: true,
+            one_at_a_time: true,
+        }
+    }
+}
+
+impl Table for Amie {
+    fn fields(&self) -> Vec<(&'static str, Value)> {
+        vec![
+            ("berry_first", Value::Bool(self.berry_first)),
+            ("one_at_a_time", Value::Bool(self.one_at_a_time)),
+        ]
+    }
+
+    fn set(&mut self, setting: &str, value: Value) {
+        match (setting, value) {
+            ("berry_first", Value::Bool(value)) => self.berry_first = value,
+            ("one_at_a_time", Value::Bool(value)) => self.one_at_a_time = value,
             _ => {}
         }
     }
@@ -307,32 +371,45 @@ pub const DRAG_TOGGLE: &str = "toggle";
 /// Each setting that is one of a few words, by its name in the file: its words, the default
 /// first. `[pa3ds.extras] hidden_items` lists none, those under the sea, where the Dowsing Machine
 /// cannot be used and a sighted player is taken to see them, or all (Orion, 2026-10-26); a word it
-/// does not have lists none. `[pa3ds.navigation] drag` holds a touch mode drag while its key is
-/// held, or picks up with one press and lets go with the next, for a player who cannot hold a key
+/// does not have lists none. `[pa3ds.touch] drag` holds a touch mode drag while its key is held,
+/// or picks up with one press and lets go with the next, for a player who cannot hold a key
 /// (Orion, 2026-10-28).
 pub const CHOICES: [(&str, &[&str]); 2] = [
     (
         "pa3ds.extras.hidden_items",
         &[HIDDEN_OFF, HIDDEN_UNDERWATER, HIDDEN_ALL],
     ),
-    ("pa3ds.navigation.drag", &[DRAG_HOLD, DRAG_TOGGLE]),
+    ("pa3ds.touch.drag", &[DRAG_HOLD, DRAG_TOGGLE]),
 ];
 
 /// The tables of the file, in the order it writes them: each is a settings dataclass, and
 /// `defaults` is what `kind()` holds.
-pub const TABLES: [&str; 5] = [
+pub const TABLES: [&str; 7] = [
     "pa3ds",
     "pa3ds.ui",
     "pa3ds.audio",
     "pa3ds.navigation",
+    "pa3ds.touch",
+    "pa3ds.amie",
     "pa3ds.extras",
 ];
-/// Settings that moved to another table, (old table, setting) -> new table, with
-/// `[pa3ds.audio]` (2026-10-18): the player's value is carried into the new line as it is filled
-/// in, tones turned off as 0 (`fill`).
-pub const MOVED: [((&str, &str), &str); 2] = [
-    (("pa3ds.ui", "tones"), "pa3ds.audio"),
-    (("pa3ds.ui", "footsteps"), "pa3ds.audio"),
+/// Settings that moved, (old table, setting) -> (new table, setting): to `[pa3ds.audio]`
+/// (2026-10-18), `drag_sounds` named `feedback_sounds` and touch mode's own to `[pa3ds.touch]`
+/// (2026-10-29). The player's value is carried into the new line as it is filled in, tones turned
+/// off as 0 (`fill`).
+pub const MOVED: [((&str, &str), (&str, &str)); 6] = [
+    (("pa3ds.ui", "tones"), ("pa3ds.audio", "tones")),
+    (("pa3ds.ui", "footsteps"), ("pa3ds.audio", "footsteps")),
+    (
+        ("pa3ds.audio", "drag_sounds"),
+        ("pa3ds.audio", "feedback_sounds"),
+    ),
+    (("pa3ds.navigation", "touch_wrap"), ("pa3ds.touch", "wrap")),
+    (
+        ("pa3ds.navigation", "touch_next_row"),
+        ("pa3ds.touch", "next_row"),
+    ),
+    (("pa3ds.navigation", "drag"), ("pa3ds.touch", "drag")),
 ];
 
 /// `kind().fields()` for the dataclass `TABLES` names.
@@ -342,6 +419,8 @@ pub(crate) fn defaults(name: &str) -> Vec<(&'static str, Value)> {
         "pa3ds.ui" => Ui::default().fields(),
         "pa3ds.audio" => Audio::default().fields(),
         "pa3ds.navigation" => Navigation::default().fields(),
+        "pa3ds.touch" => Touch::default().fields(),
+        "pa3ds.amie" => Amie::default().fields(),
         "pa3ds.extras" => Extras::default().fields(),
         _ => Vec::new(),
     }
@@ -439,6 +518,8 @@ pub struct Config {
     /// The `qt-config.ini` this run patched, or would have: the portable Azahar's when
     /// `azahar_folder` names one.
     pub emulator: PathBuf,
+    pub touch: Touch,
+    pub amie: Amie,
 }
 
 /// `<pa3ds>/user/config.toml`, or under `home` instead.
@@ -540,7 +621,8 @@ pub fn fill(text: &str) -> Result<(String, Vec<String>)> {
 }
 
 /// A setting's value as the file had it before it moved here (`MOVED`), or its default: a
-/// number as it was, on or off as 1 or 0.
+/// number as it was, a number's on or off as 1 or 0, and anything else as it was where it is
+/// the setting's kind.
 fn carried(
     parsed: &IndexMap<String, ::toml::Value>,
     table: &str,
@@ -549,19 +631,28 @@ fn carried(
 ) -> Value {
     let old = MOVED
         .iter()
-        .find(|&&((_, name), new)| new == table && name == setting)
-        .map(|&((old_table, _), _)| old_table);
-    let Some(old) = old else {
+        .find(|&&(_, after)| after == (table, setting))
+        .map(|&(before, _)| before);
+    let Some((old_table, old_setting)) = old else {
         return default;
     };
     let mut found = parsed.clone();
-    for key in old.split('.') {
+    for key in old_table.split('.') {
         found = toml::table(found.get(key));
     }
-    match found.get(setting) {
-        Some(::toml::Value::Boolean(value)) => Value::Float(if *value { 1.0 } else { 0.0 }),
-        Some(::toml::Value::Integer(value)) => Value::Float(*value as f64),
-        Some(::toml::Value::Float(value)) => Value::Float(*value),
+    let value = found.get(old_setting);
+    if let Value::Float(_) = default {
+        match value {
+            Some(::toml::Value::Boolean(value)) => {
+                return Value::Float(if *value { 1.0 } else { 0.0 });
+            }
+            Some(::toml::Value::Integer(value)) => return Value::Float(*value as f64),
+            Some(::toml::Value::Float(value)) => return Value::Float(*value),
+            _ => {}
+        }
+    }
+    match value {
+        Some(value) if same_kind(value, &default) => value_of(value).unwrap_or(default),
         _ => default,
     }
 }
@@ -712,12 +803,12 @@ fn table<T: Table>(
         if TABLES.contains(&format!("{name}.{setting}").as_str()) {
             continue;
         }
-        if let Some((_, new)) = MOVED
+        if let Some((_, (table, now))) = MOVED
             .iter()
             .find(|((old, moved), _)| *old == name && *moved == setting.as_str())
         {
             notes.push(format!(
-                "{}: [{name}] {setting} is [{new}] {setting} now",
+                "{}: [{name}] {setting} is [{table}] {now} now",
                 py::path_str(path)
             ));
             continue;
@@ -858,6 +949,18 @@ pub fn prepare(
         &path,
         &mut notes,
     );
+    let touch: Touch = table(
+        &toml::table(ours.get("touch")),
+        "pa3ds.touch",
+        &path,
+        &mut notes,
+    );
+    let amie: Amie = table(
+        &toml::table(ours.get("amie")),
+        "pa3ds.amie",
+        &path,
+        &mut notes,
+    );
     let extras: Extras = table(
         &toml::table(ours.get("extras")),
         "pa3ds.extras",
@@ -927,6 +1030,8 @@ pub fn prepare(
         said,
         warning: !problem.is_empty() || matches!(saved.as_str(), "waiting" | "missing"),
         emulator: config,
+        touch,
+        amie,
     })
 }
 

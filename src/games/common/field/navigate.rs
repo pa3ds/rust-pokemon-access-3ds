@@ -55,7 +55,7 @@ use std::rc::Rc;
 
 use indexmap::IndexMap;
 
-use crate::core::config::{DRAG_TOGGLE, Navigation};
+use crate::core::config::Navigation;
 use crate::core::keys::{SHIFT, SHIFT_DOWN, SHIFT_UP, UP};
 use crate::core::names::Names;
 use crate::core::pathfind::{self, AHEAD, BEHIND, Cell, LEFT, RIGHT};
@@ -177,6 +177,9 @@ pub struct Options {
     pub place: Option<Place>,
     /// None is never.
     pub drags: Option<Rc<dyn Fn() -> bool>>,
+    /// Whether a drag is picked up by one press and let go by the next, rather than held
+    /// (`[pa3ds.touch] drag` "toggle").
+    pub toggle: bool,
 }
 
 impl Default for Options {
@@ -201,6 +204,7 @@ impl Default for Options {
             door_sign: None,
             place: None,
             drags: None,
+            toggle: false,
         }
     }
 }
@@ -294,6 +298,9 @@ pub struct Navigator {
     /// Whether Shift alone, or a key bound to drag, drags in touch mode now: on a screen that
     /// drags (ADR-0009 as amended 2026-10-28).
     drags: Rc<dyn Fn() -> bool>,
+    /// Whether a drag is picked up by one press and let go by the next, rather than held
+    /// (`[pa3ds.touch] drag` "toggle").
+    toggle: bool,
     /// How an item and the way to it are said (`config.toml`'s `[pa3ds.navigation]`).
     wording: Navigation,
     speech: Rc<Speech>,
@@ -351,6 +358,7 @@ impl Navigator {
             door_sign,
             place,
             drags,
+            toggle,
         } = options;
         let wording = navigation.unwrap_or_default();
         let names = names.unwrap_or_else(|| Rc::new(Names::default()));
@@ -396,6 +404,7 @@ impl Navigator {
                 .collect(),
             touch,
             drags: drags.unwrap_or_else(|| Rc::new(|| false)),
+            toggle,
             wording,
             speech,
             log,
@@ -435,7 +444,7 @@ impl Navigator {
     /// Shift alone does, and comes up as `UP` after its name.
     pub fn press_key(&mut self, key: &str) -> Result<()> {
         let holding = self.touch.as_ref().is_some_and(TouchTargets::holding);
-        let toggle = self.wording.drag == DRAG_TOGGLE;
+        let toggle = self.toggle;
         if key == SHIFT_DOWN || key == SHIFT_UP {
             return self.drag(key == SHIFT_DOWN, holding, toggle, false);
         }
@@ -457,7 +466,7 @@ impl Navigator {
             && action.as_deref() == Some(TAP)
             && let Some(touch) = &mut self.touch
         {
-            // Tapped to pick up, tapped again to let go (`[pa3ds.navigation] drag`).
+            // Tapped to pick up, tapped again to let go (`[pa3ds.touch] drag`).
             let dropped = touch.drop();
             self.say(&dropped);
         } else if let Some(action) = action {
@@ -467,7 +476,7 @@ impl Navigator {
     }
 
     /// Shift alone, or a key bound to drag. In touch mode on a screen that drags it drags: held,
-    /// it picks up the target said and lets go as it comes up; or, with `[pa3ds.navigation] drag`
+    /// it picks up the target said and lets go as it comes up; or, with `[pa3ds.touch] drag`
     /// "toggle", one press picks up and the next lets go. A drag is let go however the screen has
     /// changed (ADR-0009 as amended 2026-10-28). Elsewhere in touch mode a key bound to drag says
     /// there is nothing to drag, where Shift alone, typed with every capital, is quiet.

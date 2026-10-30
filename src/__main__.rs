@@ -398,6 +398,8 @@ fn run(args: Args, hooks: &Hooks) -> py::Result<()> {
             ui,
             audio: settings.audio.clone(),
             navigation: settings.navigation.clone(),
+            touch: settings.touch.clone(),
+            amie: settings.amie.clone(),
             extras: settings.extras.clone(),
             keys: bindings,
             contexts,

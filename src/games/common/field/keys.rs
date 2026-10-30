@@ -111,8 +111,8 @@ pub const ITEM_COORDINATES: &str = "item coordinates";
 /// horde's order is Orion's, heard by fainting the bottom left Zigzagoon and the fifth going to 0%
 /// (movie16, 2026-10-01): the enemy side is said by battle position (`gen6.screens.battle`).
 /// Berry Picker's berries, a key each, in the game's own order of their pictures
-/// (`berry_picker.BERRIES`), left to right on Easy's tree and Normal's: picked up, for a Pokémon's
-/// key to give.
+/// (`berry_picker.BERRIES`), left to right on the tree on every difficulty: picked up, for a
+/// Pokémon's key to give.
 pub const BERRIES: [&str; 7] = [
     "first berry",
     "second berry",
@@ -145,8 +145,8 @@ pub const EXPLAINED: [(&str, &str); 5] = [
     (
         BERRIES[0],
         "In Berry Picker, picks up a berry on the tree, the first, second and on in the game's own \
-         order, left to right on Easy and Normal; a Pokémon's key then gives it, and another \
-         berry's key picks that one up instead.",
+         order, left to right; a Pokémon's key then gives it, and another berry's key picks that \
+         one up instead.",
     ),
     (
         POKEMON[0],

@@ -41,19 +41,23 @@ use crate::ux::dialog::{
 };
 
 /// Each page's message and the table of the file it shows, in the tabs' order.
-pub const PAGES: [(&str, &str); 5] = [
+pub const PAGES: [(&str, &str); 7] = [
     ("settings-page-general", "pa3ds"),
     ("settings-page-speech", "pa3ds.ui"),
     ("settings-page-audio", "pa3ds.audio"),
     ("settings-page-navigation", "pa3ds.navigation"),
+    ("settings-page-touch", "pa3ds.touch"),
+    ("settings-page-amie", "pa3ds.amie"),
     ("settings-page-extras", "pa3ds.extras"),
 ];
 /// Where `config.Config` keeps each table.
-pub const ON_CONFIG: [(&str, &str); 5] = [
+pub const ON_CONFIG: [(&str, &str); 7] = [
     ("pa3ds", "general"),
     ("pa3ds.ui", "ui"),
     ("pa3ds.audio", "audio"),
     ("pa3ds.navigation", "navigation"),
+    ("pa3ds.touch", "touch"),
+    ("pa3ds.amie", "amie"),
     ("pa3ds.extras", "extras"),
 ];
 
@@ -193,6 +197,8 @@ pub fn values(settings: &Config) -> IndexMap<String, Value> {
                 "ui" => settings.ui.fields(),
                 "audio" => settings.audio.fields(),
                 "navigation" => settings.navigation.fields(),
+                "touch" => settings.touch.fields(),
+                "amie" => settings.amie.fields(),
                 _ => settings.extras.fields(),
             };
             (*table, held)

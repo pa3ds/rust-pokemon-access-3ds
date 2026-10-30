@@ -4913,7 +4913,7 @@ fn test_while_a_touch_is_held_shift_keys_walk_and_letting_go_of_shift_lets_go() 
 /// A navigator in touch mode over a Poké Puff and the Pokémon's stroke, its drag's touches kept:
 /// the Rust stand-in for Python's `Holding`, which records the actions asked of touch mode.
 fn holding_navigator(
-    navigation: Navigation,
+    toggle: bool,
     drags: Option<Rc<dyn Fn() -> bool>>,
     bindings: Option<crate::games::common::field::keys::Bindings>,
 ) -> (Navigator, Rc<Holding>, Rc<Recorder>) {
@@ -4956,7 +4956,7 @@ fn holding_navigator(
         Rc::new(|_line: &str| {}),
         Options {
             touch: Some(targets),
-            navigation: Some(navigation),
+            toggle,
             drags,
             bindings,
             ..Options::default()
@@ -4988,14 +4988,7 @@ fn test_shift_alone_drags_on_the_screens_that_drag_held_or_tapped() {
             let amie = amie.clone();
             Rc::new(move || amie.get())
         };
-        let (mut nav, held, backend) = holding_navigator(
-            Navigation {
-                drag: drag.to_string(),
-                ..Navigation::default()
-            },
-            Some(drags),
-            None,
-        );
+        let (mut nav, held, backend) = holding_navigator(drag == "toggle", Some(drags), None);
         for key in keys {
             nav.press_key(key).unwrap();
         }
@@ -5040,14 +5033,8 @@ fn test_a_key_bound_to_drag_drags_as_shift_alone_does() {
             .get_mut(TOUCH)
             .unwrap()
             .insert(key.to_string(), DRAG.to_string());
-        let (mut nav, held, backend) = holding_navigator(
-            Navigation {
-                drag: drag.to_string(),
-                ..Navigation::default()
-            },
-            Some(drags),
-            Some(bindings),
-        );
+        let (mut nav, held, backend) =
+            holding_navigator(drag == "toggle", Some(drags), Some(bindings));
         for each in &keys {
             nav.press_key(each).unwrap();
         }
@@ -5082,14 +5069,7 @@ fn test_a_drag_is_let_go_after_its_screen_has_gone() {
             let dragging = dragging.clone();
             Rc::new(move || dragging.get())
         };
-        let (mut nav, held, backend) = holding_navigator(
-            Navigation {
-                drag: drag.to_string(),
-                ..Navigation::default()
-            },
-            Some(drags),
-            None,
-        );
+        let (mut nav, held, backend) = holding_navigator(drag == "toggle", Some(drags), None);
         nav.press_key(keys[0]).unwrap();
         dragging.set(false);
         for key in &keys[1..] {

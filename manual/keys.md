@@ -96,8 +96,9 @@ Puzzle, each tile is said as a spreadsheet names a cell, its column a letter fro
 number from 1, and then where the piece of the picture on it belongs: "B1, goes to D3", or "in
 place". Tap a tile, then the tile where its piece belongs, to swap them. Over the finished picture there
 is nothing to touch: B goes back. In its Berry Picker, touch mode offers the berries on the tree
-by name, and each Pokémon that pops up wanting one, "Treecko wants Pinap Berry", which pa3ds also
-says as it comes. Hold Shift on that berry, choose the Pokémon with `J`, `L`, `I` and `O`, and let
+by name, and each Pokémon that pops up wanting one, "Pinap Berry for Treecko", which pa3ds also
+says, one at a time: the next once you have given a berry or the one said has gone, unless the
+`one_at_a_time` setting is off. Hold Shift on that berry, choose the Pokémon with `J`, `L`, `I` and `O`, and let
 go of Shift: the berry goes straight to it. Nothing moves until you let go, so choosing past
 another Pokémon is safe, but a wrong berry sends a Pokémon away. A Pokémon waits only about two
 seconds. A tap knocks a berry off the tree for nobody. For a higher score, lower Azahar's speed
@@ -106,7 +107,7 @@ lasts two minutes. Turn on realtime audio in Azahar's audio settings, or the sou
 
 Berry Picker also has keys of its own, in any mode. `1` to `7` pick up a berry, in the game's own
 order: Razz, Bluk and Pinap on Easy, then Wepear and Magost on Normal, and Durin and Nomel on Hard;
-on Easy and Normal that is left to right. `8`, `9` and `0` are the round's three Pokémon, each
+that is left to right on the tree. `8`, `9` and `0` are the round's three Pokémon, each
 keeping its key all round. With a berry picked up, a Pokémon's key gives it the berry; with none,
 it says what that Pokémon wants. As each round is about to start, pa3ds says the three in their
 keys' order. Another berry's key picks that one up instead. A key with nothing to do, as `7` on Easy,

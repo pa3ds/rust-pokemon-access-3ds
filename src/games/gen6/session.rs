@@ -117,6 +117,8 @@ pub fn start(
             ui: Some(setup.ui.clone()),
             navigation: Some(setup.navigation.clone()),
             extras: Some(setup.extras.clone()),
+            touch: Some(setup.touch.clone()),
+            amie_settings: Some(setup.amie.clone()),
             keys: Some(setup.keys.clone()),
             contexts: Some(setup.contexts.clone()),
             text,
