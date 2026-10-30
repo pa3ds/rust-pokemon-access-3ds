@@ -92,6 +92,7 @@ use crate::games::common::pictures::words as picture_words;
 use crate::games::common::touch::{HEIGHT, Idle, ImageOf, Off, Target, WIDTH};
 use crate::games::common::{lyt, pokemon};
 use crate::games::gen6::apps::FIELD;
+use crate::games::gen6::screens::amie::PAGE_APPS;
 use crate::games::gen6::screens::distribution as d;
 use crate::py::{self, Result};
 
@@ -147,6 +148,8 @@ pub const CLOCK_MARKS: [i64; 6] = [150, 120, 90, 60, 30, 10];
 pub const BANNERS: [&str; 4] = ["start", "clear", "cleared", "gameover"];
 /// pa3ds's words for a ball of the Balloon Bot's in flight; the game says nothing.
 pub const SHOT: &str = "training-shot-coming";
+/// What the log calls what a round says.
+pub const ROUND_LOG: &str = "round";
 pub const MISSILE: &str = "N5actor20SparringMissileActorE";
 pub const MISSILE_STATE: i64 = 0x04;
 /// A ball's state in flight; 2 once landed, 0 unused.
@@ -221,8 +224,8 @@ impl TrainingPage {
     }
 
     /// The species of the party member whose icon a picture draws, or None.
-    pub fn name(&self, picture: i64) -> Result<Option<String>> {
-        if self.pages.is_empty() || self.species.is_empty() {
+    pub fn name(&self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
+        if !PAGE_APPS.contains(&running) || self.pages.is_empty() || self.species.is_empty() {
             return Ok(None);
         }
         let memory = &self.memory;
@@ -655,8 +658,9 @@ impl Round {
         Ok(())
     }
 
-    /// What to say now, with its category, while a round runs: nothing otherwise.
-    pub fn poll(&mut self, running: Option<&str>) -> Result<Vec<(String, Category)>> {
+    /// What to say now, with what the log calls it and its category, while a round runs:
+    /// nothing otherwise.
+    pub fn poll(&mut self, running: Option<&str>) -> Result<Vec<(String, String, Category)>> {
         if running != Some(SPARRING) {
             self.forget();
             return Ok(Vec::new());
@@ -674,12 +678,15 @@ impl Round {
         })
         .collect();
         // The warning first: it interrupts, and the lines after it queue behind it.
-        let mut out = Vec::new();
+        let mut lines = Vec::new();
         if self.launched()? {
-            out.push((own(SHOT, &[]), Category::Warning));
+            lines.push((own(SHOT, &[]), Category::Warning));
         }
-        out.extend(self.hear(&seen)?);
-        Ok(out)
+        lines.extend(self.hear(&seen)?);
+        Ok(lines
+            .into_iter()
+            .map(|(line, category)| (ROUND_LOG.to_string(), line, category))
+            .collect())
     }
 
     /// The lines for the pictures shown now, said as the screen's words.

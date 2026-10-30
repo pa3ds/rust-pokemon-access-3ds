@@ -3,11 +3,22 @@
 //! The PlayNav's pages, and the apps they open, Amie itself, its decorate screen, its games and
 //! Super Training's rounds, each have a reader or a few of their own, and the profile wired each one
 //! by hand: Berry Picker alone at eleven places (the deepening round, 2026-10-29). Here they are
-//! built from what they share and answered for together: what a sweep found of their objects
-//! (`track`), what touch mode calls a picture of theirs (`name`), the targets they offer it beside
-//! the touch areas (`targets`), and what each says as its screen changes (`poll`). The profile
-//! reaches two by name: Berry Picker, whose clock times touch mode's drag, and Tile Puzzle, whose
-//! play the screen announcer's clock waits on.
+//! built from what they share and answered for together. Each reader answers whichever of these it
+//! has, by the same name, for the app running, and nothing in any other app:
+//!
+//! - `track(found, adding)`, what a sweep found of its objects, by class;
+//! - `name(picture, running)`, what touch mode calls a picture of its screen's;
+//! - `targets(running)`, the targets it offers touch mode beside the touch areas;
+//! - `poll(running)`, what it says as its screen changes: (what the log calls it, the line, its
+//!   category).
+//!
+//! A new one is built here and put in the tuples of what it answers, in the order it is asked in:
+//! touch mode names a picture by the first reader with a name for it, and offers targets in order.
+//! The profile reaches two by name: Berry Picker, whose clock times touch mode's drag, and Tile
+//! Puzzle, whose play the screen announcer's clock waits on.
+//!
+//! Python asks each reader by the same name, duck-typed; here each answer is a trait, implemented
+//! for the `RefCell` a reader is shared in, and the tuples are lists of them.
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -21,30 +32,134 @@ use crate::core::speech::Category;
 use crate::games::common::layout::Layouts;
 use crate::games::common::pokemon;
 use crate::games::common::touch::{Idle, ImageOf, Off, Target};
-use crate::games::gen6::apps::FIELD;
 use crate::games::gen6::game::Game;
 use crate::games::gen6::rom::archives::GameText;
-use crate::games::gen6::screens::amie::{self, AmiePage, Goods, Puffs};
+use crate::games::gen6::screens::amie::{AmiePage, Goods, Puffs};
 use crate::games::gen6::screens::berry_picker::BerryPicker;
-use crate::games::gen6::screens::puzzle::{self, TilePuzzle};
-use crate::games::gen6::screens::townmap;
+use crate::games::gen6::screens::puzzle::TilePuzzle;
 use crate::games::gen6::screens::training::{Bags, Goals, Round, TrainingPage};
 use crate::games::gen6::screens::waiting::Waiting;
 use crate::py::{self, Result};
 
+/// A reader handed what a sweep found of its objects, by class.
+pub trait Tracked {
+    fn track(&self, found: &IndexMap<i64, String>, adding: bool) -> Result<()>;
+}
+
+/// A reader naming a picture of its screen's for touch mode.
+pub trait Named {
+    fn name(&self, picture: i64, running: Option<&str>) -> Result<Option<String>>;
+}
+
+/// A reader offering touch mode targets beside the touch areas.
+pub trait Offering {
+    fn targets(&self, running: Option<&str>) -> Result<Vec<Target>>;
+}
+
+/// A reader saying what it has as its screen changes.
+pub trait Polled {
+    fn poll(&self, running: Option<&str>) -> Result<Vec<(String, String, Category)>>;
+}
+
+macro_rules! tracked {
+    ($($reader:ty),*) => {$(
+        impl Tracked for RefCell<$reader> {
+            fn track(&self, found: &IndexMap<i64, String>, adding: bool) -> Result<()> {
+                self.borrow_mut().track(found, adding)
+            }
+        }
+    )*};
+}
+tracked!(
+    AmiePage,
+    Puffs,
+    Goods,
+    TilePuzzle,
+    BerryPicker,
+    TrainingPage,
+    Round
+);
+
+impl Named for RefCell<AmiePage> {
+    fn name(&self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
+        self.borrow().name(picture, running)
+    }
+}
+
+impl Named for RefCell<TrainingPage> {
+    fn name(&self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
+        self.borrow().name(picture, running)
+    }
+}
+
+impl Named for RefCell<Puffs> {
+    fn name(&self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
+        self.borrow_mut().name(picture, running)
+    }
+}
+
+impl Named for RefCell<Goods> {
+    fn name(&self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
+        self.borrow_mut().name(picture, running)
+    }
+}
+
+impl Named for RefCell<TilePuzzle> {
+    fn name(&self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
+        self.borrow().name(picture, running)
+    }
+}
+
+impl Offering for RefCell<AmiePage> {
+    fn targets(&self, running: Option<&str>) -> Result<Vec<Target>> {
+        self.borrow_mut().targets(running)
+    }
+}
+
+impl Offering for RefCell<BerryPicker> {
+    fn targets(&self, running: Option<&str>) -> Result<Vec<Target>> {
+        self.borrow().targets(running)
+    }
+}
+
+impl Offering for Goals {
+    fn targets(&self, running: Option<&str>) -> Result<Vec<Target>> {
+        Goals::targets(self, running)
+    }
+}
+
+impl Offering for Waiting {
+    fn targets(&self, running: Option<&str>) -> Result<Vec<Target>> {
+        Waiting::targets(self, running)
+    }
+}
+
+impl Offering for Bags {
+    fn targets(&self, running: Option<&str>) -> Result<Vec<Target>> {
+        Bags::targets(self, running)
+    }
+}
+
+impl Polled for RefCell<Round> {
+    fn poll(&self, running: Option<&str>) -> Result<Vec<(String, String, Category)>> {
+        self.borrow_mut().poll(running)
+    }
+}
+
+impl Polled for RefCell<BerryPicker> {
+    fn poll(&self, running: Option<&str>) -> Result<Vec<(String, String, Category)>> {
+        self.borrow_mut().poll(running)
+    }
+}
+
 /// The PlayNav's screens' readers, and what each answers for the app running.
 pub struct PlayNav {
-    image_of: ImageOf,
-    pub amie: RefCell<AmiePage>,
-    pub puffs: RefCell<Puffs>,
-    pub goods: RefCell<Goods>,
-    pub puzzle: RefCell<TilePuzzle>,
-    pub training: RefCell<TrainingPage>,
-    pub goals: Goals,
-    pub waiting: Waiting,
-    pub bags: Bags,
+    pub puzzle: Rc<RefCell<TilePuzzle>>,
     pub berry_picker: Rc<RefCell<BerryPicker>>,
-    pub sparring: RefCell<Round>,
+    tracked: Vec<Rc<dyn Tracked>>,
+    named: Vec<Rc<dyn Named>>,
+    offering: Vec<Rc<dyn Offering>>,
+    polled: Vec<Rc<dyn Polled>>,
 }
 
 /// `short`: a Pokémon of the player's by its nickname, or else its species alone, with no form:
@@ -55,11 +170,6 @@ fn short(text: &GameText, found: &pokemon::Pokemon) -> Option<String> {
         return Some(found.nickname.clone());
     }
     text.pokemon(found.species, 0)
-}
-
-/// A name of "" goes on to the next, as Python's `if name := ...` does.
-fn named(name: Option<String>) -> Option<String> {
-    name.filter(|name| !name.is_empty())
 }
 
 impl PlayNav {
@@ -76,40 +186,53 @@ impl PlayNav {
         idle: Idle,
         off: Off,
     ) -> PlayNav {
-        // The PlayNav's Pokémon-Amie page draws its Pokémon's icon, and says nothing of whose.
-        let amie = AmiePage::with_number(
+        // The PlayNav's Pokémon-Amie page draws its Pokémon's icon, and says nothing of whose;
+        // Amie itself is stroked by a slide over it.
+        let amie = Rc::new(RefCell::new(AmiePage::with_number(
             memory.clone(),
             names.clone(),
             text.species.clone(),
             game.amie,
-        );
+        )));
         // Amie's decorate screen draws its Poké Puffs, and says nothing of which.
-        let puffs = Puffs::new(memory.clone(), names.clone(), text.puffs.clone());
+        let puffs = Rc::new(RefCell::new(Puffs::new(
+            memory.clone(),
+            names.clone(),
+            text.puffs.clone(),
+        )));
         // And its Interior Items, of which it says only how many.
-        let goods = Goods::new(memory.clone(), names.clone(), text.goods.clone());
+        let goods = Rc::new(RefCell::new(Goods::new(
+            memory.clone(),
+            names.clone(),
+            text.goods.clone(),
+        )));
         // Its Tile Puzzle draws each tile's piece in 3D, and says nothing of where it belongs.
-        let puzzle = TilePuzzle::new(memory.clone(), layouts.clone());
+        let puzzle = Rc::new(RefCell::new(TilePuzzle::new(
+            memory.clone(),
+            layouts.clone(),
+            image_of.clone(),
+        )));
         // So does Super Training's, with the party; and its rounds' goals are on the top screen.
-        let training = TrainingPage::with_icons(
+        let training = Rc::new(RefCell::new(TrainingPage::with_icons(
             memory.clone(),
             names.clone(),
             text.species.clone(),
             game.training,
-        );
-        let goals = Goals::new(layouts.clone(), image_of.clone());
+        )));
+        let goals = Rc::new(Goals::new(layouts.clone(), image_of.clone()));
         // A message on the bottom screen waits for a tap on no button: Super Training's welcome.
-        let waiting = Waiting::new(layouts.clone(), image_of.clone());
+        let waiting = Rc::new(Waiting::new(layouts.clone(), image_of.clone()));
         // And the training bags in its page's list, pictures with no touch area of their own.
-        let bags = Bags::new(
+        let bags = Rc::new(Bags::new(
             layouts.clone(),
             image_of.clone(),
             images.clone(),
             Some(idle),
             Some(off),
-        );
+        ));
         // Amie's Berry Picker draws the berry each Pokémon wants in a bubble, and says nothing of
         // who wants which.
-        let berry_picker = BerryPicker::with_settings(
+        let berry_picker = Rc::new(RefCell::new(BerryPicker::with_settings(
             memory.clone(),
             names,
             layouts.clone(),
@@ -119,87 +242,62 @@ impl PlayNav {
             Rc::new(py::time::monotonic),
             settings.berry_first,
             settings.one_at_a_time,
-        );
+        )));
         // A round says its score, clock and banners, and warns of a Bot's shot.
-        let sparring = Round::new(layouts, image_of.clone(), memory, None);
+        let sparring = Rc::new(RefCell::new(Round::new(layouts, image_of, memory, None)));
         PlayNav {
-            image_of,
-            amie: RefCell::new(amie),
-            puffs: RefCell::new(puffs),
-            goods: RefCell::new(goods),
-            puzzle: RefCell::new(puzzle),
-            training: RefCell::new(training),
-            goals,
-            waiting,
-            bags,
-            berry_picker: Rc::new(RefCell::new(berry_picker)),
-            sparring: RefCell::new(sparring),
+            tracked: vec![
+                amie.clone(),
+                puffs.clone(),
+                goods.clone(),
+                puzzle.clone(),
+                berry_picker.clone(),
+                training.clone(),
+                sparring.clone(),
+            ],
+            named: vec![amie.clone(), training, puffs, goods, puzzle.clone()],
+            offering: vec![amie, goals, berry_picker.clone(), waiting, bags],
+            polled: vec![sparring, berry_picker.clone()],
+            puzzle,
+            berry_picker,
         }
     }
 
     /// Hand each reader what a sweep found, by class: all of it, or with `adding` the new.
     pub fn track(&self, found: &IndexMap<i64, String>, adding: bool) -> Result<()> {
-        self.amie.borrow_mut().track(found, adding)?;
-        self.puffs.borrow_mut().track(found, adding)?;
-        self.goods.borrow_mut().track(found, adding)?;
-        self.puzzle.borrow_mut().track(found, adding)?;
-        self.berry_picker.borrow_mut().track(found, adding)?;
-        self.training.borrow_mut().track(found, adding)?;
-        self.sparring.borrow_mut().track(found, adding)
+        for reader in &self.tracked {
+            reader.track(found, adding)?;
+        }
+        Ok(())
     }
 
     /// What touch mode calls a picture of these screens', or None.
     pub fn name(&self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
-        if running.is_none_or(|running| running == FIELD || running == townmap::APP) {
-            if let Some(name) = named(self.amie.borrow().name(picture)?) {
+        for reader in &self.named {
+            if let Some(name) = reader.name(picture, running)?
+                && !name.is_empty()
+            {
                 return Ok(Some(name));
             }
-            if let Some(name) = named(self.training.borrow().name(picture)?) {
-                return Ok(Some(name));
-            }
-        }
-        if running == Some(amie::ARRANGE) || running == Some(amie::AMIE) {
-            if let Some(name) = named(self.puffs.borrow_mut().name(picture)?) {
-                return Ok(Some(name));
-            }
-            return self.goods.borrow_mut().name(picture);
-        }
-        if running == Some(puzzle::APP) {
-            return if (self.image_of)(picture)?.as_deref() == Some(puzzle::FRAME) {
-                self.puzzle.borrow().name(picture)
-            } else {
-                Ok(None)
-            };
         }
         Ok(None)
     }
 
     /// The targets these screens offer touch mode beside its touch areas.
     pub fn targets(&self, running: Option<&str>) -> Result<Vec<Target>> {
-        let mut found = self.amie.borrow_mut().strokes(running)?;
-        found.extend(self.goals.targets(running)?);
-        found.extend(self.berry_picker.borrow().targets(running)?);
-        found.extend(self.waiting.targets(running)?);
-        found.extend(self.bags.targets(running)?);
+        let mut found = Vec::new();
+        for reader in &self.offering {
+            found.extend(reader.targets(running)?);
+        }
         Ok(found)
     }
 
     /// What each screen says now, as (what the log calls it, the line, its category).
     pub fn poll(&self, running: Option<&str>) -> Result<Vec<(String, String, Category)>> {
-        let mut said: Vec<(String, String, Category)> = self
-            .sparring
-            .borrow_mut()
-            .poll(running)?
-            .into_iter()
-            .map(|(line, category)| ("round".to_string(), line, category))
-            .collect();
-        said.extend(
-            self.berry_picker
-                .borrow_mut()
-                .poll(running)?
-                .into_iter()
-                .map(|line| ("berry picker".to_string(), line, Category::Screen)),
-        );
+        let mut said = Vec::new();
+        for reader in &self.polled {
+            said.extend(reader.poll(running)?);
+        }
         Ok(said)
     }
 }

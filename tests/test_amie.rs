@@ -10,27 +10,28 @@ use crate::core::rtti::ClassNames;
 use crate::core::words::{self, ENGLISH, Words};
 use crate::games::common::lyt;
 use crate::games::common::pictures::named;
+use crate::games::gen6::apps::FIELD;
 use crate::games::gen6::screens::amie;
 use crate::games::gen6::screens::distribution as d;
 use crate::games::xy;
 
-const PAGE: i64 = 0x08A00000;
+pub(crate) const PAGE: i64 = 0x08A00000;
 const HOLDER: i64 = 0x08A01000;
 const ICON: i64 = 0x08A02000;
 const REPLACE: i64 = 0x08A03000;
 const TABLE: i64 = 0x08A04000;
 const TEXTURE: i64 = 0x08A05000;
-const WALKER: i64 = 0x08A06000;
+pub(crate) const WALKER: i64 = 0x08A06000;
 const OTHER: i64 = 0x08A07000;
 const IMAGE: i64 = 0x18200000;
 
-fn species() -> Vec<String> {
+pub(crate) fn species() -> Vec<String> {
     let mut names = vec![String::new(); 254];
     names.push("Sceptile".to_string());
     names
 }
 
-fn page(number: i64) -> (amie::AmiePage, Rc<FakeMemory>) {
+pub(crate) fn page(number: i64) -> (amie::AmiePage, Rc<FakeMemory>) {
     let memory = FakeMemory::new();
     let classes = FakeClasses::new(memory.clone());
     memory.u32(PAGE, &[classes.add(amie::CLASS)]);
@@ -63,7 +64,11 @@ fn page(number: i64) -> (amie::AmiePage, Rc<FakeMemory>) {
 #[test]
 fn test_the_picture_drawing_the_icons_first_texture_is_named_by_its_species() {
     assert_eq!(
-        page(amie::NUMBER).0.name(WALKER).unwrap().as_deref(),
+        page(amie::NUMBER)
+            .0
+            .name(WALKER, Some(FIELD))
+            .unwrap()
+            .as_deref(),
         Some("Sceptile")
     );
 }
@@ -71,7 +76,11 @@ fn test_the_picture_drawing_the_icons_first_texture_is_named_by_its_species() {
 #[test]
 fn test_xs_page_is_read_where_x_keeps_its_pokemon() {
     assert_eq!(
-        page(xy::game().amie).0.name(WALKER).unwrap().as_deref(),
+        page(xy::game().amie)
+            .0
+            .name(WALKER, Some(FIELD))
+            .unwrap()
+            .as_deref(),
         Some("Sceptile")
     );
 }
@@ -125,7 +134,7 @@ fn test_xs_menu_buttons_have_a_word_in_every_language_x_is_played_in() {
 
 #[test]
 fn test_a_picture_drawing_another_image_is_not_named() {
-    assert_eq!(page(amie::NUMBER).0.name(OTHER).unwrap(), None);
+    assert_eq!(page(amie::NUMBER).0.name(OTHER, Some(FIELD)).unwrap(), None);
 }
 
 #[test]
@@ -134,11 +143,11 @@ fn test_amie_itself_offers_its_pokemon_to_stroke_by_the_species_the_page_showed(
     memory.u32(PAGE, &[0]); // the page freed as Amie runs
     assert!(
         found
-            .strokes(Some("N5field12FieldmapProcE"))
+            .targets(Some("N5field12FieldmapProcE"))
             .unwrap()
             .is_empty()
     );
-    let strokes = found.strokes(Some(amie::AMIE)).unwrap();
+    let strokes = found.targets(Some(amie::AMIE)).unwrap();
     let [stroke] = strokes.as_slice() else {
         panic!("one stroke: {strokes:?}");
     };
@@ -187,9 +196,11 @@ fn test_a_puff_is_named_by_the_texture_of_the_replace_system_holding_every_kind(
     );
     puffs.track(&systems, false).unwrap();
     assert_eq!(
-        (puffs.name(citrus).unwrap(), puffs.name(item).unwrap()),
-        (Some("Citrus Poké Puff".to_string()), None)
+        puffs.name(citrus, Some(amie::ARRANGE)).unwrap().as_deref(),
+        Some("Citrus Poké Puff")
     );
+    assert_eq!(puffs.name(item, Some(amie::ARRANGE)).unwrap(), None);
+    assert_eq!(puffs.name(citrus, Some(FIELD)).unwrap(), None);
 }
 
 /// The grid's slot i draws texture i of its page's system of fifteen, and the pages' block,
@@ -237,12 +248,12 @@ fn test_an_interior_item_is_named_by_its_slot_on_the_page_shown() {
         )
         .unwrap();
     assert_eq!(
-        goods.name(picture).unwrap().as_deref(),
+        goods.name(picture, Some(amie::ARRANGE)).unwrap().as_deref(),
         Some("Leaf Cushion")
     );
     memory.write(block + amie::PAGE, &[1]);
     assert_eq!(
-        goods.name(picture).unwrap().as_deref(),
+        goods.name(picture, Some(amie::ARRANGE)).unwrap().as_deref(),
         Some("Pink Star Cloud")
     );
 }

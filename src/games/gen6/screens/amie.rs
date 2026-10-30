@@ -41,11 +41,17 @@ use crate::core::rtti::ClassNames;
 use crate::core::words::own;
 use crate::games::common::touch::Target;
 use crate::games::common::{lyt, touch};
+use crate::games::gen6::apps::FIELD;
 use crate::games::gen6::gflheap;
 use crate::games::gen6::screens::distribution as d;
+use crate::games::gen6::screens::townmap;
 use crate::py::{self, Error, Result};
 
 pub const CLASS: &str = "N5field9subscreen9kawaigari12FM_KawaigariE";
+/// The apps a PlayNav page's Pokémon are named in: the field, whose bottom screen the PlayNav is,
+/// before any app is known, and the AreaNav, as touch mode asks of every icon in the field's other
+/// app (Super Training's page too, `screens.training`).
+pub const PAGE_APPS: [Option<&str>; 3] = [Some(FIELD), None, Some(townmap::APP)];
 /// Amie's decorate screen, the app DECORATE starts, where its Poké Puffs are named (`Puffs`).
 pub const ARRANGE: &str = "N3app17kawaigari_arrange4ProcE";
 /// Pokémon-Amie itself, the app PLAY starts.
@@ -168,8 +174,8 @@ impl AmiePage {
     }
 
     /// The species a picture draws the Amie page's Pokémon as, in the game's words, or None.
-    pub fn name(&self, picture: i64) -> Result<Option<String>> {
-        if self.pages.is_empty() || self.species.is_empty() {
+    pub fn name(&self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
+        if !PAGE_APPS.contains(&running) || self.pages.is_empty() || self.species.is_empty() {
             return Ok(None);
         }
         let memory = &self.memory;
@@ -223,7 +229,7 @@ impl AmiePage {
     }
 
     /// The stroke touch mode offers while Amie runs, by the Pokémon's species.
-    pub fn strokes(&mut self, running: Option<&str>) -> Result<Vec<Target>> {
+    pub fn targets(&mut self, running: Option<&str>) -> Result<Vec<Target>> {
         let species = if running == Some(AMIE) {
             self.species()?
         } else {
@@ -387,8 +393,12 @@ impl Puffs {
         self.replaced.track(found, adding)
     }
 
-    /// The kind of puff a picture draws, or None where it draws none.
-    pub fn name(&mut self, picture: i64) -> Result<Option<String>> {
+    /// The kind of puff a picture draws in Amie or its decorate screen, or None where it draws
+    /// none.
+    pub fn name(&mut self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
+        if running != Some(ARRANGE) && running != Some(AMIE) {
+            return Ok(None);
+        }
         let found = if !self.puffs.is_empty() {
             self.replaced.texture(picture, self.puffs.len() as i64)?
         } else {
@@ -453,7 +463,10 @@ impl Goods {
     }
 
     /// The item a picture of the grid draws, or None where it draws none.
-    pub fn name(&mut self, picture: i64) -> Result<Option<String>> {
+    pub fn name(&mut self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
+        if running != Some(ARRANGE) && running != Some(AMIE) {
+            return Ok(None);
+        }
         let found = if self.goods.len() as i64 > ITEMS_FROM {
             self.replaced.texture(picture, SLOTS)?
         } else {

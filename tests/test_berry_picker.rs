@@ -85,6 +85,16 @@ struct Picker {
     layouts: Rc<Layouts>,
 }
 
+/// What Berry Picker says at a poll, the lines alone.
+fn heard(found: &mut berry_picker::BerryPicker, running: Option<&str>) -> Vec<String> {
+    found
+        .poll(running)
+        .unwrap()
+        .into_iter()
+        .map(|(_, line, _)| line)
+        .collect()
+}
+
 /// A bubble on the left showing a Pinap Berry, a spare bubble parked off the screen, a berry
 /// in a tree outside any bubble, as the game's opening draws in the bubbles' layout (spike 260),
 /// and Treecko standing on the left: the picker, the memory, the bubble layout's panes in order
@@ -216,24 +226,18 @@ fn test_a_bubbles_berry_is_offered_at_the_pokemon_under_it_by_the_games_names() 
 fn test_a_bubble_is_said_as_it_comes_and_again_once_it_has_gone_and_come_back() {
     let mut picked = picker(None);
     let app = Some(berry_picker::APP);
-    assert_eq!(
-        picked.found.poll(app).unwrap(),
-        ["Treecko wants Pinap Berry"]
-    );
-    assert_eq!(picked.found.poll(app).unwrap(), Vec::<String>::new());
+    assert_eq!(heard(&mut picked.found, app), ["Treecko wants Pinap Berry"]);
+    assert_eq!(heard(&mut picked.found, app), Vec::<String>::new());
     picked
         .memory
         .write(picked.panes[1] + lyt::X, &(-300.0f32).to_le_bytes());
     picked.layouts.refresh();
-    assert_eq!(picked.found.poll(app).unwrap(), Vec::<String>::new());
+    assert_eq!(heard(&mut picked.found, app), Vec::<String>::new());
     picked
         .memory
         .write(picked.panes[1] + lyt::X, &(-104.0f32).to_le_bytes());
     picked.layouts.refresh();
-    assert_eq!(
-        picked.found.poll(app).unwrap(),
-        ["Treecko wants Pinap Berry"]
-    );
+    assert_eq!(heard(&mut picked.found, app), ["Treecko wants Pinap Berry"]);
 }
 
 /// The opening shows three Pokémon wanting berries before READY: the game demonstrating,
@@ -242,10 +246,10 @@ fn test_a_bubble_is_said_as_it_comes_and_again_once_it_has_gone_and_come_back() 
 fn test_the_openings_demonstration_is_said_nothing_of_and_the_round_is() {
     let app = Some(berry_picker::APP);
     let mut found = picker(Some(0)).found;
-    assert_eq!(found.poll(app).unwrap(), Vec::<String>::new());
+    assert_eq!(heard(&mut found, app), Vec::<String>::new());
     assert_eq!(found.targets(app).unwrap(), vec![]);
     assert_eq!(
-        picker(Some(1)).found.poll(app).unwrap(),
+        heard(&mut picker(Some(1)).found, app),
         ["Treecko wants Pinap Berry"]
     );
 }
@@ -276,7 +280,7 @@ fn test_a_model_found_in_the_modules_code_is_not_read_through() {
         )
         .unwrap();
     assert_eq!(
-        picked.found.poll(Some(berry_picker::APP)).unwrap(),
+        heard(&mut picked.found, Some(berry_picker::APP)),
         ["Treecko wants Pinap Berry"]
     );
 }
@@ -289,7 +293,7 @@ fn test_a_bubble_over_no_pokemon_that_can_be_read_says_its_berry_alone() {
         &[0],
     );
     assert_eq!(
-        picked.found.poll(Some(berry_picker::APP)).unwrap(),
+        heard(&mut picked.found, Some(berry_picker::APP)),
         ["Pinap Berry wanted"]
     );
 }
@@ -454,13 +458,13 @@ fn test_the_rounds_clock_says_how_fast_the_game_runs() {
     let mut picked = picker_with(None, clock);
     let app = Some(berry_picker::APP);
     assert_eq!(picked.found.speed(), 1.0);
-    picked.found.poll(app).unwrap();
+    heard(&mut picked.found, app);
     now.set(1.0);
     picked.memory.u32(APP + berry_picker::CLOCK, &[1800 - 9]);
-    picked.found.poll(app).unwrap();
+    heard(&mut picked.found, app);
     assert_eq!(picked.found.speed(), 0.3);
     now.set(2.0);
-    picked.found.poll(app).unwrap();
+    heard(&mut picked.found, app);
     assert_eq!(picked.found.speed(), 0.3);
     // A copy in the module's code, found first, holds an instruction where the clock is.
     let r#false = APP - 0x1000;
@@ -484,7 +488,7 @@ fn test_the_rounds_clock_says_how_fast_the_game_runs() {
     for (at, frames) in [(3.0, 1800 - 9 - 15), (4.0, 1800 - 9 - 45)] {
         now.set(at);
         picked.memory.u32(APP + berry_picker::CLOCK, &[frames]);
-        picked.found.poll(app).unwrap();
+        heard(&mut picked.found, app);
     }
     assert_eq!(picked.found.speed(), 1.0);
 }
@@ -497,10 +501,7 @@ fn test_the_rounds_three_pokemon_are_said_in_their_keys_order_before_it_starts()
     let mut picked = picker(None);
     let app = Some(berry_picker::APP);
     assert!(
-        !picked
-            .found
-            .poll(app)
-            .unwrap()
+        !heard(&mut picked.found, app)
             .iter()
             .any(|line| line.contains(" and "))
     );
@@ -517,22 +518,22 @@ fn test_the_rounds_three_pokemon_are_said_in_their_keys_order_before_it_starts()
     }
     let lineup = "Torchic, Treecko and Mudkip".to_string();
     memory.u32(APP + berry_picker::CLOCK, &[1799]);
-    picked.found.poll(app).unwrap();
+    heard(&mut picked.found, app);
     memory.u32(APP + berry_picker::CLOCK, &[1800]);
     assert_eq!(
-        &picked.found.poll(app).unwrap()[..1],
+        &heard(&mut picked.found, app)[..1],
         std::slice::from_ref(&lineup)
     );
-    assert!(!picked.found.poll(app).unwrap().contains(&lineup));
+    assert!(!heard(&mut picked.found, app).contains(&lineup));
     memory.u32(APP + berry_picker::CLOCK, &[1200]);
-    assert!(!picked.found.poll(app).unwrap().contains(&lineup));
+    assert!(!heard(&mut picked.found, app).contains(&lineup));
     memory.u32(APP + berry_picker::CLOCK, &[1800]);
     assert_eq!(
-        &picked.found.poll(app).unwrap()[..1],
+        &heard(&mut picked.found, app)[..1],
         std::slice::from_ref(&lineup)
     );
     assert_eq!(
-        picked.found.poll(Some("N3app6puzzle7ProcessE")).unwrap(),
+        heard(&mut picked.found, Some("N3app6puzzle7ProcessE")),
         Vec::<String>::new()
     );
 }
@@ -560,7 +561,7 @@ fn second_want(memory: &FakeMemory, panes: &[i64], layouts: &Layouts) {
 fn test_berry_first_says_a_want_in_the_order_its_berry_is_given() {
     let mut picked = picker_saying(None, Rc::new(|| 0.0), true, false);
     assert_eq!(
-        picked.found.poll(Some(berry_picker::APP)).unwrap(),
+        heard(&mut picked.found, Some(berry_picker::APP)),
         ["Pinap Berry for Treecko"]
     );
 }
@@ -573,31 +574,22 @@ fn test_one_at_a_time_the_next_is_said_once_a_berry_is_given_or_the_one_said_goe
     let mut picked = picker(None);
     second_want(&picked.memory, &picked.panes, &picked.layouts);
     assert_eq!(
-        picked.found.poll(app).unwrap(),
+        heard(&mut picked.found, app),
         ["Treecko wants Pinap Berry", "Torchic wants Razz Berry"]
     );
     let mut picked = picker_saying(None, Rc::new(|| 0.0), false, true);
     second_want(&picked.memory, &picked.panes, &picked.layouts);
-    assert_eq!(
-        picked.found.poll(app).unwrap(),
-        ["Treecko wants Pinap Berry"]
-    );
-    assert_eq!(picked.found.poll(app).unwrap(), Vec::<String>::new());
+    assert_eq!(heard(&mut picked.found, app), ["Treecko wants Pinap Berry"]);
+    assert_eq!(heard(&mut picked.found, app), Vec::<String>::new());
     picked.found.given();
-    assert_eq!(
-        picked.found.poll(app).unwrap(),
-        ["Torchic wants Razz Berry"]
-    );
-    assert_eq!(picked.found.poll(app).unwrap(), Vec::<String>::new());
+    assert_eq!(heard(&mut picked.found, app), ["Torchic wants Razz Berry"]);
+    assert_eq!(heard(&mut picked.found, app), Vec::<String>::new());
     let mut picked = picker_saying(None, Rc::new(|| 0.0), false, true);
     second_want(&picked.memory, &picked.panes, &picked.layouts);
-    picked.found.poll(app).unwrap();
+    heard(&mut picked.found, app);
     picked
         .memory
         .write(picked.panes[1] + lyt::X, &(-300.0f32).to_le_bytes());
     picked.layouts.refresh();
-    assert_eq!(
-        picked.found.poll(app).unwrap(),
-        ["Torchic wants Razz Berry"]
-    );
+    assert_eq!(heard(&mut picked.found, app), ["Torchic wants Razz Berry"]);
 }

@@ -45,6 +45,7 @@ use crate::core::binary::{f32, u32};
 use crate::core::discovery::HEAP_SPAN;
 use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
+use crate::core::speech::Category;
 use crate::core::words::own;
 use crate::games::common::field::keys::BERRIES as BERRY_KEYS;
 use crate::games::common::field::keys::POKEMON as POKEMON_KEYS;
@@ -119,6 +120,8 @@ pub const NO_BERRY: &str = "berry-picker-no-berry";
 /// What Berry Picker's keys say, in place of the game's own error sound where it is off
 /// (`BerryKeys`).
 pub const NO_POKEMON: &str = "berry-picker-no-pokemon";
+/// What the log calls what Berry Picker says.
+pub const LOG: &str = "berry picker";
 
 /// What a Pokémon of the player's is called (`Gen6Profile._yours`).
 pub type Name = Rc<dyn Fn(&pokemon::Pokemon) -> Option<String>>;
@@ -277,8 +280,16 @@ impl BerryPicker {
     }
 
     /// The round's three Pokémon as it is about to start, and what a bubble that has just
-    /// come says while it runs.
-    pub fn poll(&mut self, running: Option<&str>) -> Result<Vec<String>> {
+    /// come says while it runs, as the screen's words, each with what the log calls it.
+    pub fn poll(&mut self, running: Option<&str>) -> Result<Vec<(String, String, Category)>> {
+        Ok(self
+            .heard(running)?
+            .into_iter()
+            .map(|line| (LOG.to_string(), line, Category::Screen))
+            .collect())
+    }
+
+    fn heard(&mut self, running: Option<&str>) -> Result<Vec<String>> {
         let mut lineup = self.lineup(running)?;
         if !self.playing(running)? {
             self.said = HashSet::new();

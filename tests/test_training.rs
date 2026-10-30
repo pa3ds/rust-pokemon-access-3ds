@@ -93,23 +93,33 @@ fn page(icons: i64) -> training::TrainingPage {
 fn test_a_party_slot_is_named_by_the_member_whose_icon_it_draws_however_the_records_rotate() {
     let found = page(training::ICONS);
     assert_eq!(
-        (found.name(FIRST).unwrap(), found.name(SECOND).unwrap()),
+        (
+            found.name(FIRST, Some(FIELD)).unwrap(),
+            found.name(SECOND, Some(FIELD)).unwrap()
+        ),
         (Some("Breloom".to_string()), Some("Sceptile".to_string()))
     );
+    assert_eq!(found.name(FIRST, Some(training::SPARRING)).unwrap(), None);
 }
 
 #[test]
 fn test_xs_page_is_read_where_x_keeps_its_icons_and_records() {
     let found = page(crate::games::xy::game().training);
     assert_eq!(
-        (found.name(FIRST).unwrap(), found.name(SECOND).unwrap()),
+        (
+            found.name(FIRST, Some(FIELD)).unwrap(),
+            found.name(SECOND, Some(FIELD)).unwrap()
+        ),
         (Some("Breloom".to_string()), Some("Sceptile".to_string()))
     );
 }
 
 #[test]
 fn test_a_picture_drawing_another_image_is_not_named() {
-    assert_eq!(page(training::ICONS).name(OTHER).unwrap(), None);
+    assert_eq!(
+        page(training::ICONS).name(OTHER, Some(FIELD)).unwrap(),
+        None
+    );
 }
 
 #[test]
@@ -420,7 +430,14 @@ fn test_a_ball_of_the_bots_going_into_flight_warns_once() {
         memory.u32(0x08C00000 + training::BOT_BALL, &[0x08D00000]);
         said.extend(sparring.poll(Some(training::SPARRING)).unwrap());
     }
-    assert_eq!(said, [("shot coming".to_string(), Category::Warning)]);
+    assert_eq!(
+        said,
+        [(
+            training::ROUND_LOG.to_string(),
+            "shot coming".to_string(),
+            Category::Warning
+        )]
+    );
 }
 
 #[test]

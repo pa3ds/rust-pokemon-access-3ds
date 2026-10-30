@@ -68,7 +68,11 @@ fn board(
         memory.u32(at + puzzle::NUMBER, &[pieces - i as i64]);
         memory.u32(at + puzzle::SLOT, &[first + slot]);
     }
-    let mut reader = puzzle::TilePuzzle::new(memory.clone(), screens.layouts.clone());
+    let mut reader = puzzle::TilePuzzle::new(
+        memory.clone(),
+        screens.layouts.clone(),
+        Rc::new(|_| Ok(Some(puzzle::FRAME.to_string()))),
+    );
     reader
         .track(&IndexMap::from([(BOARD, puzzle::CLASS.to_string())]), false)
         .unwrap();
@@ -76,7 +80,7 @@ fn board(
 }
 
 fn name(reader: &puzzle::TilePuzzle, picture: i64) -> Option<String> {
-    reader.name(picture).unwrap()
+    reader.name(picture, Some(puzzle::APP)).unwrap()
 }
 
 #[test]
@@ -92,6 +96,12 @@ fn test_a_tile_says_its_place_and_where_its_piece_belongs() {
     );
     assert_eq!(name(&reader, frames[14]).as_deref(), Some("E3, goes to A1"));
     assert_eq!(name(&reader, frames[7]).as_deref(), Some("C2, in place"));
+    assert_eq!(
+        reader
+            .name(frames[7], Some("N5field12FieldmapProcE"))
+            .unwrap(),
+        None
+    );
 }
 
 #[test]
@@ -216,6 +226,7 @@ fn picture_in(
     let mut reader = puzzle::TilePuzzle::new(
         memory.clone(),
         FakeLayouts::new(&memory, &classes).layouts.clone(),
+        Rc::new(|_| Ok(None)),
     );
     reader
         .track(

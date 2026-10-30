@@ -54,6 +54,7 @@ use crate::core::binary::{f32, u32};
 use crate::core::memory::Memory;
 use crate::core::words::{current, own};
 use crate::games::common::layout::Layouts;
+use crate::games::common::touch::ImageOf;
 use crate::games::common::{lyt, pokemon};
 use crate::py::{self, Result};
 
@@ -199,6 +200,8 @@ impl Board {
 pub struct TilePuzzle {
     memory: Rc<dyn Memory>,
     layouts: Rc<Layouts>,
+    /// The image a picture draws, by its file's name: a tile's is `FRAME`.
+    image_of: ImageOf,
     /// Piece object -> the vtable it was found with.
     pieces: IndexMap<i64, i64>,
     /// PokeModel object -> the vtable it was found with.
@@ -210,10 +213,11 @@ pub struct TilePuzzle {
 }
 
 impl TilePuzzle {
-    pub fn new(memory: Rc<dyn Memory>, layouts: Rc<Layouts>) -> Self {
+    pub fn new(memory: Rc<dyn Memory>, layouts: Rc<Layouts>, image_of: ImageOf) -> Self {
         TilePuzzle {
             memory,
             layouts,
+            image_of,
             pieces: IndexMap::new(),
             pictures: IndexMap::new(),
             backgrounds: IndexMap::new(),
@@ -401,7 +405,10 @@ impl TilePuzzle {
     }
 
     /// A tile's frame picture, said by where its piece belongs; None for any other.
-    pub fn name(&self, picture: i64) -> Result<Option<String>> {
+    pub fn name(&self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
+        if running != Some(APP) || (self.image_of)(picture)?.as_deref() != Some(FRAME) {
+            return Ok(None);
+        }
         let area = self.area(picture)?;
         let board = match area {
             Some(_) => self.board()?,
