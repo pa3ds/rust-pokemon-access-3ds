@@ -16,7 +16,7 @@ use crate::core::rtti::ClassNames;
 use crate::games::common::layout::Layouts;
 use crate::games::common::lyt;
 use crate::games::common::screen::ScreenText;
-use crate::games::common::touch::{self, Options, Target, TouchTargets};
+use crate::games::common::touch::{self, ModeOptions, Options, Target, TouchMode, TouchTargets};
 
 fn dexnav() -> Target {
     Target::new(1, "DexNav", 285, 53, 67.0, 30.0)
@@ -69,12 +69,11 @@ impl crate::core::touch::TouchScreen for Pressed {
     }
 }
 
-/// Touch targets with the screen's given, pressing a touch screen that keeps every touch.
-///
-/// Python subclasses `TouchTargets` and overrides `targets`; here the targets are handed to it
-/// through its test-only `given`, and the layouts it never reads are an empty memory's.
+/// Touch mode over the targets `found` holds, in reading order, pressing a touch screen that
+/// keeps every touch: the walk, and the touch screen. Python's `walk` returns the two; here they
+/// are kept together, with the targets the test changes.
 struct Screen {
-    targets: TouchTargets,
+    targets: TouchMode,
     pressed: Rc<Pressed>,
     found: Rc<RefCell<Vec<Target>>>,
 }
@@ -84,12 +83,12 @@ impl Screen {
         Screen::with_options(found, true, true, false, None)
     }
 
-    /// `Screen(found, wrap=wrap, next_row=next_row)`.
+    /// `walk(found, wrap=wrap, next_row=next_row)`.
     fn wrapping(found: Vec<Target>, wrap: bool, next_row: bool) -> Self {
         Screen::with_options(found, wrap, next_row, false, None)
     }
 
-    /// `Screen(found, wrap, next_row, delayed, pace)`.
+    /// `walk(found, wrap, next_row, delayed, pace)`.
     fn with_options(
         found: Vec<Target>,
         wrap: bool,
@@ -97,39 +96,41 @@ impl Screen {
         delayed: bool,
         pace: Option<Rc<dyn Fn() -> f64>>,
     ) -> Self {
+        Screen::walk(found, wrap, next_row, delayed, pace, None)
+    }
+
+    /// `walk(found, wrap, next_row, delayed, pace, sound)`.
+    fn walk(
+        found: Vec<Target>,
+        wrap: bool,
+        next_row: bool,
+        delayed: bool,
+        pace: Option<Rc<dyn Fn() -> f64>>,
+        sound: Option<Rc<dyn Fn(bool)>>,
+    ) -> Self {
         let pressed = Rc::new(Pressed::default());
         let found = Rc::new(RefCell::new(found));
-        let memory = FakeMemory::new();
-        let layouts = Rc::new(Layouts::new(
-            memory.clone(),
-            Rc::new(ClassNames::new(memory.clone(), CODE)),
-            lyt::ORAS,
-        ));
-        let mut targets = TouchTargets::new(
-            layouts,
-            Rc::new(Vec::new),
-            Rc::new(|_box| Ok(String::new())),
-            Rc::new(|_pane| Ok(None)),
-            Rc::new(|_root| None),
+        let given = found.clone();
+        let targets = TouchMode::new(
+            Rc::new(move || {
+                let found = given.borrow();
+                Ok(touch::rows(&found)
+                    .into_iter()
+                    .flatten()
+                    .map(|i| found[i].clone())
+                    .collect())
+            }),
             Rc::new(|_line: &str| {}),
-            Options {
+            ModeOptions {
                 screen: Some(pressed.clone()),
                 wrap,
                 next_row,
                 delayed: Some(Rc::new(move || delayed)),
                 pace,
-                ..Options::default()
+                sound,
+                ..ModeOptions::default()
             },
         );
-        let given = found.clone();
-        targets.given = Some(Rc::new(move || {
-            let found = given.borrow();
-            touch::rows(&found)
-                .into_iter()
-                .flatten()
-                .map(|i| found[i].clone())
-                .collect()
-        }));
         Screen {
             targets,
             pressed,
@@ -291,7 +292,7 @@ fn test_a_screen_the_games_buttons_work_has_nothing_to_touch() {
         Rc::new(ClassNames::new(memory.clone(), CODE)),
         lyt::ORAS,
     ));
-    let mut targets = TouchTargets::new(
+    let found = Rc::new(RefCell::new(TouchTargets::new(
         layouts,
         Rc::new(Vec::new),
         Rc::new(|_box| Ok(String::new())),
@@ -299,9 +300,16 @@ fn test_a_screen_the_games_buttons_work_has_nothing_to_touch() {
         Rc::new(|_root| None),
         Rc::new(|_line: &str| {}),
         Options {
-            screen: Some(pressed.clone()),
             offered: Some(Rc::new(|| false)),
             ..Options::default()
+        },
+    )));
+    let mut targets = TouchMode::new(
+        Rc::new(move || found.borrow_mut().targets()),
+        Rc::new(|_line: &str| {}),
+        ModeOptions {
+            screen: Some(pressed.clone()),
+            ..ModeOptions::default()
         },
     );
     let started = targets.start().unwrap();
@@ -1202,9 +1210,15 @@ fn test_a_drag_let_go_where_it_was_picked_up_touches_nothing() {
 #[test]
 fn test_with_feedback_sounds_a_drag_is_heard_not_said() {
     let played: Rc<RefCell<Vec<bool>>> = Rc::new(RefCell::new(Vec::new()));
-    let mut screen = Screen::new(bar());
     let kept = played.clone();
-    screen.targets.sound = Some(Rc::new(move |up| kept.borrow_mut().push(up)));
+    let mut screen = Screen::walk(
+        bar(),
+        true,
+        true,
+        false,
+        None,
+        Some(Rc::new(move |up| kept.borrow_mut().push(up))),
+    );
     screen.start();
     assert!(screen.press(touch::DRAG).is_empty() && screen.targets.holding());
     assert_eq!(screen.press(touch::ITEM_NEXT), "POKÉDEX");

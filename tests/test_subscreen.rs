@@ -80,7 +80,7 @@ fn test_the_amie_pages_pokemon_is_named_on_the_field_and_offered_to_stroke_in_am
     );
 }
 
-/// Touch mode that is never touched: Python's `cast(TouchTargets, None)`.
+/// Touch mode that is never touched: Python's `cast(TouchMode, None)`.
 struct Untouched;
 
 impl Touching for Untouched {

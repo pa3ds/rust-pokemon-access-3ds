@@ -5162,7 +5162,7 @@ fn test_the_way_is_said_again_once_the_camera_stops_somewhere_new() {
 /// For when the line was missed, and while the HP box is off the screen (ADR-0015; the
 /// user's keys, 2026-09-29). A key's answer interrupts.
 /// The touch screen, each held press kept (`core.touch.TouchScreen`), where Python's test gives the
-/// navigator a stand-in for touch mode: touch mode is a `TouchTargets` here, given its targets.
+/// navigator a stand-in for touch mode: touch mode is a `TouchMode` here, given its targets.
 struct Holding {
     touches: RefCell<Vec<(&'static str, i64, i64)>>,
 }
@@ -5193,43 +5193,29 @@ impl crate::core::touch::TouchScreen for Holding {
 /// Shift stays down the whole drag, so Shift and J walks back as J does, where it would rename
 /// the speaker; Shift coming up lets go, and so does leaving touch mode (ADR-0009).
 ///
-/// Python's stand-in records the actions asked of touch mode; here a `TouchTargets` holding a
+/// Python's stand-in records the actions asked of touch mode; here a `TouchMode` holding a
 /// Poké Puff and the Pokémon's stroke answers them, and its drag's touches say what was asked.
 #[test]
 fn test_while_a_touch_is_held_shift_keys_walk_and_letting_go_of_shift_lets_go() {
-    use crate::core::rtti::ClassNames;
-    use crate::games::common::layout::Layouts;
-    use crate::games::common::lyt;
-    use crate::games::common::touch::{self, Target, TouchTargets};
+    use crate::games::common::touch::{self, Target, TouchMode};
 
     let backend = Rc::new(Recorder::default());
     let held = Rc::new(Holding {
         touches: RefCell::new(Vec::new()),
     });
-    let memory = super::fake_memory::FakeMemory::new();
-    let layouts = Rc::new(Layouts::new(
-        memory.clone(),
-        Rc::new(ClassNames::new(memory.clone(), super::fake_memory::CODE)),
-        lyt::ORAS,
-    ));
-    let mut targets = TouchTargets::new(
-        layouts,
-        Rc::new(Vec::new),
-        Rc::new(|_box| Ok(String::new())),
-        Rc::new(|_pane| Ok(None)),
-        Rc::new(|_root| None),
+    let targets = TouchMode::new(
+        Rc::new(|| {
+            Ok(vec![
+                Target::new(1, "Sweet Poké Puff", 95, 23, 97.0, 40.0),
+                Target::new(2, "stroke Pikachu", 160, 120, 0.0, 240.0),
+            ])
+        }),
         Rc::new(|_line: &str| {}),
-        touch::Options {
+        touch::ModeOptions {
             screen: Some(held.clone()),
-            ..touch::Options::default()
+            ..touch::ModeOptions::default()
         },
     );
-    targets.given = Some(Rc::new(|| {
-        vec![
-            Target::new(1, "Sweet Poké Puff", 95, 23, 97.0, 40.0),
-            Target::new(2, "stroke Pikachu", 160, 120, 0.0, 240.0),
-        ]
-    }));
     let mut nav = Navigator::new(
         Rc::new(FakeField::new(Some(town()), &[], &[], &[], &[])),
         Rc::new(Speech::plain(backend.clone())),
@@ -5271,39 +5257,25 @@ fn holding_navigator(
     drags: Option<Rc<dyn Fn() -> bool>>,
     bindings: Option<crate::games::common::field::keys::Bindings>,
 ) -> (Navigator, Rc<Holding>, Rc<Recorder>) {
-    use crate::core::rtti::ClassNames;
-    use crate::games::common::layout::Layouts;
-    use crate::games::common::lyt;
-    use crate::games::common::touch::{self, Target, TouchTargets};
+    use crate::games::common::touch::{self, Target, TouchMode};
 
     let backend = Rc::new(Recorder::default());
     let held = Rc::new(Holding {
         touches: RefCell::new(Vec::new()),
     });
-    let memory = super::fake_memory::FakeMemory::new();
-    let layouts = Rc::new(Layouts::new(
-        memory.clone(),
-        Rc::new(ClassNames::new(memory.clone(), super::fake_memory::CODE)),
-        lyt::ORAS,
-    ));
-    let mut targets = TouchTargets::new(
-        layouts,
-        Rc::new(Vec::new),
-        Rc::new(|_box| Ok(String::new())),
-        Rc::new(|_pane| Ok(None)),
-        Rc::new(|_root| None),
+    let targets = TouchMode::new(
+        Rc::new(|| {
+            Ok(vec![
+                Target::new(1, "Sweet Poké Puff", 95, 23, 97.0, 40.0),
+                Target::new(2, "stroke Pikachu", 160, 120, 0.0, 240.0),
+            ])
+        }),
         Rc::new(|_line: &str| {}),
-        touch::Options {
+        touch::ModeOptions {
             screen: Some(held.clone()),
-            ..touch::Options::default()
+            ..touch::ModeOptions::default()
         },
     );
-    targets.given = Some(Rc::new(|| {
-        vec![
-            Target::new(1, "Sweet Poké Puff", 95, 23, 97.0, 40.0),
-            Target::new(2, "stroke Pikachu", 160, 120, 0.0, 240.0),
-        ]
-    }));
     let mut nav = Navigator::new(
         Rc::new(FakeField::new(Some(town()), &[], &[], &[], &[])),
         Rc::new(Speech::plain(backend.clone())),

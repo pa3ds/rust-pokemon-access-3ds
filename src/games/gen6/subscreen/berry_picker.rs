@@ -51,7 +51,7 @@ use crate::games::common::field::keys::BERRIES as BERRY_KEYS;
 use crate::games::common::field::keys::BERRY_PICKER;
 use crate::games::common::field::keys::POKEMON as POKEMON_KEYS;
 use crate::games::common::layout::Layouts;
-use crate::games::common::touch::{HEIGHT, ImageOf, Target, TouchTargets, WIDTH};
+use crate::games::common::touch::{HEIGHT, ImageOf, Target, TouchMode, WIDTH};
 use crate::games::common::{pokemon, strbuf};
 use crate::games::gen6::subscreen::super_training::pictures;
 use crate::py::{self, Error, Result};
@@ -562,19 +562,19 @@ impl BerryPicker {
 }
 
 /// Touch mode as Berry Picker's keys ask it: the targets it offers, and a drag given
-/// (`TouchTargets`, or a test's stand-in, as Python duck-types it).
+/// (`TouchMode`, or a test's stand-in, as Python duck-types it).
 pub trait Touching {
     fn targets(&mut self) -> Result<Vec<Target>>;
     fn give(&mut self, picked: &Target, over: &Target) -> String;
 }
 
-impl Touching for TouchTargets {
+impl Touching for TouchMode {
     fn targets(&mut self) -> Result<Vec<Target>> {
-        TouchTargets::targets(self)
+        TouchMode::targets(self)
     }
 
     fn give(&mut self, picked: &Target, over: &Target) -> String {
-        TouchTargets::give(self, picked, over)
+        TouchMode::give(self, picked, over)
     }
 }
 

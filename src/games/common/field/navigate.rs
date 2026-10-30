@@ -75,7 +75,7 @@ use crate::games::common::field::things::{
 };
 use crate::games::common::touch::ACTIONS as TOUCH_ACTIONS;
 use crate::games::common::touch::NOTHING as TOUCH_NOTHING;
-use crate::games::common::touch::TouchTargets;
+use crate::games::common::touch::TouchMode;
 use crate::games::common::touch::{DRAG, NO_DRAG, TAP};
 use crate::py::{self, Error, Log, Result};
 use crate::ux::dialog::Asker;
@@ -167,7 +167,7 @@ pub struct Options {
     pub bike: Option<String>,
     pub acro: Option<String>,
     pub sides: Option<Sides>,
-    pub touch: Option<TouchTargets>,
+    pub touch: Option<TouchMode>,
     /// Those a game's own apps list, after the field's: ORAS's sky's.
     pub categories: Vec<String>,
     /// Whether a slot on a map is a sign that says only the name of a door there, which the
@@ -294,7 +294,7 @@ pub struct Navigator {
     ///
     /// The gen 6 profile's `census` walks them too, where the Python's holds the same object as
     /// `self.touch`.
-    pub(crate) touch: Option<TouchTargets>,
+    pub(crate) touch: Option<TouchMode>,
     /// Whether Shift alone, or a key bound to drag, drags in touch mode now: on a screen that
     /// drags (ADR-0009 as amended 2026-10-28).
     drags: Rc<dyn Fn() -> bool>,
@@ -443,7 +443,7 @@ impl Navigator {
     /// Shift and J would rename the speaker (ADR-0009). A key the player binds to drag does as
     /// Shift alone does, and comes up as `UP` after its name.
     pub fn press_key(&mut self, key: &str) -> Result<()> {
-        let holding = self.touch.as_ref().is_some_and(TouchTargets::holding);
+        let holding = self.touch.as_ref().is_some_and(TouchMode::holding);
         let toggle = self.toggle;
         if key == SHIFT_DOWN || key == SHIFT_UP {
             return self.drag(key == SHIFT_DOWN, holding, toggle, false);

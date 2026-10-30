@@ -179,13 +179,44 @@ pub type Places = Rc<dyn Fn() -> Result<Rc<IndexMap<String, String>>>>;
 /// `Callable[[], list[Target]]`: targets no touch area draws. It reads memory.
 pub type Gestures = Rc<dyn Fn() -> Result<Vec<Target>>>;
 
+/// `Callable[[], list[Target]]`: the targets on the bottom screen now, in reading order, as touch
+/// mode walks them (`TouchTargets.targets`). It reads memory.
+pub type Targets = Rc<dyn Fn() -> Result<Vec<Target>>>;
+
+/// `TouchMode.__init__`'s keyword arguments, each as the Python defaults it: set what differs
+/// with `..ModeOptions::default()`.
+pub struct ModeOptions {
+    pub screen: Option<Rc<dyn TouchScreen>>,
+    pub tone: Option<Tone>,
+    pub wrap: bool,
+    pub next_row: bool,
+    /// None is never.
+    pub delayed: Option<Rc<dyn Fn() -> bool>>,
+    pub sound: Option<Rc<dyn Fn(bool)>>,
+    /// None is full speed, 1.
+    pub pace: Option<Rc<dyn Fn() -> f64>>,
+}
+
+impl Default for ModeOptions {
+    fn default() -> Self {
+        ModeOptions {
+            screen: None,
+            tone: None,
+            wrap: true,
+            next_row: true,
+            delayed: None,
+            sound: None,
+            pace: None,
+        }
+    }
+}
+
 /// `TouchTargets.__init__`'s keyword arguments, each as the Python defaults it: set what differs
 /// with `..Options::default()`.
+#[derive(Default)]
 pub struct Options {
     /// None is `{}`.
     pub images: Option<IndexMap<String, String>>,
-    pub screen: Option<Rc<dyn TouchScreen>>,
-    pub tone: Option<Tone>,
     pub picture_name: Option<PictureName>,
     pub lists: Option<Lists>,
     pub idle: Option<Idle>,
@@ -193,74 +224,21 @@ pub struct Options {
     pub off: Option<Off>,
     pub said_off: Option<SaidOff>,
     pub places: Option<Places>,
-    pub wrap: bool,
-    pub next_row: bool,
-    /// None is never.
-    pub delayed: Option<Rc<dyn Fn() -> bool>>,
-    pub sound: Option<Rc<dyn Fn(bool)>>,
     pub offered: Option<Rc<dyn Fn() -> bool>>,
-    /// None is full speed, 1.
-    pub pace: Option<Rc<dyn Fn() -> f64>>,
 }
 
-impl Default for Options {
-    fn default() -> Self {
-        Options {
-            images: None,
-            screen: None,
-            tone: None,
-            picture_name: None,
-            lists: None,
-            idle: None,
-            gestures: None,
-            off: None,
-            said_off: None,
-            places: None,
-            wrap: true,
-            next_row: true,
-            delayed: None,
-            sound: None,
-            offered: None,
-            pace: None,
-        }
-    }
-}
-
-/// The bottom screen's touch targets, and the one touch mode is on.
-pub struct TouchTargets {
-    layouts: Rc<Layouts>,
-    on_screen: OnScreen,
-    /// A TextBox's words, shown or not.
-    text_of: TextOf,
-    /// The file of its layout's archive a picture draws now, or None.
-    image_of: ImageOf,
-    /// A layout's root -> the file it was built from, or None where it is not known.
-    file_of: FileOf,
+/// The walk over the bottom screen's touch targets: the one chosen, a drag picked up and the
+/// press held, and a tap, a slide or a drag on the target just named (ADR-0009).
+pub struct TouchMode {
+    /// The targets on the bottom screen now, in reading order (`TouchTargets.targets`). A test
+    /// puts its own in, as Python's puts its own touch mode in the profile.
+    pub(crate) targets: Targets,
     log: Log,
-    images: IndexMap<String, String>,
     /// The touch screen a tap, a slide and a drag press, or None where pa3ds takes no keys
     /// and touches nothing, as in a replay.
     screen: Option<Rc<dyn TouchScreen>>,
     /// Sound where a target is, across and down the screen as shares of it (`core.tones`).
     tone: Option<Tone>,
-    /// The game's word for what a picture the game fills in as it runs draws, or None.
-    picture_name: Option<PictureName>,
-    /// The labels of the list windows on screen: a Yes and No the player must answer first.
-    lists: Option<Lists>,
-    /// The works of the layouts whose buttons take no tap now (`Buttons.idle`).
-    idle: Option<Idle>,
-    /// Targets a screen offers that no touch area draws, each a stroke: Pokémon-Amie's
-    /// Pokémon, stroked by sliding over it (spike 200).
-    gestures: Option<Gestures>,
-    /// (work, pane name) of the buttons switched off now, which take no tap (`Buttons.off`).
-    off: Option<Off>,
-    /// Whether a picture's button is offered though switched off: the DexNav switches off the
-    /// icon of a species not caught, which it cannot search for, and the species is said all the
-    /// same (ADR-0037).
-    said_off: Option<SaidOff>,
-    /// The AreaNav's map's touch areas by pane name -> the place each is, while the map is the
-    /// screen's and not the field's window onto it; none otherwise.
-    places: Option<Places>,
     /// Whether the screen drags only as the drag is let go, straight from where it was picked up
     /// to where the keys chose: Berry Picker, where a berry carried over a Pokémon wanting
     /// another sends it off (spike 260). Elsewhere the press goes with the keys, as a Poké Puff
@@ -269,10 +247,7 @@ pub struct TouchTargets {
     /// A sound for picking up a drag, with True, and letting go of it, played in place of saying
     /// "holding" and "let go on", which slowed a timed game (`[pa3ds.audio] feedback_sounds`,
     /// Orion, 2026-10-28); None says them.
-    pub(crate) sound: Option<Rc<dyn Fn(bool)>>,
-    /// Whether the screen up now needs a touch: none is offered on one the game's buttons work
-    /// (`gen6.profile.TOUCHED`); None offers them everywhere.
-    offered: Option<Rc<dyn Fn() -> bool>>,
+    sound: Option<Rc<dyn Fn(bool)>>,
     /// How fast the game runs beside full speed, which a drag made on letting go is timed by
     /// (`DROP_SECONDS`): Berry Picker's clock says (`berry_picker.BerryPicker.speed`).
     pace: Rc<dyn Fn() -> f64>,
@@ -290,70 +265,26 @@ pub struct TouchTargets {
     /// screen does not drag only on letting go.
     pressed: bool,
     chosen: Option<i64>,
-    /// A layout's root -> the names of its buttons that were a list's labels while it was up.
-    listed: IndexMap<i64, HashSet<String>>,
-    /// Touch area -> what it was last called (rule 4).
-    named: IndexMap<i64, (String, HashSet<i64>)>,
-    unnamed: HashSet<i64>,
-    groups: IndexMap<i64, Vec<i64>>,
-    /// A walk's buttons and panes' middles (None where not laid out), each found once: the Box's
-    /// touch areas hanging from its root measured its every pane each, 34,000 times a walk
-    /// (movie22).
-    middles: IndexMap<i64, Option<(f64, f64)>>,
-    /// The targets a test gives in place of `targets`' walk, as Python's test overrides the
-    /// method in a subclass.
-    #[cfg(test)]
-    pub(crate) given: Option<Rc<dyn Fn() -> Vec<Target>>>,
 }
 
-impl TouchTargets {
-    pub fn new(
-        layouts: Rc<Layouts>,
-        on_screen: OnScreen,
-        text_of: TextOf,
-        image_of: ImageOf,
-        file_of: FileOf,
-        log: Log,
-        options: Options,
-    ) -> Self {
-        let Options {
-            images,
+impl TouchMode {
+    pub fn new(targets: Targets, log: Log, options: ModeOptions) -> Self {
+        let ModeOptions {
             screen,
             tone,
-            picture_name,
-            lists,
-            idle,
-            gestures,
-            off,
-            said_off,
-            places,
             wrap,
             next_row,
             delayed,
             sound,
-            offered,
             pace,
         } = options;
-        TouchTargets {
-            layouts,
-            on_screen,
-            text_of,
-            image_of,
-            file_of,
+        TouchMode {
+            targets,
             log,
-            images: images.unwrap_or_default(),
             screen,
             tone,
-            picture_name,
-            lists,
-            idle,
-            gestures,
-            off,
-            said_off,
-            places,
             delayed: delayed.unwrap_or_else(|| Rc::new(|| false)),
             sound,
-            offered,
             pace: pace.unwrap_or_else(|| Rc::new(|| 1.0)),
             wrap,
             next_row,
@@ -361,19 +292,17 @@ impl TouchTargets {
             over: None,
             pressed: false,
             chosen: None,
-            listed: IndexMap::new(),
-            named: IndexMap::new(),
-            unnamed: HashSet::new(),
-            groups: IndexMap::new(),
-            middles: IndexMap::new(),
-            #[cfg(test)]
-            given: None,
         }
+    }
+
+    /// The targets on the bottom screen now, in reading order, as the walk has them.
+    pub fn targets(&self) -> Result<Vec<Target>> {
+        (self.targets)()
     }
 
     /// Touch mode coming on: the first target, as a menu opening says the item it is on.
     pub fn start(&mut self) -> Result<String> {
-        let found = self.targets()?;
+        let found = (self.targets)()?;
         self.chosen = found.first().map(|target| target.pane);
         Ok(match found.first() {
             Some(first) => self.said(first),
@@ -386,7 +315,7 @@ impl TouchTargets {
     /// Nothing is tapped that has not just been named: with nothing chosen, or the one chosen
     /// gone from the screen, any key chooses the first target and says it.
     pub fn press(&mut self, action: &str) -> Result<String> {
-        let found = self.targets()?;
+        let found = (self.targets)()?;
         if found.is_empty() {
             self.chosen = None;
             return Ok(own(NOTHING, &[]));
@@ -595,13 +524,100 @@ impl TouchTargets {
         }
         target.name.clone()
     }
+}
+
+/// The bottom screen's touch targets, in reading order.
+pub struct TouchTargets {
+    layouts: Rc<Layouts>,
+    on_screen: OnScreen,
+    /// A TextBox's words, shown or not.
+    text_of: TextOf,
+    /// The file of its layout's archive a picture draws now, or None.
+    image_of: ImageOf,
+    /// A layout's root -> the file it was built from, or None where it is not known.
+    file_of: FileOf,
+    log: Log,
+    images: IndexMap<String, String>,
+    /// The game's word for what a picture the game fills in as it runs draws, or None.
+    picture_name: Option<PictureName>,
+    /// The labels of the list windows on screen: a Yes and No the player must answer first.
+    lists: Option<Lists>,
+    /// The works of the layouts whose buttons take no tap now (`Buttons.idle`).
+    idle: Option<Idle>,
+    /// Targets a screen offers that no touch area draws, each a stroke: Pokémon-Amie's
+    /// Pokémon, stroked by sliding over it (spike 200).
+    gestures: Option<Gestures>,
+    /// (work, pane name) of the buttons switched off now, which take no tap (`Buttons.off`).
+    off: Option<Off>,
+    /// Whether a picture's button is offered though switched off: the DexNav switches off the
+    /// icon of a species not caught, which it cannot search for, and the species is said all the
+    /// same (ADR-0037).
+    said_off: Option<SaidOff>,
+    /// The AreaNav's map's touch areas by pane name -> the place each is, while the map is the
+    /// screen's and not the field's window onto it; none otherwise.
+    places: Option<Places>,
+    /// Whether the screen up now needs a touch: none is offered on one the game's buttons work
+    /// (`gen6.profile.TOUCHED`); None offers them everywhere.
+    offered: Option<Rc<dyn Fn() -> bool>>,
+    /// A layout's root -> the names of its buttons that were a list's labels while it was up.
+    listed: IndexMap<i64, HashSet<String>>,
+    /// Touch area -> what it was last called (rule 4), and the panes its button held then.
+    named: IndexMap<i64, (String, HashSet<i64>)>,
+    unnamed: HashSet<i64>,
+    groups: IndexMap<i64, Vec<i64>>,
+    /// A walk's buttons and panes' middles (None where not laid out), each found once: the Box's
+    /// touch areas hanging from its root measured its every pane each, 34,000 times a walk
+    /// (movie22).
+    middles: IndexMap<i64, Option<(f64, f64)>>,
+}
+
+impl TouchTargets {
+    pub fn new(
+        layouts: Rc<Layouts>,
+        on_screen: OnScreen,
+        text_of: TextOf,
+        image_of: ImageOf,
+        file_of: FileOf,
+        log: Log,
+        options: Options,
+    ) -> Self {
+        let Options {
+            images,
+            picture_name,
+            lists,
+            idle,
+            gestures,
+            off,
+            said_off,
+            places,
+            offered,
+        } = options;
+        TouchTargets {
+            layouts,
+            on_screen,
+            text_of,
+            image_of,
+            file_of,
+            log,
+            images: images.unwrap_or_default(),
+            picture_name,
+            lists,
+            idle,
+            gestures,
+            off,
+            said_off,
+            places,
+            offered,
+            listed: IndexMap::new(),
+            named: IndexMap::new(),
+            unnamed: HashSet::new(),
+            groups: IndexMap::new(),
+            middles: IndexMap::new(),
+        }
+    }
 
     /// Every touch area drawn on the bottom screen that can be named, in reading order.
     pub fn targets(&mut self) -> Result<Vec<Target>> {
-        #[cfg(test)]
-        if let Some(given) = &self.given {
-            return Ok(given());
-        }
         if let Some(offered) = &self.offered
             && !offered()
         {

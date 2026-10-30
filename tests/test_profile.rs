@@ -406,21 +406,22 @@ fn test_a_replay_logs_touch_modes_targets_as_they_change_and_a_players_run_never
                 ..Options::default()
             },
         );
-        // Python's test puts its own `touch` in; here the navigator's is given the targets.
+        // Python's test puts its own `touch` in; here the navigator's touch mode is given the
+        // targets.
         let offering = offered.clone();
         profile
             .navigator
             .borrow_mut()
             .touch
             .as_mut()
-            .expect("touch targets")
-            .given = Some(Rc::new(move || {
-            offering
+            .expect("touch mode")
+            .targets = Rc::new(move || {
+            Ok(offering
                 .borrow()
                 .iter()
                 .map(|name| Target::new(0, name, 0, 0, 0.0, 0.0))
-                .collect()
-        }));
+                .collect())
+        });
         (profile, logged)
     };
     let touched = |logged: &Rc<RefCell<Vec<String>>>| -> Vec<String> {

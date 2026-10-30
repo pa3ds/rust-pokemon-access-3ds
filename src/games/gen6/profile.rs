@@ -55,7 +55,8 @@ use crate::games::common::screen_announce::ScreenAnnouncer;
 use crate::games::common::session::Profile;
 use crate::games::common::slots::Occupant;
 use crate::games::common::touch::{
-    self, FileOf, HOLDING, Idle, ImageOf, Lists, OnScreen, PictureName, TextOf, TouchTargets,
+    self, FileOf, HOLDING, Idle, ImageOf, Lists, OnScreen, PictureName, TextOf, TouchMode,
+    TouchTargets,
 };
 use crate::games::common::{lyt, msgwin, pokemon, strbuf};
 use crate::games::gen6::apps::{BATTLE, DEMOS, FIELD, MANAGER_CLASS, RunningApp, TUTORIAL};
@@ -809,7 +810,7 @@ impl Gen6Profile {
             let buttons = buttons.clone();
             Rc::new(move || buttons.borrow_mut().idle())
         };
-        let touch = TouchTargets::new(
+        let targets = Rc::new(RefCell::new(TouchTargets::new(
             layouts.clone(),
             on_screen,
             text_of,
@@ -818,24 +819,10 @@ impl Gen6Profile {
             log.clone(),
             touch::Options {
                 images: Some(images.clone()),
-                screen: touch_screen,
-                tone: tones.clone().map(|tones| {
-                    Rc::new(move |across: f64, down: f64| {
-                        // The sound thread not starting, raised to the key's handler in Python.
-                        let _ = tones.play(across, down);
-                    }) as touch::Tone
-                }),
                 picture_name: Some(picture_name),
                 lists: Some(lists_labels),
                 idle: Some(idle),
                 off: Some(off),
-                wrap: touch_settings.wrap,
-                next_row: touch_settings.next_row,
-                pace: Some({
-                    let subscreens = subscreens.clone();
-                    Rc::new(move || subscreens.berry_picker.borrow().speed())
-                }),
-                sound: dragged(feedback_sounds.clone()),
                 offered: Some({
                     let apps = apps.clone();
                     Rc::new(move || {
@@ -843,13 +830,6 @@ impl Gen6Profile {
                             .running
                             .as_deref()
                             .is_none_or(|running| TOUCHED.contains(&running))
-                    })
-                }),
-                delayed: Some({
-                    let apps = apps.clone();
-                    Rc::new(move || {
-                        apps.borrow().running.as_deref()
-                            == Some(crate::games::gen6::subscreen::berry_picker::APP)
                     })
                 }),
                 said_off: Some({
@@ -881,6 +861,33 @@ impl Gen6Profile {
                     let (subscreens, apps) = (subscreens.clone(), apps.clone());
                     Rc::new(move || subscreens.targets(apps.borrow().running.as_deref()))
                 }),
+            },
+        )));
+        let touch = TouchMode::new(
+            Rc::new(move || targets.borrow_mut().targets()),
+            log.clone(),
+            touch::ModeOptions {
+                screen: touch_screen,
+                tone: tones.clone().map(|tones| {
+                    Rc::new(move |across: f64, down: f64| {
+                        // The sound thread not starting, raised to the key's handler in Python.
+                        let _ = tones.play(across, down);
+                    }) as touch::Tone
+                }),
+                wrap: touch_settings.wrap,
+                next_row: touch_settings.next_row,
+                delayed: Some({
+                    let apps = apps.clone();
+                    Rc::new(move || {
+                        apps.borrow().running.as_deref()
+                            == Some(crate::games::gen6::subscreen::berry_picker::APP)
+                    })
+                }),
+                pace: Some({
+                    let subscreens = subscreens.clone();
+                    Rc::new(move || subscreens.berry_picker.borrow().speed())
+                }),
+                sound: dragged(feedback_sounds.clone()),
             },
         );
         // The Hoenn map's cursor says nothing between places: a tone says where it is.
