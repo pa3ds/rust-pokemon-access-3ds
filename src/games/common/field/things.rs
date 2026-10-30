@@ -101,7 +101,7 @@ pub const VINE_SOURCE: i64 = 18 << 32;
 pub const OPENING_SOURCE: i64 = 19 << 32;
 
 /// A teleport a Gym's module places on streets: `TELEPORT_SOURCE | index`, its start's place in
-/// the module's table (`rail.Teleport`, spike A).
+/// the module's table (`rail.Teleport`, spike 264).
 pub const TELEPORT_SOURCE: i64 = 20 << 32;
 
 /// A place's `source` from its kind's tag and its own number. The number must leave the tag's
@@ -273,7 +273,7 @@ pub struct Interactable {
     pub faced: bool,
     /// Whether it is on streets the player's reach only through a teleporter, said "past a
     /// teleporter" rather than how far it is: Anistar City Gym's parts lie apart in its corridor,
-    /// and the cells between them are no distance (`rail.lay_keyed`, spike A).
+    /// and the cells between them are no distance (`rail.lay_keyed`, spike 264).
     pub apart: bool,
     /// For a teleporter, whether `arrival` is on streets its own reach only through another,
     /// and so said with no "out at".

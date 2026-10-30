@@ -1,6 +1,6 @@
 //! The ROM's map chunks a file at a time, as P's ground reaches past the chunks the game has loaded
 //! (spike 136), Lumiose's streets in them (spike 106), and the teleports a Gym's module places on
-//! its streets (spike A).
+//! its streets (spike 264).
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -348,7 +348,7 @@ pub const TELEPORT_ENTRY: i64 = 16;
 /// `field::FieldUniqueSequenceGymEsper`'s name: the lobby's carpet at row 4 of its street is the
 /// first start, landing on the landing's joint, and the joint at the Gym's middle at 770 sends
 /// the player 3 across onto line 0x101df4b, as x_gym_7 and x_gym_7_teleporter did at 26.51 s
-/// and 18.46 s (spike A). The second word is not always the line's way, so only the run says
+/// and 18.46 s (spike 264). The second word is not always the line's way, so only the run says
 /// what is a place.
 pub fn rail_teleports(module: &[u8]) -> Result<Vec<rail::Teleport>> {
     let place = |at: i64| -> Result<Option<rail::Place>> {

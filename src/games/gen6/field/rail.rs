@@ -44,7 +44,7 @@
 //! held (spike 105). So a way on a rail is said from the camera (`pathfind.turned`), whose heading
 //! the corridor gives as a bearing of its own (`bearing`). On a **folded** map, Anistar City Gym's,
 //! the camera stays looking north and the corridor is laid by the keys, its ways said by the
-//! compass (`Network.folded`, spike A).
+//! compass (`Network.folded`, spike 264).
 
 use std::cell::{Cell as Slot, RefCell};
 use std::collections::{HashMap, VecDeque};
@@ -223,7 +223,7 @@ impl Network {
     /// player a cell north and every left a cell west, across 8 lines and tracks. So the whole
     /// map is walked as one corridor laid by the keys (`lay_keyed`), never on the grid, where a
     /// street climbs 4 rows over 1 world unit and P said "up the ramp 12 north" for a way 3
-    /// west, 8 north (spike A).
+    /// west, 8 north (spike 264).
     pub fn folded(&self) -> bool {
         // Python's `==` of one tuple with itself holds by identity, a NaN in it too: a line
         // starting and ending at one point is at one spot.
@@ -241,7 +241,7 @@ impl Network {
 pub type Place = (i64, f64, f64);
 
 /// One teleport of a Gym's module: the place on a street that sends the player, and the place
-/// it puts them (`maps.rail_teleports`, spike A).
+/// it puts them (`maps.rail_teleports`, spike 264).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Teleport {
     pub start: Place,
@@ -260,7 +260,7 @@ pub const WAY_STEPS: [(i64, Step); 4] = [
 ];
 
 /// The step `line`'s rows rise by on a folded map (`Network.folded`): along its way, and
-/// against it on a track, which the game measures from its joint (spike A).
+/// against it on a track, which the game measures from its joint (spike 264).
 fn keyed(line: &Line) -> Step {
     let step = WAY_STEPS
         .iter()
@@ -594,7 +594,7 @@ pub fn lay_out(
 /// no two share a cell. Two points the world has at one spot and height are one: the lobby's
 /// street and the landing's track meet so at (729, 1089) and 394 in Anistar City Gym. The Gym
 /// is then six parts, joined by its teleporters alone (`Teleport`). Laid where the screen
-/// shows each, 126 cells would be two parts' (spike A). A street's dead end a cell from
+/// shows each, 126 cells would be two parts' (spike 264). A street's dead end a cell from
 /// another's point at its height is no way onto it: joined so, P said "1 west, 14 south" off
 /// the first teleporter's landing, and the keys met a wall (Khai, 2026-10-30).
 ///

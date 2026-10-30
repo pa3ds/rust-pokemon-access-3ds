@@ -2040,7 +2040,7 @@ impl FieldReader {
         Ok(out)
     }
 
-    /// A folded map's listing as the player at `at` meets it (`rail.lay_keyed`, spike A): with
+    /// A folded map's listing as the player at `at` meets it (`rail.lay_keyed`, spike 264): with
     /// the teleporters of the Gym's module between its parts, each where it sends the player from
     /// with where it puts them (`rail.Teleport`); its furniture one thing a script where records
     /// touch, and none in another part where its script has a record in the player's, as each of
@@ -3409,7 +3409,7 @@ fn layered(item: &Interactable) -> bool {
 /// where it sends the player from, carrying them to where it puts them (`Ground.teleports`), the
 /// first of several from one place. Anistar City Gym's lobby carpet puts the player on one of
 /// three tracks of one joint, the cell it is in once the lobby's street is laid onto them: it is
-/// listed, where the Gym appears, and carries the player nowhere (spike A). Each carries them
+/// listed, where the Gym appears, and carries the player nowhere (spike 264). Each carries them
 /// back too: the module lists one way of most, and Khai stepping back onto the first one's
 /// landing was put on its start, three times (2026-10-30).
 pub(crate) fn rail_teleporters(

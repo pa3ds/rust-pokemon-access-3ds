@@ -504,10 +504,11 @@ const LAST: i64 = 0x16;
 const AWAY: i64 = 0x17;
 const END: i64 = 0x18;
 
-/// Anistar City Gym's streets in small (x_gym_7, spike A): a climb measured north, its ends at one
-/// spot 90 apart in height, as the lobby's is; a track measured west from its top to a joint; a
-/// line measured south from a point of its own at the joint's spot and height, ending a cell from
-/// where another goes on south; and a street no other meets. `folded()` with the top at (9, 9).
+/// Anistar City Gym's streets in small (x_gym_7, spike 264): a climb measured north, its ends at
+/// one spot 90 apart in height, as the lobby's is; a track measured west from its top to a joint;
+/// a line measured south from a point of its own at the joint's spot and height, ending a cell
+/// from where another goes on south; and a street no other meets. `folded()` with the top at
+/// (9, 9).
 fn folded(top: (f64, f64)) -> Network {
     let lines = [
         Line {
@@ -554,7 +555,7 @@ fn folded(top: (f64, f64)) -> Network {
     }
 }
 
-/// Spike A: Anistar City Gym's camera stays looking north, and up walked the player a cell north
+/// Spike 264: Anistar City Gym's camera stays looking north, and up walked the player a cell north
 /// along every street of x_gym_7, laid along its own way and a track against it; two points at one
 /// spot and height are one, as the lobby's street and the landing's track are; and a street joined
 /// to none is laid apart, with a part of its own, even a cell on from a dead end at its height: so
@@ -585,7 +586,7 @@ fn test_a_folded_maps_streets_are_laid_by_the_keys() -> Result<()> {
     Ok(())
 }
 
-/// Spike A: in Anistar City Gym pa3ds said "20 behind 1 left" and "12 back, hold right" from a
+/// Spike 264: in Anistar City Gym pa3ds said "20 behind 1 left" and "12 back, hold right" from a
 /// camera that never turns. A folded map is never the grid's ground, and its corridor gives no way
 /// up walks, so a way is said by the compass; with the climb's ends apart in the world the map is
 /// not folded, and the street is walked on the grid.
@@ -620,7 +621,7 @@ fn test_a_folded_map_is_walked_as_a_corridor_said_by_the_compass() -> Result<()>
     Ok(())
 }
 
-/// Spike A: read from their starts, each of Anistar City Gym's tracks that widens toward one end
+/// Spike 264: read from their starts, each of Anistar City Gym's tracks that widens toward one end
 /// widened away from its joint and closed at it; read from the joint, its walkways meet side to
 /// side, and a walk over them reaches every person in the Gym.
 #[test]
@@ -647,7 +648,7 @@ fn test_on_a_folded_map_a_tracks_walls_run_from_its_joint() -> Result<()> {
     Ok(())
 }
 
-/// Spike A: DllUSGymEsper.cro holds 19 places where a teleport starts and then the 19 it puts the
+/// Spike 264: DllUSGymEsper.cro holds 19 places where a teleport starts and then the 19 it puts the
 /// player, in the same order, each a street, a word, and along and across in world units: the
 /// lobby's carpet at 72 along its street, 4 cells, and the joint at the Gym's middle sending the
 /// player 54 across, 3 cells, onto line 0x101df4b.

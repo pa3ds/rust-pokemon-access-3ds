@@ -1192,7 +1192,7 @@ fn test_a_teleporter_onto_another_floor_says_how_far_above_or_below_it_puts_the_
     );
 }
 
-/// Anistar City Gym (spike A): its parts lie apart in the corridor, so a thing in another is
+/// Anistar City Gym (spike 264): its parts lie apart in the corridor, so a thing in another is
 /// "past a teleporter", and a teleporter landing in another says no "out at" nor how high.
 #[test]
 fn test_past_a_teleporter_a_thing_is_said_so_rather_than_how_far() {
