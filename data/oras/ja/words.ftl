@@ -22,7 +22,6 @@ kind-hidden-Pokemon = 隠れているポケモン
 kind-secret-base-spot = ひみつきちの場所
 kind-ladder-up = 上りはしご
 kind-ladder-down = 下りはしご
-kind-switch = スイッチ
 kind-lift = リフト
 kind-trapdoor = 落とし穴
 kind-geyser = 間欠泉

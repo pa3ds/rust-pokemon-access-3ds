@@ -199,6 +199,21 @@ pub struct Climbing {
     pub slide: i64,
 }
 
+/// One zone's conveyor belts that carry the player (`Ground.conveyors`), and the switch that
+/// turns some of them round, as X's Poké Ball Factory's (spike A).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Conveyors {
+    /// Each cell of a belt with the way it carries the player while the switch has turned none.
+    pub ways: IndexMap<(i64, i64), &'static str>,
+    /// The cells the switch turns round, each with the way it carries the player once turned.
+    pub turned: IndexMap<(i64, i64), &'static str>,
+    /// The script of the furniture record that is the switch, pressed with A at it.
+    pub switch: i64,
+    /// The class of the object, and where in it, that points at the byte saying whether the
+    /// switch has turned the belts, 0 for not: the save keeps it.
+    pub state: (&'static str, i64),
+}
+
 /// The cell kinds of the rails a player on roller skates grinds along, as X's Shalour City
 /// Gym's (`grind.GrindRails`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -283,10 +298,10 @@ pub struct Game {
     /// is stepped round: Dewford Gym's switches, in the corridor its belts carry the player down,
     /// which light its side passages and turn nothing (spike 132). A belt is walked over too.
     pub crossed: HashSet<(i64, i64)>,
-    /// Zone -> each cell of its conveyor belts that carry the player, with the way it carries
-    /// them (`Ground.conveyors`): X's Poké Ball Factory, whose belts a native of the game's runs
-    /// with nothing in the zone, its chunks or the trigger saying where (spike A).
-    pub conveyors: IndexMap<i64, IndexMap<(i64, i64), &'static str>>,
+    /// Zone -> its conveyor belts that carry the player, and the switch that turns some round:
+    /// X's Poké Ball Factory, whose belts a native of the game's runs with nothing in the zone, its
+    /// chunks or the trigger saying where (spike A).
+    pub conveyors: IndexMap<i64, Conveyors>,
     /// The readers of what else it has on its field to list, each in its own words: ORAS's berry
     /// spots and Route 113's ash piles (`games.oras.field.berries`, `games.oras.field.ash`).
     pub features: Vec<FeatureFactory>,

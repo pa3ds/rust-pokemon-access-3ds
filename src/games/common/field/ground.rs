@@ -386,6 +386,11 @@ pub struct Ground {
     /// Poké Ball Factory's run along its walkways, turning corners, and set the player down on the
     /// cell past the last (spike A).
     pub conveyors: IndexMap<Cell, &'static str>,
+    /// The belts as they run once `switch` is pressed, none where no switch turns them: the
+    /// factory's switch turns one of its belts round, and back at the next press (`turned`).
+    pub switched: IndexMap<Cell, &'static str>,
+    /// The cell of the switch that turns the belts round, pressed with A from beside it.
+    pub switch: Option<Cell>,
     /// Whether water is crossed, as Surf crosses it: Shift and P's ground, and P's for a player
     /// already on the water. P walked into the sea on Route 109 while the blocked bit was all it
     /// read (omega_ruby_surf.ctm, spike 136).
@@ -539,6 +544,8 @@ impl Default for Ground {
             reach: 1,
             belts: IndexMap::new(),
             conveyors: IndexMap::new(),
+            switched: IndexMap::new(),
+            switch: None,
             surf: false,
             far: None,
             cleared: IndexMap::new(),
@@ -586,6 +593,8 @@ impl fmt::Debug for Ground {
             .field("reach", &self.reach)
             .field("belts", &self.belts)
             .field("conveyors", &self.conveyors)
+            .field("switched", &self.switched)
+            .field("switch", &self.switch)
             .field("surf", &self.surf)
             .field("far", &self.far.is_some())
             .field("cleared", &self.cleared)
@@ -1332,6 +1341,15 @@ impl Ground {
         match chunk {
             Some(chunk) => chunk.ice(cell),
             None => Ok(false),
+        }
+    }
+
+    /// This ground with its switch pressed: the belts the other way (`switched`).
+    pub fn turned(&self) -> Ground {
+        Ground {
+            conveyors: self.switched.clone(),
+            switched: self.conveyors.clone(),
+            ..self.clone()
         }
     }
 

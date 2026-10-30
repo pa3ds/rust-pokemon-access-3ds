@@ -27,7 +27,7 @@ In Laverre Gym, in X and Y, the interactables list each teleporter with where it
 leads you through them, saying the way as far as the first and how many more.
 
 In the Poké Ball Factory, in X and Y, the interactables list each place you step onto a conveyor
-belt as "conveyor belt".
+belt as "conveyor belt", and the switch that turns a belt round as "switch".
 
 The list has three **modes**, and the apostrophe steps through them. During a battle or a scene
 the map's keys say "no map", and the thing you had chosen is kept for when the map comes back.
@@ -112,7 +112,9 @@ you off it.
 
 **Conveyor belts.** In the Poké Ball Factory a belt carries you to its end, round its corners,
 whatever you press. `P` rides a belt as one step of the way, said by where it sets you down,
-"ride the belt 7 west 4 north", and waits until it has.
+"ride the belt 7 west 4 north", and waits until it has. Where the belts as they run go nowhere
+near what you chose, but would once the switch turned one round, `P` says "switch first" and leads
+you to it; press A there, and `P` says the way on.
 
 **Ice.** In Shoal Cave at low tide you slide across the ice until a wall or the floor stops you.
 `P` says each slide as one step of the way, "slide 4 north": step that way once and let it carry

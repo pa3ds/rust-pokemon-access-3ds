@@ -532,6 +532,21 @@ impl Guidance {
     }
 }
 
+/// A way through the belts' switch, waiting at the switch for it to be pressed (`Guide.to`).
+#[derive(Debug, Clone, PartialEq)]
+struct After {
+    /// What the way goes on to once the switch is pressed.
+    key: Key,
+    /// The belts as the switch turns them: the way goes on once the ground has them so.
+    belts: IndexMap<Cell, &'static str>,
+    hm: bool,
+    /// The field's `visit` when the way was found: a warp leaves it.
+    visit: Option<(i64, i64)>,
+}
+
+/// Seconds between looks, while a way waits at the switch, at whether it has been pressed.
+pub const AFTER_EVERY: f64 = 0.5;
+
 /// What the navigator reads the map through: ORAS's `field.FieldReader`, or Sun's reader.
 pub trait FieldSource {
     /// `visit`, a property in Python.
@@ -1132,6 +1147,10 @@ pub struct Guide {
     drift: Vec<Cell>,
     /// What `reachable` was last asked and found.
     reached: RefCell<Option<(Asked, HashSet<Key>)>>,
+    /// The thing a way through the belts' switch goes on to once it is pressed, or None.
+    after: Option<After>,
+    /// When to look next at whether the switch has been pressed.
+    after_next: f64,
 }
 
 /// What `reachable` is asked: the zone, the player's cell, what is listed and the visit.
@@ -1185,6 +1204,8 @@ impl Guide {
             guidance: None,
             drift: Vec::new(),
             reached: RefCell::new(None),
+            after: None,
+            after_next: 0.0,
         }
     }
 
@@ -1249,6 +1270,38 @@ impl Guide {
                 out.insert(item.key());
             }
         }
+        let switch = r#where.interactables.iter().find(|one| {
+            ground
+                .switch
+                .is_some_and(|switch| one.cells().contains(&switch))
+        });
+        let spot = match switch {
+            Some(switch) if out.contains(&switch.key()) => aims(&ground, switch, None)?
+                .into_keys()
+                .find(|cell| reached.contains_key(cell)),
+            _ => None,
+        };
+        if let Some(spot) = spot
+            && !ground.switched.is_empty()
+        {
+            // What a way reaches past the belts' switch, pressed, is reached too (`to`).
+            let turned = ground.turned();
+            let past = turned.reached(spot, &cells)?;
+            for (item, cells) in &goals {
+                let mut any = false;
+                'past: for &cell in cells.keys() {
+                    for &floor in past.get(&cell).into_iter().flatten() {
+                        if turned.ends_at(item, cell, floor)? {
+                            any = true;
+                            break 'past;
+                        }
+                    }
+                }
+                if any {
+                    out.insert(item.key());
+                }
+            }
+        }
         if !ground.ice.is_empty() {
             // A way over thin ice steps on every tile once, which no walk out follows.
             let mut over: HashSet<Key> = HashSet::new();
@@ -1264,6 +1317,106 @@ impl Guide {
         }
         *self.reached.borrow_mut() = Some((asked, out.clone()));
         Ok(out)
+    }
+
+    /// The belts' switch, where the way to `item` falls short and goes there past it: listed
+    /// in `where`, reached on this ground, and from beside it a way reaching `item` with the
+    /// belts as it turns them (`Ground.turned`). In the Poké Ball Factory a Team Flare Grunt
+    /// stands on the walkway to the north-east room, and the way there goes by the switch, down to
+    /// the belt it turns, and up the stairs past the room it sets the player down in (Khai,
+    /// 2026-10-29, spike A).
+    fn switch_first(
+        &self,
+        r#where: &Field,
+        item: &Interactable,
+        ground: &Ground,
+        heading: &str,
+    ) -> Result<Option<Interactable>> {
+        let Some(at) = ground.switch else {
+            return Ok(None);
+        };
+        if ground.switched.is_empty() {
+            return Ok(None);
+        }
+        let Some(switch) = r#where
+            .interactables
+            .iter()
+            .find(|one| one.cells().contains(&at))
+        else {
+            return Ok(None);
+        };
+        if switch.key() == item.key() {
+            return Ok(None);
+        }
+        let to_switch = aims(ground, switch, None)?;
+        let there = ground.find(r#where.cell, &to_switch, heading, Some(switch), false, None)?;
+        if there.is_none() || !reached(ground, switch, &to_switch, &there)? {
+            return Ok(None);
+        }
+        let end = *there
+            .as_ref()
+            .and_then(|there| there.last())
+            .ok_or_else(|| Error::index("tuple index out of range"))?;
+        let turned = ground.turned();
+        let goals = aims(&turned, item, None)?;
+        let on = turned.find(end, &goals, "", Some(item), false, None)?;
+        Ok(if reached(&turned, item, &goals, &on)? {
+            Some(switch.clone())
+        } else {
+            None
+        })
+    }
+
+    /// Walk no way, and wait at no switch.
+    pub fn stop(&mut self) {
+        self.guidance = None;
+        self.after = None;
+    }
+
+    /// Whether a way waits at the belts' switch for it to be pressed (`_pressed`).
+    pub fn waiting(&self) -> bool {
+        self.after.is_some()
+    }
+
+    /// Where a way waits at the belts' switch, the way on to the thing once it is pressed:
+    /// looked at every `AFTER_EVERY` seconds, and left on a warp.
+    fn pressed(&mut self, r#where: &Field) -> Result<()> {
+        let Some(after) = self.after.clone() else {
+            return Ok(());
+        };
+        if (self.clock)() < self.after_next {
+            return Ok(());
+        }
+        self.after_next = (self.clock)() + AFTER_EVERY;
+        if self.field.visit() != after.visit {
+            self.after = None;
+            return Ok(());
+        }
+        if self.ground(r#where, after.hm)?.conveyors != after.belts {
+            return Ok(());
+        }
+        self.after = None;
+        let listed = self.field.interactables(r#where)?;
+        let item = listed
+            .interactables
+            .iter()
+            .find(|one| one.key() == after.key)
+            .cloned();
+        if let Some(item) = item {
+            let tell = self.tell.clone();
+            self.to(
+                &listed,
+                &item,
+                &|text| tell(text),
+                "",
+                after.hm,
+                None,
+                false,
+                true,
+                None,
+            )?;
+        }
+        Ok(())
     }
 
     /// The way from where the player stands to `item`, as `to` says it and `reachable`
@@ -1344,6 +1497,7 @@ impl Guide {
         push: Option<&str>,
     ) -> Result<()> {
         self.guidance = None;
+        self.after = None;
         let name = (self.name_of)(item, r#where.zone)?;
         if !self.routes {
             let text = format!(
@@ -1393,6 +1547,38 @@ impl Guide {
                 say(&text);
                 return Ok(());
             }
+        }
+        if short && let Some(switch) = self.switch_first(r#where, item, &ground, heading)? {
+            let label = (self.label)(&switch, r#where.zone)?;
+            if aims(&ground, &switch, None)?.contains_key(&r#where.cell) {
+                // Beside it already: where it is, not its name twice.
+                say(&own(
+                    "p-switch-first",
+                    &[
+                        ("thing", &label),
+                        ("way", &switch.bearing(r#where.cell, r#where.heading)?),
+                    ],
+                ));
+            } else {
+                self.to(
+                    r#where,
+                    &switch,
+                    &|text| say(&own("p-switch-first", &[("thing", &label), ("way", &text)])),
+                    heading,
+                    hm,
+                    None,
+                    false,
+                    asked,
+                    None,
+                )?;
+            }
+            self.after = Some(After {
+                key: item.key(),
+                belts: ground.switched.clone(),
+                hm,
+                visit: self.field.visit(),
+            });
+            return Ok(());
         }
         let mut blocker = String::new();
         if short && let Some(past) = self.up_to(r#where, item, &ground, heading, &sides)? {
@@ -1636,10 +1822,11 @@ impl Guide {
     /// turn, the thing itself when they arrive, and a new path when they leave this one. A
     /// teleporter on the way says nothing as they step onto it, and the leg after it once it
     /// has put them where the way goes on, on its floor; one that puts them elsewhere puts them
-    /// off the way (ADR-0024).
+    /// off the way (ADR-0024). A way waiting at the belts' switch goes on once it is pressed
+    /// (`_pressed`).
     pub fn follow(&mut self, r#where: &Field) -> Result<()> {
         let Some(guidance) = self.guidance.clone() else {
-            return Ok(());
+            return self.pressed(r#where);
         };
         let visit = self.field.visit();
         let settled = self.settled(r#where, &mut guidance.borrow_mut());

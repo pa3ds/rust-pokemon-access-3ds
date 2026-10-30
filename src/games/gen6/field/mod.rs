@@ -5,6 +5,7 @@
 //! Dowsing Machine (`dowsing`), and who is speaking on the field (`talk`, `speaker`).
 
 pub mod camera;
+pub mod conveyors;
 pub mod dowsing;
 pub mod features;
 pub mod fieldmap;

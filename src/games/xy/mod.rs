@@ -18,7 +18,9 @@ use crate::core::pathfind;
 use crate::games::common::field::ground::{CUT, ROCK_SMASH, STRENGTH};
 use crate::games::gen6::field::camera;
 use crate::games::gen6::field::footsteps::{RUN, Steps, WALK};
-use crate::games::gen6::game::{Climbing, Data, FurnitureKind, Game, Grinding, Rides, Vining};
+use crate::games::gen6::game::{
+    Climbing, Conveyors, Data, FurnitureKind, Game, Grinding, Rides, Vining,
+};
 use crate::games::gen6::rom::layout::{RomLayout, TownFacilities, owned};
 use crate::games::xy::intro::IntroReader;
 use crate::py::PySet;
@@ -465,6 +467,12 @@ pub const BALL_FACTORY: i64 = 0x136;
 /// its conveyor belts: its case calls one native with nothing, which carries the player along the belt
 /// (spike A).
 pub const BELT_ENTRANCE: i64 = 0x6;
+/// The script of the factory's one furniture record, at (4, 22) on the raised floor at 36 in its
+/// west, faced from (4, 23): the switch that turns every belt round, "The direction of the conveyor
+/// has been reversed!", each time it is pressed. Its case calls one native with nothing and shows the
+/// line. A Worker upstairs says "Change the direction of the conveyor by using the switch!" (spike
+/// A).
+pub const BELT_SWITCH: i64 = 0x7;
 /// The factory's four belts, each from its first cell as runs of cells carried one way, the player
 /// set down on the cell past the last. Nothing in the zone, its chunks, its meshes or the trigger says
 /// where one goes, so each was ridden, in x_poke_ball_factory_belts cut short with presses added:
@@ -472,9 +480,8 @@ pub const BELT_ENTRANCE: i64 = 0x6;
 /// north and east to (10, 3), and from (17, 3) east, south, east and south to (27, 19), with no key
 /// held, through the triggers along each (spike A). Each walkway is one cell wide, and every cell a
 /// belt is stepped onto from off it is one of the triggers: stepped onto from where it sets the player
-/// down, a belt carries them straight back. The field's code names a native
-/// `BallFactoryReverseConveyor`, so the belts may run the other way once something turns them, never
-/// seen.
+/// down, a belt carries them straight back. These are the belts before the switch turns any
+/// (`BELT_TURNED`).
 pub const BELT_ROUTES: [((i64, i64), &[(&str, i64)]); 4] = [
     ((15, 20), &[(pathfind::NORTH, 4), (pathfind::WEST, 7)]),
     ((9, 15), &[(pathfind::NORTH, 5)]),
@@ -496,6 +503,21 @@ pub const BELT_ROUTES: [((i64, i64), &[(&str, i64)]); 4] = [
         ],
     ),
 ];
+
+/// The belt the switch turns round, the first of `BELT_ROUTES`, as it runs turned: its walkway
+/// from (9, 16) east to (16, 16), past the corner, and its column from (15, 17) south to (15, 21),
+/// each straight run turned on its own. Ridden on the rig from Khai's save of 10:18, made after one
+/// press: north onto (9, 16) the player was carried to (16, 16), the edge of the room the
+/// walkthroughs go on through to the stairs up, and west onto (15, 17) to (15, 21). The last belt's
+/// end, north onto (27, 18), still carried them back south, and the two belts between were not ridden
+/// turned: taken for untouched, as the Worker's "Change the direction of the conveyor by using the
+/// switch!" has one belt (spike A).
+pub const BELT_TURNED: [((i64, i64), &[(&str, i64)]); 2] = [
+    ((9, 16), &[(pathfind::EAST, 7)]),
+    ((15, 17), &[(pathfind::SOUTH, 4)]),
+];
+/// The factory's own object and where it points at the byte its switch flips (`conveyors`).
+pub const BALL_FACTORY_SEQUENCE: (&str, i64) = ("N5field30FieldUniqueSequenceBallFactoryE", 0x14);
 
 /// Each cell of `routes` with the way it carries the player.
 fn carried(routes: &[((i64, i64), &[(&'static str, i64)])]) -> IndexMap<(i64, i64), &'static str> {
@@ -721,6 +743,10 @@ pub fn game() -> &'static Game {
                 (SANTALUNE_WEB, POLE),
                 FurnitureKind::Exit("exits".to_string(), "warp".to_string(), SANTALUNE_LOBBY),
             ),
+            (
+                (BALL_FACTORY, BELT_SWITCH),
+                FurnitureKind::Word("switch".to_string()),
+            ),
         ]),
         rooms: HashSet::from([HOUSE]),
         models: Some(MODELS),
@@ -732,7 +758,15 @@ pub fn game() -> &'static Game {
         teleporting: IndexMap::from([(LAVERRE_GYM, 56)]),
         gates: true,
         steps: STEPS,
-        conveyors: IndexMap::from([(BALL_FACTORY, carried(&BELT_ROUTES))]),
+        conveyors: IndexMap::from([(
+            BALL_FACTORY,
+            Conveyors {
+                ways: carried(&BELT_ROUTES),
+                turned: carried(&BELT_TURNED),
+                switch: BELT_SWITCH,
+                state: BALL_FACTORY_SEQUENCE,
+            },
+        )]),
         crossed: HashSet::from([(BALL_FACTORY, BELT_ENTRANCE)]),
         training: TRAINING,
         amie: AMIE,

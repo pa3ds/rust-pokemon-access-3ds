@@ -50,6 +50,7 @@ use crate::games::common::field::things::{
     TRIGGER_SOURCE, VINE_SOURCE, WARP_SOURCE, kind_said, place_source,
 };
 use crate::games::common::field::vines::{End, Vines, paired};
+use crate::games::gen6::field::conveyors::Switches;
 use crate::games::gen6::field::features::{
     DoorReader, Feature, HiddenReader, Hiding, IceReader, SecretBaseReader, Tracked,
 };
@@ -69,7 +70,7 @@ use crate::games::gen6::field::zonetable::{
     ZoneTable,
 };
 use crate::games::gen6::field::{fieldmap, mapblock, mmodel};
-use crate::games::gen6::game::{Climbing, FurnitureKind, Game, Grinding, Rides, Vining};
+use crate::games::gen6::game::{Climbing, Conveyors, FurnitureKind, Game, Grinding, Rides, Vining};
 use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::rom::maps::{ChunkSource, StreetSource};
 use crate::py::{self, Error, PySet, Result};
@@ -363,6 +364,8 @@ pub struct FieldReader {
     secret_bases: Option<Rc<dyn SecretBaseReader>>,
     /// The save's works and flags, which arm triggers and say which hidden items are found.
     works: Rc<Works>,
+    /// Whether each zone's belts are turned round by its switch (`Game.conveyors`).
+    switches: Option<Switches>,
     /// The hidden items still to be found, where the Extra lists them (spike 249).
     hidden_items: Option<HiddenItems>,
     /// (zone, sprite) of the move models that are a barrier's beam (`Game.barriers`).
@@ -401,7 +404,7 @@ pub struct FieldReader {
     /// (zone, a trigger's script) -> the way the conveyor belt it is runs (`Game.belts`).
     belts: IndexMap<(i64, i64), &'static str>,
     /// Zone -> the cells of its belts that carry the player (`Game.conveyors`).
-    conveyors: IndexMap<i64, IndexMap<(i64, i64), &'static str>>,
+    conveyors: IndexMap<i64, Conveyors>,
     /// (zone, a trigger's script) of the listed triggers P walks over (`Game.crossed`).
     crossed: HashSet<(i64, i64)>,
     /// Zones walked about in as outdoors that are not their own parent, out of the ROM
@@ -560,6 +563,14 @@ impl FieldReader {
             me: me.clone(),
             hidden_items: hidden_items(me),
             works,
+            switches: if game.conveyors.is_empty() {
+                None
+            } else {
+                Some(Switches::new(
+                    memory.clone(),
+                    game.conveyors.values().map(|belts| belts.state).collect(),
+                ))
+            },
             zones: ZoneTable::new(memory.clone(), text.zone_table.clone()),
             warp_words: game.warps.clone(),
             features,
@@ -662,6 +673,9 @@ impl FieldReader {
         }
         if let Some(ice) = &self.ice {
             out.push(&**ice);
+        }
+        if let Some(switches) = &self.switches {
+            out.push(switches);
         }
         out
     }
@@ -979,6 +993,7 @@ impl FieldReader {
                 &far_covered,
             ))),
         });
+        let (conveyors, switched, switch) = self.belts_now(r#where)?;
         let grid = if trusted {
             self.grid.borrow().clone()
         } else {
@@ -1016,11 +1031,9 @@ impl FieldReader {
             raised: self.terrain.raised()?,
             walls: self.walls()?,
             grind_rails: self.grind_rails()?,
-            conveyors: self
-                .conveyors
-                .get(&r#where.zone)
-                .cloned()
-                .unwrap_or_default(),
+            conveyors,
+            switched,
+            switch,
             ..Ground::of(
                 r#where,
                 Of {
@@ -1168,6 +1181,43 @@ impl FieldReader {
             return Ok(WALL.to_string());
         };
         Ok(base_tile(held.kind(cell)?).unwrap_or(WALL).to_string())
+    }
+
+    /// The zone's conveyor belts as its switch has them now, the other way it has them, and
+    /// the switch's cell (`Ground.conveyors`, `Ground.switched`, `Ground.switch`); the belts as
+    /// they run untouched until a sweep finds whether they are turned.
+    #[allow(clippy::type_complexity)]
+    fn belts_now(
+        &self,
+        r#where: &Field,
+    ) -> Result<(
+        IndexMap<Cell, &'static str>,
+        IndexMap<Cell, &'static str>,
+        Option<Cell>,
+    )> {
+        let Some(belts) = self.conveyors.get(&r#where.zone) else {
+            return Ok((IndexMap::new(), IndexMap::new(), None));
+        };
+        let mut flipped = belts.ways.clone();
+        flipped.extend(belts.turned.iter().map(|(&cell, &way)| (cell, way)));
+        let turned = match &self.switches {
+            None => false,
+            Some(switches) => switches.turned(belts.state)? == Some(true),
+        };
+        // From the zone's own records, not the listing: guiding asks with nothing listed.
+        let data = self.current()?;
+        let switch = match &data {
+            None => None,
+            Some(data) => read_furniture(&*self.memory, data)?
+                .into_iter()
+                .find(|item| item.code == belts.switch)
+                .map(|item| item.cell),
+        };
+        Ok(if turned {
+            (flipped, belts.ways.clone(), switch)
+        } else {
+            (belts.ways.clone(), flipped, switch)
+        })
     }
 
     /// The cells of the zone's conveyor belts, each with the way it runs: its triggers whose

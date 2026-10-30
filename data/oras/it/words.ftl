@@ -22,7 +22,6 @@ kind-hidden-Pokemon = Pokémon nascosto
 kind-secret-base-spot = punto per base segreta
 kind-ladder-up = scala a pioli su
 kind-ladder-down = scala a pioli giù
-kind-switch = interruttore
 kind-lift = piattaforma mobile
 kind-trapdoor = botola
 kind-geyser = geyser

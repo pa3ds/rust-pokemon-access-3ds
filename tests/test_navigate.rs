@@ -102,6 +102,9 @@ struct FakeField {
     currents: RefCell<HashSet<Cell>>,
     /// Cells of a conveyor belt, each with the way it carries the player on foot.
     conveyors: RefCell<IndexMap<Cell, &'static str>>,
+    /// The belts as they run once `switch` is pressed.
+    switched: RefCell<IndexMap<Cell, &'static str>>,
+    switch: Slot<Option<Cell>>,
     surfaces: RefCell<IndexMap<Cell, Rc<HashSet<Cell>>>>,
     /// A stacked ground's cells, each with its lower floor's height and its upper's, None where
     /// that floor is closed; no cell, and the ground is not stacked.
@@ -151,6 +154,8 @@ impl FakeField {
             falls: RefCell::new(HashSet::new()),
             currents: RefCell::new(HashSet::new()),
             conveyors: RefCell::new(IndexMap::new()),
+            switched: RefCell::new(IndexMap::new()),
+            switch: Slot::new(None),
             surfaces: RefCell::new(IndexMap::new()),
             floors: RefCell::new(IndexMap::new()),
             bare: RefCell::new(HashSet::new()),
@@ -328,6 +333,8 @@ impl FieldSource for FakeField {
         ground.level = self.level.get();
         ground.grind_rails = self.grinds.borrow().clone();
         ground.conveyors = self.conveyors.borrow().clone();
+        ground.switched = self.switched.borrow().clone();
+        ground.switch = self.switch.get();
         if !spiky.is_empty() {
             ground = ground.mounted(
                 r#where,
@@ -3039,6 +3046,76 @@ fn test_p_rides_a_conveyor_belt_as_one_leg_and_finds_no_way_again_while_it_carri
     assert_eq!(said(&rig.backend).len(), spoken);
     drift(&mut rig, &[(90, 169)]);
     assert_eq!(last(&rig.backend), "5 north");
+}
+
+fn west_belt() -> IndexMap<Cell, &'static str> {
+    (95..100).map(|x| ((x, 170), pathfind::WEST)).collect()
+}
+
+fn east_belt() -> IndexMap<Cell, &'static str> {
+    (95..100).map(|x| ((x, 170), pathfind::EAST)).collect()
+}
+
+fn switch() -> Interactable {
+    Interactable {
+        source: 0,
+        ..Interactable::new("signs", "switch", (92, 168))
+    }
+}
+
+/// X's Poké Ball Factory: past a Team Flare Grunt on the walkway, the way to the north-east room
+/// is a belt the switch turns round, and Khai, stuck at the Grunt, pressed the switch and heard
+/// nothing new (2026-10-29, spike A). Where the belts as they run lead nowhere and a way goes by
+/// the switch, P says the way to it first; pressed, the way on is said. Nothing past the switch
+/// is unreachable.
+#[test]
+fn test_p_goes_by_the_belts_switch_where_the_belts_as_they_run_lead_nowhere() {
+    let grunt = somebody((105, 170), 0x08D269E8);
+    let now = Rc::new(Slot::new(0.0));
+    let open: HashSet<Cell> = (90..106).map(|x| (x, 170)).chain([(92, 169)]).collect();
+    let blocked: Vec<Cell> = (80..120)
+        .flat_map(|x| (160..200).map(move |z| (x, z)))
+        .filter(|cell| !open.contains(cell))
+        .collect();
+    let clock = now.clone();
+    let mut rig = navigator(Want {
+        blocked,
+        clock: Rc::new(move || clock.get()),
+        ..on(Field {
+            interactables: vec![switch(), grunt.clone()],
+            ..Field::new(0x136, (92, 170))
+        })
+    });
+    *rig.field.conveyors.borrow_mut() = west_belt();
+    *rig.field.switched.borrow_mut() = east_belt();
+    rig.field.switch.set(Some(switch().cell));
+    let r#where = rig.field.poll().unwrap().unwrap();
+    let listed = rig.field.interactables(&r#where).unwrap();
+    assert!(
+        rig.nav
+            .guide
+            .reachable(&listed)
+            .unwrap()
+            .contains(&grunt.key())
+    );
+    rig.press(ITEM_READ);
+    rig.press(ITEM_NEXT);
+    rig.press(PATHFIND);
+    assert_eq!(last(&rig.backend), "switch first, 1 north");
+    walk_to(&rig, (92, 169));
+    let r#where = rig.field.poll().unwrap().unwrap();
+    rig.nav.follow(&r#where).unwrap();
+    assert_eq!(last(&rig.backend), "switch, 1 north");
+    rig.nav.follow(&r#where).unwrap();
+    assert_eq!(last(&rig.backend), "switch, 1 north");
+    *rig.field.conveyors.borrow_mut() = east_belt();
+    *rig.field.switched.borrow_mut() = west_belt();
+    now.set(1.0);
+    rig.nav.follow(&r#where).unwrap();
+    assert_eq!(
+        last(&rig.backend),
+        "1 south, 3 east, ride the belt 5 east, 4 east"
+    );
 }
 
 /// A sandy slope going down south, the one way up through a cliff across the chunk at z 170.

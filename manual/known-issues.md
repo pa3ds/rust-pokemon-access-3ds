@@ -65,8 +65,8 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
 - **Lumiose City's plazas**: walking off a street onto a plaza at its "open ground" has not been
   tried, nor has `P` across a plaza into the next street. Round Prism Tower the directions have
   been tried on the tower's west side only.
-- **The Poké Ball Factory's conveyor belts** were tried while Team Flare holds the factory. The
-  game can turn them round, and nobody has seen when; if it does, `P` still rides them the old way.
+- **The Poké Ball Factory's conveyor belts** were tried while Team Flare holds the factory. Of the
+  belts the switch could turn, two have not been ridden turned; `P` takes them to run as before.
 - **Rails outside Shalour Gym**, on Routes 5, 13 and 18 and in Dendemille and Couriway Towns, are
   found the same way and nobody has tried them. A rail broken in the middle, as Route 5's over the
   water is, is not taken by `P`.

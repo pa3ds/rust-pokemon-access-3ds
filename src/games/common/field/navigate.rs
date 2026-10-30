@@ -410,9 +410,10 @@ impl Navigator {
         self.mode
     }
 
-    /// Whether a path is being walked, and the player's every step wants following.
+    /// Whether a path is being walked, and the player's every step wants following, or a way
+    /// waits at the belts' switch for it to be pressed (`Guide.waiting`).
     pub fn guiding(&self) -> bool {
-        self.guide.guidance.is_some()
+        self.guide.guidance.is_some() || self.guide.waiting()
     }
 
     /// Answer a key by what it means in the current mode; a key unbound there is quiet.
@@ -455,14 +456,14 @@ impl Navigator {
         // Off the map too: a way kept from before a menu or a warp is still the player's to drop.
         if action == PATHFIND_OFF {
             self.say(&own(
-                if self.guide.guidance.is_some() {
+                if self.guiding() {
                     "key-path-off"
                 } else {
                     "key-no-path"
                 },
                 &[],
             ));
-            self.guide.guidance = None;
+            self.guide.stop();
             return Ok(());
         }
         // A battle's sides are the battle's, whatever the field says.
