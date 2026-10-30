@@ -40,10 +40,10 @@
 //! behind are drawn afresh each time it opens, and the background too, whatever the place:
 //! `app::puzzle::Bg` holds its number, which pa3ds's own words describe, as the game never names
 //! it. With descriptions on, the picture is said once the puzzle holds them, left to right, then
-//! its background.
+//! its background, and again for each picture Play Again draws afresh.
 //!
 //! Bound by:
-//! - ADR-0038: the picture is Narration's, said once an app, off unless asked for.
+//! - ADR-0038: the picture is Narration's, said each time one is drawn, off unless asked for.
 
 use std::cell::Cell;
 use std::rc::Rc;
@@ -90,6 +90,10 @@ pub const BACKGROUND: &str = "N3app6puzzle2BgE";
 pub const DRAWN: i64 = 0x1DC;
 /// Where `BACKGROUND` holds the number again, a byte, and again 2 and 3 bytes on.
 pub const COPY: i64 = 0x20;
+/// Where `BACKGROUND` holds the physical address of the background's image: 0 while it is drawn,
+/// as the puzzle opens and as Play Again draws a picture afresh, and another address after
+/// (or_amie_tile_puzzle_play_again's backgrounds 1, 4 and 9, each with two Pokémon of its own).
+pub const IMAGE: i64 = 0x88;
 
 pub const GRID: &str = "slot-grid";
 pub const ROW: &str = "puzzle-row";
@@ -203,7 +207,8 @@ pub struct TilePuzzle {
     pictures: IndexMap<i64, i64>,
     /// Bg object -> the vtable it was found with.
     backgrounds: IndexMap<i64, i64>,
-    shown: Cell<bool>,
+    /// The image of the background last said with its picture, or 0.
+    shown: Cell<i64>,
 }
 
 impl TilePuzzle {
@@ -214,7 +219,7 @@ impl TilePuzzle {
             pieces: IndexMap::new(),
             pictures: IndexMap::new(),
             backgrounds: IndexMap::new(),
-            shown: Cell::new(false),
+            shown: Cell::new(0),
         }
     }
 
@@ -250,19 +255,24 @@ impl TilePuzzle {
     /// Another app has started: the next puzzle's picture is new, even one of the same
     /// Pokémon.
     pub fn started(&self) {
-        self.shown.set(false);
+        self.shown.set(0);
     }
 
     /// The picture's Pokémon the first time the puzzle holds them and its background is drawn,
-    /// then None until another app starts: each look is five reads a poll. Its `Bg` held 0 still
-    /// as its Pokémon were placed in two of six replays (spike D).
+    /// then None until another is drawn, by Play Again (`IMAGE`), or another app starts: each
+    /// look is five reads a poll. Its `Bg` held 0 still as its Pokémon were placed in two of six
+    /// replays (spike D).
     pub fn new_picture(&self) -> Result<Option<Picture>> {
-        // ponytail: one picture an app; if Play Again draws another, watch MODELS' pointers.
-        if self.shown.get() || self.board()?.is_none() || self.background()? == Some(0) {
+        let Some((number, image)) = self.drawn()? else {
+            return Ok(None);
+        };
+        if number == 0 || image == 0 || image == self.shown.get() || self.board()?.is_none() {
             return Ok(None);
         }
         let found = self.picture()?;
-        self.shown.set(found.is_some());
+        if found.is_some() {
+            self.shown.set(image);
+        }
         Ok(found)
     }
 
@@ -310,6 +320,12 @@ impl TilePuzzle {
     /// number an instruction (or_amie_tile_puzzle_easy): a number is a byte held at `COPY` as
     /// well, and one there not yet is still being drawn.
     pub fn background(&self) -> Result<Option<i64>> {
+        Ok(self.drawn()?.map(|(number, _)| number))
+    }
+
+    /// The number of the background drawn, 0 until it is, and its image (`IMAGE`); None
+    /// where no background is found (`background`).
+    fn drawn(&self) -> Result<Option<(i64, i64)>> {
         let mut drawing = None;
         for (&at, &vtable) in &self.backgrounds {
             let raw = self.memory.read(at, DRAWN + 4)?;
@@ -321,9 +337,9 @@ impl TilePuzzle {
                 continue;
             }
             if number != 0 && i64::from(raw[COPY as usize]) == number {
-                return Ok(Some(number));
+                return Ok(Some((number, u32(&raw, IMAGE)?)));
             }
-            drawing = Some(0);
+            drawing = Some((0, 0));
         }
         Ok(drawing)
     }

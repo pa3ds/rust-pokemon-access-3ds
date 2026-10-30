@@ -1,5 +1,7 @@
 //! Tile Puzzle's tiles are said by their place and where the piece each shows belongs.
 
+use std::rc::Rc;
+
 use indexmap::IndexMap;
 
 use super::fake_layouts::FakeLayouts;
@@ -200,26 +202,38 @@ const PICTURE: i64 = 0x08500000;
 const PARAMS: i64 = 0x08600000;
 const BACKGROUND: i64 = 0x08700000;
 const CODE: i64 = 0x0804F354;
+/// Where or_amie_tile_puzzle_play_again's first background's image was.
+const IMAGE: i64 = 0x14FAD080;
 /// Where or_amie_tile_puzzle_easy's three stood: right and behind, in front, left and behind.
 const STANDING: [(f32, f32); 3] = [(170.0, -335.0), (0.0, -200.0), (-170.0, -335.0)];
 
 /// A picture of a Pokémon a record, each a PokemonParam pointing to its record at +0x40, in
 /// the places or_amie_tile_puzzle_easy's stood, or all at 0 unless `placed`, before `background`,
-/// its shallow water by default (spike D), found after a word of the module's code like the
-/// background's vtable; and an Easy board, every piece home, as under Begin.
+/// its shallow water by default (spike D), its image loaded, found after a word of the module's
+/// code like the background's vtable; and an Easy board, every piece home, as under Begin.
 fn picture(records: &[Vec<u8>], placed: bool) -> puzzle::TilePuzzle {
     picture_before(records, placed, 12)
 }
 
 /// `picture(records, placed, background)`.
 fn picture_before(records: &[Vec<u8>], placed: bool, background: i64) -> puzzle::TilePuzzle {
-    let memory = FakeMemory::new();
+    picture_in(records, placed, background, FakeMemory::new())
+}
+
+/// `picture(records, placed, background, memory)`.
+fn picture_in(
+    records: &[Vec<u8>],
+    placed: bool,
+    background: i64,
+    memory: Rc<FakeMemory>,
+) -> puzzle::TilePuzzle {
     let classes = FakeClasses::new(memory.clone());
     memory.u32(PICTURE, &[classes.add(puzzle::PICTURE)]);
     let vtable = classes.add(puzzle::BACKGROUND);
     memory.u32(BACKGROUND, &[vtable]);
     memory.u32(BACKGROUND + puzzle::DRAWN, &[background]);
     memory.write(BACKGROUND + puzzle::COPY, &[background as u8]);
+    memory.u32(BACKGROUND + puzzle::IMAGE, &[IMAGE]);
     memory.u32(CODE, &[vtable]);
     memory.u32(CODE + puzzle::DRAWN, &[0xE59400C8]);
     memory.write(CODE + puzzle::COPY, &[0x21]);
@@ -362,6 +376,31 @@ fn test_the_picture_is_given_once_until_another_app_starts() {
     assert!(reader.new_picture().unwrap().is_none());
     reader.started();
     assert!(reader.new_picture().unwrap().is_some());
+}
+
+#[test]
+fn test_play_again_draws_a_picture_afresh_said_once_its_image_is_loaded() {
+    // or_amie_tile_puzzle_play_again: each Play Again drew two Pokémon and a background of its
+    // own, 1, 4 and 9, its image 0 as it was drawn and at another address after; the picture was
+    // said only as the puzzle opened.
+    let memory = FakeMemory::new();
+    let reader = picture_in(
+        &[
+            record(0x1, 257, "Blaze", true),
+            record(0x2, 25, "Pikachu", false),
+        ],
+        true,
+        12,
+        memory.clone(),
+    );
+    assert!(reader.new_picture().unwrap().is_some());
+    memory.u32(BACKGROUND + puzzle::IMAGE, &[0]);
+    memory.u32(BACKGROUND + puzzle::DRAWN, &[4]);
+    memory.write(BACKGROUND + puzzle::COPY, &[4]);
+    assert!(reader.new_picture().unwrap().is_none());
+    memory.u32(BACKGROUND + puzzle::IMAGE, &[0x14E7ED80]);
+    assert!(reader.new_picture().unwrap().is_some() && reader.background().unwrap() == Some(4));
+    assert!(reader.new_picture().unwrap().is_none());
 }
 
 #[test]

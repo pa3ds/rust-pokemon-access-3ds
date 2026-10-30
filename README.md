@@ -64,7 +64,7 @@ the Game Boy games. Nothing here is taken from its code.
 - **Scenes without words**, described when the `descriptions` setting is on: many in Omega Ruby
   and Alpha Sapphire, each one's intro and title screen among them, X's and Y's intro and title
   screen, and one in Sun so far. Pokémon-Amie's Tile Puzzle says which of your Pokémon stand
-  where in its picture, and where the picture is set.
+  where in each picture it draws, Play Again's too, and where the picture is set.
 - **Footsteps** where Omega Ruby, Alpha Sapphire, X and Y play none, as on streets, floors and in
   caves: the game's own step sound, as loud as the game and Azahar would play it.
 
