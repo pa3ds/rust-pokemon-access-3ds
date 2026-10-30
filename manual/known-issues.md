@@ -7,7 +7,9 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
 
 - **Some touch-screen apps are only partly read**: the DexNav, Pokémon-Amie, Super Training and
   the PSS. Super Training's regimen descriptions read their two columns run together, and
-  turning a PlayNav page with its arrows says nothing of the new page.
+  turning a PlayNav page with its arrows says nothing of the new page. Pokémon-Amie's Switch
+  screen calls each party member "button pokémon" and says no hearts, puffs or notes after
+  Affection, Fullness and Enjoyment.
 - **X, Y, Sun and Moon** are read less completely than Omega Ruby and Alpha Sapphire.
 
 ## The map
