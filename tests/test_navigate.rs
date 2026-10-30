@@ -12,7 +12,7 @@ use crate::core::keys::{SHIFT_DOWN, SHIFT_UP, key_name};
 use crate::core::names::Names;
 use crate::core::pathfind::{self, Cell, Leg, nearest};
 use crate::core::speech::{Backend, Category, Speech, default_interrupts};
-use crate::games::common::field::chunk::{ANY_FLOOR, BLOCKED, CHUNK, Chunk, Floor};
+use crate::games::common::field::chunk::{ANY_FLOOR, BLOCKED, CHUNK, Chunk, Floor, KIND_SHIFT};
 use crate::games::common::field::climb::Walls;
 use crate::games::common::field::grind::GrindRails;
 use crate::games::common::field::ground::{
@@ -87,6 +87,16 @@ const SNOW_FLAT: i64 = 0x33003820;
 /// The Mamoswine's character, waiting on flat ground to be ridden.
 const MAMOSWINE: i64 = 0x1007;
 
+/// Lysandre Labs' arrow tiles by the way each pushes, open (`0x7N000020`, spike A): Python's
+/// `ARROW_WORDS`.
+fn arrow_word(way: &str) -> i64 {
+    let (kind, _) = xy::ARROWS
+        .iter()
+        .find(|(_, pushes)| *pushes == way)
+        .expect("an arrow pushes one of the four ways");
+    kind << KIND_SHIFT | 0x20
+}
+
 /// What `FakeField.ground` is run through before it is handed over: Python's tests replace the
 /// method itself, which Rust cannot do to a value behind a trait.
 type Edit = Rc<dyn Fn(Ground) -> Ground>;
@@ -109,6 +119,8 @@ struct FakeField {
     currents: RefCell<HashSet<Cell>>,
     /// Cells of a conveyor belt, each with the way it carries the player on foot.
     conveyors: RefCell<IndexMap<Cell, &'static str>>,
+    /// Cells of Lysandre Labs' arrow tiles, each with the way it pushes the player.
+    arrows: RefCell<IndexMap<Cell, &'static str>>,
     /// The belts as they run once `switch` is pressed.
     switched: RefCell<IndexMap<Cell, &'static str>>,
     switch: Slot<Option<Cell>>,
@@ -163,6 +175,7 @@ impl FakeField {
             falls: RefCell::new(HashSet::new()),
             currents: RefCell::new(HashSet::new()),
             conveyors: RefCell::new(IndexMap::new()),
+            arrows: RefCell::new(IndexMap::new()),
             switched: RefCell::new(IndexMap::new()),
             switch: Slot::new(None),
             surfaces: RefCell::new(IndexMap::new()),
@@ -223,6 +236,7 @@ impl FieldSource for FakeField {
         let bumpy = self.bumpy.borrow();
         let shore = self.shore.borrow();
         let falls = self.falls.borrow();
+        let arrows = self.arrows.borrow();
         let currents = self.currents.borrow();
         let stones = self.stones.borrow();
         let launches = self.launches.borrow();
@@ -233,6 +247,8 @@ impl FieldSource for FakeField {
             .map(|cell| {
                 if self.ledges.contains(cell) {
                     SOUTH_LEDGE
+                } else if let Some(way) = arrows.get(cell) {
+                    arrow_word(way)
                 } else if currents.contains(cell) {
                     WEST_CURRENT
                 } else if self.sea.contains(cell) {
@@ -345,6 +361,11 @@ impl FieldSource for FakeField {
         ground.conveyors = self.conveyors.borrow().clone();
         ground.switched = self.switched.borrow().clone();
         ground.switch = self.switch.get();
+        ground.arrows = if arrows.is_empty() {
+            IndexMap::new()
+        } else {
+            IndexMap::from(xy::ARROWS)
+        };
         if !spiky.is_empty() {
             let rides = xy::rides();
             ground = ground.mounted(
@@ -3194,6 +3215,253 @@ fn test_p_goes_by_the_belts_switch_where_the_belts_as_they_run_lead_nowhere() {
         last(&rig.backend),
         "1 south, 3 east, ride the belt 5 east, 4 east"
     );
+}
+
+/// A corridor of Lysandre Labs' floor, x 90 to 100 along z 170, walls all round.
+fn corridor() -> Vec<Cell> {
+    (90..101).map(|x| (x, 170)).collect()
+}
+
+/// Lysandre Labs (zone 0x60): walls but at `walks` and `arrows`, each arrow with the way it
+/// pushes, the player at `player` and `items` listed (spike A).
+fn labs(
+    player: Cell,
+    walks: &[Cell],
+    arrows: &[(Cell, &'static str)],
+    items: &[Interactable],
+) -> Rig {
+    let open: HashSet<Cell> = walks
+        .iter()
+        .copied()
+        .chain(arrows.iter().map(|(cell, _)| *cell))
+        .collect();
+    let walls: Vec<Cell> = (80..120)
+        .flat_map(|x| (160..200).map(move |z| (x, z)))
+        .filter(|cell| !open.contains(cell))
+        .collect();
+    let rig = navigator(Want {
+        blocked: walls,
+        ..on(Field {
+            interactables: items.to_vec(),
+            ..Field::new(0x60, player)
+        })
+    });
+    *rig.field.arrows.borrow_mut() = arrows.iter().copied().collect();
+    rig.field.visit.set(Some((0x08D209B8, 0x60)));
+    rig
+}
+
+fn grunt(cell: Cell) -> Interactable {
+    somebody(cell, 0x08D1E9A8 + cell.0 * 0x100)
+}
+
+/// What P says of the way to `item` from where the player stands, the guide following it.
+fn heard_to(rig: &mut Rig, item: &Interactable) -> Vec<String> {
+    let r#where = rig.field.poll().unwrap().expect("a field");
+    let listed = rig.field.interactables(&r#where).unwrap();
+    let heard: RefCell<Vec<String>> = RefCell::new(Vec::new());
+    rig.nav
+        .guide
+        .to(
+            &listed,
+            item,
+            &|line: &str| heard.borrow_mut().push(line.to_string()),
+            "",
+            false,
+            None,
+            false,
+            true,
+            None,
+        )
+        .unwrap();
+    heard.into_inner()
+}
+
+/// Lysandre Labs: the player walked west onto (25, 26) and was pushed on to (22, 26), the wall
+/// stopping them, and P's way to a Grunt was said again at each cell (x_lysandre_labs, spike A).
+/// The push is one leg, by where it sets the player down, said as they step onto the arrow;
+/// nothing is said while it pushes them, and the next leg once it stops.
+#[test]
+fn test_p_says_an_arrows_push_as_one_leg_by_where_it_sets_the_player_down() {
+    let up = grunt((90, 164));
+    let mut walks = corridor();
+    walks.extend((165..170).map(|z| (90, z)));
+    let mut rig = labs(
+        (100, 170),
+        &walks,
+        &[((98, 170), pathfind::WEST)],
+        std::slice::from_ref(&up),
+    );
+    let r#where = rig.field.poll().unwrap().expect("a field");
+    let listed = rig.field.interactables(&r#where).unwrap();
+    assert!(
+        rig.nav
+            .guide
+            .reachable(&listed)
+            .unwrap()
+            .contains(&up.key())
+    );
+    rig.press(PATHFIND);
+    assert_eq!(last(&rig.backend), "2 west, arrow pushes 8 west, 5 north");
+    step(&mut rig, &[(99, 170), (98, 170)]);
+    assert_eq!(last(&rig.backend), "arrow pushes 8 west");
+    let spoken = said(&rig.backend).len();
+    let pushed: Vec<Cell> = (91..98).rev().map(|x| (x, 170)).collect();
+    step(&mut rig, &pushed);
+    assert_eq!(said(&rig.backend).len(), spoken);
+    step(&mut rig, &[(90, 170)]);
+    assert_eq!(last(&rig.backend), "5 north");
+}
+
+/// x_lysandre_labs: the way to a Grunt was said again a cell at a time, "4 north", "5 north", as
+/// an arrow pushed the player (spike A). Off the way, a push says nothing while it carries them,
+/// and the way is found again where it stops.
+#[test]
+fn test_a_push_off_the_way_finds_no_way_until_it_sets_the_player_down() {
+    let mut walks = corridor();
+    walks.extend((90..101).map(|x| (x, 171)));
+    walks.extend((165..170).map(|z| (100, z)));
+    let mut rig = labs(
+        (100, 170),
+        &walks,
+        &[((98, 170), pathfind::WEST)],
+        &[grunt((100, 164))],
+    );
+    rig.press(PATHFIND);
+    assert_eq!(last(&rig.backend), "5 north");
+    step(&mut rig, &[(99, 170)]);
+    let spoken = said(&rig.backend).len();
+    let pushed: Vec<Cell> = (91..99).rev().map(|x| (x, 170)).collect();
+    step(&mut rig, &pushed);
+    assert_eq!(said(&rig.backend).len(), spoken);
+    step(&mut rig, &[(90, 170)]);
+    assert_eq!(from(&rig.backend, spoken), ["1 south, 10 east, 6 north"]);
+}
+
+/// Lysandre Labs' arrows push the player on to the next, "pushed around to a bunch of different
+/// arrow tiles", the walkthroughs say (spike A): a push east onto an arrow north goes on north,
+/// said as one leg by where it sets them down.
+#[test]
+fn test_an_arrow_crossed_on_a_push_turns_it_and_the_push_is_one_leg_still() {
+    let mut walks = corridor();
+    walks.extend((165..170).map(|z| (96, z)));
+    let mut rig = labs(
+        (90, 170),
+        &walks,
+        &[((92, 170), pathfind::EAST), ((96, 170), pathfind::NORTH)],
+        &[grunt((97, 165))],
+    );
+    rig.press(PATHFIND);
+    assert_eq!(last(&rig.backend), "2 east, arrow pushes 4 east 5 north");
+}
+
+/// A push goes on until the cell on cannot be stood in, a person's as a wall's (spike A).
+#[test]
+fn test_a_push_stops_short_of_somebody_standing_in_its_way() {
+    let up = grunt((94, 164));
+    let mut walks = corridor();
+    walks.extend((165..170).map(|z| (94, z)));
+    let mut rig = labs(
+        (100, 170),
+        &walks,
+        &[((98, 170), pathfind::WEST)],
+        &[grunt((93, 170)), up.clone()],
+    );
+    assert_eq!(
+        heard_to(&mut rig, &up),
+        ["2 west, arrow pushes 4 west, 5 north"]
+    );
+}
+
+/// A sign read from a cell a push carries the player over is walked back to from where the push
+/// stops: the player cannot stop on the way (spike A).
+#[test]
+fn test_a_way_ends_only_where_a_push_sets_the_player_down() {
+    let sign = Interactable {
+        source: 0,
+        ..Interactable::new("signs", "sign", (94, 169))
+    };
+    let mut rig = labs(
+        (100, 170),
+        &corridor(),
+        &[((98, 170), pathfind::WEST)],
+        &[sign],
+    );
+    rig.press(PATHFIND);
+    assert_eq!(last(&rig.backend), "2 west, arrow pushes 8 west, 4 east");
+}
+
+/// A teleporter pad as the reader lists Lysandre Labs' (spike A).
+fn pad(i: i64, cell: Cell, lands: Cell) -> Interactable {
+    Interactable {
+        zone: Some(0x60),
+        source: place_source(WARP_SOURCE, i).unwrap(),
+        height: Some(0.0),
+        arrival: Some(lands),
+        landing: Some(0.0),
+        ..Interactable::new("exits", "teleporter", cell)
+    }
+}
+
+/// `PADS`: a pair of pads each putting the player on the other.
+fn pads() -> [Interactable; 2] {
+    [pad(0, (93, 172), (102, 172)), pad(1, (102, 172), (93, 172))]
+}
+
+/// Two rooms of Lysandre Labs, x 90 to 95 and 100 to 105, z 170 to 174, a wall between, joined
+/// by a pair of pads each putting the player on the other.
+fn rooms() -> Vec<Cell> {
+    (170..175)
+        .flat_map(|z| (90..96).chain(100..106).map(move |x| (x, z)))
+        .collect()
+}
+
+/// Lysandre Labs: P's way to a Grunt in a room a pad leads to was "then can't continue" (Khai,
+/// 2026-10-30, spike A). A pad's warp into its own zone is a teleporter P walks through, and its
+/// partner does nothing until stepped off; Ctrl and P reaches past it.
+#[test]
+fn test_p_walks_through_a_teleporter_pad_onto_its_partner() {
+    let beyond = grunt((104, 172));
+    let [one, other] = pads();
+    let mut rig = labs((91, 172), &rooms(), &[], &[one, other, beyond.clone()]);
+    let r#where = rig.field.poll().unwrap().expect("a field");
+    let listed = rig.field.interactables(&r#where).unwrap();
+    assert!(
+        rig.nav
+            .guide
+            .reachable(&listed)
+            .unwrap()
+            .contains(&beyond.key())
+    );
+    assert_eq!(heard_to(&mut rig, &beyond), ["2 east, teleporter, 1 east"]);
+}
+
+/// A pad's warp may build the player a new model (spike A): one that puts them in the same zone
+/// where the way's teleport lands goes on with the way, said from there.
+#[test]
+fn test_guiding_goes_on_past_a_pads_warp_where_it_lands_the_player() {
+    let beyond = grunt((104, 172));
+    let [one, other] = pads();
+    let mut rig = labs((91, 172), &rooms(), &[], &[one, other, beyond.clone()]);
+    heard_to(&mut rig, &beyond);
+    step(&mut rig, &[(92, 172), (93, 172)]);
+    rig.field.visit.set(Some((0x08D20000, 0x60)));
+    step(&mut rig, &[(102, 172)]);
+    assert_eq!(last(&rig.backend), "1 east");
+    assert!(rig.nav.guide.guidance.is_some());
+}
+
+/// ADR-0024: a warp ends the guiding, the pad's own but where it lands the player on the way.
+#[test]
+fn test_any_other_warp_leaves_the_way() {
+    let beyond = grunt((104, 172));
+    let [one, other] = pads();
+    let mut rig = labs((91, 172), &rooms(), &[], &[one, other, beyond.clone()]);
+    heard_to(&mut rig, &beyond);
+    step(&mut rig, &[(92, 172)]);
+    rig.field.visit.set(Some((0x08D20000, 0x60)));
+    step(&mut rig, &[(100, 170)]);
+    assert!(rig.nav.guide.guidance.is_none());
 }
 
 /// A sandy slope going down south, the one way up through a cliff across the chunk at z 170.

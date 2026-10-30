@@ -7,7 +7,7 @@ When one of them is also bound to an Azahar button, pa3ds says so as it starts.
 ## The map's list
 
 pa3ds lists what is on the map in categories: all, exits, interactables, obstacles, people, items,
-berries, ash, bike, riding, climbing, currents and pokémon, and while soaring, towns, routes, landmarks and mirage
+berries, ash, bike, riding, climbing, currents, arrows and pokémon, and while soaring, towns, routes, landmarks and mirage
 spots. A category with nothing in it is skipped. Each thing is said with where it is from you:
 "door, 1 of 3, 3 east 2 north". A thing more than two squares' height above or below you says how
 far, in the game's units, 18 to a square: "item ball, 1 north, 90 below". North is the way up
@@ -28,6 +28,10 @@ leads you through them, saying the way as far as the first and how many more.
 
 In the Poké Ball Factory, in X and Y, the interactables list each place you step onto a conveyor
 belt as "conveyor belt", and the switch that turns a belt round as "switch".
+
+In Lysandre Labs, in X and Y, the arrows list each arrow tile by the way it points, "arrow west",
+with where it leaves you, and the exits list each round pad as "teleporter", with where it puts
+you.
 
 The list has three **modes**, and the apostrophe steps through them. During a battle or a scene
 the map's keys say "no map", and the thing you had chosen is kept for when the map comes back.
@@ -136,6 +140,11 @@ whatever you press. `P` rides a belt as one step of the way, said by where it se
 "ride the belt 7 west 4 north", and waits until it has. Where the belts as they run go nowhere
 near what you chose, but would once the switch turned one round, `P` says "switch first" and leads
 you to it; press A there, and `P` says the way on.
+
+**Arrow tiles.** In Lysandre Labs an arrow tile pushes you the way it points until something
+stops you, and an arrow you cross turns you its way. `P` takes a push as one step of the way, said
+by where it leaves you, "arrow pushes 3 west", and waits until it has. `P` also leads you through
+the round pads, and goes on with the way once a pad has put you down.
 
 **Ice.** In Shoal Cave at low tide you slide across the ice until a wall or the floor stops you.
 `P` says each slide as one step of the way, "slide 4 north": step that way once and let it carry

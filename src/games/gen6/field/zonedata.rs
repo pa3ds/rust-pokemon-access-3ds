@@ -332,15 +332,28 @@ pub fn read_triggers(memory: &dyn Memory, data: &ZoneData) -> Result<Vec<Vec<u8>
         .collect())
 }
 
-/// The cell a warp of `zone`'s own table comes out at where it leads back into `zone`: the
-/// warp of its slot (`WARP_TO_SLOT`), in the same table. None for a warp into another zone, whose
-/// table is not at hand.
-pub fn arrival(record: &[u8], zone: Option<i64>, warps: &[Vec<u8>]) -> Result<Option<Cell>> {
+/// The warp of `zone`'s own table a warp of it comes out at where it leads back into `zone`:
+/// the warp of its slot (`WARP_TO_SLOT`). None for a warp into another zone, whose table is not
+/// at hand.
+pub fn arrives<'a>(
+    record: &[u8],
+    zone: Option<i64>,
+    warps: &'a [Vec<u8>],
+) -> Result<Option<&'a [u8]>> {
     let slot = u16(record, WARP_TO_SLOT)?;
     if Some(u16(record, WARP_TO)?) != zone || slot >= warps.len() as i64 {
         return Ok(None);
     }
-    Ok(Some(warp_box(&warps[slot as usize])?.0))
+    Ok(Some(&warps[slot as usize]))
+}
+
+/// The cell a warp of `zone`'s own table comes out at where it leads back into `zone`
+/// (`arrives`), or None.
+pub fn arrival(record: &[u8], zone: Option<i64>, warps: &[Vec<u8>]) -> Result<Option<Cell>> {
+    match arrives(record, zone, warps)? {
+        None => Ok(None),
+        Some(at) => Ok(Some(warp_box(at)?.0)),
+    }
 }
 
 /// A warp record's first cell and how many cells it covers, off the rails.

@@ -489,6 +489,7 @@ fn test_every_kind_of_slot_has_a_word() {
         things::VINE_SOURCE,
         things::OPENING_SOURCE,
         things::TELEPORT_SOURCE,
+        things::ARROW_SOURCE,
     ]
     .map(|value| value >> 32)
     .to_vec();

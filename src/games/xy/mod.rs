@@ -613,14 +613,38 @@ pub const WEB_STAIRS: i64 = 0x4;
 /// Python's is a frozenset of the range; a `Range` here, collected where a set is wanted.
 pub const ELEVATORS: std::ops::Range<i64> = 0x27DA..0x280A;
 
+/// Lysandre Labs' arrow tiles (zone 0x60), cell kinds of the chunk's table, open (`0x7N000020`):
+/// 34 cells, all in chunk files 809 and 810 of `a/0/4/1`, the Labs' floor; no other chunk file of X
+/// has open cells of 0x74 to 0x7a. In the tape of x_lysandre_labs the player walked north onto (34,
+/// 25), 0x79, and was carried south a cell each 0.21 s to (34, 30), where the wall at (34, 31)
+/// stopped them, three times; on the rig they walked west onto (25, 26), 0x77, and with no key held
+/// were carried on to (22, 26), the wall at (21, 26) stopping them. Of the ways the other three
+/// kinds could push, only this one pushes no arrow straight into a wall, and it is the order of
+/// ORAS's currents, 0x94 to 0x97. A push goes on over any floor until the cell on cannot be stood
+/// in, and an arrow crossed turns it its own way: the chains are taken from the walkthroughs,
+/// "pushed around to a bunch of different arrow tiles", never seen; no push crosses a warp pad
+/// (spike A).
+pub const ARROWS: [(i64, &str); 4] = [
+    (0x76, pathfind::EAST),
+    (0x77, pathfind::WEST),
+    (0x78, pathfind::NORTH),
+    (0x79, pathfind::SOUTH),
+];
+
 pub const ENTRANCES: [i64; 6] = [0x1001, 0x1101, 0x1601, 0x3701, 0x3800, 0x3901];
-pub const TELEPORTER_PADS: [i64; 2] = [0x0001, 0x0601];
+pub const TELEPORTER_PADS: [i64; 1] = [0x0601];
+/// `0x0001` is where a pad puts the player and no pad: Lysandre Labs' (11, 2) puts them on (33,
+/// 27), and on the rig the player stepped south onto (33, 27) and stood there 2 s with no warp,
+/// "the yellow one goes back to the entrance", the walkthroughs say. X has two, the other in zone
+/// 0x66 (spike A).
+pub const LANDINGS: [i64; 1] = [0x0001];
 pub const WAYS_OUT: [i64; 5] = [0x0400, 0x0800, 0x0901, 0x0902, 0x0903];
 pub const DOORS: [i64; 3] = [0x0201, 0x0F01, 0x3600];
 
 /// What X's warp kinds that are not a door from outdoors, the mat out or stairs are, each told by
-/// where its warps lead and the kind of the warp each arrives at (spike 220). Teleporters: `0x0601`
-/// and `0x0001`, Lysandre Labs' 26 pads, each to a pad of its own zone. Ways out: `0x0800` out of
+/// where its warps lead and the kind of the warp each arrives at (spike 220). Teleporters: `0x0601`,
+/// Lysandre Labs' pads, each to a pad of its own zone, and walked through by P (spike A); the
+/// `0x0001` a pad puts the player on is no teleporter (`LANDINGS`). Ways out: `0x0800` out of
 /// each Gym but Prism Tower's, `0x0901` to `0x0903` Prism Tower's, and `0x0400` out of a Santalune and
 /// a Lumiose building. Doors: `0x0201`, the Elite Four's and the Radiant Chamber's inner doors and two
 /// into Lysandre Labs, `0x0f01` the Tower of Mastery's, `0x3600` one in the Team Flare Secret HQ,
@@ -694,6 +718,8 @@ pub fn game() -> &'static Game {
         pickups: HashSet::from([KIRAKIRA2]),
         elevators: ELEVATORS.collect(),
         warps: warps().clone(),
+        landings: HashSet::from(LANDINGS),
+        arrows: IndexMap::from(ARROWS),
         triggers: IndexMap::from([
             (
                 (HOUSE, 0x6),

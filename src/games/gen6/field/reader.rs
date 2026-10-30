@@ -44,10 +44,11 @@ use crate::games::common::field::ground::{
     riding, walkable,
 };
 use crate::games::common::field::things::{
-    BIKE, BIKE_SOURCE, CLIMB_SOURCE, CLIMBING, CURRENT_SOURCE, CURRENTS_CATEGORY,
-    DECORATION_SOURCE, DIVE_SOURCE, EDGE_SOURCE, FURNITURE_SOURCE, Field, Interactable, OBSTACLES,
-    OPENING_SOURCE, POKEMON, RIDE_SOURCE, RIDING, STAIRS_SOURCE, TELEPORT_SOURCE, TELEPORTER,
-    TILE_SOURCE, TRIGGER_SOURCE, VINE_SOURCE, WARP_SOURCE, kind_said, place_source,
+    ARROW_SOURCE, ARROWS, BIKE, BIKE_SOURCE, CLIMB_SOURCE, CLIMBING, CURRENT_SOURCE,
+    CURRENTS_CATEGORY, DECORATION_SOURCE, DIVE_SOURCE, EDGE_SOURCE, FURNITURE_SOURCE, Field,
+    Interactable, OBSTACLES, OPENING_SOURCE, POKEMON, RIDE_SOURCE, RIDING, STAIRS_SOURCE,
+    TELEPORT_SOURCE, TELEPORTER, TILE_SOURCE, TRIGGER_SOURCE, VINE_SOURCE, WARP_SOURCE, kind_said,
+    place_source,
 };
 use crate::games::common::field::vines::{End, Vines, paired};
 use crate::games::gen6::field::conveyors::Switches;
@@ -62,7 +63,7 @@ use crate::games::gen6::field::zonedata::{
     FURNITURE, FURNITURE_SCRIPT, LZ11, NPC, NPC_INDEX, NPC_SCRIPT, NPC_SPRITE, NPC_X, NPC_Z,
     TRIGGER_HEIGHT, TRIGGER_SCRIPT, TRIGGER_VALUE, TRIGGER_WIDTH, TRIGGER_WORK, TRIGGER_X,
     TRIGGER_Y, TRIGGER_Z, WARP, WARP_DOOR, WARP_KIND, WARP_OUT, WARP_STAIRS, WARP_STREET, WARP_TO,
-    WARP_Y, ZoneData, arrival, on_rail, read_furniture, read_records, read_triggers, read_zone,
+    WARP_Y, ZoneData, arrives, on_rail, read_furniture, read_records, read_triggers, read_zone,
     trigger_placed, warp_box, zone_files,
 };
 use crate::games::gen6::field::zonetable::{
@@ -142,6 +143,10 @@ pub const BUMPY_SLOPE: &str = "bumpy slope";
 /// end of a rail only the Acro Bike crosses, are called: the game names none of them, and its words
 /// for the bikes are their items' (spike 159).
 pub const BIKE_RAIL: &str = "rail";
+
+/// What an arrow tile is called, with the way it pushes the player, "arrow east": the game draws
+/// it and never names it (spike A).
+pub const ARROW: &str = "arrow";
 
 /// What a patch of the deep water Dive goes down through is called: the game draws it darker than
 /// the sea and asks about diving there, but never names it (spike 164).
@@ -313,6 +318,11 @@ pub struct FieldReader {
     pub zones: ZoneTable,
     /// Warp kind -> what it is, where the kind says more than a door or stairs (`Game.warps`).
     warp_words: IndexMap<i64, String>,
+    /// The warp kinds that are only where a teleporter pad puts the player (`Game.landings`).
+    landings: HashSet<i64>,
+    /// The cell kinds of the arrow tiles that push the player, each with its way
+    /// (`Game.arrows`).
+    arrows: IndexMap<i64, &'static str>,
     /// What the game has of its own to list: ORAS's berry spots and ash piles.
     features: Vec<Rc<dyn Feature>>,
     /// The game's rotating doors, or None in a game without them.
@@ -573,6 +583,8 @@ impl FieldReader {
             },
             zones: ZoneTable::new(memory.clone(), text.zone_table.clone()),
             warp_words: game.warps.clone(),
+            landings: game.landings.clone(),
+            arrows: game.arrows.clone(),
             features,
             doors: game.doors.map(|make| make(memory.clone())),
             blockers: game.blockers.clone(),
@@ -1058,8 +1070,13 @@ impl FieldReader {
         if let Some(vines) = self.vines(r#where.zone)? {
             ground.vines = vines;
         }
+        let ways = self.found_ways(r#where.zone)?;
+        // Only where the zone has arrows does a search carry a push.
+        if !self.arrows.is_empty() && ways.0.iter().any(|item| item.category == ARROWS) {
+            ground.arrows = self.arrows.clone();
+        }
         // Where no flat ground lies, nothing is got on or off, and no search carries a ride.
-        let flats = !self.found_ways(r#where.zone)?.3.is_empty();
+        let flats = !ways.3.is_empty();
         match &self.rides {
             Some(rides) if flats => ground.mounted(
                 r#where,
@@ -1427,17 +1444,32 @@ impl FieldReader {
             for (i, record) in warps.iter().enumerate() {
                 let files = self.terrain.files.borrow().1.clone();
                 let shape = self.rails.on_grid(record, &files)?;
-                if shape.is_none() && on_rail(record)? {
+                if (shape.is_none() && on_rail(record)?)
+                    || self.landings.contains(&u16(record, WARP_KIND)?)
+                {
                     continue;
                 }
                 let at = match &shape {
                     None => None,
                     Some(shape) => Some(rail::spread(shape.iter().copied())?),
                 };
-                let warp = self.warp(i as i64, record, at, home)?;
+                let (warp, out) = (
+                    self.warp(i as i64, record, at, home)?,
+                    arrives(record, home, &warps)?,
+                );
+                // A pad into its own zone is a teleporter P walks through, landing as high as the
+                // warp it comes out at (`Ground.teleports`, spike A).
+                let landing = match out {
+                    Some(out) if warp.kind == TELEPORTER => Some(s16(out, WARP_Y)? as f64),
+                    _ => None,
+                };
                 found.push(Interactable {
                     home,
-                    arrival: arrival(record, home, &warps)?,
+                    arrival: match out {
+                        None => None,
+                        Some(out) => Some(warp_box(out)?.0),
+                    },
+                    landing,
                     shape: shape.unwrap_or_default(),
                     ..warp
                 });
@@ -2839,8 +2871,8 @@ impl FieldReader {
         Ok(out)
     }
 
-    /// The bike's things in the zone, its holes, each patch of deep water, its currents and
-    /// each patch of flat ground, found once a map.
+    /// The zone's arrows, the bike's things and its holes, each patch of deep water, its
+    /// currents and each patch of flat ground, found once a map.
     fn found_ways(&self, zone: i64) -> Result<FoundWays> {
         let mut loaded: IndexMap<(i64, i64), Rc<Chunk>> = IndexMap::new();
         for chunk in self.chunks_loaded()? {
@@ -2871,10 +2903,10 @@ impl FieldReader {
         ))
     }
 
-    /// The bike's things in the zone and its holes, each patch of deep water, each of its
-    /// currents, its cells with where each lets the player go, and each patch of the flat
-    /// ground a ridden Pokémon is got on and off on, where the zone has ground one crosses
-    /// (`_ways`).
+    /// The zone's arrows, each with where its push sets the player down (`pushed`), the bike's
+    /// things in the zone and its holes, each patch of deep water, each of its currents, its
+    /// cells with where each lets the player go, and each patch of the flat ground a ridden
+    /// Pokémon is got on and off on, where the zone has ground one crosses (`_ways`).
     fn find_ways(&self, zone: i64, loaded: &IndexMap<(i64, i64), Rc<Chunk>>) -> Result<FoundWays> {
         let (wide, files) = {
             let held = self.terrain.files.borrow();
@@ -2957,7 +2989,34 @@ impl FieldReader {
                 .copied()
                 .ok_or_else(|| Error::key(format!("({}, {})", cell.0, cell.1)))
         };
+        let mut arrows: IndexMap<Cell, i64> = IndexMap::new();
+        if !self.arrows.is_empty() {
+            for chunk in chunks.values() {
+                for (cell, kind) in chunk.kinds() {
+                    if self.arrows.contains_key(&kind) && chunk.walkable(cell)? {
+                        arrows.insert(cell, kind);
+                    }
+                }
+            }
+        }
+        let ways: IndexMap<Cell, &'static str> = arrows
+            .iter()
+            .map(|(&cell, kind)| (cell, self.arrows[kind]))
+            .collect();
+        let pushed = pushed(&ways, &shut)?;
         let mut out: Vec<Interactable> = Vec::new();
+        for (&cell, &kind) in &arrows {
+            let at = self.zone_at(cell)?;
+            if at == Some(zone) || at.is_none() {
+                out.push(Interactable {
+                    code: kind,
+                    source: place_source(ARROW_SOURCE, cell_number(cell))?,
+                    home: Some(zone),
+                    arrival: Some(pushed[&cell]),
+                    ..Interactable::new(ARROWS, &format!("{ARROW} {}", ways[&cell]), cell)
+                });
+            }
+        }
         let mut dives: Vec<Vec<Cell>> = Vec::new();
         let mut flats: Vec<Vec<Cell>> = Vec::new();
         let mut spikes = false;
@@ -3282,6 +3341,38 @@ fn opened(chunk: Rc<Chunk>, cells: &HashSet<Cell>) -> Rc<Chunk> {
         words,
         ..(*chunk).clone()
     })
+}
+
+/// Where a push from each arrow sets the player down, as the search walks it with nobody in the
+/// way (`Ground.walk`): its way a cell at a time over any floor, turned by each arrow it crosses,
+/// to the last cell before the way is shut. Stops on an arrow crossed twice, a ring.
+fn pushed(
+    arrows: &IndexMap<Cell, &'static str>,
+    shut: &dyn Fn(Cell) -> Result<bool>,
+) -> Result<IndexMap<Cell, Cell>> {
+    let mut out: IndexMap<Cell, Cell> = IndexMap::new();
+    for (&start, &way) in arrows {
+        let (mut cell, mut way) = (start, way);
+        // A set only tested.
+        let mut crossed: HashSet<Cell> = HashSet::from([start]);
+        loop {
+            let (dx, dz) = pathfind::step_of(way)?;
+            let ahead = (cell.0 + dx, cell.1 + dz);
+            if shut(ahead)? {
+                break;
+            }
+            cell = ahead;
+            if let Some(&turned) = arrows.get(&cell) {
+                if crossed.contains(&cell) {
+                    break;
+                }
+                crossed.insert(cell);
+                way = turned;
+            }
+        }
+        out.insert(start, cell);
+    }
+    Ok(out)
 }
 
 /// Where a current lets the player go from each of its cells, as `Ground.drift` carries them

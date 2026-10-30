@@ -1270,6 +1270,52 @@ fn test_a_teleporter_into_its_own_zone_says_the_cell_it_comes_out_at() -> Result
     Ok(())
 }
 
+/// Lysandre Labs (spike A): the pad at (11, 2) puts the player on (33, 27), a 0x0001 warp that
+/// does nothing stepped onto. It is not listed, and the pad is a teleporter P walks through,
+/// landing the player as high as the warp it comes out at.
+#[test]
+fn test_a_pads_landing_is_not_listed_and_the_pad_lands_the_player_as_high_as_it() -> Result<()> {
+    let mut town = Town::new();
+    let data = zone_file(&ZoneSpec {
+        warps: &[
+            (HOUSE, WARP_DOOR, 94, 171, None, None),
+            (TOWN, 0x0601, 95, 171, Some(0), Some(2)),
+            (TOWN, 0x0001, 100, 176, Some(18), Some(1)),
+        ],
+        info: &town_info(),
+        ..ZoneSpec::default()
+    });
+    town.memory.write(FILE, &data);
+    town.memory
+        .u32(HOLDER + 8, &[0x11 | (data.len() as i64) << 8]);
+    town.reader = field_reader(
+        town.memory.clone(),
+        Given::default(),
+        Game {
+            warps: xy::warps().clone(),
+            landings: HashSet::from(xy::LANDINGS),
+            ..game()
+        },
+    );
+    let pads: Vec<(String, (i64, i64), Option<(i64, i64)>, Option<f64>)> = town
+        .r#where()?
+        .of("exits")
+        .into_iter()
+        .filter(|item| item.zone == Some(TOWN))
+        .map(|item| (item.kind.clone(), item.cell, item.arrival, item.landing))
+        .collect();
+    assert_eq!(
+        pads,
+        [(
+            "teleporter".to_string(),
+            (95, 171),
+            Some((100, 176)),
+            Some(18.0)
+        )]
+    );
+    Ok(())
+}
+
 /// Spike 107: Lumiose's walk-in warps lead into its buildings and onto Centrico Plaza, a zone
 /// of its streets that is not its own parent, which only the ROM says is walked as outdoors.
 #[test]
@@ -4414,6 +4460,55 @@ fn test_currents_that_let_the_player_go_round_one_place_are_one_listed_where_the
           5 east 5 north"
             .to_string()
     ));
+    Ok(())
+}
+
+/// Spike A: Lysandre Labs' arrow tiles push the player their way until the way is shut, an arrow
+/// crossed turning the push its own way. Each is listed under arrows by its way, with where its
+/// push stops, and the ground there pushes.
+#[test]
+fn test_each_arrow_is_listed_by_its_way_with_where_its_push_sets_the_player_down() -> Result<()> {
+    let mut town = Town::new();
+    town.reader = field_reader(
+        town.memory.clone(),
+        Given::default(),
+        Game {
+            arrows: IndexMap::from(xy::ARROWS),
+            ..game()
+        },
+    );
+    let mut blocked = border(160);
+    blocked.extend([(104, 165), (107, 175)]);
+    town.block_tiles(
+        TOWN_BLOCK,
+        TOWN_CHUNK,
+        (80, 160),
+        &blocked,
+        &[
+            ((100, 170), 0x76000020),
+            ((104, 170), 0x78000020),
+            ((110, 175), 0x77000020),
+        ],
+    );
+    let r#where = town.r#where()?;
+    let mut seen: Vec<(String, (i64, i64), Option<(i64, i64)>)> = r#where
+        .of("arrows")
+        .iter()
+        .map(|item| (item.kind.clone(), item.cell, item.arrival))
+        .collect();
+    seen.sort();
+    assert_eq!(
+        seen,
+        [
+            ("arrow east".to_string(), (100, 170), Some((104, 166))),
+            ("arrow north".to_string(), (104, 170), Some((104, 166))),
+            ("arrow west".to_string(), (110, 175), Some((108, 175))),
+        ]
+    );
+    assert_eq!(
+        town.reader.ground(&r#where)?.arrow((110, 175))?,
+        Some(pathfind::WEST)
+    );
     Ok(())
 }
 

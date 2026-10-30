@@ -64,6 +64,7 @@ category-bike = bike
 category-riding = riding
 category-climbing = climbing
 category-currents = currents
+category-arrows = arrows
 category-pokemon = pokémon
 # A category chosen, with how many things are in it.
 key-category = { $category }, { $count }
@@ -173,6 +174,10 @@ p-grind = grind the rail { $bearing }
 # them: "3 north, ride the belt 7 west 4 north" (X's Poké Ball Factory, spike 259).
 how-ride-the-belt = ride the belt
 p-belt = ride the belt { $bearing }
+# A leg an arrow tile pushes the player along, and a run of them, by where the push
+# sets them down: "5 west, arrow pushes 3 west, 2 north" (Lysandre Labs, spike A).
+how-arrow-pushes = arrow pushes
+p-arrow = arrow pushes { $bearing }
 # A way that goes by the switch that turns the belts round, where the way there falls
 # short with the belts as they run: the way to the switch, and the way on said once it
 # is pressed: "switch first, 7 west, 17 south, 3 east" (X's Poké Ball Factory, spike 259).
@@ -484,6 +489,11 @@ kind-barrier = barrier
 kind-hole = hole
 kind-dive-spot = dive spot
 kind-current = current
+# An arrow tile in Lysandre Labs, by the way it pushes the player (spike A).
+kind-arrow-east = arrow east
+kind-arrow-west = arrow west
+kind-arrow-north = arrow north
+kind-arrow-south = arrow south
 kind-flat-ground = flat ground
 # Where one of Lumiose's streets ends on ground walked on the grid, as its plazas are (spike 251).
 kind-open-ground = open ground

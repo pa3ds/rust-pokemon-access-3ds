@@ -81,8 +81,8 @@ use crate::py::{self, Error, Log, Result};
 use crate::ux::dialog::Asker;
 
 /// `(ALL, *things.CATEGORIES)`.
-pub const CATEGORIES: [&str; 13] = {
-    let mut out = [ALL; 13];
+pub const CATEGORIES: [&str; 14] = {
+    let mut out = [ALL; 14];
     let mut at = 0;
     while at < things::CATEGORIES.len() {
         out[at + 1] = things::CATEGORIES[at];

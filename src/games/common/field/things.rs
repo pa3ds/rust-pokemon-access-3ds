@@ -104,6 +104,9 @@ pub const OPENING_SOURCE: i64 = 19 << 32;
 /// the module's table (`rail.Teleport`, spike 264).
 pub const TELEPORT_SOURCE: i64 = 20 << 32;
 
+/// An arrow tile's source: `ARROW_SOURCE | x << 12 | z`, its cell (spike A).
+pub const ARROW_SOURCE: i64 = 21 << 32;
+
 /// A place's `source` from its kind's tag and its own number. The number must leave the tag's
 /// bits clear, and no u16 the game holds can reach them, so one that does is a new encoding
 /// written wider than the tag allows for: a programmer's error, refused here rather than keyed as
@@ -168,6 +171,11 @@ pub const OBSTACLES: &str = "obstacles";
 /// teleporter is by where it comes out (Orion, 2026-10-13).
 pub const CURRENTS_CATEGORY: &str = "currents";
 
+/// The arrow tiles that push the player, a category of their own, each by the way it pushes and
+/// where its push sets the player down, as a current is by where it lets them go: Lysandre Labs'
+/// floor is full of them (Khai, 2026-10-30, spike A).
+pub const ARROWS: &str = "arrows";
+
 /// The flat ground a ridden Pokémon is got on and off on, a category of its own: "not sure when you
 /// can get off rhyhorn so that prob need its own category" (Khai, 2026-10-22).
 pub const RIDING: &str = "riding";
@@ -182,7 +190,7 @@ pub const CLIMBING: &str = "climbing";
 pub const TELEPORTER: &str = "teleporter";
 
 /// In the order they are walked and logged.
-pub const CATEGORIES: [&str; 12] = [
+pub const CATEGORIES: [&str; 13] = [
     "exits",
     "signs",
     OBSTACLES,
@@ -194,6 +202,7 @@ pub const CATEGORIES: [&str; 12] = [
     RIDING,
     CLIMBING,
     CURRENTS_CATEGORY,
+    ARROWS,
     POKEMON,
 ];
 
@@ -201,15 +210,15 @@ pub const CATEGORIES: [&str; 12] = [
 #[derive(Debug, Clone, PartialEq)]
 pub struct Interactable {
     /// One of `CATEGORIES`: `exits`, `signs`, `obstacles`, `people`, `items`, `berries`, `ash`,
-    /// `bike`, `riding`, `climbing`, `currents` or `pokémon`, or in the sky `towns`, `routes`,
-    /// `landmarks` or `mirage spots`.
+    /// `bike`, `riding`, `climbing`, `currents`, `arrows` or `pokémon`, or in the sky `towns`,
+    /// `routes`, `landmarks` or `mirage spots`.
     pub category: String,
     /// What it is, in pa3ds's own words: `door`, `sign`, `PC`, `person`, `item ball`, `edge`,
     /// `berry spot`, `ash pile`, `hidden Pokémon`, `barrier`, `switch`, `passage`, `trapdoor`,
     /// `geyser`, `lift`, `teleporter`, `dive spot`, `stairs`, `stairs up`, `stairs down`, `ladder
     /// up`, `ladder down`, `entrance`, `slope`, `bumpy slope`, `rail`, `current`, `blue spot`,
-    /// `wall ledge`, `vine up`, `vine down`, `swinging vine`, `open ground`, a `flock` in the sky;
-    /// or in the sky, the game's own name for a place.
+    /// `wall ledge`, `vine up`, `vine down`, `swinging vine`, `open ground`, `arrow east` and its
+    /// other ways, a `flock` in the sky; or in the sky, the game's own name for a place.
     pub kind: String,
     pub cell: (i64, i64),
     pub size: (i64, i64),
@@ -241,13 +250,14 @@ pub struct Interactable {
     pub height: Option<f64>,
     /// For an exit that comes out in the zone it is in, the cell it comes out at: a hideout's
     /// teleporter pads, most of which lead to another pad of their own room (2026-10-06). For a
-    /// current, where it lets the player go from `cell`. For a teleporter that moves the player
-    /// within the zone with no warp, where it puts them (`landing`).
+    /// current, where it lets the player go from `cell`, and for an arrow, where its push sets them
+    /// down. For a teleporter that moves the player within the zone, where it puts them
+    /// (`landing`).
     pub arrival: Option<(i64, i64)>,
-    /// For a teleporter that moves the player within the zone with no warp, how high `arrival`
-    /// is: which floor it puts them on, Laverre Gym's panels (spike 258). Set only with `arrival`;
-    /// None for anything else, a warp's teleporter pad among them, whose warp builds the field
-    /// anew.
+    /// For a teleporter that moves the player within the zone, how high `arrival` is: which
+    /// floor it puts them on, Laverre Gym's panels (spike 258), and the height of the warp a
+    /// teleporter pad's warp comes out at, Lysandre Labs' (spike A). Set only with `arrival`; None
+    /// for anything else.
     pub landing: Option<f64>,
     /// For a move model built from a record of a zone's table, that zone and the record's index:
     /// which one it is, wherever it walks or is pushed (spike 202). None where it is not read: Sun's

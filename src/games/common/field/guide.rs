@@ -135,10 +135,20 @@ fn vined(legs: Vec<Leg>) -> Vec<Leg> {
 /// corner, with up held all the way (spike 259). The game names no such thing.
 pub const BELT: &str = "ride the belt";
 
+/// What a leg an arrow tile pushes the player along is said with, a run of them as one by where
+/// the push sets them down, turned by any arrow on the way: "5 west, arrow pushes 3 west, 2 north".
+/// In Lysandre Labs the player walked north onto (34, 25) and was pushed south a cell each 0.21 s
+/// to (34, 30), the wall stopping them (x_lysandre_labs, spike A). The game names no such thing.
+pub const ARROW: &str = "arrow pushes";
+
 /// The legs a player is carried along rather than walks, each with the message a run of them is
 /// said by, where it leaves them (`_spoken`).
-pub const CARRIED: [(&str, &str); 3] =
-    [(CURRENT, "p-current"), (GRIND, "p-grind"), (BELT, "p-belt")];
+pub const CARRIED: [(&str, &str); 4] = [
+    (CURRENT, "p-current"),
+    (GRIND, "p-grind"),
+    (BELT, "p-belt"),
+    (ARROW, "p-arrow"),
+];
 
 /// A carried leg's way -> its step: a rail's bends are diagonal (Python's `_CARRIED_STEPS`, the
 /// two tables one after the other).
@@ -1092,6 +1102,26 @@ fn spoken(legs: &[Leg], r#where: &Field, crossings: &IndexMap<i64, String>) -> R
     Ok(parts.join(", "))
 }
 
+/// Whether a warp put the player in the zone the way was found in, on the cell the way's next
+/// teleport puts them: a teleporter pad's is a warp, which may build the player a new model (not
+/// measured, spike A), and the way goes on from where it lands them as across a teleport that
+/// keeps it.
+fn landed(r#where: &Field, guidance: &Guidance, visit: Option<(i64, i64)>) -> bool {
+    let (Some(visit), Some(was)) = (visit, guidance.visit) else {
+        return false;
+    };
+    if visit.1 != was.1 {
+        return false;
+    }
+    let leg = guidance
+        .legs
+        .get(guidance.leg as usize..)
+        .unwrap_or(&[])
+        .iter()
+        .find(|one| one.teleported);
+    leg.is_some_and(|leg| guidance.path[leg.end as usize] == r#where.cell)
+}
+
 /// Degrees between two bearings, the short way round.
 fn apart(one: f64, other: f64) -> f64 {
     (py::modulo_f(one - other + 180.0, 360.0) - 180.0).abs()
@@ -1752,6 +1782,9 @@ impl Guide {
         for i in ground.teleported(&path)? {
             placed.insert(i, (TELEPORTER.to_string(), None));
         }
+        for i in ground.arrowed(&path)? {
+            placed.insert(i, (ARROW.to_string(), None));
+        }
         let legs = vined(self::held(
             ramps(
                 pathfind::legs_with(&path, Some(&how), Some(&key), Some(&placed))?,
@@ -1822,8 +1855,9 @@ impl Guide {
     /// turn, the thing itself when they arrive, and a new path when they leave this one. A
     /// teleporter on the way says nothing as they step onto it, and the leg after it once it
     /// has put them where the way goes on, on its floor; one that puts them elsewhere puts them
-    /// off the way (ADR-0024). A way waiting at the belts' switch goes on once it is pressed
-    /// (`_pressed`).
+    /// off the way (ADR-0024). A warp leaves the way, but a teleporter pad's that lands them
+    /// where the way goes on (`_landed`). A way waiting at the belts' switch goes on once it is
+    /// pressed (`_pressed`).
     pub fn follow(&mut self, r#where: &Field) -> Result<()> {
         let Some(guidance) = self.guidance.clone() else {
             return self.pressed(r#where);
@@ -1840,12 +1874,15 @@ impl Guide {
             return self.line_up(r#where, &guidance);
         }
         if visit != guidance.borrow().visit {
-            self.guidance = None;
-            (self.log)(&format!(
-                "path: a warp, the way to {} is left",
-                guidance.borrow().name
-            ));
-            return Ok(());
+            if !landed(r#where, &guidance.borrow(), visit) {
+                self.guidance = None;
+                (self.log)(&format!(
+                    "path: a warp, the way to {} is left",
+                    guidance.borrow().name
+                ));
+                return Ok(());
+            }
+            guidance.borrow_mut().visit = visit;
         }
         let was = std::mem::replace(&mut guidance.borrow_mut().cell, r#where.cell);
         {
@@ -2209,6 +2246,12 @@ impl Guide {
         }
         if ground.grind_rails.cells.contains(&r#where.cell) {
             // So is a grind rail, from end to end, and no search starts on one (`GrindRails.hold`).
+            return Ok(());
+        }
+        if ground.pushing(r#where.cell, heading)? {
+            // And an arrow's push, until it sets the player down: in Lysandre Labs the way to a
+            // Grunt was said again at each cell one pushed them, "4 north", "5 north"
+            // (x_lysandre_labs, spike A).
             return Ok(());
         }
         let ahead = pathfind::STEPS

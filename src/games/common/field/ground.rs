@@ -19,7 +19,7 @@ use crate::games::common::field::chunk::{
 use crate::games::common::field::climb::{FOOT, Walls};
 use crate::games::common::field::grind::{GrindRails, OFF};
 use crate::games::common::field::things::{
-    Field, Interactable, POKEMON, TRIGGER_SOURCE, WARP_SOURCE,
+    ARROWS, Field, Interactable, POKEMON, TRIGGER_SOURCE, WARP_SOURCE,
 };
 use crate::games::common::field::vines::OFF as LET_GO;
 use crate::games::common::field::vines::{Vine, Vines};
@@ -125,6 +125,24 @@ fn anticlockwise_index(way: &str) -> Result<i64> {
 pub const STEPPED: i64 = 0;
 
 pub const LANDED: i64 = 1;
+
+/// The way an arrow's push carries the player on from the cell they stand in, by its place here,
+/// as a search's turns keep it (`Ground.walk`): 0 for none.
+const PUSHED: [Option<&str>; 5] = [
+    None,
+    Some(pathfind::COMPASS[0]),
+    Some(pathfind::COMPASS[1]),
+    Some(pathfind::COMPASS[2]),
+    Some(pathfind::COMPASS[3]),
+];
+
+/// `PUSHED.index(on)`.
+fn pushed_index(on: Option<&str>) -> i64 {
+    PUSHED
+        .iter()
+        .position(|way| *way == on)
+        .expect("a push is one of the compass's ways") as i64
+}
 
 /// What a cell of a room of thin ice is: a tile not yet walked onto, a tile that gives way under
 /// the next step onto it, or floor that is no ice at all.
@@ -527,6 +545,13 @@ pub struct Ground {
     /// in `stepped`: a step onto one is the way on, the teleport the one move from it, and one the
     /// player is put onto does nothing until they step off it and back on (`_walk`, spike 258).
     pub teleports: IndexMap<(Cell, i64), (Cell, i64)>,
+    /// The cell kinds of the arrow tiles that push the player, each with the way it pushes: open,
+    /// stepped onto any way, and the player pushed on that way a cell at a time over any floor
+    /// until the cell on cannot be stood in, where they stop and walk any way; an arrow crossed
+    /// turns the push its own way (`arrow`, `walk`). None on a ground without one: Lysandre Labs'
+    /// floor has them, and the way to a Team Flare Grunt was said again at each cell an arrow
+    /// pushed the player (x_lysandre_labs, spike A).
+    pub arrows: IndexMap<i64, &'static str>,
 }
 
 /// `Ground.lanes`: each cell of a street laid on the grid, with each step its ways allow and the
@@ -577,6 +602,7 @@ impl Default for Ground {
             grind_rails: Rc::new(GrindRails::default()),
             vines: Rc::new(Vines::default()),
             teleports: IndexMap::new(),
+            arrows: IndexMap::new(),
         }
     }
 }
@@ -1364,6 +1390,71 @@ impl Ground {
         }
     }
 
+    /// The way the cell's arrow tile pushes the player, or None where it is none (`arrows`).
+    pub fn arrow(&self, cell: Cell) -> Result<Option<&'static str>> {
+        let kind = if self.arrows.is_empty() {
+            None
+        } else {
+            self.kind(cell)?
+        };
+        Ok(kind.and_then(|kind| self.arrows.get(&kind).copied()))
+    }
+
+    /// Each step of `path` an arrow's push carries the player, by the index of the cell it
+    /// carries them to, replayed as the search walks it (`walk`): from an arrow its way, and on
+    /// that way from each cell after, an arrow crossed turning it, until a step goes another way,
+    /// the push having set them down.
+    ///
+    /// A `frozenset` of ints only tested is a `HashSet`.
+    pub fn arrowed(&self, path: &[Cell]) -> Result<HashSet<i64>> {
+        let mut out: HashSet<i64> = HashSet::new();
+        if self.arrows.is_empty() {
+            return Ok(out);
+        }
+        let mut way: Option<&str> = None;
+        for (i, pair) in path.windows(2).enumerate() {
+            let (cell, step) = (pair[0], pair[1]);
+            way = self.arrow(cell)?.or(way);
+            if way.is_some_and(|way| pathfind::towards(cell, step) == way) {
+                out.insert(i as i64 + 1);
+            } else {
+                way = None;
+            }
+        }
+        Ok(out)
+    }
+
+    /// Whether an arrow's push carries a player who came into `cell` going `heading` on from
+    /// it: they stand on an arrow, or came off one pointing `heading` over the open cells behind
+    /// them, and the cell on that way can be stood in.
+    pub fn pushing(&self, cell: Cell, heading: &str) -> Result<bool> {
+        let mut way = self.arrow(cell)?;
+        if way.is_none()
+            && pathfind::STEPS.iter().any(|(known, _)| *known == heading)
+            && !self.arrows.is_empty()
+        {
+            let (dx, dz) = pathfind::step_of(heading)?;
+            let mut back = (cell.0 - dx, cell.1 - dz);
+            // A cell no chunk holds is taken to be open: the walk back stops there.
+            while self.kind(back)?.is_some() && self.arrow(back)?.is_none() && self.open(back)? {
+                back = (back.0 - dx, back.1 - dz);
+            }
+            way = if self.arrow(back)? == Some(heading) {
+                pathfind::STEPS
+                    .iter()
+                    .find(|(known, _)| *known == heading)
+                    .map(|(known, _)| *known)
+            } else {
+                None
+            };
+        }
+        let Some(way) = way else {
+            return Ok(false);
+        };
+        let (dx, dz) = pathfind::step_of(way)?;
+        self.passable((cell.0 + dx, cell.1 + dz))
+    }
+
     /// Which way a conveyor belt carries a player on `floor` of the cell, or None: a belt is
     /// the ground's, the first of a stacked ground's floors, and the Poké Ball Factory's walkway
     /// at 90 crosses over two of them, (15, 18) and (27, 18), which the belts under it carried
@@ -1763,7 +1854,8 @@ impl Ground {
     /// (`pathfind.find`), to `item` where one is walked to, whose floor a stacked ground ends
     /// on (`_walk`, `_arrives`). `walkable` is where it may step, `passable` where it is not
     /// given. Across a teleporter the distance to the goals is no measure of the way left, a
-    /// teleport crossing Laverre Gym in one move, so the search goes by cost alone.
+    /// teleport crossing Laverre Gym in one move, so the search goes by cost alone. A way to a
+    /// teleporter or an arrow ends on it, though it carries the player on.
     ///
     /// Python's `heading`, `item`, `closest` and `walkable` default to "", None, False and None.
     pub fn find(
@@ -1782,11 +1874,12 @@ impl Ground {
         let toll = |cell: Cell, step: Cell| self.toll(cell, step);
         let joined = |cell: Cell, step: Cell| Ok(self.joined(cell, step));
         let over = |cell: Cell| self.over(cell);
-        let ends: HashSet<Cell> = if item.is_some_and(|item| item.landing.is_some()) {
-            goals.keys().copied().collect()
-        } else {
-            HashSet::new()
-        };
+        let ends: HashSet<Cell> =
+            if item.is_some_and(|item| item.landing.is_some() || item.category == ARROWS) {
+                goals.keys().copied().collect()
+            } else {
+                HashSet::new()
+            };
         let walk = self.walk(start, ends)?;
         let through = |turns: &[i64], cell: Cell, step: Cell| walk.through(turns, cell, step);
         let at = self.arrives(item)?;
@@ -1794,7 +1887,7 @@ impl Ground {
             Some(at) => at.arrives(cell, turns),
             None => Ok(true),
         };
-        let carry = |cell: Cell, turns: &[i64]| self.carried(cell, turns);
+        let carry = |cell: Cell, turns: &[i64]| walk.carry(cell, turns);
         let slants = |cell: Cell, step: Cell| self.slants(cell, step);
         let slide = |cell: Cell| self.slide(cell);
         let stops = |cell: Cell, turns: &[i64]| walk.stops(cell, turns);
@@ -1817,7 +1910,7 @@ impl Ground {
                 carry: Some(&carry),
                 slants: Some(&slants),
                 slide: Some(&slide),
-                stops: if walk.grinding || walk.vining || walk.teleporting {
+                stops: if walk.grinding || walk.vining || walk.teleporting || walk.pushing {
                     Some(&stops)
                 } else {
                     None
@@ -1834,8 +1927,9 @@ impl Ground {
 
     /// Every cell a way from `start` across this ground can end on, in the box round it and
     /// `aims`, with each floor it is reached on, `ANY_FLOOR` off a stacked ground: by `find`'s
-    /// moves, walked as `find` walks them (`_walk`, `pathfind.reached`), a teleporter's cell
-    /// reached as a way to it ends there. Whether one ends at a thing is `ends_at`.
+    /// moves, walked as `find` walks them (`_walk`, `pathfind.reached`), a teleporter's cell and
+    /// an arrow's among `aims` reached as a way to it ends there. Whether one ends at a thing is
+    /// `ends_at`.
     pub fn reached(&self, start: Cell, aims: &[Cell]) -> Result<IndexMap<Cell, HashSet<i64>>> {
         // ponytail: the rotating doors' turns are left out, every way they stand times every cell
         // being more than a walk can take (`find` through Fortree Gym's seven takes 0.4 to 0.6 s),
@@ -1859,12 +1953,18 @@ impl Ground {
         let joined = |cell: Cell, step: Cell| Ok(self.joined(cell, step));
         let over = |cell: Cell| self.over(cell);
         let open = |cell: Cell| self.open(cell);
-        let walk = ground.walk(
-            start,
-            self.teleports.keys().map(|(cell, _)| *cell).collect(),
-        )?;
+        // shortcut: an arrow among `aims` is an end for whatever it is an aim of, a thing beside
+        // it too, where only a way to the arrow ends there; pass the arrows' own cells if that
+        // keeps a thing listed that no way reaches.
+        let mut ends: HashSet<Cell> = self.teleports.keys().map(|(cell, _)| *cell).collect();
+        for &cell in aims {
+            if self.arrow(cell)?.is_some() {
+                ends.insert(cell);
+            }
+        }
+        let walk = ground.walk(start, ends)?;
         let through = |turns: &[i64], cell: Cell, step: Cell| walk.through(turns, cell, step);
-        let carry = |cell: Cell, turns: &[i64]| ground.carried(cell, turns);
+        let carry = |cell: Cell, turns: &[i64]| walk.carry(cell, turns);
         let slants = |cell: Cell, step: Cell| self.slants(cell, step);
         let slide = |cell: Cell| ground.slide(cell);
         let stops = |cell: Cell, turns: &[i64]| walk.stops(cell, turns);
@@ -1883,7 +1983,7 @@ impl Ground {
                 through: if walk.active { Some(&through) } else { None },
                 slants: Some(&slants),
                 slide: Some(&slide),
-                stops: if walk.grinding || walk.vining || walk.teleporting {
+                stops: if walk.grinding || walk.vining || walk.teleporting || walk.pushing {
                     Some(&stops)
                 } else {
                     None
@@ -1936,9 +2036,13 @@ impl Ground {
     /// ends holding one (`stops`); on a ground with teleporters, whether the player stepped onto
     /// the cell they stand in or was put there, after that (`STEPPED`, `LANDED`): a teleporter
     /// stepped onto carries them where it puts them, the one move from it (`leap`), and no way
-    /// ends on one but at `ends` (`stops`); through the ground's rotating doors, where they
-    /// stand now and what each step does to them; and on a stacked ground the floor each step
-    /// is on, the player's first, the last of the turns.
+    /// ends on one but at `ends` (`stops`); on a ground with arrows, the way a push carries the
+    /// player on from the cell stepped to, or none, after that (`PUSHED`): an arrow's own on
+    /// it, and on from the cells after it while each step goes that way (`carry`), the push
+    /// ending at a step any other way, taken only where the cell on cannot be walked, and no way
+    /// ends where a push carries the player on but at `ends` (`stops`); through the ground's
+    /// rotating doors, where they stand now and what each step does to them; and on a stacked
+    /// ground the floor each step is on, the player's first, the last of the turns.
     ///
     /// `ends` is a `frozenset`, only tested.
     fn walk(&self, start: Cell, ends: HashSet<Cell>) -> Result<Walk<'_>> {
@@ -1947,7 +2051,7 @@ impl Ground {
             !self.grind_rails.cells.is_empty(),
             !self.vines.vines.is_empty(),
         );
-        let teleporting = !self.teleports.is_empty();
+        let (teleporting, pushing) = (!self.teleports.is_empty(), !self.arrows.is_empty());
         if self.doors.is_empty()
             && !self.stacked
             && !ride
@@ -1955,6 +2059,7 @@ impl Ground {
             && !grinding
             && !vining
             && !teleporting
+            && !pushing
         {
             return Ok(Walk {
                 ground: self,
@@ -1964,9 +2069,12 @@ impl Ground {
                 grinding,
                 vining,
                 teleporting,
+                pushing,
                 ends,
                 turns: Vec::new(),
                 crossings: None,
+                arrows: RefCell::new(HashMap::new()),
+                ahead_open: RefCell::new(HashMap::new()),
             });
         }
         // ponytail: every way the doors can stand is searched with the cells, 0.4 to 0.6 s across
@@ -1997,6 +2105,9 @@ impl Ground {
                 STEPPED
             });
         }
+        if pushing {
+            turns.push(0);
+        }
         turns.extend(self.turns());
         if self.stacked {
             turns.push(first);
@@ -2009,9 +2120,12 @@ impl Ground {
             grinding,
             vining,
             teleporting,
+            pushing,
             ends,
             turns,
             crossings,
+            arrows: RefCell::new(HashMap::new()),
+            ahead_open: RefCell::new(HashMap::new()),
         })
     }
 
@@ -2067,10 +2181,16 @@ struct Walk<'a> {
     vining: bool,
     /// Whether the next is whether the player stepped onto their cell or was put there.
     teleporting: bool,
+    /// Whether the next is the way an arrow's push carries the player on (`PUSHED`).
+    pushing: bool,
     /// The cells a way may end on a teleporter at.
     ends: HashSet<Cell>,
     turns: pathfind::Turns,
     crossings: Option<Rc<HashMap<(Cell, Cell), i64>>>,
+    /// Each state asks its cell's arrow once a step it tries and again as it may stop there:
+    /// Python's `cache(self.arrow)`, and `cache(self.passable)` of the cell a push goes on to.
+    arrows: RefCell<HashMap<Cell, Option<&'static str>>>,
+    ahead_open: RefCell<HashMap<Cell, bool>>,
 }
 
 /// What `Ground.arrives` gives a search to a thing on a stacked ground: Python's `arrives`
@@ -2092,6 +2212,52 @@ impl Walk<'_> {
         self.vine() + self.vining as usize
     }
 
+    /// Where the push is in the turns, one further again.
+    fn push(&self) -> usize {
+        self.panel() + self.teleporting as usize
+    }
+
+    /// `cache(self.arrow)`.
+    fn arrow(&self, cell: Cell) -> Result<Option<&'static str>> {
+        if let Some(&way) = self.arrows.borrow().get(&cell) {
+            return Ok(way);
+        }
+        let way = self.ground.arrow(cell)?;
+        self.arrows.borrow_mut().insert(cell, way);
+        Ok(way)
+    }
+
+    /// Python's `shoved` closure: the way an arrow's push carries the player on from `cell`.
+    fn shoved(&self, cell: Cell, turns: &[i64]) -> Result<Option<&'static str>> {
+        if !self.pushing {
+            return Ok(None);
+        }
+        Ok(self.arrow(cell)?.or(PUSHED[turns[self.push()] as usize]))
+    }
+
+    /// Python's `carried_on` closure: whether a push carries the player on from `cell`.
+    fn carried_on(&self, cell: Cell, turns: &[i64]) -> Result<bool> {
+        let Some(way) = self.shoved(cell, turns)? else {
+            return Ok(false);
+        };
+        let (dx, dz) = pathfind::step_of(way)?;
+        let ahead = (cell.0 + dx, cell.1 + dz);
+        if let Some(&open) = self.ahead_open.borrow().get(&ahead) {
+            return Ok(open);
+        }
+        let open = self.ground.passable(ahead)?;
+        self.ahead_open.borrow_mut().insert(ahead, open);
+        Ok(open)
+    }
+
+    /// Python's `carry` closure: the ground's carry, or an arrow's push.
+    fn carry(&self, cell: Cell, turns: &[i64]) -> Result<Option<&'static str>> {
+        Ok(match self.ground.carried(cell, turns)? {
+            Some(way) => Some(way),
+            None => self.shoved(cell, turns)?,
+        })
+    }
+
     /// Python's `fires` closure: where the teleporter in the cell puts the player and on what
     /// floor, where they stepped onto it; None where they were put there, or there is none.
     fn fires(&self, turns: &[i64], cell: Cell) -> Option<(Cell, i64)> {
@@ -2107,11 +2273,12 @@ impl Walk<'_> {
     }
 
     /// Python's `stops` closure: whether the player can stop on the cell with `turns`.
-    fn stops(&self, cell: Cell, turns: &[i64]) -> bool {
+    fn stops(&self, cell: Cell, turns: &[i64]) -> Result<bool> {
         // A rail's own cells are only ever stood on mid-ride: its end cells are not among them.
-        !self.ground.grind_rails.cells.contains(&cell)
+        Ok(!self.ground.grind_rails.cells.contains(&cell)
             && (!self.vining || turns[self.vine()] == LET_GO)
-            && (self.ends.contains(&cell) || self.fires(turns, cell).is_none())
+            && (self.ends.contains(&cell)
+                || (self.fires(turns, cell).is_none() && !self.carried_on(cell, turns)?)))
     }
 
     /// Python's `leap` closure: where the vine held carries the player, or the teleporter
@@ -2191,6 +2358,9 @@ impl Walk<'_> {
             _ => STEPPED,
         };
         let rest = if self.teleporting { &rest[1..] } else { rest };
+        let way = self.shoved(cell, turns)?;
+        let on = way.filter(|&way| pathfind::towards(cell, step) == way);
+        let rest = if self.pushing { &rest[1..] } else { rest };
         let doors = if ground.stacked {
             &rest[..rest.len() - 1]
         } else {
@@ -2224,6 +2394,9 @@ impl Walk<'_> {
                 return Ok(None);
             };
             after.push(floor);
+        }
+        if self.pushing {
+            after.insert(0, pushed_index(on));
         }
         if self.teleporting {
             after.insert(0, put);

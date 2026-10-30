@@ -252,7 +252,7 @@ pub struct Options<'a> {
     pub carry: Option<&'a dyn Fn(Cell, &[i64]) -> Result<Option<&'static str>>>,
     pub slants: Option<&'a dyn Fn(Cell, Cell) -> Result<bool>>,
     pub slide: Option<&'a dyn Fn(Cell) -> Result<bool>>,
-    pub stops: Option<&'a dyn Fn(Cell, &[i64]) -> bool>,
+    pub stops: Option<&'a dyn Fn(Cell, &[i64]) -> Result<bool>>,
     pub leap: Option<&'a dyn Fn(&[i64], Cell) -> Option<Cell>>,
     pub straight: bool,
 }
@@ -528,7 +528,12 @@ pub fn find(
             let (dx, dz) = step_of(sliding)?;
             can_walk((cell.0 + dx, cell.1 + dz))?
         };
-        if !past && stops.is_none_or(|stops| stops(cell, turned)) {
+        if !past
+            && match stops {
+                None => true,
+                Some(stops) => stops(cell, turned)?,
+            }
+        {
             // `min` keeps the first of equals, so a later state replaces it only by being less,
             // and between equal estimates and costs the states themselves are compared, as tuples.
             let candidate = (!arrives(cell, turned)?, estimate(cell), cost, state.clone());
@@ -728,7 +733,7 @@ pub struct Reach<'a> {
     pub through: Option<&'a dyn Fn(&[i64], Cell, Cell) -> Result<Option<Turns>>>,
     pub slants: Option<&'a dyn Fn(Cell, Cell) -> Result<bool>>,
     pub slide: Option<&'a dyn Fn(Cell) -> Result<bool>>,
-    pub stops: Option<&'a dyn Fn(Cell, &[i64]) -> bool>,
+    pub stops: Option<&'a dyn Fn(Cell, &[i64]) -> Result<bool>>,
     pub leap: Option<&'a dyn Fn(&[i64], Cell) -> Option<Cell>>,
 }
 
@@ -839,7 +844,12 @@ pub fn reached(
                     let (dx, dz) = step_of(on)?;
                     can_walk((step.0 + dx, step.1 + dz))?
                 };
-                if !past && options.stops.is_none_or(|stops| stops(step, &after)) {
+                if !past
+                    && match options.stops {
+                        None => true,
+                        Some(stops) => stops(step, &after)?,
+                    }
+                {
                     out.entry(step).or_default().insert(after);
                 }
                 Ok(())

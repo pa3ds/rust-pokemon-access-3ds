@@ -69,6 +69,10 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
   been tried on the tower's west side only.
 - **The Poké Ball Factory's conveyor belts** were tried while Team Flare holds the factory. Of the
   belts the switch could turn, two have not been ridden turned; `P` takes them to run as before.
+- **Lysandre Labs** has been tried from the entrance west over the first arrow tile. Riding a
+  round pad, a push that crosses a second arrow, and the rooms behind the doors have not been
+  tried; the doors are said as "passage", and the books and the report in the room with the
+  bookshelves are not named yet.
 - **Rails outside Shalour Gym**, on Routes 5, 13 and 18 and in Dendemille and Couriway Towns, are
   found the same way and nobody has tried them. A rail broken in the middle, as Route 5's over the
   water is, is not taken by `P`.
