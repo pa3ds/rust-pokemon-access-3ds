@@ -133,6 +133,10 @@ pub struct Setup {
     /// Where the game's own sounds pa3ds plays go, its footsteps (`pa3ds.core.clips`); None where
     /// pa3ds takes no keys, as in a replay, or where `[pa3ds.audio] footsteps` is 0.
     pub clips: Option<Rc<Clips>>,
+    /// Where touch mode's sounds for picking up and letting go of a drag go, the game's own touch
+    /// sounds; None as `clips` is, or where `[pa3ds.audio] drag_sounds` is 0, and the drag is
+    /// said in words.
+    pub drag_sounds: Option<Rc<Clips>>,
 }
 
 impl Setup {
@@ -156,6 +160,7 @@ impl Setup {
             tones: None,
             ticks: None,
             clips: None,
+            drag_sounds: None,
         }
     }
 

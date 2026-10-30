@@ -77,7 +77,7 @@ and No is up, it leaves out the buttons behind it that a tap no longer reaches.
 | `I` and `O` | The button above and below: the nearest in the previous and next row. |
 | `K` | The chosen button again. |
 | `U` | Tap the chosen button. |
-| `Shift` and `U` | Pick up the chosen button to drag it. Keep Shift down: `J`, `L`, `I` and `O` choose where to, and `K` says where it is. Let go of Shift to drop it there. In Pokémon-Amie, Shift alone does this. With the `drag` setting at `"toggle"`, press once to pick up and again to drop. |
+| `Shift` and `U` | Pick up the chosen button to drag it, with a short touch sound. Keep Shift down: `J`, `L`, `I` and `O` choose where to, and `K` says where it is. Let go of Shift to drop it there, with another sound. In Pokémon-Amie, Shift alone does this. With the `drag` setting at `"toggle"`, press once to pick up and again to drop; with `drag_sounds` at 0, "holding" and "let go on" are said instead of the sounds. |
 
 In the AreaNav, touch mode offers each place on the map by name, and a tap chooses it.
 
@@ -98,7 +98,9 @@ by name, and each Pokémon that pops up wanting one, "Treecko wants Pinap Berry"
 says as it comes. Hold Shift on that berry, choose the Pokémon with `J`, `L`, `I` and `O`, and let
 go of Shift: the berry goes straight to it. Nothing moves until you let go, so choosing past
 another Pokémon is safe, but a wrong berry sends a Pokémon away. A Pokémon waits only about two
-seconds. A tap knocks a berry off the tree for nobody. In a
+seconds. A tap knocks a berry off the tree for nobody. For a higher score, lower Azahar's speed
+limit in its general settings: at 50 percent each Pokémon waits twice as long, and the round
+lasts two minutes. Turn on realtime audio in Azahar's audio settings, or the sound stutters. In a
 Super Training regimen, touch mode offers each goal the
 Balloon Bot puts up: the tap key's first press says the goal, and each press after that shoots at
 it, wherever it has moved. pa3ds says "shot coming" about a second before the bot's ball arrives:

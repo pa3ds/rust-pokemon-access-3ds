@@ -230,7 +230,8 @@ fn test_the_tones_turned_off_stay_off_as_they_move_to_the_audio_table() {
         config::Audio {
             tones: 0.0,
             footsteps: 0.5,
-            ticks: 0.0
+            ticks: 0.0,
+            drag_sounds: 1.0
         }
     );
     assert!(
@@ -250,7 +251,8 @@ fn test_the_tones_turned_off_stay_off_as_they_move_to_the_audio_table() {
         config::Audio {
             tones: 1.0,
             footsteps: 1.0,
-            ticks: 0.0
+            ticks: 0.0,
+            drag_sounds: 1.0
         }
     );
 }

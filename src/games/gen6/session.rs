@@ -6,11 +6,13 @@ use std::rc::Rc;
 
 use indexmap::IndexMap;
 
+use crate::core::bcsar::{self, Sound};
 use crate::core::clips::sounds;
 use crate::core::discovery::{Found, HEAP_SPAN};
 use crate::core::heaps::{Block, Heaps};
 use crate::core::memory::{Cache, PageCache};
 use crate::core::names::Names;
+use crate::core::rom::Rom;
 use crate::core::rpc::Rpc;
 use crate::core::rtti::ClassNames;
 use crate::core::speech::Speech;
@@ -22,8 +24,10 @@ use crate::games::gen6::game::Game;
 use crate::games::gen6::profile::{Gen6Profile, Options, REQUIRED};
 use crate::games::gen6::rom::archives::{GameText, no_text};
 use crate::games::gen6::rom::layout::RomLayout;
-use crate::games::{gen6::gflheap, gen6::rom::textures, gen6::screens::buttons};
-use crate::py::Result;
+use crate::games::{
+    gen6::gflheap, gen6::rom::textures, gen6::screens::amie, gen6::screens::buttons,
+};
+use crate::py::{Kind, Result};
 
 /// `game` read through a page cache, every poll in a phase of its own: one pipelined fetch of
 /// the pages it read last time, and every read inside a page answered from it (spike 62).
@@ -96,6 +100,12 @@ pub fn start(
     if found.is_empty() {
         clips = None;
     }
+    let drag_sounds = setup.drag_sounds.clone();
+    if let Some(drag_sounds) = &drag_sounds {
+        for (name, sound) in touch_sounds(&setup, &game.rom)? {
+            drag_sounds.add(&name, sound);
+        }
+    }
     let profile = Rc::new(Gen6Profile::new(
         memory.clone(),
         Rc::new(ClassNames::new(memory.clone(), code)),
@@ -117,6 +127,7 @@ pub fn start(
             tones: setup.tones.clone(),
             ticks: setup.ticks.clone(),
             clips,
+            drag_sounds,
             swims: Some(swims),
             title: Some(setup.process.title_id),
             census: setup.census,
@@ -167,6 +178,46 @@ pub fn game_text(setup: &Setup, layout: &RomLayout) -> Result<GameText> {
 /// The game's own words out of the player's ROM, or `NO_TEXT`, with where the teleporters of
 /// the zones `teleporting` lists put the player; the log says which, and why.
 ///
+/// The game's own touch sounds touch mode picks up and lets go of a drag with
+/// (`amie.PICK_SOUND`), out of the player's ROM; none, and the log says why, where it cannot be
+/// read, and the drag is said in words.
+pub fn touch_sounds(setup: &Setup, layout: &RomLayout) -> Result<IndexMap<String, Sound>> {
+    let rom = setup.rom_path(None)?;
+    let (Some(archive), Some(rom)) = (layout.sounds.as_deref(), rom) else {
+        return Ok(IndexMap::new());
+    };
+    if archive.is_empty() {
+        return Ok(IndexMap::new());
+    }
+    let read = Rom::new(&rom)
+        .and_then(|image| bcsar::sounds(&image, archive, [amie::PICK_SOUND, amie::DROP_SOUND]));
+    match read {
+        Ok(sounds) => Ok(sounds),
+        Err(error)
+            if [
+                Kind::RomError,
+                Kind::OsError,
+                Kind::StructError,
+                Kind::KeyError,
+                Kind::IndexError,
+            ]
+            .iter()
+            .any(|&kind| error.is(kind)) =>
+        {
+            let name = rom
+                .file_name()
+                .map(|name| name.to_string_lossy().into_owned())
+                .unwrap_or_default();
+            (setup.log)(&format!(
+                "drag sounds: the game's own are off, {name}: {}",
+                error.message
+            ));
+            Ok(IndexMap::new())
+        }
+        Err(error) => Err(error),
+    }
+}
+
 /// Not having them costs a place's name said a moment early and the rival's name, both of which
 /// have a fallback — AreaNav's words and "Rival" — so a ROM that cannot be read is logged, not
 /// spoken at every start.

@@ -198,6 +198,7 @@ pub struct Options {
     pub next_row: bool,
     /// None is never.
     pub delayed: Option<Rc<dyn Fn() -> bool>>,
+    pub sound: Option<Rc<dyn Fn(bool)>>,
 }
 
 impl Default for Options {
@@ -219,6 +220,7 @@ impl Default for Options {
             wrap: true,
             next_row: true,
             delayed: None,
+            sound: None,
         }
     }
 }
@@ -269,6 +271,10 @@ pub struct TouchTargets {
     /// another sends it off (spike A). Elsewhere the press goes with the keys, as a Poké Puff
     /// must, held at the Pokémon's mouth until it has been eaten (spike 257).
     delayed: Rc<dyn Fn() -> bool>,
+    /// A sound for picking up a drag, with True, and letting go of it, played in place of saying
+    /// "holding" and "let go on", which slowed a timed game (`[pa3ds.audio] drag_sounds`, Orion,
+    /// 2026-10-28); None says them.
+    pub(crate) sound: Option<Rc<dyn Fn(bool)>>,
     /// Whether the keys go round from the last target to the first and the bottom row to the
     /// top, or stop at the ends (`[pa3ds.navigation] touch_wrap`).
     wrap: bool,
@@ -326,6 +332,7 @@ impl TouchTargets {
             wrap,
             next_row,
             delayed,
+            sound,
         } = options;
         TouchTargets {
             layouts,
@@ -348,6 +355,7 @@ impl TouchTargets {
             moved,
             drag,
             delayed: delayed.unwrap_or_else(|| Rc::new(|| false)),
+            sound,
             wrap,
             next_row,
             picked: None,
@@ -408,6 +416,10 @@ impl TouchTargets {
                 "touch: pick up {} at ({}, {})",
                 target.name, target.x, target.y
             ));
+            if let Some(sound) = &self.sound {
+                sound(true);
+                return Ok(String::new());
+            }
             return Ok(own(HOLDING, &[("target", &target.name)]));
         }
         if action == TAP && self.picked.is_some() {
@@ -520,6 +532,10 @@ impl TouchTargets {
             {
                 return why;
             }
+        }
+        if let Some(sound) = &self.sound {
+            sound(false);
+            return String::new();
         }
         own(DROPPED, &[("target", &over.name)])
     }

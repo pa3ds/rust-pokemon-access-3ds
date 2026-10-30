@@ -631,9 +631,17 @@ fn session(
             tones: 0.0,
             footsteps: 0.0,
             ticks: 0.0,
+            drag_sounds: 0.0,
         }
     };
-    let loudness = if audio.tones > 0.0 || audio.footsteps > 0.0 || audio.ticks > 0.0 {
+    // `max(...)` of the four, keeping the first of equals as Python's does.
+    let loudest = [audio.footsteps, audio.ticks, audio.drag_sounds]
+        .into_iter()
+        .fold(
+            audio.tones,
+            |most, each| if each > most { each } else { most },
+        );
+    let loudness = if loudest > 0.0 {
         Some(Loudness::new(&match &settings.emulator {
             Some(emulator) => emulator.clone(),
             None => emulator_config("")?,
@@ -686,6 +694,12 @@ fn session(
             clips: match &loudness {
                 Some(loudness) if audio.footsteps > 0.0 => {
                     Some(Rc::new(Clips::new(loudness.clone(), audio.footsteps)))
+                }
+                _ => None,
+            },
+            drag_sounds: match &loudness {
+                Some(loudness) if audio.drag_sounds > 0.0 => {
+                    Some(Rc::new(Clips::new(loudness.clone(), audio.drag_sounds)))
                 }
                 _ => None,
             },

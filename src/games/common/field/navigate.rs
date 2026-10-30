@@ -1059,6 +1059,11 @@ impl Navigator {
     }
 
     fn say(&self, text: &str) {
+        // Nothing, where a sound said it: a drag picked up and let go (`[pa3ds.audio]
+        // drag_sounds`), which would otherwise cut off what was being said.
+        if text.is_empty() {
+            return;
+        }
         (self.log)(&format!("key: {text}"));
         self.speech.say(text, Category::Key);
     }

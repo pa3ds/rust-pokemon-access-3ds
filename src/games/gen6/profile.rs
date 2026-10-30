@@ -190,6 +190,7 @@ pub struct Options {
     pub tones: Option<Rc<Tones>>,
     pub ticks: Option<Rc<Tones>>,
     pub clips: Option<Rc<Clips>>,
+    pub drag_sounds: Option<Rc<Clips>>,
     /// None is `{}`.
     pub swims: Option<IndexMap<String, f64>>,
     pub title: Option<i64>,
@@ -377,6 +378,7 @@ impl Gen6Profile {
             tones,
             ticks,
             clips,
+            drag_sounds,
             swims,
             title,
             census,
@@ -868,6 +870,7 @@ impl Gen6Profile {
                 next_row: navigation
                     .as_ref()
                     .is_none_or(|navigation| navigation.touch_next_row),
+                sound: dragged(drag_sounds),
                 delayed: Some({
                     let apps = apps.clone();
                     Rc::new(move || {
@@ -2283,6 +2286,24 @@ fn street_of(text: Rc<GameText>) -> Street {
         }
         Ok(text.street(zone, source_number(slot)))
     })
+}
+
+/// Touch mode's sound for picking up a drag, with True, and letting go of it, Amie's own touch
+/// sounds; None where either is missing, and the drag is said in words.
+pub fn dragged(sounds: Option<Rc<Clips>>) -> Option<Rc<dyn Fn(bool)>> {
+    let sounds = sounds?;
+    let names = sounds.names();
+    if !(names.contains(amie::PICK_SOUND) && names.contains(amie::DROP_SOUND)) {
+        return None;
+    }
+    Some(Rc::new(move |up: bool| {
+        // The sound thread not starting, raised to the key's handler in Python.
+        let _ = sounds.play(if up {
+            amie::PICK_SOUND
+        } else {
+            amie::DROP_SOUND
+        });
+    }))
 }
 
 /// Is this in the heap or the linear heap, where a work's resource and archive have been?

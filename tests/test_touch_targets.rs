@@ -1194,6 +1194,20 @@ fn test_a_drag_let_go_where_it_was_picked_up_touches_nothing() {
     );
 }
 
+/// Orion, 2026-10-28: "holding" and "let go on" slowed a timed game; Amie's own touch sounds say
+/// it, and nothing names what was picked up.
+#[test]
+fn test_with_drag_sounds_a_drag_is_heard_not_said() {
+    let played: Rc<RefCell<Vec<bool>>> = Rc::new(RefCell::new(Vec::new()));
+    let mut screen = Screen::with_drag(bar(), None, Some(Rc::new(Held::default())));
+    let kept = played.clone();
+    screen.targets.sound = Some(Rc::new(move |up| kept.borrow_mut().push(up)));
+    screen.start();
+    assert!(screen.press(touch::DRAG).is_empty() && screen.targets.holding());
+    assert_eq!(screen.press(touch::ITEM_NEXT), "POKÉDEX");
+    assert!(screen.targets.drop().is_empty() && *played.borrow() == [true, false]);
+}
+
 /// ADR-0009 as amended 2026-10-28: in Berry Picker a berry carried over a Pokémon wanting another
 /// sends it off at once (spike A), so the keys only choose, and letting go drags the berry
 /// straight from the tree to the Pokémon chosen.

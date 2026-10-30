@@ -46,7 +46,7 @@ use crate::core::keyfile;
 use crate::core::toml;
 use crate::core::touch;
 use crate::core::words::own;
-use crate::py::{self, Result};
+use crate::py::{self, Error, Result};
 
 pub const FILE_NAME: &str = "config.toml";
 pub const EMULATOR_SECTION: &str = "azahar";
@@ -152,6 +152,9 @@ pub struct Audio {
     /// A tone at each tick of a game's clock, which is said only at its marks
     /// (`screen_announce`, `tones.ticking`); off until a player asks (Orion, 2026-10-26).
     pub ticks: f64,
+    /// The game's own touch sounds as touch mode picks up and lets go of a drag, in place of
+    /// "holding" and "let go on", which slowed a timed game (Orion, 2026-10-28); 0 says them.
+    pub drag_sounds: f64,
 }
 
 impl Default for Audio {
@@ -160,6 +163,7 @@ impl Default for Audio {
             tones: 1.0,
             footsteps: 1.0,
             ticks: 0.0,
+            drag_sounds: 1.0,
         }
     }
 }
@@ -170,6 +174,7 @@ impl Table for Audio {
             ("tones", Value::Float(self.tones)),
             ("footsteps", Value::Float(self.footsteps)),
             ("ticks", Value::Float(self.ticks)),
+            ("drag_sounds", Value::Float(self.drag_sounds)),
         ]
     }
 
@@ -183,6 +188,7 @@ impl Table for Audio {
             "tones" => self.tones = value,
             "footsteps" => self.footsteps = value,
             "ticks" => self.ticks = value,
+            "drag_sounds" => self.drag_sounds = value,
             _ => {}
         }
     }
@@ -828,7 +834,7 @@ pub fn prepare(
         general.poll_rate = rate;
     }
     let ui: Ui = table(&toml::table(ours.get("ui")), "pa3ds.ui", &path, &mut notes);
-    let mut audio: Audio = table(
+    let audio: Audio = table(
         &toml::table(ours.get("audio")),
         "pa3ds.audio",
         &path,
@@ -839,13 +845,9 @@ pub fn prepare(
             "{}: [pa3ds.audio] cannot be below 0, playing at its default",
             py::path_str(&path)
         ));
-        let default = Audio::default();
-        let kept = |each: f64, default: f64| if each >= 0.0 { each } else { default };
-        audio = Audio {
-            tones: kept(audio.tones, default.tones),
-            footsteps: kept(audio.footsteps, default.footsteps),
-            ticks: kept(audio.ticks, default.ticks),
-        };
+        // The Python zips the three with `dataclasses.astuple(Audio())`, strict, and since
+        // `drag_sounds` that has four: it raises here (an upstream bug, ported as it is).
+        return Err(Error::value("zip() argument 2 is longer than argument 1"));
     }
     let navigation: Navigation = table(
         &toml::table(ours.get("navigation")),

@@ -58,6 +58,12 @@ pub const GAMES: [&str; 3] = [
     "N3app7heading7ProcessE",
     "N3app6puzzle7ProcessE",
 ];
+pub const PICK_SOUND: &str = "SEQ_SE_KW_TOUCH";
+/// Amie's own touch sounds, played as touch mode picks up a drag and lets go of it in place of
+/// "holding" and "let go on" (Orion, 2026-10-28): a twentieth and a fourteenth of a second, the
+/// same in Omega Ruby and X, where his other choice, `SEQ_SE_SYS_068`, lasts 0.2 s in one and 1 s
+/// in the other.
+pub const DROP_SOUND: &str = "SEQ_SE_KW_TOUCH2";
 /// Pokémon-Amie's own screens, where touch mode drags with Shift alone (ADR-0009 as amended
 /// 2026-10-28). A `frozenset` in Python, only ever tested for membership.
 pub const SCREENS: [&str; 5] = [AMIE, ARRANGE, GAMES[0], GAMES[1], GAMES[2]];
