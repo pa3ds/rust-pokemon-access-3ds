@@ -214,6 +214,12 @@ impl Traversal for Vines {
         true
     }
 
+    /// A swing carries the player across Coumarine Gym further than the one step it costs, so the
+    /// distance to the goals is no measure of the way left.
+    fn far(&self) -> bool {
+        true
+    }
+
     fn start(&self, _ground: &Ground, _cell: Cell, _floor: i64) -> Result<State> {
         Ok(vec![OFF])
     }
