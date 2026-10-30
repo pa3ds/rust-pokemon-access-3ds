@@ -54,6 +54,7 @@ use std::rc::Rc;
 use indexmap::IndexMap;
 
 use crate::core::config::Navigation;
+use crate::core::keys::{SHIFT, SHIFT_UP};
 use crate::core::names::Names;
 use crate::core::pathfind::{self, AHEAD, BEHIND, Cell, LEFT, RIGHT};
 use crate::core::speech::{Category, Speech};
@@ -415,7 +416,25 @@ impl Navigator {
     }
 
     /// Answer a key by what it means in the current mode; a key unbound there is quiet.
+    ///
+    /// While touch mode holds a press, Shift is held all the while (`SHIFT_UP` lets it go), so
+    /// a key with Shift means what it means without: Shift and J walks back as J does, where
+    /// Shift and J would rename the speaker (ADR-0009).
     pub fn press_key(&mut self, key: &str) -> Result<()> {
+        let holding = self.touch.as_ref().is_some_and(TouchTargets::holding);
+        if key == SHIFT_UP {
+            if holding && let Some(touch) = &mut self.touch {
+                let dropped = touch.drop();
+                self.say(&dropped);
+            }
+            return Ok(());
+        }
+        let prefix = format!("{SHIFT}+");
+        let key = if holding {
+            key.strip_prefix(&prefix).unwrap_or(key)
+        } else {
+            key
+        };
         let action = self
             .bindings
             .get(self.mode)
@@ -466,6 +485,12 @@ impl Navigator {
             return Ok(());
         }
         if action == MODE_TOGGLE {
+            if let Some(touch) = &mut self.touch {
+                let dropped = touch.drop();
+                if !dropped.is_empty() {
+                    self.say(&dropped);
+                }
+            }
             let at = MODES
                 .iter()
                 .position(|&mode| mode == self.mode)

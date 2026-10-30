@@ -51,8 +51,9 @@ in a comment or doc here means the Python checkout's. This repository's only doc
 Settled. Reopen one only by asking Orion first.
 
 - **Announce, never act.** pa3ds never presses buttons and never writes to game memory. The one
-  approved exception is a tap on the touch target pa3ds has just named, on the player's key
-  (ADR-0009, amended 2026-10-01: a tap through Azahar's cemuhook touch input, not the mouse).
+  approved exception is a touch on the touch target pa3ds has just named, on the player's keys:
+  a tap, or a drag the player holds from target to target (ADR-0009, amended 2026-10-01: through
+  Azahar's cemuhook touch input, not the mouse; and 2026-10-28, the drag).
 - **No hardcoded game text.** Every name, label and message *the game itself shows* comes from
   the ROM or RAM. Hardcoded struct layouts and anchor definitions are fine; hardcoded strings are
   not. What the game **never** names — a speaker, a sign, a door — may carry a name of pa3ds's own

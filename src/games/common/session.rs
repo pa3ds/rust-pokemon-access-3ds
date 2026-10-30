@@ -21,6 +21,7 @@ use crate::core::memory::{Cache, PageCache};
 use crate::core::rom::Rom;
 use crate::core::rpc::Process;
 use crate::core::tones::Tones;
+use crate::core::touch::Drag;
 use crate::core::{keyfile, rom};
 use crate::games::common::field::keys::{Bindings, DEFAULT_BINDINGS};
 use crate::py::{self, Error, Kind, Log, Result};
@@ -121,6 +122,8 @@ pub struct Setup {
     pub tap: Option<Rc<dyn Fn(i64, i64) -> Option<String>>>,
     /// A press dragged along a path over so many seconds (`TouchServer.slide`).
     pub slide: Option<Rc<dyn Fn(&[(i64, i64)], f64) -> Option<String>>>,
+    /// A press the player holds between keys (`TouchServer`).
+    pub drag: Option<Rc<dyn Drag>>,
     /// The tones that say where a cursor is (`pa3ds.core.tones`); None where pa3ds takes no keys,
     /// so a replay makes no sound, or where `[pa3ds.audio] tones` is 0.
     pub tones: Option<Rc<Tones>>,
@@ -149,6 +152,7 @@ impl Setup {
             sweep_chunk: 512,
             tap: None,
             slide: None,
+            drag: None,
             tones: None,
             ticks: None,
             clips: None,

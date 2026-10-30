@@ -25,6 +25,7 @@ use crate::core::pathfind::{COMPASS, walked};
 use crate::core::rtti::{ClassNames, demangle};
 use crate::core::speech::{Category, Speech};
 use crate::core::tones::{Tones, ticking};
+use crate::core::touch::Drag;
 use crate::core::words::own;
 use crate::games::common::announce::{Announcements, Speaker};
 use crate::games::common::cursors::reader::CursorReader;
@@ -181,6 +182,7 @@ pub struct Options {
     pub image: Vec<u8>,
     pub tap: Option<Tap>,
     pub slide: Option<touch::Slide>,
+    pub drag: Option<Rc<dyn Drag>>,
     pub tones: Option<Rc<Tones>>,
     pub ticks: Option<Rc<Tones>>,
     pub clips: Option<Rc<Clips>>,
@@ -366,6 +368,7 @@ impl Gen6Profile {
             image,
             tap,
             slide,
+            drag,
             tones,
             ticks,
             clips,
@@ -827,6 +830,7 @@ impl Gen6Profile {
                 idle: Some(idle),
                 off: Some(off),
                 slide,
+                drag,
                 said_off: Some({
                     let (apps, distribution) = (apps.clone(), distribution.clone());
                     Rc::new(move |pane: i64| {

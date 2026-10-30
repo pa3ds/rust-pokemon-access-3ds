@@ -70,6 +70,7 @@ and No is up, it leaves out the buttons behind it that a tap no longer reaches.
 | `I` and `O` | The button above and below: the nearest in the previous and next row. |
 | `K` | The chosen button again. |
 | `U` | Tap the chosen button. |
+| `Shift` and `U` | Hold a touch on the chosen button. Keep Shift down: `J`, `L`, `I` and `O` carry it to each button they say, and `K` says where it is. Let go of Shift to let go of it. |
 
 In the AreaNav, touch mode offers each place on the map by name, and a tap chooses it.
 
@@ -78,7 +79,8 @@ mode offers "continue", and a tap goes on with the message. The PlayNav's "previ
 turn the page instead, away from the message.
 
 In Pokémon-Amie, touch mode offers to stroke your Pokémon, and the tap key strokes it. This is an
-experiment. In its Tile Puzzle, each tile is said by its row and column and where the piece of the
+experiment. Its Poké Puffs button opens a bar of puffs, each said by its kind; hold a touch on one
+and carry it to your Pokémon to give it. In its Tile Puzzle, each tile is said by its row and column and where the piece of the
 picture on it belongs, "row 1, column 2, goes to row 3, column 4", or "in place". Moving to the next
 tile says only the row or the column that changed, "column 3, in place", and `K` says the whole.
 Tap a tile, then the tile where its piece belongs, to swap them. Over the finished picture there

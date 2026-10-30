@@ -5,7 +5,10 @@
 //! the PC Box's slots (spike 129); so is every other screen's. In touch mode the navigation keys
 //! walk the touch areas drawn on the bottom screen, in reading order, row by row, saying each by
 //! name; and a key taps the one chosen, through `pa3ds.core.touch` (ADR-0009, amended 2026-10-01:
-//! the one thing pa3ds does to the game, on the player's key, on the target it has just named).
+//! the one thing pa3ds does to the game, on the player's key, on the target it has just named). Or
+//! a key holds a press on it, a **drag** (`DRAG`), and the press goes with each target the keys
+//! choose after, until it is let go (`drop`): Pokémon-Amie's Poké Puffs are dragged to the
+//! Pokémon (ADR-0009).
 //!
 //! A touch area is named by, in this order (spike 171):
 //!
@@ -38,7 +41,7 @@
 //! (or_area_nav).
 //!
 //! Bound by:
-//! - ADR-0009: a tap only on the player's key, and only on the target just named.
+//! - ADR-0009: a tap, or a drag, only on the player's keys, and only on targets just named.
 //! - ADR-0037: the DexNav's icons are offered and said caught or not, though the game switches off
 //!   those not caught.
 
@@ -48,6 +51,7 @@ use std::rc::Rc;
 use indexmap::{IndexMap, IndexSet};
 
 use crate::core::binary::{f32, u32};
+use crate::core::touch::Drag;
 use crate::core::words::own;
 use crate::games::common::layout::Layouts;
 use crate::games::common::layout_file::LayoutFile;
@@ -69,19 +73,24 @@ pub const ITEM_READ: &str = "item read";
 pub const ROW_PREVIOUS: &str = "row previous";
 pub const ROW_NEXT: &str = "row next";
 pub const TAP: &str = "tap";
+/// Hold a press on the target chosen, carried to each target the keys choose until `drop`.
+pub const DRAG: &str = "drag";
 /// What the keys do in touch mode; the names are the navigation keys' own where they match.
 ///
 /// A `frozenset` in Python, only ever tested for membership.
-pub const ACTIONS: [&str; 6] = [
+pub const ACTIONS: [&str; 7] = [
     ITEM_PREVIOUS,
     ITEM_NEXT,
     ITEM_READ,
     ROW_PREVIOUS,
     ROW_NEXT,
     TAP,
+    DRAG,
 ];
 /// Said where the bottom screen has nothing to touch.
 pub const NOTHING: &str = "touch-nothing";
+pub const HOLDING: &str = "touch-holding";
+pub const DROPPED: &str = "touch-dropped";
 /// How far across its width a pane's place is, by its anchor: left, centre, right.
 pub const ANCHOR: [f64; 3] = [0.0, 0.5, 1.0];
 
@@ -177,6 +186,7 @@ pub struct Options {
     pub said_off: Option<SaidOff>,
     pub places: Option<Places>,
     pub moved: Option<Moved>,
+    pub drag: Option<Rc<dyn Drag>>,
 }
 
 /// The bottom screen's touch targets, and the one touch mode is on.
@@ -218,6 +228,10 @@ pub struct TouchTargets {
     /// What a key moving from one target to another says in place of the second's name, or
     /// None for its name: Tile Puzzle's tiles say only the row or column that changed.
     moved: Option<Moved>,
+    /// A press held between keys (`DRAG`).
+    drag: Option<Rc<dyn Drag>>,
+    /// The target a held press is on, while one is held.
+    over: Option<Target>,
     chosen: Option<i64>,
     /// A layout's root -> the names of its buttons that were a list's labels while it was up.
     listed: IndexMap<i64, HashSet<String>>,
@@ -258,6 +272,7 @@ impl TouchTargets {
             said_off,
             places,
             moved,
+            drag,
         } = options;
         TouchTargets {
             layouts,
@@ -278,6 +293,8 @@ impl TouchTargets {
             said_off,
             places,
             moved,
+            drag,
+            over: None,
             chosen: None,
             listed: IndexMap::new(),
             named: IndexMap::new(),
@@ -314,8 +331,32 @@ impl TouchTargets {
             .position(|target| Some(target.pane) == self.chosen)
         else {
             self.chosen = Some(found[0].pane);
+            self.carry(&found[0]);
             return Ok(self.said(&found[0], None));
         };
+        if action == DRAG {
+            let target = &found[at];
+            if self.over.is_some() {
+                return Ok(String::new());
+            }
+            let Some(drag) = &self.drag else {
+                return Ok(own("touch-off", &[]));
+            };
+            if let Some(why) = drag.hold(target.x, target.y)
+                && !why.is_empty()
+            {
+                return Ok(why);
+            }
+            self.over = Some(target.clone());
+            (self.log)(&format!(
+                "touch: hold {} at ({}, {})",
+                target.name, target.x, target.y
+            ));
+            return Ok(own(HOLDING, &[("target", &target.name)]));
+        }
+        if action == TAP && self.over.is_some() {
+            return Ok(String::new());
+        }
         if action == TAP {
             let target = &found[at];
             if !target.path.is_empty() {
@@ -364,11 +405,50 @@ impl TouchTargets {
                 .expect("a row has a target");
         }
         self.chosen = Some(found[at].pane);
+        if found[at].pane != before.pane {
+            self.carry(&found[at]);
+        }
         let moved = match &self.moved {
             Some(moved) => moved(&before, &found[at])?,
             None => None,
         };
         Ok(self.said(&found[at], moved))
+    }
+
+    /// Whether a press is held between keys (`DRAG`).
+    pub fn holding(&self) -> bool {
+        self.over.is_some()
+    }
+
+    /// Let go of a press held by `DRAG` where it is, with the line to say; "" with none.
+    pub fn drop(&mut self) -> String {
+        let (Some(_), Some(drag)) = (&self.over, &self.drag) else {
+            return String::new();
+        };
+        let drag = drag.clone();
+        let over = self.over.take().expect("held above");
+        drag.release();
+        (self.log)(&format!(
+            "touch: let go on {} at ({}, {})",
+            over.name, over.x, over.y
+        ));
+        own(DROPPED, &[("target", &over.name)])
+    }
+
+    /// Slide a held press on to the target the keys have just chosen.
+    fn carry(&mut self, target: &Target) {
+        let (Some(over), Some(drag)) = (&self.over, &self.drag) else {
+            return;
+        };
+        if target.pane == over.pane {
+            return;
+        }
+        drag.r#move(target.x, target.y);
+        self.over = Some(target.clone());
+        (self.log)(&format!(
+            "touch: carry to {} at ({}, {})",
+            target.name, target.x, target.y
+        ));
     }
 
     /// A target's name, or `line` in its place, with its tone, as the key chooses it.

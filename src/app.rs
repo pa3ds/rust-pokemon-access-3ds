@@ -668,6 +668,9 @@ fn session(
                 Rc::new(move |path: &[(i64, i64)], seconds: f64| touching.slide(path, seconds))
                     as Rc<dyn Fn(&[(i64, i64)], f64) -> Option<String>>
             }),
+            drag: touching
+                .clone()
+                .map(|touching| touching as Rc<dyn crate::core::touch::Drag>),
             tones: match &loudness {
                 Some(loudness) if audio.tones > 0.0 => {
                     Some(Rc::new(Tones::new(Some(loudness.clone()), audio.tones)))

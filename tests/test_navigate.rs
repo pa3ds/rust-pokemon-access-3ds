@@ -8,7 +8,7 @@ use indexmap::{IndexMap, IndexSet};
 
 use crate::core::config::Navigation;
 use crate::core::keyfile;
-use crate::core::keys::key_name;
+use crate::core::keys::{SHIFT_UP, key_name};
 use crate::core::names::Names;
 use crate::core::pathfind::{self, Cell, nearest};
 use crate::core::speech::{Backend, Category, Speech, default_interrupts};
@@ -30,7 +30,7 @@ use crate::games::common::field::things::{
     FURNITURE_SOURCE, Field, Interactable, WARP_SOURCE, place_source,
 };
 use crate::games::common::field::vines::{End, Vines};
-use crate::games::common::touch::{ROW_NEXT, ROW_PREVIOUS, TAP};
+use crate::games::common::touch::{DRAG, ROW_NEXT, ROW_PREVIOUS, TAP};
 use crate::games::oras::{self, BIG_BOULDER, BUSH, CRACKED_BOULDER};
 use crate::games::xy;
 use crate::py::{self, Result};
@@ -4103,11 +4103,12 @@ fn test_the_users_keys_map_to_the_actions() {
         .collect();
     expected.extend(
         [
-            "shift+k", "shift+j", "shift+p", "alt+p", "ctrl+p", "shift+r", "shift+c",
+            "shift+k", "shift+j", "shift+p", "alt+p", "ctrl+p", "shift+r", "shift+c", "shift+u",
         ]
         .map(str::to_string),
     );
     assert_eq!(bound_keys(&DEFAULT_BINDINGS), expected);
+    assert_eq!(bound(TOUCH, "shift+u"), DRAG);
     for mode in [LIST, DIRECTION, TOUCH] {
         assert_eq!(
             [",", "."].map(|key| bound(mode, key)),
@@ -4308,6 +4309,100 @@ fn test_the_way_is_said_again_once_the_camera_stops_somewhere_new() {
 
 /// For when the line was missed, and while the HP box is off the screen (ADR-0015; the
 /// user's keys, 2026-09-29). A key's answer interrupts.
+/// A press held between keys, each touch kept (`core.touch.Drag`), where Python's test gives the
+/// navigator a stand-in for touch mode: touch mode is a `TouchTargets` here, given its targets.
+struct Holding {
+    touches: RefCell<Vec<(&'static str, i64, i64)>>,
+}
+
+impl crate::core::touch::Drag for Holding {
+    fn hold(&self, x: i64, y: i64) -> Option<String> {
+        self.touches.borrow_mut().push(("hold", x, y));
+        None
+    }
+
+    fn r#move(&self, x: i64, y: i64) {
+        self.touches.borrow_mut().push(("move", x, y));
+    }
+
+    fn release(&self) {
+        self.touches.borrow_mut().push(("release", 0, 0));
+    }
+}
+
+/// Shift stays down the whole drag, so Shift and J walks back as J does, where it would rename
+/// the speaker; Shift coming up lets go, and so does leaving touch mode (ADR-0009).
+///
+/// Python's stand-in records the actions asked of touch mode; here a `TouchTargets` holding a
+/// Poké Puff and the Pokémon's stroke answers them, and its drag's touches say what was asked.
+#[test]
+fn test_while_a_touch_is_held_shift_keys_walk_and_letting_go_of_shift_lets_go() {
+    use crate::core::rtti::ClassNames;
+    use crate::games::common::layout::Layouts;
+    use crate::games::common::lyt;
+    use crate::games::common::touch::{self, Target, TouchTargets};
+
+    let backend = Rc::new(Recorder::default());
+    let held = Rc::new(Holding {
+        touches: RefCell::new(Vec::new()),
+    });
+    let memory = super::fake_memory::FakeMemory::new();
+    let layouts = Rc::new(Layouts::new(
+        memory.clone(),
+        Rc::new(ClassNames::new(memory.clone(), super::fake_memory::CODE)),
+        lyt::ORAS,
+    ));
+    let mut targets = TouchTargets::new(
+        layouts,
+        Rc::new(Vec::new),
+        Rc::new(|_box| Ok(String::new())),
+        Rc::new(|_pane| Ok(None)),
+        Rc::new(|_root| None),
+        Rc::new(|_line: &str| {}),
+        touch::Options {
+            drag: Some(held.clone()),
+            ..touch::Options::default()
+        },
+    );
+    targets.given = Some(Rc::new(|| {
+        vec![
+            Target::new(1, "Sweet Poké Puff", 95, 23, 97.0, 40.0),
+            Target::new(2, "stroke Pikachu", 160, 120, 0.0, 240.0),
+        ]
+    }));
+    let mut nav = Navigator::new(
+        Rc::new(FakeField::new(Some(town()), &[], &[], &[], &[])),
+        Rc::new(Speech::plain(backend.clone())),
+        Rc::new(|_line: &str| {}),
+        Options {
+            touch: Some(targets),
+            ..Options::default()
+        },
+    );
+    nav.press(MODE_TOGGLE).unwrap();
+    nav.press(MODE_TOGGLE).unwrap();
+    nav.press_key("shift+u").unwrap();
+    nav.press_key("shift+l").unwrap();
+    nav.press_key("shift+j").unwrap();
+    nav.press_key(SHIFT_UP).unwrap();
+    nav.press_key(SHIFT_UP).unwrap();
+    assert_eq!(
+        *held.touches.borrow(),
+        [
+            ("hold", 95, 23),
+            ("move", 160, 120),
+            ("move", 95, 23),
+            ("release", 0, 0)
+        ]
+    );
+    assert_eq!(last(&backend), "let go on Sweet Poké Puff");
+    nav.press_key("shift+u").unwrap();
+    backend.spoken.borrow_mut().clear();
+    nav.press(MODE_TOGGLE).unwrap();
+    assert_eq!(said(&backend), ["let go on Sweet Poké Puff", "list mode"]);
+    assert!(!nav.touch.as_ref().unwrap().holding());
+}
+
 #[test]
 fn test_r_says_our_side_again_and_shift_r_the_enemys() {
     let backend = Rc::new(Recorder::default());

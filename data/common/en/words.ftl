@@ -217,6 +217,10 @@ touch-continue = continue
 # A tap asked for where pa3ds cannot tap, and one Azahar is not listening for.
 touch-off = touch is off
 touch-not-listening = Azahar is not taking touches from pa3ds
+# Shift and U holding a touch on a button, and Shift let go of, with the touch where it was
+# carried to.
+touch-holding = holding { $target }
+touch-dropped = let go on { $target }
 
 ## What the field shows without words
 

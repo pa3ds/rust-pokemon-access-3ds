@@ -113,6 +113,7 @@ pub fn start(
             image: image.to_vec(),
             tap: setup.tap.clone(),
             slide: setup.slide.clone(),
+            drag: setup.drag.clone(),
             tones: setup.tones.clone(),
             ticks: setup.ticks.clone(),
             clips,

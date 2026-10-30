@@ -34,6 +34,27 @@ fn bar() -> Vec<Target> {
         .collect()
 }
 
+/// A press held between keys, each touch kept (`core.touch.Drag`).
+#[derive(Default)]
+struct Held {
+    touches: RefCell<Vec<(&'static str, i64, i64)>>,
+}
+
+impl crate::core::touch::Drag for Held {
+    fn hold(&self, x: i64, y: i64) -> Option<String> {
+        self.touches.borrow_mut().push(("hold", x, y));
+        None
+    }
+
+    fn r#move(&self, x: i64, y: i64) {
+        self.touches.borrow_mut().push(("move", x, y));
+    }
+
+    fn release(&self) {
+        self.touches.borrow_mut().push(("release", 0, 0));
+    }
+}
+
 /// Touch targets with the screen's given, and every tap kept.
 ///
 /// Python subclasses `TouchTargets` and overrides `targets`; here the targets are handed to it
@@ -53,6 +74,11 @@ impl Screen {
 
     /// `Screen(found, moved)`.
     fn with_moved(found: Vec<Target>, moved: Option<touch::Moved>) -> Self {
+        Screen::with_drag(found, moved, None)
+    }
+
+    /// `Screen(found, moved, drag)`.
+    fn with_drag(found: Vec<Target>, moved: Option<touch::Moved>, drag: Option<Rc<Held>>) -> Self {
         let tapped: Rc<RefCell<Vec<(i64, i64)>>> = Rc::new(RefCell::new(Vec::new()));
         let slid: Rc<RefCell<Vec<(Vec<(i64, i64)>, f64)>>> = Rc::new(RefCell::new(Vec::new()));
         let kept = slid.clone();
@@ -81,6 +107,7 @@ impl Screen {
                     None
                 })),
                 moved,
+                drag: drag.map(|drag| drag as Rc<dyn crate::core::touch::Drag>),
                 ..Options::default()
             },
         );
@@ -1032,6 +1059,33 @@ fn test_a_touch_area_is_named_by_no_picture_of_a_button_inside_it_nor_one_hidden
     fake.visible(bar, false);
     fake.layouts.refresh();
     assert!(targets.targets().unwrap().is_empty());
+}
+
+/// Pokémon-Amie's Poké Puffs are dragged to the Pokémon: Shift and U holds a touch on the puff
+/// said, the keys carry it to each target they say, the Pokémon's stroke at its middle, and
+/// letting go of Shift lets go of it there; a tap meanwhile touches nothing (ADR-0009).
+#[test]
+fn test_a_drag_holds_the_target_named_carries_it_with_the_keys_and_lets_go() {
+    let held = Rc::new(Held::default());
+    let puff = Target::new(1, "Sweet Poké Puff", 95, 23, 97.0, 40.0);
+    let pokemon = Target {
+        path: vec![(110, 110), (210, 110)],
+        seconds: 3.0,
+        ..Target::new(2, "stroke Pikachu", 160, 120, 0.0, 240.0)
+    };
+    let mut screen = Screen::with_drag(vec![puff, pokemon], None, Some(held.clone()));
+    assert_eq!(screen.press(touch::ITEM_READ), "Sweet Poké Puff");
+    assert!(screen.press(touch::DRAG) == "holding Sweet Poké Puff" && screen.targets.holding());
+    assert!(screen.press(touch::DRAG).is_empty() && screen.press(touch::TAP).is_empty());
+    assert_eq!(screen.press(touch::ITEM_NEXT), "stroke Pikachu");
+    assert_eq!(screen.press(touch::ITEM_READ), "stroke Pikachu");
+    assert!(screen.targets.drop() == "let go on stroke Pikachu" && !screen.targets.holding());
+    assert_eq!(screen.targets.drop(), "");
+    assert_eq!(
+        *held.touches.borrow(),
+        [("hold", 95, 23), ("move", 160, 120), ("release", 0, 0)]
+    );
+    assert_eq!(screen.tapped(), []);
 }
 
 /// Pokémon-Amie's Pokémon is stroked, not tapped: its target's key slides along the path
