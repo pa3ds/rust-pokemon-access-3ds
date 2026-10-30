@@ -35,7 +35,7 @@ kind-lift = lift
 kind-trapdoor = trapdoor
 kind-geyser = geyser
 
-## Tile Puzzle's backgrounds (spike D)
+## Tile Puzzle's backgrounds (spike 256)
 
 # Where Pokémon-Amie's Tile Puzzle puts its three Pokémon, drawn at random each time it opens and
 # never named by the game: said after them, "Blaze on the right, on a sandy beach". By the number

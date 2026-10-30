@@ -1,5 +1,5 @@
-//! Pokémon-Amie's Tile Puzzle: which piece of the picture each tile holds (spike A), and who is
-//! in the picture (spike D).
+//! Pokémon-Amie's Tile Puzzle: which piece of the picture each tile holds (spike 254), and who is
+//! in the picture (spike 256).
 //!
 //! The puzzle shows its picture whole, three of the player's Pokémon before a background, then
 //! cuts it into tiles and shuffles them at Begin; two taps swap two tiles, and the clock runs
@@ -73,7 +73,7 @@ pub const NUMBER: i64 = 0x10;
 pub const SLOT: i64 = 0x70;
 pub const PICKED: i64 = 2;
 
-/// The picture's Pokémon (spike D).
+/// The picture's Pokémon (spike 256).
 pub const PICTURE: &str = "N3app6puzzle9PokeModelE";
 /// Where `PICTURE` points to each Pokémon's `PokemonParam`, a copy of the party's, in the order of
 /// `POINTS`; each followed by a counter its motion runs.
@@ -83,7 +83,7 @@ pub const MODELS: [i64; 3] = [0x0C, 0x1C, 0x2C];
 pub const POINTS: i64 = 0x38;
 pub const STANDS: i64 = 0x18;
 pub const PICTURE_SIZE: i64 = POINTS + MODELS.len() as i64 * 0x30;
-/// The picture's background (spike D).
+/// The picture's background (spike 256).
 pub const BACKGROUND: &str = "N3app6puzzle2BgE";
 /// Where `BACKGROUND` holds the number of the background drawn, at random whatever the place, from
 /// the eleven at `DllPuzzle.cro` +0xF21C: 13 the open sea, 44 rocky ground and so on.
@@ -261,7 +261,7 @@ impl TilePuzzle {
     /// The picture's Pokémon the first time the puzzle holds them and its background is drawn,
     /// then None until another is drawn, by Play Again (`IMAGE`), or another app starts: each
     /// look is five reads a poll. Its `Bg` held 0 still as its Pokémon were placed in two of six
-    /// replays (spike D).
+    /// replays (spike 256).
     pub fn new_picture(&self) -> Result<Option<Picture>> {
         let Some((number, image)) = self.drawn()? else {
             return Ok(None);

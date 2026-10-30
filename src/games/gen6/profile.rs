@@ -296,7 +296,7 @@ pub struct Gen6Profile {
     /// The scenes the game shows without words, described where the player asks and the game has
     /// descriptions in their language (ADR-0038).
     pub scenes: Option<RefCell<Scenes>>,
-    /// Tile Puzzle's picture is described as a scene is, by the narrator (spike D).
+    /// Tile Puzzle's picture is described as a scene is, by the narrator (spike 256).
     describing: bool,
     /// The Pokédex's habitat map draws the Pokémon's places and never names them (spike 152).
     pub habitat: RefCell<HabitatReader>,
@@ -1008,7 +1008,7 @@ impl Gen6Profile {
         } else {
             None
         };
-        // Tile Puzzle's picture is described as a scene is, by the narrator (spike D).
+        // Tile Puzzle's picture is described as a scene is, by the narrator (spike 256).
         let describing = ui.descriptions && text.loaded();
         let habitat = HabitatReader::new(
             memory.clone(),

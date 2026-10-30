@@ -10,7 +10,7 @@
 //! PokemonParam   +0x04 -> its record, which sits at +0x40    +0x08 -> its battle stats
 //! record         +0x00 u32 encryption constant    +0x06 u16 checksum of 0x08-0xE8, decrypted
 //!   decrypted    +0x08 u16 species    +0x1d u8 gender in bits 1-2: 0 male, 1 female, 2 neither,
-//!                                             and the form from bit 3 (spike D)
+//!                                             and the form from bit 3 (spike 256)
 //!                +0x24 u8 each the contest conditions, coolness to toughness, then sheen
 //!                +0x40 the nickname, UTF-16LE: a Pokémon never nicknamed carries its species name
 //!                +0x74 u32 the IVs in bits 0-29, then whether it is an Egg (30) and whether it

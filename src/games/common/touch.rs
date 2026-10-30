@@ -791,7 +791,7 @@ impl TouchTargets {
     /// drawn after the list has gone, every flag of its panes the same: Tile Puzzle's finished
     /// menu, View Picture, Play Again and Quit, was offered over the picture it showed
     /// (or_amie_tile_puzzle_easy) and over the next puzzle's Begin, where a tap on View Picture
-    /// began the puzzle (spike C). Its list's items say it has gone (`ListReader.lit`). So a
+    /// began the puzzle (spike 255). Its list's items say it has gone (`ListReader.lit`). So a
     /// button once a list's label, while the list was up, is left out while the list is not.
     pub(crate) fn unlisted(&mut self, found: &[Target], labels: &HashSet<String>) -> Vec<Target> {
         let roots = self.layouts.roots();

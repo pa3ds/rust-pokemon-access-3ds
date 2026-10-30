@@ -91,7 +91,7 @@ fn moved(reader: &puzzle::TilePuzzle, before: i64, now: i64) -> Option<String> {
 #[test]
 fn test_a_tile_says_its_place_and_where_its_piece_belongs() {
     // as_amie_tile_puzzle: after the shuffle the top-left tile held the piece of row 3, column 5,
-    // and the picked tile said so (spike A).
+    // and the picked tile said so (spike 254).
     let mut slots: Vec<i64> = (0..20).collect();
     (slots[14], slots[0]) = (0, 14);
     let (reader, frames, _) = board(&slots, Some(0), 0);
@@ -113,7 +113,7 @@ fn test_a_tile_says_its_place_and_where_its_piece_belongs() {
 fn test_normals_thirty_tiles_lie_under_touch_areas_numbered_from_955() {
     // as_amie_tile_puzzle_normal: six across and five down, under touch areas `qj` to `rc`; the
     // first tap, at the bottom right, picked the piece numbered 26, and the second put it in row
-    // 2, column 6 (spike A).
+    // 2, column 6 (spike 254).
     let mut slots: Vec<i64> = (0..30).collect();
     (slots[4], slots[29]) = (29, 4);
     let (reader, frames, areas) = board(&slots, Some(29), 955);
@@ -190,7 +190,7 @@ fn test_the_player_plays_while_a_piece_is_away_from_home() {
 
 #[test]
 fn test_records_out_of_order_or_two_in_one_slot_are_no_board() {
-    // The module's own data held words like a Piece's vtable (spike A).
+    // The module's own data held words like a Piece's vtable (spike 254).
     let mut slots: Vec<i64> = (0..20).collect();
     slots[3] = slots[4];
     let (reader, frames, _) = board(&slots, None, 0);
@@ -209,7 +209,7 @@ const STANDING: [(f32, f32); 3] = [(170.0, -335.0), (0.0, -200.0), (-170.0, -335
 
 /// A picture of a Pokémon a record, each a PokemonParam pointing to its record at +0x40, in
 /// the places or_amie_tile_puzzle_easy's stood, or all at 0 unless `placed`, before `background`,
-/// its shallow water by default (spike D), its image loaded, found after a word of the module's
+/// its shallow water by default (spike 256), its image loaded, found after a word of the module's
 /// code like the background's vtable; and an Easy board, every piece home, as under Begin.
 fn picture(records: &[Vec<u8>], placed: bool) -> puzzle::TilePuzzle {
     picture_before(records, placed, 12)
@@ -299,7 +299,7 @@ fn named(found: &pokemon::Pokemon) -> Option<String> {
 fn test_the_picture_is_three_of_the_party_said_left_to_right() {
     // ADR-0038: the picture is said left to right. or_amie_tile_puzzle_easy: Blaze behind on the
     // right, Pikachu in its first form, the one Amie played with, in front, and Metagross behind
-    // on the left (spike D).
+    // on the left (spike 256).
     let reader = picture(
         &[
             record(0x1, 257, "Blaze", true),
@@ -324,7 +324,7 @@ fn test_the_picture_is_three_of_the_party_said_left_to_right() {
 
 #[test]
 fn test_the_background_is_said_after_the_pokemon_by_its_number() {
-    // ADR-0038: or_amie_tile_puzzle_easy drew background 12, the shallow water (spike D); a
+    // ADR-0038: or_amie_tile_puzzle_easy drew background 12, the shallow water (spike 256); a
     // number with no words in the data is left out, its Pokémon said all the same.
     let party = [
         record(0x1, 257, "Blaze", true),

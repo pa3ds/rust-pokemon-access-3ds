@@ -296,7 +296,7 @@ fn test_while_a_list_window_is_up_only_its_buttons_are_offered() {
 }
 
 /// Tile Puzzle's finished menu stayed drawn over its picture and the next puzzle's Begin, and a
-/// tap on View Picture began the puzzle (spike C); a button of that name in another layout stays.
+/// tap on View Picture began the puzzle (spike 255); a button of that name in another layout stays.
 ///
 /// Python hands `TouchTargets` a stand-in with a `roots` method; here the three roots are fake
 /// layouts' own, tracked.
