@@ -88,6 +88,8 @@ pub const BACKGROUND: &str = "N3app6puzzle2BgE";
 /// Where `BACKGROUND` holds the number of the background drawn, at random whatever the place, from
 /// the eleven at `DllPuzzle.cro` +0xF21C: 13 the open sea, 44 rocky ground and so on.
 pub const DRAWN: i64 = 0x1DC;
+/// Where `BACKGROUND` holds the number again, a byte, and again 2 and 3 bytes on.
+pub const COPY: i64 = 0x20;
 
 pub const GRID: &str = "slot-grid";
 pub const ROW: &str = "puzzle-row";
@@ -304,15 +306,26 @@ impl TilePuzzle {
     }
 
     /// The number of the background drawn, 0 until it is, or None where no background is
-    /// found.
+    /// found. The module's own code holds words like a Bg's vtable too, three of them, their
+    /// number an instruction (or_amie_tile_puzzle_easy): a number is a byte held at `COPY` as
+    /// well, and one there not yet is still being drawn.
     pub fn background(&self) -> Result<Option<i64>> {
+        let mut drawing = None;
         for (&at, &vtable) in &self.backgrounds {
             let raw = self.memory.read(at, DRAWN + 4)?;
-            if u32(&raw, 0)? == vtable {
-                return Ok(Some(u32(&raw, DRAWN)?));
+            if u32(&raw, 0)? != vtable {
+                continue;
             }
+            let number = u32(&raw, DRAWN)?;
+            if number > 0xFF {
+                continue;
+            }
+            if number != 0 && i64::from(raw[COPY as usize]) == number {
+                return Ok(Some(number));
+            }
+            drawing = Some(0);
         }
-        Ok(None)
+        Ok(drawing)
     }
 
     /// The board, or None. A count of pieces of no difficulty's, a record out of its order or

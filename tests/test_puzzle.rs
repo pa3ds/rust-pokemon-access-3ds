@@ -190,12 +190,14 @@ fn test_records_out_of_order_or_two_in_one_slot_are_no_board() {
 const PICTURE: i64 = 0x08500000;
 const PARAMS: i64 = 0x08600000;
 const BACKGROUND: i64 = 0x08700000;
+const CODE: i64 = 0x0804F354;
 /// Where or_amie_tile_puzzle_easy's three stood: right and behind, in front, left and behind.
 const STANDING: [(f32, f32); 3] = [(170.0, -335.0), (0.0, -200.0), (-170.0, -335.0)];
 
 /// A picture of a Pokémon a record, each a PokemonParam pointing to its record at +0x40, in
 /// the places or_amie_tile_puzzle_easy's stood, or all at 0 unless `placed`, before `background`,
-/// its shallow water by default (spike D); and an Easy board, every piece home, as under Begin.
+/// its shallow water by default (spike D), found after a word of the module's code like the
+/// background's vtable; and an Easy board, every piece home, as under Begin.
 fn picture(records: &[Vec<u8>], placed: bool) -> puzzle::TilePuzzle {
     picture_before(records, placed, 12)
 }
@@ -205,8 +207,13 @@ fn picture_before(records: &[Vec<u8>], placed: bool, background: i64) -> puzzle:
     let memory = FakeMemory::new();
     let classes = FakeClasses::new(memory.clone());
     memory.u32(PICTURE, &[classes.add(puzzle::PICTURE)]);
-    memory.u32(BACKGROUND, &[classes.add(puzzle::BACKGROUND)]);
+    let vtable = classes.add(puzzle::BACKGROUND);
+    memory.u32(BACKGROUND, &[vtable]);
     memory.u32(BACKGROUND + puzzle::DRAWN, &[background]);
+    memory.write(BACKGROUND + puzzle::COPY, &[background as u8]);
+    memory.u32(CODE, &[vtable]);
+    memory.u32(CODE + puzzle::DRAWN, &[0xE59400C8]);
+    memory.write(CODE + puzzle::COPY, &[0x21]);
     for (i, (raw, (x, z))) in records.iter().zip(STANDING).enumerate() {
         let param = PARAMS + i as i64 * 0x200;
         memory.u32(PICTURE + puzzle::MODELS[i], &[param]);
@@ -246,6 +253,7 @@ fn picture_before(records: &[Vec<u8>], placed: bool, background: i64) -> puzzle:
             &IndexMap::from([
                 (PICTURE, puzzle::PICTURE.to_string()),
                 (BOARD, puzzle::CLASS.to_string()),
+                (CODE, puzzle::BACKGROUND.to_string()),
                 (BACKGROUND, puzzle::BACKGROUND.to_string()),
             ]),
             false,
