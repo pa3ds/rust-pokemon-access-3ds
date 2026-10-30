@@ -11,7 +11,10 @@
 //! - `name(picture, running)`, what touch mode calls a picture of its screen's;
 //! - `targets(running)`, the targets it offers touch mode beside the touch areas;
 //! - `poll(running)`, what it says as its screen changes: (what the log calls it, the line, its
-//!   category).
+//!   category), read with the screen's words;
+//! - `describe(running)`, what it describes of a picture the game shows without words (ADR-0038),
+//!   after the screen's words: the narrator's line, `Category.SCENE`, or one only logged, None,
+//!   where descriptions are off.
 //!
 //! A new one is built here and put in the tuples of what it answers, in the order it is asked in:
 //! touch mode names a picture by the first reader with a name for it, and offers targets in order.
@@ -62,6 +65,17 @@ pub trait Offering {
 /// A reader saying what it has as its screen changes.
 pub trait Polled {
     fn poll(&self, running: Option<&str>) -> Result<Vec<(String, String, Category)>>;
+}
+
+/// A reader describing a picture the game shows without words.
+pub trait Described {
+    fn describe(&self, running: Option<&str>) -> Result<Vec<(String, String, Option<Category>)>>;
+}
+
+impl Described for RefCell<TilePuzzle> {
+    fn describe(&self, running: Option<&str>) -> Result<Vec<(String, String, Option<Category>)>> {
+        self.borrow().describe(running)
+    }
 }
 
 macro_rules! tracked {
@@ -168,6 +182,16 @@ pub struct PlayNav {
     named: Vec<Rc<dyn Named>>,
     offering: Vec<Rc<dyn Offering>>,
     polled: Vec<Rc<dyn Polled>>,
+    described: Vec<Rc<dyn Described>>,
+}
+
+/// `yours`: a Pokémon of the player's by the nickname they gave it, or else as the game calls its
+/// species and form (Orion, 2026-10-16).
+fn yours(text: &GameText, found: &pokemon::Pokemon) -> Option<String> {
+    if found.nicknamed && !found.nickname.is_empty() {
+        return Some(found.nickname.clone());
+    }
+    text.pokemon(found.species, found.form)
 }
 
 /// `short`: a Pokémon of the player's by its nickname, or else its species alone, with no form:
@@ -193,6 +217,7 @@ impl PlayNav {
         settings: &Amie,
         idle: Idle,
         off: Off,
+        describing: bool,
     ) -> PlayNav {
         // The PlayNav's Pokémon-Amie page draws its Pokémon's icon, and says nothing of whose;
         // Amie itself is stroked by a slide over it.
@@ -214,11 +239,18 @@ impl PlayNav {
             names.clone(),
             text.goods.clone(),
         )));
-        // Its Tile Puzzle draws each tile's piece in 3D, and says nothing of where it belongs.
-        let puzzle = Rc::new(RefCell::new(TilePuzzle::new(
+        // Its Tile Puzzle draws each tile's piece in 3D, and says nothing of where it belongs; its
+        // picture is described as a scene is, by the narrator, where the player asks for
+        // descriptions and the game's text is read (spike 256).
+        let puzzle = Rc::new(RefCell::new(TilePuzzle::with(
             memory.clone(),
             layouts.clone(),
             image_of.clone(),
+            text.loaded().then(|| {
+                let text = text.clone();
+                Rc::new(move |found: &pokemon::Pokemon| yours(&text, found)) as _
+            }),
+            describing,
         )));
         // So does Super Training's, with the party; and its rounds' goals are on the top screen.
         let training = Rc::new(RefCell::new(TrainingPage::with_icons(
@@ -272,6 +304,7 @@ impl PlayNav {
             named: vec![amie.clone(), training, puffs, goods, puzzle.clone()],
             offering: vec![amie, goals, berry_picker.clone(), waiting, bags],
             polled: vec![sparring, berry_picker.clone()],
+            described: vec![puzzle.clone()],
             puzzle,
             berry_picker,
         }
@@ -304,6 +337,19 @@ impl PlayNav {
             found.extend(reader.targets(running)?);
         }
         Ok(found)
+    }
+
+    /// What each screen describes now, as (what the log calls it, the line, its category):
+    /// a `Category.SCENE` line the narrator's, and one of None only logged.
+    pub fn describe(
+        &self,
+        running: Option<&str>,
+    ) -> Result<Vec<(String, String, Option<Category>)>> {
+        let mut said = Vec::new();
+        for reader in &self.described {
+            said.extend(reader.describe(running)?);
+        }
+        Ok(said)
     }
 
     /// What each screen says now, as (what the log calls it, the line, its category).

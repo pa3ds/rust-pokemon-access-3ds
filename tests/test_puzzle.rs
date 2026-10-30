@@ -7,6 +7,7 @@ use indexmap::IndexMap;
 use super::fake_layouts::FakeLayouts;
 use super::fake_memory::{FakeClasses, FakeMemory};
 use super::test_memories::{record, record_form};
+use crate::core::speech::Category;
 use crate::games::common::{lyt, pokemon};
 use crate::games::gen6::screens::puzzle;
 
@@ -183,6 +184,27 @@ fn picture_in(
     background: i64,
     memory: Rc<FakeMemory>,
 ) -> puzzle::TilePuzzle {
+    picture_with(records, placed, background, memory, None, false)
+}
+
+/// `picture(records, name=name, describing=describing)`.
+fn picture_named(
+    records: &[Vec<u8>],
+    name: Option<puzzle::Name>,
+    describing: bool,
+) -> puzzle::TilePuzzle {
+    picture_with(records, true, 12, FakeMemory::new(), name, describing)
+}
+
+/// `picture(records, placed, background, memory, name, describing)`.
+fn picture_with(
+    records: &[Vec<u8>],
+    placed: bool,
+    background: i64,
+    memory: Rc<FakeMemory>,
+    name: Option<puzzle::Name>,
+    describing: bool,
+) -> puzzle::TilePuzzle {
     let classes = FakeClasses::new(memory.clone());
     memory.u32(PICTURE, &[classes.add(puzzle::PICTURE)]);
     let vtable = classes.add(puzzle::BACKGROUND);
@@ -223,10 +245,12 @@ fn picture_in(
             &[i],
         );
     }
-    let mut reader = puzzle::TilePuzzle::new(
+    let mut reader = puzzle::TilePuzzle::with(
         memory.clone(),
         FakeLayouts::new(&memory, &classes).layouts.clone(),
         Rc::new(|_| Ok(None)),
+        name,
+        describing,
     );
     reader
         .track(
@@ -250,6 +274,50 @@ fn named(found: &pokemon::Pokemon) -> Option<String> {
     } else {
         "?".to_string()
     })
+}
+
+#[test]
+fn test_the_picture_is_narrations_with_descriptions_on_and_logged_with_them_off() {
+    // ADR-0038: the picture is Narration's, said each time one is drawn, off unless asked for;
+    // its background's number is logged beside it, and nothing is said without the game's text.
+    let party = [
+        record(0x1, 257, "Blaze", true),
+        record_form(0x2, 25, "Pikachu", false, 1),
+    ];
+    let said =
+        "Pikachu Rock Star in front, Blaze on the right, in shallow water before a wooded bank";
+    let name = || Some(Rc::new(named) as puzzle::Name);
+    let app = Some(puzzle::APP);
+    assert_eq!(
+        picture_named(&party, name(), true).describe(app).unwrap(),
+        [
+            (puzzle::BACKGROUND_LOG.to_string(), "12".to_string(), None),
+            (
+                puzzle::PICTURE_LOG.to_string(),
+                said.to_string(),
+                Some(Category::Scene)
+            ),
+        ]
+    );
+    assert_eq!(
+        picture_named(&party, name(), false).describe(app).unwrap(),
+        [
+            (puzzle::BACKGROUND_LOG.to_string(), "12".to_string(), None),
+            (puzzle::PICTURE_LOG.to_string(), said.to_string(), None),
+        ]
+    );
+    assert!(
+        picture_named(&party, None, true)
+            .describe(app)
+            .unwrap()
+            .is_empty()
+    );
+    assert!(
+        picture_named(&party, name(), true)
+            .describe(Some("N5field12FieldmapProcE"))
+            .unwrap()
+            .is_empty()
+    );
 }
 
 #[test]

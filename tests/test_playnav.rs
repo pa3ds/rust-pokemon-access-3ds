@@ -41,6 +41,7 @@ fn test_the_amie_pages_pokemon_is_named_on_the_field_and_offered_to_stroke_in_am
         &Amie::default(),
         Rc::new(|| Ok(HashSet::new())),
         Rc::new(|| Ok(HashSet::new())),
+        false,
     );
     playnav
         .track(&IndexMap::from([(PAGE, amie::CLASS.to_string())]), false)

@@ -320,8 +320,6 @@ pub struct Gen6Profile {
     /// The scenes the game shows without words, described where the player asks and the game has
     /// descriptions in their language (ADR-0038).
     pub scenes: Option<RefCell<Scenes>>,
-    /// Tile Puzzle's picture is described as a scene is, by the narrator (spike 256).
-    describing: bool,
     /// The Pokédex's habitat map draws the Pokémon's places and never names them (spike 152).
     pub habitat: RefCell<HabitatReader>,
     /// And the AreaNav's Pokémon Distribution draws a place's Pokémon and names none.
@@ -739,6 +737,7 @@ impl Gen6Profile {
                 Rc::new(move || buttons.borrow_mut().idle()) as Idle
             },
             off.clone(),
+            ui.descriptions,
         ));
         let classes: IndexSet<String> = HEAP_CLASSES
             .iter()
@@ -1038,8 +1037,6 @@ impl Gen6Profile {
         } else {
             None
         };
-        // Tile Puzzle's picture is described as a scene is, by the narrator (spike 256).
-        let describing = ui.descriptions && text.loaded();
         let habitat = HabitatReader::new(
             memory.clone(),
             layouts.clone(),
@@ -1134,7 +1131,6 @@ impl Gen6Profile {
             announcements,
             screen_announcer: RefCell::new(screen_announcer),
             scenes,
-            describing,
             habitat: RefCell::new(habitat),
             distribution_reader: RefCell::new(distribution_reader),
             conditions,
@@ -1367,12 +1363,6 @@ impl Gen6Profile {
     /// on, where no sweep of new blocks looks, and the first pages Mom said in the house had no
     /// name to them (movie1, 2026-09-26). Asked as the talk starts, the sweep finds it for the
     /// pages after; swept for at every door instead, the replays went their own way.
-    /// A Pokémon of the player's by the nickname they gave it, or else as the game calls its
-    /// species and form (Orion, 2026-10-16, for the credits).
-    fn yours(&self, found: &pokemon::Pokemon) -> Option<String> {
-        yours_in(&self.text, found)
-    }
-
     fn look_for_speakers(&self, shown: &[Shown]) -> Result<()> {
         for page in shown {
             if let Shown::Page(page) = page
@@ -1541,30 +1531,15 @@ impl Gen6Profile {
             (self.log)(&format!("distribution: {line}"));
             self.speech.say(line, Category::Screen);
         }
-        if self.text.loaded() && self.apps.borrow().running.as_deref() == Some(puzzle::APP) {
-            let tiles = &self.playnav.puzzle;
-            let shown = tiles.borrow().new_picture()?;
-            let mut background = None;
-            let said = match shown {
-                Some(shown) => {
-                    background = tiles.borrow().background()?;
-                    puzzle::described(&shown, &|found| self.yours(found), background)
-                }
-                None => None,
-            };
-            if let Some(said) = said {
-                // The number too, as a background with no words yet is left out.
-                (self.log)(&format!(
-                    "puzzle background: {}",
-                    background.map_or("None".to_string(), |number| number.to_string())
-                ));
-                if self.describing {
-                    self.announcements.borrow_mut().narrate(&said);
-                } else {
-                    // Drawn afresh each time the puzzle opens, so a replay's log says which three
-                    // it drew, which proves it followed its movie.
-                    (self.log)(&format!("puzzle picture: {said}"));
-                }
+        // A description after the screen's words, as it follows what it describes, and what is
+        // only logged beside it: Tile Puzzle's picture. Read outside the screen's phase, which
+        // would fetch its pages every poll after.
+        let running = self.apps.borrow().running.clone();
+        for (logged, line, category) in self.playnav.describe(running.as_deref())? {
+            if category == Some(Category::Scene) {
+                self.announcements.borrow_mut().narrate(&line);
+            } else if category.is_none() {
+                (self.log)(&format!("{logged}: {line}"));
             }
         }
         if let Some(conditions) = &self.conditions {
@@ -2111,15 +2086,6 @@ fn line_of(text: Rc<GameText>) -> Lines {
             None
         })
     })
-}
-
-/// `Gen6Profile._yours` over the game's text, which the readers made before the profile are
-/// handed: a Pokémon of the player's by its nickname, or else its species and form.
-fn yours_in(text: &GameText, found: &pokemon::Pokemon) -> Option<String> {
-    if found.nicknamed && !found.nickname.is_empty() {
-        return Some(found.nickname.clone());
-    }
-    text.pokemon(found.species, found.form)
 }
 
 /// `Gen6Profile._recall`: the word for what a scene names as it is said: `memory`, the Pokémon

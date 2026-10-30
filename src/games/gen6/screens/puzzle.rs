@@ -52,6 +52,7 @@ use indexmap::IndexMap;
 
 use crate::core::binary::{f32, u32};
 use crate::core::memory::Memory;
+use crate::core::speech::Category;
 use crate::core::words::{current, own};
 use crate::games::common::layout::Layouts;
 use crate::games::common::touch::ImageOf;
@@ -104,10 +105,16 @@ pub const FRONT: &str = "puzzle-picture-front";
 pub const RIGHT: &str = "puzzle-picture-right";
 /// A background's words, by its number: `puzzle-background-13`, a game's own.
 pub const SETTING: &str = "puzzle-background-";
+pub const BACKGROUND_LOG: &str = "puzzle background";
+/// What the log calls a picture's background's number, and the picture where it is not said.
+pub const PICTURE_LOG: &str = "puzzle picture";
 
 /// The picture's Pokémon, each with where it stands: x, right the greater, and z, nearer the
 /// greater.
 pub type Picture = Vec<(pokemon::Pokemon, f64, f64)>;
+
+/// What a Pokémon of the player's is called.
+pub type Name = Rc<dyn Fn(&pokemon::Pokemon) -> Option<String>>;
 
 /// The picture in words, left to right, each Pokémon called by `name`, then the background
 /// where the data has words for its number: "Metagross on the left, Pikachu Rock Star in front,
@@ -202,6 +209,12 @@ pub struct TilePuzzle {
     layouts: Rc<Layouts>,
     /// The image a picture draws, by its file's name: a tile's is `FRAME`.
     image_of: ImageOf,
+    /// What a Pokémon of the player's is called, or None where the game's text is not read,
+    /// and the picture is not said (`poll`).
+    name: Option<Name>,
+    /// Whether the picture is said, by the narrator, or only logged (`[pa3ds.ui]
+    /// descriptions`).
+    describing: bool,
     /// Piece object -> the vtable it was found with.
     pieces: IndexMap<i64, i64>,
     /// PokeModel object -> the vtable it was found with.
@@ -218,10 +231,22 @@ impl TilePuzzle {
     pub const CLASSES: [&'static str; 3] = [CLASS, PICTURE, BACKGROUND];
 
     pub fn new(memory: Rc<dyn Memory>, layouts: Rc<Layouts>, image_of: ImageOf) -> Self {
+        TilePuzzle::with(memory, layouts, image_of, None, false)
+    }
+
+    pub fn with(
+        memory: Rc<dyn Memory>,
+        layouts: Rc<Layouts>,
+        image_of: ImageOf,
+        name: Option<Name>,
+        describing: bool,
+    ) -> Self {
         TilePuzzle {
             memory,
             layouts,
             image_of,
+            name,
+            describing,
             pieces: IndexMap::new(),
             pictures: IndexMap::new(),
             backgrounds: IndexMap::new(),
@@ -268,6 +293,39 @@ impl TilePuzzle {
     /// then None until another is drawn, by Play Again (`IMAGE`), or another app starts: each
     /// look is five reads a poll. Its `Bg` held 0 still as its Pokémon were placed in two of six
     /// replays (spike 256).
+    /// The picture, each time one is drawn, as Narration's line, or only logged where
+    /// descriptions are off; and its background's number, logged, as a background with no words
+    /// yet is left out of the line. Drawn afresh each time the puzzle opens, so a replay's log
+    /// says which three it drew, which proves it followed its movie.
+    pub fn describe(
+        &self,
+        running: Option<&str>,
+    ) -> Result<Vec<(String, String, Option<Category>)>> {
+        if running != Some(APP) {
+            return Ok(Vec::new());
+        }
+        let Some(name) = &self.name else {
+            return Ok(Vec::new());
+        };
+        let Some(shown) = self.new_picture()? else {
+            return Ok(Vec::new());
+        };
+        let background = self.background()?;
+        let Some(said) = described(&shown, &**name, background) else {
+            return Ok(Vec::new());
+        };
+        // `str(background)`: "None" where there is none.
+        let number = background.map_or("None".to_string(), |number| number.to_string());
+        Ok(vec![
+            (BACKGROUND_LOG.to_string(), number, None),
+            (
+                PICTURE_LOG.to_string(),
+                said,
+                self.describing.then_some(Category::Scene),
+            ),
+        ])
+    }
+
     pub fn new_picture(&self) -> Result<Option<Picture>> {
         let Some((number, image)) = self.drawn()? else {
             return Ok(None);
