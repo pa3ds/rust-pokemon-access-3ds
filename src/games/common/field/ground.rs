@@ -6,7 +6,8 @@
 //! - ADR-0024: a teleporter within its zone is walked onto and carries the player, a move of P's way
 //!   and of ctrl+P's walk out alike, and the partner it puts them on does nothing until stepped off.
 
-use std::collections::HashSet;
+use std::cell::RefCell;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::rc::Rc;
 
@@ -115,6 +116,16 @@ pub struct StepWords {
 /// What a landform calls a step from a cell to the next on a floor, of its own ground, or None
 /// (`Ground.words`).
 pub type Word = Rc<dyn Fn(&Ground, Cell, Cell, i64, &StepWords) -> Result<Option<String>>>;
+
+/// What `chunk_at`, `floors_at` and `cached_for` hold: each cell's chunk and floors as worked out,
+/// and the chunks, the ROM's chunks and the stacking they were worked out for, the chunks and the
+/// ROM's by identity, as Python's `is` compares them.
+#[derive(Default)]
+pub struct Cached {
+    cached_for: Option<(Vec<*const Chunk>, Option<*const ()>, bool)>,
+    chunk_at: HashMap<Cell, Option<Rc<Chunk>>>,
+    floors_at: HashMap<Cell, Vec<(i64, Option<f64>)>>,
+}
 
 /// Cells to a block of the matrix.
 pub const BLOCK: i64 = 10;
@@ -403,6 +414,14 @@ pub struct Ground {
     /// Bike: a leg is said with the first that names its step, after a ramp's and before a cleared
     /// thing's move and Surf, which are no landform's (`Guide.to`).
     pub words: Vec<Word>,
+    /// Each cell's chunk and floors as worked out (`_chunk`, `floors`): shared by the copies
+    /// `replace` makes of this ground, as the guide makes one for each search (`Guide.ground`),
+    /// and made afresh for a copy with other chunks. A search round Fortree City asked for them
+    /// 13.5 and 8.3 million times over 193 searches, each worked out again.
+    ///
+    /// Python works them out afresh as a copy is made (`__post_init__`); here as a copy is first
+    /// asked, which no copy can tell apart (`fresh`).
+    pub cached: Rc<RefCell<Cached>>,
     /// Each listed teleporter's cell and the floor it is on, `floor`'s and `ANY_FLOOR` off a
     /// stacked ground, with where it puts the player and on what floor: Laverre Gym's panels. Not
     /// in `stepped`: a step onto one is the way on, the teleport the one move from it, and one the
@@ -466,6 +485,7 @@ impl Default for Ground {
             grind_rails: Rc::new(GrindRails::default()),
             vines: Rc::new(Vines::default()),
             words: Vec::new(),
+            cached: Rc::new(RefCell::new(Cached::default())),
             teleports: IndexMap::new(),
             arrows: IndexMap::new(),
         }
@@ -771,6 +791,17 @@ impl Ground {
     /// was one, which P took from the bridge at 103 down onto the ground at 0
     /// (omega_ruby_tree-city-regression.ctm, 2026-10-06).
     pub fn floors(&self, cell: Cell) -> Result<Vec<(i64, Option<f64>)>> {
+        self.fresh();
+        if let Some(known) = self.cached.borrow().floors_at.get(&cell) {
+            return Ok(known.clone());
+        }
+        let out = self.floors_of(cell)?;
+        self.cached.borrow_mut().floors_at.insert(cell, out.clone());
+        Ok(out)
+    }
+
+    /// `floors` worked out.
+    fn floors_of(&self, cell: Cell) -> Result<Vec<(i64, Option<f64>)>> {
         let chunk = if self.stacked {
             self.chunk(cell)?
         } else {
@@ -1415,14 +1446,37 @@ impl Ground {
 
     /// The loaded chunk holding the cell, or else the ROM's.
     fn chunk(&self, cell: Cell) -> Result<Option<Rc<Chunk>>> {
-        let loaded = self.chunks.iter().find(|chunk| chunk.holds(cell)).cloned();
-        let Some(far) = &self.far else {
-            return Ok(loaded);
-        };
-        if loaded.is_some() {
-            return Ok(loaded);
+        self.fresh();
+        if let Some(chunk) = self.cached.borrow().chunk_at.get(&cell) {
+            return Ok(chunk.clone());
         }
-        far(py::floordiv(cell.0, CHUNK), py::floordiv(cell.1, CHUNK))
+        let mut chunk = self.chunks.iter().find(|chunk| chunk.holds(cell)).cloned();
+        if chunk.is_none()
+            && let Some(far) = &self.far
+        {
+            chunk = far(py::floordiv(cell.0, CHUNK), py::floordiv(cell.1, CHUNK))?;
+        }
+        self.cached
+            .borrow_mut()
+            .chunk_at
+            .insert(cell, chunk.clone());
+        Ok(chunk)
+    }
+
+    /// `chunk_at` and `floors_at` emptied where they were worked out for other chunks, other
+    /// ROM's chunks or another stacking than this ground's: Python's `__post_init__`.
+    fn fresh(&self) {
+        let now = (
+            self.chunks.iter().map(Rc::as_ptr).collect::<Vec<_>>(),
+            self.far.as_ref().map(|far| Rc::as_ptr(far) as *const ()),
+            self.stacked,
+        );
+        let mut cached = self.cached.borrow_mut();
+        if cached.cached_for.as_ref() != Some(&now) {
+            cached.chunk_at.clear();
+            cached.floors_at.clear();
+            cached.cached_for = Some(now);
+        }
     }
 
     /// Whether the cell is a counter, which the player talks across.
