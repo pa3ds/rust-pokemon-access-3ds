@@ -4,7 +4,7 @@
 //! player on a face's line may be doing, `FOOT`, `WALL` or `EITHER`.
 //!
 //! Bound by:
-//! - ADR-0006: nothing here names a game's kinds; `gen6.game.Climbing` carries them.
+//! - ADR-0006: nothing here names a game's kinds; `gen6.field.landform.Climbing` carries them.
 //! - ADR-0024: a climb is said as legs, each covering cells.
 
 use std::collections::HashMap;

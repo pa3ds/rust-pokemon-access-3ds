@@ -3,7 +3,7 @@
 //! player is on, or `OFF`.
 //!
 //! Bound by:
-//! - ADR-0006: nothing here names a game's kinds; `gen6.game.Grinding` carries them.
+//! - ADR-0006: nothing here names a game's kinds; `gen6.field.landform.Grinding` carries them.
 //! - ADR-0024: a ride along a rail is said as legs, each covering cells.
 
 use std::collections::{HashMap, HashSet};

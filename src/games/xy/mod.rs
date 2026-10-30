@@ -18,8 +18,8 @@ use crate::core::pathfind;
 use crate::games::common::field::ground::{CUT, ROCK_SMASH, STRENGTH};
 use crate::games::gen6::field::camera;
 use crate::games::gen6::field::footsteps::{RUN, Steps, WALK};
-use crate::games::gen6::field::landform::{ArrowTiles, Landform, Rides, gen6};
-use crate::games::gen6::game::{Climbing, Conveyors, Data, FurnitureKind, Game, Grinding, Vining};
+use crate::games::gen6::field::landform::{ArrowTiles, Climbing, Grinding, Landform, Rides, gen6};
+use crate::games::gen6::game::{Conveyors, Data, FurnitureKind, Game, Vining};
 use crate::games::gen6::rom::layout::{RomLayout, TownFacilities, owned};
 use crate::games::gen6::subscreen::berry_picker;
 use crate::games::xy::intro::IntroReader;
@@ -798,11 +798,11 @@ pub fn game() -> &'static Game {
                 Arc::new(ArrowTiles {
                     ways: IndexMap::from(ARROWS),
                 }),
+                Arc::new(climbing()),
+                Arc::new(GRINDING),
             ],
         ]
         .concat(),
-        climbing: Some(climbing()),
-        grinding: Some(GRINDING),
         vining: Some(VINING),
         teleporting: IndexMap::from([(LAVERRE_GYM, 56)]),
         gates: true,

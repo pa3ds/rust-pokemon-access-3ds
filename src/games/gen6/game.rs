@@ -173,17 +173,6 @@ pub type ConditionsFactory = fn(
 /// `Callable[[Memory, str], OpeningReader]`.
 pub type OpeningFactory = fn(Rc<dyn Memory>, &str) -> Box<dyn OpeningReader>;
 
-/// The cell kinds of the walls a player climbs, as X's Cyllage Gym's (`climb.Walls`).
-#[derive(Debug, Clone, PartialEq)]
-pub struct Climbing {
-    /// Where a face meets the floor, blocked.
-    pub face: i64,
-    /// The kinds of the step off a face sideways onto a ledge, each with its way.
-    pub sideways: IndexMap<i64, &'static str>,
-    /// The top of a slide down a wall, open: a slide only where the cells past it fall.
-    pub slide: i64,
-}
-
 /// One zone's conveyor belts that carry the player (`Ground.conveyors`), and the switch that
 /// turns some of them round, as X's Poké Ball Factory's (spike 259).
 #[derive(Debug, Clone, PartialEq)]
@@ -197,16 +186,6 @@ pub struct Conveyors {
     /// The class of the object, and where in it, that points at the byte saying whether the
     /// switch has turned the belts, 0 for not: the save keeps it.
     pub state: (&'static str, i64),
-}
-
-/// The cell kinds of the rails a player on roller skates grinds along, as X's Shalour City
-/// Gym's (`grind.GrindRails`).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Grinding {
-    /// A cell of a rail, blocked.
-    pub rail: i64,
-    /// The cell past a rail's end that it is skated onto from, open.
-    pub end: i64,
 }
 
 /// The natives the zone script's case of a vine's end hands one constant to, as X's Coumarine
@@ -361,12 +340,6 @@ pub struct Game {
     /// game with none: X's Santalune Gym is a web of them, and ORAS's chunks use the same bit for
     /// other things (`Ground.strands`, spike 223).
     pub strands: i64,
-    /// The walls it lets the player climb, or None in a game with none: X's Cyllage Gym
-    /// (spike 245).
-    pub climbing: Option<Climbing>,
-    /// The rails it lets the player grind along on roller skates, or None in a game with none:
-    /// X's Shalour City Gym (spike 247).
-    pub grinding: Option<Grinding>,
     /// The vines it lets the player grab, or None in a game with none: X's Coumarine City Gym
     /// (spike 250).
     pub vining: Option<Vining>,
@@ -452,8 +425,6 @@ impl Game {
             opening: None,
             memories: None,
             strands: 0,
-            climbing: None,
-            grinding: None,
             vining: None,
             teleporting: IndexMap::new(),
             gates: false,

@@ -14,8 +14,8 @@ use crate::core::pathfind::{self, Cell};
 use crate::games::common::field::chunk::{BLOCKED, CHUNK, Chunk, DIVE, Floor, KIND_SHIFT, SHORE};
 use crate::games::common::field::climb::Walls;
 use crate::games::common::field::grind::GrindRails;
+use crate::games::gen6::field::landform::{Climbing, Grinding};
 use crate::games::gen6::field::{mapblock, rail};
-use crate::games::gen6::game::{Climbing, Grinding};
 use crate::py::{self, Error, Result};
 
 /// What the list has where the matrix has no chunk: most of Route 109's 12 by 10 (spike 136).

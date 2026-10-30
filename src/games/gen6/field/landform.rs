@@ -25,10 +25,13 @@ use crate::games::common::field::chunk::HOLE as BOULDER_HOLE;
 use crate::games::common::field::chunk::{
     BIKE_RAILS, BUMPY_SLOPES, CHUNK, CURRENTS, Chunk, DIVE, FALLS, SLOPES,
 };
+use crate::games::common::field::climb::Walls;
+use crate::games::common::field::grind::GrindRails;
 use crate::games::common::field::ground::{Ground, STRENGTH};
 use crate::games::common::field::things::{
-    ARROW_SOURCE, ARROWS, BIKE, BIKE_SOURCE, CURRENT_SOURCE, CURRENTS_CATEGORY, DIVE_SOURCE, Field,
-    Interactable, OBSTACLES, RIDE_SOURCE, RIDING, TILE_SOURCE, place_source,
+    ARROW_SOURCE, ARROWS, BIKE, BIKE_SOURCE, CLIMB_SOURCE, CLIMBING, CURRENT_SOURCE,
+    CURRENTS_CATEGORY, DIVE_SOURCE, Field, Interactable, OBSTACLES, RIDE_SOURCE, RIDING,
+    TILE_SOURCE, place_source,
 };
 use crate::games::gen6::field::terrain::Terrain;
 use crate::games::gen6::field::zonetable::{
@@ -65,6 +68,12 @@ pub const FLAT_GROUND: &str = "flat ground";
 /// What an arrow tile is called, with the way it pushes the player, "arrow east": the game draws
 /// it and never names it (spike 265).
 pub const ARROW: &str = "arrow";
+
+/// What a run of the blue spots a climbing wall is climbed from is called, and one on a ledge at
+/// its side, where it is got off: the Gym's guide says "start from one of those blue spots", and the
+/// game names neither (spike 245).
+pub const BLUE_SPOT: &str = "blue spot";
+pub const WALL_LEDGE: &str = "wall ledge";
 
 /// Cells apart the places two currents let the player go may be and the two still be listed as
 /// one current. Route 133's currents let the player go at 152 cells, 71 groups of them side by side,
@@ -749,6 +758,110 @@ fn pushed(
         out.insert(start, cell);
     }
     Ok(out)
+}
+
+/// The walls a player climbs, by the cell kinds of the ROM's chunks, as X's Cyllage Gym's
+/// (`climb.Walls`, spike 245): each run of blue spots side by side on one face at one height
+/// listed under climbing, a blue spot where a wall is got onto from the floor and a wall ledge
+/// where it is got off onto a ledge at its side. Its sideways kinds shut the step onto a ramp
+/// sideways where they stand at a ramp's sides, as in the Poké Ball Factory (`Terrain.sides`).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Climbing {
+    /// Where a face meets the floor, blocked.
+    pub face: i64,
+    /// The kinds of the step off a face sideways onto a ledge, each with its way.
+    pub sideways: IndexMap<i64, &'static str>,
+    /// The top of a slide down a wall, open: a slide only where the cells past it fall.
+    pub slide: i64,
+}
+
+/// What `Climbing` finds: the walls, their sideways steps, and the spots listed.
+type ClimbingFound = (Rc<Walls>, Rc<HashSet<(Cell, Cell)>>, Vec<Interactable>);
+
+impl Landform for Climbing {
+    fn found(&self, matrix: &Matrix) -> Result<Found> {
+        let walls = matrix.terrain.walls(self)?;
+        let mut spots: Vec<Interactable> = Vec::new();
+        for (cells, ledge) in walls.spots() {
+            for (first, size) in runs(cells) {
+                let at = (matrix.zone_at)(first)?;
+                if at.is_some_and(|at| at != matrix.zone) {
+                    continue;
+                }
+                spots.push(Interactable {
+                    size,
+                    source: place_source(CLIMB_SOURCE, cell_number(first))?,
+                    home: Some(matrix.zone),
+                    ..Interactable::new(CLIMBING, if ledge { WALL_LEDGE } else { BLUE_SPOT }, first)
+                });
+            }
+        }
+        let found: ClimbingFound = (walls, matrix.terrain.sides(self)?, spots);
+        Ok(Rc::new(found))
+    }
+
+    fn listed(&self, found: &Found, _here: &Here) -> Result<Vec<Interactable>> {
+        Ok(found_as::<ClimbingFound>(found).2.clone())
+    }
+
+    fn laid(&self, found: &Found, ground: Ground, _here: &Here) -> Result<Ground> {
+        let (walls, sides, _) = found_as::<ClimbingFound>(found);
+        let mut cliffs = ground.cliffs.clone();
+        cliffs.extend(sides.iter().copied());
+        Ok(Ground {
+            walls: walls.clone(),
+            cliffs,
+            ..ground
+        })
+    }
+}
+
+/// The rails a player on roller skates grinds along, by the cell kinds of the ROM's chunks, as
+/// X's Shalour City Gym's (`grind.GrindRails`, spike 247). Not listed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Grinding {
+    /// A cell of a rail, blocked.
+    pub rail: i64,
+    /// The cell past a rail's end that it is skated onto from, open.
+    pub end: i64,
+}
+
+impl Landform for Grinding {
+    fn found(&self, matrix: &Matrix) -> Result<Found> {
+        Ok(Rc::new(matrix.terrain.grind_rails(self)?))
+    }
+
+    fn laid(&self, found: &Found, ground: Ground, _here: &Here) -> Result<Ground> {
+        Ok(Ground {
+            grind_rails: found_as::<Rc<GrindRails>>(found).clone(),
+            ..ground
+        })
+    }
+}
+
+/// Each run of cells adjacent along a row or a column, as its first cell and its size.
+pub fn runs(cells: impl IntoIterator<Item = Cell>) -> Vec<(Cell, (i64, i64))> {
+    let mut left: Vec<Cell> = cells.into_iter().collect();
+    left.sort();
+    left.dedup();
+    let mut out: Vec<(Cell, (i64, i64))> = Vec::new();
+    while !left.is_empty() {
+        let first = left.remove(0);
+        let mut last = first;
+        for step in [(1, 0), (0, 1)] {
+            while let Some(at) = left
+                .iter()
+                .position(|&cell| cell == (last.0 + step.0, last.1 + step.1))
+            {
+                last = left.remove(at);
+            }
+            if last != first {
+                break;
+            }
+        }
+        out.push((first, (last.0 - first.0 + 1, last.1 - first.1 + 1)));
+    }
+    out
 }
 
 /// Gen 6's own landforms, which every game's chunks can hold, in the order they are listed and

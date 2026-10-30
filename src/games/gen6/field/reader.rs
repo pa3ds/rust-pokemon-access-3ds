@@ -35,16 +35,14 @@ use crate::core::memory::Memory;
 use crate::core::pathfind::{self, Cell};
 use crate::core::words::own;
 use crate::games::common::field::chunk::{BLOCKED, CHUNK, Chunk};
-use crate::games::common::field::climb::Walls;
-use crate::games::common::field::grind::GrindRails;
 use crate::games::common::field::ground::{
     self as common, BLOCK, CRACKED, Far, Grid, Ground, GroundHeight, NO_ZONE, Of, STRENGTH, pushes,
     walkable,
 };
 use crate::games::common::field::ride::riding;
 use crate::games::common::field::things::{
-    CLIMB_SOURCE, CLIMBING, DECORATION_SOURCE, EDGE_SOURCE, FURNITURE_SOURCE, Field, Interactable,
-    OBSTACLES, OPENING_SOURCE, POKEMON, STAIRS_SOURCE, TELEPORT_SOURCE, TELEPORTER, TILE_SOURCE,
+    CLIMBING, DECORATION_SOURCE, EDGE_SOURCE, FURNITURE_SOURCE, Field, Interactable, OBSTACLES,
+    OPENING_SOURCE, POKEMON, STAIRS_SOURCE, TELEPORT_SOURCE, TELEPORTER, TILE_SOURCE,
     TRIGGER_SOURCE, VINE_SOURCE, WARP_SOURCE, kind_said, place_source,
 };
 use crate::games::common::field::vines::{End, Vines, paired};
@@ -55,7 +53,7 @@ use crate::games::gen6::field::features::{
 use crate::games::gen6::field::hidden_items::{HIDDEN_ITEM, HiddenItems, Only};
 use crate::games::gen6::field::landform::{
     Found as Worked, HOLE, Here, Holes, Landform, Matrix, Rides, as_form, beside, cell_number,
-    dropped, holes_found, spread,
+    dropped, holes_found, runs, spread,
 };
 use crate::games::gen6::field::rail::{self, Rails, keep};
 use crate::games::gen6::field::terrain::{FarCells, FarFloors, FarHeights, FarMatrices, Terrain};
@@ -69,7 +67,7 @@ use crate::games::gen6::field::zonedata::{
 };
 use crate::games::gen6::field::zonetable::{INFO_SIZE, ZoneTable};
 use crate::games::gen6::field::{fieldmap, mapblock, mmodel};
-use crate::games::gen6::game::{Climbing, Conveyors, FurnitureKind, Game, Grinding, Vining};
+use crate::games::gen6::game::{Conveyors, FurnitureKind, Game, Vining};
 use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::rom::maps::{ChunkSource, StreetSource};
 use crate::py::{self, PySet, Result};
@@ -134,12 +132,6 @@ pub const TABLE_EVERY: f64 = 2.0;
 pub const BARRIER: &str = "barrier";
 /// The key the records of every elevator's door share (`FieldReader._furniture_key`): never said.
 pub const ELEVATOR: &str = "elevator";
-
-/// What a run of the blue spots a climbing wall is climbed from is called, and one on a ledge at
-/// its side, where it is got off: the Gym's guide says "start from one of those blue spots", and the
-/// game names neither (spike 245).
-pub const BLUE_SPOT: &str = "blue spot";
-pub const WALL_LEDGE: &str = "wall ledge";
 
 /// What a stair between two floors of one chunk is called, a warp between floors being stairs
 /// too: the game names neither (spike 167).
@@ -297,12 +289,6 @@ pub struct FieldReader {
     /// What the game's ridden Pokémon cross, or None in a game without one: who is in the way
     /// and who is listed asks it too.
     rides: Option<Rides>,
-    /// The kinds of the walls the game lets the player climb, or None in a game without them
-    /// (`Game.climbing`).
-    climbing: Option<Climbing>,
-    /// The kinds of the rails the game lets the player grind along, or None in a game without
-    /// them (`Game.grinding`).
-    grinding: Option<Grinding>,
     /// The natives of the vines the game lets the player grab, or None in a game without
     /// them (`Game.vining`).
     vining: Option<Vining>,
@@ -541,8 +527,6 @@ impl FieldReader {
             landforms: game.landforms.clone(),
             found_of: RefCell::new(HashMap::new()),
             rides: game.landforms.iter().find_map(as_form::<Rides>).cloned(),
-            climbing: game.climbing.clone(),
-            grinding: game.grinding,
             vining: game.vining,
             natives: text.natives.clone(),
             teleports: text.teleports.clone(),
@@ -915,10 +899,7 @@ impl FieldReader {
             ));
         }
         let ladders = self.ladders_here()?;
-        let mut cliffs = self.terrain.cliffs(level, &ladders)?;
-        if let Some(climbing) = &self.climbing {
-            cliffs.extend(self.terrain.sides(climbing)?.iter().copied());
-        }
+        let cliffs = self.terrain.cliffs(level, &ladders)?;
         let doors = match &self.doors {
             None => Vec::new(),
             Some(doors) => doors.doors(r#where.zone)?,
@@ -979,8 +960,6 @@ impl FieldReader {
             strands: self.strands,
             lanes,
             raised: self.terrain.raised()?,
-            walls: self.walls()?,
-            grind_rails: self.grind_rails()?,
             conveyors,
             switched,
             switch,
@@ -1371,7 +1350,6 @@ impl FieldReader {
         for (form, found) in self.landforms.iter().zip(self.found(r#where.zone)?.iter()) {
             items.extend(form.listed(found, &here)?);
         }
-        items.extend(self.climbing_spots(r#where.zone)?);
         for (end, _, ride) in paired(&self.vine_ends(r#where.zone)?.1) {
             items.push(Interactable {
                 height: Some(end.height),
@@ -2599,24 +2577,6 @@ impl FieldReader {
         Ok(out)
     }
 
-    /// The matrix's climbing walls, off the ROM (`Terrain.walls`); none in a game without
-    /// them.
-    fn walls(&self) -> Result<Rc<Walls>> {
-        match &self.climbing {
-            None => Ok(Rc::new(Walls::default())),
-            Some(climbing) => self.terrain.walls(climbing),
-        }
-    }
-
-    /// The matrix's grind rails, off the ROM (`Terrain.grind_rails`); none in a game without
-    /// them.
-    fn grind_rails(&self) -> Result<Rc<GrindRails>> {
-        match &self.grinding {
-            None => Ok(Rc::new(GrindRails::default())),
-            Some(grinding) => self.terrain.grind_rails(grinding),
-        }
-    }
-
     /// What the zone's vines' ends were read for, and the ends: its furniture records on
     /// streets whose zone script case runs a vine (`Game.vining`), each on its one cell of the
     /// grid, as high as its line's start, with the spot it is grabbed from (`Rails.on_grid`,
@@ -2679,28 +2639,6 @@ impl FieldReader {
             *self.vines_of.borrow_mut() = (key, Rc::new(Vines::found(&ends)));
         }
         Ok(Some(self.vines_of.borrow().1.clone()))
-    }
-
-    /// The zone's climbing walls' blue spots, each run of them side by side on one face at
-    /// one height a thing, a blue spot where the wall is got onto from the floor and a wall
-    /// ledge where it is got off onto a ledge at its side (`Walls.spots`, spike 245).
-    fn climbing_spots(&self, zone: i64) -> Result<Vec<Interactable>> {
-        let mut out: Vec<Interactable> = Vec::new();
-        for (cells, ledge) in self.walls()?.spots() {
-            for (first, size) in runs(cells) {
-                let at = self.zone_at(first)?;
-                if at.is_some_and(|at| at != zone) {
-                    continue;
-                }
-                out.push(Interactable {
-                    size,
-                    source: place_source(CLIMB_SOURCE, cell_number(first))?,
-                    home: Some(zone),
-                    ..Interactable::new(CLIMBING, if ledge { WALL_LEDGE } else { BLUE_SPOT }, first)
-                });
-            }
-        }
-        Ok(out)
     }
 
     /// What each landform worked out of the zone's matrix (`Landform.found`), in
@@ -3212,31 +3150,6 @@ fn touching(cells: &HashSet<Cell>) -> Vec<Vec<Cell>> {
             }
         }
         out.push(group);
-    }
-    out
-}
-
-/// Each run of cells adjacent along a row or a column, as its first cell and its size.
-fn runs(cells: impl IntoIterator<Item = Cell>) -> Vec<(Cell, (i64, i64))> {
-    let mut left: Vec<Cell> = cells.into_iter().collect();
-    left.sort();
-    left.dedup();
-    let mut out: Vec<(Cell, (i64, i64))> = Vec::new();
-    while !left.is_empty() {
-        let first = left.remove(0);
-        let mut last = first;
-        for step in [(1, 0), (0, 1)] {
-            while let Some(at) = left
-                .iter()
-                .position(|&cell| cell == (last.0 + step.0, last.1 + step.1))
-            {
-                last = left.remove(at);
-            }
-            if last != first {
-                break;
-            }
-        }
-        out.push((first, (last.0 - first.0 + 1, last.1 - first.1 + 1)));
     }
     out
 }

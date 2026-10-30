@@ -4153,7 +4153,7 @@ fn test_climbing_walls_are_listed_a_run_of_blue_spots_or_a_ledge_at_a_time() -> 
             ..Given::default()
         },
         Game {
-            climbing: Some(xy::climbing()),
+            landforms: [gen6(), vec![Arc::new(xy::climbing()) as Arc<dyn Landform>]].concat(),
             ..game()
         },
     );
@@ -4201,7 +4201,7 @@ fn test_a_ramps_side_is_never_stepped_across_on_foot() -> Result<()> {
             ..Given::default()
         },
         Game {
-            climbing: Some(xy::climbing()),
+            landforms: [gen6(), vec![Arc::new(xy::climbing()) as Arc<dyn Landform>]].concat(),
             ..game()
         },
     );
@@ -4256,7 +4256,7 @@ fn test_a_slide_is_found_where_the_cells_past_its_top_fall_to_a_lower_landing() 
             ..Given::default()
         },
         Game {
-            climbing: Some(xy::climbing()),
+            landforms: [gen6(), vec![Arc::new(xy::climbing()) as Arc<dyn Landform>]].concat(),
             ..game()
         },
     );
@@ -4321,7 +4321,7 @@ fn test_grind_rails_are_found_on_every_floor_and_never_past_a_blocked_cell() -> 
             ..Given::default()
         },
         Game {
-            grinding: Some(xy::GRINDING),
+            landforms: [gen6(), vec![Arc::new(xy::GRINDING) as Arc<dyn Landform>]].concat(),
             ..game()
         },
     );
