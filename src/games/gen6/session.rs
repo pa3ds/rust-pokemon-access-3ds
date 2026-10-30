@@ -114,6 +114,7 @@ pub fn start(
             tap: setup.tap.clone(),
             slide: setup.slide.clone(),
             tones: setup.tones.clone(),
+            ticks: setup.ticks.clone(),
             clips,
             swims: Some(swims),
             title: Some(setup.process.title_id),

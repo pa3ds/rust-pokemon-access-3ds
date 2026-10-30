@@ -24,7 +24,7 @@ use crate::core::names::{FURNITURE, GamePlace, GameSprite, Names, TILES};
 use crate::core::pathfind::{COMPASS, walked};
 use crate::core::rtti::{ClassNames, demangle};
 use crate::core::speech::{Category, Speech};
-use crate::core::tones::Tones;
+use crate::core::tones::{Tones, ticking};
 use crate::core::words::own;
 use crate::games::common::announce::{Announcements, Speaker};
 use crate::games::common::cursors::reader::CursorReader;
@@ -176,6 +176,7 @@ pub struct Options {
     pub tap: Option<Tap>,
     pub slide: Option<touch::Slide>,
     pub tones: Option<Rc<Tones>>,
+    pub ticks: Option<Rc<Tones>>,
     pub clips: Option<Rc<Clips>>,
     /// None is `{}`.
     pub swims: Option<IndexMap<String, f64>>,
@@ -356,6 +357,7 @@ impl Gen6Profile {
             tap,
             slide,
             tones,
+            ticks,
             clips,
             swims,
             title,
@@ -908,7 +910,21 @@ impl Gen6Profile {
         let dowsing = game
             .dowsing
             .map(|offset| RefCell::new(Lights::new(memory.clone(), offset)));
-        let screen_announcer = ScreenAnnouncer::with(speech.clone(), log.clone(), ui.pauses);
+        let screen_announcer = ScreenAnnouncer::with_clock(
+            speech.clone(),
+            log.clone(),
+            ui.pauses,
+            ticking(ticks),
+            Some({
+                let apps = apps.clone();
+                Rc::new(move || {
+                    apps.borrow()
+                        .running
+                        .as_deref()
+                        .is_some_and(|running| amie::GAMES.contains(&running))
+                })
+            }),
+        );
         // The scenes the game shows without words, described where the player asks and the game
         // has descriptions in their language (ADR-0038), those of the other version left out.
         let managers = Rc::new(RefCell::new(PySet::new()));

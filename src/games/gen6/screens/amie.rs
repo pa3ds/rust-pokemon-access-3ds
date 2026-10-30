@@ -50,6 +50,14 @@ pub const CLASS: &str = "N5field9subscreen9kawaigari12FM_KawaigariE";
 pub const ARRANGE: &str = "N3app17kawaigari_arrange4ProcE";
 /// Pokémon-Amie itself, the app PLAY starts.
 pub const AMIE: &str = "N9kawaigari8MainProcE";
+/// Amie's three games, Berry Picker, Head It and Tile Puzzle, each an app of its own, whose clock
+/// is said only at its marks (`ScreenAnnouncer`; as_amie_berry_picker, as_amie_head_it and
+/// as_amie_tile_puzzle).
+pub const GAMES: [&str; 3] = [
+    "N3app5nuts27ProcessE",
+    "N3app7heading7ProcessE",
+    "N3app6puzzle7ProcessE",
+];
 /// Back and forth across the middle of the screen, over the Pokémon's body: Sceptile stood from
 /// about 110 to 200 across and 60 to 170 down, and the hand followed every pass (spike 200).
 pub const STROKE: [(i64, i64); 6] = [

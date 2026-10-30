@@ -34,7 +34,9 @@ the Game Boy games. Nothing here is taken from its code.
 
 - **Dialogue**, a page at a time, with who is speaking where pa3ds knows.
 - **Menus**: the item under the cursor, then its details, such as a description or a count.
-- **Screen text**: labels, options and questions as they appear and when they change.
+- **Screen text**: labels, options and questions as they appear and when they change. In
+  Pokémon-Amie's games the clock is said each half minute, and a countdown at 10 seconds and
+  each of its last 5.
 - **Name entry**: the key under the cursor.
 - **Battles**: the battle text, and each side's Pokémon with its name, gender, level and HP. Your
   HP is said exactly, the enemy's as a percentage, because a bar is all the game shows. A move's

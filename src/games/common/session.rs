@@ -124,6 +124,9 @@ pub struct Setup {
     /// The tones that say where a cursor is (`pa3ds.core.tones`); None where pa3ds takes no keys,
     /// so a replay makes no sound, or where `[pa3ds.audio] tones` is 0.
     pub tones: Option<Rc<Tones>>,
+    /// The tone at each tick of a game's clock (`ScreenAnnouncer`); None as `tones` is, or where
+    /// `[pa3ds.audio] ticks` is 0, as it ships.
+    pub ticks: Option<Rc<Tones>>,
     /// Where the game's own sounds pa3ds plays go, its footsteps (`pa3ds.core.clips`); None where
     /// pa3ds takes no keys, as in a replay, or where `[pa3ds.audio] footsteps` is 0.
     pub clips: Option<Rc<Clips>>,
@@ -147,6 +150,7 @@ impl Setup {
             tap: None,
             slide: None,
             tones: None,
+            ticks: None,
             clips: None,
         }
     }

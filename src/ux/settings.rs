@@ -64,12 +64,13 @@ pub const PERCENT: &str = "percent";
 pub const FOLDER: &str = "folder";
 /// Each setting that is not on or off, by its control. The last is Python's
 /// `**dict.fromkeys(config.CHOICES, CHOICE)`, a const array having no spread.
-pub const KINDS: [(&str, &str); 6] = [
+pub const KINDS: [(&str, &str); 7] = [
     ("pa3ds.ui.language", CHOICE),
     ("pa3ds.azahar_folder", FOLDER),
     ("pa3ds.poll_rate", NUMBER),
     ("pa3ds.audio.tones", PERCENT),
     ("pa3ds.audio.footsteps", PERCENT),
+    ("pa3ds.audio.ticks", PERCENT),
     (config::CHOICES[0].0, CHOICE),
 ];
 /// What a number's arrows step between: reads a second, and a loudness in percent, ten times as

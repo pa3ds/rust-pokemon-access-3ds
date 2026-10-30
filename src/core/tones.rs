@@ -24,6 +24,7 @@
 //! Bound by:
 //! - ADR-0025: a tone is said beside a word, never instead of one.
 
+use std::rc::Rc;
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError};
 use std::thread::JoinHandle;
 
@@ -213,6 +214,15 @@ struct Shared {
 
 fn locked(voice: &Mutex<Voice>) -> MutexGuard<'_, Voice> {
     voice.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+/// A game's clock's tick as a tone in the middle, 440 Hz (`ScreenAnnouncer`): the lowest,
+/// an octave under it, was hard to hear even at 1.5 (Orion, 2026-10-26).
+pub fn ticking(tones: Option<Rc<Tones>>) -> Option<Rc<dyn Fn()>> {
+    let tones = tones?;
+    Some(Rc::new(move || {
+        let _ = tones.play(0.5, 0.5);
+    }))
 }
 
 /// Plays the voice on a thread of its own, started at the first tone; silent off Windows and

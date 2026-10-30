@@ -121,11 +121,18 @@ impl Screen {
     }
 
     fn with(pauses: bool) -> Self {
+        Screen::with_clock(pauses, None, false)
+    }
+
+    /// `Screen(pauses, tick, timed)`.
+    fn with_clock(pauses: bool, tick: Option<Rc<dyn Fn()>>, timed: bool) -> Self {
         let backend = Recorder::new();
-        let announcer = ScreenAnnouncer::with(
+        let announcer = ScreenAnnouncer::with_clock(
             Rc::new(Speech::plain(backend.clone())),
             Rc::new(|_line: &str| {}),
             pauses,
+            tick,
+            Some(Rc::new(move || timed)),
         );
         Screen { backend, announcer }
     }
@@ -1227,6 +1234,141 @@ fn test_a_changed_value_alone_in_its_group_takes_its_whole_row() {
             &[label.clone(), minutes.clone()]
         )),
         ["Play time: 14"]
+    );
+}
+
+/// What is said of a clock shown with its first words and changed to each of the rest, a
+/// change every `polls` polls, or after each of them.
+///
+/// Python's `polls` is an int or a list; here it is always a list, `vec![5; n]` for the int.
+fn run_clock(screen: &mut Screen, texts: &[String], polls: &[usize]) -> Vec<String> {
+    let mut first = piece(1, &texts[0], -100.0, 100.0, PANEL);
+    let mut said = screen.say(args(&one(&first), vec![], &one(&first)));
+    assert_eq!(polls.len(), texts.len() - 1);
+    for (text, &gap) in texts[1..].iter().zip(polls) {
+        for _ in 0..gap - 1 {
+            said.extend(screen.on(&one(&first)));
+        }
+        first = ScreenText {
+            text: text.clone(),
+            changed: true,
+            with_layout: false,
+            ..first.clone()
+        };
+        said.extend(screen.say(args(&one(&first), vec![], &one(&first))));
+    }
+    said
+}
+
+/// `run_clock` with a change every 5 polls, its default.
+fn run_clock_5(screen: &mut Screen, texts: &[String]) -> Vec<String> {
+    run_clock(screen, texts, &vec![5; texts.len() - 1])
+}
+
+fn words(texts: &[&str]) -> Vec<String> {
+    texts.iter().map(|text| text.to_string()).collect()
+}
+
+#[test]
+fn test_a_countdown_is_said_each_half_minute_at_10_and_its_last_5() {
+    // Berry Picker said "Time Left" every second for its whole minute (a player, 2026-10-26).
+    let ticks = Rc::new(RefCell::new(Vec::<i64>::new()));
+    let counting = ticks.clone();
+    let mut screen = Screen::with_clock(
+        false,
+        Some(Rc::new(move || counting.borrow_mut().push(1))),
+        true,
+    );
+    let countdown: Vec<String> = (0..=60)
+        .rev()
+        .map(|left| format!("Time Left: {left:02}"))
+        .collect();
+    let said = run_clock_5(&mut screen, &countdown);
+    assert_eq!(
+        said,
+        [
+            "Time Left: 60",
+            "Time Left: 30",
+            "Time Left: 10",
+            "Time Left: 05",
+            "Time Left: 04",
+            "Time Left: 03",
+            "Time Left: 02",
+            "Time Left: 01"
+        ]
+    );
+    assert_eq!(ticks.borrow().len(), 60);
+}
+
+#[test]
+fn test_a_clock_counting_up_is_said_each_half_minute() {
+    let up: Vec<String> = (28..33)
+        .map(|seconds| format!("Time: 00:{seconds:02}"))
+        .collect();
+    let said = run_clock_5(&mut Screen::with_clock(false, None, true), &up);
+    assert_eq!(said, ["Time: 00:28", "Time: 00:30"]);
+}
+
+#[test]
+fn test_a_clock_still_ticks_past_a_missed_second_and_after_a_late_one() {
+    // Berry Picker's replay read 41 then 39 two seconds later, and 10 then 9 two polls after
+    // (as_amie_berry_picker); 31 to 29 passes the half minute, which is said.
+    let said = run_clock(
+        &mut Screen::with_clock(false, None, true),
+        &words(&[
+            "Time Left: 42",
+            "Time Left: 41",
+            "Time Left: 39",
+            "Time Left: 38",
+            "Time Left: 37",
+            "Time Left: 36",
+        ]),
+        &[5, 10, 5, 7, 2],
+    );
+    assert_eq!(said, ["Time Left: 42"]);
+    let said = run_clock(
+        &mut Screen::with_clock(false, None, true),
+        &words(&[
+            "Time Left: 33",
+            "Time Left: 32",
+            "Time Left: 31",
+            "Time Left: 29",
+        ]),
+        &[5, 5, 10],
+    );
+    assert_eq!(said, ["Time Left: 33", "Time Left: 29"]);
+}
+
+#[test]
+fn test_no_number_is_a_clock_outside_a_game_that_times_the_player() {
+    // Taken for a clock wherever it ticked, the battle Bag's page, the Mart's counts, money, a
+    // save screen's minute and the PC Box's name went unsaid as the player changed them
+    // (as_cave_of_origin, or_mart, or_pc_box_buttons and others).
+    let countdown: Vec<String> = (56..=60)
+        .rev()
+        .map(|left| format!("Time Left: {left}"))
+        .collect();
+    assert_eq!(run_clock_5(&mut Screen::new(), &countdown), countdown);
+}
+
+#[test]
+fn test_a_number_changing_by_one_off_a_seconds_beat_is_said() {
+    // A score going up by one a poll after it came, or a play time a minute after, is no clock.
+    assert_eq!(
+        run_clock(
+            &mut Screen::with_clock(false, None, true),
+            &words(&["SCORE 7", "SCORE 8"]),
+            &[1]
+        ),
+        ["SCORE 7", "SCORE 8"]
+    );
+    assert_eq!(
+        run_clock(
+            &mut Screen::with_clock(false, None, true),
+            &words(&["Play time: 14", "Play time: 15"]),
+            &[300]
+        ),
+        ["Play time: 14", "Play time: 15"]
     );
 }
 

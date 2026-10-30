@@ -51,6 +51,7 @@ fn test_every_setting_is_one_control_on_its_tables_page() {
             ("pa3ds.ui.language", "choice"),
             ("pa3ds.audio.tones", PERCENT),
             ("pa3ds.audio.footsteps", PERCENT),
+            ("pa3ds.audio.ticks", PERCENT),
             ("pa3ds.extras.hidden_items", "choice"),
         ])
     );

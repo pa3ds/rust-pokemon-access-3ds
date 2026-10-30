@@ -630,9 +630,10 @@ fn session(
         Audio {
             tones: 0.0,
             footsteps: 0.0,
+            ticks: 0.0,
         }
     };
-    let loudness = if audio.tones > 0.0 || audio.footsteps > 0.0 {
+    let loudness = if audio.tones > 0.0 || audio.footsteps > 0.0 || audio.ticks > 0.0 {
         Some(Loudness::new(&match &settings.emulator {
             Some(emulator) => emulator.clone(),
             None => emulator_config("")?,
@@ -670,6 +671,12 @@ fn session(
             tones: match &loudness {
                 Some(loudness) if audio.tones > 0.0 => {
                     Some(Rc::new(Tones::new(Some(loudness.clone()), audio.tones)))
+                }
+                _ => None,
+            },
+            ticks: match &loudness {
+                Some(loudness) if audio.ticks > 0.0 => {
+                    Some(Rc::new(Tones::new(Some(loudness.clone()), audio.ticks)))
                 }
                 _ => None,
             },

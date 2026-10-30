@@ -10,9 +10,9 @@
 //! - **`[pa3ds]`**: whether pa3ds answers its keys, how often it reads the game, and the folder of a
 //!   portable Azahar, whose `user\config` holds the `qt-config.ini` patched rather than AppData's.
 //! - **`[pa3ds.ui]`**: how menus, lists and screens are said.
-//! - **`[pa3ds.audio]`**: how loud pa3ds's own sounds are, its tones and footsteps, 1 as loud as
-//!   the game and Azahar play it; until 2026-10-18 the tones were on or off under `[pa3ds.ui]`,
-//!   and a player's value there is carried over (`MOVED`).
+//! - **`[pa3ds.audio]`**: how loud pa3ds's own sounds are, its tones, footsteps and clock ticks, 1
+//!   as loud as the game and Azahar play it; until 2026-10-18 the tones were on or off under
+//!   `[pa3ds.ui]`, and a player's value there is carried over (`MOVED`).
 //! - **`[pa3ds.navigation]`**: how the map's list and the way to a thing are said.
 //! - **`[pa3ds.extras]`**: what the game shows in a way pa3ds cannot read, said from its numbers.
 //! - **`[azahar]`**: Azahar's own settings, written into its `qt-config.ini` whenever pa3ds
@@ -149,6 +149,9 @@ impl Table for Ui {
 pub struct Audio {
     pub tones: f64,
     pub footsteps: f64,
+    /// A tone at each tick of a game's clock, which is said only at its marks
+    /// (`screen_announce`, `tones.ticking`); off until a player asks (Orion, 2026-10-26).
+    pub ticks: f64,
 }
 
 impl Default for Audio {
@@ -156,6 +159,7 @@ impl Default for Audio {
         Audio {
             tones: 1.0,
             footsteps: 1.0,
+            ticks: 0.0,
         }
     }
 }
@@ -165,6 +169,7 @@ impl Table for Audio {
         vec![
             ("tones", Value::Float(self.tones)),
             ("footsteps", Value::Float(self.footsteps)),
+            ("ticks", Value::Float(self.ticks)),
         ]
     }
 
@@ -177,6 +182,7 @@ impl Table for Audio {
         match setting {
             "tones" => self.tones = value,
             "footsteps" => self.footsteps = value,
+            "ticks" => self.ticks = value,
             _ => {}
         }
     }
@@ -809,15 +815,17 @@ pub fn prepare(
         &path,
         &mut notes,
     );
-    if audio.tones < 0.0 || audio.footsteps < 0.0 {
+    if audio.tones < 0.0 || audio.footsteps < 0.0 || audio.ticks < 0.0 {
         notes.push(format!(
-            "{}: [pa3ds.audio] cannot be below 0, playing at 1",
+            "{}: [pa3ds.audio] cannot be below 0, playing at its default",
             py::path_str(&path)
         ));
-        let kept = |each: f64| if each >= 0.0 { each } else { 1.0 };
+        let default = Audio::default();
+        let kept = |each: f64, default: f64| if each >= 0.0 { each } else { default };
         audio = Audio {
-            tones: kept(audio.tones),
-            footsteps: kept(audio.footsteps),
+            tones: kept(audio.tones, default.tones),
+            footsteps: kept(audio.footsteps, default.footsteps),
+            ticks: kept(audio.ticks, default.ticks),
         };
     }
     let navigation: Navigation = table(

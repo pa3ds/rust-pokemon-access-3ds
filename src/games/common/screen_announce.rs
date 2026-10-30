@@ -35,6 +35,11 @@
 //!   screen in a layout's first second waits while more of its words are still being written, up
 //!   to a second, and is said as it came the moment any of it changes or leaves, ahead of the
 //!   change.
+//! - **A clock is said at its marks** (Orion, 2026-10-26): while a game that times the player
+//!   runs, Pokémon-Amie's three, a number going one up or down a second after it last changed is
+//!   its clock ticking, said each half minute and, counting down, at 10 and each of the last 5.
+//!   They said "Time Left" every second for a minute. Every tick can sound a tone,
+//!   `[pa3ds.audio] ticks`.
 //! - The item under a cursor comes first, then its details, then what changed, then what came on
 //!   screen. Nothing interrupts unless the speech policy says so.
 //!
@@ -46,9 +51,12 @@
 //!   changing one.
 
 use std::collections::HashSet;
+use std::ops::Range;
 use std::rc::Rc;
+use std::sync::LazyLock;
 
 use indexmap::{IndexMap, IndexSet};
+use regex::Regex;
 
 use crate::core::speech::{Category, Speech};
 use crate::games::common::cursors::shared::CursorPoll;
@@ -100,6 +108,12 @@ pub const CURSOR_HEARD_POLLS: i64 = 10;
 /// summary turning to another Pokémon changed 17. One row alone, a play time or a question, is
 /// said at once.
 pub const REWRITE_ROWS: i64 = 2;
+
+/// Polls from one tick of a clock to the next: a second is five, and Berry Picker's "Time Left"
+/// was caught 0.82 to 1.05 s apart; a slow poll moves it a little either way.
+pub const CLOCK_POLLS: Range<i64> = 3..9;
+
+static NUMBERS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\d+").expect("a fixed pattern"));
 
 /// A layout root and the pane a group of pieces hangs from, or the frame drawn round words hanging
 /// from the root itself (`ScreenText.group`).
@@ -173,6 +187,13 @@ pub struct ScreenAnnouncer {
     speech: Rc<Speech>,
     log: Log,
     pauses: bool,
+    tick: Option<Rc<dyn Fn()>>,
+    timed: Option<Rc<dyn Fn() -> bool>>,
+    /// TextBox -> the words it came on screen with or changed to lately, and the poll, for
+    /// telling a clock's tick (`_ticked`).
+    set: IndexMap<i64, (String, i64)>,
+    /// TextBoxes that have ticked, for as long as they keep being set.
+    clocks: HashSet<i64>,
     /// Roots of the layouts a cursor has been over, for as long as those layouts live.
     menus: HashSet<i64>,
     gathering: Option<Gathering>,
@@ -215,11 +236,28 @@ impl ScreenAnnouncer {
         ScreenAnnouncer::with(speech, log, false)
     }
 
+    /// `ScreenAnnouncer(speech, log, pauses)`: no clock.
     pub fn with(speech: Rc<Speech>, log: Log, pauses: bool) -> Self {
+        ScreenAnnouncer::with_clock(speech, log, pauses, None, None)
+    }
+
+    /// `timed` says whether a game that times the player runs, whose clock is said at its
+    /// marks (`_ticked`), none where it is None; `tick` sounds each tick of the clock.
+    pub fn with_clock(
+        speech: Rc<Speech>,
+        log: Log,
+        pauses: bool,
+        tick: Option<Rc<dyn Fn()>>,
+        timed: Option<Rc<dyn Fn() -> bool>>,
+    ) -> Self {
         ScreenAnnouncer {
             speech,
             log,
             pauses,
+            tick,
+            timed,
+            set: IndexMap::new(),
+            clocks: HashSet::new(),
             menus: HashSet::new(),
             gathering: None,
             rewrite: None,
@@ -500,9 +538,29 @@ impl ScreenAnnouncer {
             })
             .cloned()
             .collect();
-        let mut changed: Vec<ScreenText> = heard.iter().filter(|p| p.changed).cloned().collect();
+        let timed = self.timed.as_ref().is_some_and(|timed| timed());
+        let mut ticks: HashSet<i64> = HashSet::new();
+        for p in &heard {
+            if timed && p.changed && self.ticked(p)? {
+                ticks.insert(p.r#box);
+            }
+        }
+        // Kept for two beats, so a clock whose second the reader missed still ticks.
+        let polls = self.polls;
+        self.set
+            .retain(|_box, set_at| polls - set_at.1 < 2 * CLOCK_POLLS.end);
+        for p in texts {
+            self.set.insert(p.r#box, (p.text.clone(), self.polls));
+        }
+        let set = &self.set;
+        self.clocks.retain(|r#box| set.contains_key(r#box));
+        let mut changed: Vec<ScreenText> = heard
+            .iter()
+            .filter(|p| p.changed && !ticks.contains(&p.r#box))
+            .cloned()
+            .collect();
         let mut shown: Vec<ScreenText> = heard.iter().filter(|p| !p.changed).cloned().collect();
-        let mut said: HashSet<i64> = cursored.clone();
+        let mut said: HashSet<i64> = cursored.union(&ticks).copied().collect();
         let mut gathering = self.gathering.take();
         if gathering
             .as_ref()
@@ -617,6 +675,45 @@ impl ScreenAnnouncer {
 
         self.say_shown(&ready, on_screen, &mut said, labels, &cursored);
         self.say_what_is_left(left, on_screen, &mut said)
+    }
+
+    /// Is a changed piece a clock's tick, left unsaid? Its number has gone one up or down a
+    /// second after the words were last set, and nothing else of them has changed: "Time Left:
+    /// 58", "Time: 00:10". Asked only while a game that times the player runs (`timed`). Once a
+    /// clock, a step of two, a second the reader missed, or one coming soon after a late one,
+    /// is a tick too: Berry Picker went 41 then 39, and 10 then 9 at 0.4 s. Every tick sounds
+    /// `tick`; one reaching or passing a mark is said.
+    fn ticked(&mut self, piece: &ScreenText) -> Result<bool> {
+        let Some(before) = self.set.get(&piece.r#box).cloned() else {
+            return Ok(false);
+        };
+        let (now, then) = (seconds(&piece.text)?, seconds(&before.0)?);
+        let (Some(now), Some(then)) = (now, then) else {
+            return Ok(false);
+        };
+        if NUMBERS.replace_all(&piece.text, "#") != NUMBERS.replace_all(&before.0, "#") {
+            return Ok(false);
+        }
+        let step = (now - then).abs();
+        if !((step == 1 && CLOCK_POLLS.contains(&(self.polls - before.1)))
+            || (self.clocks.contains(&piece.r#box) && 0 < step && step <= 2))
+        {
+            return Ok(false);
+        }
+        self.clocks.insert(piece.r#box);
+        let down = now < then;
+        if let Some(tick) = &self.tick {
+            tick();
+        }
+        let mut passed = if down { now..then } else { then + 1..now + 1 };
+        if passed.any(|seconds| marked(seconds, down)) {
+            return Ok(false);
+        }
+        (self.log)(&format!(
+            "screen ticked: {}  [layout {:#x}]",
+            piece.text, piece.root
+        ));
+        Ok(true)
     }
 
     /// Say the letters left in a name a letter has just been deleted from.
@@ -1560,6 +1657,27 @@ fn once(groups: Vec<Vec<ScreenText>>) -> Vec<Vec<ScreenText>> {
         }
     }
     out
+}
+
+/// The seconds a clock's words show, "00:10" as minutes and seconds; None for words with no
+/// number, or more than a clock's two.
+fn seconds(text: &str) -> Result<Option<i64>> {
+    let numbers: Vec<&str> = NUMBERS.find_iter(text).map(|m| m.as_str()).collect();
+    if !(!numbers.is_empty() && numbers.len() <= 2) {
+        return Ok(None);
+    }
+    let mut total = 0;
+    for number in numbers {
+        total = total * 60 + py::int_base10(number)?;
+    }
+    Ok(Some(total))
+}
+
+/// Is a clock's tick said? Each half minute, and counting down, at 10 and each of the last 5
+/// (Orion, 2026-10-26).
+fn marked(seconds: i64, down: bool) -> bool {
+    (seconds > 0 && py::modulo(seconds, 30) == 0)
+        || (down && (seconds == 10 || (0 < seconds && seconds <= 5)))
 }
 
 /// Is this a count, a number alone? Not one with a leading zero: X's Pokédex list numbers its
