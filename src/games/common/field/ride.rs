@@ -1,6 +1,7 @@
 //! Riding: crossing ground only a Pokémon the player rides crosses, as X's Rhyhorn crosses Route
-//! 9's spiky ground, got on and off on the flat ground beside it (spike 238). A traversal
-//! (`traversal`): its state is whether the player is riding, 1 or 0.
+//! 9's spiky ground and its Mamoswine Route 17's deep snow, got on and off on the flat ground beside
+//! them (spikes 238 and 263). A traversal (`traversal`): its state is whether the player is riding,
+//! 1 or 0.
 //!
 //! Bound by:
 //! - ADR-0006: nothing here names a game's kinds; `gen6.game.Rides` carries them.
