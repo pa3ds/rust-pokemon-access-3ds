@@ -15,10 +15,22 @@ const BOXES: i64 = 0x08C9A140;
 const PARTY: i64 = 0x08200000;
 
 /// A stored Pokémon, with a key whose bits 13 to 17 leave its blocks in order.
-fn record(key: i64, species: i64, nickname: &str, nicknamed: bool) -> Vec<u8> {
+pub(crate) fn record(key: i64, species: i64, nickname: &str, nicknamed: bool) -> Vec<u8> {
+    record_form(key, species, nickname, nicknamed, 0)
+}
+
+/// `record(key, species, nickname, nicknamed, form)`.
+pub(crate) fn record_form(
+    key: i64,
+    species: i64,
+    nickname: &str,
+    nicknamed: bool,
+    form: i64,
+) -> Vec<u8> {
     let mut plain = vec![0u8; pokemon::RECORD_SIZE as usize];
     plain[0..4].copy_from_slice(&(key as u32).to_le_bytes());
     plain[8..10].copy_from_slice(&(species as u16).to_le_bytes());
+    plain[pokemon::GENDER as usize] = (form << 3) as u8;
     let name: Vec<u8> = nickname
         .encode_utf16()
         .flat_map(|unit| unit.to_le_bytes())

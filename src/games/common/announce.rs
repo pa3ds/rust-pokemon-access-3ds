@@ -266,11 +266,17 @@ impl Announcements {
         self.sides.clear();
     }
 
+    /// `narrate(text)`: not `named`.
+    pub fn narrate(&mut self, text: &str) {
+        self.narrate_named(text, false);
+    }
+
     /// Say a scene's description as the narrator's line: named when it takes over from whoever
     /// spoke last, a speaker or the game's own unnamed text, and plain while it goes on, as a
-    /// speaker is (Orion, 2026-10-12). A speaker after it is named again.
-    pub fn narrate(&mut self, text: &str) {
-        let said = if self.said_speaker.as_deref() == Some(NARRATOR) {
+    /// speaker is (Orion, 2026-10-12). A speaker after it is named again. `named` names it
+    /// anyway, for a description among a screen's words rather than after a line.
+    pub fn narrate_named(&mut self, text: &str, named: bool) {
+        let said = if self.said_speaker.as_deref() == Some(NARRATOR) && !named {
             text.to_string()
         } else {
             format!("{}: {text}", own(NARRATOR, &[]))

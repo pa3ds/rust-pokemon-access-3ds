@@ -4,8 +4,9 @@ use indexmap::IndexMap;
 
 use super::fake_layouts::FakeLayouts;
 use super::fake_memory::{FakeClasses, FakeMemory};
-use crate::games::common::lyt;
+use super::test_memories::{record, record_form};
 use crate::games::common::touch::Target;
+use crate::games::common::{lyt, pokemon};
 use crate::games::gen6::screens::puzzle;
 
 const SCREEN: i64 = 0x08300000;
@@ -184,4 +185,139 @@ fn test_records_out_of_order_or_two_in_one_slot_are_no_board() {
     let (reader, frames, _) = board(&slots, None, 0);
     assert!(reader.board().unwrap().is_none());
     assert_eq!(name(&reader, frames[0]), None);
+}
+
+const PICTURE: i64 = 0x08500000;
+const PARAMS: i64 = 0x08600000;
+/// Where or_amie_tile_puzzle_easy's three stood: right and behind, in front, left and behind.
+const STANDING: [(f32, f32); 3] = [(170.0, -335.0), (0.0, -200.0), (-170.0, -335.0)];
+
+/// A picture of a Pokémon a record, each a PokemonParam pointing to its record at +0x40, in
+/// the places or_amie_tile_puzzle_easy's stood, or all at 0 unless `placed` (spike D); and an
+/// Easy board, every piece home, as under Begin.
+fn picture(records: &[Vec<u8>], placed: bool) -> puzzle::TilePuzzle {
+    let memory = FakeMemory::new();
+    let classes = FakeClasses::new(memory.clone());
+    memory.u32(PICTURE, &[classes.add(puzzle::PICTURE)]);
+    for (i, (raw, (x, z))) in records.iter().zip(STANDING).enumerate() {
+        let param = PARAMS + i as i64 * 0x200;
+        memory.u32(PICTURE + puzzle::MODELS[i], &[param]);
+        memory.u32(
+            param + pokemon::PARAM_RECORD,
+            &[param + pokemon::RECORD_IN_PARAM],
+        );
+        memory.write(param + pokemon::RECORD_IN_PARAM, raw);
+        if placed {
+            let mut point = Vec::new();
+            for value in [x, 0.0, z] {
+                point.extend(value.to_le_bytes());
+            }
+            memory.write(
+                PICTURE + puzzle::POINTS + i as i64 * 0x30 + puzzle::STANDS,
+                &point,
+            );
+        }
+    }
+    memory.u32(BOARD, &[classes.add(puzzle::CLASS)]);
+    for i in 0..20 {
+        memory.u32(
+            BOARD + puzzle::RECORDS + i * puzzle::SIZE + puzzle::NUMBER,
+            &[20 - i],
+        );
+        memory.u32(
+            BOARD + puzzle::RECORDS + i * puzzle::SIZE + puzzle::SLOT,
+            &[i],
+        );
+    }
+    let mut reader = puzzle::TilePuzzle::new(
+        memory.clone(),
+        FakeLayouts::new(&memory, &classes).layouts.clone(),
+    );
+    reader
+        .track(
+            &IndexMap::from([
+                (PICTURE, puzzle::PICTURE.to_string()),
+                (BOARD, puzzle::CLASS.to_string()),
+            ]),
+            false,
+        )
+        .unwrap();
+    reader
+}
+
+fn named(found: &pokemon::Pokemon) -> Option<String> {
+    Some(if found.nicknamed {
+        found.nickname.clone()
+    } else if found.species == 25 {
+        "Pikachu Rock Star".to_string()
+    } else {
+        "?".to_string()
+    })
+}
+
+#[test]
+fn test_the_picture_is_three_of_the_party_said_left_to_right() {
+    // ADR-0038: the picture is said left to right. or_amie_tile_puzzle_easy: Blaze behind on the
+    // right, Pikachu in its first form, the one Amie played with, in front, and Metagross behind
+    // on the left (spike D).
+    let reader = picture(
+        &[
+            record(0x1, 257, "Blaze", true),
+            record_form(0x2, 25, "Pikachu", false, 1),
+            record(0x3, 376, "Metagross", true),
+        ],
+        true,
+    );
+    let shown = reader.picture().unwrap().expect("a picture");
+    assert_eq!(
+        shown
+            .iter()
+            .map(|(found, _, _)| (found.species, found.form))
+            .collect::<Vec<_>>(),
+        [(257, 0), (25, 1), (376, 0)]
+    );
+    assert_eq!(
+        puzzle::described(&shown, &named).as_deref(),
+        Some("Metagross on the left, Pikachu Rock Star in front, Blaze on the right")
+    );
+}
+
+#[test]
+fn test_the_picture_is_given_once_until_another_app_starts() {
+    // ADR-0038: said once an app.
+    let reader = picture(
+        &[
+            record(0x1, 257, "Blaze", true),
+            record(0x2, 25, "Pikachu", false),
+        ],
+        true,
+    );
+    assert!(reader.new_picture().unwrap().is_some());
+    assert!(reader.new_picture().unwrap().is_none());
+    reader.started();
+    assert!(reader.new_picture().unwrap().is_some());
+}
+
+#[test]
+fn test_a_record_that_does_not_check_is_no_picture() {
+    // The module's own code holds words like a PokeModel's vtable, its pointers instructions.
+    let mut broken = record(0x1, 257, "Blaze", true);
+    broken[pokemon::CHECKSUM as usize] ^= 1;
+    let reader = picture(&[broken], true);
+    assert!(reader.picture().unwrap().is_none());
+    assert!(reader.new_picture().unwrap().is_none());
+}
+
+#[test]
+fn test_the_picture_waits_for_its_pokemon_to_be_placed() {
+    // or_amie_tile_puzzle_easy_described: found as the puzzle opened, all three stood at 0, and
+    // were said all "in front".
+    let reader = picture(
+        &[
+            record(0x1, 257, "Blaze", true),
+            record(0x2, 25, "Pikachu", false),
+        ],
+        false,
+    );
+    assert!(reader.new_picture().unwrap().is_none());
 }

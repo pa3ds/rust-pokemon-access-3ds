@@ -1,8 +1,9 @@
-//! Pokémon-Amie's Tile Puzzle: which piece of the picture each tile holds (spike A).
+//! Pokémon-Amie's Tile Puzzle: which piece of the picture each tile holds (spike A), and who is
+//! in the picture (spike D).
 //!
-//! The puzzle shows its picture whole, three of the player's Pokémon on the sand under the sky,
+//! The puzzle shows its picture whole, three of the player's Pokémon on the shore under the sky,
 //! then cuts it into tiles and shuffles them at Begin; two taps swap two tiles, and the clock runs
-//! until every piece is home (as_amie_tile_puzzle). Easy cuts it into 20, five across and four
+//! until every piece is home (or_amie_tile_puzzle_easy). Easy cuts it into 20, five across and four
 //! down; Normal into 30, six across and five down (as_amie_tile_puzzle_normal); Hard into 48, eight
 //! across and six down (as_amie_tile_puzzle_hard). Each tile is a group of a touch area, a picture
 //! of `frame.bclim` and `cursol.bclim`'s, drawn over the tile picked, and touch mode said every one
@@ -30,18 +31,29 @@
 //! what is on it; it is on for now (Orion, 2026-10-26), until movies of more puzzles show how the
 //! game chooses its pictures and cuts them, and the tiles can be said as they look. Then where a
 //! piece belongs becomes an Extra, an easy mode a player turns on.
+//!
+//! The picture is a 3D scene, and its `app::puzzle::PokeModel` holds who is in it: three pointers
+//! to a `PokemonParam` each, a copy of the party's whose record checks, and four points a Pokémon,
+//! where it stands among them. The one Amie plays with stands in front in the middle, x 0, and two
+//! more behind it, x below 0 on the left and above on the right (or_amie_tile_puzzle_easy's
+//! Metagross, Pikachu and Blaze; as_amie_tile_puzzle_normal's Poochyena, Ralts and rowan). With
+//! descriptions on, the picture is said once the puzzle holds them, left to right.
+//!
+//! Bound by:
+//! - ADR-0038: the picture is Narration's, said once an app, off unless asked for.
 
+use std::cell::Cell;
 use std::rc::Rc;
 
 use indexmap::IndexMap;
 
-use crate::core::binary::u32;
+use crate::core::binary::{f32, u32};
 use crate::core::memory::Memory;
 use crate::core::words::own;
 use crate::games::common::layout::Layouts;
-use crate::games::common::lyt;
 use crate::games::common::touch::Target;
-use crate::py::Result;
+use crate::games::common::{lyt, pokemon};
+use crate::py::{self, Result};
 
 pub const CLASS: &str = "N3app6puzzle5PieceE";
 pub const APP: &str = "N3app6puzzle7ProcessE";
@@ -58,12 +70,53 @@ pub const NUMBER: i64 = 0x10;
 pub const SLOT: i64 = 0x70;
 pub const PICKED: i64 = 2;
 
+/// The picture's Pokémon (spike D).
+pub const PICTURE: &str = "N3app6puzzle9PokeModelE";
+/// Where `PICTURE` points to each Pokémon's `PokemonParam`, a copy of the party's, in the order of
+/// `POINTS`; each followed by a counter its motion runs.
+pub const MODELS: [i64; 3] = [0x0C, 0x1C, 0x2C];
+/// Four points a Pokémon, x, y and z, 0x30 bytes apart: its box's least and greatest corners, the
+/// spot it stands on (`STANDS`), and a point within the box, at Blaziken's head.
+pub const POINTS: i64 = 0x38;
+pub const STANDS: i64 = 0x18;
+pub const PICTURE_SIZE: i64 = POINTS + MODELS.len() as i64 * 0x30;
+
 pub const GRID: &str = "slot-grid";
 pub const ROW: &str = "puzzle-row";
 pub const COLUMN: &str = "puzzle-column";
 pub const HOME: &str = "puzzle-home";
 pub const GOES: &str = "puzzle-goes";
 pub const PICKED_WORD: &str = "puzzle-picked";
+pub const LEFT: &str = "puzzle-picture-left";
+pub const FRONT: &str = "puzzle-picture-front";
+pub const RIGHT: &str = "puzzle-picture-right";
+
+/// The picture's Pokémon, each with where it stands: x, right the greater, and z, nearer the
+/// greater.
+pub type Picture = Vec<(pokemon::Pokemon, f64, f64)>;
+
+/// The picture in words, left to right, each Pokémon called by `name`: "Metagross on the left,
+/// Pikachu Rock Star in front, Blaze on the right"; None where one has no name. The one the player
+/// plays with stands in front in the middle, x 0, and two more behind it to either side
+/// (or_amie_tile_puzzle_easy, as_amie_tile_puzzle_normal).
+pub fn described(
+    picture: &Picture,
+    name: &dyn Fn(&pokemon::Pokemon) -> Option<String>,
+) -> Option<String> {
+    let mut said: Vec<String> = Vec::new();
+    for (found, x, _) in py::sorted_by_lt(picture.clone(), |a, b| a.1 < b.1) {
+        let called = name(&found)?;
+        let word = if x < 0.0 {
+            LEFT
+        } else if x > 0.0 {
+            RIGHT
+        } else {
+            FRONT
+        };
+        said.push(own(word, &[("pokemon", &called)]));
+    }
+    Some(said.join(", "))
+}
 
 /// `ACROSS[pieces]`, None where `pieces not in ACROSS`.
 fn across(pieces: i64) -> Option<i64> {
@@ -124,6 +177,9 @@ pub struct TilePuzzle {
     layouts: Rc<Layouts>,
     /// Piece object -> the vtable it was found with.
     pieces: IndexMap<i64, i64>,
+    /// PokeModel object -> the vtable it was found with.
+    pictures: IndexMap<i64, i64>,
+    shown: Cell<bool>,
 }
 
 impl TilePuzzle {
@@ -132,23 +188,93 @@ impl TilePuzzle {
             memory,
             layouts,
             pieces: IndexMap::new(),
+            pictures: IndexMap::new(),
+            shown: Cell::new(false),
         }
     }
 
-    /// The boards a sweep found, by class: all of them, or with `adding` the new ones.
+    /// The boards and pictures a sweep found, by class: all of them, or with `adding` the new
+    /// ones.
     pub fn track(&mut self, found: &IndexMap<i64, String>, adding: bool) -> Result<()> {
         let mut pieces = if adding {
             self.pieces.clone()
         } else {
             IndexMap::new()
         };
-        for (&piece, name) in found {
-            if name == CLASS {
-                pieces.insert(piece, u32(&self.memory.read(piece, 4)?, 0)?);
+        let mut pictures = if adding {
+            self.pictures.clone()
+        } else {
+            IndexMap::new()
+        };
+        for (&at, name) in found {
+            if name == CLASS || name == PICTURE {
+                let vtable = u32(&self.memory.read(at, 4)?, 0)?;
+                if name == CLASS {
+                    pieces.insert(at, vtable);
+                } else {
+                    pictures.insert(at, vtable);
+                }
             }
         }
-        self.pieces = pieces;
+        (self.pieces, self.pictures) = (pieces, pictures);
         Ok(())
+    }
+
+    /// Another app has started: the next puzzle's picture is new, even one of the same
+    /// Pokémon.
+    pub fn started(&self) {
+        self.shown.set(false);
+    }
+
+    /// The picture's Pokémon the first time the puzzle holds them, then None until another app
+    /// starts: each look is four reads a poll.
+    pub fn new_picture(&self) -> Result<Option<Picture>> {
+        // ponytail: one picture an app; if Play Again draws another, watch MODELS' pointers.
+        if self.shown.get() || self.board()?.is_none() {
+            return Ok(None);
+        }
+        let found = self.picture()?;
+        self.shown.set(found.is_some());
+        Ok(found)
+    }
+
+    /// The picture's Pokémon, each with where it stands, or None while none holds a record
+    /// that checks, the module's own data holding words like a PokeModel's vtable, or one stands
+    /// at z 0: placed, they stood 200 to 335 deep, and found as the puzzle opened all three stood
+    /// at 0 (or_amie_tile_puzzle_easy_described).
+    pub fn picture(&self) -> Result<Option<Picture>> {
+        'pictures: for (&at, &vtable) in &self.pictures {
+            let raw = self.memory.read(at, PICTURE_SIZE)?;
+            if u32(&raw, 0)? != vtable {
+                continue;
+            }
+            let mut shown: Picture = Vec::new();
+            for (i, &model) in MODELS.iter().enumerate() {
+                let param = u32(&raw, model)?;
+                if param == 0 {
+                    continue;
+                }
+                let record = u32(&self.memory.read(param + pokemon::PARAM_RECORD, 4)?, 0)?;
+                let plain = pokemon::decrypt(&self.memory.read(record, pokemon::RECORD_SIZE)?);
+                let found = match plain {
+                    Some(plain) => pokemon::parse(&plain, pokemon::SPECIES_MAX)?,
+                    None => None,
+                };
+                let Some(found) = found else {
+                    continue 'pictures;
+                };
+                let stands = POINTS + i as i64 * 0x30 + STANDS;
+                let (x, z) = (f32(&raw, stands)?, f32(&raw, stands + 8)?);
+                if z == 0.0 {
+                    continue 'pictures;
+                }
+                shown.push((found, x, z));
+            }
+            if !shown.is_empty() {
+                return Ok(Some(shown));
+            }
+        }
+        Ok(None)
     }
 
     /// The board, or None. A count of pieces of no difficulty's, a record out of its order or

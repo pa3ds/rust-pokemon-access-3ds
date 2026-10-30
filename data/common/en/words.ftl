@@ -265,6 +265,12 @@ puzzle-goes = { $tile }, goes to { $home }
 # "column 3, in place".
 puzzle-row = row { $row }
 puzzle-column = column { $column }
+# Tile Puzzle's picture, described once a puzzle where descriptions are on: three of the player's
+# Pokémon, said left to right, "Metagross on the left, Pikachu Rock Star in front, Blaze on the
+# right". The game says nothing of it.
+puzzle-picture-left = { $pokemon } on the left
+puzzle-picture-front = { $pokemon } in front
+puzzle-picture-right = { $pokemon } on the right
 # The tile tapped first, which the next tap swaps with.
 puzzle-picked = { $tile }, picked
 

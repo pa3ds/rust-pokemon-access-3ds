@@ -106,7 +106,7 @@ use crate::py::{self, Error, Log, PySet, Result};
 /// Not TextBoxes or cursor windows: walking each layout's tree finds every one that can be placed on
 /// screen (spike 62). And the linear heap is not swept: the battle builds its layouts there, and its
 /// message window leads to their pool (spike 64).
-pub const HEAP_CLASSES: [&str; 37] = [
+pub const HEAP_CLASSES: [&str; 38] = [
     msgwin::CLASSES[0],
     msgwin::CLASSES[1],
     talk::CLASSES[0],
@@ -132,6 +132,7 @@ pub const HEAP_CLASSES: [&str; 37] = [
     distribution::REPLACE_CLASS,
     amie::G2D_CLASS,
     puzzle::CLASS,
+    puzzle::PICTURE,
     training::CLASS,
     training::MISSILE,
     partners::CLASS,
@@ -294,6 +295,8 @@ pub struct Gen6Profile {
     /// The scenes the game shows without words, described where the player asks and the game has
     /// descriptions in their language (ADR-0038).
     pub scenes: Option<RefCell<Scenes>>,
+    /// Tile Puzzle's picture is described as a scene is, by the narrator (spike D).
+    describing: bool,
     /// The Pokédex's habitat map draws the Pokémon's places and never names them (spike 152).
     pub habitat: RefCell<HabitatReader>,
     /// And the AreaNav's Pokémon Distribution draws a place's Pokémon and names none.
@@ -997,6 +1000,8 @@ impl Gen6Profile {
         } else {
             None
         };
+        // Tile Puzzle's picture is described as a scene is, by the narrator (spike D).
+        let describing = ui.descriptions && text.loaded();
         let habitat = HabitatReader::new(
             memory.clone(),
             layouts.clone(),
@@ -1097,6 +1102,7 @@ impl Gen6Profile {
             announcements,
             screen_announcer: RefCell::new(screen_announcer),
             scenes,
+            describing,
             habitat: RefCell::new(habitat),
             distribution_reader: RefCell::new(distribution_reader),
             conditions,
@@ -1261,6 +1267,7 @@ impl Gen6Profile {
         self.archived.borrow_mut().clear();
         // A battle's sides are said again on a key only while it lasts.
         self.announcements.borrow_mut().forget_sides();
+        self.puzzle.borrow().started();
         if started == BATTLE {
             self.battle.borrow_mut().begin();
         }
@@ -1333,6 +1340,15 @@ impl Gen6Profile {
     /// on, where no sweep of new blocks looks, and the first pages Mom said in the house had no
     /// name to them (movie1, 2026-09-26). Asked as the talk starts, the sweep finds it for the
     /// pages after; swept for at every door instead, the replays went their own way.
+    /// A Pokémon of the player's by the nickname they gave it, or else as the game calls its
+    /// species and form (Orion, 2026-10-16, for the credits).
+    fn yours(&self, found: &pokemon::Pokemon) -> Option<String> {
+        if found.nicknamed && !found.nickname.is_empty() {
+            return Some(found.nickname.clone());
+        }
+        self.text.pokemon(found.species, found.form)
+    }
+
     fn look_for_speakers(&self, shown: &[Shown]) -> Result<()> {
         for page in shown {
             if let Shown::Page(page) = page
@@ -1500,6 +1516,14 @@ impl Gen6Profile {
         for line in &listed {
             (self.log)(&format!("distribution: {line}"));
             self.speech.say(line, Category::Screen);
+        }
+        if self.describing && self.apps.borrow().running.as_deref() == Some(puzzle::APP) {
+            let shown = self.puzzle.borrow().new_picture()?;
+            if let Some(shown) = shown
+                && let Some(said) = puzzle::described(&shown, &|found| self.yours(found))
+            {
+                self.announcements.borrow_mut().narrate_named(&said, true);
+            }
         }
         if let Some(conditions) = &self.conditions {
             // After the screen's words, and once a cursor's details are said, so they come last.

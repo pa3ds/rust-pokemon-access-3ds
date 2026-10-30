@@ -986,3 +986,25 @@ fn test_a_description_is_the_narrators_named_as_a_speaker_is() -> Result<()> {
     );
     Ok(())
 }
+
+#[test]
+fn test_a_description_among_a_screens_words_names_the_narrator_every_time() {
+    // ADR-0038: Tile Puzzle's picture came after "Easy", the title screen's beat the last
+    // narrated, and plain it was heard as one more of the screen's lines.
+    let backend = Recorder::new();
+    let mut announcements = Announcements::with(
+        Rc::new(Speech::plain(backend.clone())),
+        Rc::new(|_: &str| {}),
+        Some(Rc::new(|_| Ok(None))),
+        false,
+    );
+    announcements.narrate("The title screen.");
+    announcements.narrate_named("Metagross on the left.", true);
+    assert_eq!(
+        backend.spoken(),
+        [
+            "Narration: The title screen.",
+            "Narration: Metagross on the left."
+        ]
+    );
+}
