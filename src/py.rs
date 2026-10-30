@@ -247,7 +247,8 @@ pub mod time {
     /// Where the time comes from while a tape is replayed.
     pub trait Clock {
         fn monotonic(&mut self) -> f64;
-        fn sleep(&mut self, seconds: f64);
+        /// `ends_tick`: the sleep is [`sleep_ending_tick`]'s.
+        fn sleep(&mut self, seconds: f64, ends_tick: bool);
     }
 
     thread_local! {
@@ -273,9 +274,20 @@ pub mod time {
 
     /// `time.sleep(seconds)`.
     pub fn sleep(seconds: f64) {
+        sleep_as(seconds, false)
+    }
+
+    /// `time.sleep(seconds)` where it ends a pass of the poll loop, `app._session`'s: the same
+    /// sleep, which a tape's replay tells from the rest to end its tick, as the Python's
+    /// `spikes/tape_replay.py` tells it by the function that called it (`TICK_END`).
+    pub fn sleep_ending_tick(seconds: f64) {
+        sleep_as(seconds, true)
+    }
+
+    fn sleep_as(seconds: f64, ends_tick: bool) {
         let replayed = CLOCK.with(|cell| match cell.borrow_mut().as_mut() {
             Some(clock) => {
-                clock.sleep(seconds);
+                clock.sleep(seconds, ends_tick);
                 true
             }
             None => false,

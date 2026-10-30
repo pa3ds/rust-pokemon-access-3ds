@@ -867,7 +867,9 @@ fn session(
                 Some(false) => return Ok(Ended::Gone(true)),
                 None => {
                     silent = true;
-                    time::sleep(settings.wait);
+                    // `_session`'s sleeps end a tick of a tape's replay, which the Python's tells
+                    // by its caller (`time::sleep_ending_tick`).
+                    time::sleep_ending_tick(settings.wait);
                     continue;
                 }
                 Some(true) => {}
@@ -1011,7 +1013,7 @@ fn session(
             }
         }
         let left = settings.tick - (time::monotonic() - started);
-        time::sleep(if left > 0.0 { left } else { 0.0 });
+        time::sleep_ending_tick(if left > 0.0 { left } else { 0.0 });
     }
     Ok(Ended::Gone(false))
 }

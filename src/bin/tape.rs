@@ -179,15 +179,26 @@ fn replay(path: &Path, against: &Path) -> Result<bool, String> {
         .collect();
     let python_said = read(".said")?;
     let mut same = true;
+    // The Python's summary line, `tape_replay.py replay`'s, so the answers can be compared.
     let mut report = format!(
-        "{name}: {} records, {} lines, {} said",
-        tape.count(),
+        "{name}: {}; {}; {}{}; {} lines, {} said",
+        tape.ticks(),
+        tape.summary(),
+        match &ending {
+            Stop::End => "end of tape",
+            Stop::Diverged(_) => "stopped",
+        },
+        if tape.approximate() {
+            "; approximate"
+        } else {
+            ""
+        },
         logged.len(),
         said.len()
     );
     if let Stop::Diverged(why) = &ending {
         same = false;
-        report += &format!("\n  DIVERGED, {why}");
+        report += &format!("\n  STOPPED, {why}");
     }
     if let Some(difference) = first_difference(&python_log, &logged) {
         same = false;
@@ -199,6 +210,10 @@ fn replay(path: &Path, against: &Path) -> Result<bool, String> {
     }
     if same {
         report += ", identical to the Python runtime's";
+    }
+    // The first few stale or missing answers, as the Python prints them after its line.
+    for problem in tape.problems() {
+        report += &format!("\n    {problem}");
     }
     println!("{report}");
     Ok(same)

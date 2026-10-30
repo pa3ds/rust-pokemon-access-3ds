@@ -2,10 +2,10 @@
 
 A **tape** is everything the emulator and the clock answered the Python runtime during one replay
 of a movie, in the order it asked: each `Rpc` call with its reply, and each `time.monotonic` and
-`time.sleep` made from pa3ds's own modules. Replaying a tape needs no emulator and no ROM rig,
-and a faithful port asks exactly the questions the Python asked, so it gets exactly the same
-answers and logs and says exactly the same lines. Where it asks something else, the replay stops
-at that record and says what each side asked.
+`time.sleep` made from pa3ds's own modules. Replaying a tape needs no emulator and no ROM rig.
+The Rust runtime is answered by the rules the Python's `spikes/tape_replay.py replay` answers
+the Python runtime by, so a faithful port gets exactly the answers the Python's replay got and
+logs and says exactly the same lines, even on a tape neither asks just as its recording did.
 
 Two live runs of the same commit differ by tens of lines (`docs/runbooks/rig.md`), which is why a
 live comparison cannot prove a port line for line and a tape can.
@@ -56,8 +56,19 @@ target\release\tape.exe --against %LOCALAPPDATA%\pa3ds\captures\regress\<label> 
 
 writes `<name>.rust.log` and `<name>.rust.said` beside each tape and compares them with the
 Python replay's `<name>.log`, its seconds left out, and `<name>.said` under the label, saying for
-each tape either "identical to the Python runtime's" or the first record the two runtimes asked
-differently, and the first line each logged or said differently.
+each tape either "identical to the Python runtime's" or the first line each logged or said
+differently. Each tape's line starts as the Python's `summary.txt` line does, with how its
+questions were answered, "exact 180734, covered 106, stale 0, missing 0, unused 0", and
+"approximate" where a stale or missing answer made it so: the two must agree.
+
+The tape is read a tick at a time, a tick ending at the poll loop's own sleep, which the runtime
+makes through `py::time::sleep_ending_tick` where the Python's replay knows it by its caller.
+Each question is answered from its own tick: **exact**, the tick's oldest unanswered record of
+that question; **covered**, bytes the tick read under another question, the latest at or before
+the last exact answer, else the first after it; **stale**, bytes only an earlier tick read, the
+newest; **missing**, none, which fails a lone read as "not on the tape" and is left out of a
+`read_each`. A clock, `unsure` or `reply_seconds` asked more often than recorded gets the last
+value given; what a tick recorded and nobody asked is counted unused (`src/tape.rs`).
 
 ## Live runs
 
@@ -72,9 +83,9 @@ Every log line and every spoken line, in order. Two kinds of line are compared b
 line only: a reader's failure, whose traceback names Python files, and the snapshot path written
 for it.
 
-`read_each` batches are compared as sets: the Python sends some batches in the order of a `set`,
-which no other language reproduces, and a batch's order changes only the order its replies come
-back in.
+A `read_each` batch is the same question in any order: the Python sends some batches in the
+order of a `set`, which no other language reproduces, and a batch's order changes only the order
+its replies come back in.
 
 ## Format
 
