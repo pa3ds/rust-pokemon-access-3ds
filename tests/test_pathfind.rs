@@ -66,6 +66,38 @@ fn test_open_ground_is_crossed_in_two_legs() {
     assert_eq!(said(path).as_deref(), Some("5 east, 2 north"));
 }
 
+/// Of ways that cost the same, the one going on the way the player goes, else the one whose
+/// first leg runs furthest, else the first of north, east, south and west: a rule, not the
+/// order the search went in.
+#[test]
+fn test_of_ways_as_cheap_the_one_whose_legs_run_longest_first_is_said() {
+    let (walkable, box_) = drawn(&["....."; 5]);
+    let path = find(
+        (0, 0),
+        &goals(&[((3, 3), None)]),
+        &*walkable,
+        box_,
+        &plain(),
+    )
+    .unwrap();
+    assert_eq!(said(path).as_deref(), Some("3 east, 3 south"));
+    let south = Options {
+        heading: SOUTH,
+        ..plain()
+    };
+    let path = find((0, 0), &goals(&[((3, 3), None)]), &*walkable, box_, &south).unwrap();
+    assert_eq!(said(path).as_deref(), Some("3 south, 3 east"));
+    let path = find(
+        (0, 0),
+        &goals(&[((4, 2), None)]),
+        &*walkable,
+        box_,
+        &plain(),
+    )
+    .unwrap();
+    assert_eq!(said(path).as_deref(), Some("4 east, 2 south"));
+}
+
 /// Every cell a way can end on, by `find`'s moves, an end stepped into and not on from.
 #[test]
 fn test_reached_is_where_find_goes_a_ledge_down_and_never_up() {

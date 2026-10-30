@@ -3078,10 +3078,23 @@ fn drift(rig: &mut Rig, cells: &[Cell]) {
 
 /// Route 132: a current carries a player surfing on it its own way, a cell at a time, and
 /// they cannot turn (movie43, spike 208). P's way says the current as one leg, by where it leaves
-/// the player, as they reach it, and nothing while it carries them.
+/// the player, as they reach it, and nothing while it carries them. Rocks along its western
+/// half's north side leave the current the way: swimming west and down across its last cell
+/// costs the same, and of two ways as cheap P says the one whose legs run longest first.
 #[test]
 fn test_p_rides_a_current_saying_where_it_leaves_the_player_and_nothing_on_it() {
-    let mut rig = on_the_current(swimmer());
+    let shoal: HashSet<Cell> = (90..100).map(|x| (x, 177)).collect();
+    let rocks = rocks();
+    let mut rig = navigator(Want {
+        blocked: rocks.union(&shoal).copied().collect(),
+        sea: current_sea()
+            .difference(&rocks)
+            .copied()
+            .filter(|cell| !shoal.contains(cell))
+            .collect(),
+        ..on(swimmer())
+    });
+    *rig.field.currents.borrow_mut() = current();
     rig.press(PATHFIND);
     assert_eq!(
         last(&rig.backend),

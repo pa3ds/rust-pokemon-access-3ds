@@ -16,7 +16,8 @@
 //! does, and a leg a word to say it by: "Surf 12 south".
 //!
 //! Bound by:
-//! - ADR-0024: a turn costs as much as a step.
+//! - ADR-0024: a turn costs as much as a step, and of ways as cheap the one whose legs run longest
+//!   first is said.
 
 use std::cell::{Cell as Slot, RefCell};
 use std::cmp::{Ordering, Reverse};
@@ -413,7 +414,9 @@ impl Ord for Entry<'_> {
 ///
 /// A* over (cell, heading), since a turn has a price and the same cell entered two ways is two
 /// different places to go on from. The estimate is the distance to the goals' box, which never
-/// overstates, so the first goal reached is the cheapest. `straight` says the way is no
+/// overstates, so the first goal reached is the cheapest; the search goes on from every place
+/// no dearer, so it knows every cheapest way into each, and says the one `_chosen`'s rule
+/// picks, whatever order it went in. `straight` says the way is no
 /// shorter than that distance; where `leap` can carry the player further than its price, as a
 /// teleporter across Laverre Gym does for four, it is False, and the search goes by cost alone.
 pub fn find(
@@ -521,7 +524,7 @@ pub fn find(
 
     let first: Node = (start, heading, state.clone());
     let mut spent: HashMap<Node, i64> = HashMap::from([(first.clone(), 0)]);
-    let mut came: HashMap<Node, Node> = HashMap::new();
+    let mut came: HashMap<Node, Vec<Node>> = HashMap::new();
     let mut done: HashSet<Node> = HashSet::new();
     let mut order: i64 = 0;
     let mut frontier: BinaryHeap<Entry> = BinaryHeap::new();
@@ -533,10 +536,20 @@ pub fn find(
     // On the goals' floor first, then nearest the goals' box, then cheapest: the box is the
     // goals for an edge's gap or a cell beside a thing, which is what a way that falls short is
     // walked to, and the floor under a thing is not beside it.
-    let mut nearest = (!arrives(start, state)?, estimate(start), 0, first);
-    while let Some(Entry { node, .. }) = frontier.pop() {
+    let mut nearest = (!arrives(start, state)?, estimate(start), 0, first.clone());
+    // Python's `math.inf`: none found yet.
+    let mut best: Option<i64> = None;
+    while let Some(Entry { key, node }) = frontier.pop() {
+        let priced = key.0;
+        if best.is_some_and(|best| priced > best) {
+            break;
+        }
         if node == ARRIVED {
-            return Ok(Some(back(&came, &came[&ARRIVED])));
+            // Every place as cheap as the way found is gone on from, so each of them knows every
+            // way into it that costs no more: the way said is then the same whatever order the
+            // search went in (`_chosen`).
+            best = Some(spent[&ARRIVED]);
+            continue;
         }
         if done.contains(&node) {
             continue;
@@ -577,15 +590,16 @@ pub fn find(
                     } else {
                         0
                     };
-                if arrived < spent.get(&ARRIVED).copied().unwrap_or(arrived + 1) {
-                    spent.insert(ARRIVED, arrived);
-                    came.insert(ARRIVED, node.clone());
-                    frontier.push(Entry {
-                        key: (arrived, 0, order),
-                        node: ARRIVED,
-                    });
-                    order += 1;
-                }
+                relax(
+                    &mut spent,
+                    &mut came,
+                    ARRIVED,
+                    arrived,
+                    &node,
+                    &mut frontier,
+                    0,
+                    &mut order,
+                )?;
             }
         }
         let carried = carry(cell, now)?;
@@ -612,25 +626,142 @@ pub fn find(
                     0
                 };
                 let price = cost + STEP * steps + turn + toll(cell, step)?;
-                if price < spent.get(&onward).copied().unwrap_or(price + 1) {
-                    spent.insert(onward.clone(), price);
-                    came.insert(onward.clone(), node.clone());
-                    let left = if *straight { estimate(step) } else { 0 };
-                    frontier.push(Entry {
-                        key: (price + left, left, order),
-                        node: onward,
-                    });
-                    order += 1;
-                }
-                Ok(())
+                relax(
+                    &mut spent,
+                    &mut came,
+                    onward,
+                    price,
+                    &node,
+                    &mut frontier,
+                    if *straight { estimate(step) } else { 0 },
+                    &mut order,
+                )
             },
         )?;
     }
+    if spent.contains_key(&ARRIVED) {
+        let chosen = chosen(&came, &first, &ARRIVED)?;
+        return Ok(Some(back(&chosen, &chosen[&ARRIVED])));
+    }
     Ok(if *closest {
-        Some(back(&came, &nearest.3))
+        Some(back(&chosen(&came, &first, &nearest.3)?, &nearest.3))
     } else {
         None
     })
+}
+
+/// Note a way into `onward` from `node` at `price`: the cheapest yet, or as cheap as the
+/// cheapest, which is kept beside it.
+#[allow(clippy::too_many_arguments)]
+fn relax<'a>(
+    spent: &mut HashMap<Node<'a>, i64>,
+    came: &mut HashMap<Node<'a>, Vec<Node<'a>>>,
+    onward: Node<'a>,
+    price: i64,
+    node: &Node<'a>,
+    frontier: &mut BinaryHeap<Entry<'a>>,
+    left: i64,
+    order: &mut i64,
+) -> Result<()> {
+    match spent.get(&onward).copied() {
+        Some(was) if price >= was => {
+            if price == was {
+                let into = came
+                    .get_mut(&onward)
+                    .ok_or_else(|| Error::key(format!("{onward:?}")))?;
+                if !into.contains(node) {
+                    into.push(node.clone());
+                }
+            }
+        }
+        _ => {
+            spent.insert(onward.clone(), price);
+            came.insert(onward.clone(), vec![node.clone()]);
+            frontier.push(Entry {
+                key: (price + left, left, *order),
+                node: onward,
+            });
+            *order += 1;
+        }
+    }
+    Ok(())
+}
+
+/// The way from `first` to `end` among the cheapest, as `_back` reads it: at each place, on the
+/// way the player is going where a cheapest way goes on so, and else the way a cheapest way goes
+/// on straight furthest, the first of `STEPS` and `DIAGONALS` where two go as far. So of ways
+/// that cost the same P says the one whose legs run longest first, "5 east, 2 north", by a rule
+/// of its own rather than the order the search went in: any search that finds every cheapest way
+/// into each place says the same way (Orion, 2026-10-30).
+fn chosen<'a>(
+    came: &HashMap<Node<'a>, Vec<Node<'a>>>,
+    first: &Node<'a>,
+    end: &Node<'a>,
+) -> Result<HashMap<Node<'a>, Node<'a>>> {
+    // A set only tested and iterated to fill lists each of which `min` reads whole.
+    let mut on: HashSet<Node> = HashSet::from([end.clone()]);
+    let mut todo: Vec<Node> = vec![end.clone()];
+    while let Some(one) = todo.pop() {
+        for was in came.get(&one).into_iter().flatten() {
+            if !on.contains(was) {
+                on.insert(was.clone());
+                todo.push(was.clone());
+            }
+        }
+    }
+    let mut onward: HashMap<Node, Vec<Node>> = HashMap::new();
+    for node in &on {
+        for was in came.get(node).into_iter().flatten() {
+            onward.entry(was.clone()).or_default().push(node.clone());
+        }
+    }
+
+    // How far a cheapest way goes on straight from `one`, the way it was entered.
+    let run = |one: &Node<'a>| -> i64 {
+        let mut one = one.clone();
+        let mut out = 1;
+        loop {
+            let straight = onward
+                .get(&one)
+                .into_iter()
+                .flatten()
+                .filter(|next| next.1 == one.1 && !one.1.is_empty())
+                .min();
+            match straight {
+                None => return out,
+                Some(next) => {
+                    one = next.clone();
+                    out += 1;
+                }
+            }
+        }
+    };
+    let order = |way: &str| -> i64 {
+        STEPS
+            .iter()
+            .chain(DIAGONALS.iter())
+            .position(|(known, _)| *known == way)
+            .map_or(0, |i| i as i64)
+    };
+
+    let mut out: HashMap<Node, Node> = HashMap::new();
+    let mut node = first.clone();
+    while node != *end {
+        let going = node.1;
+        let ahead = onward
+            .get(&node)
+            .ok_or_else(|| Error::key(format!("{node:?}")))?
+            .iter()
+            .min_by(|a, b| {
+                let key = |one: &Node<'a>| ((one.1 != going), -run(one), order(one.1), one.clone());
+                key(a).cmp(&key(b))
+            })
+            .expect("a cheapest way goes on from each place on it")
+            .clone();
+        out.insert(ahead.clone(), node);
+        node = ahead;
+    }
+    Ok(out)
 }
 
 /// Each move from `cell` as `find` takes them: its way, where it lands, and how many cells
