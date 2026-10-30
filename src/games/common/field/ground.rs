@@ -550,7 +550,7 @@ pub struct Ground {
     /// until the cell on cannot be stood in, where they stop and walk any way; an arrow crossed
     /// turns the push its own way (`arrow`, `walk`). None on a ground without one: Lysandre Labs'
     /// floor has them, and the way to a Team Flare Grunt was said again at each cell an arrow
-    /// pushed the player (x_lysandre_labs, spike A).
+    /// pushed the player (x_lysandre_labs, spike 265).
     pub arrows: IndexMap<i64, &'static str>,
 }
 

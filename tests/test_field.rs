@@ -1270,7 +1270,7 @@ fn test_a_teleporter_into_its_own_zone_says_the_cell_it_comes_out_at() -> Result
     Ok(())
 }
 
-/// Lysandre Labs (spike A): the pad at (11, 2) puts the player on (33, 27), a 0x0001 warp that
+/// Lysandre Labs (spike 265): the pad at (11, 2) puts the player on (33, 27), a 0x0001 warp that
 /// does nothing stepped onto. It is not listed, and the pad is a teleporter P walks through,
 /// landing the player as high as the warp it comes out at.
 #[test]
@@ -4463,7 +4463,7 @@ fn test_currents_that_let_the_player_go_round_one_place_are_one_listed_where_the
     Ok(())
 }
 
-/// Spike A: Lysandre Labs' arrow tiles push the player their way until the way is shut, an arrow
+/// Spike 265: Lysandre Labs' arrow tiles push the player their way until the way is shut, an arrow
 /// crossed turning the push its own way. Each is listed under arrows by its way, with where its
 /// push stops, and the ground there pushes.
 #[test]

@@ -87,7 +87,7 @@ const SNOW_FLAT: i64 = 0x33003820;
 /// The Mamoswine's character, waiting on flat ground to be ridden.
 const MAMOSWINE: i64 = 0x1007;
 
-/// Lysandre Labs' arrow tiles by the way each pushes, open (`0x7N000020`, spike A): Python's
+/// Lysandre Labs' arrow tiles by the way each pushes, open (`0x7N000020`, spike 265): Python's
 /// `ARROW_WORDS`.
 fn arrow_word(way: &str) -> i64 {
     let (kind, _) = xy::ARROWS
@@ -3223,7 +3223,7 @@ fn corridor() -> Vec<Cell> {
 }
 
 /// Lysandre Labs (zone 0x60): walls but at `walks` and `arrows`, each arrow with the way it
-/// pushes, the player at `player` and `items` listed (spike A).
+/// pushes, the player at `player` and `items` listed (spike 265).
 fn labs(
     player: Cell,
     walks: &[Cell],
@@ -3278,7 +3278,7 @@ fn heard_to(rig: &mut Rig, item: &Interactable) -> Vec<String> {
 }
 
 /// Lysandre Labs: the player walked west onto (25, 26) and was pushed on to (22, 26), the wall
-/// stopping them, and P's way to a Grunt was said again at each cell (x_lysandre_labs, spike A).
+/// stopping them, and P's way to a Grunt was said again at each cell (x_lysandre_labs, spike 265).
 /// The push is one leg, by where it sets the player down, said as they step onto the arrow;
 /// nothing is said while it pushes them, and the next leg once it stops.
 #[test]
@@ -3314,7 +3314,7 @@ fn test_p_says_an_arrows_push_as_one_leg_by_where_it_sets_the_player_down() {
 }
 
 /// x_lysandre_labs: the way to a Grunt was said again a cell at a time, "4 north", "5 north", as
-/// an arrow pushed the player (spike A). Off the way, a push says nothing while it carries them,
+/// an arrow pushed the player (spike 265). Off the way, a push says nothing while it carries them,
 /// and the way is found again where it stops.
 #[test]
 fn test_a_push_off_the_way_finds_no_way_until_it_sets_the_player_down() {
@@ -3339,7 +3339,7 @@ fn test_a_push_off_the_way_finds_no_way_until_it_sets_the_player_down() {
 }
 
 /// Lysandre Labs' arrows push the player on to the next, "pushed around to a bunch of different
-/// arrow tiles", the walkthroughs say (spike A): a push east onto an arrow north goes on north,
+/// arrow tiles", the walkthroughs say (spike 265): a push east onto an arrow north goes on north,
 /// said as one leg by where it sets them down.
 #[test]
 fn test_an_arrow_crossed_on_a_push_turns_it_and_the_push_is_one_leg_still() {
@@ -3355,7 +3355,7 @@ fn test_an_arrow_crossed_on_a_push_turns_it_and_the_push_is_one_leg_still() {
     assert_eq!(last(&rig.backend), "2 east, arrow pushes 4 east 5 north");
 }
 
-/// A push goes on until the cell on cannot be stood in, a person's as a wall's (spike A).
+/// A push goes on until the cell on cannot be stood in, a person's as a wall's (spike 265).
 #[test]
 fn test_a_push_stops_short_of_somebody_standing_in_its_way() {
     let up = grunt((94, 164));
@@ -3374,7 +3374,7 @@ fn test_a_push_stops_short_of_somebody_standing_in_its_way() {
 }
 
 /// A sign read from a cell a push carries the player over is walked back to from where the push
-/// stops: the player cannot stop on the way (spike A).
+/// stops: the player cannot stop on the way (spike 265).
 #[test]
 fn test_a_way_ends_only_where_a_push_sets_the_player_down() {
     let sign = Interactable {
@@ -3391,7 +3391,7 @@ fn test_a_way_ends_only_where_a_push_sets_the_player_down() {
     assert_eq!(last(&rig.backend), "2 west, arrow pushes 8 west, 4 east");
 }
 
-/// A teleporter pad as the reader lists Lysandre Labs' (spike A).
+/// A teleporter pad as the reader lists Lysandre Labs' (spike 265).
 fn pad(i: i64, cell: Cell, lands: Cell) -> Interactable {
     Interactable {
         zone: Some(0x60),
@@ -3417,7 +3417,7 @@ fn rooms() -> Vec<Cell> {
 }
 
 /// Lysandre Labs: P's way to a Grunt in a room a pad leads to was "then can't continue" (Khai,
-/// 2026-10-30, spike A). A pad's warp into its own zone is a teleporter P walks through, and its
+/// 2026-10-30, spike 265). A pad's warp into its own zone is a teleporter P walks through, and its
 /// partner does nothing until stepped off; Ctrl and P reaches past it.
 #[test]
 fn test_p_walks_through_a_teleporter_pad_onto_its_partner() {
@@ -3436,7 +3436,7 @@ fn test_p_walks_through_a_teleporter_pad_onto_its_partner() {
     assert_eq!(heard_to(&mut rig, &beyond), ["2 east, teleporter, 1 east"]);
 }
 
-/// A pad's warp may build the player a new model (spike A): one that puts them in the same zone
+/// A pad's warp may build the player a new model (spike 265): one that puts them in the same zone
 /// where the way's teleport lands goes on with the way, said from there.
 #[test]
 fn test_guiding_goes_on_past_a_pads_warp_where_it_lands_the_player() {

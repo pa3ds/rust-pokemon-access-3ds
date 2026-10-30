@@ -175,7 +175,7 @@ p-grind = grind the rail { $bearing }
 how-ride-the-belt = ride the belt
 p-belt = ride the belt { $bearing }
 # A leg an arrow tile pushes the player along, and a run of them, by where the push
-# sets them down: "5 west, arrow pushes 3 west, 2 north" (Lysandre Labs, spike A).
+# sets them down: "5 west, arrow pushes 3 west, 2 north" (Lysandre Labs, spike 265).
 how-arrow-pushes = arrow pushes
 p-arrow = arrow pushes { $bearing }
 # A way that goes by the switch that turns the belts round, where the way there falls
@@ -489,7 +489,7 @@ kind-barrier = barrier
 kind-hole = hole
 kind-dive-spot = dive spot
 kind-current = current
-# An arrow tile in Lysandre Labs, by the way it pushes the player (spike A).
+# An arrow tile in Lysandre Labs, by the way it pushes the player (spike 265).
 kind-arrow-east = arrow east
 kind-arrow-west = arrow west
 kind-arrow-north = arrow north

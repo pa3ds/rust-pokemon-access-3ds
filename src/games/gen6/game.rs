@@ -351,12 +351,12 @@ pub struct Game {
     /// teleporter pad, the way into one building alone. A kind not here is "warp".
     pub warps: IndexMap<i64, String>,
     /// The warp kinds that are only where a teleporter pad puts the player, stepped onto doing
-    /// nothing: neither listed nor walked round. X's `0x0001` (spike A).
+    /// nothing: neither listed nor walked round. X's `0x0001` (spike 265).
     ///
     /// A `frozenset` only tested.
     pub landings: HashSet<i64>,
     /// The cell kinds of the arrow tiles that push the player, each with the way it pushes, or
-    /// none in a game without them: X's Lysandre Labs (`Ground.arrows`, spike A).
+    /// none in a game without them: X's Lysandre Labs (`Ground.arrows`, spike 265).
     pub arrows: IndexMap<i64, &'static str>,
     /// The reader of who stands where in its competitions, built from the memory, the layouts
     /// and their files, the ROM's words and the app running, or None in a game with none: ORAS's

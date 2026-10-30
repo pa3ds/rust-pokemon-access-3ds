@@ -138,7 +138,7 @@ pub const BELT: &str = "ride the belt";
 /// What a leg an arrow tile pushes the player along is said with, a run of them as one by where
 /// the push sets them down, turned by any arrow on the way: "5 west, arrow pushes 3 west, 2 north".
 /// In Lysandre Labs the player walked north onto (34, 25) and was pushed south a cell each 0.21 s
-/// to (34, 30), the wall stopping them (x_lysandre_labs, spike A). The game names no such thing.
+/// to (34, 30), the wall stopping them (x_lysandre_labs, spike 265). The game names no such thing.
 pub const ARROW: &str = "arrow pushes";
 
 /// The legs a player is carried along rather than walks, each with the message a run of them is
@@ -1104,7 +1104,7 @@ fn spoken(legs: &[Leg], r#where: &Field, crossings: &IndexMap<i64, String>) -> R
 
 /// Whether a warp put the player in the zone the way was found in, on the cell the way's next
 /// teleport puts them: a teleporter pad's is a warp, which may build the player a new model (not
-/// measured, spike A), and the way goes on from where it lands them as across a teleport that
+/// measured, spike 265), and the way goes on from where it lands them as across a teleport that
 /// keeps it.
 fn landed(r#where: &Field, guidance: &Guidance, visit: Option<(i64, i64)>) -> bool {
     let (Some(visit), Some(was)) = (visit, guidance.visit) else {
@@ -2251,7 +2251,7 @@ impl Guide {
         if ground.pushing(r#where.cell, heading)? {
             // And an arrow's push, until it sets the player down: in Lysandre Labs the way to a
             // Grunt was said again at each cell one pushed them, "4 north", "5 north"
-            // (x_lysandre_labs, spike A).
+            // (x_lysandre_labs, spike 265).
             return Ok(());
         }
         let ahead = pathfind::STEPS

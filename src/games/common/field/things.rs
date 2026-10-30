@@ -104,7 +104,7 @@ pub const OPENING_SOURCE: i64 = 19 << 32;
 /// the module's table (`rail.Teleport`, spike 264).
 pub const TELEPORT_SOURCE: i64 = 20 << 32;
 
-/// An arrow tile's source: `ARROW_SOURCE | x << 12 | z`, its cell (spike A).
+/// An arrow tile's source: `ARROW_SOURCE | x << 12 | z`, its cell (spike 265).
 pub const ARROW_SOURCE: i64 = 21 << 32;
 
 /// A place's `source` from its kind's tag and its own number. The number must leave the tag's
@@ -173,7 +173,7 @@ pub const CURRENTS_CATEGORY: &str = "currents";
 
 /// The arrow tiles that push the player, a category of their own, each by the way it pushes and
 /// where its push sets the player down, as a current is by where it lets them go: Lysandre Labs'
-/// floor is full of them (Khai, 2026-10-30, spike A).
+/// floor is full of them (Khai, 2026-10-30, spike 265).
 pub const ARROWS: &str = "arrows";
 
 /// The flat ground a ridden Pokémon is got on and off on, a category of its own: "not sure when you
@@ -256,7 +256,7 @@ pub struct Interactable {
     pub arrival: Option<(i64, i64)>,
     /// For a teleporter that moves the player within the zone, how high `arrival` is: which
     /// floor it puts them on, Laverre Gym's panels (spike 258), and the height of the warp a
-    /// teleporter pad's warp comes out at, Lysandre Labs' (spike A). Set only with `arrival`; None
+    /// teleporter pad's warp comes out at, Lysandre Labs' (spike 265). Set only with `arrival`; None
     /// for anything else.
     pub landing: Option<f64>,
     /// For a move model built from a record of a zone's table, that zone and the record's index:

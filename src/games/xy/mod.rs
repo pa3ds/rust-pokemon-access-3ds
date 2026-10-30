@@ -623,7 +623,7 @@ pub const ELEVATORS: std::ops::Range<i64> = 0x27DA..0x280A;
 /// ORAS's currents, 0x94 to 0x97. A push goes on over any floor until the cell on cannot be stood
 /// in, and an arrow crossed turns it its own way: the chains are taken from the walkthroughs,
 /// "pushed around to a bunch of different arrow tiles", never seen; no push crosses a warp pad
-/// (spike A).
+/// (spike 265).
 pub const ARROWS: [(i64, &str); 4] = [
     (0x76, pathfind::EAST),
     (0x77, pathfind::WEST),
@@ -636,14 +636,14 @@ pub const TELEPORTER_PADS: [i64; 1] = [0x0601];
 /// `0x0001` is where a pad puts the player and no pad: Lysandre Labs' (11, 2) puts them on (33,
 /// 27), and on the rig the player stepped south onto (33, 27) and stood there 2 s with no warp,
 /// "the yellow one goes back to the entrance", the walkthroughs say. X has two, the other in zone
-/// 0x66 (spike A).
+/// 0x66 (spike 265).
 pub const LANDINGS: [i64; 1] = [0x0001];
 pub const WAYS_OUT: [i64; 5] = [0x0400, 0x0800, 0x0901, 0x0902, 0x0903];
 pub const DOORS: [i64; 3] = [0x0201, 0x0F01, 0x3600];
 
 /// What X's warp kinds that are not a door from outdoors, the mat out or stairs are, each told by
 /// where its warps lead and the kind of the warp each arrives at (spike 220). Teleporters: `0x0601`,
-/// Lysandre Labs' pads, each to a pad of its own zone, and walked through by P (spike A); the
+/// Lysandre Labs' pads, each to a pad of its own zone, and walked through by P (spike 265); the
 /// `0x0001` a pad puts the player on is no teleporter (`LANDINGS`). Ways out: `0x0800` out of
 /// each Gym but Prism Tower's, `0x0901` to `0x0903` Prism Tower's, and `0x0400` out of a Santalune and
 /// a Lumiose building. Doors: `0x0201`, the Elite Four's and the Radiant Chamber's inner doors and two

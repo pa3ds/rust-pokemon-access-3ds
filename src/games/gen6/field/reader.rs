@@ -145,7 +145,7 @@ pub const BUMPY_SLOPE: &str = "bumpy slope";
 pub const BIKE_RAIL: &str = "rail";
 
 /// What an arrow tile is called, with the way it pushes the player, "arrow east": the game draws
-/// it and never names it (spike A).
+/// it and never names it (spike 265).
 pub const ARROW: &str = "arrow";
 
 /// What a patch of the deep water Dive goes down through is called: the game draws it darker than
@@ -1458,7 +1458,7 @@ impl FieldReader {
                     arrives(record, home, &warps)?,
                 );
                 // A pad into its own zone is a teleporter P walks through, landing as high as the
-                // warp it comes out at (`Ground.teleports`, spike A).
+                // warp it comes out at (`Ground.teleports`, spike 265).
                 let landing = match out {
                     Some(out) if warp.kind == TELEPORTER => Some(s16(out, WARP_Y)? as f64),
                     _ => None,
@@ -2725,7 +2725,8 @@ impl FieldReader {
     /// The zone's slopes, each patch of one kind a thing, each end of its rails, where the
     /// player gets on one (spike 159), each patch of deep water a dive spot (spike 164), and
     /// its currents, those that let the player go round one place a thing (spike 208), and each
-    /// patch of the flat ground a ridden Pokémon is got on and off on (spike 238). Cells of the map
+    /// patch of the flat ground a ridden Pokémon is got on and off on (spike 238), and each arrow
+    /// with where its push sets the player down (spike 265). Cells of the map
     /// with no record behind them, as use tiles are, but read off the whole matrix where the
     /// ROM's chunks are: the game loads the quarter round the player, and Route 119's rails are
     /// 67 cells north of where it starts. Off the chunks loaded without the ROM.
