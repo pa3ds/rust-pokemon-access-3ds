@@ -219,6 +219,8 @@ pub struct TouchTargets {
     /// None for its name: Tile Puzzle's tiles say only the row or column that changed.
     moved: Option<Moved>,
     chosen: Option<i64>,
+    /// A layout's root -> the names of its buttons that were a list's labels while it was up.
+    listed: IndexMap<i64, HashSet<String>>,
     /// Touch area -> what it was last called (rule 4).
     named: IndexMap<i64, (String, HashSet<i64>)>,
     unnamed: HashSet<i64>,
@@ -277,6 +279,7 @@ impl TouchTargets {
             places,
             moved,
             chosen: None,
+            listed: IndexMap::new(),
             named: IndexMap::new(),
             unnamed: HashSet::new(),
             groups: IndexMap::new(),
@@ -773,14 +776,45 @@ impl TouchTargets {
         if let Some(gestures) = &self.gestures {
             found.extend(gestures()?);
         }
-        if let Some(lists) = &self.lists {
-            found = answered_first(&found, &lists());
+        if let Some(lists) = self.lists.clone() {
+            let labels = lists();
+            found = answered_first(&self.unlisted(&found, &labels), &labels);
         }
         Ok(rows(&found)
             .into_iter()
             .flatten()
             .map(|i| found[i].clone())
             .collect())
+    }
+
+    /// The targets, less a list's buttons while the list is not up. A list's layout can stay
+    /// drawn after the list has gone, every flag of its panes the same: Tile Puzzle's finished
+    /// menu, View Picture, Play Again and Quit, was offered over the picture it showed
+    /// (or_amie_tile_puzzle_easy) and over the next puzzle's Begin, where a tap on View Picture
+    /// began the puzzle (spike C). Its list's items say it has gone (`ListReader.lit`). So a
+    /// button once a list's label, while the list was up, is left out while the list is not.
+    pub(crate) fn unlisted(&mut self, found: &[Target], labels: &HashSet<String>) -> Vec<Target> {
+        let roots = self.layouts.roots();
+        self.listed.retain(|root, _names| roots.contains(root));
+        for target in found {
+            if labels.contains(&target.name) {
+                self.listed
+                    .entry(target.root)
+                    .or_default()
+                    .insert(target.name.clone());
+            }
+        }
+        found
+            .iter()
+            .filter(|target| {
+                labels.contains(&target.name)
+                    || !self
+                        .listed
+                        .get(&target.root)
+                        .is_some_and(|names| names.contains(&target.name))
+            })
+            .cloned()
+            .collect()
     }
 
     /// The AreaNav's map's places on screen, each a layer under the layout it is in: the

@@ -81,10 +81,11 @@ In Pokémon-Amie, touch mode offers to stroke your Pokémon, and the tap key str
 experiment. In its Tile Puzzle, each tile is said by its row and column and where the piece of the
 picture on it belongs, "row 1, column 2, goes to row 3, column 4", or "in place". Moving to the next
 tile says only the row or the column that changed, "column 3, in place", and `K` says the whole.
-Tap a tile, then the tile where its piece belongs, to swap them. In a Super Training regimen, touch mode offers each goal the Balloon Bot puts up:
-the tap key's first press says the goal, and each press after that shoots at it, wherever it has
-moved. pa3ds says "shot coming" about a second before the bot's ball arrives: move with the
-Circle Pad, or raise a shield with L.
+Tap a tile, then the tile where its piece belongs, to swap them. Over the finished picture there
+is nothing to touch: B goes back. In a Super Training regimen, touch mode offers each goal the
+Balloon Bot puts up: the tap key's first press says the goal, and each press after that shoots at
+it, wherever it has moved. pa3ds says "shot coming" about a second before the bot's ball arrives:
+move with the Circle Pad, or raise a shield with L.
 
 ## Finding the way
 

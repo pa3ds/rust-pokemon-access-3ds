@@ -295,6 +295,59 @@ fn test_while_a_list_window_is_up_only_its_buttons_are_offered() {
     );
 }
 
+/// Tile Puzzle's finished menu stayed drawn over its picture and the next puzzle's Begin, and a
+/// tap on View Picture began the puzzle (spike C); a button of that name in another layout stays.
+///
+/// Python hands `TouchTargets` a stand-in with a `roots` method; here the three roots are fake
+/// layouts' own, tracked.
+#[test]
+fn test_a_lists_buttons_are_left_out_while_the_list_is_not_up() {
+    let memory = FakeMemory::new();
+    let classes = FakeClasses::new(memory.clone());
+    let fake = FakeLayouts::new(&memory, &classes);
+    let (menu, screen, other) = (0x14B00000 + 0x400, 0x14C00000 + 0x400, 0x14D00000 + 0x400);
+    for root in [menu, screen, other] {
+        fake.screen(root - 0x400);
+    }
+    fake.track().unwrap();
+    let at = |pane: i64, name: &str, x: i64, y: i64, row: f64, root: i64| Target {
+        layer: 1,
+        root,
+        ..Target::new(pane, name, x, y, row, 30.0)
+    };
+    let view = at(1, "View Picture", 160, 137, -17.0, menu);
+    let again = at(2, "Play Again", 160, 171, -51.0, menu);
+    let quit = at(3, "Quit", 160, 205, -85.0, menu);
+    let begin = at(4, "Begin", 160, 142, -22.0, screen);
+    let elsewhere = at(5, "Quit", 300, 225, -105.0, other);
+    let mut targets = TouchTargets::new(
+        fake.layouts.clone(),
+        Rc::new(Vec::new),
+        Rc::new(|_box| Ok(String::new())),
+        Rc::new(|_pane| Ok(None)),
+        Rc::new(|_root| None),
+        Rc::new(|_line: &str| {}),
+        Options::default(),
+    );
+    let up = words(&["View Picture", "Play Again", "Quit"]);
+    let menu_buttons = vec![view.clone(), again.clone(), quit.clone()];
+    assert_eq!(targets.unlisted(&menu_buttons, &up), menu_buttons);
+    assert_eq!(
+        targets.unlisted(
+            &[
+                view.clone(),
+                again.clone(),
+                quit.clone(),
+                begin.clone(),
+                elsewhere.clone()
+            ],
+            &HashSet::new()
+        ),
+        [begin, elsewhere]
+    );
+    assert_eq!(targets.unlisted(&menu_buttons, &up), menu_buttons);
+}
+
 /// The PlayNav's pages and the sub-screen tutorial's arrows both draw `button.bclim`, a ◀
 /// mirrored by its material on the right; the same texture lower down is a plate (spike 198).
 #[test]

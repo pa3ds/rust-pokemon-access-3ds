@@ -794,7 +794,7 @@ impl Gen6Profile {
         };
         let lists_labels: Lists = {
             let lists = lists.clone();
-            Rc::new(move || lists.borrow().labels())
+            Rc::new(move || lists.borrow().lit())
         };
         let idle: Idle = {
             let buttons = buttons.clone();

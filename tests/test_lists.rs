@@ -218,6 +218,49 @@ fn test_the_labels_of_a_list_are_known_while_it_is_on_screen() {
     assert_eq!(prompt.reader.labels(), HashSet::new());
 }
 
+#[test]
+fn test_a_list_lit_past_its_cursor_is_up_for_touch_mode_and_says_nothing() {
+    // or_touch_battle: the party menu's drawer lit the item after the cursor's from RESTORE on.
+    // The cursor reader said RESTORE, and touch mode dropped the menu's buttons while it was up.
+    let labels = ["SUMMARY", "USE A MOVE", "RESTORE", "ITEM", "SWITCH", "BACK"];
+    let all: HashSet<String> = labels.iter().map(|label| label.to_string()).collect();
+    let mut prompt = Prompt::of(&labels);
+    prompt.show(Some(1));
+    prompt.heard();
+    assert!(prompt.reader.lit() == prompt.reader.labels() && prompt.reader.lit() == all);
+    prompt.show(Some(3));
+    prompt.memory.u32(WINDOW + WINDOW_CURSOR, &[2]);
+    assert_eq!(prompt.heard(), heard_of(&[]));
+    assert_eq!(
+        (prompt.reader.lit(), prompt.reader.labels()),
+        (all.clone(), HashSet::new())
+    );
+    prompt.show(Some(1));
+    assert_eq!(prompt.heard(), heard_of(&[("USE A MOVE", true)]));
+    prompt.show(None);
+    prompt.memory.write(
+        DRAWER + DRAWER_ITEM_STATE + 6 * DRAWER_ITEM_STRIDE,
+        &[HIGHLIGHTED as u8],
+    );
+    prompt.heard();
+    assert_eq!(prompt.reader.lit(), all);
+    prompt.memory.write(
+        DRAWER + DRAWER_ITEM_STATE + 6 * DRAWER_ITEM_STRIDE,
+        &[CHOSEN as u8],
+    );
+    prompt.heard();
+    assert_eq!(prompt.reader.lit(), HashSet::new());
+}
+
+#[test]
+fn test_a_list_first_seen_lit_past_its_cursor_is_not_read() {
+    let mut prompt = Prompt::new();
+    prompt.show(Some(1));
+    prompt.memory.u32(WINDOW + WINDOW_CURSOR, &[0]);
+    assert_eq!(prompt.heard(), heard_of(&[]));
+    assert_eq!(prompt.reader.lit(), HashSet::new());
+}
+
 /// Prompts are rebuilt at addresses already used; a sweep need not find them again.
 #[test]
 fn test_a_controller_missing_from_a_later_sweep_is_still_read() {

@@ -15,7 +15,9 @@
 //! A window is built long before its prompt appears (spike 17), so finding one says nothing about
 //! seeing one. The drawer's item states do: every item 0 while hidden, 2 on the item under the cursor
 //! while the prompt is up, 6 on the item chosen (spike 20). A list is shown while its cursor's item
-//! reads 2.
+//! reads 2. The party menu's drawer has one item more than its window lists, and from RESTORE on
+//! lights the item after the cursor's (or_touch_battle): the cursor reader says those, and the list
+//! is still up for touch mode while any item reads 2.
 //!
 //! Bound by:
 //! - ADR-0012: a list window says the item under its cursor as it opens, then each moved to.
@@ -71,6 +73,8 @@ pub struct ListReader {
     shown: IndexMap<i64, i64>,
     /// Controller -> its labels, for lists currently on screen.
     labels: IndexMap<i64, Vec<String>>,
+    /// Controller -> its labels, for lists on screen lit on any item.
+    lit: IndexMap<i64, Vec<String>>,
 }
 
 impl ListReader {
@@ -81,7 +85,14 @@ impl ListReader {
             active: Vec::new(),
             shown: IndexMap::new(),
             labels: IndexMap::new(),
+            lit: IndexMap::new(),
         }
+    }
+
+    /// Every label of every list up at the last poll, lit on its cursor's item or another:
+    /// the lists touch mode answers first, and whose buttons it leaves out once they go.
+    pub fn lit(&self) -> HashSet<String> {
+        self.lit.values().flatten().cloned().collect()
     }
 
     /// Every label of every list on screen at the last poll.
@@ -111,7 +122,14 @@ impl ListReader {
     pub fn poll(&mut self) -> Result<Vec<Focus>> {
         let mut focus: Vec<Focus> = Vec::new();
         for &controller in &self.active {
-            let Some((labels, index)) = self.read(controller)? else {
+            let seen = self.read(controller)?;
+            let (labels, index) = seen.unwrap_or((Vec::new(), None));
+            if !labels.is_empty() {
+                self.lit.insert(controller, labels.clone());
+            } else {
+                self.lit.shift_remove(&controller);
+            }
+            let Some(index) = index else {
                 self.shown.shift_remove(&controller);
                 self.labels.shift_remove(&controller);
                 continue;
@@ -132,8 +150,9 @@ impl ListReader {
         Ok(focus)
     }
 
-    /// (labels, cursor) for a list on screen, or None for anything else.
-    fn read(&self, controller: i64) -> Result<Option<(Vec<String>, i64)>> {
+    /// (labels, cursor) for a list on screen, or None for anything else. Lit on an item other
+    /// than its cursor's, a list lit before keeps its labels, unread, and has no cursor.
+    fn read(&self, controller: i64) -> Result<Option<(Vec<String>, Option<i64>)>> {
         let head = self.memory.read(controller, CONTROLLER_WINDOW + 4)?;
         let (drawer, window) = (
             u32(&head, CONTROLLER_DRAWER)?,
@@ -168,7 +187,15 @@ impl ListReader {
         if states[(DRAWER_ITEM_STATE + DRAWER_ITEM_STRIDE * cursor) as usize] as i64
             != ITEM_HIGHLIGHTED
         {
-            return Ok(None);
+            let known = self.lit.get(&controller);
+            let lit = (0..MAX_ITEMS).any(|i| {
+                states[(DRAWER_ITEM_STATE + DRAWER_ITEM_STRIDE * i) as usize] as i64
+                    == ITEM_HIGHLIGHTED
+            });
+            return Ok(match known {
+                Some(known) if lit && known.len() as i64 == count => Some((known.clone(), None)),
+                _ => None,
+            });
         }
 
         let records = self
@@ -182,6 +209,6 @@ impl ListReader {
             };
             labels.push(label);
         }
-        Ok(Some((labels, cursor)))
+        Ok(Some((labels, Some(cursor))))
     }
 }
