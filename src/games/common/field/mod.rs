@@ -11,13 +11,20 @@
 //!   laid out as, spike 114), its floors, and what each kind of cell is.
 //! - `ground`: **`Ground`**, where the player can walk: the cells of the chunks loaded, less where
 //!   the matrix has no zone (gen 6's `Grid`), or a rail's corridor instead (X's Lumiose,
-//!   `gen6.field.rail`); rooms of thin ice and rotating doors.
-//! - `climb`: **`Walls`**, the climbing walls of X's Cyllage Gym, which the ground's search climbs
-//!   and the list shows the blue spots of.
-//! - `grind`: **`GrindRails`**, the grind rails of X's Shalour City Gym, which the ground's search
-//!   rides end to end.
-//! - `vines`: **`Vines`**, the vines of X's Coumarine City Gym, which the ground's search grabs and
-//!   rides up, down or across a gap.
+//!   `gen6.field.rail`); rooms of thin ice; and the way across it, each step with the player's
+//!   state there (`Ground.find`).
+//! - `traversal`: a **`Traversal`**, a way across ground walking alone does not cross, keeping
+//!   what the player is doing on it, a part of the search's state, and naming its own steps; one
+//!   module a kind, each a line of `ground.TRAVERSALS`:
+//!   - `ride`: **`Riding`**, X's Rhyhorn across Route 9's spiky ground;
+//!   - `climb`: **`Walls`**, the climbing walls of X's Cyllage Gym, which the ground's search
+//!     climbs and the list shows the blue spots of;
+//!   - `grind`: **`GrindRails`**, the grind rails of X's Shalour City Gym, which the ground's
+//!     search rides end to end;
+//!   - `vines`: **`Vines`**, the vines of X's Coumarine City Gym, which the ground's search grabs
+//!     and rides up, down or across a gap;
+//!   - `teleport`: **`Teleporters`**, X's Laverre City Gym's panels;
+//!   - `rotating`: **`Doors`**, Fortree Gym's rotating doors, turned as they are walked through.
 //! - `navigate` answers the navigation keys (`keys`), and `guide` finds the way and follows the
 //!   player along it.
 

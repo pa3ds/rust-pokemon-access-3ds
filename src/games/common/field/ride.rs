@@ -8,11 +8,21 @@
 use std::collections::HashSet;
 use std::rc::Rc;
 
-use crate::core::pathfind::{Cell, State};
+use indexmap::IndexMap;
+
+use crate::core::pathfind::{self, Cell, State, Step};
 use crate::games::common::field::ground::Ground;
 use crate::games::common::field::things::Field;
-use crate::games::common::field::traversal::Traversal;
+use crate::games::common::field::traversal::{Name, Traversal};
 use crate::py::Result;
+
+/// What the step off a ridden Pokémon is said with, from flat ground onto plain ground, and the
+/// rest of the leg it starts: "get off 3 north" (spike 238). The game names no such thing.
+pub const GET_OFF: &str = "get off";
+
+/// What the step into a thing the ridden Pokémon smashes is said with, "smash 1 east": on Route 9
+/// the Rhyhorn smashes rocks with A (spike 238). The game names no such thing.
+pub const SMASH: &str = "smash";
 
 /// Whether the player rides a Pokémon over `ground`, the kinds it crosses and the flat ground
 /// beside them: the bike's bits set, which the ride sets too (`Field.on_bike`), on a cell `kind`
@@ -65,7 +75,9 @@ pub fn after(ground: &Ground, now: bool, cell: Cell, step: Cell) -> Result<Optio
 }
 
 /// Whether the player is riding on each cell of `path` across `ground`, from
-/// `Ground.riding` on its first, or None from the first step not taken (`after`).
+/// `Ground.riding` on its first, or None from the first step not taken (`after`): where a way
+/// found on other ground, as if nobody stood anywhere, is refused riding on this one
+/// (`guide.Guide._up_to`).
 pub fn rode(ground: &Ground, path: &[Cell]) -> Result<Vec<Option<bool>>> {
     let mut out: Vec<Option<bool>> = vec![Some(ground.riding)];
     for pair in path.windows(2) {
@@ -107,5 +119,35 @@ impl Traversal for Riding {
     ) -> Result<Option<State>> {
         let now = after(ground, state[0] != 0, cell, step)?;
         Ok(now.map(|now| vec![now as i64]))
+    }
+
+    /// The steps said with getting on a Pokémon to ride, by its name, "Rhyhorn 1 east", with
+    /// smashing a thing in the way riding, "smash 1 east", and with getting off it, the rest of
+    /// that leg walked on as it is, "get off 3 north", from the player's first step, riding or
+    /// not. Ridden on, the way carries no word, as on water for a player already surfing
+    /// (spike 238).
+    fn said(
+        &self,
+        ground: &Ground,
+        way: &[Step],
+        mine: &[&[i64]],
+        name: Name<'_>,
+    ) -> Result<IndexMap<i64, String>> {
+        let mut out: IndexMap<i64, String> = IndexMap::new();
+        for i in 1..way.len() {
+            let (cell, step) = (way[i - 1].cell, way[i].cell);
+            let (riding, on) = (mine[i - 1][0] != 0, mine[i][0] != 0);
+            if on && !riding {
+                out.insert(i as i64, name(&ground.mounts)?);
+            } else if ground.smashed.contains(&step) {
+                out.insert(i as i64, SMASH.to_string());
+            } else if (riding && !on)
+                || (out.get(&(i as i64 - 1)).map(String::as_str) == Some(GET_OFF)
+                    && pathfind::towards(way[i - 2].cell, cell) == pathfind::towards(cell, step))
+            {
+                out.insert(i as i64, GET_OFF.to_string());
+            }
+        }
+        Ok(out)
     }
 }

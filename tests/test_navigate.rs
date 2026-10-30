@@ -2603,7 +2603,7 @@ fn laverre_gym(items: &[Interactable], at: Cell, level: f64) -> (Rig, Field) {
     (rig, r#where)
 }
 
-fn gym_way(rig: &Rig, r#where: &Field, item: &Interactable) -> (Ground, Vec<Cell>) {
+fn gym_way(rig: &Rig, r#where: &Field, item: &Interactable) -> (Ground, Vec<pathfind::Step>) {
     let ground = rig.field.ground(r#where).unwrap();
     let way = ground
         .find(
@@ -2616,7 +2616,7 @@ fn gym_way(rig: &Rig, r#where: &Field, item: &Interactable) -> (Ground, Vec<Cell
         )
         .unwrap()
         .expect("a way");
-    (ground, pathfind::cells(&way))
+    (ground, way)
 }
 
 /// Laverre Gym (spike 258): a teleporter stepped onto puts the player on its partner's panel on
@@ -2631,11 +2631,14 @@ fn test_a_way_through_a_teleporter_goes_on_from_its_partner_which_does_not_fire(
     let (rig, r#where) = laverre_gym(std::slice::from_ref(&grant), (92, 172), 0.0);
     let (ground, path) = gym_way(&rig, &r#where, &grant);
     assert_eq!(
-        path,
+        pathfind::cells(&path),
         vec![(92, 172), (93, 172), (94, 172), (100, 172), (100, 171)]
     );
     assert_eq!(ground.walked(&path).unwrap(), vec![0, 0, 0, 1, 1]);
-    assert_eq!(ground.teleported(&path).unwrap(), HashSet::from([3]));
+    assert_eq!(
+        ground.named(&path, &|_| Ok(String::new())).unwrap(),
+        IndexMap::from([(3, "teleporter".to_string())])
+    );
 }
 
 /// The distance to the goals is no measure of a way across a teleporter: the one a step west,
@@ -2649,7 +2652,7 @@ fn test_of_two_teleporters_the_way_takes_the_cheaper_however_far_from_the_goal_i
     };
     let (rig, r#where) = laverre_gym(std::slice::from_ref(&grant), (92, 172), 0.0);
     assert_eq!(
-        gym_way(&rig, &r#where, &grant).1,
+        pathfind::cells(&gym_way(&rig, &r#where, &grant).1),
         vec![(92, 172), (91, 172), (103, 171)]
     );
 }

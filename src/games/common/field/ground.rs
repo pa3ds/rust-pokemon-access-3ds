@@ -12,7 +12,7 @@ use std::rc::Rc;
 
 use indexmap::{IndexMap, IndexSet};
 
-use crate::core::pathfind::{self, Box, Cell, Step};
+use crate::core::pathfind::{self, Box, Cell, Leg, Step};
 use crate::games::common::field::arrow::Arrows;
 use crate::games::common::field::chunk::{
     ANY_FLOOR, BLOCKED, BOARD, CHUNK, CLIMB, COUNTER, Chunk, LAUNCH, RISE, SHORE, STONE,
@@ -25,9 +25,8 @@ use crate::games::common::field::teleport::Teleporters;
 use crate::games::common::field::things::{
     ARROWS, Field, Interactable, POKEMON, TRIGGER_SOURCE, WARP_SOURCE,
 };
-use crate::games::common::field::traversal::Traversal;
-use crate::games::common::field::vines::OFF as LET_GO;
-use crate::games::common::field::vines::{Vine, Vines};
+use crate::games::common::field::traversal::{Name, Traversal};
+use crate::games::common::field::vines::Vines;
 use crate::py::{self, Error, Result};
 
 /// What the ground asks of a rails' corridor (`gen6.field.rail.Corridor`): its own walls are the only
@@ -225,7 +224,7 @@ pub type GroundHeight = Rc<dyn Fn(Cell) -> Result<Option<f64>>>;
 /// Water is a wall too, unless the ground is one to `surf`, and a bush or a rock a move clears
 /// unless it is one to clear them (`hm`), and a waterfall unless it is one to climb it (`falls`).
 /// So is ground only a ridden Pokémon crosses, but to a player riding one or getting on it on
-/// the way (`ride`), and a thing it smashes, but to a player riding it (`smashed`).
+/// the way (`ride.after`), and a thing it smashes, but to a player riding it (`smashed`).
 #[derive(Clone)]
 pub struct Ground {
     pub chunks: Vec<Rc<Chunk>>,
@@ -354,7 +353,7 @@ pub struct Ground {
     /// A `frozenset` is a `HashSet`: it is only tested.
     pub crowd: HashSet<Cell>,
     /// The cell kinds only a player riding a Pokémon crosses, blocked bit and all, as X's Rhyhorn
-    /// crosses Route 9's spiky ground (`ride`, spike 238); none in a game without one.
+    /// crosses Route 9's spiky ground (`ride.after`, spike 238); none in a game without one.
     pub rides: HashSet<i64>,
     /// The kinds of the flat ground beside them, walked on foot and riding: the only ground a way
     /// gets onto them from, and off them onto.
@@ -365,8 +364,8 @@ pub struct Ground {
     /// in and is riding; none while they ride. Nobody stands in them.
     pub mounts: HashSet<Cell>,
     /// The cells of the things the ridden Pokémon smashes with A, stepped into only riding, faced
-    /// and smashed first (`ride`, `toll`), and open from then on: Route 9's rocks, smashed on the
-    /// Rhyhorn, needing no HM (spike 238). Nobody stands in them; on foot they are in the way.
+    /// and smashed first (`ride.after`, `toll`), and open from then on: Route 9's rocks, smashed on
+    /// the Rhyhorn, needing no HM (spike 238). Nobody stands in them; on foot they are in the way.
     pub smashed: HashSet<Cell>,
     /// The climbing walls: a face's line walked on foot or climbed, onto it only at a blue spot
     /// and off it sideways onto a ledge only climbing; and their slides, open though blocked, which
@@ -390,12 +389,13 @@ pub struct Ground {
     /// Each listed teleporter's cell and the floor it is on, `floor`'s and `ANY_FLOOR` off a
     /// stacked ground, with where it puts the player and on what floor: Laverre Gym's panels. Not
     /// in `stepped`: a step onto one is the way on, the teleport the one move from it, and one the
-    /// player is put onto does nothing until they step off it and back on (`_walk`, spike 258).
+    /// player is put onto does nothing until they step off it and back on (`teleport`, spike
+    /// 258).
     pub teleports: IndexMap<(Cell, i64), (Cell, i64)>,
     /// The cell kinds of the arrow tiles that push the player, each with the way it pushes: open,
     /// stepped onto any way, and the player pushed on that way a cell at a time over any floor
     /// until the cell on cannot be stood in, where they stop and walk any way; an arrow crossed
-    /// turns the push its own way (`arrow`, `walk`). None on a ground without one: Lysandre Labs'
+    /// turns the push its own way (`arrow.Arrows`). None on a ground without one: Lysandre Labs'
     /// floor has them, and the way to a Team Flare Grunt was said again at each cell an arrow
     /// pushed the player (x_lysandre_labs, spike 265).
     pub arrows: IndexMap<i64, &'static str>,
@@ -935,74 +935,92 @@ impl Ground {
         Ok(best)
     }
 
-    /// The floor each cell of `path` is walked on, from the player's (`climb`): `ANY_FLOOR` all
-    /// along off a stacked ground, and on a vine's cell, held; and where its ride lands, or
-    /// a teleporter puts the player, the floor it puts them on.
-    pub fn walked(&self, path: &[Cell]) -> Result<Vec<i64>> {
-        Ok(self.followed(path)?.0)
+    /// The floor each cell of `way` is walked on, as its search found it: `ANY_FLOOR` all
+    /// along off a stacked ground, and on a vine's cell, held; and where its ride lands, or a
+    /// teleporter puts the player, the floor it puts them on.
+    pub fn walked(&self, way: &[Step]) -> Result<Vec<i64>> {
+        way.iter()
+            .map(|step| {
+                if self.stacked {
+                    step.state
+                        .last()
+                        .copied()
+                        .ok_or_else(|| Error::index("tuple index out of range"))
+                } else {
+                    Ok(ANY_FLOOR)
+                }
+            })
+            .collect()
     }
 
-    /// Each step of `path` that grabs a vine, by the index of its last cell, with the vine's
-    /// end it grabs: the step after it is the ride. By place, not by its cells, which the way
-    /// can walk again on another level (`pathfind.legs`'s `placed`).
-    pub fn vined(&self, path: &[Cell]) -> Result<IndexMap<i64, Vine>> {
-        Ok(self.followed(path)?.1)
+    /// What each traversal says the steps of `way` it takes are walked with, by the index of
+    /// each step's last cell, the first traversal's where two say a step (`Traversal.said`).
+    pub fn named(&self, way: &[Step], name: Name<'_>) -> Result<IndexMap<i64, String>> {
+        let mut out: IndexMap<i64, String> = IndexMap::new();
+        let mut from = 0;
+        for traversal in self.traversals() {
+            let to = from + traversal.width();
+            let mine = mine(way, from, to)?;
+            for (at, how) in traversal.said(self, way, &mine, name)? {
+                out.entry(at).or_insert(how);
+            }
+            from = to;
+        }
+        Ok(out)
     }
 
-    /// Each step of `path` that is a teleport, by the index of the cell it puts the player
-    /// on. By place, not by its cells: a way through Laverre Gym walks (1, 1) on two floors.
+    /// `legs`, `way`'s, with each traversal's own said as it says them (`Traversal.legs`).
+    pub fn legs(&self, way: &[Step], legs: Vec<Leg>) -> Result<Vec<Leg>> {
+        let mut legs = legs;
+        let mut from = 0;
+        for traversal in self.traversals() {
+            let to = from + traversal.width();
+            let mine = mine(way, from, to)?;
+            legs = traversal.legs(self, way, &mine, legs)?;
+            from = to;
+        }
+        Ok(legs)
+    }
+
+    /// Each cell of `path`, a way no search of this ground found, with the state one would
+    /// give it, from `state`, or the player's where it is None: a way over thin ice, which
+    /// steps on every tile once, and the way up to the surface from under the sea
+    /// (`guide._over_ice`, `guide._dive_again`).
     ///
-    /// A `frozenset` of ints only tested is a `HashSet`.
-    pub fn teleported(&self, path: &[Cell]) -> Result<HashSet<i64>> {
-        Ok(self.followed(path)?.2)
-    }
-
-    /// `walked`, `vined` and `teleported`, the vine held and whether the teleporter under the
-    /// player fires followed along `path` as the search follows them (`Vines.hold`, `_walk`).
-    #[allow(clippy::type_complexity)]
-    fn followed(&self, path: &[Cell]) -> Result<(Vec<i64>, IndexMap<i64, Vine>, HashSet<i64>)> {
-        let first = path
+    /// ponytail: a step a search would refuse keeps the state, on any floor; neither way crosses
+    /// a traversal. Find such a way by the search's own moves if one ever does.
+    pub fn follow(&self, path: &[Cell], state: Option<pathfind::State>) -> Result<Vec<Step>> {
+        let first = *path
             .first()
             .ok_or_else(|| Error::index("tuple index out of range"))?;
-        let mut floors = vec![self.floor(*first, self.level)?];
-        let mut grabs: IndexMap<i64, Vine> = IndexMap::new();
-        let mut jumps: HashSet<i64> = HashSet::new();
-        let mut held = LET_GO;
-        let mut landed = self.teleports.contains_key(&(*first, floors[0]));
-        for (i, pair) in path.windows(2).enumerate() {
-            let (i, cell, step) = (i as i64 + 1, pair[0], pair[1]);
-            let sent = if landed {
+        let walk = self.walk(first, HashSet::new())?;
+        let mut now: pathfind::State = match state {
+            None => walk.state.clone(),
+            Some(state) => state,
+        };
+        let mut out = vec![Step {
+            cell: first,
+            state: now.clone(),
+        }];
+        for pair in path.windows(2) {
+            let (cell, step) = (pair[0], pair[1]);
+            let after = if walk.active {
+                walk.through(&now, cell, step)?
+            } else {
                 None
-            } else {
-                self.teleports
-                    .get(&(cell, floors[floors.len() - 1]))
-                    .copied()
             };
-            if let Some(sent) = sent
-                && sent.0 == step
-            {
-                jumps.insert(i);
-                floors.push(sent.1);
-                landed = self.teleports.contains_key(&(step, sent.1));
-                continue;
+            if let Some(after) = after {
+                now = after;
+            } else if self.stacked {
+                now.pop();
+                now.push(ANY_FLOOR);
             }
-            landed = false;
-            let was = held;
-            if !self.vines.vines.is_empty() {
-                let here = self.height(cell, floors[floors.len() - 1])?;
-                held = self.vines.hold(held, cell, step, here).unwrap_or(LET_GO);
-            }
-            if held != LET_GO {
-                grabs.insert(i, self.vines.vines[(held - 1) as usize].clone());
-                floors.push(ANY_FLOOR);
-            } else if was != LET_GO {
-                floors.push(self.floor(step, Some(self.vines.vines[(was - 1) as usize].landing))?);
-            } else {
-                let on = self.climb(floors[floors.len() - 1], cell, step)?;
-                floors.push(on.unwrap_or(ANY_FLOOR));
-            }
+            out.push(Step {
+                cell: step,
+                state: now.clone(),
+            });
         }
-        Ok((floors, grabs, jumps))
+        Ok(out)
     }
 
     /// How high the player stands in `cell` on `floor`: its height there on a stacked ground,
@@ -1247,30 +1265,6 @@ impl Ground {
         Ok(kind.and_then(|kind| self.arrows.get(&kind).copied()))
     }
 
-    /// Each step of `path` an arrow's push carries the player, by the index of the cell it
-    /// carries them to, replayed as the search walks it (`walk`): from an arrow its way, and on
-    /// that way from each cell after, an arrow crossed turning it, until a step goes another way,
-    /// the push having set them down.
-    ///
-    /// A `frozenset` of ints only tested is a `HashSet`.
-    pub fn arrowed(&self, path: &[Cell]) -> Result<HashSet<i64>> {
-        let mut out: HashSet<i64> = HashSet::new();
-        if self.arrows.is_empty() {
-            return Ok(out);
-        }
-        let mut way: Option<&str> = None;
-        for (i, pair) in path.windows(2).enumerate() {
-            let (cell, step) = (pair[0], pair[1]);
-            way = self.arrow(cell)?.or(way);
-            if way.is_some_and(|way| pathfind::towards(cell, step) == way) {
-                out.insert(i as i64 + 1);
-            } else {
-                way = None;
-            }
-        }
-        Ok(out)
-    }
-
     /// Whether an arrow's push carries a player who came into `cell` going `heading` on from
     /// it: they stand on an arrow, or came off one pointing `heading` over the open cells behind
     /// them, and the cell on that way can be stood in.
@@ -1425,7 +1419,7 @@ impl Ground {
     }
 
     /// Whether a step from `cell` to the cell beside it can be taken: not off a drop but
-    /// off a climbing wall's face onto its ledge, which only a climber takes (`_walk`), and
+    /// off a climbing wall's face onto its ledge, which only a climber takes (`Walls.hold`), and
     /// into a big boulder only a way it moves (`shoves`).
     pub fn joined(&self, cell: Cell, step: Cell) -> bool {
         let ways = self.shoves.get(&step);
@@ -1960,6 +1954,18 @@ pub const TRAVERSALS: [fn(&Ground) -> Option<Rc<dyn Traversal>>; 7] = [
     Arrows::on,
     Doors::on,
 ];
+
+/// `[step.state[i] for step in way]`: one traversal's own state at each cell of `way`, its run
+/// `from..to` of the search's flat state (`traversal`).
+fn mine(way: &[Step], from: usize, to: usize) -> Result<Vec<&[i64]>> {
+    way.iter()
+        .map(|step| {
+            step.state
+                .get(from..to)
+                .ok_or_else(|| Error::index("tuple index out of range"))
+        })
+        .collect()
+}
 
 /// Whether the cell can be walked, or None when no loaded chunk holds it.
 pub fn walkable(chunks: &[Rc<Chunk>], cell: (i64, i64)) -> Result<Option<bool>> {

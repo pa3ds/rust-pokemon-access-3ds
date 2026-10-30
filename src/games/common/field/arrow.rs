@@ -11,10 +11,18 @@
 use std::collections::HashSet;
 use std::rc::Rc;
 
-use crate::core::pathfind::{self, Cell, State};
+use indexmap::IndexMap;
+
+use crate::core::pathfind::{self, Cell, State, Step};
 use crate::games::common::field::ground::Ground;
-use crate::games::common::field::traversal::Traversal;
+use crate::games::common::field::traversal::{Name, Traversal};
 use crate::py::Result;
+
+/// What a leg an arrow tile pushes the player along is said with, a run of them as one by where
+/// the push sets them down, turned by any arrow on the way: "5 west, arrow pushes 3 west, 2 north".
+/// In Lysandre Labs the player walked north onto (34, 25) and was pushed south a cell each 0.21 s
+/// to (34, 30), the wall stopping them (x_lysandre_labs, spike 265). The game names no such thing.
+pub const ARROW: &str = "arrow pushes";
 
 /// The way an arrow's push carries the player on from the cell they stand in, by its place here,
 /// as a search's state keeps it: 0 for none.
@@ -106,5 +114,20 @@ impl Traversal for Arrows {
         };
         let (dx, dz) = pathfind::step_of(way)?;
         Ok(!ground.passable((cell.0 + dx, cell.1 + dz))?)
+    }
+
+    /// Each step a push carries the player, by the index of the cell it carries them to: a
+    /// push is said as one leg by where it sets them down, "arrow pushes 3 west".
+    fn said(
+        &self,
+        _ground: &Ground,
+        way: &[Step],
+        mine: &[&[i64]],
+        _name: Name<'_>,
+    ) -> Result<IndexMap<i64, String>> {
+        Ok((1..way.len())
+            .filter(|&i| mine[i][0] != 0)
+            .map(|i| (i as i64, ARROW.to_string()))
+            .collect())
     }
 }

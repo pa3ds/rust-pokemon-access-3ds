@@ -7,12 +7,16 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use indexmap::{IndexMap, IndexSet};
+use indexmap::IndexMap;
 
-use crate::core::pathfind::{Cell, EAST, NORTH, SOUTH, State, WEST};
+use crate::core::pathfind::{Cell, EAST, NORTH, SOUTH, State, Step, WEST};
 use crate::games::common::field::ground::Ground;
-use crate::games::common::field::traversal::Traversal;
+use crate::games::common::field::traversal::{Name, Traversal};
 use crate::py::{self, Error, Result};
+
+/// What a step into one of Fortree Gym's rotating doors is said with, which turns it a quarter as
+/// the player walks on: "push 1 west" (spike 161). The game names no such thing.
+pub const PUSH: &str = "push";
 
 /// The ways round, a quarter turn anticlockwise from each to the next.
 pub const ANTICLOCKWISE: [&str; 4] = [NORTH, WEST, SOUTH, EAST];
@@ -160,8 +164,8 @@ pub struct Doors {
 }
 
 impl Doors {
-    /// The ground's doors, or None where it has none. Python's `on`, typed as the doors here so
-    /// the guide can ask `pushes`; `TRAVERSALS` takes it as a traversal (`traversal`).
+    /// The ground's doors, or None where it has none. Python's `on`, typed as the doors here;
+    /// `TRAVERSALS` takes it as a traversal (`traversal`).
     pub fn of(ground: &Ground) -> Option<Doors> {
         if ground.doors.is_empty() {
             return None;
@@ -176,26 +180,28 @@ impl Doors {
     pub fn on(ground: &Ground) -> Option<Rc<dyn Traversal>> {
         Doors::of(ground).map(|doors| Rc::new(doors) as Rc<dyn Traversal>)
     }
-
-    /// Where along `path` a step walks into a door's arm and turns it, by the index of the
-    /// cell it steps to.
-    pub fn pushes(&self, ground: &Ground, path: &[Cell]) -> Result<IndexSet<i64>> {
-        let mut out: IndexSet<i64> = IndexSet::new();
-        let mut turns = self.start(ground, path[0], 0)?;
-        for i in 1..path.len() {
-            let after = self.step(ground, &turns, path[i - 1], path[i], 0)?;
-            if let Some(after) = after
-                && after != turns
-            {
-                out.insert(i as i64);
-                turns = after;
-            }
-        }
-        Ok(out)
-    }
 }
 
 impl Traversal for Doors {
+    /// A door each, how far it stands turned.
+    fn width(&self) -> usize {
+        self.doors.len()
+    }
+
+    /// Each step that walks into a door's arm and turns it.
+    fn said(
+        &self,
+        _ground: &Ground,
+        way: &[Step],
+        mine: &[&[i64]],
+        _name: Name<'_>,
+    ) -> Result<IndexMap<i64, String>> {
+        Ok((1..way.len())
+            .filter(|&i| mine[i] != mine[i - 1])
+            .map(|i| (i as i64, PUSH.to_string()))
+            .collect())
+    }
+
     /// How far each door stands turned now, in `doors`' order.
     fn start(&self, _ground: &Ground, _cell: Cell, _floor: i64) -> Result<State> {
         Ok(self.doors.iter().map(|door| door.turn).collect())

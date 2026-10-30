@@ -11,11 +11,17 @@ use std::rc::Rc;
 
 use indexmap::{IndexMap, IndexSet};
 
-use crate::core::pathfind::{self, Cell, State};
+use crate::core::pathfind::{self, Cell, State, Step};
 use crate::games::common::field::chunk::{ANY_FLOOR, BLOCKED, KIND_SHIFT};
 use crate::games::common::field::ground::Ground;
-use crate::games::common::field::traversal::Traversal;
+use crate::games::common::field::traversal::{Name, Traversal};
 use crate::py::Result;
+
+/// What a leg along a grind rail is said with, a run of them as one by where it lands the player,
+/// from the end cell they skate onto it at: "3 east, grind the rail 17 east". In Shalour City Gym
+/// the player skated north onto (67, 62) and was carried along the rail onto (67, 52) in about 1.7 s
+/// (x_gym_3, spike 247). The game names no such thing.
+pub const GRIND: &str = "grind the rail";
 
 /// The search's state off every rail. On one it is a ride's number, from 1: `2 * i + 1` along
 /// rail `i` from its first cell, `2 * i + 2` back from its last.
@@ -47,7 +53,7 @@ pub struct GrindRails {
     /// (an end cell, the rail cell in line past it) -> the ride that step gets on.
     pub boards: HashMap<(Cell, Cell), i64>,
     /// Every step of every ride, from the end cell got on at to the cell it lands on: said as one
-    /// leg (`guide.GRIND`), and taken diagonally where a rail bends (`Ground.slants`).
+    /// leg (`GRIND`), and taken diagonally where a rail bends (`Ground.slants`).
     pub steps: HashSet<(Cell, Cell)>,
 }
 
@@ -231,6 +237,21 @@ impl Traversal for GrindRails {
     ) -> Result<bool> {
         // A rail's own cells are only ever stood on mid-ride: its end cells are not among them.
         Ok(!self.cells.contains(&cell))
+    }
+
+    /// Each step of a ride, from the end cell it gets on at to the cell it lands on (`steps`):
+    /// said as one leg by where it lands (`guide.CARRIED`).
+    fn said(
+        &self,
+        _ground: &Ground,
+        way: &[Step],
+        _mine: &[&[i64]],
+        _name: Name<'_>,
+    ) -> Result<IndexMap<i64, String>> {
+        Ok((1..way.len())
+            .filter(|&i| self.steps.contains(&(way[i - 1].cell, way[i].cell)))
+            .map(|i| (i as i64, GRIND.to_string()))
+            .collect())
     }
 }
 

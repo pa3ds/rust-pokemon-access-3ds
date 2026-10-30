@@ -9,17 +9,40 @@
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
-use crate::core::pathfind::{Cell, State};
+use indexmap::IndexMap;
+
+use crate::core::pathfind::{Cell, Leg, State, Step};
 use crate::games::common::field::chunk::{ANY_FLOOR, CLIMB};
 use crate::games::common::field::ground::Ground;
-use crate::games::common::field::traversal::Traversal;
-use crate::py::Result;
+use crate::games::common::field::traversal::{Name, Traversal};
+use crate::py::{self, Error, Result};
 
 pub const UP: &str = "vine up";
 pub const DOWN: &str = "vine down";
 /// What a ride from one end of a vine does, climbing up a level, down one, or swinging across a
 /// gap on one; and what the list calls that end.
 pub const SWING: &str = "swinging vine";
+
+/// What the step that grabs a vine and its ride are said with, as one leg with the way faced to
+/// grab it: "3 north, face north, climb the vine up, 2 east" (`Vined`). In Coumarine City Gym the
+/// vines carry the player up or down a level, or across a gap on one (spike 250). The game names
+/// no such thing.
+pub const VINE: [(&str, &str); 3] = [
+    (UP, "climb the vine up"),
+    (DOWN, "climb the vine down"),
+    (SWING, "swing on the vine"),
+];
+/// What a vine's ride is walked with until it is one leg with the step that grabbed it: never
+/// said (`Vines.legs`).
+pub const RIDE: &str = "ride the vine";
+
+/// `VINE[ride]`.
+fn vine_word(ride: &str) -> Result<&'static str> {
+    VINE.iter()
+        .find(|(known, _)| *known == ride)
+        .map(|&(_, word)| word)
+        .ok_or_else(|| Error::key(py::repr(ride)))
+}
 
 /// The search's state holding no vine. Holding one it is the end grabbed, by its place in
 /// `Vines.vines` from 1.
@@ -260,5 +283,59 @@ impl Traversal for Vines {
         } else {
             Some(self.vines[(state[0] - 1) as usize].lands)
         }
+    }
+
+    /// Each step that grabs a vine, with what its ride does, and the ride after it.
+    fn said(
+        &self,
+        _ground: &Ground,
+        _way: &[Step],
+        mine: &[&[i64]],
+        _name: Name<'_>,
+    ) -> Result<IndexMap<i64, String>> {
+        let grabs: Vec<(i64, &Vine)> = mine
+            .iter()
+            .enumerate()
+            .filter(|&(i, held)| i != 0 && held[0] != OFF)
+            .map(|(i, held)| (i as i64, &self.vines[(held[0] - 1) as usize]))
+            .collect();
+        let mut out: IndexMap<i64, String> = IndexMap::new();
+        for &(i, _) in &grabs {
+            out.insert(i + 1, RIDE.to_string());
+        }
+        for &(i, vine) in &grabs {
+            out.insert(i, vine_word(vine.ride)?.to_string());
+        }
+        Ok(out)
+    }
+
+    /// `legs` with each step that grabs a vine and the ride after it one leg, said the way
+    /// the vine is faced from its spot (`Vined`, a `Leg` whose `vined` is set).
+    fn legs(
+        &self,
+        _ground: &Ground,
+        _way: &[Step],
+        mine: &[&[i64]],
+        legs: Vec<Leg>,
+    ) -> Result<Vec<Leg>> {
+        let mut out: Vec<Leg> = Vec::new();
+        for leg in legs {
+            match out.last_mut() {
+                Some(grab) if leg.how == RIDE => {
+                    let faces = self.vines[(mine[grab.end as usize][0] - 1) as usize].faces;
+                    *grab = Leg {
+                        direction: faces,
+                        steps: grab.steps + leg.steps,
+                        end: leg.end,
+                        how: grab.how.clone(),
+                        held: None,
+                        vined: true,
+                        teleported: false,
+                    };
+                }
+                _ => out.push(leg),
+            }
+        }
+        Ok(out)
     }
 }

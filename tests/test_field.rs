@@ -3237,7 +3237,7 @@ fn test_a_ramp_in_the_streets_is_climbed_from_the_ground_to_the_landing_it_reach
         if let Some(way) = way {
             let path = pathfind::cells(&way);
             let mut heights = Vec::new();
-            for (&cell, floor) in path.iter().zip(ground.walked(&path)?) {
+            for (&cell, floor) in path.iter().zip(ground.walked(&way)?) {
                 let floors = ground.floors(cell)?;
                 let (_, height) = floors
                     .iter()
@@ -3681,8 +3681,11 @@ fn test_a_rotating_door_turns_only_where_its_arms_sweep_open_cells() -> Result<(
         Some(vec![1])
     );
     assert_eq!(
-        doors.pushes(&ground, &[(22, 24), (22, 23), (22, 22)])?,
-        IndexSet::from([2])
+        ground.named(
+            &ground.follow(&[(22, 24), (22, 23), (22, 22)], None)?,
+            &|_| Ok(String::new())
+        )?,
+        IndexMap::from([(2, "push".to_string())])
     );
     Ok(())
 }

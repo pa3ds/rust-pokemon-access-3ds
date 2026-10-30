@@ -3,9 +3,12 @@
 //!
 //! A kind is a module of its own, a `Traversal` built from what one ground has of it, and one line
 //! of `ground.TRAVERSALS`: riding (`ride`), climbing walls (`climb`), grind rails (`grind`), vines
-//! (`vines`), teleporters (`teleport`) and Fortree Gym's rotating doors (`rotating`). The search
+//! (`vines`), teleporters (`teleport`), arrow tiles (`arrow`) and Fortree Gym's rotating doors
+//! (`rotating`). The search
 //! keeps one state for each the ground has, in that order, and the floor after them on a stacked
-//! ground, which is the ground's own and read by all (`Ground._walk`). What keeps no state, a
+//! ground, which is the ground's own and read by all (`Ground._walk`). The search gives back each
+//! step of a way with its state, and each traversal names its own steps from it, "climb",
+//! "push", "grind the rail", and says its own legs (`said`, `legs`). What keeps no state, a
 //! current, a belt, ice, a slope, a ledge, the shore, is the search's rules and the guide's words.
 //!
 //! Bound by:
@@ -14,14 +17,25 @@
 //!
 //! Python's states are nested tuples, an int a traversal but the rotating doors', a tuple of their
 //! turns. The search's state here is one flat `pathfind::State`, each traversal's part a run of as
-//! many as its `start` gives, the same for every state of one ground: two states compare as
-//! Python's nested tuples of that one shape do.
+//! many as its `start` gives, the same for every state of one ground (`width`): two states
+//! compare as Python's nested tuples of that one shape do.
+//!
+//! Python's `Leap`, a leg a traversal carries the player across in one move, a vine's or a
+//! teleporter's, a way said as far as its first and then how many more, as up Coumarine Gym,
+//! where every press said all 17 vines and the legs between, again at each step (Khai,
+//! 2026-10-26), is a `Leg` whose `more` is some (`pathfind::Leg::more`).
 
 use std::collections::HashSet;
 
-use crate::core::pathfind::{Cell, State};
+use indexmap::IndexMap;
+
+use crate::core::pathfind::{Cell, Leg, State, Step};
 use crate::games::common::field::ground::Ground;
 use crate::py::Result;
+
+/// What the listing calls whatever stands in some cells, as the Pokémon to ride (`said`'s
+/// `name`).
+pub type Name<'a> = &'a dyn Fn(&HashSet<Cell>) -> Result<String>;
 
 /// One kind of traversal on one ground, as the search asks it. Each question takes the ground,
 /// for what every kind reads alike (its floors, its kinds of cell), the traversal's own state,
@@ -100,5 +114,39 @@ pub trait Traversal {
     /// Where the player in `cell` in `state` is carried in one move, or None.
     fn leap(&self, _ground: &Ground, _state: &[i64], _cell: Cell, _floor: i64) -> Option<Cell> {
         None
+    }
+
+    /// How many of the search's state its own part is: one, but the rotating doors' a door each.
+    /// Python's states are nested, and need no telling.
+    fn width(&self) -> usize {
+        1
+    }
+
+    /// What each step of `way` this traversal takes is walked with, by the index of the
+    /// step's last cell, "climb" or "push": said before the leg it is in, a leg ending where it
+    /// changes, and over every word of the ground's own, a ramp's or a current's
+    /// (`pathfind.legs`'s `placed`). By place, not by its cells, which a way can walk again on
+    /// another level. `mine` is this traversal's own state at each cell, as the search found it,
+    /// and `name` what the listing calls whatever stands in some cells, as the Pokémon to ride.
+    fn said(
+        &self,
+        _ground: &Ground,
+        _way: &[Step],
+        _mine: &[&[i64]],
+        _name: Name<'_>,
+    ) -> Result<IndexMap<i64, String>> {
+        Ok(IndexMap::new())
+    }
+
+    /// `legs`, the way's, with its own said as it says them: a climb's handholds with the leg
+    /// they are climbed at, a vine's grab and ride as one.
+    fn legs(
+        &self,
+        _ground: &Ground,
+        _way: &[Step],
+        _mine: &[&[i64]],
+        legs: Vec<Leg>,
+    ) -> Result<Vec<Leg>> {
+        Ok(legs)
     }
 }

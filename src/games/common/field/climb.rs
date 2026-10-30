@@ -7,19 +7,25 @@
 //! - ADR-0006: nothing here names a game's kinds; `gen6.game.Climbing` carries them.
 //! - ADR-0024: a climb is said as legs, each covering cells.
 
+use std::collections::HashMap;
 use std::rc::Rc;
 
 use indexmap::IndexMap;
 
-use crate::core::pathfind::{self, Cell, State};
+use crate::core::pathfind::{self, Cell, Leg, State, Step};
+use crate::core::words::own;
 use crate::games::common::field::chunk::{BLOCKED, CLIMB, KIND_SHIFT};
 use crate::games::common::field::ground::Ground;
-use crate::games::common::field::traversal::Traversal;
-use crate::py::{self, Result};
+use crate::games::common::field::traversal::{Name, Traversal};
+use crate::py::{self, Error, Result};
 
 /// A handhold, in world units: a cell's height. Up the wall from (25, 32) at 3 the player rose to
 /// 13, 38 and 57 for the ledge at 54, three holds (spike 245).
 pub const HOLD: f64 = 18.0;
+
+/// What a leg along a climbing wall's face is said with: "climb 6 west" (spike 245). The game names
+/// no such thing.
+pub const CLIMBED: &str = "climb";
 
 /// What a player on a face's line may be doing, a search's state there: walking its floor, on the
 /// wall, or either. Off every line it is `FOOT`. Bits, so `state & WALL` asks one.
@@ -389,4 +395,128 @@ impl Traversal for Walls {
     ) -> Result<Option<State>> {
         Ok(self.hold(state[0], cell, step).map(|held| vec![held]))
     }
+
+    /// Each step on the wall, "climb 6 west" (`climbs`).
+    fn said(
+        &self,
+        ground: &Ground,
+        way: &[Step],
+        _mine: &[&[i64]],
+        _name: Name<'_>,
+    ) -> Result<IndexMap<i64, String>> {
+        let climbs = self.climbs(&pathfind::cells(way), ground.level)?;
+        let mut out: IndexMap<i64, String> = IndexMap::new();
+        for climb in &climbs {
+            for i in climb.on..climb.off {
+                out.insert(i + 1, CLIMBED.to_string());
+            }
+        }
+        Ok(out)
+    }
+
+    /// `legs` with each climb's handholds climbed in place (`held`).
+    fn legs(
+        &self,
+        ground: &Ground,
+        way: &[Step],
+        _mine: &[&[i64]],
+        legs: Vec<Leg>,
+    ) -> Result<Vec<Leg>> {
+        held(legs, &self.climbs(&pathfind::cells(way), ground.level)?)
+    }
+}
+
+/// A leg with handholds climbed in place before it, at its first cell, and after it, at the
+/// way's end: "climb 3 up, 6 east", "climb 3 down, 1 west" (spike 245). Up positive.
+///
+/// Python's `Held(Leg)` is a subclass; here it is what a `Leg` adds, kept in its `held`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Held {
+    pub before: i64,
+    pub after: i64,
+}
+
+impl Held {
+    /// `Held.__str__` of `leg`, whose `held` this is.
+    pub fn said(&self, leg: &Leg) -> String {
+        // A climb's own word is said once: "climb 3 up, 6 east", not "climb 3 up, climb 6 east".
+        // Leg's own spelled out: a slots dataclass has no zero-argument super() before 3.14.
+        let body = if self.before != 0 && leg.how == CLIMBED {
+            own(
+                "steps",
+                &[
+                    ("count", &leg.steps),
+                    ("way", &pathfind::way(leg.direction)),
+                ],
+            )
+        } else {
+            Leg {
+                held: None,
+                ..leg.clone()
+            }
+            .to_string()
+        };
+        let mut parts: Vec<String> = Vec::new();
+        if self.before != 0 {
+            parts.push(holds(self.before));
+        }
+        parts.push(body);
+        if self.after != 0 {
+            parts.push(holds(self.after));
+        }
+        parts.join(", ")
+    }
+}
+
+/// Handholds climbed in place, up positive: "climb 3 up".
+fn holds(count: i64) -> String {
+    own(
+        if count > 0 {
+            "p-climb-up"
+        } else {
+            "p-climb-down"
+        },
+        &[("holds", &count.abs())],
+    )
+}
+
+/// `legs` with each climb's handholds climbed in place said with the leg that starts where
+/// they are climbed: up on its first leg, down on the leg after its last, or after its last
+/// where the way ends there. So every leg covers cells, and guiding says the handholds as the
+/// player reaches the cell they are climbed at (ADR-0024).
+pub fn held(legs: Vec<Leg>, climbs: &[Climb]) -> Result<Vec<Leg>> {
+    let mut out = legs;
+    let starts: HashMap<i64, usize> = out
+        .iter()
+        .enumerate()
+        .map(|(i, leg)| (leg.end - leg.steps, i))
+        .collect();
+
+    let add = |out: &mut Vec<Leg>, i: usize, before: i64, after: i64| {
+        let was = out[i].held.unwrap_or_default();
+        out[i].held = Some(Held {
+            before: was.before + before,
+            after: was.after + after,
+        });
+    };
+
+    for climb in climbs {
+        if climb.first != 0
+            && let Some(&i) = starts.get(&climb.on)
+        {
+            add(&mut out, i, climb.first, 0);
+        }
+        if climb.last != 0
+            && let Some(&i) = starts.get(&climb.off)
+        {
+            add(&mut out, i, -climb.last, 0);
+        } else if climb.last != 0 {
+            let i = out
+                .len()
+                .checked_sub(1)
+                .ok_or_else(|| Error::index("list index out of range"))?;
+            add(&mut out, i, 0, -climb.last);
+        }
+    }
+    Ok(out)
 }

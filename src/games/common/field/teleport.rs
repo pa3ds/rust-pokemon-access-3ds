@@ -12,9 +12,10 @@ use std::rc::Rc;
 
 use indexmap::IndexMap;
 
-use crate::core::pathfind::{Cell, State};
+use crate::core::pathfind::{Cell, Leg, State, Step};
 use crate::games::common::field::ground::Ground;
-use crate::games::common::field::traversal::Traversal;
+use crate::games::common::field::things::TELEPORTER;
+use crate::games::common::field::traversal::{Name, Traversal};
 use crate::py::Result;
 
 /// Whether the player walked onto the cell they stand in, where a teleporter fires, or a
@@ -120,5 +121,55 @@ impl Traversal for Teleporters {
 
     fn leap(&self, _ground: &Ground, state: &[i64], cell: Cell, floor: i64) -> Option<Cell> {
         self.fires(state[0], cell, floor).map(|sent| sent.0)
+    }
+
+    /// Each step that is a teleport, by the index of the cell it puts the player on: by place,
+    /// not by its cells, as a way through Laverre Gym walks (1, 1) on two floors.
+    fn said(
+        &self,
+        ground: &Ground,
+        way: &[Step],
+        mine: &[&[i64]],
+        _name: Name<'_>,
+    ) -> Result<IndexMap<i64, String>> {
+        let floors = ground.walked(way)?;
+        Ok((1..way.len())
+            .filter(|&i| {
+                self.fires(mine[i - 1][0], way[i - 1].cell, floors[i - 1])
+                    .is_some_and(|sent| sent.0 == way[i].cell)
+            })
+            .map(|i| (i as i64, TELEPORTER.to_string()))
+            .collect())
+    }
+
+    /// `legs` with each teleport a leg of its own (`Teleported`, a `Leg` whose `teleported` is
+    /// set): "6 north, teleporter, 2 east". Nothing is said as the player stands on the
+    /// teleporter: the game is moving them, and the leg after it is said where it puts them
+    /// (spike 258).
+    fn legs(
+        &self,
+        _ground: &Ground,
+        _way: &[Step],
+        _mine: &[&[i64]],
+        legs: Vec<Leg>,
+    ) -> Result<Vec<Leg>> {
+        Ok(legs
+            .into_iter()
+            .map(|leg| {
+                if leg.how == TELEPORTER {
+                    Leg {
+                        direction: leg.direction,
+                        steps: leg.steps,
+                        end: leg.end,
+                        how: leg.how,
+                        held: None,
+                        vined: false,
+                        teleported: true,
+                    }
+                } else {
+                    leg
+                }
+            })
+            .collect())
     }
 }

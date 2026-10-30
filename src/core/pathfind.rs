@@ -27,7 +27,7 @@ use std::hash::Hash;
 use indexmap::IndexMap;
 
 use crate::core::words::{own, said};
-use crate::games::common::field::guide::Held;
+use crate::games::common::field::climb::Held;
 use crate::games::common::field::things::{TELEPORTER, kind_said};
 use crate::py::{self, Error, Result};
 
@@ -142,17 +142,18 @@ pub struct Leg {
     pub end: i64,
     /// What the leg is walked with, said before it: "Surf". "" on foot.
     pub how: String,
-    /// The handholds climbed in place before and after it, where it is the guide's subclass
-    /// `Held`: None for a plain `Leg`. A field here, as Python's `isinstance(leg, Held)` is
-    /// `held.is_some()`, so a list of legs can hold both.
+    /// The handholds climbed in place before and after it, where it is the climbing walls'
+    /// subclass `Held`: None for a plain `Leg`. A field here, as Python's `isinstance(leg, Held)`
+    /// is `held.is_some()`, so a list of legs can hold both.
     pub held: Option<Held>,
-    /// Whether it is the guide's subclass `Vined`, the step that grabs a vine and its ride:
+    /// Whether it is the vines' subclass `Vined`, the step that grabs a vine and its ride:
     /// Python's `isinstance(leg, Vined)`.
     pub vined: bool,
-    /// Whether it is the guide's subclass `Teleported`: Python's `isinstance(leg, Teleported)`.
-    /// A teleport, the step from a teleporter to where it puts the player, as a leg of its own:
-    /// "6 north, teleporter, 2 east". Nothing is said as the player stands on the teleporter: the
-    /// game is moving them, and the leg after it is said where it puts them (spike 258).
+    /// Whether it is the teleporters' subclass `Teleported`: Python's `isinstance(leg,
+    /// Teleported)`. A teleport, the step from a teleporter to where it puts the player, as a leg
+    /// of its own: "6 north, teleporter, 2 east". Nothing is said as the player stands on the
+    /// teleporter: the game is moving them, and the leg after it is said where it puts them
+    /// (spike 258).
     pub teleported: bool,
 }
 
@@ -167,6 +168,20 @@ impl Leg {
             held: None,
             vined: false,
             teleported: false,
+        }
+    }
+
+    /// Where it is a `traversal.Leap`, a leg a traversal carries the player across in one move,
+    /// a vine's or a teleporter's, its class's `more`: the message saying how many more there
+    /// are, "then 3 more teleporters". None for any other leg: Python's `isinstance(leg, Leap)`
+    /// is `more().is_some()`.
+    pub fn more(&self) -> Option<&'static str> {
+        if self.vined {
+            Some("p-more-vines")
+        } else if self.teleported {
+            Some("p-more-teleporters")
+        } else {
+            None
         }
     }
 }
@@ -1107,28 +1122,25 @@ pub fn legs(path: &[Cell], how: Option<&dyn Fn(Cell, Cell) -> Result<String>>) -
 /// A path's straight runs, in order. `how` says what each step is walked with, and a run
 /// ends where that changes as well as where the path turns: "3 south, Surf 12 south". `key` is
 /// the key that walks a step where that is not its way, as up walks a street north-west.
-/// `placed` says both for a step by its place in the path, the index of its last cell, where
-/// its two cells do not: in Coumarine Gym the way climbs the vine from (59, 73) to (59, 72) at
-/// 0 and later walks over the same two cells at 720 (spike 250).
+/// `placed` says what a step is walked with by its place in the path, the index of its last
+/// cell, over `how`, where its two cells do not say: in Coumarine Gym the way climbs the vine
+/// from (59, 73) to (59, 72) at 0 and later walks over the same two cells at 720 (spike 250).
 pub fn legs_with(
     path: &[Cell],
     how: Option<&dyn Fn(Cell, Cell) -> Result<String>>,
     key: Option<&dyn Fn(Cell, Cell) -> Option<&'static str>>,
-    placed: Option<&IndexMap<i64, (String, Option<&'static str>)>>,
+    placed: Option<&IndexMap<i64, String>>,
 ) -> Result<Vec<Leg>> {
     let mut out: Vec<Leg> = Vec::new();
     for i in 1..path.len() {
-        let (walked, keyed) = match placed.and_then(|placed| placed.get(&(i as i64))) {
-            Some((walked, keyed)) => (walked.clone(), *keyed),
-            None => (
-                match how {
-                    Some(how) => how(path[i - 1], path[i])?,
-                    None => String::new(),
-                },
-                key.and_then(|key| key(path[i - 1], path[i])),
-            ),
+        let walked = match placed.and_then(|placed| placed.get(&(i as i64))) {
+            Some(walked) => walked.clone(),
+            None => match how {
+                Some(how) => how(path[i - 1], path[i])?,
+                None => String::new(),
+            },
         };
-        let mut direction = keyed.unwrap_or("");
+        let mut direction = key.and_then(|key| key(path[i - 1], path[i])).unwrap_or("");
         if direction.is_empty() {
             direction = towards(path[i - 1], path[i]);
         }
