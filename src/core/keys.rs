@@ -29,7 +29,7 @@ use std::collections::VecDeque;
 #[cfg(windows)]
 use std::ptr::null_mut;
 #[cfg(windows)]
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 #[cfg(windows)]
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError};
 #[cfg(windows)]
@@ -58,6 +58,8 @@ pub const WM_SYSKEYUP: i64 = 0x0105;
 pub const WM_QUIT: i64 = 0x0012;
 
 pub const VK_SHIFT: i64 = 0x10;
+/// Shift as a hook sees it: the left one and the right one, and either.
+pub const SHIFTS: [i64; 3] = [VK_SHIFT, 0xA0, 0xA1];
 pub const VK_CONTROL: i64 = 0x11;
 /// Alt, which Windows still calls the menu key.
 pub const VK_MENU: i64 = 0x12;
@@ -111,6 +113,9 @@ pub fn key_name(virtual_key: i64) -> String {
 }
 
 pub const SHIFT: &str = "shift";
+/// What is pressed when Shift comes up after a key of pa3ds's taken with it: touch mode lets go
+/// of a press held with Shift and U on it (`common.touch`'s drag). Never a key bound.
+pub const SHIFT_UP: &str = "shift up";
 pub const CTRL: &str = "ctrl";
 pub const ALT: &str = "alt";
 /// The order modifiers are written in, so one combination has one name. Windows' own order.
@@ -270,6 +275,8 @@ struct State {
     emulator: String,
     pressed: Mutex<VecDeque<String>>,
     elsewhere: Mutex<HashSet<i64>>,
+    /// Whether a key of pa3ds's has been taken with Shift since Shift last came up.
+    shifted: AtomicBool,
     thread_id: AtomicU32,
     ready: Event,
     error: Mutex<String>,
@@ -318,13 +325,25 @@ impl State {
             let event = unsafe { &*(lparam as *const KeyboardHookStruct) };
             let message = wparam as i64;
             track(&mut lock(&self.elsewhere), event.vkCode as i64, message);
+            if (message == WM_KEYUP || message == WM_SYSKEYUP)
+                && SHIFTS.contains(&(event.vkCode as i64))
+                && self.shifted.load(Ordering::SeqCst)
+            {
+                // Passed on all the same, and in front of any window: a press held is let go
+                // wherever the player has gone.
+                self.shifted.store(false, Ordering::SeqCst);
+                lock(&self.pressed).push_back(SHIFT_UP.to_string());
+            }
             if message == WM_KEYDOWN || message == WM_SYSKEYDOWN {
-                let (ctrl, alt) = (held(VK_CONTROL), held(VK_MENU));
-                let name = modified(&key_name(event.vkCode as i64), ctrl, alt, held(VK_SHIFT));
+                let (ctrl, alt, shift) = (held(VK_CONTROL), held(VK_MENU), held(VK_SHIFT));
+                let name = modified(&key_name(event.vkCode as i64), ctrl, alt, shift);
                 let elsewhere =
                     !lock(&self.elsewhere).is_empty() || ELSEWHERE.iter().any(|&key| held(key));
                 let key = bound(&name, &self.keys, ctrl, alt, elsewhere);
                 if !key.is_empty() && window::in_front(&self.emulator) {
+                    if shift {
+                        self.shifted.store(true, Ordering::SeqCst);
+                    }
                     lock(&self.pressed).push_back(key);
                     return 1;
                 }
@@ -367,6 +386,7 @@ impl Hotkeys {
                 emulator: emulator.to_string(),
                 pressed: Mutex::new(VecDeque::new()),
                 elsewhere: Mutex::new(HashSet::new()),
+                shifted: AtomicBool::new(false),
                 thread_id: AtomicU32::new(0),
                 ready: Event::default(),
                 error: Mutex::new(String::new()),
