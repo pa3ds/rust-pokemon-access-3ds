@@ -43,6 +43,8 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
   Pokédex, because the game itself shows it that way.
 - **Shoal Cave's ice** has been tried in Omega Ruby only, and `P`'s way across it has not been
   heard in play yet.
+- **Team Magma's and Team Aqua's Hideouts**: `P` now leads you through a teleporter pad into the
+  same hideout as one step of the way, as in Lysandre Labs, and nobody has tried it there.
 
 ## X and Y
 
