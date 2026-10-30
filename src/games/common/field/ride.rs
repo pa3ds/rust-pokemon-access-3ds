@@ -4,7 +4,7 @@
 //! 1 or 0.
 //!
 //! Bound by:
-//! - ADR-0006: nothing here names a game's kinds; `gen6.game.Rides` carries them.
+//! - ADR-0006: nothing here names a game's kinds; `gen6.field.landform.Rides` carries them.
 
 use std::collections::HashSet;
 use std::rc::Rc;

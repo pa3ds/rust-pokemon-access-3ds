@@ -6,6 +6,7 @@ use std::cell::{Cell as StdCell, RefCell};
 use std::collections::{HashMap, HashSet};
 use std::ops::Range;
 use std::rc::Rc;
+use std::sync::Arc;
 
 use indexmap::{IndexMap, IndexSet};
 
@@ -34,6 +35,7 @@ use crate::games::gen6::field::fieldmap::{
     MAP_BLOCK_SIZE, MAP_CHUNK_FILES, MAP_CHUNKS_TALL, MAP_CHUNKS_WIDE, MAP_GRID, MAP_KIND, MAP_MARK,
 };
 use crate::games::gen6::field::hidden_items::HIDDEN_ITEM;
+use crate::games::gen6::field::landform::{ArrowTiles, Landform, Rides, gen6};
 use crate::games::gen6::field::mmodel::PROP_MODEL;
 use crate::games::gen6::field::reader::PC_TILE as PC_KIND;
 use crate::games::gen6::field::reader::{
@@ -48,7 +50,7 @@ use crate::games::gen6::field::zonedata::{
 use crate::games::gen6::field::zonetable::{
     INFO_KIND, INFO_MATRIX, INFO_NAME, INFO_PARENT, INFO_SETTING, INFO_SIZE, UNDERWATER,
 };
-use crate::games::gen6::game::{FeatureFactory, FurnitureKind, Game, Rides, SecretBaseFactory};
+use crate::games::gen6::game::{FeatureFactory, FurnitureKind, Game, SecretBaseFactory};
 use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::rom::maps::{ChunkSource, StreetSource};
 use crate::games::oras;
@@ -4078,7 +4080,7 @@ fn test_flat_ground_is_listed_under_riding_a_patch_at_a_time() -> Result<()> {
             Given::default(),
             Game {
                 hidden: Some(dex_nav),
-                rides: Some(route_9(&[])),
+                landforms: [gen6(), vec![Arc::new(route_9(&[])) as Arc<dyn Landform>]].concat(),
                 ..game()
             },
         );
@@ -4425,7 +4427,11 @@ fn test_a_rock_the_rhyhorn_smashes_is_an_obstacle_and_the_ridden_rhyhorn_is_not_
         Given::default(),
         Game {
             hidden: Some(dex_nav),
-            rides: Some(route_9(&[0x200D])),
+            landforms: [
+                gen6(),
+                vec![Arc::new(route_9(&[0x200D])) as Arc<dyn Landform>],
+            ]
+            .concat(),
             ..game()
         },
     );
@@ -4495,7 +4501,13 @@ fn test_each_arrow_is_listed_by_its_way_with_where_its_push_sets_the_player_down
         town.memory.clone(),
         Given::default(),
         Game {
-            arrows: IndexMap::from(xy::ARROWS),
+            landforms: [
+                gen6(),
+                vec![Arc::new(ArrowTiles {
+                    ways: IndexMap::from(xy::ARROWS),
+                }) as Arc<dyn Landform>],
+            ]
+            .concat(),
             ..game()
         },
     );

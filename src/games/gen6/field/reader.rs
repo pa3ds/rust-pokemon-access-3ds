@@ -24,6 +24,7 @@
 use std::cell::{Cell as Slot, RefCell};
 use std::collections::{HashMap, HashSet};
 use std::rc::{Rc, Weak};
+use std::sync::Arc;
 
 use indexmap::{IndexMap, IndexSet};
 
@@ -33,10 +34,7 @@ use crate::core::discovery::{Found, HEAP_SPAN, within};
 use crate::core::memory::Memory;
 use crate::core::pathfind::{self, Cell};
 use crate::core::words::own;
-use crate::games::common::field::chunk::HOLE as BOULDER_HOLE;
-use crate::games::common::field::chunk::{
-    BIKE_RAILS, BLOCKED, BUMPY_SLOPES, CHUNK, CURRENTS, Chunk, DIVE, FALLS, SLOPES,
-};
+use crate::games::common::field::chunk::{BLOCKED, CHUNK, Chunk};
 use crate::games::common::field::climb::Walls;
 use crate::games::common::field::grind::GrindRails;
 use crate::games::common::field::ground::{
@@ -45,11 +43,9 @@ use crate::games::common::field::ground::{
 };
 use crate::games::common::field::ride::riding;
 use crate::games::common::field::things::{
-    ARROW_SOURCE, ARROWS, BIKE, BIKE_SOURCE, CLIMB_SOURCE, CLIMBING, CURRENT_SOURCE,
-    CURRENTS_CATEGORY, DECORATION_SOURCE, DIVE_SOURCE, EDGE_SOURCE, FURNITURE_SOURCE, Field,
-    Interactable, OBSTACLES, OPENING_SOURCE, POKEMON, RIDE_SOURCE, RIDING, STAIRS_SOURCE,
-    TELEPORT_SOURCE, TELEPORTER, TILE_SOURCE, TRIGGER_SOURCE, VINE_SOURCE, WARP_SOURCE, kind_said,
-    place_source,
+    CLIMB_SOURCE, CLIMBING, DECORATION_SOURCE, EDGE_SOURCE, FURNITURE_SOURCE, Field, Interactable,
+    OBSTACLES, OPENING_SOURCE, POKEMON, STAIRS_SOURCE, TELEPORT_SOURCE, TELEPORTER, TILE_SOURCE,
+    TRIGGER_SOURCE, VINE_SOURCE, WARP_SOURCE, kind_said, place_source,
 };
 use crate::games::common::field::vines::{End, Vines, paired};
 use crate::games::gen6::field::conveyors::Switches;
@@ -57,6 +53,10 @@ use crate::games::gen6::field::features::{
     DoorReader, Feature, HiddenReader, Hiding, IceReader, SecretBaseReader, Tracked,
 };
 use crate::games::gen6::field::hidden_items::{HIDDEN_ITEM, HiddenItems, Only};
+use crate::games::gen6::field::landform::{
+    Found as Worked, HOLE, Here, Holes, Landform, Matrix, Rides, as_form, beside, cell_number,
+    dropped, holes_found, spread,
+};
 use crate::games::gen6::field::rail::{self, Rails, keep};
 use crate::games::gen6::field::terrain::{FarCells, FarFloors, FarHeights, FarMatrices, Terrain};
 use crate::games::gen6::field::works::Works;
@@ -67,15 +67,12 @@ use crate::games::gen6::field::zonedata::{
     WARP_Y, ZoneData, arrives, on_rail, read_furniture, read_records, read_triggers, read_zone,
     trigger_placed, warp_box, zone_files,
 };
-use crate::games::gen6::field::zonetable::{
-    INFO_KIND, INFO_MATRIX, INFO_NAME, INFO_PARENT, INFO_SIZE, NAME_MASK, UNDERWATER, ZONE_LIMIT,
-    ZoneTable,
-};
+use crate::games::gen6::field::zonetable::{INFO_SIZE, ZoneTable};
 use crate::games::gen6::field::{fieldmap, mapblock, mmodel};
-use crate::games::gen6::game::{Climbing, Conveyors, FurnitureKind, Game, Grinding, Rides, Vining};
+use crate::games::gen6::game::{Climbing, Conveyors, FurnitureKind, Game, Grinding, Vining};
 use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::rom::maps::{ChunkSource, StreetSource};
-use crate::py::{self, Error, PySet, Result};
+use crate::py::{self, PySet, Result};
 
 /// What the vines' ends and the vines were read for (`_ends_of`, `_vines_of`): the zone's home
 /// and the map's chunk files, None before any were.
@@ -138,40 +135,11 @@ pub const BARRIER: &str = "barrier";
 /// The key the records of every elevator's door share (`FieldReader._furniture_key`): never said.
 pub const ELEVATOR: &str = "elevator";
 
-pub const SLOPE: &str = "slope";
-pub const BUMPY_SLOPE: &str = "bumpy slope";
-/// What a sandy slope only the Mach Bike rides up, a rocky step only the Acro Bike hops up, and an
-/// end of a rail only the Acro Bike crosses, are called: the game names none of them, and its words
-/// for the bikes are their items' (spike 159).
-pub const BIKE_RAIL: &str = "rail";
-
-/// What an arrow tile is called, with the way it pushes the player, "arrow east": the game draws
-/// it and never names it (spike 265).
-pub const ARROW: &str = "arrow";
-
-/// What a patch of the deep water Dive goes down through is called: the game draws it darker than
-/// the sea and asks about diving there, but never names it (spike 164).
-pub const DIVE_SPOT: &str = "dive spot";
-
-/// What the sea's currents that let the player go round one place are called, listed at the cell
-/// of them nearest the player and said with where it lets them go: the game never names one.
-pub const CURRENT: &str = "current";
-
-/// What a patch of the flat ground a ridden Pokémon is got on and off on is called, listed at its
-/// cell nearest the player: the game never names it (spike 238).
-pub const FLAT_GROUND: &str = "flat ground";
-
 /// What a run of the blue spots a climbing wall is climbed from is called, and one on a ledge at
 /// its side, where it is got off: the Gym's guide says "start from one of those blue spots", and the
 /// game names neither (spike 245).
 pub const BLUE_SPOT: &str = "blue spot";
 pub const WALL_LEDGE: &str = "wall ledge";
-
-/// Cells apart the places two currents let the player go may be and the two still be listed as
-/// one current. Route 133's currents let the player go at 152 cells, 71 groups of them side by side,
-/// 28 within 5 cells of each other; Routes 132 and 134 have 20 and 16, Seafloor Cavern's two rooms 4
-/// each (spike 208).
-pub const LANDING_REACH: i64 = 5;
 
 /// What a stair between two floors of one chunk is called, a warp between floors being stairs
 /// too: the game names neither (spike 167).
@@ -205,12 +173,6 @@ pub const CLIFF: &str = "crumbled cliff";
 /// upper-left room (omega_ruby_secret-base6.ctm). The ROM has it only in base shapes 42 to 50
 /// (spike 201).
 pub const HOLE_TILE: i64 = 0xFE;
-
-/// What a hole in a Secret Base's floor is called: the game names it only in the Solid Board's
-/// description, "You can place this over holes to cross over them", never where it is. A hole a big
-/// boulder drops into is one too, listed under obstacles with the boulders until one fills it
-/// (Orion, 2026-10-11; spike 202): its cells are of a kind of their own (`chunk.HOLE`).
-pub const HOLE: &str = "hole";
 
 /// The cells of a Secret Base a decoration goes over, by kind, each with its name.
 pub const BASE_TILES: [(i64, &str); 2] = [(CLIFF_TILE, CLIFF), (HOLE_TILE, HOLE)];
@@ -285,25 +247,9 @@ struct Holder {
     files: IndexMap<i64, ZoneData>,
 }
 
-/// What `_ways` was found for: the zone, the matrix's chunk files, and the chunks loaded.
-type BikeKey = (i64, Rc<Vec<i64>>, Vec<(i64, i64)>);
-/// `_ways_of`: what they were found for, the bike's things, the dive spots' patches, the
-/// currents and the patches of flat ground.
-type Ways = (
-    Option<BikeKey>,
-    Vec<Interactable>,
-    Vec<Vec<Cell>>,
-    Vec<IndexMap<Cell, Cell>>,
-    Vec<Vec<Cell>>,
-);
-/// What `_find_ways` finds: the bike's things, the dive spots' patches, the currents and the
-/// patches of flat ground.
-type FoundWays = (
-    Vec<Interactable>,
-    Vec<Vec<Cell>>,
-    Vec<IndexMap<Cell, Cell>>,
-    Vec<Vec<Cell>>,
-);
+/// What the landforms were worked out on (`_found`): the zone, the matrix's chunk files, the
+/// chunks loaded where the ROM's are not read, and the field map's grid.
+type FoundKey = (i64, Rc<Vec<i64>>, Vec<(i64, i64)>, Option<Grid>);
 /// `_stand_ins`: what each model drawn as nothing stands in for by its record's index, the
 /// cells of the zone's warps, and the records' indices of its gates.
 type StandIns = (IndexMap<i64, i64>, HashSet<Cell>, HashSet<i64>);
@@ -321,9 +267,6 @@ pub struct FieldReader {
     warp_words: IndexMap<i64, String>,
     /// The warp kinds that are only where a teleporter pad puts the player (`Game.landings`).
     landings: HashSet<i64>,
-    /// The cell kinds of the arrow tiles that push the player, each with its way
-    /// (`Game.arrows`).
-    arrows: IndexMap<i64, &'static str>,
     /// What the game has of its own to list: ORAS's berry spots and ash piles.
     features: Vec<Rc<dyn Feature>>,
     /// The game's rotating doors, or None in a game without them.
@@ -347,7 +290,12 @@ pub struct FieldReader {
     furniture_kinds: IndexMap<(i64, i64), FurnitureKind>,
     /// The bit of a cell's word that marks a strand walked diagonally (`Game.strands`).
     strands: i64,
-    /// What the game's ridden Pokémon cross, or None in a game without one (`Game.rides`).
+    /// The game's landforms, gen 6's and its own (`Game.landforms`).
+    landforms: Vec<Arc<dyn Landform>>,
+    /// What each landform worked out, by the map it was worked out on (`_found`).
+    found_of: RefCell<HashMap<FoundKey, Rc<Vec<Worked>>>>,
+    /// What the game's ridden Pokémon cross, or None in a game without one: who is in the way
+    /// and who is listed asks it too.
     rides: Option<Rides>,
     /// The kinds of the walls the game lets the player climb, or None in a game without them
     /// (`Game.climbing`).
@@ -397,18 +345,12 @@ pub struct FieldReader {
     pickups: HashSet<i64>,
     /// The matrix out of the ROM, which never touches RAM.
     pub terrain: Terrain,
-    /// Underwater zone -> its `Ground.surfaces`, once found.
-    surfaces_of: RefCell<HashMap<i64, IndexMap<Cell, Rc<HashSet<Cell>>>>>,
     /// Zone -> its triggers' boxes, (x, z, width, height) in the table's order, once read
     /// (`trigger_at`).
     trigger_boxes: RefCell<HashMap<i64, Vec<(i64, i64, i64, i64)>>>,
     /// The player's height in the world at the last poll, which says which floor of a chunk with a
     /// deck they are on (`mapblock.flat`).
     height: Slot<Option<f64>>,
-    /// What the slopes, rail ends, dive spots, currents and flat ground were found for, and
-    /// what they are: the bike's things, each dive spot's patch, each current's cells with where
-    /// each lets the player go, and each patch of flat ground (`_ways`).
-    ways_of: RefCell<Ways>,
     clock: Rc<dyn Fn() -> f64>,
     /// Lumiose's streets, which X places things on rather than on cells.
     pub rails: Rails,
@@ -585,7 +527,6 @@ impl FieldReader {
             zones: ZoneTable::new(memory.clone(), text.zone_table.clone()),
             warp_words: game.warps.clone(),
             landings: game.landings.clone(),
-            arrows: game.arrows.clone(),
             features,
             doors: game.doors.map(|make| make(memory.clone())),
             blockers: game.blockers.clone(),
@@ -597,7 +538,9 @@ impl FieldReader {
             decorations: text.decorations.clone(),
             furniture_kinds: game.furniture.clone(),
             strands: game.strands,
-            rides: game.rides.clone(),
+            landforms: game.landforms.clone(),
+            found_of: RefCell::new(HashMap::new()),
+            rides: game.landforms.iter().find_map(as_form::<Rides>).cloned(),
             climbing: game.climbing.clone(),
             grinding: game.grinding,
             vining: game.vining,
@@ -615,10 +558,8 @@ impl FieldReader {
             lurkers: game.lurkers.clone(),
             pickups: game.pickups.clone(),
             terrain,
-            surfaces_of: RefCell::new(HashMap::new()),
             trigger_boxes: RefCell::new(HashMap::new()),
             height: Slot::new(None),
-            ways_of: RefCell::new((None, Vec::new(), Vec::new(), Vec::new(), Vec::new())),
             clock,
             rails: Rails::new(
                 memory.clone(),
@@ -978,22 +919,10 @@ impl FieldReader {
         if let Some(climbing) = &self.climbing {
             cliffs.extend(self.terrain.sides(climbing)?.iter().copied());
         }
-        // From the models, not the listing: guiding asks with nothing listed.
-        let holes = self.holes(r#where.zone)?;
-        let filled = if holes.is_empty() {
-            HashSet::new()
-        } else {
-            self.dropped(&holes, &self.people(r#where.zone)?)
-        };
         let doors = match &self.doors {
             None => Vec::new(),
             Some(doors) => doors.doors(r#where.zone)?,
         };
-        let (hops, falls) = (
-            self.terrain.rises(&BUMPY_SLOPES)?,
-            self.terrain.rises(&[FALLS])?,
-        );
-        let surfaces = self.surfaces(r#where.zone)?;
         let trusted = self.zone_at(r#where.cell)?.is_some();
         let me = self
             .me
@@ -1044,12 +973,8 @@ impl FieldReader {
             cliffs,
             ladders,
             doors,
-            hops,
-            falls,
-            surfaces,
             level,
             ice,
-            filled,
             ground_height,
             strands: self.strands,
             lanes,
@@ -1082,62 +1007,12 @@ impl FieldReader {
         if let Some(vines) = self.vines(r#where.zone)? {
             ground.vines = vines;
         }
-        let ways = self.found_ways(r#where.zone)?;
-        // Only where the zone has arrows does a search carry a push.
-        if !self.arrows.is_empty() && ways.0.iter().any(|item| item.category == ARROWS) {
-            ground.arrows = self.arrows.clone();
+        let people = || self.people(r#where.zone);
+        let here = self.here(r#where, &people);
+        for (form, found) in self.landforms.iter().zip(self.found(r#where.zone)?.iter()) {
+            ground = form.laid(found, ground, &here)?;
         }
-        // Where no flat ground lies, nothing is got on or off, and no search carries a ride.
-        let flats = !ways.3.is_empty();
-        match &self.rides {
-            Some(rides) if flats => ground.mounted(
-                r#where,
-                &rides.ground,
-                &rides.stops,
-                &rides.mounts,
-                &rides.smashes,
-            ),
-            _ => Ok(ground),
-        }
-    }
-
-    /// Under the water, each cell of deep water in the zone with every one the sea above joins it
-    /// to (`Ground.surfaces`); none above the water, or where the sea above is not found.
-    fn surfaces(&self, zone: i64) -> Result<IndexMap<Cell, Rc<HashSet<Cell>>>> {
-        if !self.surfaces_of.borrow().contains_key(&zone) {
-            let found = self.find_surfaces(zone)?;
-            self.surfaces_of.borrow_mut().insert(zone, found);
-        }
-        Ok(self.surfaces_of.borrow()[&zone].clone())
-    }
-
-    /// The sea above is the zone of the same place that is its own parent and is not under the
-    /// water (`Terrain.surfaces`).
-    fn find_surfaces(&self, zone: i64) -> Result<IndexMap<Cell, Rc<HashSet<Cell>>>> {
-        let (row, rows) = (self.zones.row(zone)?, self.zones.rows()?);
-        let (Some(row), Some(rows)) = (row, rows) else {
-            return Ok(IndexMap::new());
-        };
-        if u16(&row, INFO_KIND)? != UNDERWATER || !self.terrain.known() {
-            return Ok(IndexMap::new());
-        }
-        let mut below: IndexSet<Cell> = IndexSet::new();
-        for patch in self.found_ways(zone)?.1 {
-            below.extend(patch);
-        }
-        let mut seas: Vec<i64> = Vec::new();
-        for other in 0..ZONE_LIMIT {
-            let info = py::slice(&rows, other * INFO_SIZE, (other + 1) * INFO_SIZE);
-            if !info.is_empty()
-                && other != zone
-                && u16(info, INFO_PARENT)? == other
-                && u16(info, INFO_KIND)? != UNDERWATER
-                && u16(info, INFO_NAME)? & NAME_MASK == u16(&row, INFO_NAME)? & NAME_MASK
-            {
-                seas.push(u16(info, INFO_MATRIX)?);
-            }
-        }
-        self.terrain.surfaces(&below, &seas)
+        Ok(ground)
     }
 
     /// The zone's ladders (`ladders`), none without its zone data.
@@ -1488,10 +1363,14 @@ impl FieldReader {
             }
             items.extend(exits(found, &|zone| self.zones.place_index(zone))?);
         }
-        items.extend(self.boulders(people, r#where.zone, data.as_ref(), home)?);
+        items.extend(self.boulders(people.clone(), r#where.zone, data.as_ref(), home)?);
         items.extend(self.edges(r#where.zone, !r#where.on_rail)?);
         items.extend(self.use_tiles(r#where.zone)?);
-        items.extend(self.ways(r#where.zone, r#where.cell)?);
+        let listed = || Ok(people.clone());
+        let here = self.here(r#where, &listed);
+        for (form, found) in self.landforms.iter().zip(self.found(r#where.zone)?.iter()) {
+            items.extend(form.listed(found, &here)?);
+        }
         items.extend(self.climbing_spots(r#where.zone)?);
         for (end, _, ride) in paired(&self.vine_ends(r#where.zone)?.1) {
             items.push(Interactable {
@@ -1523,7 +1402,7 @@ impl FieldReader {
         // A boulder in a hole is floor now, and neither it nor the hole is anything to find.
         let holes = self.holes(r#where.zone)?;
         if !holes.is_empty() {
-            let gone = self.dropped(&holes, &items);
+            let gone = dropped(&holes, &items, &self.clears);
             if !gone.is_empty() {
                 items.retain(|item| !item.cells().iter().all(|cell| gone.contains(cell)));
             }
@@ -1595,7 +1474,7 @@ impl FieldReader {
             }
         }
         let holes = self.holes(zone)?;
-        let filled = self.dropped(&holes, &people);
+        let filled = dropped(&holes, &people, &self.clears);
         let standing: HashSet<Cell> = people
             .iter()
             .flat_map(|item| item.cells())
@@ -1638,29 +1517,15 @@ impl FieldReader {
         Ok(out)
     }
 
-    /// The cells of the zone's holes a big boulder drops into (`BOULDER_HOLE`).
+    /// The cells of the zone's holes a big boulder drops into (`landform.Holes`).
     fn holes(&self, zone: i64) -> Result<HashSet<Cell>> {
-        Ok(self
-            .found_ways(zone)?
-            .0
-            .iter()
-            .filter(|item| item.code == BOULDER_HOLE)
-            .flat_map(|item| item.cells())
-            .collect())
-    }
-
-    /// The cells of every big boulder among `items` lying wholly in `holes`: pushed into one,
-    /// it is floor the player walks over, its model still there (spike 202).
-    fn dropped(&self, holes: &HashSet<Cell>, items: &[Interactable]) -> HashSet<Cell> {
-        items
-            .iter()
-            .filter(|item| {
-                item.move_model
-                    && self.clears.get(&item.code) == Some(&STRENGTH)
-                    && item.cells().iter().all(|cell| holes.contains(cell))
-            })
-            .flat_map(|item| item.cells())
-            .collect()
+        let mut out: HashSet<Cell> = HashSet::new();
+        for (form, found) in self.landforms.iter().zip(self.found(zone)?.iter()) {
+            if as_form::<Holes>(form).is_some() {
+                out.extend(holes_found(found));
+            }
+        }
+        Ok(out)
     }
 
     /// The Secret Base's crumbled cliff and holes, each patch of touching cells of a kind in
@@ -2734,52 +2599,6 @@ impl FieldReader {
         Ok(out)
     }
 
-    /// The zone's slopes, each patch of one kind a thing, each end of its rails, where the
-    /// player gets on one (spike 159), each patch of deep water a dive spot (spike 164), and
-    /// its currents, those that let the player go round one place a thing (spike 208), and each
-    /// patch of the flat ground a ridden Pokémon is got on and off on (spike 238), and each arrow
-    /// with where its push sets the player down (spike 265). Cells of the map
-    /// with no record behind them, as use tiles are, but read off the whole matrix where the
-    /// ROM's chunks are: the game loads the quarter round the player, and Route 119's rails are
-    /// 67 cells north of where it starts. Off the chunks loaded without the ROM.
-    fn ways(&self, zone: i64, player: Cell) -> Result<Vec<Interactable>> {
-        let (mut out, dives, currents, flats) = self.found_ways(zone)?;
-        let nearest = |cells: &mut dyn Iterator<Item = Cell>| -> Cell {
-            cells
-                .min_by_key(|cell| ((cell.0 - player.0).abs() + (cell.1 - player.1).abs(), *cell))
-                .expect("a patch has a cell")
-        };
-        // Route 128's biggest patch is a band running diagonally through a box of 37 by 36, mostly
-        // plain sea: a spot is placed at its cell nearest the player, so the way there ends on
-        // deep water. A current is too, said with where it lets the player go from there.
-        for patch in &dives {
-            out.push(Interactable {
-                code: DIVE,
-                source: place_source(DIVE_SOURCE, cell_number(patch[0]))?,
-                home: Some(zone),
-                ..Interactable::new("exits", DIVE_SPOT, nearest(&mut patch.iter().copied()))
-            });
-        }
-        for current in &currents {
-            let at = nearest(&mut current.keys().copied());
-            let first = *current.keys().min().expect("a current has a cell");
-            out.push(Interactable {
-                source: place_source(CURRENT_SOURCE, cell_number(first))?,
-                home: Some(zone),
-                arrival: Some(current[&at]),
-                ..Interactable::new(CURRENTS_CATEGORY, CURRENT, at)
-            });
-        }
-        for patch in &flats {
-            out.push(Interactable {
-                source: place_source(RIDE_SOURCE, cell_number(patch[0]))?,
-                home: Some(zone),
-                ..Interactable::new(RIDING, FLAT_GROUND, nearest(&mut patch.iter().copied()))
-            });
-        }
-        Ok(out)
-    }
-
     /// The matrix's climbing walls, off the ROM (`Terrain.walls`); none in a game without
     /// them.
     fn walls(&self) -> Result<Rc<Walls>> {
@@ -2884,17 +2703,22 @@ impl FieldReader {
         Ok(out)
     }
 
-    /// The zone's arrows, the bike's things and its holes, each patch of deep water, its
-    /// currents and each patch of flat ground, found once a map.
-    fn found_ways(&self, zone: i64) -> Result<FoundWays> {
+    /// What each landform worked out of the zone's matrix (`Landform.found`), in
+    /// `Game.landforms`' order: once a map, off every chunk of the matrix where the ROM's are
+    /// read, and off the chunks loaded without them. The game loads the quarter round the
+    /// player, and Route 119's rails are 67 cells north of where it starts.
+    fn found(&self, zone: i64) -> Result<Rc<Vec<Worked>>> {
         let mut loaded: IndexMap<(i64, i64), Rc<Chunk>> = IndexMap::new();
         for chunk in self.chunks_loaded()? {
             loaded.insert(chunk.key(), chunk);
         }
-        let files = self.terrain.files.borrow().1.clone();
-        let key: BikeKey = (
+        let (wide, files) = {
+            let held = self.terrain.files.borrow();
+            (held.0, held.1.clone())
+        };
+        let key: FoundKey = (
             zone,
-            files,
+            files.clone(),
             if self.terrain.known() {
                 Vec::new()
             } else {
@@ -2902,30 +2726,12 @@ impl FieldReader {
                 keys.sort();
                 keys
             },
+            self.grid.borrow().clone(),
         );
-        if self.ways_of.borrow().0.as_ref() != Some(&key) {
-            let (out, dives, currents, flats) = self.find_ways(zone, &loaded)?;
-            *self.ways_of.borrow_mut() = (Some(key), out, dives, currents, flats);
+        if let Some(found) = self.found_of.borrow().get(&key) {
+            return Ok(found.clone());
         }
-        let held = self.ways_of.borrow();
-        Ok((
-            held.1.clone(),
-            held.2.clone(),
-            held.3.clone(),
-            held.4.clone(),
-        ))
-    }
-
-    /// The zone's arrows, each with where its push sets the player down (`pushed`), the bike's
-    /// things in the zone and its holes, each patch of deep water, each of its currents, its
-    /// cells with where each lets the player go, and each patch of the flat ground a ridden
-    /// Pokémon is got on and off on, where the zone has ground one crosses (`_ways`).
-    fn find_ways(&self, zone: i64, loaded: &IndexMap<(i64, i64), Rc<Chunk>>) -> Result<FoundWays> {
-        let (wide, files) = {
-            let held = self.terrain.files.borrow();
-            (held.0, held.1.clone())
-        };
-        let mut chunks = loaded.clone();
+        let mut chunks = loaded;
         if wide != 0 {
             for at in 0..files.len() as i64 {
                 let spot = (py::modulo(at, wide), py::floordiv(at, wide));
@@ -2936,174 +2742,36 @@ impl FieldReader {
                 }
             }
         }
-        let mut flows: IndexMap<Cell, &'static str> = IndexMap::new();
-        for chunk in chunks.values() {
-            for (cell, kind) in chunk.kinds() {
-                if let Some(&(_, way)) = CURRENTS.iter().find(|(known, _)| *known == kind) {
-                    flows.insert(cell, way);
-                }
-            }
-        }
-        let shut = |cell: Cell| -> Result<bool> {
-            match chunks.get(&(py::floordiv(cell.0, CHUNK), py::floordiv(cell.1, CHUNK))) {
-                None => Ok(true),
-                Some(chunk) => Ok(!chunk.walkable(cell)?),
-            }
+        let zone_at = |cell: Cell| self.zone_at(cell);
+        let matrix = Matrix {
+            zone,
+            chunks,
+            zone_at: &zone_at,
+            terrain: &self.terrain,
+            zones: &self.zones,
         };
-        let landings = landings(&flows, &shut)?;
-        let mut mine: Vec<Cell> = Vec::new();
-        for &cell in flows.keys() {
-            let at = self.zone_at(cell)?;
-            if at == Some(zone) || at.is_none() {
-                mine.push(cell);
-            }
+        let mut found: Vec<Worked> = Vec::new();
+        for form in &self.landforms {
+            found.push(form.found(&matrix)?);
         }
-        let gathered = gathered(
-            &mine.iter().map(|cell| landings[cell]).collect(),
-            LANDING_REACH,
-        );
-        let mut which: HashMap<Cell, usize> = HashMap::new();
-        for (i, group) in gathered.iter().enumerate() {
-            for &landing in group {
-                which.insert(landing, i);
-            }
+        let found = Rc::new(found);
+        self.found_of.borrow_mut().insert(key, found.clone());
+        Ok(found)
+    }
+
+    /// What the landforms are listed and laid on, where `where` is.
+    fn here<'a>(
+        &'a self,
+        r#where: &'a Field,
+        people: &'a dyn Fn() -> Result<Vec<Interactable>>,
+    ) -> Here<'a> {
+        Here {
+            r#where,
+            people,
+            clears: &self.clears,
+            terrain: &self.terrain,
+            zones: &self.zones,
         }
-        let mut currents: Vec<IndexMap<Cell, Cell>> = vec![IndexMap::new(); gathered.len()];
-        for &cell in &mine {
-            currents[which[&landings[&cell]]].insert(cell, landings[&cell]);
-        }
-        let none = HashSet::new();
-        let ridden: (&HashSet<i64>, &HashSet<i64>) = match &self.rides {
-            None => (&none, &none),
-            Some(rides) => (&rides.ground, &rides.stops),
-        };
-        let mut found: IndexMap<Cell, i64> = IndexMap::new();
-        for chunk in chunks.values() {
-            for (cell, kind) in chunk.kinds() {
-                if (in_slopes(kind)
-                    || BIKE_RAILS.contains(&kind)
-                    || BUMPY_SLOPES.contains(&kind)
-                    || kind == DIVE
-                    || kind == BOULDER_HOLE
-                    || ridden.0.contains(&kind)
-                    || ridden.1.contains(&kind))
-                    && {
-                        let at = self.zone_at(cell)?;
-                        at == Some(zone) || at.is_none()
-                    }
-                {
-                    found.insert(cell, kind);
-                }
-            }
-        }
-        let kind_at = |cell: Cell| -> Result<i64> {
-            found
-                .get(&cell)
-                .copied()
-                .ok_or_else(|| Error::key(format!("({}, {})", cell.0, cell.1)))
-        };
-        let mut arrows: IndexMap<Cell, i64> = IndexMap::new();
-        if !self.arrows.is_empty() {
-            for chunk in chunks.values() {
-                for (cell, kind) in chunk.kinds() {
-                    if self.arrows.contains_key(&kind) && chunk.walkable(cell)? {
-                        arrows.insert(cell, kind);
-                    }
-                }
-            }
-        }
-        let ways: IndexMap<Cell, &'static str> = arrows
-            .iter()
-            .map(|(&cell, kind)| (cell, self.arrows[kind]))
-            .collect();
-        let pushed = pushed(&ways, &shut)?;
-        let mut out: Vec<Interactable> = Vec::new();
-        for (&cell, &kind) in &arrows {
-            let at = self.zone_at(cell)?;
-            if at == Some(zone) || at.is_none() {
-                out.push(Interactable {
-                    code: kind,
-                    source: place_source(ARROW_SOURCE, cell_number(cell))?,
-                    home: Some(zone),
-                    arrival: Some(pushed[&cell]),
-                    ..Interactable::new(ARROWS, &format!("{ARROW} {}", ways[&cell]), cell)
-                });
-            }
-        }
-        let mut dives: Vec<Vec<Cell>> = Vec::new();
-        let mut flats: Vec<Vec<Cell>> = Vec::new();
-        let mut spikes = false;
-        for patch in patches(&found) {
-            if kind_at(patch[0])? == DIVE {
-                dives.push(patch);
-                continue;
-            }
-            if ridden.0.contains(&kind_at(patch[0])?) {
-                spikes = true;
-                continue;
-            }
-            if ridden.1.contains(&kind_at(patch[0])?) {
-                flats.push(patch);
-                continue;
-            }
-            if kind_at(patch[0])? == BOULDER_HOLE {
-                let (first, size) = spread(&patch);
-                out.push(Interactable {
-                    size,
-                    code: BOULDER_HOLE,
-                    source: place_source(TILE_SOURCE, cell_number(first))?,
-                    home: Some(zone),
-                    ..Interactable::new(OBSTACLES, HOLE, first)
-                });
-                continue;
-            }
-            if BUMPY_SLOPES.contains(&kind_at(patch[0])?) {
-                for &cell in &patch {
-                    out.push(Interactable {
-                        code: kind_at(cell)?,
-                        source: place_source(BIKE_SOURCE, cell_number(cell))?,
-                        home: Some(zone),
-                        ..Interactable::new(BIKE, BUMPY_SLOPE, cell)
-                    });
-                }
-                continue;
-            }
-            if in_slopes(kind_at(patch[0])?) {
-                let (first, size) = spread(&patch);
-                // The box's corner is not one of an L-shaped patch's cells: its kind is the patch's.
-                out.push(Interactable {
-                    size,
-                    code: kind_at(patch[0])?,
-                    source: place_source(BIKE_SOURCE, cell_number(first))?,
-                    home: Some(zone),
-                    ..Interactable::new(BIKE, SLOPE, first)
-                });
-                continue;
-            }
-            let held: HashSet<Cell> = patch.iter().copied().collect();
-            for &cell in &patch {
-                if beside(cell)
-                    .iter()
-                    .filter(|near| held.contains(*near))
-                    .count()
-                    <= 1
-                {
-                    out.push(Interactable {
-                        code: kind_at(cell)?,
-                        source: place_source(BIKE_SOURCE, cell_number(cell))?,
-                        home: Some(zone),
-                        ..Interactable::new(BIKE, BIKE_RAIL, cell)
-                    });
-                }
-            }
-        }
-        // Vaniville Town's pen round Mom's Rhyhorn is flat ground too, with nothing to ride over.
-        Ok((
-            out,
-            dives,
-            currents,
-            if spikes { flats } else { Vec::new() },
-        ))
     }
 
     /// The cell tables of the chunks loaded now.
@@ -3292,50 +2960,6 @@ fn ladders(triggers: &[Vec<u8>]) -> Result<IndexMap<(Cell, Cell), (f64, f64)>> {
     Ok(out)
 }
 
-/// Each patch of cells side by side of one kind, the rails' kinds counting as one, its first cell
-/// first.
-fn patches(found: &IndexMap<Cell, i64>) -> Vec<Vec<Cell>> {
-    let mut out: Vec<Vec<Cell>> = Vec::new();
-    let mut left: std::collections::BTreeSet<Cell> = found.keys().copied().collect();
-    while let Some(&first) = left.iter().next() {
-        left.remove(&first);
-        let railed = BIKE_RAILS.contains(&found[&first]);
-        let mut patch = vec![first];
-        let mut todo = vec![first];
-        while let Some(cell) = todo.pop() {
-            for near in beside(cell) {
-                if left.contains(&near)
-                    && if railed {
-                        BIKE_RAILS.contains(&found[&near])
-                    } else {
-                        found[&near] == found[&first]
-                    }
-                {
-                    left.remove(&near);
-                    patch.push(near);
-                    todo.push(near);
-                }
-            }
-        }
-        out.push(patch);
-    }
-    out
-}
-
-/// The four cells a step from this one.
-fn beside(cell: Cell) -> [Cell; 4] {
-    pathfind::STEPS.map(|(_, (dx, dz))| (cell.0 + dx, cell.1 + dz))
-}
-
-/// The north-west corner of the box round the cells, and its size.
-fn spread(cells: &[Cell]) -> (Cell, (i64, i64)) {
-    let xs = cells.iter().map(|cell| cell.0);
-    let zs = cells.iter().map(|cell| cell.1);
-    let (west, east) = (xs.clone().min().unwrap_or(0), xs.max().unwrap_or(0));
-    let (north, south) = (zs.clone().min().unwrap_or(0), zs.max().unwrap_or(0));
-    ((west, north), (east - west + 1, south - north + 1))
-}
-
 /// The chunk with `cells` it holds open: the blocked bit cleared, the kind kept.
 fn opened(chunk: Rc<Chunk>, cells: &HashSet<Cell>) -> Rc<Chunk> {
     let held: Vec<Cell> = cells
@@ -3354,98 +2978,6 @@ fn opened(chunk: Rc<Chunk>, cells: &HashSet<Cell>) -> Rc<Chunk> {
         words,
         ..(*chunk).clone()
     })
-}
-
-/// Where a push from each arrow sets the player down, as the search walks it with nobody in the
-/// way (`Ground.walk`): its way a cell at a time over any floor, turned by each arrow it crosses,
-/// to the last cell before the way is shut. Stops on an arrow crossed twice, a ring.
-fn pushed(
-    arrows: &IndexMap<Cell, &'static str>,
-    shut: &dyn Fn(Cell) -> Result<bool>,
-) -> Result<IndexMap<Cell, Cell>> {
-    let mut out: IndexMap<Cell, Cell> = IndexMap::new();
-    for (&start, &way) in arrows {
-        let (mut cell, mut way) = (start, way);
-        // A set only tested.
-        let mut crossed: HashSet<Cell> = HashSet::from([start]);
-        loop {
-            let (dx, dz) = pathfind::step_of(way)?;
-            let ahead = (cell.0 + dx, cell.1 + dz);
-            if shut(ahead)? {
-                break;
-            }
-            cell = ahead;
-            if let Some(&turned) = arrows.get(&cell) {
-                if crossed.contains(&cell) {
-                    break;
-                }
-                crossed.insert(cell);
-                way = turned;
-            }
-        }
-        out.insert(start, cell);
-    }
-    Ok(out)
-}
-
-/// Where a current lets the player go from each of its cells, as `Ground.drift` carries them
-/// with nobody in the way: the first cell it carries them to that is no current, or the last
-/// before the way is shut. Each cell's is the next's, so each is followed once.
-fn landings(
-    flows: &IndexMap<Cell, &'static str>,
-    shut: &dyn Fn(Cell) -> Result<bool>,
-) -> Result<IndexMap<Cell, Cell>> {
-    let mut out: IndexMap<Cell, Cell> = IndexMap::new();
-    for &start in flows.keys() {
-        let mut cell = start;
-        let mut carried: Vec<Cell> = Vec::new();
-        while let Some(&way) = flows.get(&cell)
-            && !out.contains_key(&cell)
-        {
-            carried.push(cell);
-            let (dx, dz) = pathfind::STEPS
-                .iter()
-                .find(|(known, _)| *known == way)
-                .map(|&(_, step)| step)
-                .ok_or_else(|| Error::key(py::repr(way)))?;
-            let ahead = (cell.0 + dx, cell.1 + dz);
-            if shut(ahead)? || carried.contains(&ahead) {
-                break;
-            }
-            cell = ahead;
-        }
-        let landing = out.get(&cell).copied().unwrap_or(cell);
-        for one in carried {
-            out.insert(one, landing);
-        }
-    }
-    Ok(out)
-}
-
-/// `cells` in groups, each cell within `reach` cells either way of another of its group.
-fn gathered(cells: &HashSet<Cell>, reach: i64) -> Vec<Vec<Cell>> {
-    let mut left: std::collections::BTreeSet<Cell> = cells.iter().copied().collect();
-    let mut out: Vec<Vec<Cell>> = Vec::new();
-    while let Some(&first) = left.iter().next() {
-        left.remove(&first);
-        let mut group = vec![first];
-        let mut at = 0;
-        while at < group.len() {
-            let (x, z) = group[at];
-            at += 1;
-            let near: Vec<Cell> = left
-                .iter()
-                .copied()
-                .filter(|cell| (cell.0 - x).abs() <= reach && (cell.1 - z).abs() <= reach)
-                .collect();
-            for cell in near {
-                left.remove(&cell);
-                group.push(cell);
-            }
-        }
-        out.push(group);
-    }
-    out
 }
 
 /// Every cell the warps off the rails cover.
@@ -3684,11 +3216,6 @@ fn touching(cells: &HashSet<Cell>) -> Vec<Vec<Cell>> {
     out
 }
 
-/// A cell as a place's number: `x << 12 | z`, as a use tile's is.
-fn cell_number(cell: Cell) -> i64 {
-    cell.0 << 12 | cell.1
-}
-
 /// Each run of cells adjacent along a row or a column, as its first cell and its size.
 fn runs(cells: impl IntoIterator<Item = Cell>) -> Vec<(Cell, (i64, i64))> {
     let mut left: Vec<Cell> = cells.into_iter().collect();
@@ -3712,9 +3239,4 @@ fn runs(cells: impl IntoIterator<Item = Cell>) -> Vec<(Cell, (i64, i64))> {
         out.push((first, (last.0 - first.0 + 1, last.1 - first.1 + 1)));
     }
     out
-}
-
-/// `in SLOPES`, the kinds of sandy slope.
-fn in_slopes(kind: i64) -> bool {
-    SLOPES.iter().any(|&(known, _)| known == kind)
 }

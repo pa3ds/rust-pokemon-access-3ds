@@ -12,6 +12,7 @@ use std::cell::RefCell;
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::sync::Arc;
 
 use indexmap::{IndexMap, IndexSet};
 
@@ -30,6 +31,7 @@ use crate::games::gen6::field::features::{
     DoorReader, Feature, HiddenReader, IceReader, SecretBaseReader,
 };
 use crate::games::gen6::field::footsteps::{ORAS, Steps};
+use crate::games::gen6::field::landform::{Landform, gen6};
 use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::rom::layout::RomLayout;
 use crate::games::gen6::screens::buttons::MENU;
@@ -171,24 +173,6 @@ pub type ConditionsFactory = fn(
 /// `Callable[[Memory, str], OpeningReader]`.
 pub type OpeningFactory = fn(Rc<dyn Memory>, &str) -> Box<dyn OpeningReader>;
 
-/// The ground only a Pokémon the player rides crosses, as X's Rhyhorn crosses Route 9's spiky
-/// ground and its Mamoswine Route 17's deep snow: a wall on foot, got onto from the flat ground
-/// beside it, where the Pokémon waits to be ridden and is got off (`Ground.mounted`, spikes 238
-/// and 263). Each field holds every route's, as no zone has two.
-///
-/// Its `frozenset`s are `HashSet`s: they are only tested.
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct Rides {
-    /// The cell kinds only a player riding crosses.
-    pub ground: HashSet<i64>,
-    /// The kinds of the flat ground it is got on and off on, walked on foot and riding.
-    pub stops: HashSet<i64>,
-    /// The characters of the Pokémon ridden.
-    pub mounts: HashSet<i64>,
-    /// The sprites of the things the ridden Pokémon smashes with A, in the way on foot.
-    pub smashes: HashSet<i64>,
-}
-
 /// The cell kinds of the walls a player climbs, as X's Cyllage Gym's (`climb.Walls`).
 #[derive(Debug, Clone, PartialEq)]
 pub struct Climbing {
@@ -306,6 +290,10 @@ pub struct Game {
     /// The readers of what else it has on its field to list, each in its own words: ORAS's berry
     /// spots and Route 113's ash piles (`games.oras.field.berries`, `games.oras.field.ash`).
     pub features: Vec<FeatureFactory>,
+    /// Its kinds of special ground in P's way, each saying what it lists and how it is walked,
+    /// worked out once a map (`gen6.field.landform`): gen 6's own, which every game's chunks can
+    /// hold, and its own after them, X's ridden Pokémon.
+    pub landforms: Vec<Arc<dyn Landform>>,
     /// The reader of its rotating doors, or None in a game with none: ORAS's, in Fortree Gym
     /// (`games.oras.field.doors`).
     pub doors: Option<DoorFactory>,
@@ -355,9 +343,6 @@ pub struct Game {
     ///
     /// A `frozenset` only tested.
     pub landings: HashSet<i64>,
-    /// The cell kinds of the arrow tiles that push the player, each with the way it pushes, or
-    /// none in a game without them: X's Lysandre Labs (`Ground.arrows`, spike 265).
-    pub arrows: IndexMap<i64, &'static str>,
     /// The reader of who stands where in its competitions, built from the memory, the layouts
     /// and their files, the ROM's words and the app running, or None in a game with none: ORAS's
     /// contests (`oras.screens.contest`).
@@ -376,9 +361,6 @@ pub struct Game {
     /// game with none: X's Santalune Gym is a web of them, and ORAS's chunks use the same bit for
     /// other things (`Ground.strands`, spike 223).
     pub strands: i64,
-    /// What the Pokémon it lets the player ride cross, or None in a game with none: X's Rhyhorn on
-    /// Route 9 (spike 238).
-    pub rides: Option<Rides>,
     /// The walls it lets the player climb, or None in a game with none: X's Cyllage Gym
     /// (spike 245).
     pub climbing: Option<Climbing>,
@@ -450,6 +432,7 @@ impl Game {
             crossed: HashSet::new(),
             conveyors: IndexMap::new(),
             features: Vec::new(),
+            landforms: gen6(),
             doors: None,
             ice: None,
             ambushes: HashSet::new(),
@@ -464,13 +447,11 @@ impl Game {
             apps: Vec::new(),
             warps: IndexMap::new(),
             landings: HashSet::new(),
-            arrows: IndexMap::new(),
             standings: None,
             conditions: None,
             opening: None,
             memories: None,
             strands: 0,
-            rides: None,
             climbing: None,
             grinding: None,
             vining: None,

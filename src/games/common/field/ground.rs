@@ -178,7 +178,7 @@ impl IceRoom {
 }
 
 /// The field map's zone ids, `width` blocks to a row.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Grid {
     pub width: i64,
     pub height: i64,

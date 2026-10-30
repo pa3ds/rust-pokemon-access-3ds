@@ -10,6 +10,7 @@ pub mod dowsing;
 pub mod features;
 pub mod fieldmap;
 pub mod hidden_items;
+pub mod landform;
 pub mod mapblock;
 pub mod mmodel;
 pub mod rail;

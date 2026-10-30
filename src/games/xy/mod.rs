@@ -9,7 +9,7 @@
 
 use std::collections::HashSet;
 use std::path::PathBuf;
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 
 use indexmap::IndexMap;
 
@@ -18,9 +18,8 @@ use crate::core::pathfind;
 use crate::games::common::field::ground::{CUT, ROCK_SMASH, STRENGTH};
 use crate::games::gen6::field::camera;
 use crate::games::gen6::field::footsteps::{RUN, Steps, WALK};
-use crate::games::gen6::game::{
-    Climbing, Conveyors, Data, FurnitureKind, Game, Grinding, Rides, Vining,
-};
+use crate::games::gen6::field::landform::{ArrowTiles, Landform, Rides, gen6};
+use crate::games::gen6::game::{Climbing, Conveyors, Data, FurnitureKind, Game, Grinding, Vining};
 use crate::games::gen6::rom::layout::{RomLayout, TownFacilities, owned};
 use crate::games::gen6::subscreen::berry_picker;
 use crate::games::xy::intro::IntroReader;
@@ -719,7 +718,6 @@ pub fn game() -> &'static Game {
         elevators: ELEVATORS.collect(),
         warps: warps().clone(),
         landings: HashSet::from(LANDINGS),
-        arrows: IndexMap::from(ARROWS),
         triggers: IndexMap::from([
             (
                 (HOUSE, 0x6),
@@ -793,7 +791,16 @@ pub fn game() -> &'static Game {
         rooms: HashSet::from([HOUSE]),
         models: Some(MODELS),
         strands: STRAND,
-        rides: Some(rides()),
+        landforms: [
+            gen6(),
+            vec![
+                Arc::new(rides()) as Arc<dyn Landform>,
+                Arc::new(ArrowTiles {
+                    ways: IndexMap::from(ARROWS),
+                }),
+            ],
+        ]
+        .concat(),
         climbing: Some(climbing()),
         grinding: Some(GRINDING),
         vining: Some(VINING),
