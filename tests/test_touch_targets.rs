@@ -1062,8 +1062,9 @@ fn test_a_touch_area_is_named_by_no_picture_of_a_button_inside_it_nor_one_hidden
 }
 
 /// Pokémon-Amie's Poké Puffs are dragged to the Pokémon: Shift and U holds a touch on the puff
-/// said, the keys carry it to each target they say, the Pokémon's stroke at its middle, and
-/// letting go of Shift lets go of it there; a tap meanwhile touches nothing (ADR-0009).
+/// said, the keys carry it to each target they say, the Pokémon at its mouth, and letting go of
+/// Shift lets go of it there; a tap meanwhile touches nothing (ADR-0009). Carried to the
+/// Pokémon's middle, the puff covered Pikachu's eyes and fell (or_amie_dragging_puffs).
 #[test]
 fn test_a_drag_holds_the_target_named_carries_it_with_the_keys_and_lets_go() {
     let held = Rc::new(Held::default());
@@ -1071,6 +1072,7 @@ fn test_a_drag_holds_the_target_named_carries_it_with_the_keys_and_lets_go() {
     let pokemon = Target {
         path: vec![(110, 110), (210, 110)],
         seconds: 3.0,
+        drop: Some((160, 157)),
         ..Target::new(2, "stroke Pikachu", 160, 120, 0.0, 240.0)
     };
     let mut screen = Screen::with_drag(vec![puff, pokemon], None, Some(held.clone()));
@@ -1083,7 +1085,7 @@ fn test_a_drag_holds_the_target_named_carries_it_with_the_keys_and_lets_go() {
     assert_eq!(screen.targets.drop(), "");
     assert_eq!(
         *held.touches.borrow(),
-        [("hold", 95, 23), ("move", 160, 120), ("release", 0, 0)]
+        [("hold", 95, 23), ("move", 160, 157), ("release", 0, 0)]
     );
     assert_eq!(screen.tapped(), []);
 }

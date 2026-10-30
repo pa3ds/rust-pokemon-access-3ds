@@ -113,6 +113,9 @@ pub struct Target {
     pub path: Vec<(i64, i64)>,
     /// How long the slide along `path` takes.
     pub seconds: f64,
+    /// Where a drag carries a press to on it, where not its middle: Amie's Pokémon takes a puff
+    /// at its mouth (`amie.MOUTH`).
+    pub drop: Option<(i64, i64)>,
 }
 
 impl Target {
@@ -129,6 +132,7 @@ impl Target {
             root: 0,
             path: Vec::new(),
             seconds: 0.0,
+            drop: None,
         }
     }
 }
@@ -428,10 +432,7 @@ impl TouchTargets {
         let drag = drag.clone();
         let over = self.over.take().expect("held above");
         drag.release();
-        (self.log)(&format!(
-            "touch: let go on {} at ({}, {})",
-            over.name, over.x, over.y
-        ));
+        (self.log)(&format!("touch: let go on {}", over.name));
         own(DROPPED, &[("target", &over.name)])
     }
 
@@ -443,12 +444,10 @@ impl TouchTargets {
         if target.pane == over.pane {
             return;
         }
-        drag.r#move(target.x, target.y);
+        let (x, y) = target.drop.unwrap_or((target.x, target.y));
+        drag.r#move(x, y);
         self.over = Some(target.clone());
-        (self.log)(&format!(
-            "touch: carry to {} at ({}, {})",
-            target.name, target.x, target.y
-        ));
+        (self.log)(&format!("touch: carry to {} at ({x}, {y})", target.name));
     }
 
     /// A target's name, or `line` in its place, with its tone, as the key chooses it.
@@ -828,6 +827,7 @@ impl TouchTargets {
                     root,
                     path: Vec::new(),
                     seconds: 0.0,
+                    drop: None,
                 });
             }
             // A touch area hanging straight from the root is the screen's, and the buttons inside
@@ -937,6 +937,7 @@ impl TouchTargets {
                     root,
                     path: Vec::new(),
                     seconds: 0.0,
+                    drop: None,
                 });
             }
         }

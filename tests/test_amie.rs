@@ -150,6 +150,8 @@ fn test_amie_itself_offers_its_pokemon_to_stroke_by_the_species_the_page_showed(
             amie::STROKE_SECONDS
         )
     );
+    // A puff is dragged to its mouth, not its middle (spike A).
+    assert!(stroke.drop == Some(amie::MOUTH) && stroke.drop != Some((stroke.x, stroke.y)));
 }
 
 /// Amie's decorate screen draws its puffs with the images of a system holding a texture for

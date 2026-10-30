@@ -13,8 +13,9 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
   "kinomi00", and not which Pokémon wants which, nor how many you picked; Head It offers nothing
   to tap, and its total is not said; in Tile Puzzle "Yes" is said as a puzzle begins, the last
   swap's points are said as it is solved, and a tile says where its piece of the picture belongs,
-  not what is on it. Dragging a Poké Puff to your Pokémon is new and not yet tried on the game,
-  and only the five puffs the bar shows at once are offered.
+  not what is on it. A Poké Puff is carried to where Pikachu's mouth is, and may miss a bigger
+  Pokémon's; pa3ds does not say when your Pokémon has eaten it; and only the five puffs the bar
+  shows at once are offered.
 - **X, Y, Sun and Moon** are read less completely than Omega Ruby and Alpha Sapphire.
 
 ## The map

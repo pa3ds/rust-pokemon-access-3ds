@@ -79,8 +79,9 @@ mode offers "continue", and a tap goes on with the message. The PlayNav's "previ
 turn the page instead, away from the message.
 
 In Pokémon-Amie, touch mode offers to stroke your Pokémon, and the tap key strokes it. This is an
-experiment. Its Poké Puffs button opens a bar of puffs, each said by its kind; hold a touch on one
-and carry it to your Pokémon to give it. In its Tile Puzzle, each tile is said by its row and column and where the piece of the
+experiment. Its Poké Puffs button opens a bar of puffs, each said by its kind. To give one, hold a
+touch on it and carry it to your Pokémon, then keep Shift down about three seconds while your
+Pokémon eats it before you let go. In its Tile Puzzle, each tile is said by its row and column and where the piece of the
 picture on it belongs, "row 1, column 2, goes to row 3, column 4", or "in place". Moving to the next
 tile says only the row or the column that changed, "column 3, in place", and `K` says the whole.
 Tap a tile, then the tile where its piece belongs, to swap them. Over the finished picture there
