@@ -449,7 +449,7 @@ impl FieldReader {
             .map(|make| make(memory.clone(), text))
             .collect();
         let secret_bases = match game.secret_bases {
-            Some(make) if !image.is_empty() => Some(make(memory.clone(), image)),
+            Some(make) if !image.is_empty() => Some(make(memory.clone(), image, text)),
             _ => None,
         };
         let listing = hidden_items == HIDDEN_UNDERWATER || hidden_items == HIDDEN_ALL;
