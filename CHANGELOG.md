@@ -1,6 +1,70 @@
 # Changelog
 
-## [Unreleased]
+## [0.9.0] - 2026-10-31
+
+### Added
+
+- Pokémon-Amie's touch screen: touch mode names its three buttons, Poké Puffs, games and return,
+  and the Poké Puffs bar says each puff by its kind. To give one, hold Shift on it, carry it to
+  your Pokémon, and let go once you hear it finish eating and cry.
+- Drag in Pokémon-Amie: hold Shift on a button, choose where to with `J`, `L`, `I` and `O`, and
+  let go of Shift to drop it, with the PC Box's sounds for picking up and putting down. The `drag`
+  setting chooses holding or pressing twice, and a key of your own can drag too.
+- Pokémon-Amie's games: the clock is said each half minute and in its last seconds, the `ticks`
+  setting adds a tone each second, and the results say your rank and the stars it earned.
+- Tile Puzzle: each tile is said as a spreadsheet names a cell, and where its piece belongs, "B1,
+  goes to D3". The Normal and Hard boards are read, its difficulties say the best stars earned,
+  and with `descriptions` on its picture and background are described, Play Again's too.
+- Berry Picker: touch mode offers the berries on the tree and each Pokémon wanting one, "Pinap
+  Berry for Treecko", said one at a time. Hold Shift on a berry, choose the Pokémon and let go to
+  give it. `1` to `7` pick up a berry and `8`, `9` and `0` are the round's three Pokémon. The
+  `berry_first` and `one_at_a_time` settings change how it is said.
+- When a message on the bottom screen waits for a tap, as Super Training's welcome does, touch
+  mode offers "continue".
+- The `[pa3ds.touch]` settings `wrap` and `next_row` stop touch mode's keys at the ends and keep
+  `J` and `L` in their row. The `feedback_sounds` setting sets the game's sounds for a drag and
+  for a key with nothing to do, or says them instead at 0.
+- In X and Y, `P` climbs and swings on Coumarine Gym's vines, and the climbing category lists each
+  end of a vine.
+- In X and Y, Prism Tower's Gym lists its lift and its quiz panels, and with `descriptions` on
+  each question's picture is described.
+- In X and Y, Laverre Gym's and Anistar Gym's teleporters are listed with where each puts you, and
+  `P` leads you through them. Anistar Gym's walkways are said by the compass.
+- In X and Y, `P` rides the Poké Ball Factory's conveyor belts, and goes by its switch where a belt
+  needs turning round first.
+- In X and Y, `P` takes Lysandre Labs' arrow tiles and round pads, the arrows category lists the
+  tiles, and AZ's story there is described. X's masked heroes and Lysandre Labs' beds are named.
+- In X and Y, `P` crosses Route 17's deep snow on the Mamoswine, as Route 9's spikes on the
+  Rhyhorn.
+- In X and Y, a gate is said with the place beyond it, "Lumiose Gate to Route 4", and Lysandre Café
+  is named.
+- Round Prism Tower in Lumiose City the directions turn with the camera, and a street that ends on
+  a plaza lists that end as "open ground". A short tone plays each time the way up walks you
+  turns.
+- In Omega Ruby and Alpha Sapphire, Dewford Gym's switches and conveyor belts are listed, and
+  Stern's Shipyard is named.
+- Another player's Secret Base is named as the game names it, "Team Tarin's Base".
+- Where only `Shift+P` reaches a thing, `P` takes you as far as the spot where a move is needed
+  and says which, "then can't continue, requires Surf".
+
+### Changed
+
+- Touch mode works only where the game needs a touch: on the map with the PokéNav Plus, in the
+  AreaNav, Pokémon-Amie and Super Training. Elsewhere it says "nothing to touch".
+- In touch mode, `I` and `O` go to the nearest button in the row above and below.
+- Of ways as short as each other, `P` says first the one with the fewest, longest steps.
+- Every message pa3ds says in English is said in each of the other languages too.
+
+### Fixed
+
+- On Route 120's bridges `P` walks you over the deck, and while surfing under one you stay on the
+  water.
+- A warp across a diagonal street is listed once, and exits side by side into the same place are
+  one exit.
+- In X, `P` never steps off the side of a ramp, and nowhere climbs a step higher than a stair.
+- Touch mode leaves out a list's buttons once the list has gone, and no longer names a button by
+  the picture inside it.
+- In the PC Box, each key waits half as long before saying the slot.
 
 ### Thanks
 

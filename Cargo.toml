@@ -1,6 +1,6 @@
 [package]
 name = "pa3ds"
-version = "0.8.0"
+version = "0.9.0"
 edition = "2024"
 description = "Screen reader accessibility layer for 3DS Pokemon games running under the Azahar emulator"
 license = "MIT"
