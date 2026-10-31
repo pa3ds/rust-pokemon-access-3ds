@@ -54,6 +54,7 @@ use crate::core::binary::{self, u16, u32};
 use crate::core::rom::{Rom, lz11};
 use crate::games::common::field::ground::{CUT, ROCK_SMASH, STRENGTH, SURF, WATERFALL};
 use crate::games::common::garc::{garc_files, message_lines, plain, singular};
+use crate::games::common::text::{Token, tokens};
 use crate::games::gen6::field::rail::Teleport;
 use crate::games::gen6::field::zonedata;
 use crate::games::gen6::rom::doors::{door_facilities, town_rows};
@@ -323,6 +324,10 @@ pub struct GameText {
     pub decorations: Vec<String>,
     /// What the game calls each kind of Poké Puff, in order (`RomLayout.puffs`).
     pub puffs: Vec<String>,
+    /// The words before and after the name in what the game calls another player's Secret Base,
+    /// by its owner's name and then by its team's: ("", "'s Base"), ("Team ", "'s Base")
+    /// (`RomLayout.base_names`).
+    pub base_names: Vec<(String, String)>,
     /// What the game calls each of Pokémon-Amie's wallpapers and then each interior item, in the
     /// singular (`RomLayout.goods`).
     pub goods: Vec<String>,
@@ -405,6 +410,7 @@ impl PartialEq for GameText {
             && self.caught == other.caught
             && self.map_places == other.map_places
             && self.decorations == other.decorations
+            && self.base_names == other.base_names
             && self.bike == other.bike
             && self.acro == other.acro
             && self.species == other.species
@@ -449,6 +455,7 @@ impl Default for GameText {
             map_places: IndexMap::new(),
             decorations: Vec::new(),
             puffs: Vec::new(),
+            base_names: Vec::new(),
             goods: Vec::new(),
             bike: None,
             acro: None,
@@ -845,6 +852,13 @@ impl GameText {
                 Some(file) => lines_of_file(&files, file)?,
                 None => Vec::new(),
             },
+            base_names: match layout.base_names {
+                Some(file) => lines_of(files.clone())(file)?
+                    .iter()
+                    .map(|line| around_name(line))
+                    .collect(),
+                None => Vec::new(),
+            },
             goods: match layout.goods {
                 Some(file) => lines_of_file_read(&files, file, singular)?,
                 None => Vec::new(),
@@ -1222,6 +1236,33 @@ fn lines_of_file_read(
         Err(error) if error.is(Kind::RomError) => Ok(Vec::new()),
         Err(error) => Err(error),
     }
+}
+
+/// A line's words before its first variable and after it, as `plain` reads words: the name
+/// the game puts there is the player's or a team's, which only RAM has.
+fn around_name(line: &[u8]) -> (String, String) {
+    let parts = match tokens(line) {
+        Ok(parts) => parts,
+        Err(error) if error.is(Kind::ValueError) => return (String::new(), String::new()),
+        Err(error) => panic!("{error:?}"),
+    };
+    let at = parts
+        .iter()
+        .position(|part| matches!(part, Token::Control(_)))
+        .unwrap_or(parts.len());
+    let words = |parts: &[Token]| -> String {
+        parts
+            .iter()
+            .filter_map(|part| match part {
+                Token::Text(text) => Some(text.as_str()),
+                Token::Control(_) => None,
+            })
+            .collect()
+    };
+    (
+        words(&parts[..at]),
+        words(py::slice_from(&parts, at as i64 + 1)),
+    )
 }
 
 /// A file's first half beside its second, line for line: a contest's trainers and their

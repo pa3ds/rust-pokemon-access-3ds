@@ -137,8 +137,8 @@ pub type Data = fn() -> PathBuf;
 /// `Callable[[Memory], HiddenReader]`: a plain `fn`, since a `Game` is built once and kept in a
 /// `static`, where an `Rc<dyn Fn>` cannot be.
 pub type HiddenFactory = fn(Rc<dyn Memory>) -> Rc<dyn HiddenReader>;
-/// `Callable[[Memory, bytes], SecretBaseReader]`.
-pub type SecretBaseFactory = fn(Rc<dyn Memory>, &[u8]) -> Rc<dyn SecretBaseReader>;
+/// `Callable[[Memory, bytes, GameText], SecretBaseReader]`.
+pub type SecretBaseFactory = fn(Rc<dyn Memory>, &[u8], &GameText) -> Rc<dyn SecretBaseReader>;
 /// `Callable[[Memory, GameText], Feature]`.
 pub type FeatureFactory = fn(Rc<dyn Memory>, &GameText) -> Rc<dyn Feature>;
 /// `Callable[[Memory, GameText, Speech, Callable[[str], None]], OwnApp | None]`.
@@ -218,8 +218,9 @@ pub struct Game {
     /// leaves by: the pole in Santalune Gym's lobby, which the game slides the player down to the
     /// web room (spike 224).
     pub furniture: IndexMap<(i64, i64), FurnitureKind>,
-    /// The reader of its Secret Bases, given the executable's image to find every spot in, or None
-    /// in a game with none: ORAS's (`games.oras.field.secret_base`).
+    /// The reader of its Secret Bases, given the executable's image to find every spot in and the
+    /// game's words to name other players' bases with, or None in a game with none: ORAS's
+    /// (`games.oras.field.secret_base`).
     pub secret_bases: Option<SecretBaseFactory>,
     /// The event flag before the first hidden item's, each item's its number past it: `0x44c` in
     /// Omega Ruby's Dowsing Machine's getter, `0x4e49e4`, and in X's, `0x4ab888`

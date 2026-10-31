@@ -164,7 +164,9 @@ fn given_feature(reader: Rc<dyn Feature>) -> FeatureFactory {
 /// `_given(bases)`, for `Game.secret_bases`.
 fn given_bases(bases: Rc<dyn SecretBaseReader>) -> SecretBaseFactory {
     GIVEN_BASES.with(|given| *given.borrow_mut() = Some(bases));
-    |_memory, _image| GIVEN_BASES.with(|given| given.borrow().clone().expect("a test's bases"))
+    |_memory, _image, _text| {
+        GIVEN_BASES.with(|given| given.borrow().clone().expect("a test's bases"))
+    }
 }
 
 /// `DexNav`, as the factory `Game.hidden` holds.
@@ -6179,7 +6181,13 @@ impl Tracked for Bases {
 
 impl Feature for Bases {
     fn listed(&self, zone: i64, _zone_at: ZoneAt) -> Result<Vec<Interactable>> {
-        secret_base::spots_in(&self.spots, self.own, secret_base::INSIDE, zone)
+        secret_base::spots_in(
+            &self.spots,
+            self.own,
+            &HashMap::new(),
+            secret_base::INSIDE,
+            zone,
+        )
     }
 }
 
@@ -6713,7 +6721,7 @@ fn test_a_bases_decorations_and_cursor_are_read_from_its_modules_objects() -> Re
     memory.u32(cursor, &[0x0084A3A4, 0, 1]);
     memory.write(cursor + secret_base::CURSOR_CELL, &le16(&[14, 13]));
     memory.u32(image, &[0x0084A3A4, 0xE59F1018, 0xE92D4010]);
-    let bases = secret_base::SecretBases::new(memory.clone(), b"");
+    let bases = secret_base::SecretBases::new(memory.clone(), b"", &GameText::default());
     bases.track(&Found {
         pages: pages(&memory),
         heap: IndexMap::from([
@@ -6771,7 +6779,7 @@ fn test_the_players_own_spot_is_the_saves() -> Result<()> {
     for n in 0..40 {
         rows.extend(secret_base::SPOT.pack([n, 0, 0, n, 1, 0, 0x24, 0x218])?);
     }
-    let bases = secret_base::SecretBases::new(memory.clone(), &rows);
+    let bases = secret_base::SecretBases::new(memory.clone(), &rows, &GameText::default());
     memory.write(save + secret_base::OWN_SPOT, &8i16.to_le_bytes());
     assert_eq!(bases.own()?, None);
     bases.track(&Found {
@@ -6782,6 +6790,64 @@ fn test_the_players_own_spot_is_the_saves() -> Result<()> {
     assert_eq!(bases.own()?, Some(8));
     memory.write(save + secret_base::OWN_SPOT, &0i16.to_le_bytes());
     assert_eq!(bases.own()?, None);
+    Ok(())
+}
+
+/// A base loaded from a QR Code was listed as "secret base spot", where the game, going in, says
+/// "Team Tarin's Base" (or_secret_base_qr): the save's slot for it names its team, and a base
+/// whose team has no name is called by its owner's.
+#[test]
+fn test_another_players_base_is_named_as_the_game_names_it() -> Result<()> {
+    let memory = FakeMemory::new();
+    let save = 0x08C8ADA8;
+    let mut rows: Vec<u8> = Vec::new();
+    for n in 0..60 {
+        rows.extend(secret_base::SPOT.pack([n, 0, 0, n, 1, 0, 0x24, 0x218])?);
+    }
+    let text = GameText {
+        base_names: vec![
+            (String::new(), "\u{2019}s Base".to_string()),
+            ("Team ".to_string(), "\u{2019}s Base".to_string()),
+        ],
+        ..GameText::default()
+    };
+    let bases = secret_base::SecretBases::new(memory.clone(), &rows, &text);
+    for slot in 0..secret_base::SHARED_COUNT {
+        memory.write(
+            save + secret_base::SHARED + slot * secret_base::SHARED_SIZE + secret_base::SHARED_SPOT,
+            &(-1i16).to_le_bytes(),
+        );
+    }
+    let shared = |slot: i64, spot: i16, owner: &str, team: &str| {
+        let at = save + secret_base::SHARED + slot * secret_base::SHARED_SIZE;
+        let utf16 =
+            |text: String| -> Vec<u8> { text.encode_utf16().flat_map(u16::to_le_bytes).collect() };
+        memory.write(at + secret_base::SHARED_SPOT, &spot.to_le_bytes());
+        memory.write(at + secret_base::OWNER, &utf16(format!("{owner}\0")));
+        memory.write(at + secret_base::TEAM, &utf16(format!("{team}\0Secret")));
+    };
+    shared(0, 53, "Crimz", "Tarin");
+    shared(1, 9, "Leos", "");
+    bases.track(&Found {
+        pages: pages(&memory),
+        heap: IndexMap::from([(save, secret_base::SAVE_CLASS.to_string())]),
+        partial: false,
+    })?;
+    let kinds: Vec<String> = bases
+        .listed(0x24, &|_cell| Ok(None))?
+        .into_iter()
+        .filter(|item| [8, 9, 10, 53].contains(&item.cell.0))
+        .map(|item| item.kind)
+        .collect();
+    assert_eq!(
+        kinds,
+        [
+            "secret base spot",
+            "Leos\u{2019}s Base",
+            "secret base spot",
+            "Team Tarin\u{2019}s Base"
+        ]
+    );
     Ok(())
 }
 

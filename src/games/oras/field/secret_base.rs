@@ -17,6 +17,14 @@
 //!
 //! The save keeps the player's own base as `savedata::SecretBase`, one all session, with the spot's
 //! number at +0x32e, 0 where the player has none (PKHeX's format, from the 0x324 bytes before it).
+//! After the player's base, 0x314 bytes from +0x32c, come 30 of other players', loaded by QR Code
+//! and otherwise, 0x3e0 bytes each (or_secret_base_qr, read in the save itself):
+//!
+//! ```text
+//! +0x002 s16 the spot's number, -1 for an empty slot
+//! +0x21a     the owner's name, UTF-16 to a zero, 0x1a bytes
+//! +0x234     the team's name the same way, 0x22 bytes; empty where the owner named none
+//! ```
 //!
 //! Inside a base, the base's module (`DllUSSecretBase`) keeps what stands where and the cursor the
 //! player decorates with (omega_ruby_secret-base2.ctm):
@@ -42,7 +50,7 @@
 //! it.
 
 use std::cell::{Cell as Slot, RefCell};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 use std::sync::OnceLock;
 
@@ -54,10 +62,12 @@ use crate::core::memory::Memory;
 use crate::core::pathfind::Cell;
 use crate::games::common::field::things::{Interactable, SECRET_BASE_SOURCE, place_source};
 use crate::games::gen6::field::features::{Feature, SecretBaseReader, Tracked, ZoneAt};
-use crate::py::{Error, Result};
+use crate::games::gen6::rom::archives::GameText;
+use crate::py::{self, Error, Result};
 
 /// What a spot a Secret Base can be made at is called: the game draws a mark on the wall, the tree
-/// or the bush, and says what it is on facing it, but never names the spot (spike 154).
+/// or the bush, and says what it is on facing it, but never names the spot (spike 154). One another
+/// player's base is loaded at is called as the game calls the base (`SecretBases.shared`).
 pub const BASE_SPOT: &str = "secret base spot";
 
 /// What the player's own Secret Base's spot is called, said with the place it leads into, as an
@@ -188,6 +198,15 @@ pub const SAVE_CLASS: &str = "N8savedata10SecretBaseE";
 /// Where `savedata::SecretBase` keeps the number of the player's own spot: 8, Route 111's tree,
 /// in both heaps read of omega_ruby_secret-base.ctm, on the route and in the base.
 pub const OWN_SPOT: i64 = 0x32E;
+/// Where `savedata::SecretBase` keeps the bases loaded from other players (see the module doc).
+pub const SHARED: i64 = 0x640;
+pub const SHARED_SIZE: i64 = 0x3E0;
+pub const SHARED_COUNT: i64 = 30;
+pub const SHARED_SPOT: i64 = 0x02;
+pub const OWNER: i64 = 0x21A;
+pub const TEAM: i64 = 0x234;
+pub const OWNER_SIZE: i64 = 0x1A;
+pub const TEAM_SIZE: i64 = 0x22;
 
 /// Where `_FIRST_ROWS` matches: `(?=\x00\x00.{18}\x01\x00.{18}\x02\x00)` is a look-ahead, which
 /// the `regex` crate has none of, so the three row numbers are tested at each offset by hand.
@@ -249,6 +268,7 @@ pub struct SecretBases {
     pub inside: i64,
     pub zones: &'static IndexSet<i64>,
     memory: Rc<dyn Memory>,
+    names: Vec<(String, String)>,
     pub spots: Vec<(i64, Cell)>,
     save: Slot<Option<i64>>,
     mapper: Slot<Option<i64>>,
@@ -260,7 +280,7 @@ pub struct SecretBases {
 }
 
 impl SecretBases {
-    pub fn new(memory: Rc<dyn Memory>, image: &[u8]) -> Self {
+    pub fn new(memory: Rc<dyn Memory>, image: &[u8], text: &GameText) -> Self {
         let mut classes = vec![SAVE_CLASS, MAPPER_CLASS, CURSOR_CLASS];
         classes.extend(WALKED_ON);
         classes.push(UNSEEN);
@@ -269,6 +289,7 @@ impl SecretBases {
             inside: INSIDE,
             zones: zones(),
             memory,
+            names: text.base_names.clone(),
             spots: spots(image),
             save: Slot::new(None),
             mapper: Slot::new(None),
@@ -465,11 +486,49 @@ impl SecretBases {
 
     /// The number of the player's own spot, or None while the player has none or the save is
     /// not found yet.
-    /// The zone's spots: the player's own base as its entrance, leading inside, and every other
-    /// spot as a spot (spike 154). A spot is a tree, a wall or a bush, walked up to and faced as a
-    /// sign is.
+    /// The zone's spots: the player's own base as its entrance, leading inside, another player's
+    /// by the game's name for it, and every other spot as a spot (spike 154). A spot is a tree, a
+    /// wall or a bush, walked up to and faced as a sign is.
     pub fn listed(&self, zone: i64, _zone_at: ZoneAt) -> Result<Vec<Interactable>> {
-        spots_in(&self.spots, self.own()?, self.inside, zone)
+        let own = self.own()?;
+        let shared = if (0..self.spots.len() as i64)
+            .any(|number| self.spots[number as usize].0 == zone && Some(number) != own)
+        {
+            self.shared()?
+        } else {
+            HashMap::new()
+        };
+        spots_in(&self.spots, own, &shared, self.inside, zone)
+    }
+
+    /// What the game calls each base loaded from another player, by its spot's number: by its
+    /// team's name, or by its owner's where the team has none ("Team Tarin's Base"). None before
+    /// the save is found, or without the game's words for them.
+    pub fn shared(&self) -> Result<HashMap<i64, String>> {
+        let Some(save) = self.save.get() else {
+            return Ok(HashMap::new());
+        };
+        if self.names.len() < 2 {
+            return Ok(HashMap::new());
+        }
+        let data = self
+            .memory
+            .read(save + SHARED, SHARED_SIZE * SHARED_COUNT)?;
+        let mut out: HashMap<i64, String> = HashMap::new();
+        for at in (0..data.len() as i64).step_by(SHARED_SIZE as usize) {
+            let number = s16(&data, at + SHARED_SPOT)?;
+            let team = name(py::slice(&data, at + TEAM, at + TEAM + TEAM_SIZE));
+            let owner = name(py::slice(&data, at + OWNER, at + OWNER + OWNER_SIZE));
+            let ((before, after), name) = if !team.is_empty() {
+                (&self.names[1], team)
+            } else {
+                (&self.names[0], owner)
+            };
+            if 0 <= number && number < self.spots.len() as i64 && !name.is_empty() {
+                out.insert(number, format!("{before}{name}{after}"));
+            }
+        }
+        Ok(out)
     }
 
     pub fn own(&self) -> Result<Option<i64>> {
@@ -483,6 +542,12 @@ impl SecretBases {
             None
         })
     }
+}
+
+/// A name the save keeps as UTF-16 to a zero.
+fn name(raw: &[u8]) -> String {
+    let text = py::decode_utf16le(raw);
+    py::strip(text.split('\0').next().unwrap_or("")).to_string()
 }
 
 /// Which of a layer's cells `cell` is, or None off the base's grid.
@@ -537,11 +602,13 @@ impl SecretBaseReader for SecretBases {
     }
 }
 
-/// `SecretBases.listed` of every spot, the player's own and the zone inside: a function of its
-/// own, since the tests' Secret Bases, which subclass `SecretBases` in Python, list theirs so too.
+/// `SecretBases.listed` of every spot, the player's own, other players' names for theirs and the
+/// zone inside: a function of its own, since the tests' Secret Bases, which subclass `SecretBases`
+/// in Python, list theirs so too.
 pub fn spots_in(
     spots: &[(i64, Cell)],
     own: Option<i64>,
+    shared: &HashMap<i64, String>,
     inside: i64,
     zone: i64,
 ) -> Result<Vec<Interactable>> {
@@ -562,7 +629,11 @@ pub fn spots_in(
             Interactable {
                 source: place_source(SECRET_BASE_SOURCE, number)?,
                 home: Some(home),
-                ..Interactable::new("exits", BASE_SPOT, cell)
+                ..Interactable::new(
+                    "exits",
+                    shared.get(&number).map_or(BASE_SPOT, String::as_str),
+                    cell,
+                )
             }
         });
     }

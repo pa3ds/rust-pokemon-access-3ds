@@ -395,6 +395,9 @@ pub const CONDITIONS: (i64, i64) = (123, 50);
 /// A Secret Base's decorations by number, as the save numbers them: Small Desk 0, Small Chair 10,
 /// the Welcome Mats 0x13 to 0x17, Your Location 0xad (spike 154).
 pub const DECORATION_NAMES: i64 = 56;
+/// What a Secret Base is called on entering it: "'s Base" after its owner's name, "Team 's Base"
+/// round its team's (or_secret_base_qr, "Team Tarin's Base"). Files 52 and 53 hold the two too.
+pub const BASE_NAMES: i64 = 88;
 /// The Poké Puffs' names, a line a kind: Sweet Poké Puff 0 to Spice 4, then the Frosted, Fancy and
 /// Deluxe five, and the Supreme six, Wish 20 to Winter 25 (spike 228, or_pokemon-me).
 pub const PUFF_NAMES: i64 = 81;
@@ -490,6 +493,7 @@ pub fn rom() -> &'static RomLayout {
         conditions: Some(CONDITIONS),
         map_panes: Some((MAP_PANES.0.to_string(), MAP_PANES.1, MAP_PANES.2)),
         decorations: Some(DECORATION_NAMES),
+        base_names: Some(BASE_NAMES),
         bike: Some(MACH_BIKE),
         acro: Some(ACRO_BIKE),
         items: Some(ITEM_NAMES),
@@ -845,8 +849,8 @@ fn dex_nav(memory: Rc<dyn Memory>) -> Rc<dyn HiddenReader> {
 }
 
 /// `SecretBases`, as the factory `Game.secret_bases` holds.
-fn secret_bases(memory: Rc<dyn Memory>, image: &[u8]) -> Rc<dyn SecretBaseReader> {
-    Rc::new(SecretBases::new(memory, image))
+fn secret_bases(memory: Rc<dyn Memory>, image: &[u8], text: &GameText) -> Rc<dyn SecretBaseReader> {
+    Rc::new(SecretBases::new(memory, image, text))
 }
 
 /// `lambda memory, _text: AshPiles(memory)`, as a factory `Game.features` holds.
