@@ -550,8 +550,9 @@ id = "yveltal-gaze"
 # The ultimate weapon fires its last (x_legend_wakening_boss, 2026-11-01): after Serena's "Let's
 # get out of here!" in zone 0x155, Lysandre beaten, a field demo of 48 s, with no words, of the
 # weapon in Geosenge Town firing into the sky and sinking into the ground; then the player arrives
-# in the town, zone 0x15, looking down into its pit. 163:49 is the same words, the other rival's.
-# X's alone: no replay has shown Y's.
+# in the town, zone 0x15, looking down into its pit. 163:49 has the same words, so either starts
+# it. Y plays it to the same frames (y_legend_wakening_boss, 2026-11-01): a red spike at the
+# flower's heart, pink for the blue of its beam, and a red blast for the golden.
 [[scene]]
 after = ["story:163:48", "story:163:49"]
 zone = 0x155
@@ -610,3 +611,63 @@ id = "weapon-fires-pit"
 zone = 0x15
 at = 0.5
 id = "weapon-fires-arrive"
+
+# Y's, the same to the frame.
+[[scene]]
+after = ["story:163:48", "story:163:49"]
+zone = 0x155
+title = 0x0004000000055E00
+
+[[scene.beat]]
+demo = true
+at = 2
+id = "y-weapon-fires-flower"
+
+[[scene.beat]]
+at = 8.5
+id = "y-weapon-fires-above"
+
+[[scene.beat]]
+at = 13.5
+id = "y-weapon-fires-beam"
+
+[[scene.beat]]
+at = 16.5
+id = "y-weapon-fires-world"
+
+[[scene.beat]]
+at = 20.5
+id = "y-weapon-fires-spark"
+
+[[scene.beat]]
+at = 25.5
+id = "y-weapon-fires-falls"
+
+[[scene.beat]]
+at = 29
+id = "y-weapon-fires-blast"
+
+[[scene.beat]]
+at = 31
+id = "y-weapon-fires-arch"
+
+[[scene.beat]]
+at = 33
+id = "y-weapon-fires-smoke"
+
+[[scene.beat]]
+at = 35
+id = "y-weapon-fires-sinks"
+
+[[scene.beat]]
+at = 40
+id = "y-weapon-fires-column"
+
+[[scene.beat]]
+at = 43
+id = "y-weapon-fires-pit"
+
+[[scene.beat]]
+zone = 0x15
+at = 0.5
+id = "y-weapon-fires-arrive"

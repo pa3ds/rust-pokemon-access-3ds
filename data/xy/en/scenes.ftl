@@ -159,3 +159,17 @@ weapon-fires-sinks = As the dust settles, the crystal sinks down into a round pi
 weapon-fires-column = A tall column of dark smoke rises out of the pit.
 weapon-fires-pit = Seen from above, the smoke thins over the empty pit among the houses. Darkness.
 weapon-fires-arrive = You look down into the pit. A ring of dark machinery lines its walls, and broken rocks fill its floor. Then the view pulls back to the path at its edge, where you stand with everyone.
+# Y's: a red spike at the flower's heart, pink light for the blue, and a red blast.
+y-weapon-fires-flower = { PLACE(52) }, under grey storm clouds. The crystal flower lies open over the houses, and a column of red light rises from the red spike at its heart.
+y-weapon-fires-above = Seen from above, red rings of light spread round the glowing spike at the flower's heart, and beams of light rise round it.
+y-weapon-fires-beam = Its petals fold up round the spike, and a great beam of pink light shoots out of it into the sky.
+y-weapon-fires-world = { weapon-fires-world }
+y-weapon-fires-spark = { weapon-fires-spark }
+y-weapon-fires-falls = The spark turns and falls back like a comet, trailing pink light, down through the clouds onto the flower.
+y-weapon-fires-blast = A blast of red light bursts out across the town.
+y-weapon-fires-arch = { weapon-fires-arch }
+y-weapon-fires-smoke = { weapon-fires-smoke }
+y-weapon-fires-sinks = { weapon-fires-sinks }
+y-weapon-fires-column = { weapon-fires-column }
+y-weapon-fires-pit = { weapon-fires-pit }
+y-weapon-fires-arrive = { weapon-fires-arrive }
