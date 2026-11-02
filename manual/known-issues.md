@@ -11,8 +11,8 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
   screen calls each party member "button pokémon" and says no hearts, puffs or notes after
   Affection, Fullness and Enjoyment. Of its games, Berry Picker's Unlimited says the misses you
   have left as a number alone, "2", and Berry Picker does not say when a Pokémon has eaten a
-  berry or gone away; Head It offers nothing
-  to tap, and its results are read out of order, the total last; in Tile Puzzle "Yes" is said as a puzzle begins, the last
+  berry or gone away; Head It does not say when a ball reaches your Pokémon or that it was
+  headed, and its results are read out of order, the total last; in Tile Puzzle "Yes" is said as a puzzle begins, the last
   swap's points are said as it is solved, and a tile says where its piece of the picture belongs,
   not what is on it. pa3ds does not say when your Pokémon has eaten a Poké Puff, and only the five
   puffs the bar shows at once are offered.

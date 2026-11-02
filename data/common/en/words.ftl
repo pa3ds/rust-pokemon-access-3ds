@@ -325,6 +325,11 @@ berry-picker-lineup = { $first }, { $second } and { $third }
 berry-picker-not-up = { $pokemon } is not up
 berry-picker-no-berry = no berry { $number }
 berry-picker-no-pokemon = no Pokémon { $number }
+# A ball of yarn of Pokémon-Amie's Head It, said as it comes by the Pokémon it falls at, the one a
+# tap heads it back: "Ralts". The game shows the ball and says nothing. Without the Pokémon, where
+# its record cannot be read: "ball of yarn".
+head-it-ball = { $pokemon }
+head-it-ball-nobody = ball of yarn
 
 ## What pa3ds says of itself
 

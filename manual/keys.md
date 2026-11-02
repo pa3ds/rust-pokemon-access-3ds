@@ -117,6 +117,11 @@ it says what that Pokémon wants. As each round is about to start, pa3ds says th
 keys' order. Another berry's key picks that one up instead. A key with nothing to do, as `7` on Easy,
 plays the game's error sound. Outside Berry Picker these keys are Azahar's as ever.
 
+In its Head It, balls of yarn fall at your Pokémon, and pa3ds says which Pokémon each falls at
+as it comes: "Ralts". Touch mode offers each Pokémon by name; tap it as the ball reaches it to
+head the ball back. A ball takes about a second and a half to fall. On Easy the Pokémon you play
+with stands alone in the middle at first, and two more come up beside it as the round goes on.
+
 In a Super Training regimen, touch mode offers each goal the
 Balloon Bot puts up: the tap key's first press says the goal, and each press after that shoots at
 it, wherever it has moved. pa3ds says "shot coming" about a second before the bot's ball arrives:

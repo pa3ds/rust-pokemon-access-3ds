@@ -41,6 +41,7 @@
 
 pub mod amie;
 pub mod berry_picker;
+pub mod head_it;
 pub mod puzzle;
 pub mod super_training;
 
@@ -61,6 +62,7 @@ use crate::games::gen6::rom::archives::GameText;
 use crate::py::{self, Result};
 use amie::{AmiePage, Goods, Puffs};
 use berry_picker::{BerryKeys, BerryPicker, Touching};
+use head_it::HeadIt;
 use puzzle::TilePuzzle;
 use super_training::{Bags, Goals, Round, TrainingPage, Waiting};
 
@@ -162,6 +164,7 @@ tracked!(
     Goods,
     TilePuzzle,
     BerryPicker,
+    HeadIt,
     TrainingPage,
     Round
 );
@@ -208,6 +211,12 @@ impl Offering for RefCell<BerryPicker> {
     }
 }
 
+impl Offering for RefCell<HeadIt> {
+    fn targets(&self, running: Option<&str>) -> Result<Vec<Target>> {
+        self.borrow().targets(running)
+    }
+}
+
 impl Offering for Goals {
     fn targets(&self, running: Option<&str>) -> Result<Vec<Target>> {
         Goals::targets(self, running)
@@ -233,6 +242,12 @@ impl Polled for RefCell<Round> {
 }
 
 impl Polled for RefCell<BerryPicker> {
+    fn poll(&self, running: Option<&str>) -> Result<Vec<(String, String, Category)>> {
+        self.borrow_mut().poll(running)
+    }
+}
+
+impl Polled for RefCell<HeadIt> {
     fn poll(&self, running: Option<&str>) -> Result<Vec<(String, String, Category)>> {
         self.borrow_mut().poll(running)
     }
@@ -264,7 +279,7 @@ fn yours(text: &GameText, found: &pokemon::Pokemon) -> Option<String> {
 
 /// `short`: a Pokémon of the player's by its nickname, or else its species alone, with no form:
 /// Berry Picker's, where "Pikachu Rock Star wants Pinap Berry" took half a second against a
-/// Pokémon's two (Orion, 2026-10-29).
+/// Pokémon's two (Orion, 2026-10-29), and Head It's, against a ball's fall.
 fn short(text: &GameText, found: &pokemon::Pokemon) -> Option<String> {
     if found.nicknamed && !found.nickname.is_empty() {
         return Some(found.nickname.clone());
@@ -334,13 +349,15 @@ impl Subscreens {
         let bags = Rc::new(Bags::new(layouts.clone(), image_of.clone(), images.clone()));
         // Amie's Berry Picker draws the berry each Pokémon wants in a bubble, and says nothing of
         // who wants which.
+        let short: berry_picker::Name =
+            Rc::new(move |found: &pokemon::Pokemon| short(&text, found));
         let berry_picker = Rc::new(RefCell::new(BerryPicker::with_settings(
             memory.clone(),
-            names,
+            names.clone(),
             layouts.clone(),
             image_of.clone(),
             images.clone(),
-            Rc::new(move |found: &pokemon::Pokemon| short(&text, found)),
+            short.clone(),
             Rc::new(py::time::monotonic),
             settings.berry_first,
             settings.one_at_a_time,
@@ -353,6 +370,15 @@ impl Subscreens {
             picked,
             wrong,
         )));
+        // Its Head It drops balls of yarn at the party's Pokémon, and names neither the Pokémon nor
+        // which one each ball falls at.
+        let head_it = Rc::new(RefCell::new(HeadIt::new(
+            memory.clone(),
+            names,
+            layouts.clone(),
+            image_of.clone(),
+            short,
+        )));
         // A round says its score, clock and banners, and warns of a Bot's shot.
         let sparring = Rc::new(RefCell::new(Round::new(layouts, image_of, memory, None)));
         let tracked: Vec<Rc<dyn Tracked>> = vec![
@@ -361,6 +387,7 @@ impl Subscreens {
             goods.clone(),
             puzzle.clone(),
             berry_picker.clone(),
+            head_it.clone(),
             training.clone(),
             sparring.clone(),
         ];
@@ -372,9 +399,9 @@ impl Subscreens {
             classes: classes.into_iter().collect(),
             tracked,
             named: vec![page.clone(), training, puffs, goods, puzzle.clone()],
-            offering: vec![page, goals, berry_picker.clone()],
+            offering: vec![page, goals, berry_picker.clone(), head_it.clone()],
             pictured: vec![waiting, bags],
-            polled: vec![sparring, berry_picker.clone()],
+            polled: vec![sparring, berry_picker.clone(), head_it],
             described: vec![puzzle.clone()],
             keyed: vec![berry_keys],
             puzzle,

@@ -37,7 +37,8 @@ the Game Boy games. Nothing here is taken from its code.
 - **Screen text**: labels, options and questions as they appear and when they change. In
   Pokémon-Amie's games the clock is said each half minute, and a countdown at 10 seconds and
   each of its last 5; at the end, your rank and the stars it earned, and Berry Picker's count of
-  berries. Berry Picker says which berry each Pokémon wants as it comes. Tile Puzzle's difficulties
+  berries. Berry Picker says which berry each Pokémon wants as it comes, and Head It which Pokémon
+  each ball of yarn falls at. Tile Puzzle's difficulties
   say the best stars earned on each, and while you play its points are said only as a puzzle
   starts and once it is solved.
 - **Name entry**: the key under the cursor.
