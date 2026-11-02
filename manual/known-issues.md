@@ -86,6 +86,7 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
   round pad, a push that crosses a second arrow, and the rooms behind the doors have not been
   tried; the doors are said as "passage", and the books and the report in the room with the
   bookshelves are not named yet.
+- **Riding on Routes 9 and 17**: getting off and smashing a rock have not been tried with `P`.
 - **Rails outside Shalour Gym**, on Routes 5, 13 and 18 and in Dendemille and Couriway Towns, are
   found the same way and nobody has tried them. A rail broken in the middle, as Route 5's over the
   water is, is not taken by `P`.

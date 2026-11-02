@@ -176,8 +176,9 @@ you two squares, onto the next stone.
 **Riding Rhyhorn and Mamoswine.** In X and Y, only a Rhyhorn crosses Route 9's spiky ground, and
 only a Mamoswine Route 17's deep snow. The riding category lists each patch of flat ground, where
 you get on by facing the Pokémon and pressing A, and get off with B. `P` walks you to it,
-"Mamoswine 1 east", across and off again, "get off 3 north". Rocks are obstacles: riding, face one
-and press A to smash it, which `P` says as "smash 1 east".
+"Mamoswine 1 east", across and off again, "get off 3 north". The Pokémon is wider than you, and
+`P` keeps it clear of the walls. Rocks are obstacles: riding, face one and press A to smash it,
+which `P` says as "smash 1 east" where the Pokémon reaches it.
 
 **Climbing walls.** In Cyllage Gym, in X and Y, the rock walls are climbed from the blue spots at
 their foot. The climbing category lists the blue spots and each wall ledge, where you step off a

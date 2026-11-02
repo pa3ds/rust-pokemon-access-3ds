@@ -2137,7 +2137,7 @@ fn test_p_on_foot_gets_on_the_mamoswine_waiting_on_flat_ground_to_cross_the_snow
     );
 }
 
-/// Route 9 (spike 272): riding, the player's model stands in 3 by 3 cells round their own, and
+/// Route 9 (spike A): riding, the player's model stands in 3 by 3 cells round their own, and
 /// held east along spikes beside a wall it stopped at (35, 61), the spikes going on east. P said
 /// "20 north" along them, and riding through a gap two cells wide is no way at all.
 #[test]
@@ -2166,7 +2166,7 @@ fn test_p_riding_keeps_the_ridden_pokemons_body_off_the_walls() {
     );
 }
 
-/// Route 9 (spike 272): flat ground runs on into corners the ridden Pokémon's body does not
+/// Route 9 (spike A): flat ground runs on into corners the ridden Pokémon's body does not
 /// fit, as round the item ball at (58, 55); the player gets off on the flat ground and walks on.
 #[test]
 fn test_p_riding_gets_off_where_the_ridden_pokemon_no_longer_fits_on_flat_ground() {
