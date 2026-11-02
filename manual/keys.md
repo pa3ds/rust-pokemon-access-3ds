@@ -150,12 +150,14 @@ the round pads, and goes on with the way once a pad has put you down.
 `P` says each slide as one step of the way, "slide 4 north": step that way once and let it carry
 you.
 
-**The Acro Bike's rails.** On Route 119 the Acro Bike rides along narrow rails, and the bike
-category lists each end of one. Ride onto a rail in line with it from its end. `P` says a ride
-along a rail with the bike's name, "Acro Bike 9 east", and where a rail steps sideways over short
-bars, a hop across onto each, "hop 3 south": press B and the way together, once a hop. `P` also
-finds the way on from a rail you have stopped on. pa3ds cannot tell the Acro Bike from the Mach
-Bike, so a way that says "Acro Bike" needs you on the Acro Bike.
+**The Acro Bike.** On Route 119 and in the Safari Zone the Acro Bike rides along narrow rails, and
+the bike category lists each end of one. Ride onto a rail in line with it from its end. `P` says a
+ride along a rail with the bike's name, "Acro Bike 9 east", and where a rail steps sideways over
+short bars, a hop across onto each, "hop 3 south": press B and the way together, once a hop. `P`
+also finds the way on from a rail you have stopped on. Up or down a bumpy slope `P` says "bunny
+hop 2 north": hold B until the bike bounces in place, then press the way with B still held. pa3ds
+cannot tell the Acro Bike from the Mach Bike, so a way that says "Acro Bike" or "bunny hop" needs
+you on the Acro Bike.
 
 **Jumping stones.** In Pokémon X, `P` crosses a mud pit by its stones: each press of the way hops
 you two squares, onto the next stone.

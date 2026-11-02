@@ -319,7 +319,9 @@ pub struct Ground {
     /// stair from 324 down to her terrace, and is walked on as sand (spike 193).
     pub ladders: IndexMap<(Cell, Cell), (f64, f64)>,
     /// The bumpy slopes, each with the way it is hopped up on the Acro Bike, from the cell before
-    /// it to the cell after, as a ledge is jumped down: walls on foot (spike 159).
+    /// it to the cell after, as a ledge is jumped down: walls on foot (spike 159). Bunny hopped
+    /// down too: in the Safari Zone the player hopped down both of the entrance's, (268, 214) and
+    /// (266, 216), B held and down pressed (`over`; or_safari_zone, spike A).
     pub hops: IndexMap<Cell, &'static str>,
     /// The Acro Bike's rails, each cell with the way its beam runs, north or east (`BIKE_RAILS`):
     /// walls on foot, and to a player on the bike or a ground with HMs ridden along, got onto and
@@ -1129,10 +1131,14 @@ impl Ground {
     }
 
     /// Whether the cell is blocked but jumped over either way: the shore, a waterfall on a
-    /// ground with HMs, climbed with Waterfall and gone down with nothing, and a mud pit's mud
-    /// between two of its stones in a line, hopped over (`STONE`).
+    /// ground with HMs, climbed with Waterfall and gone down with nothing, a bumpy slope on the
+    /// bike or a ground with HMs, bunny hopped up or down (`hops`), and a mud pit's mud between
+    /// two of its stones in a line, hopped over (`STONE`).
     pub fn over(&self, cell: Cell) -> Result<bool> {
-        Ok(self.shore(cell)? || (self.hm && self.falls.contains_key(&cell)) || self.mud(cell)?)
+        Ok(self.shore(cell)?
+            || (self.hm && self.falls.contains_key(&cell))
+            || ((self.bike || self.hm) && self.hops.contains_key(&cell))
+            || self.mud(cell)?)
     }
 
     fn mud(&self, cell: Cell) -> Result<bool> {
@@ -1238,15 +1244,6 @@ impl Ground {
         };
         if (self.bike || self.hm) && chunk.slope(cell)?.is_some() {
             return Ok(None);
-        }
-        if let Some(&way) = self.hops.get(&cell) {
-            // Hopped over on the Acro Bike as a ledge is jumped, but up: from (49, 31) through
-            // (49, 30) to (49, 29) in Jagged Pass (omega_ruby_bike-jagged2.ctm, spike 159).
-            return Ok(if self.bike || self.hm {
-                Some(way)
-            } else {
-                None
-            });
         }
         chunk.ledge(cell)
     }

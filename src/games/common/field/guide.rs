@@ -240,6 +240,12 @@ pub const OWN_RAIL_WORD: &str = "rail";
 /// thing.
 pub const HOP: &str = "hop";
 
+/// What a hop up a bumpy slope is said with, "bunny hop 2 north": B held until the bike bounces in
+/// place, then the way with B still held. Said with the Acro Bike's name, as a ride along a rail
+/// is, it told the player nothing of B, and up alone rode them into the slope and no further
+/// (or_safari_zone, spike A). The game names no such thing.
+pub const BUNNY_HOP: &str = "bunny hop";
+
 /// Degrees the camera may be turned off a way of Lumiose's streets and still be said to look
 /// along it. A tap of left or right leaves it 6 to 70 degrees round, and up then walks the player
 /// across the street at that angle; a hold settles it within a degree of the way the player was

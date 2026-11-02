@@ -3632,9 +3632,10 @@ fn test_p_rides_up_a_slope_only_on_the_bike_and_shift_p_says_the_bike_on_foot() 
 }
 
 /// Jagged Pass: the player hopped north up the bumpy slope at (49, 30) on the Acro Bike, from
-/// (49, 31) to (49, 29) (the user, 2026-10-03). On foot P goes round it; Shift and P hops it.
+/// (49, 31) to (49, 29) (the user, 2026-10-03). On foot P goes round it; Shift and P hops it,
+/// said as the bunny hop it takes (or_safari_zone, spike A).
 #[test]
-fn test_shift_p_hops_up_a_bumpy_slope_and_says_the_bike() {
+fn test_shift_p_hops_up_a_bumpy_slope_and_says_a_bunny_hop() {
     let mut rig = navigator(Want {
         blocked: cliff(),
         ..on(pass())
@@ -3644,7 +3645,28 @@ fn test_shift_p_hops_up_a_bumpy_slope_and_says_the_bike() {
     let way = path_of(&guidance(&rig));
     assert!(!way.contains(&(95, 170)));
     rig.press_key("shift+p");
-    assert_eq!(last(&rig.backend), "4 north, bumpy slope 2 north, 8 north");
+    assert_eq!(last(&rig.backend), "4 north, bunny hop 2 north, 8 north");
+}
+
+/// The Safari Zone: the player bunny hopped down both of the entrance's bumpy slopes, B held
+/// and down pressed, which P took for walls from above (or_safari_zone, spike A).
+#[test]
+fn test_p_on_the_bike_hops_down_a_bumpy_slope() {
+    let mut rig = navigator(Want {
+        blocked: cliff(),
+        ..on(Field {
+            interactables: vec![Interactable {
+                source: 0x08D1E9A8,
+                move_model: true,
+                ..Interactable::new("people", "person", (95, 178))
+            }],
+            on_bike: true,
+            ..Field::new(0x54, (95, 162))
+        })
+    });
+    *rig.field.bumpy.borrow_mut() = HashSet::from([(95, 170)]);
+    rig.press(PATHFIND);
+    assert_eq!(last(&rig.backend), "7 south, bunny hop 2 south, 6 south");
 }
 
 /// Route 119's top (or_acro_bike_pathfinding, spike A): a beam running east, two bars lying east

@@ -157,7 +157,9 @@ pub const ICE: i64 = 0x91;
 /// player, and in Jagged Pass each one stands in a row of ledges dropping south, where a ledge
 /// would be, five of them up a column at x 50 from z 86 to 73, or alone across a narrow way, as at
 /// x 25. Only in 13 of the ROM's chunk files, the Safari Zone's among them, which has bumpy slopes
-/// too (spike 159, 2026-10-03). Read off the map, not seen hopped.
+/// too (spike 159, 2026-10-03). Hopped up at (49, 30) in Jagged Pass, and up and down at (268,
+/// 214) and (266, 216) in the Safari Zone, B held until the bike bounced and the way pressed with
+/// it, 18 up each (or_safari_zone, spike A).
 pub const BUMPY_SLOPES: [i64; 1] = [0x6F];
 
 /// The Acro Bike's rails, by their kinds, not Lumiose's (`gen6.field.rail`), each with the way its

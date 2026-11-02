@@ -30,7 +30,7 @@ use crate::games::common::field::chunk::{
 use crate::games::common::field::climb::Walls;
 use crate::games::common::field::grind::GrindRails;
 use crate::games::common::field::ground::{Ground, STRENGTH, StepWords, WATERFALL};
-use crate::games::common::field::guide::{BELT, CURRENT as CURRENT_WORD, HOP, SLIDE};
+use crate::games::common::field::guide::{BELT, BUNNY_HOP, CURRENT as CURRENT_WORD, HOP, SLIDE};
 use crate::games::common::field::things::{
     ARROW_SOURCE, ARROWS, BIKE, BIKE_SOURCE, CLIMB_SOURCE, CLIMBING, CURRENT_SOURCE,
     CURRENTS_CATEGORY, DIVE_SOURCE, Field, Interactable, OBSTACLES, RIDE_SOURCE, RIDING,
@@ -295,8 +295,9 @@ fn in_rails(kind: i64) -> bool {
 
 /// The ground the bikes cross and walking does not: the Mach Bike's slopes, each patch of one kind
 /// a thing; the Acro Bike's rails, each end where the player gets on one, ridden along and hopped
-/// across (`Ground.rails`, spike A); and its bumpy slopes, each hopped up from the cell before it
-/// to the cell after, as a ledge is jumped down (`Ground.hops`, spike 159). Listed under bike.
+/// across (`Ground.rails`, spike A); and its bumpy slopes, each bunny hopped up or down from the
+/// cell before it to the cell after, as a ledge is jumped (`Ground.hops`, spikes 159 and A).
+/// Listed under bike.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Bike;
 
@@ -389,8 +390,9 @@ impl Landform for Bike {
         })
     }
 
-    /// A hop across from rail to rail is "hop 3 south", and the legs onto, along and off
-    /// a rail are said with the Acro Bike, as a hop up a bumpy slope is: "Acro Bike 9 east".
+    /// A hop across from rail to rail is "hop 3 south", the legs onto, along and off a rail
+    /// are said with the Acro Bike, "Acro Bike 9 east", and a hop up a bumpy slope is "bunny
+    /// hop 2 north".
     fn word(
         &self,
         ground: &Ground,
@@ -406,7 +408,7 @@ impl Landform for Bike {
             return Ok(Some(words.rail.clone()));
         }
         if ground.hopping(cell, step) {
-            return Ok(Some(words.acro.clone()));
+            return Ok(Some(BUNNY_HOP.to_string()));
         }
         Ok(if !ground.bike && ground.climbs(cell, step)? {
             Some(words.bike.clone())
