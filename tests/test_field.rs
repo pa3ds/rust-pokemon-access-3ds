@@ -4083,6 +4083,30 @@ fn test_a_slope_is_one_thing_and_a_rail_is_listed_at_its_ends() -> Result<()> {
     Ok(())
 }
 
+/// The Safari Zone's four zones split its rails, and a zone's rails alone were the ground's:
+/// P led the player along a rail to the next zone's edge and said "then can't continue", and an
+/// end was listed where the rail crossed it (or_safari_zone, spike A). A rail from the town
+/// north into Route 101 is the ground's all along, and listed at its own end in the town.
+#[test]
+fn test_a_rail_into_the_next_zone_is_one_rail() -> Result<()> {
+    let rail: Vec<((i64, i64), i64)> = (150..170).map(|z| ((100, z), 0x6D000021)).collect();
+    let mut town = Town::new();
+    town.block_tiles(TOWN_BLOCK, TOWN_CHUNK, (80, 160), &border(160), &rail);
+    town.block_tiles(ROUTE_BLOCK, ROUTE_CHUNK, (80, 120), &border(159), &rail);
+    let r#where = town.r#where()?;
+    let bike: Vec<(i64, i64)> = r#where.of("bike").iter().map(|item| item.cell).collect();
+    assert_eq!(bike, [(100, 169)]);
+    let rails: HashSet<(i64, i64)> = town
+        .reader
+        .ground(&r#where)?
+        .rails
+        .keys()
+        .copied()
+        .collect();
+    assert_eq!(rails, rail.iter().map(|&(cell, _)| cell).collect());
+    Ok(())
+}
+
 /// Spike 164: Route 128's dive spots were not listed. A patch of deep water is one exit, at its own
 /// cell nearest the player: its biggest is a diagonal band, whose box is mostly plain sea.
 #[test]

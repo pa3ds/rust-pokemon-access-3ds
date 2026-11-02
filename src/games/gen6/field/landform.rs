@@ -309,8 +309,18 @@ type BikeFound = (
 
 impl Landform for Bike {
     fn found(&self, matrix: &Matrix) -> Result<Found> {
-        let kinds = matrix
-            .cells(&|kind| in_slopes(kind) || in_rails(kind) || BUMPY_SLOPES.contains(&kind))?;
+        // Every zone's rails: the Safari Zone's four zones split them, and a way along one into
+        // the next zone ran into a wall, where a rail's end was listed (or_safari_zone, spike A).
+        let mut rails: IndexMap<Cell, i64> = IndexMap::new();
+        for chunk in matrix.chunks.values() {
+            for (cell, kind) in chunk.kinds() {
+                if in_rails(kind) {
+                    rails.insert(cell, kind);
+                }
+            }
+        }
+        let mut kinds = matrix.cells(&|kind| in_slopes(kind) || BUMPY_SLOPES.contains(&kind))?;
+        kinds.extend(rails.iter().map(|(&cell, &kind)| (cell, kind)));
         let mut out: Vec<Interactable> = Vec::new();
         for patch in patches(&kinds) {
             if BUMPY_SLOPES.contains(&kinds[&patch[0]]) {
@@ -340,6 +350,10 @@ impl Landform for Bike {
                         .filter(|near| held.contains(*near))
                         .count()
                         <= 1
+                        && {
+                            let at = (matrix.zone_at)(cell)?;
+                            at == Some(matrix.zone) || at.is_none()
+                        }
                     {
                         out.push(Interactable {
                             code: kinds[&cell],
@@ -351,11 +365,14 @@ impl Landform for Bike {
                 }
             }
         }
-        let rails: IndexMap<Cell, &'static str> = kinds
-            .iter()
-            .filter_map(|(&cell, &kind)| rail_way(kind).map(|way| (cell, way)))
-            .collect();
-        let found: BikeFound = (out, matrix.terrain.rises(&BUMPY_SLOPES)?, rails);
+        let found: BikeFound = (
+            out,
+            matrix.terrain.rises(&BUMPY_SLOPES)?,
+            rails
+                .iter()
+                .filter_map(|(&cell, &kind)| rail_way(kind).map(|way| (cell, way)))
+                .collect(),
+        );
         Ok(Rc::new(found))
     }
 
