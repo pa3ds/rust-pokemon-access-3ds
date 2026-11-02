@@ -263,6 +263,18 @@ impl ZoneTable {
         })
     }
 
+    /// The zone's place-name index, as `place_index` has it, read out of the ROM's table where
+    /// there is one, so asking reads nothing of the game's: the edges ask it of every zone the
+    /// player's borders, at every listing, and reads a tape never held made X's opening replay
+    /// out of step (ADR-0042). The game's without the ROM; None with neither.
+    pub fn place_of(&self, zone: i64) -> Result<Option<i64>> {
+        let at = zone * INFO_SIZE + INFO_NAME;
+        if self.rom.len() as i64 >= at + 2 {
+            return Ok(Some(u16(&self.rom, at)? & NAME_MASK));
+        }
+        self.place_index(zone)
+    }
+
     /// Whether two zones are on one matrix, walked between with no warp: Route 119's foot and
     /// its top, which the game calls by one name (spike 159).
     pub fn one_matrix(&self, here: i64, there: i64) -> Result<bool> {

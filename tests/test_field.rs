@@ -1660,6 +1660,43 @@ fn test_an_edge_is_the_gap_in_the_border() -> Result<()> {
     Ok(())
 }
 
+/// ADR-0042: each quarter of the Safari Zone listed six or seven gaps into the next, all
+/// "Safari Zone"; into another part of the player's own place the gaps are one exit, at its
+/// nearest, while into another place each gap stays its own.
+#[test]
+fn test_the_gaps_into_the_next_part_of_one_place_are_one_way_in() -> Result<()> {
+    let gaps = [(84, 86), (99, 102)];
+    let mut town = Town::with(false, 5, 7);
+    town.block(TOWN_BLOCK, TOWN_CHUNK, (80, 160), &border_with(160, &gaps));
+    town.block(
+        ROUTE_BLOCK,
+        ROUTE_CHUNK,
+        (80, 120),
+        &border_with(159, &gaps),
+    );
+    let mut cells: Vec<(i64, i64)> = edges(&town)?.iter().map(|&(cell, _, _)| cell).collect();
+    cells.sort();
+    assert_eq!(cells, [(84, 159), (99, 159)]);
+    town.memory.u16(TABLE + ROUTE * INFO_SIZE + INFO_NAME, 170);
+    let one: Vec<Interactable> = town
+        .r#where()?
+        .of("exits")
+        .into_iter()
+        .filter(|item| item.kind == "edge")
+        .collect();
+    let got: Vec<(Vec<(i64, i64)>, i64)> =
+        one.iter().map(|item| (item.cells(), item.source)).collect();
+    assert_eq!(
+        got,
+        [(
+            vec![(84, 159), (85, 159), (99, 159), (100, 159), (101, 159)],
+            EDGE_SOURCE | ROUTE << 16
+        )]
+    );
+    assert_eq!(one[0].nearest((101, 170)), (101, 159));
+    Ok(())
+}
+
 #[test]
 fn test_a_border_with_no_chunk_loaded_is_listed_whole() -> Result<()> {
     assert_eq!(

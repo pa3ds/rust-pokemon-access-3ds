@@ -20,6 +20,9 @@
 //! walked, which is how a zone's edge is narrowed to the gap in the trees, and what kind each cell
 //! is, which is how a **use tile** is found: a PC, and whatever else the game runs a script for
 //! when the player faces the cell and presses A, with no entity record behind it (spike 83).
+//!
+//! Bound by:
+//! - ADR-0042: the gaps into the next part of a place in parts are one exit (`edges`).
 
 use std::cell::{Cell as Slot, RefCell};
 use std::collections::{HashMap, HashSet};
@@ -2440,6 +2443,7 @@ impl FieldReader {
             self.asks.set(0);
         }
         let mut out: Vec<Interactable> = Vec::new();
+        let place = self.zones.place_of(zone)?;
         for (other, pairs) in &borders {
             let mut known = false;
             'any: for pair in pairs {
@@ -2461,6 +2465,25 @@ impl FieldReader {
                 }
             } else {
                 crossings.extend(pairs.iter().map(|&(_, theirs)| theirs));
+            }
+            if !crossings.is_empty() && place.is_some() && self.zones.place_of(*other)? == place {
+                // The next part of a place in parts is one way in, at whichever gap is nearest:
+                // each quarter of the Safari Zone listed six or seven gaps into the next
+                // (ADR-0042).
+                let mut shape: Vec<Cell> = crossings
+                    .iter()
+                    .copied()
+                    .collect::<IndexSet<Cell>>()
+                    .into_iter()
+                    .collect();
+                shape.sort_by_key(|cell| (cell.1, cell.0));
+                out.push(Interactable {
+                    zone: Some(*other),
+                    shape: shape.clone(),
+                    source: place_source(EDGE_SOURCE, other << 16)?,
+                    ..Interactable::new("exits", "edge", shape[0])
+                });
+                continue;
             }
             for (gap, (first, size)) in runs(crossings).into_iter().enumerate() {
                 out.push(Interactable {
