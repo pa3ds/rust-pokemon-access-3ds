@@ -85,3 +85,33 @@ az-beam = Seen from high above, the land curves away under a dark red sky full o
 az-leaves = Dry leaves drift down through the white.
 az-alone = Close up, the small Pokémon holds the stem of its flower, alone, its head bowed and its eyes cast down.
 az-stones = The picture fades to white. Through the mist, great grey stones shaped like crouching Pokémon stand on either side of a low stone gateway. Shafts of pale light fall, and dry leaves drift down. Darkness.
+
+# The ultimate weapon activated, from Lysandre Labs (x_activate_weapon): the monitor's picture of
+# the town, then the town itself.
+weapon-monitor = On the monitor, in grainy green, { PLACE(52) } from high above: a ring of houses round a round path, and three standing stones at its middle.
+weapon-stones = Then the town itself, under heavy grey storm clouds. The view circles the three tall, mossy standing stones.
+weapon-sink = The stones are gone, sunk into the ground. Only dark holes are left, and dust rises from them.
+weapon-dust = The ground bursts. A great cloud of brown dust rolls up across the town.
+weapon-spike = Houses tilt as the earth heaves, and the tip of a huge crystal spike shoots up into the sky, flinging rocks.
+weapon-rocks = Rocks rain down on the town, crashing onto its paths and by its fences.
+weapon-bud = Up between the houses rises a vast bud of clear crystal, shimmering like a soap bubble, on a dark red stalk. It climbs on past the rooftops into the clouds.
+weapon-above = Seen from above, the bud's pointed tip stands high over the town.
+weapon-beam = Darkness. A beam of blue light pours down into the bud, and its crystal petals glow.
+weapon-bloom = In purple light, rings of light spread round it, and the bud opens: its petals unfold into a huge star-shaped flower of crystal, a blue orb glowing at its heart.
+weapon-canopy = Seen from below, the flower spreads wide over the town like a canopy, on its thin red stalk.
+weapon-heart = Close by its petals, over the broken rocks and houses, the blue orb at the flower's heart glows and smokes.
+weapon-over-town = Seen from above, the crystal flower lies open over the whole town. It fades into darkness.
+# Y's, the same until the beam: its light pink and red, and a red spike at the flower's heart.
+y-weapon-monitor = { weapon-monitor }
+y-weapon-stones = { weapon-stones }
+y-weapon-sink = { weapon-sink }
+y-weapon-dust = { weapon-dust }
+y-weapon-spike = { weapon-spike }
+y-weapon-rocks = { weapon-rocks }
+y-weapon-bud = { weapon-bud }
+y-weapon-above = { weapon-above }
+y-weapon-canopy = { weapon-canopy }
+y-weapon-beam = Darkness. A beam of pink light pours down into the bud, and its crystal petals glow.
+y-weapon-bloom = In pink light, rings of light spread round it, and the bud opens: its petals unfold into a huge star-shaped flower of crystal, glowing at its heart.
+y-weapon-heart = Close by its petals, over the broken rocks and houses, a tall spike of glowing red stands at the flower's heart, narrowing to a point, wrapped in smoke.
+y-weapon-over-town = Seen from above, the crystal flower lies open over the whole town, its red spike at its heart. It fades into darkness.

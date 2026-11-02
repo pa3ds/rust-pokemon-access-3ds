@@ -312,3 +312,124 @@ id = "az-alone"
 [[scene.beat]]
 at = 178.5
 id = "az-stones"
+
+# The ultimate weapon activated (x_activate_weapon, 2026-10-31): after the scientist's "Come on!
+# Look! Look at the monitor!" in zone 0x5f, a field demo of 77 s, with no words, of the weapon
+# rising and blooming in Geosenge Town. Y plays it to the same frames (the movie replayed on Y from
+# the save made Y's by spike 212's `y`), the same until the beam: from it on, X's light is blue
+# and purple and Y's pink and red, and the flower's heart X's blue orb and Y's red spike.
+[[scene]]
+after = "story:379:20"
+zone = 0x5f
+title = 0x0004000000055D00
+
+[[scene.beat]]
+demo = true
+at = 1.5
+id = "weapon-monitor"
+
+[[scene.beat]]
+at = 6
+id = "weapon-stones"
+
+[[scene.beat]]
+at = 14
+id = "weapon-sink"
+
+[[scene.beat]]
+at = 16.5
+id = "weapon-dust"
+
+[[scene.beat]]
+at = 19
+id = "weapon-spike"
+
+[[scene.beat]]
+at = 23
+id = "weapon-rocks"
+
+[[scene.beat]]
+at = 27
+id = "weapon-bud"
+
+[[scene.beat]]
+at = 39.5
+id = "weapon-above"
+
+[[scene.beat]]
+at = 41.5
+id = "weapon-beam"
+
+[[scene.beat]]
+at = 53
+id = "weapon-bloom"
+
+[[scene.beat]]
+at = 58.5
+id = "weapon-canopy"
+
+[[scene.beat]]
+at = 66.5
+id = "weapon-heart"
+
+[[scene.beat]]
+at = 70
+id = "weapon-over-town"
+
+[[scene]]
+after = "story:379:20"
+zone = 0x5f
+title = 0x0004000000055E00
+
+[[scene.beat]]
+demo = true
+at = 1.5
+id = "y-weapon-monitor"
+
+[[scene.beat]]
+at = 6
+id = "y-weapon-stones"
+
+[[scene.beat]]
+at = 14
+id = "y-weapon-sink"
+
+[[scene.beat]]
+at = 16.5
+id = "y-weapon-dust"
+
+[[scene.beat]]
+at = 19
+id = "y-weapon-spike"
+
+[[scene.beat]]
+at = 23
+id = "y-weapon-rocks"
+
+[[scene.beat]]
+at = 27
+id = "y-weapon-bud"
+
+[[scene.beat]]
+at = 39.5
+id = "y-weapon-above"
+
+[[scene.beat]]
+at = 41.5
+id = "y-weapon-beam"
+
+[[scene.beat]]
+at = 53
+id = "y-weapon-bloom"
+
+[[scene.beat]]
+at = 58.5
+id = "y-weapon-canopy"
+
+[[scene.beat]]
+at = 66.5
+id = "y-weapon-heart"
+
+[[scene.beat]]
+at = 70
+id = "y-weapon-over-town"
