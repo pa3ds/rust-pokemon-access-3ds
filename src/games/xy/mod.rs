@@ -685,8 +685,10 @@ pub const DOORS: [i64; 3] = [0x0201, 0x0F01, 0x3600];
 /// each arriving at a mat out. Entrances: ways in from outdoors to one building's mat or Gym, the
 /// Gyms of Santalune, Laverre, Anistar, Snowbelle, Shalour, Cyllage and Coumarine, Prism Tower's
 /// four, Shabboneau Castle, Ambrette Aquarium, Kiloude Station, the Battle Maison, the Battle Chateau
-/// and the Poké Ball Factory's inner building. Left "warp": `0x0202`, `0x0203`, `0x0300`, `0x0302`
-/// and `0x0303`, which lead into houses and between outdoor zones alike.
+/// and the Poké Ball Factory's inner building. Left out, and said by their high byte as every kind
+/// not here is (`FieldReader._warp`): `0x0202` and `0x0203` "way out", and `0x0300`, `0x0302` and
+/// `0x0303`, which lead into houses and between outdoor zones alike, "door", or "path" between two
+/// zones of the open air (ADR-0042).
 ///
 /// Python builds it with `dict.fromkeys` over each frozenset, so its order is each set's as
 /// CPython lays it out (`PySet`).
