@@ -46,6 +46,7 @@ use std::rc::Rc;
 use indexmap::IndexMap;
 
 use crate::core::binary::{f32, u32};
+use crate::core::clips;
 use crate::core::discovery::HEAP_SPAN;
 use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
@@ -112,6 +113,13 @@ pub const GIANT_SWEET: f64 = 104.0;
 /// which the spike's own taps, sent by a timer, all hit the sweet spot; Orion's, by ear, hit nothing
 /// at it (2026-11-01).
 pub const LEAD: f64 = 0.4;
+/// The game's frames a second as `gen6.frames` counts them, the screen's: 59.83. Most falls fit
+/// best stepping every other one, and the round's own count of frames (`Process` +0x60, 30 a second)
+/// stands still while the giant ball falls (spike B, live).
+pub const FRAME_RATE: f64 = 268111856.0 / 4481136.0;
+/// Seconds of ticks the frame clock is set by: when each frame began, by the tick that read its
+/// count soonest after, so a stall of the emulator is forgotten a second on.
+pub const WINDOW: f64 = 1.0;
 /// Seconds a ball is followed before it may be cued. Timed by fewer heights, read from one tick to
 /// the next a frame apart or none, its speed jumped; and on a tape, whose heights change five times
 /// a second, a ball 43 units lower a tick later was cued 374 above `SWEET` (as_amie_head_it).
@@ -138,6 +146,8 @@ pub const LOG: &str = "head it";
 
 /// `Callable[[int], None]`: what sounds the cue for a ball in a column.
 pub type Cue = Rc<dyn Fn(i64)>;
+/// `Callable[[], int | None]`: the game's count of frames (`gen6.frames`).
+pub type Frames = Rc<dyn Fn() -> Result<Option<i64>>>;
 
 /// A ball on its way down, as the screen's poll read it.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -171,6 +181,15 @@ pub struct HeadIt {
     pub(crate) cue: Option<Cue>,
     lead: f64,
     clock: Rc<dyn Fn() -> f64>,
+    /// The game's count of frames (`gen6.frames`), which times a ball's fall, or None where it
+    /// cannot be read, and the clock does.
+    frames: Frames,
+    sleep: Rc<dyn Fn(f64)>,
+    /// The last second's ticks: when each read, and the game's count of frames then.
+    ticks: Vec<(f64, Option<i64>)>,
+    /// Each ball falling -> for each of its heights, the game's count of frames as it was
+    /// read, and as the tick before read it, which saw the height before (`_stepped`).
+    reads: IndexMap<i64, Vec<(i64, Option<i64>)>>,
     /// Plays a Pokémon's cry toward its side as its ball comes, and says whether it did; None
     /// where Pokémon are said by name alone (`[pa3ds.amie] feedback_style`).
     cry: Option<Crier>,
@@ -204,7 +223,8 @@ impl HeadIt {
     pub const CLASSES: [&'static str; 2] = [MODEL, APP];
 
     /// `HeadIt(...)` with every argument; Python's `lead` defaults to `LEAD`, its `clock` to
-    /// `time.monotonic`, its `cry` to None and its `instead` to False.
+    /// `time.monotonic`, its `cry` to None, its `instead` to False, its `frames` to none and its
+    /// `sleep` to `time.sleep`.
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         memory: Rc<dyn Memory>,
@@ -217,6 +237,8 @@ impl HeadIt {
         clock: Rc<dyn Fn() -> f64>,
         cry: Option<Crier>,
         instead: bool,
+        frames: Frames,
+        sleep: Rc<dyn Fn(f64)>,
     ) -> Self {
         HeadIt {
             memory,
@@ -230,6 +252,10 @@ impl HeadIt {
             cue,
             lead,
             clock,
+            frames,
+            sleep,
+            ticks: Vec::new(),
+            reads: IndexMap::new(),
             cry,
             instead,
             heights: IndexMap::new(),
@@ -291,7 +317,8 @@ impl HeadIt {
         self.round = phase.is_some_and(|phase| (FALLING..=LAST).contains(&phase));
         if !self.round {
             (self.falling, self.missed) = (IndexMap::new(), PySet::new());
-            (self.heights, self.cued) = (IndexMap::new(), PySet::new());
+            (self.heights, self.reads, self.cued) =
+                (IndexMap::new(), IndexMap::new(), PySet::new());
             return Ok(said);
         }
         let mut falling = self.balls()?;
@@ -358,6 +385,8 @@ impl HeadIt {
         let falling = &self.falling;
         self.heights
             .retain(|pane, _| falling.contains_key(pane) && !gone.contains(*pane));
+        let heights = &self.heights;
+        self.reads.retain(|pane, _| heights.contains_key(pane));
         // `falling.keys() - gone`: a set of the dict's keys, `gone`'s discarded from it.
         let mut left = PySet::of_dict(&falling_keys);
         left.difference_update(&gone);
@@ -530,45 +559,99 @@ impl HeadIt {
 
     /// Follow each ball falling, every tick, and sound the cue as it is due: the lead before
     /// the ball reaches its sweet spot, `SWEET` or the giant's `GIANT_SWEET`, by its whole fall
-    /// so far (`due`), at the read nearest that moment. Balls fall at different speeds
-    /// (Bulbapedia: slow, fast and quickening with a combo), and each faster and faster: on
-    /// as_amie_head_it's tape one went from 120 units a second to 520 over 2 s, another reached
-    /// 680 at `SWEET`. A height changes once a frame, a thirtieth of a second, so a cue sounded
-    /// at the first read past its moment was half a frame late on the whole (spike 273, live).
-    /// The screen's poll, a fifth of a second, finds the balls; a ball's height alone is read
-    /// every tick.
+    /// so far (`due`). Balls fall at different speeds (Bulbapedia: slow, fast and quickening
+    /// with a combo), and each faster and faster: on as_amie_head_it's tape one went from 120
+    /// units a second to 520 over 2 s, another reached 680 at `SWEET`. The screen's poll, a
+    /// fifth of a second, finds the balls; a ball's height alone is read every tick.
+    ///
+    /// A tick reads 10 to 40 ms apart, up to a frame or two after the ball stepped, so each
+    /// height is timed by the frame of the game's count it stepped on (`stepped`), a tick a
+    /// frame turned in left out; a frame's moment is when the tick that read its count soonest
+    /// after it did, over the last second (`WINDOW`). And a cue due before the next tick waits
+    /// for its moment here, where it sounded at the read nearest it, up to half a tick off. A
+    /// perfect player's taps, the lead after each cue on Hard, found the ball 0 to 50 above the
+    /// middle at the next read 32 times in 33, against 23 to 28 before (spike B, live). Without
+    /// the count, each height is timed as it was read.
     pub fn tick(&mut self) -> Result<()> {
         let Some(cue) = self.cue.clone() else {
             return Ok(());
         };
-        let now = (self.clock)();
+        let counted = (self.frames)()?;
         let y = self.layouts.shape.y;
+        // Not through `Layouts`, which keeps what it read until the screen's next poll.
+        let mut heights: IndexMap<i64, f64> = IndexMap::new();
         for (&pane, ball) in &self.falling {
-            let (column, sweet) = (ball.column, ball.sweet);
-            // Not through `Layouts`, which keeps what it read until the screen's next poll.
-            let height = f32(&self.memory.read(pane + y, 4)?, 0)? - ball.root;
+            heights.insert(pane, f32(&self.memory.read(pane + y, 4)?, 0)? - ball.root);
+        }
+        let now = (self.clock)();
+        if counted.is_some() && (self.frames)()? != counted {
+            return Ok(());
+        }
+        let before = self.ticks.last().and_then(|&(_, count)| count);
+        self.ticks.retain(|&(when, _)| now - when < WINDOW);
+        self.ticks.push((now, counted));
+        let (origin, at) = match counted {
+            None => (0.0, now),
+            Some(counted) => {
+                // Python's `min(...)`: the first of equal least.
+                let mut origin: Option<f64> = None;
+                for &(when, count) in &self.ticks {
+                    if let Some(count) = count {
+                        let each = when - count as f64 / FRAME_RATE;
+                        if origin.is_none_or(|least| each < least) {
+                            origin = Some(each);
+                        }
+                    }
+                }
+                (
+                    origin.expect("this tick's count"),
+                    counted as f64 / FRAME_RATE,
+                )
+            }
+        };
+        // The next tick, as far off as the last.
+        let ahead = if self.ticks.len() > 1 {
+            now - self.ticks[self.ticks.len() - 2].0
+        } else {
+            0.0
+        };
+        for (&pane, ball) in &self.falling {
+            let (column, sweet, height) = (ball.column, ball.sweet, heights[&pane]);
             let seen = self.heights.entry(pane).or_default();
+            let reads = self.reads.entry(pane).or_default();
             // Not moved since, the same frame read again; or headed back up, a fall no longer.
             if !seen.is_empty() && height == seen[seen.len() - 1].1 {
                 continue;
             }
             if !seen.is_empty()
                 && height
-                    < seen[seen.len() - 1].1 - FASTEST * (now - seen[seen.len() - 1].0) - MISREAD
+                    < seen[seen.len() - 1].1 - FASTEST * (at - seen[seen.len() - 1].0) - MISREAD
             {
                 continue;
             }
             if !seen.is_empty() && height > seen[seen.len() - 1].1 {
                 seen.clear();
+                reads.clear();
             }
-            seen.push((now, height));
-            if self.cued.contains(pane) || height < sweet || now - seen[0].0 < RUN_IN {
+            seen.push((at, height));
+            if let Some(counted) = counted {
+                reads.push((counted, before));
+            }
+            if self.cued.contains(pane) || height < sweet || at - seen[0].0 < RUN_IN {
                 continue;
             }
-            // Now, or at the next read, whichever is nearer the moment.
-            if due(seen, sweet) - self.lead <= (now - seen[seen.len() - 2].0) / 2.0 {
+            let timed = if reads.len() == seen.len() {
+                stepped(seen, reads)
+            } else {
+                seen.clone()
+            };
+            let moment = origin + timed[timed.len() - 1].0 + due(&timed, sweet) - self.lead;
+            if moment - now <= ahead {
+                // Python's `max(0.0, x)`: the first unless the second is strictly greater.
+                let wait = moment - (self.clock)();
+                (self.sleep)(if wait > 0.0 { wait } else { 0.0 });
                 self.cued.add(pane);
-                self.cues.insert(column, now);
+                self.cues.insert(column, (self.clock)());
                 cue(column);
             }
         }
@@ -662,11 +745,12 @@ fn column(x: f64) -> i64 {
 /// Seconds from the newest read until a ball reaches the height `at`, below 0 once past it,
 /// from the (when, height) of its whole fall so far, oldest first: a parabola fitted to them by
 /// least squares, all but the first, which can be the spare balls' 480 where the ball was 264 a
-/// tick later (spike 273, live). A ball speeds up steadily as it falls, and each read is timed
-/// as it was read, up to a frame after the game drew it, so the more of the fall the better:
-/// over 528 falls of the live runs, replayed, its moment came within a frame of the cue's for
-/// 75% of them, where the speeds over the last 0.2 s alone managed 44%, and within 50 ms for
-/// 92%, against 58% (spike 273). Never, for a ball no longer falling.
+/// tick later (spike 273, live). A ball speeds up steadily as it falls, so the more of the fall
+/// the better: over 528 falls of the live runs, each height timed as it was read, its moment
+/// came within a frame of the cue's for 75% of them, where the speeds over the last 0.2 s alone
+/// managed 44%, and within 50 ms for 92%, against 58% (spike 273). Timed by the frames the ball
+/// stepped on (`stepped`), a fall lies on its parabola exactly (spike B). Never, for a ball no
+/// longer falling.
 pub fn due(seen: &[(f64, f64)], at: f64) -> f64 {
     let Some((a, b, c)) = parabola(py::slice_from(seen, 1), seen[seen.len() - 1].0) else {
         return f64::INFINITY;
@@ -679,6 +763,50 @@ pub fn due(seen: &[(f64, f64)], at: f64) -> f64 {
         return f64::INFINITY;
     }
     2.0 * left / (-b + reach.sqrt())
+}
+
+/// A ball's (when, height) timed by the frames it stepped on, from the game's count of frames
+/// as each height was read and as the tick before read the one before it: a ball steps every
+/// frame, or every other one, odd or even, and its heights lie on a parabola of its steps, so of
+/// the three the one it fits best, leaving out any with a step no later than the tick that still
+/// saw the height before. Its first height, which can be stale, is kept as it was read.
+pub fn stepped(seen: &[(f64, f64)], reads: &[(i64, Option<i64>)]) -> Vec<(f64, f64)> {
+    let (mut best, mut least) = (seen.to_vec(), f64::INFINITY);
+    'parities: for parity in [None, Some(0), Some(1)] {
+        let mut points: Vec<(f64, f64)> = py::slice(seen, 0, 1).to_vec();
+        for (&(_, height), &(counted, before)) in seen.iter().skip(1).zip(reads.iter().skip(1)) {
+            let frame = match parity {
+                None => counted,
+                Some(parity) => counted - py::modulo(counted - parity, 2),
+            };
+            if before.is_some_and(|before| frame <= before) {
+                continue 'parities;
+            }
+            points.push((frame as f64 / FRAME_RATE, height));
+        }
+        let spread = spread(py::slice_from(&points, 1));
+        if spread < least {
+            (best, least) = (points, spread);
+        }
+    }
+    best
+}
+
+/// How far the points lie off the parabola fitted to them, squared and summed.
+fn spread(points: &[(f64, f64)]) -> f64 {
+    if points.is_empty() {
+        return f64::INFINITY;
+    }
+    let Some((a, b, c)) = parabola(points, points[points.len() - 1].0) else {
+        return f64::INFINITY;
+    };
+    let origin = points[points.len() - 1].0;
+    clips::sum(points.iter().map(|&(t, height)| {
+        power_of(
+            a + b * (t - origin) + c * power_of(t - origin, 2) - height,
+            2,
+        )
+    }))
 }
 
 /// The least-squares height = a + b t + c t^2 through the points, t from `origin`; None for

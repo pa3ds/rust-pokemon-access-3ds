@@ -66,7 +66,7 @@ use crate::games::gen6::rom::cries::Crier;
 use crate::py::{self, Result};
 use amie::{AmiePage, Goods, Puffs};
 use berry_picker::{BerryKeys, BerryPicker, Touching};
-use head_it::{Cue, HeadIt, HeadItKeys};
+use head_it::{Cue, Frames, HeadIt, HeadItKeys};
 use puzzle::TilePuzzle;
 use super_training::{Bags, Goals, Round, TrainingPage, Waiting};
 
@@ -334,6 +334,7 @@ impl Subscreens {
         describing: bool,
         cue: Option<Cue>,
         cry: Option<Crier>,
+        frames: Frames,
     ) -> Subscreens {
         // The Pokémon-Amie page draws its Pokémon's icon, and says nothing of whose; Amie itself is
         // stroked by a slide over it.
@@ -427,6 +428,8 @@ impl Subscreens {
             Rc::new(py::time::monotonic),
             crying,
             instead,
+            frames,
+            Rc::new(py::time::sleep),
         )));
         // And its own keys, a Pokémon's, which tap it.
         let head_keys = Rc::new(HeadItKeys::new(head_it.clone(), wrong));

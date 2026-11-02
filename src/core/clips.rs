@@ -322,7 +322,7 @@ pub fn mix(layers: &[(Sound, f64)]) -> Result<Sound> {
 
 /// Python's `sum` of floats: the first added to the int 0 as it is, and the rest by Neumaier's
 /// compensated sum, as CPython has added floats since 3.12.
-fn sum(values: impl Iterator<Item = f64>) -> f64 {
+pub(crate) fn sum(values: impl Iterator<Item = f64>) -> f64 {
     let (mut total, mut compensation) = (0.0f64, 0.0f64);
     for (index, value) in values.enumerate() {
         if index == 0 {

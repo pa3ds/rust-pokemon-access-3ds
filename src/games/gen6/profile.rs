@@ -755,6 +755,9 @@ impl Gen6Profile {
                 }
             })
         };
+        // The input device managers `_frames` reads the game's count of frames through, made here
+        // where Python's are made below: Head It's cue is handed `_frames`, as the scenes are.
+        let managers = Rc::new(RefCell::new(PySet::new()));
         // The subscreens, Pokémon-Amie's and Super Training's and the apps they open, which name
         // what they draw, offer what no touch area does, and answer keys of their own, Berry
         // Picker's.
@@ -778,6 +781,7 @@ impl Gen6Profile {
                 .is_some_and(|sounds| sounds.names().contains(CUE_SOUND))
                 .then_some(cue),
             cry,
+            frames_of(memory.clone(), managers.clone()),
         ));
         let classes: IndexSet<String> = HEAP_CLASSES
             .iter()
@@ -1023,7 +1027,6 @@ impl Gen6Profile {
         );
         // The scenes the game shows without words, described where the player asks and the game
         // has descriptions in their language (ADR-0038), those of the other version left out.
-        let managers = Rc::new(RefCell::new(PySet::new()));
         let scenes = if ui.descriptions && text.loaded() {
             // Python raises out of `__init__` here; `new` returns no `Result`, and nothing the
             // file or the ROM holds raises in `load` but a line number in digits no int reads.

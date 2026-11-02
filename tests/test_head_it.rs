@@ -17,7 +17,7 @@ use crate::games::common::{lyt, pokemon};
 use crate::games::gen6::rom::cries::Crier;
 use crate::games::gen6::subscreen::berry_picker::Touching;
 use crate::games::gen6::subscreen::head_it;
-use crate::py::Result;
+use crate::py::{self, Result};
 
 const MODEL: i64 = 0x08B00000;
 const PARAM: i64 = 0x08B10000;
@@ -65,6 +65,8 @@ struct Given {
     clock: Rc<dyn Fn() -> f64>,
     cry: Option<Crier>,
     instead: bool,
+    frames: head_it::Frames,
+    sleep: Rc<dyn Fn(f64)>,
 }
 
 impl Default for Given {
@@ -74,6 +76,8 @@ impl Default for Given {
             clock: Rc::new(|| 0.0),
             cry: None,
             instead: false,
+            frames: Rc::new(|| Ok(None)),
+            sleep: Rc::new(|_seconds| {}),
         }
     }
 }
@@ -81,14 +85,16 @@ impl Default for Given {
 /// As as_amie_head_it's round went 30 s in: Poochyena down on the left, Ralts up in the
 /// middle and rowan up on the right; a ball falling at the middle, the giant ball parked off to
 /// the right and a ball past the bottom (spike 273). The game, the memory, the balls' panes and the
-/// layouts. With `cue`, the cue is on, sounding through it, timed by `clock`; with `cry`, the
-/// Pokémon's cries, `instead` of their names or not.
+/// layouts. With `cue`, the cue is on, sounding through it, timed by `clock`, the game's
+/// `frames` and `sleep`; with `cry`, the Pokémon's cries, `instead` of their names or not.
 fn game_given(given: Given) -> Game {
     let Given {
         cue,
         clock,
         cry,
         instead,
+        frames,
+        sleep,
     } = given;
     let memory = FakeMemory::new();
     let classes = FakeClasses::new(memory.clone());
@@ -141,6 +147,8 @@ fn game_given(given: Given) -> Game {
         clock,
         cry,
         instead,
+        frames,
+        sleep,
     );
     memory.u32(APP, &[classes.add(head_it::APP)]);
     memory.u32(APP + head_it::PHASE, &[head_it::FALLING]);
@@ -457,6 +465,54 @@ fn test_a_ball_read_at_uneven_times_with_a_stale_first_height_is_cued_within_a_f
     assert_eq!(cued.borrow().len(), 1);
     let when = cued.borrow()[0].0;
     assert!((when - 0.635).abs() <= 1.0 / 30.0, "{when}");
+}
+
+/// Spike B: a cue sounded at the read nearest its moment was up to half a tick off. Each
+/// height is timed by the frame the ball stepped on, by the game's count of frames, and the cue
+/// waits for its moment: timed by the frame each height was read in, this one was 25 ms
+/// early.
+#[test]
+fn test_a_ball_timed_by_the_games_frames_is_cued_at_its_moment_however_late_it_is_read() {
+    let (cued, cue, now, clock) = cued();
+    let counted = Rc::new(Cell::new(0i64));
+    let mut game = game_given(Given {
+        cue: Some(cue),
+        clock,
+        frames: {
+            let counted = counted.clone();
+            Rc::new(move || Ok(Some(counted.get())))
+        },
+        sleep: {
+            let now = now.clone();
+            Rc::new(move |seconds: f64| now.set(now.get() + seconds))
+        },
+        ..Given::default()
+    });
+    heard(&mut game.found, head_it::APP);
+    // The ball moves every other frame, from 400 at 120 a second, 450 faster each second: at
+    // `SWEET` at 1.0346 s, so due 0.4 s ahead at 0.6346. Each tick reads 10 to 40 ms after the
+    // last, 0 to 25 ms into a frame, in patterns that repeat.
+    let mut tick = 0.0;
+    for step in 0..60 {
+        tick += [0.01, 0.04, 0.025, 0.03][step % 4];
+        counted.set(py::int(tick * head_it::FRAME_RATE).unwrap());
+        let moved = (counted.get() / 2 * 2) as f64 / head_it::FRAME_RATE;
+        place(
+            &game.memory,
+            game.panes[0],
+            0.0,
+            (400.0 - 120.0 * moved - 225.0 * moved.powf(2.0)) as f32,
+        );
+        // Python's `max(now, x)`: the first unless the second is strictly greater.
+        let read = tick + [0.0, 0.02, 0.005, 0.015, 0.025][step % 5];
+        if read > now.get() {
+            now.set(read);
+        }
+        game.found.tick().unwrap();
+    }
+    assert_eq!(cued.borrow().len(), 1);
+    let when = cued.borrow()[0].0;
+    assert!((when - 0.6346).abs() <= 0.003, "{when}");
 }
 
 /// Bigger, it is headed higher (spike 273, live): cued for the others' `SWEET`, its "!" came
