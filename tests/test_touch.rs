@@ -145,6 +145,60 @@ fn test_a_held_press_stays_down_moves_and_lets_go_when_released_or_held_too_long
     server.close();
 }
 
+/// Pokémon-Amie's Pokémon turns round only to separate presses, and the stroke key pressed
+/// again mid-stroke had carried one press on for 16 s (spike A): a new slide lets go for
+/// `LIFT` before it presses.
+#[test]
+fn test_a_press_asked_for_while_one_is_down_lifts_first() {
+    let server = touch::TouchServer::new(Arc::new(|_line: &str| {}), 0).unwrap();
+    let port = server.port().unwrap();
+    let client = UdpSocket::bind((touch::HOST, 0)).unwrap();
+    client
+        .set_read_timeout(Some(Duration::from_secs(1)))
+        .unwrap();
+    let mut ask = b"DSUC".to_vec();
+    ask.extend_from_slice(&1001u16.to_le_bytes());
+    ask.extend_from_slice(&12u16.to_le_bytes());
+    ask.extend_from_slice(&0u32.to_le_bytes());
+    ask.extend_from_slice(&1u32.to_le_bytes());
+    ask.extend_from_slice(&(touch::PAD_DATA as u32).to_le_bytes());
+    ask.extend_from_slice(&[0; 8]);
+    client.send_to(&ask, (touch::HOST, port as u16)).unwrap();
+    time::sleep(0.05);
+    server.slide(&[(100, 100), (200, 100)], 1.0);
+    time::sleep(0.2);
+    server.slide(&[(50, 50)], 0.5);
+    let mut pressed: Vec<u8> = Vec::new();
+    let deadline = time::monotonic() + 0.4;
+    let mut buffer = [0u8; 100];
+    while time::monotonic() < deadline {
+        let size = client.recv(&mut buffer).unwrap();
+        pressed.push(buffer[20..size][36]);
+    }
+    // `itertools.groupby`: each run of one state, with its length.
+    let mut runs: Vec<(u8, usize)> = Vec::new();
+    for down in pressed {
+        match runs.last_mut() {
+            Some((state, count)) if *state == down => *count += 1,
+            _ => runs.push((down, 1)),
+        }
+    }
+    let lifted: Vec<usize> = runs
+        .iter()
+        .filter(|(down, _)| *down == 0)
+        .map(|&(_, count)| count)
+        .collect();
+    assert!(
+        runs.last().unwrap().0 == 1 && !lifted.is_empty(),
+        "{runs:?}"
+    );
+    assert!(
+        *lifted.iter().max().unwrap() as f64 >= touch::LIFT / touch::TICK * 0.6,
+        "{runs:?}"
+    );
+    server.close();
+}
+
 /// Azahar takes a pad's state only when its counter is past every one it has taken since it
 /// opened, from any server: one game read after another, or a pa3ds started in another's place,
 /// had its taps dropped while it counted up from one again (2026-10-20).

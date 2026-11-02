@@ -18,7 +18,8 @@
 //! frame, so a press is a run of frames, and it is the change from released to pressed that a
 //! button takes (Amethyst's touch module for Black and White does the same through BizHawk).
 //! Azahar keeps the last state it was sent, so a finger is never left down: every tap ends in a
-//! release, and closing the server sends one.
+//! release, and closing the server sends one. A tap, slide or hold asked for while a press is
+//! still down lets go for `LIFT` first: carried on, it was no new touch to the game.
 //!
 //! A slide is a press that moves, along a path walked evenly in time and let go at its end:
 //! Pokémon-Amie is stroked so, and answers it with its hand on the Pokémon (spike 200). A tap is a
@@ -56,6 +57,12 @@ pub const WIDTH: i64 = 320;
 pub const HEIGHT: i64 = 240;
 /// How long a tap presses: six frames, a press a button takes as one.
 pub const HOLD: f64 = 0.1;
+/// How long the stylus is lifted before a tap, slide or hold that comes while a press is still
+/// down. Carried on, the press was one touch to the game: Pokémon-Amie's Pokémon, its back to the
+/// player, turns only to separate presses, and the stroke key pressed again within a stroke's three
+/// seconds kept one press down for 16 s, Ralts turning away all along (as_amie_petting_issue,
+/// spike A).
+pub const LIFT: f64 = HOLD;
 /// How often the pad's state is sent while a client listens: twice a frame.
 pub const TICK: f64 = 1.0 / 120.0;
 /// How far the pad's counter climbs a second, by the clock. Azahar takes a state only when its
@@ -237,10 +244,29 @@ struct State {
     until: f64,
     /// When a press held between keys is let go whatever happens, or 0 with none held.
     held: f64,
+    /// When the last press let go.
+    up: f64,
     /// `HELD`, as this server keeps it.
     held_for: f64,
     counter: i64,
     clients: IndexMap<SocketAddr, f64>,
+}
+
+impl State {
+    /// When a press asked for now goes down: `LIFT` after the last one let go, lifting one
+    /// still down now, so the game takes it for a new touch. Called holding the lock.
+    fn new_press(&mut self) -> f64 {
+        let now = time::monotonic();
+        if self.touch.is_some() {
+            (self.touch, self.up) = (None, now);
+        }
+        // Python's `max(now, up + LIFT)`: the first unless the second is strictly greater.
+        if self.up + LIFT > now {
+            self.up + LIFT
+        } else {
+            now
+        }
+    }
 }
 
 /// What the server's thread and its caller's share.
@@ -294,6 +320,7 @@ impl TouchServer {
                 start: 0.0,
                 until: 0.0,
                 held: 0.0,
+                up: 0.0,
                 held_for: HELD,
                 counter: 0,
                 clients: IndexMap::new(),
@@ -342,10 +369,8 @@ impl TouchServer {
             return None;
         }
         let mut state = self.inner.locked();
-        state.start = time::monotonic();
+        (state.path, state.start) = (points, state.new_press());
         state.until = state.start + seconds;
-        state.touch = Some(points[0]);
-        state.path = points;
         state.held = 0.0;
         None
     }
@@ -358,10 +383,8 @@ impl TouchServer {
         }
         let point = on_screen(x, y);
         let mut state = self.inner.locked();
-        state.start = time::monotonic();
-        state.path = vec![point];
+        (state.path, state.start) = (vec![point], state.new_press());
         state.until = state.start;
-        state.touch = Some(point);
         state.held = state.start + state.held_for;
         None
     }
@@ -369,17 +392,23 @@ impl TouchServer {
     /// Slide a held press from where it is on to (x, y) over `MOVE` seconds, still down.
     pub fn r#move(&self, x: i64, y: i64) {
         let mut state = self.inner.locked();
-        let Some(touch) = state.touch.filter(|_| state.held != 0.0) else {
+        if state.held == 0.0 || state.path.is_empty() {
             return;
-        };
-        state.path = vec![touch, on_screen(x, y)];
-        state.start = time::monotonic();
+        }
+        let here = state.touch.unwrap_or(state.path[state.path.len() - 1]);
+        state.path = vec![here, on_screen(x, y)];
+        // Python's `max(start, now)`: the first unless the second is strictly greater.
+        let now = time::monotonic();
+        state.start = if now > state.start { now } else { state.start };
         state.until = state.start + MOVE;
     }
 
     /// Let a held press go where it is.
     pub fn release(&self) {
         let mut state = self.inner.locked();
+        if state.touch.is_some() {
+            state.up = time::monotonic();
+        }
         (state.touch, state.path, state.held) = (None, Vec::new(), 0.0);
     }
 
@@ -470,20 +499,28 @@ impl Inner {
             {
                 let mut state = self.locked();
                 let now = time::monotonic();
-                let mut touch = along(&state.path, state.start, state.until, now);
-                if touch.is_none() && !state.path.is_empty() && now < state.held {
-                    touch = state.path.last().copied();
-                } else if touch.is_none() && state.held != 0.0 {
-                    (self.log)(&format!(
-                        "touch: a press held {} s let go",
-                        py::fixed(state.held_for, 0)
-                    ));
-                    state.held = 0.0;
+                let touch = if now < state.start {
+                    None // lifted before the next press (`LIFT`)
+                } else {
+                    let mut touch = along(&state.path, state.start, state.until, now);
+                    if touch.is_none() && !state.path.is_empty() && now < state.held {
+                        touch = state.path.last().copied();
+                    } else if touch.is_none() && state.held != 0.0 {
+                        (self.log)(&format!(
+                            "touch: a press held {} s let go",
+                            py::fixed(state.held_for, 0)
+                        ));
+                        state.held = 0.0;
+                    }
+                    if touch.is_none() {
+                        state.path = Vec::new();
+                    }
+                    touch
+                };
+                if touch.is_none() && state.touch.is_some() {
+                    state.up = now;
                 }
                 state.touch = touch;
-                if touch.is_none() {
-                    state.path = Vec::new();
-                }
             }
             self.send();
         }

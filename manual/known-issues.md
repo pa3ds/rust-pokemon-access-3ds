@@ -16,7 +16,8 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
   begins, the last
   swap's points are said as it is solved, and a tile says where its piece of the picture belongs,
   not what is on it. pa3ds does not say when your Pokémon has eaten a Poké Puff, and only the five
-  puffs the bar shows at once are offered.
+  puffs the bar shows at once are offered. It does not say when your Pokémon in Amie has its back
+  to you, or when it turns round.
 - **X, Y, Sun and Moon** are read less completely than Omega Ruby and Alpha Sapphire.
 
 ## The map

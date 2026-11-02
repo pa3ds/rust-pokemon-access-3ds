@@ -93,7 +93,9 @@ mode offers "continue", and a tap goes on with the message. The PlayNav's "previ
 turn the page instead, away from the message.
 
 In Pokémon-Amie, touch mode offers to stroke your Pokémon, and the tap key strokes it. This is an
-experiment. Its Poké Puffs button opens a bar of puffs, each said by its kind. To give one, hold
+experiment. Amie sometimes opens with your Pokémon's back to you and its buttons hidden: stroke it
+two or three times and it turns round and comes up to you, and the buttons appear. Its Poké Puffs
+button opens a bar of puffs, each said by its kind. To give one, hold
 Shift on it and carry it to your Pokémon, and keep Shift down while your Pokémon eats it: let go
 once you hear it finish and cry, a few seconds, longer for some Pokémon than others. In its Tile
 Puzzle, each tile is said as a spreadsheet names a cell, its column a letter from A and its row a
