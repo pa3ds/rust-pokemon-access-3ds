@@ -18,6 +18,7 @@
 //! Bound by:
 //! - ADR-0024: a turn costs as much as a step, and of ways as cheap the one whose legs run longest
 //!   first is said.
+//! - ADR-0042: of ways as cheap, the one crossing fewest zones comes first (`fewest`).
 
 use std::cell::{Cell as Slot, RefCell};
 use std::cmp::{Ordering, Reverse};
@@ -281,6 +282,7 @@ pub struct Options<'a> {
     pub leap: Option<&'a dyn Fn(&[i64], Cell) -> Option<Cell>>,
     pub straight: bool,
     pub diagonal: bool,
+    pub part: Option<&'a dyn Fn(Cell) -> Result<i64>>,
 }
 
 impl Default for Options<'_> {
@@ -302,6 +304,7 @@ impl Default for Options<'_> {
             leap: None,
             straight: true,
             diagonal: false,
+            part: None,
         }
     }
 }
@@ -425,6 +428,9 @@ impl Ord for Entry<'_> {
 /// price, so the estimate counts the further of the two alone: counting both, it overstated, and
 /// a way across Santalune Gym's web or along Lumiose's slanted streets might not have been the
 /// cheapest (Orion, 2026-10-30).
+///
+/// `part` says which zone a cell is in, where the map has several: of the cheapest ways, `_chosen`
+/// keeps the ones crossing into another fewest times (ADR-0042).
 pub fn find(
     start: Cell,
     goals: &IndexMap<Cell, Option<&'static str>>,
@@ -449,6 +455,7 @@ pub fn find(
         leap,
         straight,
         diagonal,
+        part,
     } = options;
     if goals.is_empty() {
         return Ok(None);
@@ -662,11 +669,11 @@ pub fn find(
         )?;
     }
     if spent.contains_key(&ARRIVED) {
-        let chosen = chosen(&came, &first, &ARRIVED)?;
+        let chosen = chosen(&came, &first, &ARRIVED, *part)?;
         return Ok(Some(back(&chosen, &chosen[&ARRIVED])));
     }
     Ok(if *closest {
-        Some(back(&chosen(&came, &first, &nearest.3)?, &nearest.3))
+        Some(back(&chosen(&came, &first, &nearest.3, *part)?, &nearest.3))
     } else {
         None
     })
@@ -709,16 +716,18 @@ fn relax<'a>(
     Ok(())
 }
 
-/// The way from `first` to `end` among the cheapest, as `_back` reads it: at each place, on the
-/// way the player is going where a cheapest way goes on so, and else the way a cheapest way goes
-/// on straight furthest, the first of `STEPS` and `DIAGONALS` where two go as far. So of ways
-/// that cost the same P says the one whose legs run longest first, "5 east, 2 north", by a rule
-/// of its own rather than the order the search went in: any search that finds every cheapest way
+/// The way from `first` to `end` among the cheapest, as `_back` reads it: of those crossing
+/// fewest zones where `part` says each cell's (`_fewest`), and then at each place, on the way
+/// the player is going where a cheapest way goes on so, and else the way a cheapest way goes on
+/// straight furthest, the first of `STEPS` and `DIAGONALS` where two go as far. So of ways that
+/// cost the same P says the one whose legs run longest first, "5 east, 2 north", by a rule of
+/// its own rather than the order the search went in: any search that finds every cheapest way
 /// into each place says the same way (Orion, 2026-10-30).
 fn chosen<'a>(
     came: &HashMap<Node<'a>, Vec<Node<'a>>>,
     first: &Node<'a>,
     end: &Node<'a>,
+    part: Option<&dyn Fn(Cell) -> Result<i64>>,
 ) -> Result<HashMap<Node<'a>, Node<'a>>> {
     // A set only tested and iterated to fill lists each of which `min` reads whole.
     let mut on: HashSet<Node> = HashSet::from([end.clone()]);
@@ -736,6 +745,9 @@ fn chosen<'a>(
         for was in came.get(node).into_iter().flatten() {
             onward.entry(was.clone()).or_default().push(node.clone());
         }
+    }
+    if let Some(part) = part {
+        onward = fewest(came, &onward, end, part)?;
     }
 
     // How far a cheapest way goes on straight from `one`, the way it was entered.
@@ -782,6 +794,67 @@ fn chosen<'a>(
             .clone();
         out.insert(ahead.clone(), node);
         node = ahead;
+    }
+    Ok(out)
+}
+
+/// `onward` cut to the steps of the ways into `end` that cross from one zone into another
+/// fewest times, counted back from `end`, a place once every step on from it is counted. Of
+/// ways as cheap through the Safari Zone, the one that keeps to a quarter (ADR-0042).
+fn fewest<'a>(
+    came: &HashMap<Node<'a>, Vec<Node<'a>>>,
+    onward: &HashMap<Node<'a>, Vec<Node<'a>>>,
+    end: &Node<'a>,
+    part: &dyn Fn(Cell) -> Result<i64>,
+) -> Result<HashMap<Node<'a>, Vec<Node<'a>>>> {
+    let crossed = |was: &Node, node: &Node| -> Result<i64> {
+        Ok(i64::from(*node != ARRIVED && part(was.0)? != part(node.0)?))
+    };
+
+    let mut fewest: HashMap<Node, i64> = HashMap::from([(end.clone(), 0)]);
+    let mut left: HashMap<Node, i64> = onward
+        .iter()
+        .map(|(node, nexts)| (node.clone(), nexts.len() as i64))
+        .collect();
+    let mut todo: Vec<Node> = vec![end.clone()];
+    while let Some(node) = todo.pop() {
+        for was in came.get(&node).into_iter().flatten() {
+            let through = fewest
+                .get(&node)
+                .copied()
+                .ok_or_else(|| Error::key(format!("{node:?}")))?
+                + crossed(was, &node)?;
+            if fewest.get(was).copied().unwrap_or(through) >= through {
+                fewest.insert(was.clone(), through);
+            }
+            let count = left
+                .get_mut(was)
+                .ok_or_else(|| Error::key(format!("{was:?}")))?;
+            *count -= 1;
+            if *count == 0 {
+                todo.push(was.clone());
+            }
+        }
+    }
+    let mut out: HashMap<Node, Vec<Node>> = HashMap::new();
+    for (was, nexts) in onward {
+        let mut kept: Vec<Node> = Vec::new();
+        for node in nexts {
+            let (here, there) = (
+                fewest
+                    .get(was)
+                    .copied()
+                    .ok_or_else(|| Error::key(format!("{was:?}")))?,
+                fewest
+                    .get(node)
+                    .copied()
+                    .ok_or_else(|| Error::key(format!("{node:?}")))?,
+            );
+            if here == there + crossed(was, node)? {
+                kept.push(node.clone());
+            }
+        }
+        out.insert(was.clone(), kept);
     }
     Ok(out)
 }

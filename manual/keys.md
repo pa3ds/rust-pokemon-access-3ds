@@ -134,7 +134,8 @@ says it for an exit or a step of the way into it: "way out to Northern Route 119
 the next part are listed as one exit, "path to Safari Zone Northeast", and `P` goes to the
 nearest. The list holds the whole place, whichever part you stand in, and a thing in another part
 says which after the way to it: "item ball, 12 west 30 north, Safari Zone Northwest". `P` keeps
-leading you to it from one part into the next.
+leading you to it from one part into the next, and of two ways as short takes the one through
+fewer parts.
 
 **Lining up.** The circle pad can leave you between two squares, and the game then refuses some
 steps past the corner of a wall. Where that would stop you, `P` first says which way to step,

@@ -124,6 +124,37 @@ fn test_of_ways_as_cheap_the_one_whose_legs_run_longest_first_is_said() {
     assert_eq!(said(path).as_deref(), Some("4 east, 2 south"));
 }
 
+/// ADR-0042: "3 east, 3 south" would go into the zone along the top and out of it again; of
+/// ways that cost the same, the one keeping to the player's zone comes first, and of those
+/// crossing as few, the rest of the rule chooses. Never a dearer way, to cross fewer.
+#[test]
+fn test_of_ways_as_cheap_the_one_crossing_fewest_zones_is_said_before_any_other_rule() {
+    let (walkable, box_) = drawn(&["....."; 5]);
+    let top = |cell: Cell| -> Result<i64> { Ok(i64::from(cell.1 == 0 && cell.0 >= 1)) };
+    let parted = Options {
+        part: Some(&top),
+        ..plain()
+    };
+    let path = find((0, 0), &goals(&[((3, 3), None)]), &*walkable, box_, &parted).unwrap();
+    assert_eq!(said(path).as_deref(), Some("3 south, 3 east"));
+    let path = find((0, 2), &goals(&[((3, 0), None)]), &*walkable, box_, &parted).unwrap();
+    assert_eq!(said(path).as_deref(), Some("3 east, 2 north"));
+    let one = |cell: Cell| -> Result<i64> { Ok(i64::from(cell == (2, 0))) };
+    let through = Options {
+        part: Some(&one),
+        ..plain()
+    };
+    let path = find(
+        (0, 0),
+        &goals(&[((4, 0), None)]),
+        &*walkable,
+        box_,
+        &through,
+    )
+    .unwrap();
+    assert_eq!(said(path).as_deref(), Some("4 east"));
+}
+
 /// Every cell a way can end on, by `find`'s moves, an end stepped into and not on from.
 #[test]
 fn test_reached_is_where_find_goes_a_ledge_down_and_never_up() {

@@ -5,6 +5,7 @@
 //! Bound by:
 //! - ADR-0024: a teleporter within its zone is walked onto and carries the player, a move of P's way
 //!   and of ctrl+P's walk out alike, and the partner it puts them on does nothing until stepped off.
+//! - ADR-0042: of ways as cheap, the one crossing fewest zones of the grid (`find`).
 
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
@@ -223,6 +224,11 @@ impl Grid {
             Some(&zone) => Ok(zone),
             None => Err(Error::index("tuple index out of range")),
         }
+    }
+
+    /// The zone id of the block `cell` is in.
+    pub fn of(&self, cell: Cell) -> Result<i64> {
+        self.at(py::floordiv(cell.0, BLOCK), py::floordiv(cell.1, BLOCK))
     }
 }
 
@@ -1719,7 +1725,7 @@ impl Ground {
     /// no measure of the way left, a teleport crossing Laverre Gym in one move, so the search
     /// goes by cost alone; on ground with diagonal steps a step can close two of the distance
     /// (`diagonal`). A way to a teleporter or an arrow ends on it, though it carries the
-    /// player on.
+    /// player on. Of ways as cheap, the one crossing fewest zones of the grid (`part`).
     ///
     /// Python's `heading`, `item`, `closest` and `walkable` default to "", None, False and None.
     pub fn find(
@@ -1756,6 +1762,10 @@ impl Ground {
         let slide = |cell: Cell| self.slide(cell);
         let stops = |cell: Cell, state: &[i64]| walk.stops(cell, state);
         let leap = |state: &[i64], cell: Cell| walk.leap(state, cell);
+        let part = |cell: Cell| match &self.grid {
+            Some(grid) => grid.of(cell),
+            None => Ok(NO_ZONE),
+        };
         pathfind::find(
             start,
             goals,
@@ -1778,6 +1788,11 @@ impl Ground {
                 leap: if walk.carries { Some(&leap) } else { None },
                 straight: !self.traversals().iter().any(|way| way.far()),
                 diagonal: self.diagonal(),
+                part: if self.grid.is_some() {
+                    Some(&part)
+                } else {
+                    None
+                },
             },
         )
     }
