@@ -659,3 +659,4 @@ place-0x64-furniture-2 = letto
 place-0x64-furniture-3 = letto
 place-0x64-furniture-4 = letto
 place-0x64-furniture-5 = letto
+place-0x156-furniture-0 = ascensore

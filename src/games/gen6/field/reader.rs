@@ -295,6 +295,8 @@ pub struct FieldReader {
     secret_bases: Option<Rc<dyn SecretBaseReader>>,
     /// The save's works and flags, which arm triggers and say which hidden items are found.
     works: Rc<Works>,
+    /// (zone, a warp's slot) -> the work and value it is taken at (`Game.armed_warps`).
+    armed_warps: IndexMap<(i64, i64), (i64, i64)>,
     /// Whether each zone's belts are turned round by its switch (`landform.Conveyors`).
     switches: Option<Switches>,
     /// The hidden items still to be found, where the Extra lists them (spike 249).
@@ -484,6 +486,7 @@ impl FieldReader {
             me: me.clone(),
             hidden_items: hidden_items(me),
             works,
+            armed_warps: game.armed_warps.clone(),
             switches: {
                 let states: IndexSet<(&'static str, i64)> = game
                     .landforms
@@ -1245,6 +1248,14 @@ impl FieldReader {
                 let shape = self.rails.on_grid(record, &files)?;
                 if (shape.is_none() && on_rail(record)?)
                     || self.landings.contains(&u16(record, WARP_KIND)?)
+                {
+                    continue;
+                }
+                // Both of a lift's warps stay listed until a sweep has found the works.
+                let armed = home.and_then(|home| self.armed_warps.get(&(home, i as i64)));
+                if let Some(&(work, value)) = armed
+                    && self.works.event.get().is_some()
+                    && !self.works.holds(work, value)?
                 {
                     continue;
                 }

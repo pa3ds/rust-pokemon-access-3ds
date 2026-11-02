@@ -659,3 +659,4 @@ place-0x64-furniture-2 = ベッド
 place-0x64-furniture-3 = ベッド
 place-0x64-furniture-4 = ベッド
 place-0x64-furniture-5 = ベッド
+place-0x156-furniture-0 = エレベータ

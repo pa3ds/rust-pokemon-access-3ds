@@ -660,3 +660,4 @@ place-0x64-furniture-2 = 床
 place-0x64-furniture-3 = 床
 place-0x64-furniture-4 = 床
 place-0x64-furniture-5 = 床
+place-0x156-furniture-0 = 电梯

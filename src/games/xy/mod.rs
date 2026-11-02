@@ -627,6 +627,19 @@ pub const WEB_STAIRS: i64 = 0x4;
 /// Python's is a frozenset of the range; a `Range` here, collected where a set is wanted.
 pub const ELEVATORS: std::ops::Range<i64> = 0x27DA..0x280A;
 
+pub const FLARE_LIFT: i64 = 0x156;
+pub const LIFT_WORK: i64 = 0x4149;
+/// The Team Flare Secret HQ's lift, zone 0x156, its two warps on its doorway at (16, 18): warp 0
+/// into the HQ, zone 0x153, and warp 1 up to Geosenge Town. Its panel, furniture 0 at (16, 14),
+/// runs case 1 of the zone's script, which moves one warp onto the doorway and the other off to
+/// (30, 30) by native 8 and sets work `0x4149`, 1 going down and 0 going up. In
+/// x_team_flare_secret_hq the work held 0 from Geosenge Town, 1 from the panel's press on, and the
+/// doorway then led into the HQ; the zone data's records never moved (spike 266).
+pub const ARMED_WARPS: [((i64, i64), (i64, i64)); 2] = [
+    ((FLARE_LIFT, 0), (LIFT_WORK, 1)),
+    ((FLARE_LIFT, 1), (LIFT_WORK, 0)),
+];
+
 /// Lysandre Labs' arrow tiles (zone 0x60), cell kinds of the chunk's table, open (`0x7N000020`):
 /// 34 cells, all in chunk files 809 and 810 of `a/0/4/1`, the Labs' floor; no other chunk file of X
 /// has open cells of 0x74 to 0x7a. In the tape of x_lysandre_labs the player walked north onto (34,
@@ -733,6 +746,7 @@ pub fn game() -> &'static Game {
         elevators: ELEVATORS.collect(),
         warps: warps().clone(),
         landings: HashSet::from(LANDINGS),
+        armed_warps: IndexMap::from(ARMED_WARPS),
         triggers: IndexMap::from([
             (
                 (HOUSE, 0x6),

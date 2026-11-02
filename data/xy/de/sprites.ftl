@@ -659,3 +659,4 @@ place-0x64-furniture-2 = Bett
 place-0x64-furniture-3 = Bett
 place-0x64-furniture-4 = Bett
 place-0x64-furniture-5 = Bett
+place-0x156-furniture-0 = Fahrstuhl

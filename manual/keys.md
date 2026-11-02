@@ -188,6 +188,11 @@ answer and battle them; a wrong answer means battling another one, and after the
 game takes you up to the next room. With the `descriptions` setting on, pa3ds describes the
 picture each question shows.
 
+**The Team Flare Secret HQ's lift.** In Geosenge Town, in X and Y, the way into the HQ is a lift.
+The interactables list its panel as "elevator": face it and press A to take the lift down or up.
+The exits list the one way out the lift's door leads to where the lift is now, the HQ or Geosenge
+Town.
+
 **Anistar Gym.** In Anistar City, in X and Y, the walkways in space are said by the compass, as
 the keys walk them: "12 north, 3 west, 8 north". The interactables list each teleporter, the
 carpet in the lobby among them: step onto the carpet's middle and the Gym appears round you.

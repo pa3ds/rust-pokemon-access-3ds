@@ -1131,6 +1131,60 @@ fn test_warps_side_by_side_into_one_zone_are_one_exit_and_one_place_on_a_cell_on
     Ok(())
 }
 
+/// Spike 266: the Team Flare Secret HQ's lift has a warp into the HQ and one up to Geosenge Town
+/// on its doorway, and its panel's script moves one off as it sets work 0x4149, 1 down and 0 up.
+/// Both were listed at the doorway; one is, the one the work holds, and both before a sweep has
+/// found the works.
+#[test]
+fn test_a_lifts_warps_on_one_cell_are_listed_as_its_work_has_the_car() -> Result<()> {
+    let mut town = Town::new();
+    let data = zone_file(&ZoneSpec {
+        warps: &[
+            (BEDROOM, 0x0301, 94, 171, None, None),
+            (HOUSE, 0x0500, 94, 171, None, None),
+        ],
+        info: &town_info(),
+        ..ZoneSpec::default()
+    });
+    town.memory.write(FILE, &data);
+    town.memory
+        .u32(HOLDER + 8, &[0x11 | (data.len() as i64) << 8]);
+    town.reader = field_reader(
+        town.memory.clone(),
+        Given::default(),
+        Game {
+            armed_warps: IndexMap::from([((TOWN, 0), (0x4149, 1)), ((TOWN, 1), (0x4149, 0))]),
+            ..game()
+        },
+    );
+
+    let exits = |town: &Town| -> Result<Vec<Option<i64>>> {
+        Ok(town
+            .r#where()?
+            .of("exits")
+            .into_iter()
+            .filter(|item| item.zone == Some(BEDROOM) || item.zone == Some(HOUSE))
+            .map(|item| item.zone)
+            .collect())
+    };
+    assert_eq!(
+        exits(&town)?.into_iter().collect::<HashSet<_>>(),
+        HashSet::from([Some(BEDROOM), Some(HOUSE)])
+    );
+    town.reader.track(&Found {
+        pages: IndexMap::new(),
+        heap: IndexMap::from([(EVENT_WORK, EVENT_CLASS.to_string())]),
+        partial: false,
+    })?;
+    assert_eq!(exits(&town)?, [Some(HOUSE)]);
+    town.memory.write(
+        EVENT_WORK + WORKS + (0x4149 - FIRST_WORK) * 2,
+        &1u16.to_le_bytes(),
+    );
+    assert_eq!(exits(&town)?, [Some(BEDROOM)]);
+    Ok(())
+}
+
 /// A warp's high byte is what it is and its low byte the way it is walked into, as a stair's
 /// is: Aquacorde's houses' mats out face east and west (0x0202, 0x0203) and Lumiose's doors
 /// north, east, south and west (0x0301, 0x0302, 0x0300, 0x0303), and every one but the first

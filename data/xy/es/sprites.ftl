@@ -662,3 +662,4 @@ place-0x64-furniture-2 = cama
 place-0x64-furniture-3 = cama
 place-0x64-furniture-4 = cama
 place-0x64-furniture-5 = cama
+place-0x156-furniture-0 = ascensor

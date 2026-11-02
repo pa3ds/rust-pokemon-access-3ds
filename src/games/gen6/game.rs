@@ -292,6 +292,10 @@ pub struct Game {
     ///
     /// A `frozenset` only tested.
     pub landings: HashSet<i64>,
+    /// (zone, a warp's slot) -> the work and the value it is taken at, where a zone's script
+    /// moves warps on one cell in and out of the way as a work changes: listed only while the work
+    /// holds that value. The Team Flare Secret HQ's lift (spike 266).
+    pub armed_warps: IndexMap<(i64, i64), (i64, i64)>,
     /// The reader of who stands where in its competitions, built from the memory, the layouts
     /// and their files, the ROM's words and the app running, or None in a game with none: ORAS's
     /// contests (`oras.screens.contest`).
@@ -381,6 +385,7 @@ impl Game {
             apps: Vec::new(),
             warps: IndexMap::new(),
             landings: HashSet::new(),
+            armed_warps: IndexMap::new(),
             standings: None,
             conditions: None,
             opening: None,

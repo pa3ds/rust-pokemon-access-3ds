@@ -717,3 +717,6 @@ place-0x64-furniture-2 = bed
 place-0x64-furniture-3 = bed
 place-0x64-furniture-4 = bed
 place-0x64-furniture-5 = bed
+# story 145:11, the elevators' word: the Team Flare Secret HQ's lift, zone 0x156, its panel,
+# which shows no message and takes the car down or up (spike 266)
+place-0x156-furniture-0 = elevator

@@ -659,3 +659,4 @@ place-0x64-furniture-2 = 침대
 place-0x64-furniture-3 = 침대
 place-0x64-furniture-4 = 침대
 place-0x64-furniture-5 = 침대
+place-0x156-furniture-0 = 엘리베이터
