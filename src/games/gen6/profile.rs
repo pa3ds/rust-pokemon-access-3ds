@@ -1296,6 +1296,13 @@ impl Gen6Profile {
         Ok(battle || field.is_some() || speaker || app)
     }
 
+    /// Whether the heap's whole sweep waits: while a subscreen's round would lose a ball to
+    /// the second it takes (`Subscreens.holding`).
+    pub fn sweep_held(&self) -> bool {
+        self.subscreens
+            .holding(self.apps.borrow().running.as_deref())
+    }
+
     /// Whether another app has started since the last poll: the field, the Bag, the Pokédex, a
     /// battle. One read a poll, and the moment to sweep for the new screen's objects.
     pub fn poll_app(&self) -> Result<bool> {
@@ -2415,5 +2422,9 @@ impl Profile for Gen6Profile {
 
     fn sweep_wanted(&self) -> Result<bool> {
         Gen6Profile::sweep_wanted(self)
+    }
+
+    fn sweep_held(&self) -> bool {
+        Gen6Profile::sweep_held(self)
     }
 }

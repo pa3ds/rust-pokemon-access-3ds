@@ -62,6 +62,10 @@ pub trait Profile {
     fn context(&self) -> Option<&'static str>;
 
     fn sweep_wanted(&self) -> Result<bool>;
+
+    /// Whether the heap's whole sweep waits, due or not, for a game a second's stall in
+    /// reading would spoil: Head It's balls falling.
+    fn sweep_held(&self) -> bool;
 }
 
 /// One game as the schedule runs it.

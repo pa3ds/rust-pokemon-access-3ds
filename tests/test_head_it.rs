@@ -183,7 +183,8 @@ fn test_each_pokemon_up_is_offered_at_its_body_by_its_name() {
 
 /// Its opening demonstrates a ball headed back, and its Pokémon stand on behind the results
 /// and Play Again; the last ball falls after time up (spike 273, live). The opening says the
-/// lineup alone.
+/// lineup alone. While they fall the heap's whole sweep waits, a second of reading nothing else
+/// (spike 273, live).
 #[test]
 fn test_no_ball_is_said_nor_pokemon_offered_before_balls_fall_or_once_they_have() {
     for (phase, playing) in [
@@ -205,6 +206,12 @@ fn test_no_ball_is_said_nor_pokemon_offered_before_balls_fall_or_once_they_have(
             playing,
             "phase {phase}"
         );
+        assert_eq!(
+            game.found.holding(Some(head_it::APP)),
+            playing,
+            "phase {phase}"
+        );
+        assert!(!game.found.holding(Some(OTHER)), "phase {phase}");
     }
 }
 

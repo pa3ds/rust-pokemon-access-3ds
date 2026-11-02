@@ -176,6 +176,8 @@ pub struct HeadIt {
     delays: Vec<f64>,
     /// Whether the round's results have had pa3ds's estimate said (`_estimate`).
     estimated: bool,
+    /// Whether balls fell at the last poll, from START! to the giant ball (`holding`).
+    round: bool,
 }
 
 impl HeadIt {
@@ -214,6 +216,7 @@ impl HeadIt {
             cues: IndexMap::new(),
             delays: Vec::new(),
             estimated: false,
+            round: false,
         }
     }
 
@@ -262,7 +265,8 @@ impl HeadIt {
         {
             said.push((logged, line, Some(category)));
         }
-        if phase.is_none_or(|phase| !(FALLING..=LAST).contains(&phase)) {
+        self.round = phase.is_some_and(|phase| (FALLING..=LAST).contains(&phase));
+        if !self.round {
             self.falling = IndexMap::new();
             (self.heights, self.cued) = (IndexMap::new(), PySet::new());
             return Ok(said);
@@ -439,6 +443,15 @@ impl HeadIt {
             }
         }
         Ok(None)
+    }
+
+    /// Whether the heap's whole sweep waits: while balls fall, as the last poll read, cue or
+    /// no cue. Every 30 s it read nothing else for a second, 13,000 pages (or_amie_head_it_hard's
+    /// tape): no ball was followed for its cue, and the keys waited for its end, as between its
+    /// chunks only dialogue is polled. The round's objects are found as its opening builds
+    /// them.
+    pub fn holding(&self, running: Option<&str>) -> bool {
+        running == Some(APP) && self.round
     }
 
     /// Whether `tick` has balls to follow: while the cue is on and balls fall.

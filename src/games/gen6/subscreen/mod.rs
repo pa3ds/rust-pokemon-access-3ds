@@ -25,7 +25,8 @@
 //!   file they are in while it runs (`field.keys.DEFAULT_CONTEXTS`), and the line a key's action
 //!   says;
 //! - `ticking(running)` and `tick()`, what it follows every tick rather than every screen poll:
-//!   Head It's balls, for its cue.
+//!   Head It's balls, for its cue;
+//! - `holding(running)`, whether its round holds the heap's whole sweep off: Head It's.
 //!
 //! A new one is built here and put in the tuples of what it answers, in the order it is asked in:
 //! touch mode names a picture by the first reader with a name for it, and offers targets in order.
@@ -294,6 +295,7 @@ pub struct Subscreens {
     /// Head It alone follows something every tick, so its readers are kept as they are, not
     /// as a trait of one: a test reaches its cue through them, as Python's does.
     pub(crate) ticked: Vec<Rc<RefCell<HeadIt>>>,
+    holding: Vec<Rc<RefCell<HeadIt>>>,
 }
 
 /// `yours`: a Pokémon of the player's by the nickname they gave it, or else as the game calls its
@@ -438,7 +440,8 @@ impl Subscreens {
             polled: vec![sparring, berry_picker.clone(), head_it.clone()],
             described: vec![puzzle.clone()],
             keyed: vec![berry_keys, head_keys],
-            ticked: vec![head_it],
+            ticked: vec![head_it.clone()],
+            holding: vec![head_it],
             puzzle,
             berry_picker,
         }
@@ -544,6 +547,15 @@ impl Subscreens {
             }
         }
         Ok(())
+    }
+
+    /// Whether a screen's round holds the heap's whole sweep off: a second of nothing else
+    /// read, every 30 s, left a ball of Head It's without its cue and a key pressed for one
+    /// tapping late (spike 273, live).
+    pub fn holding(&self, running: Option<&str>) -> bool {
+        self.holding
+            .iter()
+            .any(|reader| reader.borrow().holding(running))
     }
 
     /// Whether touch mode's drag is made only as it is let go, straight from where it was

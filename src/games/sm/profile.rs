@@ -720,6 +720,11 @@ impl Profile for SunProfile {
         Ok(self.battle.borrow_mut().sweep_wanted())
     }
 
+    /// Never: nothing of Sun and Moon's is timed so finely.
+    fn sweep_held(&self) -> bool {
+        false
+    }
+
     /// Answer a navigation key, by name. In a phase of its own, so the field's burst of heads
     /// answers the listing's reads (`SunFieldReader._fetch`).
     fn press(&self, key: &str) -> Result<()> {

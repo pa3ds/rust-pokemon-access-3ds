@@ -765,6 +765,9 @@ impl Profile for Patched {
     fn sweep_wanted(&self) -> Result<bool> {
         self.real.sweep_wanted()
     }
+    fn sweep_held(&self) -> bool {
+        self.real.sweep_held()
+    }
 }
 
 /// The catalog's game, with its dialogue poll made `patch(session, real profile)`.
