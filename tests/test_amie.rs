@@ -197,7 +197,7 @@ fn amie_running(parts: &[(u8, (i64, i64, i64, i64))], aimed: bool) -> amie::Amie
     memory.u32(PLAYER + amie::HOLDS_PICTURE, &[ALLOCATOR]);
     memory.u32(ALLOCATOR, &[classes.add(amie::PICTURE_HOLDER)]);
     memory.u32(ALLOCATOR + amie::BUFFERS, &[BUFFER - 0x80000, BUFFER, 1]);
-    // A copy of a Player's first words in the module's code, which a sweep finds too (spike A).
+    // A copy of a Player's first words in the module's code, which a sweep finds too (spike 279).
     memory.u32(COPY, &[player]);
     memory.u32(COPY + amie::HOLDS_PICTURE, &[0xE3550000]);
     pokemon(&memory, parts);
@@ -214,7 +214,7 @@ fn amie_running(parts: &[(u8, (i64, i64, i64, i64))], aimed: bool) -> amie::Amie
 }
 
 /// The game tells the Pokémon's parts by a picture of it a grey a part, 8 its head and 9 its
-/// body on every Pokémon (spike B); the stroke stays on plain head, off its eyes (4 and 6).
+/// body on every Pokémon (spike 280); the stroke stays on plain head, off its eyes (4 and 6).
 #[test]
 fn test_the_stroke_goes_along_the_widest_row_of_the_pokemons_head_in_the_games_picture() {
     let mut found = amie_running(

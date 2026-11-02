@@ -32,7 +32,7 @@
 //!
 //! The slide goes where the Pokémon is. Amie keeps a picture of it as the bottom screen shows it, a
 //! grey a part and only what faces the camera, and its script asks the grey under the stylus
-//! (`CheckTouchingColor`, spike B):
+//! (`CheckTouchingColor`, spike 280):
 //!
 //! ```text
 //! kawaigari::Player  +0x22C -> gfl::heap::NwAllocator, the picture's holder
@@ -105,7 +105,7 @@ pub const STROKE: [(i64, i64); 6] = [
     (210, 110),
 ];
 /// Amie's own object, which keeps the stylus and leads to the picture of the Pokémon's parts. The
-/// module's code holds copies of its first words, which a sweep finds as well (spike A).
+/// module's code holds copies of its first words, which a sweep finds as well (spike 279).
 pub const PLAYER: &str = "N9kawaigari6PlayerE";
 pub const HOLDS_PICTURE: i64 = 0x22C;
 /// The class `Player` +0x22C is, whose `BUFFERS` hold the picture.
@@ -117,10 +117,10 @@ pub const PICTURE: i64 = 0x30000;
 pub const COLUMN: i64 = 0x400;
 pub const HEAD: i64 = 8;
 /// The greys of a Pokémon's head and body, the same on 17 Pokémon; the others mark its eyes, a
-/// hand, or a part a Pokémon of its own: ear tips, a horn, wings, a beak (spike B's census).
+/// hand, or a part a Pokémon of its own: ear tips, a horn, wings, a beak (spike 280's census).
 pub const BODY: i64 = 9;
 /// The narrowest row of head the slide goes along before the body instead. A 12-pixel slide made
-/// no stroke, and a 33-pixel drag did (spike A, heard).
+/// no stroke, and a 33-pixel drag did (spike 279, heard).
 pub const LONG_ENOUGH: i64 = 40;
 /// Every how many rows the picture is looked along.
 pub const ROW_STEP: i64 = 4;
@@ -128,7 +128,7 @@ pub const ROW_STEP: i64 = 4;
 pub const INSET: f64 = 0.15;
 /// How far an aimed slide goes in all, back and forth along its row: as far as `STROKE`'s, five
 /// passes of 100 pixels in `STROKE_SECONDS`. Five passes of Pikachu's head, 41 pixels, made Amie
-/// pet it as often (spike B, `--compare`), but Orion heard it stroked fewer times (2026-11-03).
+/// pet it as often (spike 280, `--compare`), but Orion heard it stroked fewer times (2026-11-03).
 pub const REACH: i64 = 500;
 /// Where a drag carries a Poké Puff to on the Pokémon, its mouth: held there, Pikachu leaned in,
 /// ate it in about 2.5 s and showed a heart; held at the screen's middle, over its eyes, it frowned
