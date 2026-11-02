@@ -32,6 +32,11 @@ pub(crate) fn species() -> Vec<String> {
 }
 
 pub(crate) fn page(number: i64) -> (amie::AmiePage, Rc<FakeMemory>) {
+    page_aimed(number, false)
+}
+
+/// `page(number, aimed)`.
+fn page_aimed(number: i64, aimed: bool) -> (amie::AmiePage, Rc<FakeMemory>) {
     let memory = FakeMemory::new();
     let classes = FakeClasses::new(memory.clone());
     memory.u32(PAGE, &[classes.add(amie::CLASS)]);
@@ -49,11 +54,12 @@ pub(crate) fn page(number: i64) -> (amie::AmiePage, Rc<FakeMemory>) {
         memory.u32(picture + lyt::PICTURE_MATERIAL, &[material]);
         memory.u32(material + lyt::MATERIAL_TEXTURE, &[image]);
     }
-    let mut found = amie::AmiePage::with_number(
+    let mut found = amie::AmiePage::with_aim(
         memory.clone(),
         Rc::new(ClassNames::new(memory.clone(), CODE)),
         species(),
         number,
+        aimed,
     );
     found
         .track(&IndexMap::from([(PAGE, amie::CLASS.to_string())]), false)
@@ -161,6 +167,105 @@ fn test_amie_itself_offers_its_pokemon_to_stroke_by_the_species_the_page_showed(
     );
     // A puff is dragged to its mouth, not its middle (spike 257).
     assert!(stroke.drop == Some(amie::MOUTH) && stroke.drop != Some((stroke.x, stroke.y)));
+}
+
+const PLAYER: i64 = 0x08A08000;
+const COPY: i64 = 0x08A09000;
+const ALLOCATOR: i64 = 0x08A0A000;
+const BUFFER: i64 = 0x14100000;
+
+/// A picture of the Pokémon's parts in the current buffer: a grey a rectangle, (left, top,
+/// right, bottom), the later over the earlier.
+fn pokemon(memory: &FakeMemory, parts: &[(u8, (i64, i64, i64, i64))]) {
+    let mut raw = vec![0u8; (320 * amie::COLUMN) as usize];
+    for &(grey, (left, top, right, bottom)) in parts {
+        for x in left..right {
+            for y in top..bottom {
+                let at = (x * amie::COLUMN + (239 - y) * 4) as usize;
+                raw[at..at + 4].copy_from_slice(&[0xFF, grey, grey, grey]);
+            }
+        }
+    }
+    memory.write(BUFFER + amie::PICTURE, &raw);
+}
+
+fn amie_running(parts: &[(u8, (i64, i64, i64, i64))], aimed: bool) -> amie::AmiePage {
+    let (mut found, memory) = page_aimed(amie::NUMBER, aimed);
+    let classes = FakeClasses::starting(memory.clone(), CODE.0 + 0x8000);
+    let player = classes.add(amie::PLAYER);
+    memory.u32(PLAYER, &[player]);
+    memory.u32(PLAYER + amie::HOLDS_PICTURE, &[ALLOCATOR]);
+    memory.u32(ALLOCATOR, &[classes.add(amie::PICTURE_HOLDER)]);
+    memory.u32(ALLOCATOR + amie::BUFFERS, &[BUFFER - 0x80000, BUFFER, 1]);
+    // A copy of a Player's first words in the module's code, which a sweep finds too (spike A).
+    memory.u32(COPY, &[player]);
+    memory.u32(COPY + amie::HOLDS_PICTURE, &[0xE3550000]);
+    pokemon(&memory, parts);
+    found
+        .track(
+            &IndexMap::from([
+                (COPY, amie::PLAYER.to_string()),
+                (PLAYER, amie::PLAYER.to_string()),
+            ]),
+            true,
+        )
+        .unwrap();
+    found
+}
+
+/// The game tells the Pokémon's parts by a picture of it a grey a part, 8 its head and 9 its
+/// body on every Pokémon (spike B); the stroke stays on plain head, off its eyes (4 and 6).
+#[test]
+fn test_the_stroke_goes_along_the_widest_row_of_the_pokemons_head_in_the_games_picture() {
+    let mut found = amie_running(
+        &[
+            (9, (110, 120, 210, 230)),
+            (8, (100, 60, 220, 120)),
+            (4, (130, 60, 140, 120)),
+            (6, (180, 80, 190, 100)),
+        ],
+        true,
+    );
+    let strokes = found.targets(Some(amie::AMIE)).unwrap();
+    let [stroke] = strokes.as_slice() else {
+        panic!("one stroke: {strokes:?}");
+    };
+    // Rows 80 to 100 are broken by both eyes; above, only the right eye: 140 to 219 is 80 wide.
+    // Back and forth as far as the old stroke went, 500 pixels: 9 passes of 55.
+    assert_eq!(stroke.path, [(152, 62), (207, 62)].repeat(5));
+    assert_eq!(
+        (stroke.name.as_str(), stroke.seconds, stroke.drop),
+        ("stroke Sceptile", amie::STROKE_SECONDS, Some(amie::MOUTH))
+    );
+}
+
+#[test]
+fn test_a_head_too_narrow_to_stroke_leaves_the_stroke_on_the_body() {
+    let mut found = amie_running(&[(9, (100, 120, 220, 230)), (8, (150, 90, 170, 120))], true);
+    assert_eq!(
+        found.targets(Some(amie::AMIE)).unwrap()[0].path,
+        [(118, 122), (201, 122)].repeat(4)[..7]
+    );
+}
+
+#[test]
+fn test_with_no_picture_the_stroke_crosses_the_middle_as_before() {
+    let mut found = amie_running(&[], true);
+    assert_eq!(
+        found.targets(Some(amie::AMIE)).unwrap()[0].path,
+        amie::STROKE
+    );
+}
+
+/// Reading what the GPU draws into crashed Orion's Azahar 2126.1.1 twice as he stroked
+/// Pikachu (spike 149's race); before 2126.2 the stroke crosses the middle as it always did.
+#[test]
+fn test_an_azahar_that_cannot_read_beside_the_gpu_has_its_picture_left_alone() {
+    let mut found = amie_running(&[(8, (100, 60, 220, 120))], false);
+    assert_eq!(
+        found.targets(Some(amie::AMIE)).unwrap()[0].path,
+        amie::STROKE
+    );
 }
 
 /// Amie's decorate screen draws its puffs with the images of a system holding a texture for

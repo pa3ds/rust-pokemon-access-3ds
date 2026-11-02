@@ -122,6 +122,12 @@ pub trait Rpc {
     /// burst: 0.01 to 0.05 ms, and 2 to 20 ms while it loads an area (sun_10.ctm, 2026-09-27).
     fn reply_seconds(&self) -> f64;
 
+    /// Whether memory the GPU draws into can be read safely: a server of version 2 serves
+    /// every read on the emulation thread (azahar-emu/azahar#2631, in Azahar 2126.2), where
+    /// version 1 flushes the GPU's copy from its own thread and can crash Azahar (spike 149,
+    /// azahar-emu/azahar#2619). Known once `processes` has asked.
+    fn reads_beside_gpu(&self) -> bool;
+
     /// Whether the emulator may have lost our selection since it last answered: it stalled,
     /// or has been quiet for `QUIET`. Never, before a process is selected.
     fn unsure(&self) -> bool;
@@ -412,6 +418,10 @@ impl Rpc for UdpRpc {
 
     fn reply_seconds(&self) -> f64 {
         self.reply_seconds.get()
+    }
+
+    fn reads_beside_gpu(&self) -> bool {
+        self.version.get() >= 2
     }
 
     fn unsure(&self) -> bool {

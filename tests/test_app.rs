@@ -256,6 +256,10 @@ impl Rpc for Answering {
         self.0.get()
     }
 
+    fn reads_beside_gpu(&self) -> bool {
+        unimplemented!("only how long the replies took is asked")
+    }
+
     fn unsure(&self) -> bool {
         false
     }

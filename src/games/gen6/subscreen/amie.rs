@@ -28,14 +28,29 @@
 //! button drawn, its Poké Puffs, minigames and way back hidden (omega_ruby_bottom-screen4). Amie
 //! strokes the Pokémon by a slide over it, and shows its hand where the stylus is (spike 200, live in
 //! the rig). So while it runs touch mode offers the Pokémon, "stroke Sceptile", whose key slides
-//! back and forth across the middle of the screen, where Amie stands the Pokémon: an exploration
-//! past ADR-0009's tap, which Khai asked for (2026-10-08).
+//! back and forth over it: an exploration past ADR-0009's tap, which Khai asked for (2026-10-08).
+//!
+//! The slide goes where the Pokémon is. Amie keeps a picture of it as the bottom screen shows it, a
+//! grey a part and only what faces the camera, and its script asks the grey under the stylus
+//! (`CheckTouchingColor`, spike B):
+//!
+//! ```text
+//! kawaigari::Player  +0x22C -> gfl::heap::NwAllocator, the picture's holder
+//! holder             +0x164, +0x168 -> two buffers in the linear heap; +0x16C which is current
+//! buffer             +0x30000 the picture: column x from +x * 0x400, its 240 pixels from the
+//!                    screen's bottom up, 4 bytes each, 0xFF and the part's grey three times
+//! ```
+//!
+//! The slide runs along the longest row of the Pokémon's head, 8 on every Pokémon, inset from its
+//! ends, or of its body, 9, where its head shows too little; across the middle as before where there
+//! is no picture. Bound by ADR-0009, as amended 2026-11-02.
 
 use std::rc::Rc;
 
 use indexmap::IndexMap;
 
 use crate::core::binary::u32;
+use crate::core::discovery::{HEAP_SPAN, LINEAR_SPAN, within};
 use crate::core::heaps;
 use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
@@ -46,7 +61,7 @@ use crate::games::gen6::apps::FIELD;
 use crate::games::gen6::gflheap;
 use crate::games::gen6::screens::distribution as d;
 use crate::games::gen6::screens::townmap;
-use crate::py::{self, Error, Result};
+use crate::py::{self, Error, Kind, Result};
 
 pub const CLASS: &str = "N5field9subscreen9kawaigari12FM_KawaigariE";
 /// The apps a subscreen page's Pokémon are named in: the field, whose bottom screen the subscreens
@@ -79,7 +94,8 @@ pub fn digit(image: Option<&str>) -> Option<String> {
 }
 
 /// Back and forth across the middle of the screen, over the Pokémon's body: Sceptile stood from
-/// about 110 to 200 across and 60 to 170 down, and the hand followed every pass (spike 200).
+/// about 110 to 200 across and 60 to 170 down, and the hand followed every pass (spike 200). Where
+/// the Pokémon's picture cannot be read.
 pub const STROKE: [(i64, i64); 6] = [
     (110, 110),
     (210, 110),
@@ -88,6 +104,32 @@ pub const STROKE: [(i64, i64); 6] = [
     (110, 110),
     (210, 110),
 ];
+/// Amie's own object, which keeps the stylus and leads to the picture of the Pokémon's parts. The
+/// module's code holds copies of its first words, which a sweep finds as well (spike A).
+pub const PLAYER: &str = "N9kawaigari6PlayerE";
+pub const HOLDS_PICTURE: i64 = 0x22C;
+/// The class `Player` +0x22C is, whose `BUFFERS` hold the picture.
+pub const PICTURE_HOLDER: &str = "N3gfl4heap11NwAllocatorE";
+/// The picture's two buffers, and after them which is current, 0 or 1.
+pub const BUFFERS: i64 = 0x164;
+pub const PICTURE: i64 = 0x30000;
+/// Where the screen's picture starts in a buffer, and how far apart its columns are.
+pub const COLUMN: i64 = 0x400;
+pub const HEAD: i64 = 8;
+/// The greys of a Pokémon's head and body, the same on 17 Pokémon; the others mark its eyes, a
+/// hand, or a part a Pokémon of its own: ear tips, a horn, wings, a beak (spike B's census).
+pub const BODY: i64 = 9;
+/// The narrowest row of head the slide goes along before the body instead. A 12-pixel slide made
+/// no stroke, and a 33-pixel drag did (spike A, heard).
+pub const LONG_ENOUGH: i64 = 40;
+/// Every how many rows the picture is looked along.
+pub const ROW_STEP: i64 = 4;
+/// How much of a row the slide keeps off at each end, as the Pokémon moves while it lasts.
+pub const INSET: f64 = 0.15;
+/// How far an aimed slide goes in all, back and forth along its row: as far as `STROKE`'s, five
+/// passes of 100 pixels in `STROKE_SECONDS`. Five passes of Pikachu's head, 41 pixels, made Amie
+/// pet it as often (spike B, `--compare`), but Orion heard it stroked fewer times (2026-11-03).
+pub const REACH: i64 = 500;
 /// Where a drag carries a Poké Puff to on the Pokémon, its mouth: held there, Pikachu leaned in,
 /// ate it in about 2.5 s and showed a heart; held at the screen's middle, over its eyes, it frowned
 /// and turned away, and 17 above its mouth it ate nothing in 3.5 s (or_amie_dragging_puffs, spike
@@ -123,9 +165,80 @@ pub const WALK: i64 = 32;
 /// A heap block's link to the block before it (`pa3ds.core.heaps`).
 pub const PREVIOUS: i64 = 0x08;
 
+/// A stroke's path: (x, y) after (x, y).
+type Path = Vec<(i64, i64)>;
+
+/// Where a stroke slides over the Pokémon in its picture of parts (`PICTURE` on): back and
+/// forth along the longest row of its head, or of its body where no row of head is
+/// `LONG_ENOUGH`, or of any of it, kept `INSET` off the row's ends, as many times as go `REACH`,
+/// five at least. None where none of it is drawn.
+pub fn aim(picture: &[u8]) -> Result<Option<Path>> {
+    // By grey, None any: the longest row's length, its first pixel across, and how far down.
+    let mut longest: IndexMap<Option<i64>, (i64, i64, i64)> = IndexMap::from([
+        (Some(HEAD), (0, 0, 0)),
+        (Some(BODY), (0, 0, 0)),
+        (None, (0, 0, 0)),
+    ]);
+    for y in (ROW_STEP / 2..touch::HEIGHT).step_by(ROW_STEP as usize) {
+        let mut row: Vec<Option<i64>> = Vec::new();
+        for x in 0..touch::WIDTH {
+            row.push(grey(picture, x * COLUMN + (touch::HEIGHT - 1 - y) * 4)?);
+        }
+        for (wanted, best) in longest.iter_mut() {
+            let on = |grey: Option<i64>| grey.is_some() && (wanted.is_none() || *wanted == grey);
+            // `itertools.groupby` of whether each pixel is the part wanted: its runs in turn.
+            let (mut x, mut at) = (0, 0);
+            while at < row.len() {
+                let state = on(row[at]);
+                let mut length = 0;
+                while at < row.len() && on(row[at]) == state {
+                    length += 1;
+                    at += 1;
+                }
+                if state && length > best.0 {
+                    *best = (length, x, y);
+                }
+                x += length;
+            }
+        }
+    }
+    let (length, left, y) = [Some(HEAD), Some(BODY)]
+        .iter()
+        .map(|wanted| longest[wanted])
+        .find(|found| found.0 >= LONG_ENOUGH)
+        .unwrap_or(longest[&None]);
+    if length == 0 {
+        return Ok(None);
+    }
+    let inset = py::round(length as f64 * INSET)?;
+    let ends = [(left + inset, y), (left + length - 1 - inset, y)];
+    // Python's `max(1, ...)` and `max(5, ...)`: the first unless the second is greater.
+    let span = ends[1].0 - ends[0].0;
+    let reached = py::round(REACH as f64 / if span > 1 { span } else { 1 } as f64)?;
+    let passes = if reached > 5 { reached } else { 5 };
+    Ok(Some(
+        (0..passes + 1).map(|k| ends[(k % 2) as usize]).collect(),
+    ))
+}
+
+/// The grey of the part drawn at a pixel of the picture, or None off the Pokémon.
+fn grey(picture: &[u8], at: i64) -> Result<Option<i64>> {
+    let pixel = py::slice(picture, at, at + 4);
+    let [alpha, grey, green, blue] = pixel else {
+        return Err(Error::value(format!(
+            "not enough values to unpack (expected 4, got {})",
+            pixel.len()
+        )));
+    };
+    Ok((*alpha == 0xFF && grey == green && green == blue).then_some(i64::from(*grey)))
+}
+
 /// Names the picture of the Pokémon the Pokémon-Amie page shows by its species.
 pub struct AmiePage {
     memory: Rc<dyn Memory>,
+    /// Whether the stroke is aimed by the picture: the GPU draws it, and Azahar before
+    /// 2126.2 can crash when memory the GPU draws into is read (`Rpc.reads_beside_gpu`).
+    aim: bool,
     names: Rc<ClassNames>,
     species: Vec<String>,
     /// Where the page keeps its Pokémon's number, its holder `HOLDER` after it.
@@ -134,45 +247,77 @@ pub struct AmiePage {
     pages: IndexMap<i64, i64>,
     /// The species the page last showed, which Amie opens on.
     last: Option<String>,
+    /// `Player` object -> the vtable it was found with.
+    players: IndexMap<i64, i64>,
+    /// When the stroke was last aimed, and where: the picture is 320 KB, and a replay asks
+    /// for the targets every poll.
+    aimed: (f64, Option<Path>),
 }
 
 impl AmiePage {
-    /// What the heap is swept for: the page, which says whose icon its Pokémon is.
-    pub const CLASSES: [&'static str; 1] = [CLASS];
+    /// What the heap is swept for: the page, which says whose icon its Pokémon is, and Amie's
+    /// `Player`, which leads to the picture its stroke is aimed by.
+    pub const CLASSES: [&'static str; 2] = [CLASS, PLAYER];
 
     pub fn new(memory: Rc<dyn Memory>, names: Rc<ClassNames>, species: Vec<String>) -> Self {
         AmiePage::with_number(memory, names, species, NUMBER)
     }
 
+    /// `AmiePage(memory, names, species, number)`; Python's `aimed` defaults to False.
     pub fn with_number(
         memory: Rc<dyn Memory>,
         names: Rc<ClassNames>,
         species: Vec<String>,
         number: i64,
     ) -> Self {
+        AmiePage::with_aim(memory, names, species, number, false)
+    }
+
+    /// `AmiePage(...)` with every argument.
+    pub fn with_aim(
+        memory: Rc<dyn Memory>,
+        names: Rc<ClassNames>,
+        species: Vec<String>,
+        number: i64,
+        aimed: bool,
+    ) -> Self {
         AmiePage {
             memory,
+            aim: aimed,
             names,
             species,
             number,
             pages: IndexMap::new(),
             last: None,
+            players: IndexMap::new(),
+            aimed: (-REREAD, None),
         }
     }
 
-    /// The pages a sweep found, by class: all of them, or with `adding` the new ones.
+    /// The pages and Players a sweep found, by class: all of them, or with `adding` the new
+    /// ones.
     pub fn track(&mut self, found: &IndexMap<i64, String>, adding: bool) -> Result<()> {
-        let mut pages = if adding {
-            self.pages.clone()
-        } else {
-            IndexMap::new()
-        };
-        for (&page, name) in found {
-            if name == CLASS {
-                pages.insert(page, u32(&self.memory.read(page, 4)?, 0)?);
+        let mut kept: IndexMap<&str, IndexMap<i64, i64>> =
+            [(CLASS, &self.pages), (PLAYER, &self.players)]
+                .into_iter()
+                .map(|(kind, have)| {
+                    (
+                        kind,
+                        if adding {
+                            have.clone()
+                        } else {
+                            IndexMap::new()
+                        },
+                    )
+                })
+                .collect();
+        for (&at, name) in found {
+            if let Some(objects) = kept.get_mut(name.as_str()) {
+                objects.insert(at, u32(&self.memory.read(at, 4)?, 0)?);
             }
         }
-        self.pages = pages;
+        self.pages = kept.shift_remove(CLASS).unwrap_or_default();
+        self.players = kept.shift_remove(PLAYER).unwrap_or_default();
         self.species()?;
         Ok(())
     }
@@ -242,19 +387,52 @@ impl AmiePage {
         let Some(species) = species else {
             return Ok(Vec::new());
         };
+        let name = own(STROKE_WORD, &[("pokemon", &species)]);
         Ok(vec![Target {
-            path: STROKE.to_vec(),
+            path: self.stroke()?.unwrap_or_else(|| STROKE.to_vec()),
             seconds: STROKE_SECONDS,
             drop: Some(MOUTH),
-            ..Target::new(
-                STROKE_TARGET,
-                &own(STROKE_WORD, &[("pokemon", &species)]),
-                160,
-                120,
-                0.0,
-                touch::HEIGHT as f64,
-            )
+            ..Target::new(STROKE_TARGET, &name, 160, 120, 0.0, touch::HEIGHT as f64)
         }])
+    }
+
+    /// The stroke aimed by the Pokémon's picture of parts, again at most every `REREAD`
+    /// seconds; None where no Player leads to a picture.
+    fn stroke(&mut self) -> Result<Option<Path>> {
+        let now = py::time::monotonic();
+        if !self.aim || now - self.aimed.0 < REREAD {
+            return Ok(self.aimed.1.clone());
+        }
+        let (memory, mut path) = (&self.memory, None);
+        for (&player, &vtable) in &self.players {
+            let head = memory.read(player, HOLDS_PICTURE + 4)?;
+            let holder = u32(&head, HOLDS_PICTURE)?;
+            // A Player freed, or a copy of its words in the module's code, leads nowhere.
+            if u32(&head, 0)? != vtable
+                || !within(HEAP_SPAN, holder)
+                || self.names.of_object(holder)?.as_deref() != Some(PICTURE_HOLDER)
+            {
+                continue;
+            }
+            let buffers = memory.read(holder + BUFFERS, 12)?;
+            let current = u32(&buffers, 8)?;
+            let buffer = if current == 0 || current == 1 {
+                u32(&buffers, 4 * current)?
+            } else {
+                0
+            };
+            if within(LINEAR_SPAN, buffer) {
+                path = match memory.read(buffer + PICTURE, touch::WIDTH * COLUMN) {
+                    Ok(picture) => aim(&picture)?,
+                    // A page unanswered: the stroke crosses the middle this time.
+                    Err(error) if error.is(Kind::RpcError) => None,
+                    Err(error) => return Err(error),
+                };
+                break;
+            }
+        }
+        self.aimed = (now, path.clone());
+        Ok(path)
     }
 
     /// The image of texture 0 of a PokeIcon, or None where a link of the chain is not the

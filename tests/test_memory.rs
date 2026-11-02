@@ -281,6 +281,10 @@ impl Rpc for Stalling {
         unreachable!("the Python's Stalling has no `reply_seconds`")
     }
 
+    fn reads_beside_gpu(&self) -> bool {
+        unreachable!("the Python's Stalling has no `reads_beside_gpu`")
+    }
+
     fn unsure(&self) -> bool {
         unreachable!("the Python's Stalling has no `unsure`")
     }

@@ -158,6 +158,8 @@ fn test_attach_speaks_the_emulators_protocol_version() {
             b"hi",
             "version {version}"
         );
+        // Only version 2 reads on the emulation thread, beside the GPU (spike 149).
+        assert_eq!(rpc.reads_beside_gpu(), version == 2, "version {version}");
     }
 }
 

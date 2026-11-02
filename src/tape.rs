@@ -677,6 +677,12 @@ impl Rpc for TapeRpc {
         }
     }
 
+    /// Asks nothing of the tape, as the Python's stand-in asks nothing of its.
+    fn reads_beside_gpu(&self) -> bool {
+        // Tapes are recorded on the rig's fork, which speaks version 2 (`Rpc.reads_beside_gpu`).
+        true
+    }
+
     fn unsure(&self) -> bool {
         matches!(self.tape.reading(UNSURE), Reply::Flag(true))
     }

@@ -46,7 +46,7 @@ pub fn start(
     setup: Setup,
     image: &[u8],
 ) -> Result<Session> {
-    let memory = Rc::new(PageCache::new(rpc));
+    let memory = Rc::new(PageCache::new(rpc.clone()));
     let language = if setup.tables.ui.language.is_empty() {
         &setup.language
     } else {
@@ -136,6 +136,7 @@ pub fn start(
             title: Some(setup.process.title_id),
             census: setup.census,
             ways: setup.ways.clone(),
+            reads_beside_gpu: rpc.reads_beside_gpu(),
         },
     ));
     // What the game allocates is found where it was allocated, the look after (spike 110).

@@ -528,6 +528,10 @@ impl Rpc for Singles {
         self.rpc.reply_seconds()
     }
 
+    fn reads_beside_gpu(&self) -> bool {
+        self.rpc.reads_beside_gpu()
+    }
+
     fn unsure(&self) -> bool {
         self.rpc.unsure()
     }
