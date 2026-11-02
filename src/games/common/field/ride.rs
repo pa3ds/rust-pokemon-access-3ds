@@ -48,7 +48,7 @@ pub const GOT_OFF: i64 = 2;
 /// only riding crosses (`Ground.rides`) they step only riding, onto that ground from it or from
 /// flat ground (`Ground.stops`), and off it only onto flat ground; from flat ground onto any
 /// other they get off. Riding, a step is taken only where the Pokémon's body fits (`fits`), and
-/// where it no longer fits on flat ground they get off there and walk on (spike A), `off`, over
+/// where it no longer fits on flat ground they get off there and walk on (spike 272), `off`, over
 /// the rocks the ride smashed: on Route 17 one stands at the foot of the flat ground at (82, 92),
 /// across the only way on. On Route 9 the Rhyhorn was got on at (19, 61), ridden onto the flat
 /// ground at (20, 61) and on onto the spikes at (21, 61) (spike 238).
@@ -65,7 +65,7 @@ pub fn after(
         return Ok(Some(true));
     }
     // shortcut: having got off, every rock is taken for smashed, not only those the ride met;
-    // no way on Routes 9 and 17 walks past one it did not (spike A), track them if one does.
+    // no way on Routes 9 and 17 walks past one it did not (spike 272), track them if one does.
     if ground.smashed.contains(&step) && !now && !off {
         return Ok(None);
     }
@@ -104,7 +104,7 @@ fn square(cell: Cell, body: i64) -> Vec<Cell> {
 
 /// Whether the ridden Pokémon's body fits round `cell`, every cell it reaches open
 /// (`Ground.body`): riding, the player's model stands in 3 by 3 cells, and held east along
-/// Route 9's spikes beside the wall at row 62 it stopped at (35, 61) (spike A).
+/// Route 9's spikes beside the wall at row 62 it stopped at (35, 61) (spike 272).
 pub fn fits(ground: &Ground, cell: Cell) -> Result<bool> {
     for near in square(cell, ground.body) {
         if !ground.open(near)? {
@@ -116,7 +116,7 @@ pub fn fits(ground: &Ground, cell: Cell) -> Result<bool> {
 
 /// Whether a move from `cell` to `step` brings the ridden Pokémon's body up against a thing
 /// it smashes (`Ground.smashed`), which is faced and smashed with A there, a cell or more short
-/// of the thing's own (spike A).
+/// of the thing's own (spike 272).
 pub fn bumps(ground: &Ground, cell: Cell, step: Cell) -> bool {
     // shortcut: asked by `Ground.toll`, which knows no riding, a step on foot up beside a rock
     // costs a smash too; rocks stand on flat ground in three of Route 9's patches.

@@ -2137,7 +2137,7 @@ fn test_p_on_foot_gets_on_the_mamoswine_waiting_on_flat_ground_to_cross_the_snow
     );
 }
 
-/// Route 9 (spike A): riding, the player's model stands in 3 by 3 cells round their own, and
+/// Route 9 (spike 272): riding, the player's model stands in 3 by 3 cells round their own, and
 /// held east along spikes beside a wall it stopped at (35, 61), the spikes going on east. P said
 /// "20 north" along them, and riding through a gap two cells wide is no way at all.
 #[test]
@@ -2166,7 +2166,7 @@ fn test_p_riding_keeps_the_ridden_pokemons_body_off_the_walls() {
     );
 }
 
-/// Route 9 (spike A): flat ground runs on into corners the ridden Pokémon's body does not
+/// Route 9 (spike 272): flat ground runs on into corners the ridden Pokémon's body does not
 /// fit, as round the item ball at (58, 55); the player gets off on the flat ground and walks on.
 #[test]
 fn test_p_riding_gets_off_where_the_ridden_pokemon_no_longer_fits_on_flat_ground() {
@@ -2193,7 +2193,7 @@ fn test_p_riding_gets_off_where_the_ridden_pokemon_no_longer_fits_on_flat_ground
     assert_eq!(last(&rig.backend), "3 east, get off 4 east");
 }
 
-/// Route 17 (spike A): a rock stands at the foot of the flat ground at (82, 92), across the
+/// Route 17 (spike 272): a rock stands at the foot of the flat ground at (82, 92), across the
 /// only way on; the Mamoswine smashes it, the player gets off beside it and walks on where it
 /// stood. P said "get off 1 south, then can't continue".
 #[test]
@@ -2245,7 +2245,7 @@ fn test_p_on_foot_with_no_rhyhorn_takes_spiky_ground_for_a_wall() {
 /// Route 9 (spike 238): two rocks close the only way east across the spikes at x 51, and the
 /// player smashed them riding, pressing A at each: they were gone from the list after 103 s, and
 /// the player at (58, 59) by 130 s. P riding stopped at them, "then can't continue". The smash
-/// is said where the ridden Pokémon's body first reaches the rock (spike A).
+/// is said where the ridden Pokémon's body first reaches the rock (spike 272).
 #[test]
 fn test_p_riding_smashes_a_rock_standing_in_the_only_way_across_the_spikes() {
     let wall: HashSet<Cell> = (160..200)
@@ -2275,7 +2275,7 @@ fn test_p_riding_smashes_a_rock_standing_in_the_only_way_across_the_spikes() {
 
 /// Route 9 (spike 238): a rock is faced and smashed with A, so a way round it a step or two longer
 /// is taken, as P goes round a cracked boulder, the ridden Pokémon's body kept clear of it
-/// (spike A).
+/// (spike 272).
 #[test]
 fn test_p_riding_goes_round_a_rock_where_that_costs_less_than_smashing_it() {
     let riding = Field {

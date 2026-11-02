@@ -387,7 +387,7 @@ pub const STRAND: i64 = 0x8;
 /// strength!" (story 70:5) (spike 263). Riding either, the player's model stands in 3 by 3 cells,
 /// +0x150 reading 3 and 3 from getting on, and every cell of both routes' spikes and snow lies in a
 /// square of 3 by 3 open to a rider; held east along the spikes beside the wall at row 62, the player
-/// stopped at (35, 61) (spike A).
+/// stopped at (35, 61) (spike 272).
 ///
 /// Python's `RIDES` constant: a function, since a `HashSet` is no const.
 pub fn rides() -> Rides {

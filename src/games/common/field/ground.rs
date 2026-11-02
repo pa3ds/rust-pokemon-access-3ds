@@ -411,7 +411,7 @@ pub struct Ground {
     pub smashed: HashSet<Cell>,
     /// How many cells the ridden Pokémon's body reaches past the player's own each way: the
     /// square a step riding must find open, and smashes a thing as it first reaches (`ride.fits`,
-    /// `ride.bumps`, spike A).
+    /// `ride.bumps`, spike 272).
     pub body: i64,
     /// The climbing walls: a face's line walked on foot or climbed, onto it only at a blue spot
     /// and off it sideways onto a ledge only climbing; and their slides, open though blocked, which
