@@ -11,8 +11,10 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
   screen calls each party member "button pokémon" and says no hearts, puffs or notes after
   Affection, Fullness and Enjoyment. Of its games, Berry Picker's Unlimited says the misses you
   have left as a number alone, "2", and Berry Picker does not say when a Pokémon has eaten a
-  berry or gone away; Head It says which Pokémon a ball falls at but not when it reaches
-  it, and its results are read out of order, the total last; in Tile Puzzle "Yes" is said as a puzzle begins, the last
+  berry or gone away; Head It says when a ball reaches its Pokémon only with `head_it_cue` on,
+  and the large ball after time is up can be headed only at the exact moment, not a little early
+  or late as the others can: its "!" has not been timed for it, and it reaches its Pokémon sooner
+  after the "!" than other balls do; Head It's results are read out of order, the total last; in Tile Puzzle "Yes" is said as a puzzle begins, the last
   swap's points are said as it is solved, and a tile says where its piece of the picture belongs,
   not what is on it. pa3ds does not say when your Pokémon has eaten a Poké Puff, and only the five
   puffs the bar shows at once are offered.
