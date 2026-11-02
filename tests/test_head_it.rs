@@ -40,9 +40,9 @@ struct Game {
 }
 
 /// As as_amie_head_it's round went 30 s in: Poochyena down on the left, Ralts up in the
-/// middle and rowan up on the right; a ball falling at the middle, one parked off to the right,
-/// one past the bottom and the opening's own, standing above where a ball starts (spike A). The
-/// game, the memory, the balls' panes and the layouts.
+/// middle and rowan up on the right; a ball falling at the middle, the giant ball parked off to
+/// the right and a ball past the bottom (spike A). The game, the memory, the balls' panes and the
+/// layouts.
 fn game() -> Game {
     let memory = FakeMemory::new();
     let classes = FakeClasses::new(memory.clone());
@@ -50,22 +50,21 @@ fn game() -> Game {
     let fake = FakeLayouts::new(&memory, &classes);
     let (_, group) = fake.screen(0x14B00000);
     memory.u32(group - 0x200 + lyt::CHILD_COUNT, &[1]);
-    memory.u32(group + lyt::CHILD_COUNT, &[4]);
-    let panes: Vec<i64> = (1..5).map(|i| group + 0x100 * i).collect();
-    for (&pane, (x, y)) in panes.iter().zip([
-        (0.0f32, 452.0f32),
-        (10500.0, 480.0),
-        (100.0, -137.0),
-        (0.0, 554.0),
-    ]) {
+    memory.u32(group + lyt::CHILD_COUNT, &[3]);
+    let panes: Vec<i64> = (1..4).map(|i| group + 0x100 * i).collect();
+    for (&pane, (x, y)) in panes
+        .iter()
+        .zip([(0.0f32, 452.0f32), (10500.0, 480.0), (100.0, -137.0)])
+    {
         fake.pane_with_vtable(pane, group, Some(picture));
         place(&memory, pane, x, y);
     }
     fake.track().unwrap();
-    let drawn: IndexMap<i64, &str> = panes
+    let mut drawn: IndexMap<i64, &str> = panes
         .iter()
         .map(|&pane| (pane, "ball00_01.bclim"))
         .collect();
+    drawn.insert(panes[1], "giant01.bclim");
     memory.u32(MODEL, &[classes.add(head_it::MODEL)]);
     let param_class = classes.add(pokemon::PARAM_CLASS);
     for (i, (species, x, y)) in [
@@ -93,7 +92,7 @@ fn game() -> Game {
         Rc::new(|found: &pokemon::Pokemon| named(found.species)),
     );
     memory.u32(APP, &[classes.add(head_it::APP)]);
-    memory.u32(APP + head_it::CLOCK, &[900]);
+    memory.u32(APP + head_it::PHASE, &[head_it::FALLING]);
     found
         .track(
             &IndexMap::from([
@@ -136,6 +135,10 @@ fn test_a_ball_is_said_as_it_comes_by_the_pokemon_it_falls_at() {
     place(&game.memory, game.panes[2], 100.0, 478.0);
     game.layouts.refresh();
     assert_eq!(heard(&mut game.found, head_it::APP), ["rowan"]);
+    // After time up, the giant ball down the middle.
+    place(&game.memory, game.panes[1], 0.0, 470.0);
+    game.layouts.refresh();
+    assert_eq!(heard(&mut game.found, head_it::APP), ["Ralts"]);
     assert_eq!(heard(&mut game.found, OTHER), Vec::<String>::new());
 }
 
@@ -165,10 +168,27 @@ fn test_each_pokemon_up_is_offered_at_its_body_by_its_name() {
     assert_eq!(game.found.targets(Some(OTHER)).unwrap(), vec![]);
 }
 
-/// Its Pokémon stand on behind the results and Play Again (as_amie_head_it's tape).
+/// Its opening demonstrates a ball headed back, and its Pokémon stand on behind the results
+/// and Play Again; the last ball falls after time up (spike A, live).
 #[test]
-fn test_once_the_round_is_over_no_pokemon_is_offered() {
-    let game = game();
-    game.memory.u32(APP + head_it::CLOCK, &[0xFFFFFFFF]);
-    assert_eq!(game.found.targets(Some(head_it::APP)).unwrap(), vec![]);
+fn test_nothing_is_said_or_offered_before_balls_fall_or_once_they_have() {
+    for (phase, playing) in [
+        (1, false),
+        (head_it::LAST, true),
+        (5, false),
+        (head_it::LIST, false),
+    ] {
+        let mut game = game();
+        game.memory.u32(APP + head_it::PHASE, &[phase]);
+        assert_eq!(
+            !heard(&mut game.found, head_it::APP).is_empty(),
+            playing,
+            "phase {phase}"
+        );
+        assert_eq!(
+            !game.found.targets(Some(head_it::APP)).unwrap().is_empty(),
+            playing,
+            "phase {phase}"
+        );
+    }
 }
