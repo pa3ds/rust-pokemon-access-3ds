@@ -7,11 +7,12 @@
 //! device is Auto; a clip cuts off the one before it. How loud is what the game would make it: the
 //! sound's own volume and its sequence's random one; times how loud Azahar plays the game
 //! (`loudness`); times `[pa3ds.audio] footsteps`, above 1 louder than the game would. A clip plays
-//! in both ears, as the game plays it, but where it is asked toward one side: Head It's cue.
+//! in both ears, as the game plays it, but where it is asked toward one side: Head It's cue, and
+//! the Pokémon's cries in Amie's games.
 //!
 //! Bound by:
 //! - ADR-0025: the game's own sounds as loud as the game and Azahar would play them; nothing mutes
-//!   or skips the game's; none panned but Head It's cue.
+//!   or skips the game's; none panned but Head It's cue and the cries in Amie's games.
 
 use std::cell::RefCell;
 use std::collections::HashSet;

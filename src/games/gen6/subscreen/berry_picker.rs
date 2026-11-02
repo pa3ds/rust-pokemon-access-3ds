@@ -53,6 +53,7 @@ use crate::games::common::field::keys::POKEMON as POKEMON_KEYS;
 use crate::games::common::layout::Layouts;
 use crate::games::common::touch::{HEIGHT, ImageOf, Target, TouchMode, WIDTH};
 use crate::games::common::{pokemon, strbuf};
+use crate::games::gen6::rom::cries::Crier;
 use crate::games::gen6::subscreen::super_training::pictures;
 use crate::py::{self, Error, Result};
 
@@ -134,10 +135,20 @@ pub struct Want {
     pub pane: i64,
     pub x: i64,
     pub said: String,
+    pub berry: String,
+    /// The Pokémon wanting it, for its cry; None where it cannot be read.
+    pub who: Option<pokemon::Pokemon>,
+    /// Left 0, the middle 1, right 2.
+    pub place: i64,
 }
 
 /// Says which berry each of Berry Picker's Pokémon wants, and offers each to be given one.
 pub struct BerryPicker {
+    /// Plays a Pokémon's cry toward its place as its want is said, and says whether it did;
+    /// None where Pokémon are said by name alone (`[pa3ds.amie] feedback_style`).
+    cry: Option<Crier>,
+    /// Whether the cry, where it plays, is said in the name's place: the berry alone.
+    instead: bool,
     memory: Rc<dyn Memory>,
     names: Rc<ClassNames>,
     layouts: Rc<Layouts>,
@@ -209,11 +220,12 @@ impl BerryPicker {
         clock: Rc<dyn Fn() -> f64>,
     ) -> Self {
         BerryPicker::with_settings(
-            memory, names, layouts, image_of, words, name, clock, false, false,
+            memory, names, layouts, image_of, words, name, clock, false, false, None, false,
         )
     }
 
-    /// `BerryPicker(...)` with every argument, `berry_first` and `one_at_a_time` among them.
+    /// `BerryPicker(...)` with every argument, `berry_first`, `one_at_a_time`, `cry` and
+    /// `instead` among them.
     #[allow(clippy::too_many_arguments)]
     pub fn with_settings(
         memory: Rc<dyn Memory>,
@@ -225,8 +237,12 @@ impl BerryPicker {
         clock: Rc<dyn Fn() -> f64>,
         berry_first: bool,
         one_at_a_time: bool,
+        cry: Option<Crier>,
+        instead: bool,
     ) -> Self {
         BerryPicker {
+            cry,
+            instead,
             memory,
             names,
             layouts,
@@ -304,10 +320,14 @@ impl BerryPicker {
             return Ok(lineup);
         }
         self.pace()?;
-        let shown: Vec<(i64, String)> = self
+        let wants: IndexMap<i64, Want> = self
             .wants()?
             .into_iter()
-            .map(|want| (want.pane, want.said))
+            .map(|want| (want.pane, want))
+            .collect();
+        let shown: Vec<(i64, String)> = wants
+            .values()
+            .map(|want| (want.pane, want.said.clone()))
             .collect();
         let new: Vec<(i64, String)> = shown
             .iter()
@@ -316,7 +336,9 @@ impl BerryPicker {
             .collect();
         self.said = shown.into_iter().collect();
         if !self.one_at_a_time {
-            lineup.extend(new.into_iter().map(|(_, said)| said));
+            for (pane, _) in new {
+                lineup.push(self.spoken(&wants[&pane])?);
+            }
             return Ok(lineup);
         }
         // One at a time (Orion, 2026-10-29): three said together took 1.5 s, the first of them
@@ -338,10 +360,27 @@ impl BerryPicker {
         }
         if self.current.is_none() && !self.waiting.is_empty() {
             let current = self.waiting.remove(0);
-            lineup.push(current.1.clone());
+            let pane = current.0;
             self.current = Some(current);
+            lineup.push(self.spoken(&wants[&pane])?);
         }
         Ok(lineup)
+    }
+
+    /// A want's words as it is said, its Pokémon's cry played toward its place where cries
+    /// are on: the berry alone in the name's place where the player asks, and the cry played.
+    fn spoken(&self, want: &Want) -> Result<String> {
+        let (Some(who), Some(cry)) = (&want.who, &self.cry) else {
+            return Ok(want.said.clone());
+        };
+        if !cry(who, want.place as f64 / 2.0)? {
+            return Ok(want.said.clone());
+        }
+        Ok(if self.instead {
+            own(WANTED, &[("berry", &want.berry)])
+        } else {
+            want.said.clone()
+        })
     }
 
     /// A berry has been given, rightly or not: the next Pokémon waiting is said
@@ -366,7 +405,7 @@ impl BerryPicker {
         let names: Vec<Option<String>> = self
             .records()?
             .into_iter()
-            .map(|(called, _, _)| called)
+            .map(|(called, _, _, _)| called)
             .collect();
         if self.told || names.len() as i64 != COUNT || names.iter().any(Option::is_none) {
             return Ok(Vec::new());
@@ -400,7 +439,7 @@ impl BerryPicker {
         running: Option<&str>,
     ) -> Result<Option<(String, Option<Target>)>> {
         let records = self.records()?;
-        let Some((Some(called), place, y)) = records.get(index).cloned() else {
+        let Some((Some(called), place, y, _)) = records.get(index).cloned() else {
             return Ok(None);
         };
         if !self.playing(running)? || records.iter().any(|other| other.1 == place && other.2 > y) {
@@ -439,7 +478,11 @@ impl BerryPicker {
                 Some(word) if !word.is_empty() => word.clone(),
                 _ => image.strip_suffix(".bclim").unwrap_or(&image).to_string(),
             };
-            let who = standing.get(&place(across));
+            let place = place(across);
+            let (who, read) = match standing.get(&place) {
+                Some((who, read)) => (Some(who), read.clone()),
+                None => (None, None),
+            };
             let said = match who {
                 None => own(WANTED, &[("berry", &berry)]),
                 Some(who) if self.berry_first => own(FOR, &[("berry", &berry), ("pokemon", who)]),
@@ -449,6 +492,9 @@ impl BerryPicker {
                 pane,
                 x: py::round(WIDTH as f64 / 2.0 + across)?,
                 said,
+                berry,
+                who: read,
+                place,
             });
         }
         Ok(found)
@@ -514,26 +560,27 @@ impl BerryPicker {
         Ok(true)
     }
 
-    /// Each place -> what the Pokémon highest in it is called.
-    fn standing(&self) -> Result<IndexMap<i64, String>> {
-        let mut heights: IndexMap<i64, (f64, String)> = IndexMap::new();
-        for (called, place, y) in self.records()? {
+    /// Each place -> what the Pokémon highest in it is called, and its record.
+    fn standing(&self) -> Result<IndexMap<i64, (String, Option<pokemon::Pokemon>)>> {
+        let mut heights: IndexMap<i64, (f64, String, Option<pokemon::Pokemon>)> = IndexMap::new();
+        for (called, place, y, read) in self.records()? {
             if let Some(called) = called
-                && heights.get(&place).is_none_or(|(high, _)| *high < y)
+                && heights.get(&place).is_none_or(|(high, _, _)| *high < y)
             {
-                heights.insert(place, (y, called));
+                heights.insert(place, (y, called, read));
             }
         }
         Ok(heights
             .into_iter()
-            .map(|(place, (_, called))| (place, called))
+            .map(|(place, (_, called, read))| (place, (called, read)))
             .collect())
     }
 
     /// The round's Pokémon in the game's own order: what each is called, or None where it cannot
-    /// be read, its place and how high it stands.
-    fn records(&self) -> Result<Vec<(Option<String>, i64, f64)>> {
-        let mut found: Vec<(Option<String>, i64, f64)> = Vec::new();
+    /// be read, its place, how high it stands and its record.
+    #[allow(clippy::type_complexity)]
+    fn records(&self) -> Result<Vec<(Option<String>, i64, f64, Option<pokemon::Pokemon>)>> {
+        let mut found: Vec<(Option<String>, i64, f64, Option<pokemon::Pokemon>)> = Vec::new();
         for (&at, &vtable) in &self.models {
             let raw = self.memory.read(at, RECORDS + COUNT * SIZE)?;
             if u32(&raw, 0)? != vtable {
@@ -554,6 +601,7 @@ impl BerryPicker {
                     read.as_ref().and_then(|read| (self.name)(read)),
                     place(x),
                     y,
+                    read,
                 ));
             }
         }

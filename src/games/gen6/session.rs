@@ -1,5 +1,9 @@
 //! A gen 6 game — ORAS, X or Y — put together for the runtime: its readers, and its heaps watched
 //! for what they allocate (spike 110).
+//!
+//! Bound by:
+//! - ADR-0025: the game's own sounds pa3ds plays, its footsteps, the keys' sounds and the Pokémon's
+//!   cries, as loud as the game would play them; the cries panned toward their Pokémon.
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -18,6 +22,7 @@ use crate::core::rtti::ClassNames;
 use crate::core::speech::Speech;
 use crate::core::window;
 use crate::core::words::{self, Words};
+use crate::games::common::pokemon::Pokemon;
 use crate::games::common::session::{Profile, Session, Setup};
 use crate::games::gen6::field::footsteps;
 use crate::games::gen6::game::Game;
@@ -25,9 +30,10 @@ use crate::games::gen6::profile::{
     CUE_SOUND, DROP_SOUND, Gen6Profile, Options, PICK_SOUND, REQUIRED, WRONG_SOUND,
 };
 use crate::games::gen6::rom::archives::{GameText, no_text};
+use crate::games::gen6::rom::cries::{Crier, Cries};
 use crate::games::gen6::rom::layout::RomLayout;
 use crate::games::{gen6::gflheap, gen6::rom::textures, gen6::screens::buttons};
-use crate::py::{Kind, Result};
+use crate::py::{self, Kind, Result};
 
 /// `game` read through a page cache, every poll in a phase of its own: one pipelined fetch of
 /// the pages it read last time, and every read inside a page answered from it (spike 62).
@@ -126,6 +132,7 @@ pub fn start(
             clips,
             feedback_sounds: feedback,
             swims: Some(swims),
+            cry: cry_player(&setup, &game.rom, image)?,
             title: Some(setup.process.title_id),
             census: setup.census,
             ways: setup.ways.clone(),
@@ -166,6 +173,62 @@ pub fn start(
         pages: Some(memory),
         language: Rc::new(move || saved.save_language.borrow().clone()),
     })
+}
+
+/// Plays a Pokémon's own cry toward a side, 0 the left and 1 the right, and says whether it
+/// played: read out of the player's ROM the first time each is wanted and kept (`rom.cries`).
+/// None where cries are off or the game's are not read; once the ROM fails, none plays, and
+/// the log says why.
+pub fn cry_player(setup: &Setup, layout: &RomLayout, image: &[u8]) -> Result<Option<Crier>> {
+    let (clips, rom) = (setup.cries.clone(), setup.rom_path(None)?);
+    let (Some(clips), Some(archive), Some(rom)) = (clips, layout.cries.as_deref(), rom) else {
+        return Ok(None);
+    };
+    if image.is_empty() {
+        return Ok(None);
+    }
+    let cries = RefCell::new(Cries::new(&rom, archive, image));
+    let failed: RefCell<Vec<String>> = RefCell::new(Vec::new());
+    let log = setup.log.clone();
+    let rom_name = rom
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    Ok(Some(Rc::new(move |found: &Pokemon, across: f64| {
+        let name = format!("{}/{}", found.species, found.form);
+        if !clips.names().contains(&name) {
+            if !failed.borrow().is_empty() {
+                return Ok(false);
+            }
+            let read = cries.borrow_mut().cry(found.species, found.form);
+            let sound = match read {
+                Ok(sound) => sound,
+                Err(error)
+                    if [
+                        Kind::RomError,
+                        Kind::OsError,
+                        Kind::StructError,
+                        Kind::IndexError,
+                    ]
+                    .iter()
+                    .any(|&kind| error.is(kind)) =>
+                {
+                    failed.borrow_mut().push(error.message.clone());
+                    log(&format!("cries: off, {rom_name}: {error}"));
+                    return Ok(false);
+                }
+                Err(error) => return Err(error),
+            };
+            let Some(sound) = sound else {
+                return Ok(false);
+            };
+            // ponytail: read as it is first wanted, 10 to 45 ms; read at the lineup if it shows.
+            clips.add(&name, sound);
+        }
+        log(&format!("cry: {name} toward {}", py::fixed(across, 1)));
+        clips.play_across(&name, across)?;
+        Ok(true)
+    })))
 }
 
 /// `game_text(setup, layout)`: no zone's teleporters.

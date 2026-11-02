@@ -72,6 +72,7 @@ use crate::games::gen6::field::{camera, mapblock, talk};
 use crate::games::gen6::game::MemoriesReader;
 use crate::games::gen6::game::{ConditionsReader, Game, OpeningReader, OwnApp, StandingsReader};
 use crate::games::gen6::rom::archives::GameText;
+use crate::games::gen6::rom::cries::Crier;
 use crate::games::gen6::rom::textures;
 use crate::games::gen6::rom::textures::Index;
 use crate::games::gen6::screens::battle::{BattleReader, Battlers, GAUGE_CLASSES, Gauges};
@@ -210,6 +211,7 @@ pub struct Options {
     pub feedback_sounds: Option<Rc<Clips>>,
     /// None is `{}`.
     pub swims: Option<IndexMap<String, f64>>,
+    pub cry: Option<Crier>,
     pub title: Option<i64>,
     pub census: bool,
     pub ways: Option<Ways>,
@@ -396,6 +398,7 @@ impl Gen6Profile {
             clips,
             feedback_sounds,
             swims,
+            cry,
             title,
             census,
             ways,
@@ -774,6 +777,7 @@ impl Gen6Profile {
                 .as_ref()
                 .is_some_and(|sounds| sounds.names().contains(CUE_SOUND))
                 .then_some(cue),
+            cry,
         ));
         let classes: IndexSet<String> = HEAP_CLASSES
             .iter()

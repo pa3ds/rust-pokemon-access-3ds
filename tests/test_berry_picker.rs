@@ -15,6 +15,7 @@ use crate::games::common::field::keys::{BERRIES, BERRY_PICKER, POKEMON};
 use crate::games::common::layout::Layouts;
 use crate::games::common::touch::Target;
 use crate::games::common::{lyt, pokemon, strbuf};
+use crate::games::gen6::rom::cries::Crier;
 use crate::games::gen6::subscreen::berry_picker;
 use crate::py::{Error, Kind, Result};
 
@@ -116,6 +117,18 @@ fn picker_saying(
     berry_first: bool,
     one_at_a_time: bool,
 ) -> Picker {
+    picker_crying(demo, clock, berry_first, one_at_a_time, None, false)
+}
+
+/// `picker(demo, clock, berry_first, one_at_a_time, cry, instead)`.
+fn picker_crying(
+    demo: Option<i64>,
+    clock: Rc<dyn Fn() -> f64>,
+    berry_first: bool,
+    one_at_a_time: bool,
+    cry: Option<Crier>,
+    instead: bool,
+) -> Picker {
     let memory = FakeMemory::new();
     let classes = FakeClasses::new(memory.clone());
     let picture = classes.add(lyt::PICTURE_CLASS);
@@ -178,6 +191,8 @@ fn picker_saying(
         clock,
         berry_first,
         one_at_a_time,
+        cry,
+        instead,
     );
     memory.u32(APP, &[classes.add(berry_picker::APP)]);
     memory.u32(APP + berry_picker::CLOCK, &[1800]);
@@ -220,6 +235,47 @@ fn test_a_bubbles_berry_is_offered_at_the_pokemon_under_it_by_the_games_names() 
         picked.found.targets(Some("N3app6puzzle7ProcessE")).unwrap(),
         vec![]
     );
+}
+
+/// The cry stand-in: each cry asked for, by species and side, kept, and played.
+fn crying() -> (Rc<RefCell<Vec<(i64, f64)>>>, Crier) {
+    let cried: Rc<RefCell<Vec<(i64, f64)>>> = Rc::new(RefCell::new(Vec::new()));
+    let cry: Crier = {
+        let cried = cried.clone();
+        Rc::new(move |found: &pokemon::Pokemon, across: f64| {
+            cried.borrow_mut().push((found.species, across));
+            Ok(true)
+        })
+    };
+    (cried, cry)
+}
+
+/// A player's request (Orion, 2026-11-02): the Pokémon's own cry where its name is said;
+/// instead of it, the berry alone. Touch mode's target keeps the name.
+#[test]
+fn test_a_want_plays_its_pokemons_cry_toward_its_place_with_its_name_or_in_its_place() {
+    let app = Some(berry_picker::APP);
+    let (cried, cry) = crying();
+    let none = || -> Rc<dyn Fn() -> f64> { Rc::new(|| 0.0) };
+    let mut found = picker_crying(None, none(), false, false, Some(cry.clone()), false).found;
+    assert_eq!(heard(&mut found, app), ["Treecko wants Pinap Berry"]);
+    assert_eq!(*cried.borrow(), [(TREECKO, 0.0)]);
+    assert_eq!(heard(&mut found, app), Vec::<String>::new());
+    assert_eq!(*cried.borrow(), [(TREECKO, 0.0)]);
+    let mut instead = picker_crying(None, none(), false, true, Some(cry), true).found;
+    assert_eq!(heard(&mut instead, app), ["Pinap Berry wanted"]);
+    assert_eq!(
+        instead
+            .targets(app)
+            .unwrap()
+            .into_iter()
+            .map(|target| target.name)
+            .collect::<Vec<_>>(),
+        ["Treecko wants Pinap Berry"]
+    );
+    let silent: Crier = Rc::new(|_found: &pokemon::Pokemon, _across: f64| Ok(false));
+    let mut silent = picker_crying(None, none(), false, false, Some(silent), true).found;
+    assert_eq!(heard(&mut silent, app), ["Treecko wants Pinap Berry"]);
 }
 
 #[test]

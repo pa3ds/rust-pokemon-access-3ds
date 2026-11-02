@@ -46,7 +46,10 @@ pub const LOUDEST: i64 = 127;
 pub type Records = Vec<(i64, Vec<i64>)>;
 /// Plays a Pokémon's cry toward a side, 0 the left and 1 the right, and says whether it did
 /// (`session.cry_player`).
-pub type Crier = Rc<dyn Fn(&Pokemon, f64) -> bool>;
+///
+/// A `Result`, where Python's `Callable` returns a bool: what it raises but the ROM's failing,
+/// which it logs, goes on to the reader that asked, as Python's exception does.
+pub type Crier = Rc<dyn Fn(&Pokemon, f64) -> Result<bool>>;
 
 /// The cry table's records, found in `code` by Bulbasaur's record, species 0's first; None
 /// where it is not there or does not reach the last species.

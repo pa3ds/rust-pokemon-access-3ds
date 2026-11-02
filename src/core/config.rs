@@ -310,6 +310,9 @@ pub struct Amie {
     /// takes from hearing it to the tap landing, which is theirs and their machine's
     /// (`head_it.LEAD`).
     pub head_it_lead: f64,
+    /// How Berry Picker and Head It say a Pokémon: by its name, by its own cry toward its side,
+    /// or both (a player's request; Orion named it and its words, 2026-11-02).
+    pub feedback_style: String,
 }
 
 impl Default for Amie {
@@ -319,6 +322,7 @@ impl Default for Amie {
             one_at_a_time: true,
             head_it_cue: false,
             head_it_lead: 0.4,
+            feedback_style: "name".to_string(),
         }
     }
 }
@@ -330,6 +334,7 @@ impl Table for Amie {
             ("one_at_a_time", Value::Bool(self.one_at_a_time)),
             ("head_it_cue", Value::Bool(self.head_it_cue)),
             ("head_it_lead", Value::Float(self.head_it_lead)),
+            ("feedback_style", Value::Str(self.feedback_style.clone())),
         ]
     }
 
@@ -339,6 +344,7 @@ impl Table for Amie {
             ("one_at_a_time", Value::Bool(value)) => self.one_at_a_time = value,
             ("head_it_cue", Value::Bool(value)) => self.head_it_cue = value,
             ("head_it_lead", Value::Float(value)) => self.head_it_lead = value,
+            ("feedback_style", Value::Str(value)) => self.feedback_style = value,
             _ => {}
         }
     }
@@ -397,18 +403,25 @@ pub const HIDDEN_UNDERWATER: &str = "underwater";
 pub const HIDDEN_ALL: &str = "all";
 pub const DRAG_HOLD: &str = "hold";
 pub const DRAG_TOGGLE: &str = "toggle";
+pub const STYLE_NAME: &str = "name";
+pub const STYLE_CRY: &str = "cry";
+pub const STYLE_BOTH: &str = "both";
 /// Each setting that is one of a few words, by its name in the file: its words, the default
 /// first. `[pa3ds.extras] hidden_items` lists none, those under the sea, where the Dowsing Machine
 /// cannot be used and a sighted player is taken to see them, or all (Orion, 2026-10-26); a word it
 /// does not have lists none. `[pa3ds.touch] drag` holds a touch mode drag while its key is held,
 /// or picks up with one press and lets go with the next, for a player who cannot hold a key
 /// (Orion, 2026-10-28).
-pub const CHOICES: [(&str, &[&str]); 2] = [
+pub const CHOICES: [(&str, &[&str]); 3] = [
     (
         "pa3ds.extras.hidden_items",
         &[HIDDEN_OFF, HIDDEN_UNDERWATER, HIDDEN_ALL],
     ),
     ("pa3ds.touch.drag", &[DRAG_HOLD, DRAG_TOGGLE]),
+    (
+        "pa3ds.amie.feedback_style",
+        &[STYLE_NAME, STYLE_CRY, STYLE_BOTH],
+    ),
 ];
 
 /// The tables of the file, in the order it writes them: each is a settings dataclass, and

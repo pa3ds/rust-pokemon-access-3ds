@@ -146,6 +146,10 @@ pub struct Setup {
     /// a key with nothing to do; None as `clips` is, or where `[pa3ds.audio] feedback_sounds` is
     /// 0, and they are said in words.
     pub feedback_sounds: Option<Rc<Clips>>,
+    /// Where the Pokémon's own cries go, an output of their own so the cue does not cut one off
+    /// (`[pa3ds.amie] feedback_style`); None as `feedback_sounds` is, or where Pokémon are said by
+    /// name alone.
+    pub cries: Option<Rc<Clips>>,
     /// A screen's own keys, which win over the modes' while it runs (`Profile.context`).
     pub contexts: Contexts,
 }
@@ -169,6 +173,7 @@ impl Setup {
             ticks: None,
             clips: None,
             feedback_sounds: None,
+            cries: None,
             contexts: DEFAULT_CONTEXTS.clone(),
         }
     }

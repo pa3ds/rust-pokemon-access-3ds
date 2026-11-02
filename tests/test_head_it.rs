@@ -14,6 +14,7 @@ use crate::games::common::field::keys::{DEFAULT_CONTEXTS, HEAD_IT, HEADERS};
 use crate::games::common::layout::Layouts;
 use crate::games::common::touch::Target;
 use crate::games::common::{lyt, pokemon};
+use crate::games::gen6::rom::cries::Crier;
 use crate::games::gen6::subscreen::berry_picker::Touching;
 use crate::games::gen6::subscreen::head_it;
 use crate::py::Result;
@@ -49,11 +50,46 @@ fn game() -> Game {
     game_with(None, Rc::new(|| 0.0))
 }
 
+/// `game(cue, clock)`.
+fn game_with(cue: Option<head_it::Cue>, clock: Rc<dyn Fn() -> f64>) -> Game {
+    game_given(Given {
+        cue,
+        clock,
+        ..Given::default()
+    })
+}
+
+/// `game(...)`'s keyword arguments, each as the Python defaults it.
+struct Given {
+    cue: Option<head_it::Cue>,
+    clock: Rc<dyn Fn() -> f64>,
+    cry: Option<Crier>,
+    instead: bool,
+}
+
+impl Default for Given {
+    fn default() -> Self {
+        Given {
+            cue: None,
+            clock: Rc::new(|| 0.0),
+            cry: None,
+            instead: false,
+        }
+    }
+}
+
 /// As as_amie_head_it's round went 30 s in: Poochyena down on the left, Ralts up in the
 /// middle and rowan up on the right; a ball falling at the middle, the giant ball parked off to
 /// the right and a ball past the bottom (spike 273). The game, the memory, the balls' panes and the
-/// layouts. With `cue`, the cue is on, sounding through it, timed by `clock`.
-fn game_with(cue: Option<head_it::Cue>, clock: Rc<dyn Fn() -> f64>) -> Game {
+/// layouts. With `cue`, the cue is on, sounding through it, timed by `clock`; with `cry`, the
+/// Pokémon's cries, `instead` of their names or not.
+fn game_given(given: Given) -> Game {
+    let Given {
+        cue,
+        clock,
+        cry,
+        instead,
+    } = given;
     let memory = FakeMemory::new();
     let classes = FakeClasses::new(memory.clone());
     let picture = classes.add(lyt::PICTURE_CLASS);
@@ -103,6 +139,8 @@ fn game_with(cue: Option<head_it::Cue>, clock: Rc<dyn Fn() -> f64>) -> Game {
         cue,
         head_it::LEAD,
         clock,
+        cry,
+        instead,
     );
     memory.u32(APP, &[classes.add(head_it::APP)]);
     memory.u32(APP + head_it::PHASE, &[head_it::FALLING]);
@@ -177,6 +215,45 @@ fn test_a_ball_missing_from_one_poll_is_the_same_ball_and_from_two_is_gone() {
         game.layouts.refresh();
         assert_eq!(heard(&mut game.found, head_it::APP), said, "{x} {y}");
     }
+}
+
+/// A player's request (Orion, 2026-11-02): the Pokémon's own cry where its name is said.
+#[test]
+fn test_a_ball_plays_its_pokemons_cry_toward_its_column_with_its_name_or_in_its_place() {
+    let cried: Rc<RefCell<Vec<(i64, f64)>>> = Rc::new(RefCell::new(Vec::new()));
+    let cry: Crier = {
+        let cried = cried.clone();
+        Rc::new(move |found: &pokemon::Pokemon, across: f64| {
+            cried.borrow_mut().push((found.species, across));
+            Ok(true)
+        })
+    };
+    let mut game = game_given(Given {
+        cry: Some(cry.clone()),
+        ..Given::default()
+    });
+    assert_eq!(heard(&mut game.found, head_it::APP), ["Ralts"]);
+    assert_eq!(*cried.borrow(), [(RALTS, 0.5)]);
+    place(&game.memory, game.panes[2], 100.0, 478.0);
+    game.layouts.refresh();
+    assert_eq!(heard(&mut game.found, head_it::APP), ["rowan"]);
+    assert_eq!(cried.borrow().last(), Some(&(TREECKO, 1.0)));
+    let mut instead = game_given(Given {
+        cry: Some(cry),
+        instead: true,
+        ..Given::default()
+    })
+    .found;
+    assert_eq!(heard(&mut instead, head_it::APP), Vec::<String>::new());
+    assert_eq!(cried.borrow().last(), Some(&(RALTS, 0.5)));
+    // A cry that cannot play leaves the name to say it.
+    let mut silent = game_given(Given {
+        cry: Some(Rc::new(|_found: &pokemon::Pokemon, _across: f64| Ok(false))),
+        instead: true,
+        ..Given::default()
+    })
+    .found;
+    assert_eq!(heard(&mut silent, head_it::APP), ["Ralts"]);
 }
 
 #[test]

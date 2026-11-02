@@ -53,7 +53,7 @@ use std::rc::Rc;
 
 use indexmap::{IndexMap, IndexSet};
 
-use crate::core::config::Amie;
+use crate::core::config::{Amie, STYLE_CRY, STYLE_NAME};
 use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
 use crate::core::speech::Category;
@@ -62,6 +62,7 @@ use crate::games::common::pokemon;
 use crate::games::common::touch::{ImageOf, Target};
 use crate::games::gen6::game::Game;
 use crate::games::gen6::rom::archives::GameText;
+use crate::games::gen6::rom::cries::Crier;
 use crate::py::{self, Result};
 use amie::{AmiePage, Goods, Puffs};
 use berry_picker::{BerryKeys, BerryPicker, Touching};
@@ -332,6 +333,7 @@ impl Subscreens {
         wrong: Rc<dyn Fn(&str) -> String>,
         describing: bool,
         cue: Option<Cue>,
+        cry: Option<Crier>,
     ) -> Subscreens {
         // The Pokémon-Amie page draws its Pokémon's icon, and says nothing of whose; Amie itself is
         // stroked by a slide over it.
@@ -378,6 +380,15 @@ impl Subscreens {
         let waiting = Rc::new(Waiting::new(layouts.clone(), image_of.clone()));
         // And the training bags in its page's list, pictures with no touch area of their own.
         let bags = Rc::new(Bags::new(layouts.clone(), image_of.clone(), images.clone()));
+        // Both of Amie's games below can say a Pokémon by its own cry, toward its side, in its
+        // name's place or with it (`[pa3ds.amie] feedback_style`, a player's request, Orion
+        // 2026-11-02).
+        let crying = if settings.feedback_style != STYLE_NAME {
+            cry
+        } else {
+            None
+        };
+        let instead = settings.feedback_style == STYLE_CRY;
         // Amie's Berry Picker draws the berry each Pokémon wants in a bubble, and says nothing of
         // who wants which.
         let short: berry_picker::Name =
@@ -392,6 +403,8 @@ impl Subscreens {
             Rc::new(py::time::monotonic),
             settings.berry_first,
             settings.one_at_a_time,
+            crying.clone(),
+            instead,
         )));
         // Its own keys, a berry's and a Pokémon's, heard as the drag's own sounds are and the
         // game's error sound, or said where they are off.
@@ -412,6 +425,8 @@ impl Subscreens {
             if settings.head_it_cue { cue } else { None },
             settings.head_it_lead,
             Rc::new(py::time::monotonic),
+            crying,
+            instead,
         )));
         // And its own keys, a Pokémon's, which tap it.
         let head_keys = Rc::new(HeadItKeys::new(head_it.clone(), wrong));

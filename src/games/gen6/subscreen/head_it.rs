@@ -55,6 +55,7 @@ use crate::games::common::field::keys::{HEAD_IT, HEADERS};
 use crate::games::common::layout::Layouts;
 use crate::games::common::pokemon;
 use crate::games::common::touch::{HEIGHT, ImageOf, Target, WIDTH};
+use crate::games::gen6::rom::cries::Crier;
 use crate::games::gen6::subscreen::berry_picker::{Name, Touching};
 use crate::games::gen6::subscreen::super_training::pictures;
 use crate::py::{self, Error, PySet, Result};
@@ -170,6 +171,11 @@ pub struct HeadIt {
     pub(crate) cue: Option<Cue>,
     lead: f64,
     clock: Rc<dyn Fn() -> f64>,
+    /// Plays a Pokémon's cry toward its side as its ball comes, and says whether it did; None
+    /// where Pokémon are said by name alone (`[pa3ds.amie] feedback_style`).
+    cry: Option<Crier>,
+    /// Whether the cry, where it plays, is said in the name's place.
+    instead: bool,
     /// Each ball falling -> the heights it has fallen through, each with when it was first
     /// read there: its whole fall.
     heights: IndexMap<i64, Vec<(f64, f64)>>,
@@ -197,8 +203,8 @@ impl HeadIt {
     /// says whether balls fall.
     pub const CLASSES: [&'static str; 2] = [MODEL, APP];
 
-    /// `HeadIt(...)` with every argument; Python's `lead` defaults to `LEAD` and its `clock` to
-    /// `time.monotonic`.
+    /// `HeadIt(...)` with every argument; Python's `lead` defaults to `LEAD`, its `clock` to
+    /// `time.monotonic`, its `cry` to None and its `instead` to False.
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         memory: Rc<dyn Memory>,
@@ -209,6 +215,8 @@ impl HeadIt {
         cue: Option<Cue>,
         lead: f64,
         clock: Rc<dyn Fn() -> f64>,
+        cry: Option<Crier>,
+        instead: bool,
     ) -> Self {
         HeadIt {
             memory,
@@ -222,6 +230,8 @@ impl HeadIt {
             cue,
             lead,
             clock,
+            cry,
+            instead,
             heights: IndexMap::new(),
             cued: PySet::new(),
             told: false,
@@ -355,14 +365,29 @@ impl HeadIt {
         if new.is_empty() {
             return Ok(said);
         }
-        let standing = self.standing()?;
-        said.extend(new.into_iter().map(|column| {
-            let line = match standing.get(&column) {
-                Some(called) => own(COMING, &[("pokemon", called)]),
-                None => own(NOBODY, &[]),
+        let standing: IndexMap<i64, (i64, String, bool, pokemon::Pokemon)> = self
+            .records()?
+            .into_iter()
+            .filter(|(_, record)| record.2)
+            .collect();
+        for column in new {
+            let Some((_, called, _, found)) = standing.get(&column) else {
+                said.push((LOG.to_string(), own(NOBODY, &[]), Some(Category::Screen)));
+                continue;
             };
-            (LOG.to_string(), line, Some(Category::Screen))
-        }));
+            // Its cry toward its side, in its name's place where the player asks.
+            if let Some(cry) = &self.cry
+                && cry(found, column as f64 / 2.0)?
+                && self.instead
+            {
+                continue;
+            }
+            said.push((
+                LOG.to_string(),
+                own(COMING, &[("pokemon", called)]),
+                Some(Category::Screen),
+            ));
+        }
         Ok(said)
     }
 
@@ -376,11 +401,12 @@ impl HeadIt {
             self.told = false;
             return Ok(Vec::new());
         }
-        let mut records: Vec<(i64, (i64, String, bool))> = self.records()?.into_iter().collect();
-        records.sort_by_key(|&(column, _)| column);
+        let mut records: Vec<(i64, (i64, String, bool, pokemon::Pokemon))> =
+            self.records()?.into_iter().collect();
+        records.sort_by_key(|(column, _)| *column);
         let names: Vec<String> = records
             .into_iter()
-            .map(|(_, (_, called, _))| called)
+            .map(|(_, (_, called, _, _))| called)
             .collect();
         if self.told || names.len() as i64 != COUNT {
             return Ok(Vec::new());
@@ -585,29 +611,22 @@ impl HeadIt {
         Ok(found)
     }
 
-    /// Each column -> what the Pokémon up in it is called.
-    fn standing(&self) -> Result<IndexMap<i64, String>> {
-        Ok(self
-            .up()?
-            .into_iter()
-            .map(|(column, (_, called))| (column, called))
-            .collect())
-    }
-
     /// Each column -> its Pokémon up, by its `PokemonParam` and what it is called.
     fn up(&self) -> Result<IndexMap<i64, (i64, String)>> {
         Ok(self
             .records()?
             .into_iter()
-            .filter(|(_, (_, _, up))| *up)
-            .map(|(column, (param, called, _))| (column, (param, called)))
+            .filter(|(_, (_, _, up, _))| *up)
+            .map(|(column, (param, called, _, _))| (column, (param, called)))
             .collect())
     }
 
-    /// Each column -> its Pokémon, by its `PokemonParam`, what it is called and whether it is
-    /// up: all three are there from the round's opening, those not yet up below the screen.
-    fn records(&self) -> Result<IndexMap<i64, (i64, String, bool)>> {
-        let mut found: IndexMap<i64, (i64, String, bool)> = IndexMap::new();
+    /// Each column -> its Pokémon, by its `PokemonParam`, what it is called, whether it is
+    /// up and its record: all three are there from the round's opening, those not yet up below
+    /// the screen.
+    #[allow(clippy::type_complexity)]
+    fn records(&self) -> Result<IndexMap<i64, (i64, String, bool, pokemon::Pokemon)>> {
+        let mut found: IndexMap<i64, (i64, String, bool, pokemon::Pokemon)> = IndexMap::new();
         for (&at, &vtable) in &self.models {
             let raw = self.memory.read(at, RECORDS + COUNT * SIZE)?;
             if u32(&raw, 0)? != vtable {
@@ -623,10 +642,11 @@ impl HeadIt {
                     continue;
                 }
                 let read = pokemon::read(&*self.memory, &self.names, param, pokemon::SPECIES_MAX)?;
-                if let Some(called) = read.as_ref().and_then(|read| (self.name)(read))
+                if let Some(read) = read
+                    && let Some(called) = (self.name)(&read)
                     && !called.is_empty()
                 {
-                    found.insert(column(x), (param, called, y > 0.0));
+                    found.insert(column(x), (param, called, y > 0.0, read));
                 }
             }
         }
