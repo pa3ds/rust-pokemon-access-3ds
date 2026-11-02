@@ -856,7 +856,7 @@ fn test_the_bike_is_told_from_a_pokemon_by_what_the_player_moves_as() -> Result<
     Ok(())
 }
 
-/// or_which_bike (spike D of `feat/places-of-parts`): switching bikes in the Safari Zone, +0x59
+/// or_which_bike (spike 271): switching bikes in the Safari Zone, +0x59
 /// went 3, 2, 3, 2; 2 all through Jagged Pass on the Mach Bike, 3 to 6 through the Acro Bike's
 /// tricks. Not known off the bike, nor in X, whose rides were not read.
 #[test]
@@ -1738,7 +1738,7 @@ fn test_the_gaps_into_the_next_part_of_one_place_are_one_way_in() -> Result<()> 
 /// Zone away the Mega Stone was not listed (or_safari_zone_multizone_pathfinding). The route is
 /// the town's other part here: its people and item balls come out of its records in the ROM,
 /// told by their records as their models would be; a ball picked up is left out by the flag its
-/// script names (spike B), and every ball while the save's flags are not found.
+/// script names (spike 269), and every ball while the save's flags are not found.
 #[test]
 fn test_a_place_in_parts_lists_the_other_parts_things_out_of_the_rom() -> Result<()> {
     let route = zone_file(&ZoneSpec {

@@ -68,7 +68,7 @@ pub const FORM_BIKE: i64 = 2;
 /// Which ride the player is on, a u8 (spike 227): on the bike, `MACH` on the Mach Bike and one of
 /// `ACRO` on the Acro Bike, its tricks among them. Switching bikes over and over in the Safari
 /// Zone, it went 3, 2, 3, 2 with `field::PlayerWork`'s +0x08 going 2, 1, 2, 1 (or_which_bike, spike
-/// D of `feat/places-of-parts`); 2 all through Jagged Pass on the Mach Bike
+/// 271); 2 all through Jagged Pass on the Mach Bike
 /// (or_jagged_pass_mach_bike), 3 to 6 through the Acro Bike's tricks (or_acro_bike_tricks).
 pub const RIDE: i64 = 0x59;
 pub const MACH: i64 = 2;

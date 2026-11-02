@@ -28,9 +28,9 @@ pub const INFO_MATRIX: i64 = 0x04;
 
 /// What a zone with no matrix of its own has at `INFO_MATRIX`: ORAS's placeholder zones 0 to 5,
 /// and 39 rooms, the Trick House's among them, none of them walked between across an edge. X's
-/// matrix 0 is real, Vaniville Town, Route 1, Aquacorde Town and Route 2 (spike A of
-/// `feat/places-of-parts`), and read as none it changes nothing: each of the four is its own parent
-/// (`outdoors`), and no two share a place name (`one_matrix`).
+/// matrix 0 is real, Vaniville Town, Route 1, Aquacorde Town and Route 2 (spike 268),
+/// and read as none it changes nothing: each of the four is its own parent (`outdoors`), and no two
+/// share a place name (`one_matrix`).
 pub const NO_MATRIX: i64 = 0;
 
 /// More rows than any game's zone table has: ORAS has 536, X 360.

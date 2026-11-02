@@ -62,7 +62,7 @@ impl Works {
 
     /// Whether the save's event flag `number` is set, or None before a sweep has found the
     /// works: an item ball's record names by its script's number the flag the game sets as it
-    /// is picked up (spike B of `feat/places-of-parts`).
+    /// is picked up (spike 269).
     pub fn flag(&self, number: i64) -> Result<Option<bool>> {
         let Some(event) = self.event.get() else {
             return Ok(None);

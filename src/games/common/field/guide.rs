@@ -1003,7 +1003,7 @@ pub struct Guide {
     /// The game's words a landform says its steps with (`Ground.words`): what a leg up a sandy
     /// slope is said with, the game's name for the Mach Bike, where the player is not on it; and
     /// a hop up a bumpy slope and a leg along a rail, its name for the Acro Bike, said on it too
-    /// (spikes 159 and 267, and D of `feat/places-of-parts`).
+    /// (spikes 159, 267 and 271).
     words: StepWords,
     /// Whether the field's walls are read, so P can find a way. Sun keeps its walls as
     /// meshes pa3ds does not read, and a way found without them would lead through them.

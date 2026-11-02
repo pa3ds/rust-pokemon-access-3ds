@@ -1199,7 +1199,7 @@ fn rail_teleports_of(rom: &Rom, layout: &RomLayout) -> Result<Vec<Teleport>> {
 }
 
 /// A matrix file's first word where a grid of zones follows its chunk files, a u16 zone a block
-/// of 10 by 10 cells, four blocks a chunk each way (spike A of `feat/places-of-parts`).
+/// of 10 by 10 cells, four blocks a chunk each way (spike 268).
 pub const GRID_KIND: i64 = 1;
 pub const BLOCKS: i64 = 4;
 pub const NO_ZONE: i64 = 0xFFFF;
@@ -1207,7 +1207,7 @@ pub const NO_ZONE: i64 = 0xFFFF;
 /// Zone -> every zone of its place in parts, itself among them: the zones one matrix's grid
 /// holds that share a place name, as the Safari Zone's four quarters (ADR-0042). Only a grid
 /// says it: rooms of one layout share a matrix with no grid, as two houses of a town do, and are
-/// two places. Every such group in Omega Ruby and X is walked between without a warp (spike A).
+/// two places. Every such group in Omega Ruby and X is walked between without a warp (spike 268).
 ///
 /// ponytail: by the grid and the name alone, not the ground; a split place whose parts no ground
 /// joins would be listed as one.

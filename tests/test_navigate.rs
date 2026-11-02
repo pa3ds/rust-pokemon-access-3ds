@@ -3741,8 +3741,8 @@ fn test_p_rides_up_a_slope_only_on_the_bike_and_shift_p_says_the_bike_on_foot() 
 }
 
 /// The Safari Zone: on the Acro Bike P said to go north up a slope only the Mach Bike climbs
-/// (Orion, 2026-11-01). The model says which bike is ridden (or_which_bike, spike D of
-/// `feat/places-of-parts`), and P takes only that bike's ground; both where it is not known.
+/// (Orion, 2026-11-01). The model says which bike is ridden (or_which_bike, spike 271), and P
+/// takes only that bike's ground; both where it is not known.
 #[test]
 fn test_p_on_the_acro_bike_rides_up_no_slope_and_on_the_mach_bike_along_no_rail() {
     let mut rig = navigator(Want {

@@ -2763,8 +2763,7 @@ impl FieldReader {
     /// as the model is (`Interactable.key`). None for what is never listed (`role`'s looks,
     /// blockers, work objects and models drawn as nothing), and for an item ball or a thing to
     /// pick up whose flag says it is gone, or while the save's flags are not found: its record's
-    /// script number names the flag the game sets as it is picked up (spike B of
-    /// `feat/places-of-parts`).
+    /// script number names the flag the game sets as it is picked up (spike 269).
     fn record_item(&self, zone: i64, record: &[u8]) -> Result<Option<Interactable>> {
         let code = u16(record, NPC_SPRITE)?;
         if self.player_looks.contains(&code)
