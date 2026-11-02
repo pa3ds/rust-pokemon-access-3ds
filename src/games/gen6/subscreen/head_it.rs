@@ -88,7 +88,8 @@ pub const BODY: i64 = 200;
 /// How tall the touch areas over the Pokémon are.
 pub const TALL: f64 = 120.0;
 /// How far above the screen's middle a ball is as a tap sent then heads it at the sweet spot, for
-/// 3 points rather than 1 (spike A, live).
+/// 3 points rather than 1: tapped `LEAD` after the cue, all 6 were, and 0.05 s either side none of
+/// 12 (spike A, live).
 pub const SWEET: f64 = 35.0;
 /// Seconds before the ball reaches `SWEET` the cue sounds: about how long a player takes to tap
 /// once they hear it.
