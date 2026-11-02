@@ -26,7 +26,9 @@ use crate::games::common::field::keys::{
     ITEM_READ, LIST, MODE_TOGGLE, NORTH, OUR_SIDE, PATH_NEXT, PATH_PREVIOUS, PATHFIND, PATHFIND_HM,
     PATHFIND_OFF, POKEMON, RENAME, RENAME_SPEAKER, SOUTH, TOUCH, WEST, bound_keys, context_keys,
 };
-use crate::games::common::field::navigate::{DoorSign, LeadsTo, Navigator, Options, Sides, Street};
+use crate::games::common::field::navigate::{
+    DoorSign, LeadsTo, Navigator, Options, Part, Sides, Street,
+};
 use crate::games::common::field::rotating::RotatingDoor;
 use crate::games::common::field::things::{
     FURNITURE_SOURCE, Field, Interactable, TRIGGER_SOURCE, WARP_SOURCE, place_source,
@@ -479,6 +481,7 @@ struct Want {
     navigation: Option<Navigation>,
     door_sign: Option<DoorSign>,
     place: Option<Place>,
+    part: Option<Part>,
 }
 
 impl Default for Want {
@@ -498,6 +501,7 @@ impl Default for Want {
             navigation: None,
             door_sign: None,
             place: None,
+            part: None,
         }
     }
 }
@@ -554,6 +558,7 @@ fn navigator(want: Want) -> Rig {
             navigation: want.navigation,
             door_sign: want.door_sign,
             place: want.place,
+            part: want.part,
             moves: Some(IndexMap::from([
                 (SURF, "Surf".to_string()),
                 (CUT, "Cut".to_string()),
@@ -901,6 +906,34 @@ fn test_items_are_said_with_their_place_nearest_first_and_wrap() {
             "path, 2 of 2, 13 north",
             "door, 1 of 2, 1 north",
             "path, 2 of 2, 13 north"
+        ]
+    );
+}
+
+/// ADR-0042: a thing of another part of the player's place says which, after the way to it,
+/// so its compass word is not taken for the way (Orion, 2026-10-31): the door here stands in
+/// "the next part", and the edge says nothing more.
+#[test]
+fn test_a_thing_in_another_part_says_the_part_after_its_bearing() {
+    let part: Part = Rc::new(|item: &Interactable, _zone: i64| {
+        Ok(if item.kind == "door" {
+            Some("the next part".to_string())
+        } else {
+            None
+        })
+    });
+    let mut rig = navigator(Want {
+        exits: true,
+        part: Some(part),
+        ..Want::default()
+    });
+    rig.press(ITEM_NEXT);
+    rig.press(ITEM_NEXT);
+    assert_eq!(
+        said(&rig.backend),
+        [
+            "path, 2 of 2, 13 north",
+            "door, 1 of 2, 1 north, the next part"
         ]
     );
 }

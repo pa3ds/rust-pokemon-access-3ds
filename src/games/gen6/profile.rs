@@ -39,7 +39,7 @@ use crate::games::common::field::ground::Ground;
 use crate::games::common::field::guide::{FieldSource, Place};
 use crate::games::common::field::keys::{Bindings, Contexts, DEFAULT_CONTEXTS};
 use crate::games::common::field::navigate::{
-    DoorSign, LeadsTo, Navigator, Options as NavigatorOptions, Sides, Street,
+    DoorSign, LeadsTo, Navigator, Options as NavigatorOptions, Part, Sides, Street,
 };
 use crate::games::common::field::things::{
     FURNITURE_SOURCE, Field, Interactable, WARP_SOURCE, bearing, describe, source_kind,
@@ -939,6 +939,7 @@ impl Gen6Profile {
                 }),
                 leads_to: Some(leads_to_of(text.clone(), field.clone())),
                 place: Some(place_of(text.clone(), field.clone())),
+                part: Some(part_of(text.clone(), field.clone())),
                 street: Some(street_of(text.clone())),
                 door_sign: Some(door_sign_of(text.clone())),
                 moves: Some(text.moves.clone()),
@@ -1139,6 +1140,12 @@ impl Gen6Profile {
     /// `profile.field = field`.
     pub fn set_field(&self, field: Rc<FieldReader>) {
         *self.field.borrow_mut() = field;
+    }
+
+    /// `profile._part_of(item, zone)`, the navigator's `part`, which a test asks.
+    #[cfg(test)]
+    pub(crate) fn part_of(&self, item: &Interactable, zone: i64) -> Result<Option<String>> {
+        part_of(self.text.clone(), self.field.clone())(item, zone)
     }
 
     /// Hand each reader what a sweep found of its classes.
@@ -2255,6 +2262,29 @@ fn place_of(text: Rc<GameText>, field: Rc<RefCell<Rc<FieldReader>>>) -> Place {
                 .filter(|part| !part.is_empty())
                 .unwrap_or(place)
         }))
+    })
+}
+
+/// The part of the player's place in parts `item` stands in, where it is another part than the
+/// player's `zone` and has a name: said after its bearing (ADR-0042). None for an exit into that
+/// part, which says it already, and for anything of the player's own part.
+fn part_of(text: Rc<GameText>, field: Rc<RefCell<Rc<FieldReader>>>) -> Part {
+    Rc::new(move |item: &Interactable, zone: i64| {
+        let field = field.borrow().clone();
+        let there = field.zone_at(item.cell)?;
+        let Some(there) = there else {
+            return Ok(None);
+        };
+        if there == zone
+            || item.zone == Some(there)
+            || !field.parts(zone).contains(&there)
+            || !text.loaded()
+        {
+            return Ok(None);
+        }
+        let index = field.zones.place_of(there)?;
+        let place = index.and_then(|index| text.place(index));
+        Ok(place.and_then(|place| part(there, &place)))
     })
 }
 

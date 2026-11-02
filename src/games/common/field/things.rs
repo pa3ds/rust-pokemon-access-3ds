@@ -1,5 +1,8 @@
 //! What is on a map worth walking to, where the player is among it, and how each thing is told
 //! apart from one listing to the next.
+//!
+//! Bound by:
+//! - ADR-0042: a move model built from a record is told by that record, not its slot (`key`).
 
 use std::fmt;
 use std::rc::Rc;
@@ -318,7 +321,23 @@ impl Interactable {
         }
     }
 
+    /// What tells this from everything else listed, from one listing to the next. A move
+    /// model built from a record is told by its record, its zone and index, and not by the slot
+    /// the game built it in: the game builds it again in another slot when the player walks
+    /// back into its zone, and another part of a place lists it out of its record before the
+    /// game has built it at all (ADR-0042). Spike 131 told it by its slot too, when walking into
+    /// the next zone filled the slot with somebody else; their records tell those two apart.
     pub fn key(&self) -> (String, String, i64, Option<i64>) {
+        if self.move_model
+            && let Some((zone, index)) = self.record
+        {
+            return (
+                self.category.clone(),
+                self.kind.clone(),
+                (zone << 16 | index) << 32,
+                self.home,
+            );
+        }
         (
             self.category.clone(),
             self.kind.clone(),

@@ -11,7 +11,7 @@ use std::rc::Rc;
 use crate::core::discovery::Found;
 use crate::core::memory::Memory;
 use crate::games::gen6::field::features::Tracked;
-use crate::py::Result;
+use crate::py::{self, Error, Result};
 
 pub const EVENT_CLASS: &str = "N5field9EventWorkE";
 /// Where `field::EventWork` keeps its flags (Omega Ruby's `0x12fd48`).
@@ -58,6 +58,21 @@ impl Works {
             .rev()
             .fold(0i64, |held, &byte| held << 8 | i64::from(byte));
         Ok(held == value)
+    }
+
+    /// Whether the save's event flag `number` is set, or None before a sweep has found the
+    /// works: an item ball's record names by its script's number the flag the game sets as it
+    /// is picked up (spike B of `feat/places-of-parts`).
+    pub fn flag(&self, number: i64) -> Result<Option<bool>> {
+        let Some(event) = self.event.get() else {
+            return Ok(None);
+        };
+        let byte = *self
+            .memory
+            .read(event + FLAGS + py::floordiv(number, 8), 1)?
+            .first()
+            .ok_or_else(|| Error::index("index out of range"))?;
+        Ok(Some(i64::from(byte) >> py::modulo(number, 8) & 1 != 0))
     }
 
     /// Whether a trigger armed by `work` at `value` is armed now: always for work 0, which

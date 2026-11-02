@@ -22,7 +22,8 @@
 //! when the player faces the cell and presses A, with no entity record behind it (spike 83).
 //!
 //! Bound by:
-//! - ADR-0042: the gaps into the next part of a place in parts are one exit (`edges`).
+//! - ADR-0042: the gaps into the next part of a place in parts are one exit (`edges`), and the list
+//!   holds the whole place, the other parts' things out of the ROM (`with_other_parts`).
 
 use std::cell::{Cell as Slot, RefCell};
 use std::collections::{HashMap, HashSet};
@@ -31,7 +32,7 @@ use std::sync::Arc;
 
 use indexmap::{IndexMap, IndexSet};
 
-use crate::core::binary::{s16, u16, u32};
+use crate::core::binary::{f32, s16, u16, u32};
 use crate::core::config::{HIDDEN_ALL, HIDDEN_UNDERWATER};
 use crate::core::discovery::{Found, HEAP_SPAN, within};
 use crate::core::memory::Memory;
@@ -61,8 +62,8 @@ use crate::games::gen6::field::rail::{self, Rails, keep};
 use crate::games::gen6::field::terrain::{FarCells, FarFloors, FarHeights, FarMatrices, Terrain};
 use crate::games::gen6::field::works::Works;
 use crate::games::gen6::field::zonedata::{
-    FURNITURE, FURNITURE_SCRIPT, LZ11, NPC, NPC_INDEX, NPC_SCRIPT, NPC_SPRITE, NPC_X, NPC_Z,
-    TRIGGER_HEIGHT, TRIGGER_SCRIPT, TRIGGER_VALUE, TRIGGER_WIDTH, TRIGGER_WORK, TRIGGER_X,
+    Bytes, FURNITURE, FURNITURE_SCRIPT, LZ11, NPC, NPC_INDEX, NPC_SCRIPT, NPC_SPRITE, NPC_X, NPC_Y,
+    NPC_Z, TRIGGER_HEIGHT, TRIGGER_SCRIPT, TRIGGER_VALUE, TRIGGER_WIDTH, TRIGGER_WORK, TRIGGER_X,
     TRIGGER_Y, TRIGGER_Z, WARP, WARP_DOOR, WARP_KIND, WARP_OUT, WARP_STAIRS, WARP_STREET, WARP_TO,
     WARP_Y, ZoneData, arrives, on_rail, read_furniture, read_records, read_triggers, read_zone,
     trigger_placed, warp_box, zone_files,
@@ -336,6 +337,10 @@ pub struct FieldReader {
     /// Zones walked about in as outdoors that are not their own parent, out of the ROM
     /// (`plates.outdoors`): a warp off a street into one of them is not a door.
     outdoors: HashSet<i64>,
+    parts: IndexMap<i64, Vec<i64>>,
+    /// Each zone of a place in parts, with every zone of its place, and its zone data out of
+    /// the ROM, its things listed from the other parts (ADR-0042).
+    part_data: IndexMap<i64, Vec<u8>>,
     /// Where the game keeps the sprite a move model is drawn with (`mmodel.drawn_as`).
     drawn: i64,
     /// Where the game's things' and Pokémon's models start (`Game.models`).
@@ -543,6 +548,8 @@ impl FieldReader {
             ),
             crossed: game.crossed.clone(),
             outdoors: text.outdoors.clone(),
+            parts: text.parts.clone(),
+            part_data: text.part_data.clone(),
             drawn: game.drawn,
             model_starts: game.models,
             form: game.form,
@@ -1290,7 +1297,7 @@ impl FieldReader {
             items.extend(exits(found, &|zone| self.zones.place_index(zone))?);
         }
         items.extend(self.boulders(people.clone(), r#where.zone, data.as_ref(), home)?);
-        items.extend(self.edges(r#where.zone, !r#where.on_rail)?);
+        items.extend(self.edges(r#where.zone, !r#where.on_rail, true)?);
         items.extend(self.use_tiles(r#where.zone)?);
         let here = self.here(r#where, Some(people.clone()));
         for (form, found) in self.landforms.iter().zip(self.found(r#where.zone)?.iter()) {
@@ -1314,6 +1321,13 @@ impl FieldReader {
         }
         if let Some(hidden_items) = &self.hidden_items {
             items.extend(hidden_items.listed(r#where.zone, &zone_at)?);
+        }
+        if let Some(parts) = self
+            .parts
+            .get(&r#where.zone)
+            .filter(|parts| !parts.is_empty())
+        {
+            items = self.with_other_parts(r#where, parts, items, &people)?;
         }
         // A boulder in a hole is floor now, and neither it nor the hole is anything to find.
         let holes = self.holes(r#where.zone)?;
@@ -2289,9 +2303,10 @@ impl FieldReader {
     /// model code, a person otherwise; `code` is the sprite it is called by, where that is not the
     /// one it is drawn with.
     ///
-    /// Told apart by its slot and the record it was built from: walking into the next zone fills
-    /// the slots of the zone left with the new zone's people, and the way to a Youngster on Route
-    /// 102 became a way to Norman in Petalburg City, in the same slot (spike 131).
+    /// Told apart by the record it was built from (`Interactable.key`): walking into the next
+    /// zone fills the slots of the zone left with the new zone's people, and the way to a
+    /// Youngster on Route 102 became a way to Norman in Petalburg City, in the same slot (spike
+    /// 131).
     fn model_item(
         &self,
         model: i64,
@@ -2305,26 +2320,7 @@ impl FieldReader {
             None => mmodel::drawn_as(&*self.memory, model, head, self.drawn, self.model_starts)?,
         };
         let source = u32(head, mmodel::ZONE)? << 32 | model;
-        let (category, kind) = if mmodel::ITEM_BALLS.contains(&code) {
-            ("items", "item ball")
-        } else if self.pickups.contains(&code) {
-            ("items", PROP)
-        } else if self.ambushes.contains(&code) || self.lurkers.contains(&code) {
-            (POKEMON, PROP)
-        } else if self.clears.contains_key(&code)
-            || self
-                .rides
-                .as_ref()
-                .is_some_and(|rides| rides.smashes.contains(&code))
-        {
-            (OBSTACLES, PROP)
-        } else if code >= mmodel::PROP_MODEL {
-            ("signs", PROP)
-        } else if self.barriers.contains(&(mmodel::zone_of(head)?, code)) {
-            (OBSTACLES, BARRIER)
-        } else {
-            ("people", "person")
-        };
+        let (category, kind) = self.kind_of(code, mmodel::zone_of(head)?);
         Ok(Interactable {
             size,
             code,
@@ -2334,6 +2330,35 @@ impl FieldReader {
             record: Some((mmodel::zone_of(head)?, mmodel::index_of(head)?)),
             ..Interactable::new(category, kind, cell)
         })
+    }
+
+    /// The category and kind of a model drawn as `code`, built from a record of `zone`: an
+    /// item ball or a thing by its code, a person otherwise.
+    fn kind_of(&self, code: i64, zone: i64) -> (&'static str, &'static str) {
+        if mmodel::ITEM_BALLS.contains(&code) {
+            return ("items", "item ball");
+        }
+        if self.pickups.contains(&code) {
+            return ("items", PROP);
+        }
+        if self.ambushes.contains(&code) || self.lurkers.contains(&code) {
+            return (POKEMON, PROP);
+        }
+        if self.clears.contains_key(&code)
+            || self
+                .rides
+                .as_ref()
+                .is_some_and(|rides| rides.smashes.contains(&code))
+        {
+            return (OBSTACLES, PROP);
+        }
+        if code >= mmodel::PROP_MODEL {
+            return ("signs", PROP);
+        }
+        if self.barriers.contains(&(zone, code)) {
+            return (OBSTACLES, BARRIER);
+        }
+        ("people", "person")
     }
 
     /// The grid, and each chunk's file where the ROM's chunks are read, as the matrix has them now:
@@ -2362,7 +2387,10 @@ impl FieldReader {
         }
     }
 
-    fn zone_at(&self, cell: (i64, i64)) -> Result<Option<i64>> {
+    /// The zone the field map puts a cell in, or None where it puts none or is not read.
+    ///
+    /// Python's `_zone_at` and the `zone_at` that returns it, one here, their names being one.
+    pub fn zone_at(&self, cell: (i64, i64)) -> Result<Option<i64>> {
         let grid = self.grid.borrow();
         let Some(grid) = grid.as_ref() else {
             return Ok(None);
@@ -2382,8 +2410,9 @@ impl FieldReader {
     /// in two as the chunk north of it unloaded, and P's way to the gap became a way to the new
     /// first run, "no path to edge" (x_route-8.ctm, spike 234). Without the ROM a side no loaded
     /// chunk holds is not known; a border with neither side known is listed whole, as it was before
-    /// the chunks were read.
-    fn edges(&self, zone: i64, narrow: bool) -> Result<Vec<Interactable>> {
+    /// the chunks were read. Asked of another part of the player's place, `track` off, it asks for
+    /// no sweep (`sweep_wanted`).
+    fn edges(&self, zone: i64, narrow: bool, track: bool) -> Result<Vec<Interactable>> {
         let Some(grid) = self.grid.borrow().clone() else {
             return Ok(Vec::new());
         };
@@ -2438,7 +2467,7 @@ impl FieldReader {
                 }
             }
         }
-        if wanted != self.wanted.get() {
+        if track && wanted != self.wanted.get() {
             self.wanted.set(wanted);
             self.asks.set(0);
         }
@@ -2495,6 +2524,169 @@ impl FieldReader {
             }
         }
         Ok(out)
+    }
+
+    /// Every zone of the place in parts `zone` is a part of, itself among them, or none for a
+    /// zone that is no part (`GameText.parts`, ADR-0042).
+    pub fn parts(&self, zone: i64) -> Vec<i64> {
+        self.parts.get(&zone).cloned().unwrap_or_default()
+    }
+
+    /// `items`, the player's own part's, with the rest of their place in parts (ADR-0042).
+    ///
+    /// The game builds only the zone the player is in, and the list held only that: two
+    /// quarters of the Safari Zone away the Mega Stone was nowhere, and the guide said it gone
+    /// once the player left the way in the next quarter (or_safari_zone_multizone_pathfinding).
+    /// Each other part's furniture, warps and NPC records out of the ROM (`part_records`), its
+    /// landforms, its features, and its edges into other places; and each part one way in, with
+    /// every gap into it from any part of the place, at the nearest of them.
+    fn with_other_parts(
+        &self,
+        r#where: &Field,
+        parts: &[i64],
+        items: Vec<Interactable>,
+        people: &[Interactable],
+    ) -> Result<Vec<Interactable>> {
+        let live: HashSet<(i64, i64)> = people.iter().filter_map(|item| item.record).collect();
+        let mut gaps: IndexMap<i64, HashSet<Cell>> = IndexMap::new();
+        let mut out: Vec<Interactable> = items
+            .into_iter()
+            .filter(|item| {
+                !(item.kind == "edge" && item.zone.is_some_and(|zone| parts.contains(&zone)))
+            })
+            .collect();
+        for &part in parts {
+            for edge in self.edges(part, !r#where.on_rail, false)? {
+                if let Some(zone) = edge.zone.filter(|zone| parts.contains(zone)) {
+                    if zone != r#where.zone {
+                        gaps.entry(zone).or_default().extend(edge.cells());
+                    }
+                } else if part != r#where.zone {
+                    out.push(edge);
+                }
+            }
+            if part == r#where.zone {
+                continue;
+            }
+            out.extend(self.part_records(part, &live)?);
+            let there = Field {
+                zone: part,
+                ..r#where.clone()
+            };
+            let here = self.here(&there, Some(Vec::new()));
+            for (form, found) in self.landforms.iter().zip(self.found(part)?.iter()) {
+                out.extend(form.listed(found, &here)?);
+            }
+            let zone_at = |cell: Cell| self.zone_at(cell);
+            for feature in &self.features {
+                out.extend(feature.listed(part, &zone_at)?);
+            }
+            if let Some(bases) = &self.secret_bases {
+                out.extend(bases.listed(part, &zone_at)?);
+            }
+            if let Some(hidden_items) = &self.hidden_items {
+                out.extend(hidden_items.listed(part, &zone_at)?);
+            }
+        }
+        let mut gaps: Vec<(i64, HashSet<Cell>)> = gaps.into_iter().collect();
+        gaps.sort_by_key(|(part, _)| *part);
+        for (part, cells) in gaps {
+            let mut shape: Vec<Cell> = cells.into_iter().collect();
+            shape.sort_by_key(|cell| (cell.1, cell.0));
+            out.push(Interactable {
+                zone: Some(part),
+                shape: shape.clone(),
+                source: place_source(EDGE_SOURCE, part << 16)?,
+                ..Interactable::new("exits", "edge", shape[0])
+            });
+        }
+        Ok(out)
+    }
+
+    /// Another part's furniture, warps and NPC records out of its zone data in the ROM, each
+    /// as its zone's own are listed: an NPC record whose model is built already, `live`, is
+    /// listed as the model.
+    fn part_records(&self, zone: i64, live: &HashSet<(i64, i64)>) -> Result<Vec<Interactable>> {
+        let Some(data) = self.part_data.get(&zone) else {
+            return Ok(Vec::new());
+        };
+        let memory = Bytes(data);
+        let Some(found) = read_zone(&memory, 0)? else {
+            return Ok(Vec::new());
+        };
+        let mut out: Vec<Interactable> = Vec::new();
+        for item in read_furniture(&memory, &found)? {
+            out.push(self.furniture_listed(Some(zone), item));
+        }
+        let warps = read_records(&memory, &found, WARP)?;
+        let mut found_exits: Vec<Interactable> = Vec::new();
+        for (i, record) in warps.iter().enumerate() {
+            if on_rail(record)? || self.landings.contains(&u16(record, WARP_KIND)?) {
+                continue;
+            }
+            let (warp, back) = (
+                self.warp(i as i64, record, None, Some(zone))?,
+                arrives(record, Some(zone), &warps)?,
+            );
+            let landing = match back {
+                Some(back) if warp.kind == TELEPORTER => Some(s16(back, WARP_Y)? as f64),
+                _ => None,
+            };
+            found_exits.push(Interactable {
+                home: Some(zone),
+                landing,
+                arrival: match back {
+                    None => None,
+                    Some(back) => Some(warp_box(back)?.0),
+                },
+                ..warp
+            });
+        }
+        out.extend(exits(found_exits, &|zone| self.zones.place_of(zone))?);
+        for record in read_records(&memory, &found, NPC)? {
+            if !live.contains(&(zone, u16(&record, NPC_INDEX)?))
+                && let Some(item) = self.record_item(zone, &record)?
+            {
+                out.push(item);
+            }
+        }
+        Ok(out)
+    }
+
+    /// An NPC record of another part as the list has the model built from it, which the game
+    /// has not built: by its sprite (`kind_of`), where its record starts it, told by its record
+    /// as the model is (`Interactable.key`). None for what is never listed (`role`'s looks,
+    /// blockers, work objects and models drawn as nothing), and for an item ball or a thing to
+    /// pick up whose flag says it is gone, or while the save's flags are not found: its record's
+    /// script number names the flag the game sets as it is picked up (spike B of
+    /// `feat/places-of-parts`).
+    fn record_item(&self, zone: i64, record: &[u8]) -> Result<Option<Interactable>> {
+        let code = u16(record, NPC_SPRITE)?;
+        if self.player_looks.contains(&code)
+            || self.blockers.contains(&code)
+            || mmodel::WORK_OBJECTS.contains(&code)
+            || code == mmodel::NONDRAW
+        {
+            return Ok(None);
+        }
+        let (category, kind) = self.kind_of(code, zone);
+        if category == "items" && self.works.flag(u16(record, NPC_SCRIPT)?)? != Some(false) {
+            return Ok(None);
+        }
+        let index = u16(record, NPC_INDEX)?;
+        let height = f32(record, NPC_Y)?;
+        Ok(Some(Interactable {
+            code,
+            source: (zone << 16 | index) << 32,
+            move_model: true,
+            height: if height.is_finite() {
+                Some(height)
+            } else {
+                None
+            },
+            record: Some((zone, index)),
+            ..Interactable::new(category, kind, (u16(record, NPC_X)?, u16(record, NPC_Z)?))
+        }))
     }
 
     /// The cells of the zone the player uses by facing them, each run of one kind a thing: a PC is

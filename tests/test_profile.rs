@@ -11,7 +11,8 @@ use super::fake_rom::TmpDir;
 use super::fake_speech::Recorder;
 use super::fake_words::words_in;
 use super::test_field::{
-    HOUSE, PC_TILE, POOCHYENA, ROUTE, ROUTE_BLOCK, TOWN, TOWN_BLOCK, TOWN_CHUNK, Town, border,
+    Given, HOUSE, PC_TILE, POOCHYENA, ROUTE, ROUTE_BLOCK, TABLE, TOWN, TOWN_BLOCK, TOWN_CHUNK,
+    Town, border, dex_nav, field_reader, game,
 };
 use crate::core::memory::{Cache, Memory};
 use crate::core::names::Names;
@@ -24,6 +25,7 @@ use crate::games::common::touch::Target;
 use crate::games::gen6::apps::{BATTLE, DEMO, FIELD};
 use crate::games::gen6::field::mapblock;
 use crate::games::gen6::field::mmodel::PLAYER_INDEX;
+use crate::games::gen6::field::zonetable::{INFO_NAME, INFO_SIZE};
 use crate::games::gen6::game::{Game, OwnApp};
 use crate::games::gen6::profile::{Gen6Profile, Options};
 use crate::games::gen6::rom::archives::{GameText, no_text};
@@ -203,6 +205,63 @@ fn test_a_part_of_a_place_is_said_walking_into_it_and_by_the_exits_into_it() {
         backend.spoken(),
         ["Northern Littleroot Town", "Southern Route 101"]
     );
+}
+
+/// ADR-0042: a thing standing in another part of the player's place says the part; one in the
+/// player's own part, an exit into that part, and a place of no parts say nothing more.
+#[test]
+fn test_a_thing_of_another_part_is_said_with_its_part() {
+    let tmp_path = TmpDir::new();
+    words_in(
+        tmp_path.path(),
+        &format!(
+            "part-{TOWN:#x} = Northern {{ $place }}\npart-{ROUTE:#x} = Southern {{ $place }}\n"
+        ),
+        "oras",
+        "en",
+        "zones.ftl",
+    );
+    let mut town = Town::new();
+    let both = vec![TOWN, ROUTE];
+    town.reader = field_reader(
+        town.memory.clone(),
+        Given {
+            parts: IndexMap::from([(TOWN, both.clone()), (ROUTE, both.clone())]),
+            ..Given::default()
+        },
+        Game {
+            hidden: Some(dex_nav),
+            ..game()
+        },
+    );
+    town.memory.u16(TABLE + ROUTE * INFO_SIZE + INFO_NAME, 170);
+    let (made, _) = profile(&town, GameText::new(places(), trainers()), None, no_log());
+    made.poll_field().unwrap();
+    let ball = Interactable::new("items", "item ball", (95, 140));
+    assert_eq!(
+        made.part_of(&ball, TOWN).unwrap().as_deref(),
+        Some("Southern Littleroot Town")
+    );
+    let here = Interactable {
+        cell: (95, 170),
+        ..ball.clone()
+    };
+    assert_eq!(made.part_of(&here, TOWN).unwrap(), None);
+    let edge = Interactable {
+        zone: Some(ROUTE),
+        ..Interactable::new("exits", "edge", (99, 159))
+    };
+    assert_eq!(made.part_of(&edge, TOWN).unwrap(), None);
+    town.reader = field_reader(
+        town.memory.clone(),
+        Given::default(),
+        Game {
+            hidden: Some(dex_nav),
+            ..game()
+        },
+    );
+    made.set_field(town.reader.clone());
+    assert_eq!(made.part_of(&ball, TOWN).unwrap(), None);
 }
 
 /// ADR-0041: what P says of each thing listed is logged where a tape replay asks for it, read

@@ -42,6 +42,8 @@
 //! Bound by:
 //! - ADR-0008: the game's own words come from the player's ROM, never a table of ours; without one
 //!   pa3ds carries on and logs it.
+//! - ADR-0042: a place in parts is the zones of one matrix's grid sharing a place name, each with its
+//!   zone data for the other parts to list (`places_in_parts`, `GameText.parts`).
 
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
@@ -372,6 +374,11 @@ pub struct GameText {
     /// The teleports the game's Gym modules place on streets (`RomLayout.gym_modules`):
     /// Anistar City Gym's.
     pub rail_teleports: Vec<Teleport>,
+    /// Zone -> every zone of its place in parts, itself among them (`places_in_parts`).
+    pub parts: IndexMap<i64, Vec<i64>>,
+    /// A part's zone data file, decompressed: its things are listed from the other parts of its
+    /// place, where the game has not built them (ADR-0042).
+    pub part_data: IndexMap<i64, Vec<u8>>,
 }
 
 /// `Callable[[int], Sequence[bytes]]`: a text archive's file as its lines (`lines_of`).
@@ -472,6 +479,8 @@ impl Default for GameText {
             gates: IndexMap::new(),
             teleports: IndexMap::new(),
             rail_teleports: Vec::new(),
+            parts: IndexMap::new(),
+            part_data: IndexMap::new(),
         }
     }
 }
@@ -776,6 +785,22 @@ impl GameText {
         let conditions = lines_from(layout.conditions)?;
         let natives = plates::native_furniture(&read)?;
         let gates = plates::gate_names(&read, &table)?;
+        let mut parts: IndexMap<i64, Vec<i64>> = IndexMap::new();
+        if let Some(matrices) = &layout.matrices {
+            match rom
+                .read(matrices)
+                .and_then(|blob| garc_files(&blob))
+                .and_then(|files| places_in_parts(&files, &table))
+            {
+                Ok(found) => parts = found,
+                Err(error) if error.is(Kind::RomError) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        let part_data: IndexMap<i64, Vec<u8>> = parts
+            .keys()
+            .filter_map(|zone| read.get(zone).map(|held| (*zone, held.0.clone())))
+            .collect();
         let text = GameText {
             places: places.clone(),
             trainers,
@@ -896,6 +921,8 @@ impl GameText {
             title: rom.title(language)?,
             teleports: plates::teleports(&read, teleporting)?,
             rail_teleports: rail_teleports_of(rom, layout)?,
+            parts,
+            part_data,
         };
         if layout.protagonists && !text.protagonists_hold() {
             return Err(Error::new(
@@ -1166,6 +1193,80 @@ fn rail_teleports_of(rom: &Rom, layout: &RomLayout) -> Result<Vec<Teleport>> {
             Ok(found) => out.extend(found),
             Err(error) if error.is(Kind::RomError) => {}
             Err(error) => return Err(error),
+        }
+    }
+    Ok(out)
+}
+
+/// A matrix file's first word where a grid of zones follows its chunk files, a u16 zone a block
+/// of 10 by 10 cells, four blocks a chunk each way (spike A of `feat/places-of-parts`).
+pub const GRID_KIND: i64 = 1;
+pub const BLOCKS: i64 = 4;
+pub const NO_ZONE: i64 = 0xFFFF;
+
+/// Zone -> every zone of its place in parts, itself among them: the zones one matrix's grid
+/// holds that share a place name, as the Safari Zone's four quarters (ADR-0042). Only a grid
+/// says it: rooms of one layout share a matrix with no grid, as two houses of a town do, and are
+/// two places. Every such group in Omega Ruby and X is walked between without a warp (spike A).
+///
+/// ponytail: by the grid and the name alone, not the ground; a split place whose parts no ground
+/// joins would be listed as one.
+pub fn places_in_parts(matrices: &[Vec<u8>], table: &[u8]) -> Result<IndexMap<i64, Vec<i64>>> {
+    let size = crate::games::gen6::field::zonetable::INFO_SIZE;
+    let mut out: IndexMap<i64, Vec<i64>> = IndexMap::new();
+    for data in matrices {
+        // `struct.error` from any of the unpacks skips the file, as Python's `except` does.
+        let grid = (|| -> Result<Option<Vec<i64>>> {
+            if py::slice(data, 0, 2) != b"MM" {
+                return Ok(None);
+            }
+            let first = u32(data, 4)?;
+            let (kind, wide, tall) = (
+                u16(data, first)?,
+                u16(data, first + 4)?,
+                u16(data, first + 6)?,
+            );
+            if kind != GRID_KIND {
+                return Ok(None);
+            }
+            let count = wide * tall * BLOCKS * BLOCKS;
+            let start = first + 8 + 2 * wide * tall;
+            if (data.len() as i64) < start + 2 * count {
+                return Err(Error::new(
+                    Kind::StructError,
+                    "unpack_from requires a buffer",
+                ));
+            }
+            let mut grid = Vec::new();
+            for at in 0..count {
+                grid.push(u16(data, start + 2 * at)?);
+            }
+            Ok(Some(grid))
+        })();
+        let grid = match grid {
+            Ok(Some(grid)) => grid,
+            Ok(None) => continue,
+            Err(error) if error.is(Kind::StructError) => continue,
+            Err(error) => return Err(error),
+        };
+        let mut by_place: IndexMap<i64, Vec<i64>> = IndexMap::new();
+        let zones: std::collections::BTreeSet<i64> =
+            grid.into_iter().filter(|&zone| zone != NO_ZONE).collect();
+        for zone in zones {
+            if (zone + 1) * size <= table.len() as i64 {
+                let index = u16(
+                    table,
+                    zone * size + crate::games::gen6::field::zonetable::INFO_NAME,
+                )? & crate::games::gen6::field::zonetable::NAME_MASK;
+                by_place.entry(index).or_default().push(zone);
+            }
+        }
+        for zones in by_place.values() {
+            if zones.len() > 1 {
+                for &zone in zones {
+                    out.insert(zone, zones.clone());
+                }
+            }
         }
     }
     Ok(out)

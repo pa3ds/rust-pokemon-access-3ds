@@ -43,7 +43,7 @@ use crate::games::gen6::field::reader::{
 };
 use crate::games::gen6::field::terrain::NO_CHUNK_FILE;
 use crate::games::gen6::field::terrain::{FarCells, FarFloors, FarHeights, FarMatrices, Terrain};
-use crate::games::gen6::field::works::{EVENT_CLASS, FIRST_WORK, WORKS};
+use crate::games::gen6::field::works::{EVENT_CLASS, FIRST_WORK, FLAGS, WORKS};
 use crate::games::gen6::field::zonedata::{
     ENTITY_HEADER, FURNITURE, NPC, WARP, WARP_DOOR, npc_trainers, zone_header,
 };
@@ -170,7 +170,7 @@ fn given_bases(bases: Rc<dyn SecretBaseReader>) -> SecretBaseFactory {
 }
 
 /// `DexNav`, as the factory `Game.hidden` holds.
-fn dex_nav(memory: Rc<dyn Memory>) -> Rc<dyn HiddenReader> {
+pub(crate) fn dex_nav(memory: Rc<dyn Memory>) -> Rc<dyn HiddenReader> {
     Rc::new(DexNav::new(memory))
 }
 
@@ -211,6 +211,8 @@ pub(crate) struct Given {
     pub clock: Option<Rc<dyn Fn() -> f64>>,
     /// `[pa3ds.extras] hidden_items`; None is `HIDDEN_OFF`.
     pub extras_hidden_items: Option<&'static str>,
+    pub parts: IndexMap<i64, Vec<i64>>,
+    pub part_data: IndexMap<i64, Vec<u8>>,
 }
 
 /// A field reader of `game`, the ROM's words, chunks, `shared` and `natives` furniture and
@@ -236,6 +238,8 @@ pub(crate) fn field_reader(memory: Rc<FakeMemory>, given: Given, game: Game) -> 
         matrices,
         clock,
         extras_hidden_items,
+        parts,
+        part_data,
     } = given;
     let text = GameText {
         pc: words.get(&PC_KIND).cloned(),
@@ -256,6 +260,8 @@ pub(crate) fn field_reader(memory: Rc<FakeMemory>, given: Given, game: Game) -> 
         shared,
         natives,
         teleports,
+        parts,
+        part_data,
         ..GameText::default()
     };
     FieldReader::new(
@@ -1694,6 +1700,98 @@ fn test_the_gaps_into_the_next_part_of_one_place_are_one_way_in() -> Result<()> 
         )]
     );
     assert_eq!(one[0].nearest((101, 170)), (101, 159));
+    Ok(())
+}
+
+/// ADR-0042: the game builds only the zone the player is in, and two quarters of the Safari
+/// Zone away the Mega Stone was not listed (or_safari_zone_multizone_pathfinding). The route is
+/// the town's other part here: its people and item balls come out of its records in the ROM,
+/// told by their records as their models would be; a ball picked up is left out by the flag its
+/// script names (spike B), and every ball while the save's flags are not found.
+#[test]
+fn test_a_place_in_parts_lists_the_other_parts_things_out_of_the_rom() -> Result<()> {
+    let route = zone_file(&ZoneSpec {
+        npcs: &[
+            (mmodel::ITEM_BALL, 95, 140, 0x5AB, None),
+            (mmodel::ITEM_BALL, 97, 140, 0x5AC, None),
+            (0x119, 90, 130, 0x227, None),
+        ],
+        ..ZoneSpec::default()
+    });
+    let mut town = Town::new();
+    let both = vec![TOWN, ROUTE];
+    town.reader = field_reader(
+        town.memory.clone(),
+        Given {
+            parts: IndexMap::from([(TOWN, both.clone()), (ROUTE, both.clone())]),
+            part_data: IndexMap::from([(ROUTE, route)]),
+            ..Given::default()
+        },
+        Game {
+            hidden: Some(dex_nav),
+            ..game()
+        },
+    );
+    town.memory.u16(TABLE + ROUTE * INFO_SIZE + INFO_NAME, 170);
+
+    let theirs = |town: &Town| -> Result<Vec<(String, (i64, i64), Option<(i64, i64)>)>> {
+        let mut out: Vec<(String, (i64, i64), Option<(i64, i64)>)> = town
+            .r#where()?
+            .interactables
+            .iter()
+            .filter(|item| item.record.is_some_and(|record| record.0 == ROUTE))
+            .map(|item| (item.kind.clone(), item.cell, item.record))
+            .collect();
+        out.sort();
+        Ok(out)
+    };
+
+    assert_eq!(
+        theirs(&town)?,
+        [("person".to_string(), (90, 130), Some((ROUTE, 2)))]
+    );
+    town.reader.track(&Found {
+        pages: IndexMap::new(),
+        heap: IndexMap::from([(EVENT_WORK, EVENT_CLASS.to_string())]),
+        partial: false,
+    })?;
+    town.memory
+        .write(EVENT_WORK + FLAGS + 0x5AC / 8, &[(1 << (0x5AC % 8)) as u8]);
+    assert_eq!(
+        theirs(&town)?,
+        [
+            ("item ball".to_string(), (95, 140), Some((ROUTE, 0))),
+            ("person".to_string(), (90, 130), Some((ROUTE, 2)))
+        ]
+    );
+    let ball = town
+        .r#where()?
+        .interactables
+        .into_iter()
+        .find(|item| item.cell == (95, 140))
+        .unwrap();
+    let edges: Vec<Option<i64>> = town
+        .r#where()?
+        .of("exits")
+        .iter()
+        .filter(|item| item.kind == "edge")
+        .map(|item| item.zone)
+        .collect();
+    assert_eq!(edges, [Some(ROUTE)]);
+    // The game builds the ball's model once the player is in its part: the same thing, by its
+    // record, whatever slot it is in, and listed once.
+    town.model(4, ROUTE, 0, mmodel::ITEM_BALL, (95, 140));
+    let built: Vec<Interactable> = town
+        .r#where()?
+        .interactables
+        .into_iter()
+        .filter(|item| item.cell == (95, 140))
+        .collect();
+    assert_eq!(
+        built.iter().map(|item| item.key()).collect::<Vec<_>>(),
+        [ball.key()]
+    );
+    assert_ne!(built[0].source, ball.source);
     Ok(())
 }
 

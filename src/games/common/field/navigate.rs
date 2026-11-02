@@ -52,6 +52,7 @@
 //!   mode.
 //! - ADR-0041: a tape replay's census of P's ways says what P and Shift and P would, and touches
 //!   nothing the player hears or walks (`ways`).
+//! - ADR-0042: a thing of another part of the player's place says its part after its bearing.
 
 use std::rc::Rc;
 
@@ -149,6 +150,9 @@ pub type Sides = Rc<dyn Fn(bool) -> Result<Option<String>>>;
 /// `Callable[[int, int], bool]`: whether a slot on a map is a sign that says only the name of a
 /// door there.
 pub type DoorSign = Rc<dyn Fn(i64, i64) -> bool>;
+/// `Callable[[Interactable, int], str | None]`: the part of the player's place in parts a thing
+/// stands in, from the player's zone. It reads the zone table, so it can raise.
+pub type Part = Rc<dyn Fn(&Interactable, i64) -> Result<Option<String>>>;
 
 /// `Navigator.__init__`'s arguments after `field`, `speech` and `log`, each as the Python
 /// defaults it: set what differs with `..Options::default()`.
@@ -182,6 +186,9 @@ pub struct Options {
     /// Whether a drag is picked up by one press and let go by the next, rather than held
     /// (`[pa3ds.touch] drag` "toggle").
     pub toggle: bool,
+    /// The part of the player's place in parts a thing stands in, from the player's zone, where
+    /// it is another part's (ADR-0042).
+    pub part: Option<Part>,
 }
 
 impl Default for Options {
@@ -207,6 +214,7 @@ impl Default for Options {
             place: None,
             drags: None,
             toggle: false,
+            part: None,
         }
     }
 }
@@ -315,6 +323,7 @@ pub struct Navigator {
     /// The player's side of the battle as last said, or the enemy's, or None out of one.
     sides: Sides,
     door_sign: DoorSign,
+    part: Part,
     /// What the open dialog is renaming, the one alone where its checkbox may say so, and
     /// what it was called, since the player may have walked on by the time they press OK.
     renaming: Option<(Named, Option<Named>, String)>,
@@ -339,6 +348,8 @@ impl Navigator {
     /// `door_sign` says whether a slot on a map is a sign that says only the name of a door
     /// there, which the list leaves out with `[pa3ds.navigation] hide_door_signs`. `place` is
     /// what the game calls the place a zone is in, which a leg of P's way into another says.
+    /// `part` is the part of the player's place in parts a thing stands in, from the player's
+    /// zone, where it is another part's (ADR-0042).
     pub fn new(field: Rc<dyn FieldSource>, speech: Rc<Speech>, log: Log, options: Options) -> Self {
         let Options {
             bindings,
@@ -361,6 +372,7 @@ impl Navigator {
             place,
             drags,
             toggle,
+            part,
         } = options;
         let wording = navigation.unwrap_or_default();
         let names = names.unwrap_or_else(|| Rc::new(Names::default()));
@@ -417,6 +429,7 @@ impl Navigator {
             speaker: speaker.unwrap_or_else(|| Rc::new(|| None)),
             sides: sides.unwrap_or_else(|| Rc::new(|_player| Ok(None))),
             door_sign: door_sign.unwrap_or_else(|| Rc::new(|_zone, _slot| false)),
+            part: part.unwrap_or_else(|| Rc::new(|_item, _zone| Ok(None))),
             renaming: None,
             mode: LIST,
             hiding: false,
@@ -812,6 +825,11 @@ impl Navigator {
     fn said(&self, r#where: &Field, items: &[Interactable], at: i64) -> Result<()> {
         let item = &items[at as usize];
         let mut way = item.bearing(r#where.cell, r#where.heading)?;
+        // After the bearing, so the part's compass word is not taken for the way: "item ball, 12
+        // west 30 north, Safari Zone Northwest" (ADR-0042; Orion, 2026-10-31).
+        if let Some(part) = (self.part)(item, r#where.zone)? {
+            way += &format!(", {part}");
+        }
         if let Some(rise) = rise(r#where, item.height)? {
             way += &format!(", {rise}");
         }

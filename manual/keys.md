@@ -132,7 +132,9 @@ Safari Zone's four quarters, Route 119's north and south, Route 120's plateau, a
 four berry plots. pa3ds names each part, "Safari Zone Northwest", says it as you walk into it, and
 says it for an exit or a step of the way into it: "way out to Northern Route 119". The ways into
 the next part are listed as one exit, "path to Safari Zone Northeast", and `P` goes to the
-nearest.
+nearest. The list holds the whole place, whichever part you stand in, and a thing in another part
+says which after the way to it: "item ball, 12 west 30 north, Safari Zone Northwest". `P` keeps
+leading you to it from one part into the next.
 
 **Lining up.** The circle pad can leave you between two squares, and the game then refuses some
 steps past the corner of a wall. Where that would stop you, `P` first says which way to step,

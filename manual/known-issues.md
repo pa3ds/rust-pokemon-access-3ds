@@ -49,6 +49,10 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
   the end of a rail standing over low ground, where no way goes on; that is fixed, and the
   Safari Zone's rails have not been tried with `P` since. The rail at Route 119's foot has not
   been tried.
+- **Parts of a place**: someone in another part of the Safari Zone or of Routes 119, 120 and 123
+  is listed where they start, and may have wandered off until you walk into their part. None of
+  this has been heard in play yet. Mauville City's floors, a cave's floors and a hideout's rooms
+  are not named as parts yet, so their exits still say only what they are.
 
 ## X and Y
 
