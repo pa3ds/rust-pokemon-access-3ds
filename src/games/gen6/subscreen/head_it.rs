@@ -32,6 +32,10 @@
 //! little over halfway down, about 1.1 to 1.2 seconds after pa3ds first sees it at the top, for
 //! about a fifth of a second (spike A, live).
 //!
+//! Head It's own keys tap the Pokémon left to right, the game's own order of its records, and the
+//! round's three are said in that order in its opening, as Berry Picker's are (`_lineup`): all
+//! three are in the records from the opening, those not yet up below the screen (spike A's tape).
+//!
 //! Bound by:
 //! - ADR-0009: a Pokémon is tapped on the player's key, by touch mode, as the target it has just
 //!   named.
@@ -104,6 +108,7 @@ pub const SPAN: f64 = 0.1;
 pub const COMING: &str = "head-it-ball";
 pub const NOBODY: &str = "head-it-ball-nobody";
 pub const NOT_UP: &str = "head-it-no-pokemon";
+pub const LINEUP: &str = "head-it-lineup";
 /// What the log calls what Head It says.
 pub const LOG: &str = "head it";
 
@@ -138,6 +143,8 @@ pub struct HeadIt {
     ///
     /// A set only tested.
     cued: HashSet<i64>,
+    /// Whether the round about to start has had its three Pokémon said (`_lineup`).
+    told: bool,
 }
 
 impl HeadIt {
@@ -172,6 +179,7 @@ impl HeadIt {
             clock,
             heights: IndexMap::new(),
             cued: HashSet::new(),
+            told: false,
         }
     }
 
@@ -202,12 +210,18 @@ impl HeadIt {
         Ok(())
     }
 
-    /// Each ball that has just come, by the Pokémon it falls at, as the screen's words, while
-    /// balls fall.
+    /// The round's three Pokémon as its opening starts (`_lineup`), and while balls fall each
+    /// ball that has just come, by the Pokémon it falls at, as the screen's words.
     pub fn poll(&mut self, running: Option<&str>) -> Result<Vec<(String, String, Category)>> {
-        if running != Some(APP) || !self.playing()? {
+        let phase = if running == Some(APP) {
+            self.phase()?
+        } else {
+            None
+        };
+        let mut lineup = self.lineup(phase)?;
+        if phase.is_none_or(|phase| !(FALLING..=LAST).contains(&phase)) {
             self.falling = IndexMap::new();
-            return Ok(Vec::new());
+            return Ok(lineup);
         }
         let falling = self.balls()?;
         let new: Vec<i64> = falling
@@ -217,19 +231,51 @@ impl HeadIt {
             .collect();
         self.falling = falling;
         if new.is_empty() {
-            return Ok(Vec::new());
+            return Ok(lineup);
         }
         let standing = self.standing()?;
-        Ok(new
+        lineup.extend(new.into_iter().map(|column| {
+            let line = match standing.get(&column) {
+                Some(called) => own(COMING, &[("pokemon", called)]),
+                None => own(NOBODY, &[]),
+            };
+            (LOG.to_string(), line, Category::Screen)
+        }));
+        Ok(lineup)
+    }
+
+    /// The round's three Pokémon left to right, its keys' order, said once in its opening and
+    /// again in each Play Again's, as Berry Picker's are (Orion, 2026-11-01: "the same precedent
+    /// as berry picker"): on Easy two come up only as the round goes on, and in Orion's first
+    /// logged round he pressed the keys in the order the Pokémon came up, all but Windsong's
+    /// wrong. Left to right is the game's own order of its records too (spike A's tape).
+    fn lineup(&mut self, phase: Option<i64>) -> Result<Vec<(String, String, Category)>> {
+        if phase.is_none_or(|phase| phase >= FALLING) {
+            self.told = false;
+            return Ok(Vec::new());
+        }
+        let mut records: Vec<(i64, (i64, String, bool))> = self.records()?.into_iter().collect();
+        records.sort_by_key(|&(column, _)| column);
+        let names: Vec<String> = records
             .into_iter()
-            .map(|column| {
-                let line = match standing.get(&column) {
-                    Some(called) => own(COMING, &[("pokemon", called)]),
-                    None => own(NOBODY, &[]),
-                };
-                (LOG.to_string(), line, Category::Screen)
-            })
-            .collect())
+            .map(|(_, (_, called, _))| called)
+            .collect();
+        if self.told || names.len() as i64 != COUNT {
+            return Ok(Vec::new());
+        }
+        self.told = true;
+        Ok(vec![(
+            LOG.to_string(),
+            own(
+                LINEUP,
+                &[
+                    ("first", &names[0]),
+                    ("second", &names[1]),
+                    ("third", &names[2]),
+                ],
+            ),
+            Category::Screen,
+        )])
     }
 
     /// Each Pokémon up, by its name, at its body, while balls fall: they stand there through
@@ -261,6 +307,12 @@ impl HeadIt {
     /// sweep finds it with the Pokémon, and as Quit closed the round it was gone while they were
     /// not, and they were offered for 2 s (as_amie_head_it's tape).
     fn playing(&self) -> Result<bool> {
+        let phase = self.phase()?;
+        Ok(phase.is_some_and(|phase| (FALLING..=LAST).contains(&phase)))
+    }
+
+    /// What the round is doing (`PHASE`), or None with no app's object found.
+    fn phase(&self) -> Result<Option<i64>> {
         for (&at, &vtable) in &self.apps {
             let head = self.memory.read(at, PHASE + 4)?;
             // A copy in the module's code, as `Model`'s are, holds an instruction there: a word
@@ -268,11 +320,11 @@ impl HeadIt {
             if u32(&head, 0)? == vtable {
                 let phase = u32(&head, PHASE)?;
                 if phase <= LIST {
-                    return Ok((FALLING..=LAST).contains(&phase));
+                    return Ok(Some(phase));
                 }
             }
         }
-        Ok(false)
+        Ok(None)
     }
 
     /// Whether `tick` has balls to follow: while the cue is on and balls fall.
@@ -357,7 +409,18 @@ impl HeadIt {
 
     /// Each column -> its Pokémon up, by its `PokemonParam` and what it is called.
     fn up(&self) -> Result<IndexMap<i64, (i64, String)>> {
-        let mut found: IndexMap<i64, (i64, String)> = IndexMap::new();
+        Ok(self
+            .records()?
+            .into_iter()
+            .filter(|(_, (_, _, up))| *up)
+            .map(|(column, (param, called, _))| (column, (param, called)))
+            .collect())
+    }
+
+    /// Each column -> its Pokémon, by its `PokemonParam`, what it is called and whether it is
+    /// up: all three are there from the round's opening, those not yet up below the screen.
+    fn records(&self) -> Result<IndexMap<i64, (i64, String, bool)>> {
+        let mut found: IndexMap<i64, (i64, String, bool)> = IndexMap::new();
         for (&at, &vtable) in &self.models {
             let raw = self.memory.read(at, RECORDS + COUNT * SIZE)?;
             if u32(&raw, 0)? != vtable {
@@ -369,14 +432,14 @@ impl HeadIt {
                 let (x, y) = (f32(&raw, record + PLACE)?, f32(&raw, record + PLACE + 4)?);
                 // The sweep finds three more in the module's code, which holds instructions where
                 // a record's pointers are, as Berry Picker's `Model`s do (spike 260).
-                if y <= 0.0 || !(HEAP_SPAN.0 <= param && param < HEAP_SPAN.1) {
+                if !(HEAP_SPAN.0 <= param && param < HEAP_SPAN.1) {
                     continue;
                 }
                 let read = pokemon::read(&*self.memory, &self.names, param, pokemon::SPECIES_MAX)?;
                 if let Some(called) = read.as_ref().and_then(|read| (self.name)(read))
                     && !called.is_empty()
                 {
-                    found.insert(column(x), (param, called));
+                    found.insert(column(x), (param, called, y > 0.0));
                 }
             }
         }

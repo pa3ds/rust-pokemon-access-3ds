@@ -6,11 +6,12 @@
 //! plays through Windows' waveOut on the default output, where Azahar's sound goes while its output
 //! device is Auto; a clip cuts off the one before it. How loud is what the game would make it: the
 //! sound's own volume and its sequence's random one; times how loud Azahar plays the game
-//! (`loudness`); times `[pa3ds.audio] footsteps`, above 1 louder than the game would.
+//! (`loudness`); times `[pa3ds.audio] footsteps`, above 1 louder than the game would. A clip plays
+//! in both ears, as the game plays it, but where it is asked toward one side: Head It's cue.
 //!
 //! Bound by:
 //! - ADR-0025: the game's own sounds as loud as the game and Azahar would play them; nothing mutes
-//!   or skips the game's.
+//!   or skips the game's; none panned but Head It's cue.
 
 use std::cell::RefCell;
 use std::collections::HashSet;
@@ -59,8 +60,13 @@ impl Clips {
         self.sounds.borrow().keys().cloned().collect()
     }
 
-    /// Play the clip `name`, as loud as the game would play it.
+    /// `play(name)`, toward the middle, both ears at full, as Python's `across` defaults.
     pub fn play(&self, name: &str) -> Result<()> {
+        self.play_across(name, 0.5)
+    }
+
+    /// Play the clip `name`, as loud as the game would play it, toward `across` (`stereo`).
+    pub fn play_across(&self, name: &str, across: f64) -> Result<()> {
         let Some(sound) = self.sounds.borrow().get(name).cloned() else {
             return Ok(());
         };
@@ -70,11 +76,11 @@ impl Clips {
         let level =
             sound.volume * uniform(sound.quietest, 1.0) * self.loudness.azahar() * self.level;
         // ponytail: the sequence's random pitch bend is left out; add it if steps sound alike.
-        let mut data: Vec<u8> = Vec::with_capacity(sound.samples.len() * 2);
-        for &sample in &sound.samples {
-            let value = py::round(sample as f64 * level)?.clamp(-32768, 32767) as i16;
-            data.extend_from_slice(&value.to_le_bytes());
-        }
+        let samples = stereo(&sound.samples, level, across)?;
+        let data: Vec<u8> = samples
+            .iter()
+            .flat_map(|sample| sample.to_le_bytes())
+            .collect();
         let mut out = self.out.borrow_mut();
         let opened = match out.take() {
             Some(open) if open.rate == sound.rate => Ok(open),
@@ -90,6 +96,22 @@ impl Clips {
         }
         Ok(())
     }
+}
+
+/// Mono samples `level` times as loud, as left and right, in turn: `across` 0.5 both ears at
+/// full, as a mono sound plays, 0 the left alone and 1 the right, the far ear fading between.
+pub fn stereo(samples: &[i16], level: f64, across: f64) -> Result<Vec<i16>> {
+    // Python's `min(1.0, x)`: the first unless the second is strictly less.
+    let (left, right) = (2.0 - 2.0 * across, 2.0 * across);
+    let left = if left < 1.0 { left } else { 1.0 };
+    let right = if right < 1.0 { right } else { 1.0 };
+    let mut out: Vec<i16> = Vec::with_capacity(samples.len() * 2);
+    for &sample in samples {
+        let value = sample as f64 * level;
+        out.push(py::round(value * left)?.clamp(-32768, 32767) as i16);
+        out.push(py::round(value * right)?.clamp(-32768, 32767) as i16);
+    }
+    Ok(out)
 }
 
 /// `random.uniform(a, b)`: `a + (b - a) * random.random()`, the random number 53 random bits of
@@ -304,7 +326,7 @@ mod waveout {
 
     use crate::py::{Error, Kind, Result};
 
-    /// Windows' waveOut, mono 16-bit at one rate, open for good: a clip resets it and plays.
+    /// Windows' waveOut, stereo 16-bit at one rate, open for good: a clip resets it and plays.
     pub struct WaveOut {
         pub rate: i64,
         handle: HWAVEOUT,
@@ -317,10 +339,10 @@ mod waveout {
             let mut handle: HWAVEOUT = null_mut();
             let format = WAVEFORMATEX {
                 wFormatTag: WAVE_FORMAT_PCM as u16,
-                nChannels: 1,
+                nChannels: 2,
                 nSamplesPerSec: rate as u32,
-                nAvgBytesPerSec: (rate * 2) as u32,
-                nBlockAlign: 2,
+                nAvgBytesPerSec: (rate * 4) as u32,
+                nBlockAlign: 4,
                 wBitsPerSample: 16,
                 cbSize: 0,
             };

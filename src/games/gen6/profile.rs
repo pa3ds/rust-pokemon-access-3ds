@@ -9,6 +9,7 @@
 //! Bound by:
 //! - ADR-0009: touch mode offers targets only in the apps that need a touch (`TOUCHED`, and the
 //!   subscreens' among them), and Shift alone drags only where the subscreens say.
+//! - ADR-0025: the game's sounds play in both ears, but for Head It's cue, toward its Pokémon.
 //! - ADR-0041: a replay logs touch mode's targets as they change, so a tape holds them, and a tape
 //!   replay P's ways at each listing (`ways`).
 //! - ADR-0042: a part of a place in parts is said walking into it, every time, and an exit or a leg
@@ -735,7 +736,9 @@ impl Gen6Profile {
                 said
             })
         };
-        // Head It's cue, logged so a round's log shows each beside the key pressed for it.
+        // Head It's cue, in the ear of the Pokémon's side, the middle's in both (Orion,
+        // 2026-11-01, ADR-0025 as amended); logged so a round's log shows each beside the key
+        // pressed for it.
         let cue: Cue = {
             let (feedback_sounds, log) = (feedback_sounds.clone(), log.clone());
             Rc::new(move |column: i64| {
@@ -745,7 +748,7 @@ impl Gen6Profile {
                 ));
                 if let Some(sounds) = &feedback_sounds {
                     // The sound thread not starting, raised to the tick in Python.
-                    let _ = sounds.play(CUE_SOUND);
+                    let _ = sounds.play_across(CUE_SOUND, column as f64 / 2.0);
                 }
             })
         };

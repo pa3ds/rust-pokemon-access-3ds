@@ -124,10 +124,12 @@ miss. On Easy the Pokémon you play with stands alone in the middle at first, an
 beside it as the round goes on.
 
 Head It also has keys of its own, in any mode: `8`, `9` and `0` tap the Pokémon on the left, in
-the middle and on the right. A key where no Pokémon stands, or before the balls start, plays the
-game's error sound. As Azahar ships, none of the three is one of its buttons; outside Head It they
-are Azahar's as ever. With the `head_it_cue` setting on, the game's "!" sound plays as the moment
-to tap a ball comes.
+the middle and on the right. As each round starts, pa3ds says its three Pokémon in that order,
+those not up yet too. A key where no Pokémon stands, or before the balls start, plays the game's
+error sound. As Azahar ships, none of the three is one of its buttons; outside Head It they are
+Azahar's as ever. With the `head_it_cue` setting on, the game's "!" sound plays as the moment to
+tap a ball comes: in your left ear for the left Pokémon, both ears for the middle, your right ear
+for the right.
 
 In a Super Training regimen, touch mode offers each goal the
 Balloon Bot puts up: the tap key's first press says the goal, and each press after that shoots at

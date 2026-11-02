@@ -25,6 +25,8 @@ const POOCHYENA: i64 = 261;
 const RALTS: i64 = 280;
 const TREECKO: i64 = 252;
 const OTHER: &str = "N3app6puzzle7ProcessE";
+/// The round's three left to right, Poochyena down on the left.
+const LINEUP: &str = "Poochyena, Ralts and rowan";
 
 /// `NAMES.get(found.species)`.
 fn named(species: i64) -> Option<String> {
@@ -180,9 +182,10 @@ fn test_each_pokemon_up_is_offered_at_its_body_by_its_name() {
 }
 
 /// Its opening demonstrates a ball headed back, and its Pokémon stand on behind the results
-/// and Play Again; the last ball falls after time up (spike A, live).
+/// and Play Again; the last ball falls after time up (spike A, live). The opening says the
+/// lineup alone.
 #[test]
-fn test_nothing_is_said_or_offered_before_balls_fall_or_once_they_have() {
+fn test_no_ball_is_said_nor_pokemon_offered_before_balls_fall_or_once_they_have() {
     for (phase, playing) in [
         (1, false),
         (head_it::LAST, true),
@@ -191,8 +194,9 @@ fn test_nothing_is_said_or_offered_before_balls_fall_or_once_they_have() {
     ] {
         let mut game = game();
         game.memory.u32(APP + head_it::PHASE, &[phase]);
+        let said = heard(&mut game.found, head_it::APP);
         assert_eq!(
-            !heard(&mut game.found, head_it::APP).is_empty(),
+            !(said.is_empty() || said == [LINEUP]),
             playing,
             "phase {phase}"
         );
@@ -202,6 +206,21 @@ fn test_nothing_is_said_or_offered_before_balls_fall_or_once_they_have() {
             "phase {phase}"
         );
     }
+}
+
+/// As Berry Picker's are (Orion, 2026-11-01: "the same precedent as berry picker"): its keys'
+/// order, 8, 9 and 0, the one not yet up among them, said once in the opening and again in each
+/// Play Again's.
+#[test]
+fn test_the_rounds_three_pokemon_are_said_left_to_right_as_its_opening_starts() {
+    let mut game = game();
+    game.memory.u32(APP + head_it::PHASE, &[1]);
+    assert_eq!(heard(&mut game.found, head_it::APP), [LINEUP]);
+    assert_eq!(heard(&mut game.found, head_it::APP), Vec::<String>::new());
+    game.memory.u32(APP + head_it::PHASE, &[head_it::FALLING]);
+    assert_eq!(heard(&mut game.found, head_it::APP), ["Ralts"]);
+    game.memory.u32(APP + head_it::PHASE, &[0]);
+    assert_eq!(heard(&mut game.found, head_it::APP), [LINEUP]);
 }
 
 /// The cue's stand-in, keeping when each cue sounded and for which column, and the clock it is

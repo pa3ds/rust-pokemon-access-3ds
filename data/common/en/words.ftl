@@ -333,6 +333,9 @@ head-it-ball-nobody = ball of yarn
 # Head It's own keys, where the game's error sound is off: a Pokémon's key, by its number left to
 # right, while no Pokémon stands there or no ball falls, "no Pokémon 3".
 head-it-no-pokemon = no Pokémon { $number }
+# Head It's three Pokémon left to right, its keys' order, said as each round's opening starts:
+# "Metagross, Pikachu and Windsong".
+head-it-lineup = { $first }, { $second } and { $third }
 
 ## What pa3ds says of itself
 
@@ -422,7 +425,7 @@ setting-pa3ds-amie-berry_first-about = Say each Pokémon wanting a berry in the 
 setting-pa3ds-amie-one_at_a_time = Berry Picker says one Pokémon at a time
 setting-pa3ds-amie-one_at_a_time-about = Say one Pokémon wanting a berry at a time, and the next once you have given a berry or the one said has gone; false says each as it comes.
 setting-pa3ds-amie-head_it_cue = Head It sounds when to tap
-setting-pa3ds-amie-head_it_cue-about = In Head It, play the game's own "!" sound as the moment to tap a ball comes, as long before the ball reaches its Pokémon as the lead below says; it needs feedback sounds on.
+setting-pa3ds-amie-head_it_cue-about = In Head It, play the game's own "!" sound as the moment to tap a ball comes, as long before the ball reaches its Pokémon as the lead below says, in the ear on that Pokémon's side and both ears for the middle; it needs feedback sounds on.
 setting-pa3ds-amie-head_it_lead = Head It's cue lead
 setting-pa3ds-amie-head_it_lead-about = How many seconds before a ball reaches its Pokémon the cue sounds: about how long you take from hearing it to pressing the Pokémon's key. Raise it if your taps come too late, lower it if they come too early.
 setting-pa3ds-extras-conditions = Contest conditions as numbers

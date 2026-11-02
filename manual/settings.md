@@ -44,7 +44,7 @@ they take effect the next time pa3ds starts.
 | **`[pa3ds.amie]`** | | Pokémon-Amie's games. |
 | `berry_first` | `true` | Berry Picker says the berry first, in the order you give it: "Pinap Berry for Pikachu". `false` says "Pikachu wants Pinap Berry". |
 | `one_at_a_time` | `true` | Berry Picker says one Pokémon wanting a berry at a time, and the next once you have given a berry or the one said has gone. `false` says each as it comes. |
-| `head_it_cue` | `false` | Head It plays the game's own "!" sound `head_it_lead` seconds before a ball reaches its Pokémon, as the moment to tap. It needs `feedback_sounds` above 0. |
+| `head_it_cue` | `false` | Head It plays the game's own "!" sound `head_it_lead` seconds before a ball reaches its Pokémon, as the moment to tap, in the ear on that Pokémon's side, both ears for the middle. It needs `feedback_sounds` above 0. |
 | `head_it_lead` | `0.4` | How many seconds before a ball reaches its Pokémon the cue sounds: about how long you take from hearing it to pressing the key. Raise it if your taps come too late, lower it if too early. |
 | **`[pa3ds.extras]`** | | See [Extras](#extras). |
 | `conditions` | `false` | Say a Pokémon's contest conditions as numbers, on its summary and in the Pokéblock Case. |

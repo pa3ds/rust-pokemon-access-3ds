@@ -12,7 +12,7 @@ use indexmap::IndexMap;
 
 use super::fake_memory::FakeMemory;
 use crate::core::bcsar::Sound;
-use crate::core::clips::mix;
+use crate::core::clips::{mix, stereo};
 use crate::core::loudness::azahar_volume;
 use crate::games::common::field::chunk::footstep;
 use crate::games::gen6::field::footsteps::{self, Footsteps, Steps, came_down, load};
@@ -435,4 +435,18 @@ fn test_azahar_volume_is_read_from_its_audio_settings() {
     );
     assert_eq!(azahar_volume("[Audio]\n"), 1.0);
     assert_eq!(azahar_volume("volume=2\n"), 1.0);
+}
+
+/// ADR-0025 as amended 2026-11-01: a footstep sounds in both ears at full, as the mono sound
+/// the game plays; Head It's cue the left ear alone for the left Pokémon, the right for the
+/// right.
+#[test]
+fn test_a_clip_plays_in_both_ears_as_the_game_does_unless_asked_toward_one() {
+    let samples = [1000i16, -2000];
+    assert_eq!(
+        stereo(&samples, 0.5, 0.5).unwrap(),
+        [500, 500, -1000, -1000]
+    );
+    assert_eq!(stereo(&samples, 1.0, 0.0).unwrap(), [1000, 0, -2000, 0]);
+    assert_eq!(stereo(&samples, 1.0, 1.0).unwrap(), [0, 1000, 0, -2000]);
 }

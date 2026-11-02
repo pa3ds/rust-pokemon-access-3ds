@@ -706,12 +706,15 @@ fn test_soaring_the_way_the_player_faces_is_said_once_a_turn_stops() {
     assert_eq!(backend.spoken(), ["facing north", "facing east"]);
 }
 
-/// `[pa3ds.amie] head_it_cue` reaches Head It as the game's "!" (`CUE_SOUND`), and nothing
-/// is cued with the setting off: the spike that timed the cue turned it on itself, and so never
-/// went through the setting (Orion, 2026-11-01: "it didn't cue me at all").
+/// `[pa3ds.amie] head_it_cue` reaches Head It as the game's "!" (`CUE_SOUND`), in the left
+/// ear for the left Pokémon, both for the middle and the right for the right (ADR-0025 as
+/// amended 2026-11-01), and nothing is cued with the setting off: the spike that timed the cue
+/// turned it on itself, and so never went through the setting (Orion, 2026-11-01: "it didn't
+/// cue me at all").
 ///
-/// Python's fakes the sounds and plays the cue; `Clips` here plays through this machine's sound
-/// device, so the cue is found and not played.
+/// Python's fakes the sounds and plays the cue toward each column; `Clips` here plays through
+/// this machine's sound device, so the cue is found and not played, and where each column's is
+/// heard is `stereo`'s, which test_footsteps checks.
 #[test]
 fn test_head_its_cue_is_the_games_exclamation_once_the_setting_is_on() {
     let sounds = Clips::new(Loudness::full(), 1.0);
