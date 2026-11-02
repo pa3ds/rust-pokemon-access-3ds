@@ -169,7 +169,9 @@ pub const BUMPY_SLOPES: [i64; 1] = [0x6F];
 /// 119). The player rode east onto the first and along it, held right at its end and stopped, and
 /// down alone did nothing; B and down together hopped them a bar at a time onto the lower beam, and
 /// right rode it east and off (or_acro_bike_pathfinding, spike A). `0x6d` runs down x 86 and x 88
-/// there, joined by a bar at (87, 108): north and south by symmetry, not seen ridden.
+/// there, joined by a bar at (87, 108): north and south by symmetry, not seen ridden. The Safari
+/// Zone's rails stand 36 over its ground, joining its terraces, and its bars are two cells long:
+/// (249, 191) and (250, 191) are one (or_safari_zone, spike A).
 pub const BIKE_RAILS: [(i64, &str); 2] = [(0x6D, NORTH), (0x6E, EAST)];
 
 /// `table.get(kind)`, for a table in the order its Python dict was written in.

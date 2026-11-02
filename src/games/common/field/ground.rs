@@ -323,8 +323,8 @@ pub struct Ground {
     pub hops: IndexMap<Cell, &'static str>,
     /// The Acro Bike's rails, each cell with the way its beam runs, north or east (`BIKE_RAILS`):
     /// walls on foot, and to a player on the bike or a ground with HMs ridden along, got onto and
-    /// off only in line with a beam, from and onto ground stood on, and hopped across from one
-    /// onto the next beside it (`joined`, `across`; spike A).
+    /// off only in line with a beam, from and onto ground stood on as high as the rail, and hopped
+    /// across from one onto the next beside it (`joined`, `across`; spike A).
     pub rails: IndexMap<Cell, &'static str>,
     /// The waterfalls, each cell with the way it is climbed: jumped over either way as the shore
     /// is, where the ground is one with HMs, and a wall to any other (`over`, spike 170).
@@ -1519,8 +1519,15 @@ impl Ground {
     }
 
     /// Whether a step between a rail and a cell beside it can be taken: between two rails
-    /// any way, along a beam or hopped across; onto or off one only along its beam, and never
-    /// from or onto the water, where the river runs under Route 119's (spike A).
+    /// any way, along a beam or hopped across; onto or off one only along its beam, never from
+    /// or onto the water, where the river runs under Route 119's, and only from or onto ground
+    /// within `RISE` of the rail's height. Route 119's ends are as high as their rails, but the
+    /// Safari Zone's rails stand 36 over its ground, joining its terraces at 36, and P rode the
+    /// player to a rail's end over the low ground, where nothing took them off it
+    /// (or_safari_zone, spike A).
+    ///
+    /// ponytail: off a stacked ground only, the floors having no height in a rail's cell; Route
+    /// 119's top is one, and its ends are level with its rails.
     fn railed(&self, cell: Cell, step: Cell) -> Result<bool> {
         let (on, to) = (
             self.rails.contains_key(&cell),
@@ -1530,7 +1537,16 @@ impl Ground {
             return Ok(true);
         }
         let (rail, other) = if on { (cell, step) } else { (step, cell) };
-        Ok(self.along(rail, other)? && !self.water(other, None)?)
+        let (high, low) = (
+            self.height(rail, ANY_FLOOR)?,
+            self.height(other, ANY_FLOOR)?,
+        );
+        Ok(self.along(rail, other)?
+            && !self.water(other, None)?
+            && match (high, low) {
+                (Some(high), Some(low)) => (high - low).abs() <= RISE,
+                _ => true,
+            })
     }
 
     /// Whether `other`, beside `rail`, lies along the way its beam runs, not across it.

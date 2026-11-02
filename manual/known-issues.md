@@ -45,9 +45,10 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
   heard in play yet.
 - **Team Magma's and Team Aqua's Hideouts**: `P` now leads you through a teleporter pad into the
   same hideout as one step of the way, as in Lysandre Labs, and nobody has tried it there.
-- **The Acro Bike's rails** have been tried on one rail of Route 119's top, the one over the
-  river with three bars to hop. The rails running north and south there, the rail at the
-  route's foot and the Safari Zone's rails have not been tried with `P`.
+- **The Acro Bike's rails** work with `P` on Route 119's top. In the Safari Zone `P` led you to
+  the end of a rail standing over low ground, where no way goes on; that is fixed, and the
+  Safari Zone's rails have not been tried with `P` since. The rail at Route 119's foot has not
+  been tried.
 
 ## X and Y
 

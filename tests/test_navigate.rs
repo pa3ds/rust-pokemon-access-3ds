@@ -175,6 +175,8 @@ struct FakeField {
     vines: RefCell<Rc<Vines>>,
     /// Steps between open cells a drop apart, as the reader finds them off the ROM's heights.
     cliffs: RefCell<HashSet<(Cell, Cell)>>,
+    /// The ROM's ground heights, 0 where none is given; none at all, and none are known.
+    heights: RefCell<IndexMap<Cell, f64>>,
     visit: Slot<Option<(i64, i64)>>,
     edit: RefCell<Option<Edit>>,
     /// The matrix's zones, a block at a time, or none.
@@ -221,6 +223,7 @@ impl FakeField {
             grinds: RefCell::new(Rc::new(GrindRails::default())),
             vines: RefCell::new(Rc::new(Vines::default())),
             cliffs: RefCell::new(HashSet::new()),
+            heights: RefCell::new(IndexMap::new()),
             visit: Slot::new(Some((0x08D209B8, 0x6))),
             edit: RefCell::new(None),
             grid: RefCell::new(None),
@@ -391,6 +394,14 @@ impl FieldSource for FakeField {
             .iter()
             .copied()
             .collect::<IndexSet<_>>();
+        let heights = self.heights.borrow().clone();
+        ground.ground_height = if heights.is_empty() {
+            None
+        } else {
+            Some(Rc::new(move |cell: Cell| {
+                Ok(Some(heights.get(&cell).copied().unwrap_or(0.0)))
+            }))
+        };
         ground.level = self.level.get();
         ground.grind_rails = self.grinds.borrow().clone();
         ground.conveyors = self.conveyors.borrow().clone();
@@ -3729,6 +3740,47 @@ fn test_on_foot_p_says_the_rail_needs_the_acro_bike_and_shift_p_rides_it() {
             "2 east, then can't continue, requires rail",
             "2 east, rail 9 east, hop 3 south, rail 6 east, 5 east"
         ]
+    );
+}
+
+/// The Safari Zone (or_safari_zone): a rail 36 over the ground runs east from a terrace at 36
+/// to an end over the low ground, where the player stopped, P saying "Acro Bike 1 east" off it
+/// onto the ground below, and the rail went nowhere. Off the terrace a ledge drops south.
+#[test]
+fn test_p_gets_off_a_raised_rail_only_onto_ground_as_high() {
+    let terrace: HashSet<Cell> = (90..98).flat_map(|x| [175, 176].map(|z| (x, z))).collect();
+    let beam: IndexMap<Cell, &'static str> =
+        (98..107).map(|x| ((x, 175), pathfind::EAST)).collect();
+    let low: HashSet<Cell> = (90..119)
+        .flat_map(|x| (178..181).map(move |z| (x, z)))
+        .chain((107..119).flat_map(|x| (175..178).map(move |z| (x, z))))
+        .collect();
+    let blocked: Vec<Cell> = (80..120)
+        .flat_map(|x| (160..200).map(move |z| (x, z)))
+        .filter(|cell| !terrace.contains(cell) && !low.contains(cell))
+        .collect();
+    let mut rig = navigator(Want {
+        blocked,
+        ledges: vec![(92, 177)],
+        ..on(Field {
+            interactables: vec![Interactable {
+                source: 0x08D1E9A8,
+                ..Interactable::new("people", "person", (112, 175))
+            }],
+            on_bike: true,
+            ..Field::new(street().zone, (106, 175))
+        })
+    });
+    *rig.field.rails.borrow_mut() = beam.clone();
+    *rig.field.heights.borrow_mut() = terrace
+        .iter()
+        .chain(beam.keys())
+        .map(|&cell| (cell, 36.0))
+        .collect();
+    rig.press(PATHFIND);
+    assert_eq!(
+        last(&rig.backend),
+        "rail 9 west, 5 west, 3 south, 20 east, 3 north"
     );
 }
 
