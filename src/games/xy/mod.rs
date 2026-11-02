@@ -236,7 +236,7 @@ pub const STEPS: Steps = Steps {
 };
 /// Every sound the game plays, named, its footsteps by Omega Ruby's names (spike 231).
 pub const SOUND_ARCHIVE: &str = "sound/xy_sound.bcsar";
-/// The Pokémon's cries, 3,751 sequences and then 797 waves (spike A; X's, Y's not yet seen).
+/// The Pokémon's cries, 3,751 sequences and then 797 waves (spike 275; X's, Y's not yet seen).
 pub const CRIES: &str = "a/1/0/1";
 
 /// Place names in file 72 ("Route 4" at the index Route 4's row holds), trainer classes 20 and

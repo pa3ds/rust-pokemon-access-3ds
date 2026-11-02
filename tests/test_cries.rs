@@ -1,4 +1,4 @@
-//! The game's cry table, found in its executable and read by species and form (spike A).
+//! The game's cry table, found in its executable and read by species and form (spike 275).
 
 use crate::games::gen6::rom::cries;
 

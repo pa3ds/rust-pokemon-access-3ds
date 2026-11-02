@@ -1,4 +1,4 @@
-//! A Pokémon's cry out of the player's ROM, to play where pa3ds would say its name (spike A).
+//! A Pokémon's cry out of the player's ROM, to play where pa3ds would say its name (spike 275).
 //!
 //! The cries are a GARC of their own (`RomLayout.cries`): every sequence, a CSEQ, then every wave
 //! archive, a CWAR of one wave. The sound archive has only slots for them, filled as the game runs,

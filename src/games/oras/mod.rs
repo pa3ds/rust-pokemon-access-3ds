@@ -143,7 +143,7 @@ pub fn characters() -> &'static IndexMap<i64, i64> {
 pub const MAP_CHUNKS: &str = "a/0/3/9";
 /// Every sound the game plays, named, in both games (spike 225).
 pub const SOUND_ARCHIVE: &str = "sound/sango_sound.bcsar";
-/// The Pokémon's cries, 3,776 sequences and then 818 waves, in both games (spike A).
+/// The Pokémon's cries, 3,776 sequences and then 818 waves, in both games (spike 275).
 pub const CRIES: &str = "a/1/0/0";
 /// The matrices, a file a matrix by the number a zone-table row's +0x04 gives: Route 126's is 28, 8
 /// chunks by 8, and the water under it 31, 3 by 3 (spike 165).
