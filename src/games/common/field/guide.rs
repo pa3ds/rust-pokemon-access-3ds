@@ -236,14 +236,14 @@ pub const OWN_HOP_WORD: &str = "bumpy slope";
 pub const OWN_RAIL_WORD: &str = "rail";
 
 /// What a hop sideways from one of the Acro Bike's rails onto the next beside it is said with,
-/// "hop 3 south": B and the way pressed together, a press a hop (spike A). The game names no such
+/// "hop 3 south": B and the way pressed together, a press a hop (spike 267). The game names no such
 /// thing.
 pub const HOP: &str = "hop";
 
 /// What a hop up a bumpy slope is said with, "bunny hop 2 north": B held until the bike bounces in
 /// place, then the way with B still held. Said with the Acro Bike's name, as a ride along a rail
 /// is, it told the player nothing of B, and up alone rode them into the slope and no further
-/// (or_safari_zone, spike A). The game names no such thing.
+/// (or_safari_zone, spike 267). The game names no such thing.
 pub const BUNNY_HOP: &str = "bunny hop";
 
 /// Degrees the camera may be turned off a way of Lumiose's streets and still be said to look
@@ -992,7 +992,7 @@ pub struct Guide {
     /// The game's words a landform says its steps with (`Ground.words`): what a leg up a sandy
     /// slope is said with, the game's name for the Mach Bike; and a hop up a bumpy slope and a leg
     /// along a rail, its name for the Acro Bike, said on the bike too, since nothing read says
-    /// which of the two the player is riding (spikes 159 and A).
+    /// which of the two the player is riding (spikes 159 and 267).
     words: StepWords,
     /// Whether the field's walls are read, so P can find a way. Sun keeps its walls as
     /// meshes pa3ds does not read, and a way found without them would lead through them.

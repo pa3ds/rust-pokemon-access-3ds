@@ -4085,7 +4085,7 @@ fn test_a_slope_is_one_thing_and_a_rail_is_listed_at_its_ends() -> Result<()> {
 
 /// The Safari Zone's four zones split its rails, and a zone's rails alone were the ground's:
 /// P led the player along a rail to the next zone's edge and said "then can't continue", and an
-/// end was listed where the rail crossed it (or_safari_zone, spike A). A rail from the town
+/// end was listed where the rail crossed it (or_safari_zone, spike 267). A rail from the town
 /// north into Route 101 is the ground's all along, and listed at its own end in the town.
 #[test]
 fn test_a_rail_into_the_next_zone_is_one_rail() -> Result<()> {

@@ -321,12 +321,12 @@ pub struct Ground {
     /// The bumpy slopes, each with the way it is hopped up on the Acro Bike, from the cell before
     /// it to the cell after, as a ledge is jumped down: walls on foot (spike 159). Bunny hopped
     /// down too: in the Safari Zone the player hopped down both of the entrance's, (268, 214) and
-    /// (266, 216), B held and down pressed (`over`; or_safari_zone, spike A).
+    /// (266, 216), B held and down pressed (`over`; or_safari_zone, spike 267).
     pub hops: IndexMap<Cell, &'static str>,
     /// The Acro Bike's rails, each cell with the way its beam runs, north or east (`BIKE_RAILS`):
     /// walls on foot, and to a player on the bike or a ground with HMs ridden along, got onto and
     /// off only in line with a beam, from and onto ground stood on as high as the rail, and hopped
-    /// across from one onto the next beside it (`joined`, `across`; spike A).
+    /// across from one onto the next beside it (`joined`, `across`; spike 267).
     pub rails: IndexMap<Cell, &'static str>,
     /// The waterfalls, each cell with the way it is climbed: jumped over either way as the shore
     /// is, where the ground is one with HMs, and a wall to any other (`over`, spike 170).
@@ -1522,7 +1522,7 @@ impl Ground {
     /// within `RISE` of the rail's height. Route 119's ends are as high as their rails, but the
     /// Safari Zone's rails stand 36 over its ground, joining its terraces at 36, and P rode the
     /// player to a rail's end over the low ground, where nothing took them off it
-    /// (or_safari_zone, spike A).
+    /// (or_safari_zone, spike 267).
     ///
     /// ponytail: off a stacked ground only, the floors having no height in a rail's cell; Route
     /// 119's top is one, and its ends are level with its rails.
@@ -1567,7 +1567,7 @@ impl Ground {
 
     /// Whether the move from `cell` to `step` hops sideways off one rail onto the next beside
     /// it, B and the way pressed together: off the end of Route 119's beam at (107, 116) onto
-    /// each bar south of it, where down alone did nothing (spike A).
+    /// each bar south of it, where down alone did nothing (spike 267).
     pub fn across(&self, cell: Cell, step: Cell) -> Result<bool> {
         Ok(self.rails.contains_key(&cell)
             && self.rails.contains_key(&step)

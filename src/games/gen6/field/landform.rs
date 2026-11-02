@@ -295,7 +295,7 @@ fn in_rails(kind: i64) -> bool {
 
 /// The ground the bikes cross and walking does not: the Mach Bike's slopes, each patch of one kind
 /// a thing; the Acro Bike's rails, each end where the player gets on one, ridden along and hopped
-/// across (`Ground.rails`, spike A); and its bumpy slopes, each bunny hopped up or down from the
+/// across (`Ground.rails`, spike 267); and its bumpy slopes, each bunny hopped up or down from the
 /// cell before it to the cell after, as a ledge is jumped (`Ground.hops`, spikes 159 and A).
 /// Listed under bike.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
@@ -311,7 +311,7 @@ type BikeFound = (
 impl Landform for Bike {
     fn found(&self, matrix: &Matrix) -> Result<Found> {
         // Every zone's rails: the Safari Zone's four zones split them, and a way along one into
-        // the next zone ran into a wall, where a rail's end was listed (or_safari_zone, spike A).
+        // the next zone ran into a wall, where a rail's end was listed (or_safari_zone, spike 267).
         let mut rails: IndexMap<Cell, i64> = IndexMap::new();
         for chunk in matrix.chunks.values() {
             for (cell, kind) in chunk.kinds() {

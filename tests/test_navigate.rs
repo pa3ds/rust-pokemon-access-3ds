@@ -58,7 +58,7 @@ const SOUTH_LEDGE: i64 = 0x75020021;
 /// Jagged Pass's bumpy slopes, hopped up on the Acro Bike (omega_ruby_bike-jagged2.ctm,
 /// spike 159).
 const BUMPY: i64 = 0x6F000021;
-/// Route 119's rails by the way each beam runs, walled (spikes 159 and A).
+/// Route 119's rails by the way each beam runs, walled (spikes 159 and 267).
 const RAILS: [(&str, i64); 2] = [(pathfind::EAST, 0x6E000021), (pathfind::NORTH, 0x6D000021)];
 /// Route 109's sea (omega_ruby_surf.ctm, spike 136).
 const SEA: i64 = 0x3D1A0006;
@@ -3633,7 +3633,7 @@ fn test_p_rides_up_a_slope_only_on_the_bike_and_shift_p_says_the_bike_on_foot() 
 
 /// Jagged Pass: the player hopped north up the bumpy slope at (49, 30) on the Acro Bike, from
 /// (49, 31) to (49, 29) (the user, 2026-10-03). On foot P goes round it; Shift and P hops it,
-/// said as the bunny hop it takes (or_safari_zone, spike A).
+/// said as the bunny hop it takes (or_safari_zone, spike 267).
 #[test]
 fn test_shift_p_hops_up_a_bumpy_slope_and_says_a_bunny_hop() {
     let mut rig = navigator(Want {
@@ -3649,7 +3649,7 @@ fn test_shift_p_hops_up_a_bumpy_slope_and_says_a_bunny_hop() {
 }
 
 /// The Safari Zone: the player bunny hopped down both of the entrance's bumpy slopes, B held
-/// and down pressed, which P took for walls from above (or_safari_zone, spike A).
+/// and down pressed, which P took for walls from above (or_safari_zone, spike 267).
 #[test]
 fn test_p_on_the_bike_hops_down_a_bumpy_slope() {
     let mut rig = navigator(Want {
@@ -3690,7 +3690,7 @@ fn test_p_on_the_bike_walks_round_a_bumpy_slope_a_hop_saves_little_on() {
     assert_eq!(last(&rig.backend), "1 east, 5 south");
 }
 
-/// Route 119's top (or_acro_bike_pathfinding, spike A): a beam running east, two bars lying east
+/// Route 119's top (or_acro_bike_pathfinding, spike 267): a beam running east, two bars lying east
 /// and west stepping south from its end, and another beam running on east, river either side.
 ///
 /// Python's `RAILED`; `railed` is the navigator on them.
@@ -3744,7 +3744,7 @@ fn railed(cell: Cell, on_bike: bool) -> Rig {
     rig
 }
 
-/// Spike A: on Route 119's top the player rode east along a beam, and at its end down alone
+/// Spike 267: on Route 119's top the player rode east along a beam, and at its end down alone
 /// did nothing; B and down together hopped them across each bar south of it onto the next beam,
 /// which they rode east and off. Walled in the cell table, the rails were no way at all.
 #[test]
@@ -3757,7 +3757,7 @@ fn test_p_on_the_acro_bike_rides_a_rail_and_hops_across_its_bars() {
     );
 }
 
-/// Spike A: stopped on a rail, P said "no path to" everything listed, the rail's cells being
+/// Spike 267: stopped on a rail, P said "no path to" everything listed, the rail's cells being
 /// walls, and the player on one boxed in by them.
 #[test]
 fn test_p_from_a_rail_finds_the_way_on() {
@@ -3769,7 +3769,7 @@ fn test_p_from_a_rail_finds_the_way_on() {
     );
 }
 
-/// Spike A: P to the Bird Keeper on Route 119's top said "then can't continue" with nothing of
+/// Spike 267: P to the Bird Keeper on Route 119's top said "then can't continue" with nothing of
 /// what it needed. Shift and P takes the rails as it takes a bumpy slope, never off a bar into the
 /// river either side of it.
 #[test]

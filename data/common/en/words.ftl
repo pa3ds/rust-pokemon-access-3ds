@@ -149,10 +149,10 @@ how-slope = slope
 how-bumpy-slope = bumpy slope
 how-rail = rail
 # A hop sideways from one of the Acro Bike's rails onto the next beside it, B and the way pressed
-# together, a press a hop: "Acro Bike 9 east, hop 3 south, Acro Bike 6 east" (spike A).
+# together, a press a hop: "Acro Bike 9 east, hop 3 south, Acro Bike 6 east" (spike 267).
 how-hop = hop
 # A hop up a bumpy slope, B held until the bike bounces in place, then the way with B still held:
-# "bunny hop 2 north" (the Safari Zone, spike A).
+# "bunny hop 2 north" (the Safari Zone, spike 267).
 how-bunny-hop = bunny hop
 # A step into one of Fortree Gym's rotating doors, which turns it: "push 1 west" (spike 161).
 how-push = push
