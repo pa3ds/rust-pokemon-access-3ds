@@ -22,9 +22,10 @@
 //! when the player faces the cell and presses A, with no entity record behind it (spike 83).
 //!
 //! Bound by:
-//! - ADR-0042: the gaps into the next part of a place in parts are one exit (`edges`), and the list
-//!   holds the whole place, the other parts' things out of the ROM (`with_other_parts`), of a part
-//!   the player has stood in only what the game built there (`built`).
+//! - ADR-0042: the gaps into the next part of a place in parts are one exit (`edges`), and where
+//!   the game lists the place whole (`Game.whole`), the list holds it, the other parts' things out
+//!   of the ROM (`with_other_parts`), of a part the player has stood in only what the game built
+//!   there (`built`).
 
 use std::cell::{Cell as Slot, RefCell};
 use std::collections::{HashMap, HashSet};
@@ -343,8 +344,10 @@ pub struct FieldReader {
     outdoors: HashSet<i64>,
     parts: IndexMap<i64, Vec<i64>>,
     /// Each zone of a place in parts, with every zone of its place, and its zone data out of
-    /// the ROM, its things listed from the other parts (ADR-0042).
+    /// the ROM, its things listed from the other parts where its place is listed whole, `whole`
+    /// (ADR-0042).
     part_data: IndexMap<i64, Vec<u8>>,
+    whole: HashSet<i64>,
     twins_of: RefCell<HashMap<Vec<i64>, Rc<Twins>>>,
     /// Each part of a place in parts the player has stood in -> the indices of the NPC records
     /// the game built models for there, when last seen: another part's records are listed only
@@ -559,6 +562,7 @@ impl FieldReader {
             outdoors: text.outdoors.clone(),
             parts: text.parts.clone(),
             part_data: text.part_data.clone(),
+            whole: game.whole.clone(),
             twins_of: RefCell::new(HashMap::new()),
             built: RefCell::new(HashMap::new()),
             drawn: game.drawn,
@@ -1334,10 +1338,11 @@ impl FieldReader {
         if let Some(hidden_items) = &self.hidden_items {
             items.extend(hidden_items.listed(r#where.zone, &zone_at)?);
         }
-        if let Some(parts) = self
-            .parts
-            .get(&r#where.zone)
-            .filter(|parts| !parts.is_empty())
+        if self.whole.contains(&r#where.zone)
+            && let Some(parts) = self
+                .parts
+                .get(&r#where.zone)
+                .filter(|parts| !parts.is_empty())
         {
             items = self.with_other_parts(r#where, parts, items, &people)?;
         }

@@ -590,6 +590,11 @@ pub const BASE_FLAG: i64 = 0x2A73;
 pub const LAVARIDGE_GYM: i64 = 0x1AD;
 pub const MOSSDEEP_GYM: i64 = 0x1BB;
 pub const SOOTOPOLIS_GYM: i64 = 0x1BC;
+/// The Safari Zone's four quarters, the one place in parts listed whole (`Game.whole`): the Mega
+/// Stone's only ways in start in another quarter, and P to it said it gone in the next
+/// (or_safari_zone_multizone_pathfinding). Routes 119, 120 and 123 are listed a part at a time, the
+/// whole place's listing slowing every key (Orion, 2026-11-01).
+pub const SAFARI_ZONE: [i64; 4] = [0xDB, 0xDC, 0xDD, 0xDE];
 pub const SWITCH: (&str, &str) = ("signs", "switch");
 pub const PASSAGE: (&str, &str) = ("exits", "passage");
 pub const BELT: (&str, &str) = ("signs", "conveyor belt");
@@ -943,6 +948,7 @@ pub fn game() -> &'static Game {
         conditions: Some(Conditions::of),
         memories: Some(Memories::of),
         form: Some(mmodel::FORM),
+        whole: HashSet::from(SAFARI_ZONE),
         ..Game::new(
             "Omega Ruby and Alpha Sapphire",
             [OMEGA_RUBY, ALPHA_SAPPHIRE],

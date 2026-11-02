@@ -213,11 +213,13 @@ pub(crate) struct Given {
     pub extras_hidden_items: Option<&'static str>,
     pub parts: IndexMap<i64, Vec<i64>>,
     pub part_data: IndexMap<i64, Vec<u8>>,
+    /// Python's `whole` keyword, the game's field: None is the places in `parts`.
+    pub whole: Option<HashSet<i64>>,
 }
 
 /// A field reader of `game`, the ROM's words, chunks, `shared` and `natives` furniture and
 /// `teleports` given, the shipped table's `tiles` and `furniture_words`, and `[pa3ds.extras]
-/// hidden_items`.
+/// hidden_items`; the places in `parts` listed whole unless `whole` says otherwise.
 pub(crate) fn field_reader(memory: Rc<FakeMemory>, given: Given, game: Game) -> Rc<FieldReader> {
     let Given {
         words,
@@ -240,7 +242,12 @@ pub(crate) fn field_reader(memory: Rc<FakeMemory>, given: Given, game: Game) -> 
         extras_hidden_items,
         parts,
         part_data,
+        whole,
     } = given;
+    let game = Game {
+        whole: whole.unwrap_or_else(|| parts.keys().copied().collect()),
+        ..game
+    };
     let text = GameText {
         pc: words.get(&PC_KIND).cloned(),
         streets: streets.map(|streets| Rc::new(Streets(streets)) as Rc<dyn StreetSource>),
@@ -1816,6 +1823,49 @@ fn test_a_place_in_parts_lists_the_other_parts_things_out_of_the_rom() -> Result
         [ball.key()]
     );
     assert_ne!(built[0].source, ball.source);
+    Ok(())
+}
+
+/// ADR-0042 as amended 2026-11-01: listed whole, Routes 119, 120 and 123 slowed every key, and
+/// nothing there needs a way out of a part and back; only the Safari Zone is listed whole
+/// (`Game.whole`). Another place in parts lists the player's own part, and the gaps into the next
+/// as one exit, as before.
+#[test]
+fn test_a_place_in_parts_not_listed_whole_lists_a_part_at_a_time() -> Result<()> {
+    let route = zone_file(&ZoneSpec {
+        npcs: &[(0x119, 90, 130, 0x227, None)],
+        ..ZoneSpec::default()
+    });
+    let mut town = Town::new();
+    let both = vec![TOWN, ROUTE];
+    town.reader = field_reader(
+        town.memory.clone(),
+        Given {
+            parts: IndexMap::from([(TOWN, both.clone()), (ROUTE, both.clone())]),
+            part_data: IndexMap::from([(ROUTE, route)]),
+            whole: Some(HashSet::new()),
+            ..Given::default()
+        },
+        Game {
+            hidden: Some(dex_nav),
+            ..game()
+        },
+    );
+    town.memory.u16(TABLE + ROUTE * INFO_SIZE + INFO_NAME, 170);
+    let r#where = town.r#where()?;
+    assert!(
+        !r#where
+            .interactables
+            .iter()
+            .any(|item| item.record.is_some_and(|record| record.0 == ROUTE))
+    );
+    let edges: Vec<Option<i64>> = r#where
+        .of("exits")
+        .iter()
+        .filter(|item| item.kind == "edge")
+        .map(|item| item.zone)
+        .collect();
+    assert_eq!(edges, [Some(ROUTE)]);
     Ok(())
 }
 

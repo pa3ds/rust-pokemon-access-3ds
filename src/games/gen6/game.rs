@@ -341,6 +341,9 @@ pub struct Game {
     /// Where its field camera's block keeps where the camera looks (`camera.Shape`): ORAS's, or
     /// X's (spikes 230 and 239).
     pub camera: camera::Shape,
+    /// The zones of the places in parts listed whole, the other parts' things out of the ROM
+    /// (ADR-0042 as amended 2026-11-01); every other place in parts is listed a part at a time.
+    pub whole: HashSet<i64>,
 }
 
 impl Game {
@@ -399,6 +402,7 @@ impl Game {
             worded: IndexSet::new(),
             field_menu: MENU,
             camera: camera::ORAS,
+            whole: HashSet::new(),
         }
     }
 }
