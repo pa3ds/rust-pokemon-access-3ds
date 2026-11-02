@@ -3,6 +3,7 @@
 //! by (`textures`).
 
 pub mod archives;
+pub mod cries;
 pub mod doors;
 pub mod layout;
 pub mod maps;

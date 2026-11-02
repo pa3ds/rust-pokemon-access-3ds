@@ -22,6 +22,7 @@ mod test_choices;
 mod test_conditions;
 mod test_config;
 mod test_contest;
+mod test_cries;
 mod test_cursor;
 mod test_dialogue;
 mod test_discovery;

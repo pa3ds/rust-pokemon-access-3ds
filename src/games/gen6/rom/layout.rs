@@ -63,6 +63,9 @@ pub struct RomLayout {
     /// The sound archive, whose footsteps pa3ds plays where the game plays none (`footsteps`);
     /// None in a game whose footsteps are not measured.
     pub sounds: Option<String>,
+    /// The GARC of the Pokémon's cries, their sequences and then their waves (`rom.cries`); None
+    /// where they are not read.
+    pub cries: Option<String>,
     /// The story text archive a language, whose file a zone-table row's +0x06 gives is what the
     /// zone's script shows, its plates' words among it (`plates.plate_names`); none in a game
     /// whose plates are not read.
@@ -203,6 +206,7 @@ impl RomLayout {
             chunks: None,
             gym_modules: Vec::new(),
             sounds: None,
+            cries: None,
             story: IndexMap::new(),
             street_marks: None,
             street_names: None,

@@ -236,6 +236,8 @@ pub const STEPS: Steps = Steps {
 };
 /// Every sound the game plays, named, its footsteps by Omega Ruby's names (spike 231).
 pub const SOUND_ARCHIVE: &str = "sound/xy_sound.bcsar";
+/// The Pokémon's cries, 3,751 sequences and then 797 waves (spike A; X's, Y's not yet seen).
+pub const CRIES: &str = "a/1/0/1";
 
 /// Place names in file 72 ("Route 4" at the index Route 4's row holds), trainer classes 20 and
 /// names 21, the PC's lines 74 in the order ORAS has them; zone N's file is `a/0/1/2` file N and the
@@ -274,6 +276,7 @@ pub fn rom() -> &'static RomLayout {
         goods: Some(GOODS_NAMES),
         items: Some(ITEM_NAMES),
         sounds: Some(SOUND_ARCHIVE.to_string()),
+        cries: Some(CRIES.to_string()),
         touch_words: [
             training_bags(),
             training_regimens(),
