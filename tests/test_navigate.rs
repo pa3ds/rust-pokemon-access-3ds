@@ -3669,6 +3669,27 @@ fn test_p_on_the_bike_hops_down_a_bumpy_slope() {
     assert_eq!(last(&rig.backend), "7 south, bunny hop 2 south, 6 south");
 }
 
+/// Jagged Pass: with bumpy slopes hopped down, P on the bike hopped one where the way round
+/// was as long, and a bunny hop is B held two seconds and the way (or_jagged_pass_slopes).
+#[test]
+fn test_p_on_the_bike_walks_round_a_bumpy_slope_a_hop_saves_little_on() {
+    let mut rig = navigator(Want {
+        blocked: (80..97).map(|x| (x, 170)).collect(),
+        ..on(Field {
+            interactables: vec![Interactable {
+                source: 0x08D1E9A8,
+                move_model: true,
+                ..Interactable::new("people", "person", (97, 173))
+            }],
+            on_bike: true,
+            ..Field::new(0x54, (97, 168))
+        })
+    });
+    *rig.field.bumpy.borrow_mut() = HashSet::from([(97, 170)]);
+    rig.press(PATHFIND);
+    assert_eq!(last(&rig.backend), "1 east, 5 south");
+}
+
 /// Route 119's top (or_acro_bike_pathfinding, spike A): a beam running east, two bars lying east
 /// and west stepping south from its end, and another beam running on east, river either side.
 ///

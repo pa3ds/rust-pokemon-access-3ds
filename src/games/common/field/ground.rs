@@ -1181,9 +1181,9 @@ impl Ground {
     }
 
     /// What a move from `cell` to `step` costs on top of its steps: going onto water,
-    /// through what a move clears, up a waterfall, or up a slope from the foot of it or onto a
-    /// rail on foot, where the player gets on the bike first, or into a Pokémon waiting to be
-    /// ridden, faced and
+    /// through what a move clears, up a waterfall, over a bumpy slope, bunny hopped, or up a
+    /// slope from the foot of it or onto a rail on foot, where the player gets on the bike
+    /// first, or into a Pokémon waiting to be ridden, faced and
     /// got on with A (`mounts`), or into a thing it smashes, faced and smashed with A
     /// (`smashed`); through a big boulder or somebody of `crowd`, `SHOVE`; along a street a
     /// way it does not run, which the keys never walk and a way takes only where the cells laid
@@ -1213,10 +1213,11 @@ impl Ground {
         {
             return Ok(BOARD);
         }
-        if (!self.bike
-            && (self.hopping(cell, step)
-                || (self.rails.contains_key(&step) && !self.rails.contains_key(&cell))))
+        // A bunny hop costs as much on the bike: B held two seconds and the way pressed, where
+        // Jagged Pass's ways round its bumpy slopes are as long (or_jagged_pass_slopes).
+        if self.hopping(cell, step)
             || self.climbing(cell, step)
+            || (!self.bike && self.rails.contains_key(&step) && !self.rails.contains_key(&cell))
         {
             return Ok(BOARD);
         }
