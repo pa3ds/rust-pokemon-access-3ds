@@ -882,7 +882,7 @@ fn crossings(
 
 /// Legs as the player's keys walk them: by the compass on the grid, and on a rail or under a
 /// camera behind the player, where the keys work from it, from the way it looks (spikes 105 and
-/// A). A run of legs a current, a grind rail or a belt carries the player along is said as one,
+/// 239). A run of legs a current, a grind rail or a belt carries the player along is said as one,
 /// by where it leaves them (`CARRIED`). A leg into another place says it (`_crossings`). The way
 /// is said as far as its first vine, then how many more it rides: up Coumarine Gym, every
 /// press said all 17 vines and the legs between, again at each step (Khai, 2026-10-26). So is
