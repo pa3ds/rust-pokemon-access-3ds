@@ -77,7 +77,7 @@ use regex::Regex;
 
 use crate::core::config::Value;
 use crate::core::keys::{ORDER, PUNCTUATION};
-use crate::core::words::own;
+use crate::core::words::{listed, own};
 use crate::core::{toml, window};
 use crate::py::{self, Error, Kind, Result};
 
@@ -1583,14 +1583,4 @@ fn sentence(over: &[(String, String, bool)], saved: &str) -> Vec<String> {
         parts.push(own("keys-waiting", &[]));
     }
     parts
-}
-
-/// Several things as `A, B and C`: how a list is heard rather than how one is read.
-fn listed<'a>(things: impl IntoIterator<Item = &'a str>) -> String {
-    let items: Vec<&str> = things.into_iter().collect();
-    match items.split_last() {
-        None => String::new(),
-        Some((only, [])) => only.to_string(),
-        Some((last, rest)) => own("both", &[("these", &rest.join(", ")), ("last", last)]),
-    }
 }

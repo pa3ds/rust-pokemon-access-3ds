@@ -433,3 +433,13 @@ fn english() -> Words {
 pub fn own(message: &str, values: Values<'_>) -> String {
     current().say(message, values)
 }
+
+/// Several things as `A, B and C`: how a list is heard rather than how one is read.
+pub fn listed<'a>(things: impl IntoIterator<Item = &'a str>) -> String {
+    let items: Vec<&str> = things.into_iter().collect();
+    match items.split_last() {
+        None => String::new(),
+        Some((only, [])) => only.to_string(),
+        Some((last, rest)) => own("both", &[("these", &rest.join(", ")), ("last", last)]),
+    }
+}

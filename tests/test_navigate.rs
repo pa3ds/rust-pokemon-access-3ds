@@ -1100,9 +1100,9 @@ fn test_a_thing_more_than_two_cells_above_or_below_says_how_far() {
         said(&rig.backend),
         [
             "item ball, 1 of 4, 1 north, 104 below",
-            "sign, 2 of 4, 2 north",
-            "door, 3 of 4, 3 east 1 north, 40 above",
-            "person, 4 of 4, 4 west"
+            "person, 2 of 4, 4 west",
+            "sign, 3 of 4, 2 north",
+            "door, 4 of 4, 3 east 1 north, 40 above"
         ]
     );
 }
@@ -1813,6 +1813,128 @@ fn test_where_only_shift_p_reaches_a_thing_p_goes_to_where_the_hm_is_needed() {
     );
     let way = path_of(&guidance(&rig));
     assert_eq!(way.last(), Some(&(100, 176)));
+}
+
+/// `UP_THE_PASS`: water across Jagged Pass's chunk past the top of its slope, the one way on
+/// across it Surf.
+fn up_the_pass() -> Vec<Cell> {
+    (80..120)
+        .flat_map(|x| [164, 165].into_iter().map(move |z| (x, z)))
+        .collect()
+}
+
+/// Make the matrix the one chunk, so that nothing leads round its cliffs and water.
+fn one_chunk(rig: &Rig) {
+    *rig.field.grid.borrow_mut() = Some(Grid {
+        width: 12,
+        height: 20,
+        zones: (0..12 * 20)
+            .map(|i| if i % 12 >= 8 { 0x54 } else { NO_ZONE })
+            .collect(),
+    });
+}
+
+/// The Safari Zone: P said the Acro Bike alone where Surf was needed further on, and a player
+/// who went for the bike would have passed it before learning they needed Surf too (Orion,
+/// 2026-11-01). P names every move or bike the way needs, in the order it needs them.
+#[test]
+fn test_p_says_every_move_shift_p_s_whole_way_needs_before_the_player_sets_out() {
+    let mut rig = navigator(Want {
+        blocked: cliff(),
+        slopes: slope(),
+        sea: up_the_pass(),
+        ..on(pass())
+    });
+    one_chunk(&rig);
+    rig.press(PATHFIND);
+    assert_eq!(
+        last(&rig.backend),
+        "2 north, then can't continue, requires Mach Bike and Surf"
+    );
+}
+
+/// Orion, 2026-11-01: where the way needs moves and somebody stands in it as well, P says both,
+/// "requires Acro Bike and Surf, Team Magma Grunt in the way", going as far as the first.
+#[test]
+fn test_p_says_what_the_way_needs_and_who_stands_in_it_where_both_stop_it() {
+    let corridor: Vec<Cell> = (80..120)
+        .filter(|&x| x != 95)
+        .flat_map(|x| (161..164).map(move |z| (x, z)))
+        .collect();
+    let mut pass_ = pass();
+    pass_.interactables.push(Interactable {
+        source: 0x08D1F458,
+        move_model: true,
+        ..Interactable::new("people", "person", (95, 162))
+    });
+    let mut blocked = cliff();
+    blocked.extend(corridor);
+    let mut rig = navigator(Want {
+        blocked,
+        slopes: slope(),
+        sea: up_the_pass(),
+        ..on(pass_)
+    });
+    one_chunk(&rig);
+    // The Hiker, past the one standing in the corridor: listed last, since no way reaches him.
+    rig.press(ITEM_PREVIOUS);
+    rig.press(PATHFIND);
+    let stopped = "2 north, then can't continue, requires Mach Bike and Surf, person in the way";
+    assert_eq!(last(&rig.backend), stopped);
+    // P again keeps the way, and still says why it stops; Shift and P says its own.
+    rig.press(PATHFIND);
+    assert_eq!(last(&rig.backend), stopped);
+    rig.press_key("shift+p");
+    assert_eq!(
+        last(&rig.backend),
+        "2 north, Mach Bike 5 north, 2 north, Surf 2 north, 1 north, then can't continue, person in the way"
+    );
+}
+
+/// The Safari Zone: a hidden item 5 east 9 south was listed before an item ball 18 west 7
+/// north, a quarter of its way's length (Orion, 2026-11-01). List mode goes by Shift and P's
+/// way, and what no way reaches comes after, as the crow flies; direction mode is as the crow
+/// flies still, what is that way of the player.
+#[test]
+fn test_list_mode_is_nearest_first_by_the_way_there_and_what_nothing_reaches_last() {
+    let behind = Interactable {
+        source: 0x08D1E9A8,
+        move_model: true,
+        ..Interactable::new("items", "item ball", (90, 171))
+    };
+    let ahead = Interactable {
+        source: 0x08D1F458,
+        move_model: true,
+        ..Interactable::new("items", "item ball", (90, 181))
+    };
+    let shut = Interactable {
+        source: 0x08D1F9C8,
+        move_model: true,
+        ..Interactable::new("items", "item ball", (85, 168))
+    };
+    let mut blocked: Vec<Cell> = (80..120).filter(|&x| x != 110).map(|x| (x, 172)).collect();
+    blocked.extend([(84, 168), (86, 168), (85, 167), (85, 169)]);
+    let mut rig = navigator(Want {
+        blocked,
+        ..on(Field {
+            interactables: vec![behind, ahead, shut],
+            ..Field::new(0x6, (90, 175))
+        })
+    });
+    rig.press(ITEM_READ);
+    rig.press(ITEM_NEXT);
+    rig.press(ITEM_NEXT);
+    assert_eq!(
+        said(&rig.backend),
+        [
+            "item ball, 1 of 3, 6 south",
+            "item ball, 2 of 3, 4 north",
+            "item ball, 3 of 3, 5 west 7 north"
+        ]
+    );
+    rig.press(MODE_TOGGLE);
+    rig.press(NORTH);
+    assert_eq!(last(&rig.backend), "item ball, 1 of 2, 4 north");
 }
 
 /// ADR-0041: a replay presses no key of pa3ds's, so what P and Shift and P say of the way to
@@ -2775,8 +2897,20 @@ fn test_the_walk_out_reaches_the_room_a_teleporter_leads_to_and_the_teleporter()
         .unwrap()
         .reached((92, 172), &[(104, 174), (91, 172)])
         .unwrap();
-    assert_eq!(reached[&(104, 174)], HashSet::from([1]));
-    assert_eq!(reached[&(91, 172)], HashSet::from([0]));
+    assert_eq!(
+        reached[&(104, 174)]
+            .keys()
+            .copied()
+            .collect::<HashSet<i64>>(),
+        HashSet::from([1])
+    );
+    assert_eq!(
+        reached[&(91, 172)]
+            .keys()
+            .copied()
+            .collect::<HashSet<i64>>(),
+        HashSet::from([0])
+    );
 }
 
 /// Laverre Gym (spike 258): the way to a person two rooms off is said as far as the first
@@ -3000,6 +3134,8 @@ fn test_p_never_takes_a_ledge_off_a_face_walked_onto_from_the_side() {
     };
     let mut rig = navigator(on(floor));
     gym_wall(&rig, None, false);
+    // Out of reach, the ledge is listed last.
+    rig.press(ITEM_PREVIOUS);
     rig.press(PATHFIND);
     let way = guidance(&rig);
     assert!(way.is_some() && *path_of(&way).last().unwrap() != LEDGE);
@@ -5164,6 +5300,9 @@ fn test_p_again_that_finds_no_way_keeps_the_way_being_walked_and_says_the_rest()
         blocked: house_front(),
         ..on(street())
     });
+    // Not in the Python: the door is chosen first, since with its goals gone below the list
+    // sorted by the way there puts it after the person, where Python's walk out still reaches it.
+    rig.press(ITEM_READ);
     rig.press(PATHFIND);
     step(&mut rig, &[(91, 175), (92, 175), (93, 175)]);
     let held = guidance(&rig).unwrap();
@@ -5176,7 +5315,10 @@ fn test_p_again_that_finds_no_way_keeps_the_way_being_walked_and_says_the_rest()
         ground
     }));
     rig.press(PATHFIND);
-    assert_eq!(said(&rig.backend), ["5 east, 2 north", "2 east, 2 north"]);
+    assert_eq!(
+        from(&rig.backend, 1),
+        ["5 east, 2 north", "2 east, 2 north"]
+    );
     assert!(rig.nav.guiding());
     // Not in the Python: with the real `find` P again finds the same way anew and says the same
     // words, so only the way kept tells the branch the test is for from the one beside it.

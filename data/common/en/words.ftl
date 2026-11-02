@@ -222,8 +222,9 @@ p-lined-up = lined up
 p-then-cant-continue = then can't continue
 p-cant-continue = can't continue
 p-in-the-way = { $thing } in the way
-# Where P's way falls short and Shift and P's goes on, the move its first step P cannot
-# take needs: "10 south, then can't continue, requires Surf" (Orion, 2026-10-30).
+# Where P's way falls short and Shift and P's goes on, every move or bike its steps need, as
+# a list: "10 south, then can't continue, requires Acro Bike and Surf" (Orion, 2026-10-30 and
+# 2026-11-01).
 p-requires = requires { $move }
 # Under the sea, where the way goes on from another dive spot (spike 165).
 p-surface = surface and go to the dive spot { $bearing }
@@ -399,7 +400,7 @@ setting-pa3ds-navigation-hide_door_signs-about = Leave a sign out of the list wh
 setting-pa3ds-navigation-show_y = Announce height
 setting-pa3ds-navigation-show_y-about = Say how high as well, as y after x and z, when C says where you stand and shift and C where the thing chosen is: "x 71, z 35, y 20"; in the game's own units, 18 to a square's width, and left out where pa3ds does not know it, as in Sun and Moon.
 setting-pa3ds-navigation-sort_by_distance = Sort by distance
-setting-pa3ds-navigation-sort_by_distance-about = List mode's list nearest first, which changes as you walk; false keeps each thing in one place in it, the order the game's own tables have, so you can tell which house you have been in by where it is; direction mode is nearest first either way.
+setting-pa3ds-navigation-sort_by_distance-about = List mode's list nearest first by the way there, which changes as you walk; false keeps each thing in one place in it, the order the game's own tables have, so you can tell which house you have been in by where it is; direction mode is nearest first either way.
 setting-pa3ds-touch-wrap = Wrap around
 setting-pa3ds-touch-wrap-about = In touch mode, go from the last button back to the first, and from the bottom row back to the top; false stops at the ends, so pressing O a few times always ends on the bottom row.
 setting-pa3ds-touch-next_row = Go on to the next row

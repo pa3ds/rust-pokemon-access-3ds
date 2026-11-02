@@ -1023,8 +1023,8 @@ fn test_a_path_to_a_thing_ends_where_the_player_can_stand_outside_its_prop() {
             (TALK, field::PROP),
         ],
     );
-    let spoken = bedroom.keys(&["l", "p"], Some(TestWalls::walls()), Some(&found));
-    assert_eq!(spoken[1], "object, 2 of 3, 3 north");
+    let spoken = bedroom.keys(&["k", "p"], Some(TestWalls::walls()), Some(&found));
+    assert_eq!(spoken[1], "object, 1 of 3, 3 north");
     assert_eq!(spoken.last().unwrap(), "1 north");
 }
 

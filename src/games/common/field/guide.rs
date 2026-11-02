@@ -13,7 +13,7 @@ use indexmap::IndexMap;
 
 use crate::core::config::Navigation;
 use crate::core::pathfind::{self, Cell, Leg, Step};
-use crate::core::words::own;
+use crate::core::words::{listed, own};
 use crate::games::common::field::arrow::ARROW;
 use crate::games::common::field::chunk::ANY_FLOOR;
 use crate::games::common::field::climb;
@@ -317,8 +317,10 @@ pub struct Guidance {
     /// they can't continue. Python's default is False.
     pub short: bool,
     /// What stops it where it ends short, said after "can't continue": who stands in the way,
-    /// ", Team Magma Grunt in the way", or under the water where to dive again, ", surface and go
-    /// to the dive spot 29 east 16 south"; "" where it is neither. Python's default is "".
+    /// ", Team Magma Grunt in the way", what Shift and P's way needs, and who stands in that, ",
+    /// requires Acro Bike and Surf, Team Magma Grunt in the way", or under the water where to dive
+    /// again, ", surface and go to the dive spot 29 east 16 south"; "" where it is none of them.
+    /// Python's default is "".
     pub blocker: String,
     /// Whether a key asked for it. One found for the player unasked (`Navigator.found`) is found
     /// again quietly when they leave it: walking away from a hidden Pokémon the DexNav found, a new
@@ -642,6 +644,15 @@ type Past = (
     Option<Interactable>,
 );
 
+/// `_through`'s answer: the way as if nobody stood anywhere, with its goals, how far along it
+/// the first who does stands, and who it is.
+type Through = (
+    IndexMap<Cell, Option<&'static str>>,
+    Vec<Step>,
+    Option<usize>,
+    Option<Interactable>,
+);
+
 /// The way to step to line up with the leg from `path[at]`, where the player stands off its
 /// line and would catch a wall's corner on it: `west`, said "a little west" (`nudged`). None
 /// where they are lined up,
@@ -799,6 +810,31 @@ fn reached(
     }
     let walked = ground.walked(&path[last..])?;
     ground.ends_at(item, end, walked[0])
+}
+
+/// The fewest moves a walk out (`Ground.reached`) takes to end at each thing it reaches, by
+/// the thing's key: on one of its `aims`, on a floor it ends at it on (`Ground.ends_at`).
+#[allow(clippy::type_complexity)]
+fn lengths(
+    ground: &Ground,
+    aims: &[(&Interactable, IndexMap<Cell, Option<&'static str>>)],
+    reached: &IndexMap<Cell, IndexMap<i64, i64>>,
+) -> Result<IndexMap<Key, i64>> {
+    let mut out: IndexMap<Key, i64> = IndexMap::new();
+    for (item, cells) in aims {
+        let mut moves: Vec<i64> = Vec::new();
+        for &cell in cells.keys() {
+            for (&floor, &far) in reached.get(&cell).into_iter().flatten() {
+                if ground.ends_at(item, cell, floor)? {
+                    moves.push(far);
+                }
+            }
+        }
+        if let Some(&fewest) = moves.iter().min() {
+            out.insert(item.key(), fewest);
+        }
+    }
+    Ok(out)
 }
 
 /// The way P finds to a thing, before it is said (`Guide._way`).
@@ -1009,8 +1045,9 @@ pub struct Guide {
     /// Where the player was last looked at on the water and every cell a current carries them
     /// through from there, so it is said once (`swept`).
     drift: Vec<Cell>,
-    /// What `reachable` was last asked and found.
-    reached: RefCell<Option<(Asked, HashSet<Key>)>>,
+    /// What `lengths` was last asked and found: the keys walk the list a category at a time,
+    /// and every press asks again from where the player stands.
+    reached: RefCell<Option<(Asked, Rc<IndexMap<Key, i64>>)>>,
     /// The thing a way through the belts' switch goes on to once it is pressed, or None.
     after: Option<After>,
     /// When to look next at whether the switch has been pressed.
@@ -1020,7 +1057,7 @@ pub struct Guide {
     ground: Option<Ground>,
 }
 
-/// What `reachable` is asked: the zone, the player's cell, what is listed and the visit.
+/// What `lengths` is asked: the zone, the player's cell, what is listed and the visit.
 type Asked = (i64, Cell, Vec<Interactable>, Option<(i64, i64)>);
 
 impl Guide {
@@ -1144,13 +1181,26 @@ impl Guide {
     /// Victory Road's stacked 1F kept all 13 things listed, 8 of them short of Shift and P's
     /// reach (movie47, spike 215).
     pub fn reachable(&self, r#where: &Field) -> Result<HashSet<Key>> {
-        let everything: HashSet<Key> = r#where
-            .interactables
-            .iter()
-            .map(|item| item.key())
-            .collect();
+        let lengths = self.lengths(r#where)?;
+        Ok(match lengths {
+            None => r#where
+                .interactables
+                .iter()
+                .map(|item| item.key())
+                .collect(),
+            Some(lengths) => lengths.keys().cloned().collect(),
+        })
+    }
+
+    /// How long Shift and P's way is to each thing listed in `where` it reaches, ending at it
+    /// and not short of it, in moves, a step or a jump each: the things `reachable` keeps, by
+    /// the same walk; None where no way is found on this ground. List mode sorts by it, since a
+    /// thing across a river is no nearer for being near as the crow flies: in the Safari Zone a
+    /// hidden item 5 east 9 south was listed before an item ball 18 west 7 north, a quarter of
+    /// its way's length (Orion, 2026-11-01).
+    pub fn lengths(&self, r#where: &Field) -> Result<Option<Rc<IndexMap<Key, i64>>>> {
         if !self.routes || r#where.on_rail || r#where.steer.is_some() {
-            return Ok(everything);
+            return Ok(None);
         }
         let asked: Asked = (
             r#where.zone,
@@ -1158,16 +1208,15 @@ impl Guide {
             r#where.interactables.clone(),
             self.field.visit(),
         );
-        if let Some((last, keys)) = &*self.reached.borrow()
+        if let Some((last, lengths)) = &*self.reached.borrow()
             && *last == asked
         {
-            return Ok(keys.clone());
+            return Ok(Some(lengths.clone()));
         }
-        let mut out: HashSet<Key> = HashSet::new();
         let ground = self.ground(r#where, true)?;
-        // ponytail: a walk over the whole matrix each time the player has moved, 0.9 s on one of
-        // 8 by 8 chunks and tens of milliseconds in a cave; keep it while they stay where it
-        // reached, if a route's wait is heard.
+        // ponytail: a walk over the whole matrix each time the player has moved, 0.1 to 0.16 s
+        // in the Safari Zone and on Route 119 (2026-11-01), more on the sea's 8 by 8 chunks; keep
+        // it while they stay where it reached, if a list key's wait is heard.
         let mut goals: Vec<(&Interactable, IndexMap<Cell, Option<&'static str>>)> = Vec::new();
         for item in &r#where.interactables {
             goals.push((item, aims(&ground, item, None)?));
@@ -1177,27 +1226,14 @@ impl Guide {
             .flat_map(|(_, cells)| cells.keys().copied())
             .collect();
         let reached = ground.reached(r#where.cell, &cells)?;
-        for (item, cells) in &goals {
-            let mut any = false;
-            'cells: for &cell in cells.keys() {
-                for &floor in reached.get(&cell).into_iter().flatten() {
-                    if ground.ends_at(item, cell, floor)? {
-                        any = true;
-                        break 'cells;
-                    }
-                }
-            }
-            if any {
-                out.insert(item.key());
-            }
-        }
+        let mut out = lengths(&ground, &goals, &reached)?;
         let switch = r#where.interactables.iter().find(|one| {
             ground
                 .switch
                 .is_some_and(|switch| one.cells().contains(&switch))
         });
         let spot = match switch {
-            Some(switch) if out.contains(&switch.key()) => aims(&ground, switch, None)?
+            Some(switch) if out.contains_key(&switch.key()) => aims(&ground, switch, None)?
                 .into_keys()
                 .find(|cell| reached.contains_key(cell)),
             _ => None,
@@ -1208,36 +1244,30 @@ impl Guide {
             // What a way reaches past the belts' switch, pressed, is reached too (`to`).
             let turned = ground.turned();
             let past = turned.reached(spot, &cells)?;
-            for (item, cells) in &goals {
-                let mut any = false;
-                'past: for &cell in cells.keys() {
-                    for &floor in past.get(&cell).into_iter().flatten() {
-                        if turned.ends_at(item, cell, floor)? {
-                            any = true;
-                            break 'past;
-                        }
-                    }
-                }
-                if any {
-                    out.insert(item.key());
-                }
+            let there = reached[&spot]
+                .values()
+                .copied()
+                .min()
+                .ok_or_else(|| Error::value("min() arg is an empty sequence"))?;
+            for (key, moves) in lengths(&turned, &goals, &past)? {
+                out.entry(key).or_insert(there + moves);
             }
         }
         if !ground.ice.is_empty() {
             // A way over thin ice steps on every tile once, which no walk out follows.
-            let mut over: HashSet<Key> = HashSet::new();
             for item in &r#where.interactables {
-                if !out.contains(&item.key())
+                if !out.contains_key(&item.key())
                     && let Some(way) = self.way(r#where, item, true, "", None)?
                     && !way.short
+                    && let Some(path) = &way.path
                 {
-                    over.insert(item.key());
+                    out.insert(item.key(), path.len() as i64 - 1);
                 }
             }
-            out.extend(over);
         }
+        let out = Rc::new(out);
         *self.reached.borrow_mut() = Some((asked, out.clone()));
-        Ok(out)
+        Ok(Some(out))
     }
 
     /// The belts' switch, where the way to `item` falls short and goes there past it: listed
@@ -1452,7 +1482,7 @@ impl Guide {
         let sides = sides(item, push);
         if short {
             let at = match &held {
-                Some(held) if held.borrow().key == item.key() => held
+                Some(held) if held.borrow().key == item.key() && held.borrow().hm == hm => held
                     .borrow()
                     .at(r#where.cell, ground.floor(r#where.cell, r#where.height)?)?,
                 _ => None,
@@ -1464,7 +1494,11 @@ impl Guide {
                 self.guidance = Some(held.clone());
                 let mut text = left(&held.borrow(), at, r#where)?;
                 if held.borrow().short {
-                    text += &format!(", {}", own("p-then-cant-continue", &[]));
+                    text += &format!(
+                        ", {}{}",
+                        own("p-then-cant-continue", &[]),
+                        held.borrow().blocker
+                    );
                 }
                 say(&text);
                 return Ok(());
@@ -1520,9 +1554,9 @@ impl Guide {
             blocker = text;
         } else if short && let Some(needed) = self.needs(r#where, item, &ground, heading, &sides)? {
             // Python also rebinds `goals` here, and reads it again only where not short.
-            let (_goals, way, r#move) = needed;
+            let (_goals, way, why) = needed;
             path = Some(way);
-            blocker = format!(", {}", own("p-requires", &[("move", &r#move)]));
+            blocker = format!(", {why}");
         }
         let path = match path {
             Some(path) if !(short && path.len() == 1) => path,
@@ -1923,14 +1957,7 @@ impl Guide {
 
     /// Where somebody stands in the way on `ground`: the way there as if nobody stood
     /// anywhere, as far as the first who does, with its goals, path and who it is; or None
-    /// where nobody is what stops it. In Fortree City the invisible
-    /// Kecleon stands in the one way to the Gym until the Devon Scope shows it, and the way as
-    /// near as the player could get as the crow flies ended behind a wall from the Gym, on a
-    /// walkway 7 cells south of its door (spike 160). What stands unlisted stays: Sootopolis
-    /// Gym's invisible blockers shut the corridors up to Wallace, and cleared away, the Lass
-    /// pacing the lower floor was said to be in the way up to him (spike 167). Whoever can be
-    /// walked round is: on Route 7 the way west went through Shauna, standing in the open, on
-    /// its way to the Snorlax filling the road, and she was said to be in the way (2026-10-19).
+    /// where nobody is what stops it (`through`).
     fn up_to(
         &self,
         r#where: &Field,
@@ -1939,6 +1966,34 @@ impl Guide {
         heading: &str,
         sides: &HashSet<&'static str>,
     ) -> Result<Option<Past>> {
+        let Some((goals, way, at, stood)) = self.through(r#where, item, ground, heading, sides)?
+        else {
+            return Ok(None);
+        };
+        let Some(at) = at else {
+            return Ok(None);
+        };
+        Ok(Some((goals, way[..at].to_vec(), stood)))
+    }
+
+    /// The way to `item` on `ground` as if nobody stood anywhere, with its goals, how far
+    /// along it the first who does stands, and who it is, None where nobody does; or None
+    /// where there is no such way. In Fortree City the invisible
+    /// Kecleon stands in the one way to the Gym until the Devon Scope shows it, and the way as
+    /// near as the player could get as the crow flies ended behind a wall from the Gym, on a
+    /// walkway 7 cells south of its door (spike 160). What stands unlisted stays: Sootopolis
+    /// Gym's invisible blockers shut the corridors up to Wallace, and cleared away, the Lass
+    /// pacing the lower floor was said to be in the way up to him (spike 167). Whoever can be
+    /// walked round is: on Route 7 the way west went through Shauna, standing in the open, on
+    /// its way to the Snorlax filling the road, and she was said to be in the way (2026-10-19).
+    fn through(
+        &self,
+        r#where: &Field,
+        item: &Interactable,
+        ground: &Ground,
+        heading: &str,
+        sides: &HashSet<&'static str>,
+    ) -> Result<Option<Through>> {
         let own: HashSet<Cell> = item.cells().into_iter().collect();
         let listed: HashSet<Cell> = r#where
             .interactables
@@ -1988,23 +2043,30 @@ impl Guide {
                 break;
             }
         }
-        let Some(at) = found else {
-            return Ok(None);
+        let stood = match found {
+            None => None,
+            Some(at) => r#where
+                .interactables
+                .iter()
+                .find(|thing| thing.move_model && thing.cells().contains(&cells[at]))
+                .cloned(),
         };
-        let stood = r#where
-            .interactables
-            .iter()
-            .find(|thing| thing.move_model && thing.cells().contains(&cells[at]))
-            .cloned();
-        Ok(Some((goals, way[..at].to_vec(), stood)))
+        Ok(Some((goals, way, found, stood)))
     }
 
-    /// Where P's way on `ground` falls short and Shift and P's reaches `item`: Shift and P's way
-    /// as far as its first step `ground` cannot take, with its goals and the move or the bike
-    /// that step needs; None on a ground with HMs already, where Shift and P's falls short too,
-    /// or where what stops P is no such step. In the Cave of Origin P to Steven, across the
-    /// water, went the other way, to where the cave came nearest him as the crow flies, and Orion
-    /// asked for the way to where Surf is needed instead (2026-10-30).
+    /// Where P's way on `ground` falls short and Shift and P's reaches `item`, or would with
+    /// nobody in the way: Shift and P's way, as far as its first step `ground` cannot take or
+    /// whoever stands in it first, with its goals and what is said after "can't continue":
+    /// every move or bike a step of the whole way needs, in the order they are needed, and who
+    /// stands in it, "requires Acro Bike and Surf, Team Magma Grunt in the way". None on a
+    /// ground with HMs already, where Shift and P's falls short with nobody in the way, or where
+    /// what stops P first is no such step nor anybody.
+    ///
+    /// In the Cave of Origin P to Steven, across the water, went the other way, to where the
+    /// cave came nearest him as the crow flies, and Orion asked for the way to where Surf is
+    /// needed instead (2026-10-30). In the Safari Zone it said the Acro Bike alone where Surf
+    /// was needed further on, and Orion asked to hear everything the way needs before setting
+    /// out, and who stands in it too (2026-11-01).
     #[allow(clippy::type_complexity)]
     fn needs(
         &self,
@@ -2018,33 +2080,73 @@ impl Guide {
             return Ok(None);
         }
         let hm = self.ground(r#where, true)?;
-        let goals = aimed(hm.goals(item)?, sides);
-        let way = hm.find(r#where.cell, &goals, heading, Some(item), false, None)?;
-        let Some(way) = way else {
-            return Ok(None);
-        };
-        if !reached(&hm, item, &goals, &Some(way.clone()))? {
-            return Ok(None);
+        let mut goals = aimed(hm.goals(item)?, sides);
+        let mut way = hm.find(r#where.cell, &goals, heading, Some(item), false, None)?;
+        let mut stop: Option<usize> = None;
+        let mut stood: Option<Interactable> = None;
+        if way.is_none() || !reached(&hm, item, &goals, &way)? {
+            // Nobody standing anywhere, the way as far as the first who does.
+            let Some(through) = self.through(r#where, item, &hm, heading, sides)? else {
+                return Ok(None);
+            };
+            if through.2.is_none() {
+                return Ok(None);
+            }
+            (goals, way, stop, stood) = (through.0, Some(through.1), through.2, through.3);
         }
+        let way = way.unwrap_or_default();
         let cells = pathfind::cells(&way);
-        let mut found: Option<usize> = None;
+        let mut moves: Vec<String> = Vec::new();
         for i in 1..cells.len() {
-            if !walks(ground, cells[i - 1], cells[i])? {
-                found = Some(i);
-                break;
+            if walks(ground, cells[i - 1], cells[i])? {
+                continue;
+            }
+            let r#move = self.r#move(ground, &hm, cells[i - 1], cells[i])?;
+            if r#move.is_none() && moves.is_empty() && stood.is_none() {
+                return Ok(None);
+            }
+            if let Some(r#move) = r#move
+                && !moves.contains(&r#move)
+            {
+                if moves.is_empty() && stop.is_none_or(|stop| i < stop) {
+                    stop = Some(i);
+                }
+                moves.push(r#move);
             }
         }
-        let Some(at) = found else {
+        let Some(stop) = stop else {
             return Ok(None);
         };
-        let (cell, step) = (cells[at - 1], cells[at]);
+        let mut said: Vec<String> = Vec::new();
+        if !moves.is_empty() {
+            said.push(own(
+                "p-requires",
+                &[("move", &listed(moves.iter().map(String::as_str)))],
+            ));
+        }
+        if let Some(stood) = &stood {
+            let thing = (self.label)(stood, r#where.zone)?;
+            said.push(own("p-in-the-way", &[("thing", &thing)]));
+        }
+        Ok(Some((goals, way[..stop].to_vec(), said.join(", "))))
+    }
+
+    /// What a step `ground` cannot take and `hm` can is said to need: the move, or the bike
+    /// it is ridden on; None for any other step.
+    fn r#move(
+        &self,
+        ground: &Ground,
+        hm: &Ground,
+        cell: Cell,
+        step: Cell,
+    ) -> Result<Option<String>> {
         let word = |number: i64| -> Result<String> {
             self.moves
                 .get(&number)
                 .cloned()
                 .ok_or_else(|| Error::key(number.to_string()))
         };
-        let r#move = if let Some(&clear) = ground.cleared.get(&step) {
+        Ok(if let Some(&clear) = ground.cleared.get(&step) {
             Some(word(clear)?)
         } else if hm.climbing(cell, step) {
             Some(word(WATERFALL)?)
@@ -2058,8 +2160,7 @@ impl Guide {
             Some(self.words.bike.clone())
         } else {
             None
-        };
-        Ok(r#move.map(|r#move| (goals, way[..at].to_vec(), r#move)))
+        })
     }
 
     /// Whether the camera has stopped turning: it has stayed within `STILL` of one bearing

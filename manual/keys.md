@@ -43,7 +43,7 @@ The battle's keys work throughout.
 |---|---|
 | `'` (apostrophe) | Next mode: list mode, direction mode, touch mode. |
 | `[` and `]` | Previous and next category. |
-| `P` | Find the way on foot to the chosen thing, and guide you along it turn by turn. Where only `Shift+P` reaches it, `P` takes you as far as the spot where a move is needed and says which, "then can't continue, requires Surf". |
+| `P` | Find the way on foot to the chosen thing, and guide you along it turn by turn. Where only `Shift+P` reaches it, `P` takes you as far as the spot where a move is needed and says every move and bike the way needs, and anyone standing in it: "then can't continue, requires Acro Bike and Surf, Team Magma Grunt in the way". |
 | `Shift+P` | The same, but also using Surf, Cut, Rock Smash, Strength, Waterfall and the bikes. It pushes a big boulder only where there is no way round it. |
 | `Alt+P` | Stop guiding. |
 | `Ctrl+P` | Leave out of the list everything `Shift+P` finds no way to from where you stand, or put it back. Everything is listed each time pa3ds starts. |
@@ -55,7 +55,8 @@ The battle's keys work throughout.
 | `C` | Say the square you are standing on, as x and z: x grows going east, z going south. |
 | `Shift+C` | Say the chosen thing's squares the same way. |
 
-**List mode** walks the whole list, nearest first.
+**List mode** walks the whole list, nearest first: the shortest way there first, and after them
+the things no way reaches, nearest first as the crow flies.
 
 | Key | What it does |
 |---|---|
