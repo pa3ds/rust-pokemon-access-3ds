@@ -22,7 +22,7 @@ use crate::games::common::session::{Profile, Session, Setup};
 use crate::games::gen6::field::footsteps;
 use crate::games::gen6::game::Game;
 use crate::games::gen6::profile::{
-    DROP_SOUND, Gen6Profile, Options, PICK_SOUND, REQUIRED, WRONG_SOUND,
+    CUE_SOUND, DROP_SOUND, Gen6Profile, Options, PICK_SOUND, REQUIRED, WRONG_SOUND,
 };
 use crate::games::gen6::rom::archives::{GameText, no_text};
 use crate::games::gen6::rom::layout::RomLayout;
@@ -177,9 +177,9 @@ pub fn game_text(setup: &Setup, layout: &RomLayout) -> Result<GameText> {
 /// the zones `teleporting` lists put the player; the log says which, and why.
 ///
 /// The game's own sounds for what a key has done, out of the player's ROM: the PC Box's touch
-/// mode picks up and lets go of a drag with (`profile.PICK_SOUND`), and the game's error sound
-/// (`profile.WRONG_SOUND`); none, and the log says why, where it cannot be read, and each is said
-/// in words.
+/// mode picks up and lets go of a drag with (`profile.PICK_SOUND`), the game's error sound
+/// (`profile.WRONG_SOUND`), and the "!" of Head It's cue (`profile.CUE_SOUND`); none, and the log
+/// says why, where it cannot be read, and each but the cue is said in words.
 pub fn feedback_sounds(setup: &Setup, layout: &RomLayout) -> Result<IndexMap<String, Sound>> {
     let rom = setup.rom_path(None)?;
     let (Some(archive), Some(rom)) = (layout.sounds.as_deref(), rom) else {
@@ -188,8 +188,13 @@ pub fn feedback_sounds(setup: &Setup, layout: &RomLayout) -> Result<IndexMap<Str
     if archive.is_empty() {
         return Ok(IndexMap::new());
     }
-    let read = Rom::new(&rom)
-        .and_then(|image| bcsar::sounds(&image, archive, [PICK_SOUND, DROP_SOUND, WRONG_SOUND]));
+    let read = Rom::new(&rom).and_then(|image| {
+        bcsar::sounds(
+            &image,
+            archive,
+            [PICK_SOUND, DROP_SOUND, WRONG_SOUND, CUE_SOUND],
+        )
+    });
     match read {
         Ok(sounds) => Ok(sounds),
         Err(error)

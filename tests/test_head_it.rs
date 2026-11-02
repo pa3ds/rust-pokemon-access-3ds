@@ -12,7 +12,7 @@ use super::test_battle::record_of;
 use crate::core::rtti::ClassNames;
 use crate::games::common::field::keys::{DEFAULT_CONTEXTS, HEAD_IT, HEADERS};
 use crate::games::common::layout::Layouts;
-use crate::games::common::touch::{Target, Tone};
+use crate::games::common::touch::Target;
 use crate::games::common::{lyt, pokemon};
 use crate::games::gen6::subscreen::berry_picker::Touching;
 use crate::games::gen6::subscreen::head_it;
@@ -51,7 +51,7 @@ fn game() -> Game {
 /// middle and rowan up on the right; a ball falling at the middle, the giant ball parked off to
 /// the right and a ball past the bottom (spike A). The game, the memory, the balls' panes and the
 /// layouts. With `cue`, the cue is on, sounding through it, timed by `clock`.
-fn game_with(cue: Option<Tone>, clock: Rc<dyn Fn() -> f64>) -> Game {
+fn game_with(cue: Option<head_it::Cue>, clock: Rc<dyn Fn() -> f64>) -> Game {
     let memory = FakeMemory::new();
     let classes = FakeClasses::new(memory.clone());
     let picture = classes.add(lyt::PICTURE_CLASS);
@@ -203,18 +203,18 @@ fn test_nothing_is_said_or_offered_before_balls_fall_or_once_they_have() {
     }
 }
 
-/// The cue's stand-in, keeping where each cue sounded, and the clock it is timed by.
+/// The cue's stand-in, keeping when each cue sounded, and the clock it is timed by.
 fn cued() -> (
-    Rc<RefCell<Vec<(f64, f64)>>>,
-    Tone,
+    Rc<RefCell<Vec<f64>>>,
+    head_it::Cue,
     Rc<Cell<f64>>,
     Rc<dyn Fn() -> f64>,
 ) {
-    let cued: Rc<RefCell<Vec<(f64, f64)>>> = Rc::new(RefCell::new(Vec::new()));
+    let cued: Rc<RefCell<Vec<f64>>> = Rc::new(RefCell::new(Vec::new()));
     let now = Rc::new(Cell::new(0.0));
-    let cue: Tone = {
-        let cued = cued.clone();
-        Rc::new(move |across: f64, down: f64| cued.borrow_mut().push((across, down)))
+    let cue: head_it::Cue = {
+        let (cued, now) = (cued.clone(), now.clone());
+        Rc::new(move || cued.borrow_mut().push(now.get()))
     };
     let clock: Rc<dyn Fn() -> f64> = {
         let now = now.clone();
@@ -223,10 +223,10 @@ fn cued() -> (
     (cued, cue, now, clock)
 }
 
-/// A tone, at the Pokémon the ball falls at, `LEAD` before the ball reaches `SWEET` by how
-/// fast it falls, once a ball (Orion, 2026-10-31: an aid, off as it ships).
+/// The game's "!", `LEAD` before the ball reaches `SWEET` by how fast it falls, once a ball
+/// (Orion, 2026-10-31: an aid, off as it ships; 2026-11-01, the game's sound).
 #[test]
-fn test_the_cue_sounds_toward_the_pokemon_as_the_moment_to_tap_comes() {
+fn test_the_cue_sounds_as_the_moment_to_tap_comes() {
     let (cued, cue, now, clock) = cued();
     let mut game = game_with(Some(cue), clock);
     heard(&mut game.found, head_it::APP);
@@ -251,11 +251,7 @@ fn test_the_cue_sounds_toward_the_pokemon_as_the_moment_to_tap_comes() {
             (head_it::SWEET + height) as f32,
         );
         game.found.tick().unwrap();
-        let expected: Vec<(f64, f64)> = if at < 0.3 {
-            vec![]
-        } else {
-            vec![(160.0 / 320.0, head_it::BODY as f64 / 240.0)]
-        };
+        let expected: Vec<f64> = if at < 0.3 { vec![] } else { vec![0.3] };
         assert_eq!(*cued.borrow(), expected, "at {at}");
     }
     now.set(0.4);

@@ -58,13 +58,13 @@ use crate::core::rtti::ClassNames;
 use crate::core::speech::Category;
 use crate::games::common::layout::Layouts;
 use crate::games::common::pokemon;
-use crate::games::common::touch::{ImageOf, Target, Tone};
+use crate::games::common::touch::{ImageOf, Target};
 use crate::games::gen6::game::Game;
 use crate::games::gen6::rom::archives::GameText;
 use crate::py::{self, Result};
 use amie::{AmiePage, Goods, Puffs};
 use berry_picker::{BerryKeys, BerryPicker, Touching};
-use head_it::{HeadIt, HeadItKeys};
+use head_it::{Cue, HeadIt, HeadItKeys};
 use puzzle::TilePuzzle;
 use super_training::{Bags, Goals, Round, TrainingPage, Waiting};
 
@@ -154,22 +154,6 @@ impl Keyed for HeadItKeys {
         touch: &mut dyn Touching,
     ) -> Result<String> {
         HeadItKeys::press(self, action, running, touch)
-    }
-}
-
-/// A reader following something every tick rather than every screen poll.
-pub trait Ticked {
-    fn ticking(&self, running: Option<&str>) -> bool;
-    fn tick(&self) -> Result<()>;
-}
-
-impl Ticked for RefCell<HeadIt> {
-    fn ticking(&self, running: Option<&str>) -> bool {
-        self.borrow().ticking(running)
-    }
-
-    fn tick(&self) -> Result<()> {
-        self.borrow_mut().tick()
     }
 }
 
@@ -299,7 +283,9 @@ pub struct Subscreens {
     polled: Vec<Rc<dyn Polled>>,
     described: Vec<Rc<dyn Described>>,
     keyed: Vec<Rc<dyn Keyed>>,
-    ticked: Vec<Rc<dyn Ticked>>,
+    /// Head It alone follows something every tick, so its readers are kept as they are, not
+    /// as a trait of one: a test reaches its cue through them, as Python's does.
+    pub(crate) ticked: Vec<Rc<RefCell<HeadIt>>>,
 }
 
 /// `yours`: a Pokémon of the player's by the nickname they gave it, or else as the game calls its
@@ -335,7 +321,7 @@ impl Subscreens {
         picked: Rc<dyn Fn(&str) -> String>,
         wrong: Rc<dyn Fn(&str) -> String>,
         describing: bool,
-        tone: Option<Tone>,
+        cue: Option<Cue>,
     ) -> Subscreens {
         // The Pokémon-Amie page draws its Pokémon's icon, and says nothing of whose; Amie itself is
         // stroked by a slide over it.
@@ -406,14 +392,14 @@ impl Subscreens {
             wrong.clone(),
         )));
         // Its Head It drops balls of yarn at the party's Pokémon, and names neither the Pokémon nor
-        // which one each ball falls at; a tone says when to tap, where the player asks for it.
+        // which one each ball falls at; the game's "!" says when to tap, where the player asks.
         let head_it = Rc::new(RefCell::new(HeadIt::new(
             memory.clone(),
             names,
             layouts.clone(),
             image_of.clone(),
             short,
-            if settings.head_it_cue { tone } else { None },
+            if settings.head_it_cue { cue } else { None },
             Rc::new(py::time::monotonic),
         )));
         // And its own keys, a Pokémon's, which tap it.
@@ -534,14 +520,17 @@ impl Subscreens {
 
     /// Whether a screen follows something every tick now (`tick`).
     pub fn ticking(&self, running: Option<&str>) -> bool {
-        self.ticked.iter().any(|reader| reader.ticking(running))
+        self.ticked
+            .iter()
+            .any(|reader| reader.borrow().ticking(running))
     }
 
     /// Follow what each screen follows every tick: Head It's balls, for its cue.
     pub fn tick(&self, running: Option<&str>) -> Result<()> {
         for reader in &self.ticked {
-            if reader.ticking(running) {
-                reader.tick()?;
+            let ticking = reader.borrow().ticking(running);
+            if ticking {
+                reader.borrow_mut().tick()?;
             }
         }
         Ok(())

@@ -14,6 +14,10 @@ use super::test_field::{
     Given, HOUSE, PC_TILE, POOCHYENA, ROUTE, ROUTE_BLOCK, TABLE, TOWN, TOWN_BLOCK, TOWN_CHUNK,
     Town, border, dex_nav, field_reader, game,
 };
+use crate::core::bcsar::Sound;
+use crate::core::clips::Clips;
+use crate::core::config::{Amie, Tables};
+use crate::core::loudness::Loudness;
 use crate::core::memory::{Cache, Memory};
 use crate::core::names::Names;
 use crate::core::rtti::ClassNames;
@@ -27,7 +31,7 @@ use crate::games::gen6::field::mapblock;
 use crate::games::gen6::field::mmodel::PLAYER_INDEX;
 use crate::games::gen6::field::zonetable::{INFO_NAME, INFO_SIZE};
 use crate::games::gen6::game::{Game, OwnApp};
-use crate::games::gen6::profile::{Gen6Profile, Options};
+use crate::games::gen6::profile::{CUE_SOUND, Gen6Profile, Options};
 use crate::games::gen6::rom::archives::{GameText, no_text};
 use crate::games::oras::field::hidden::PLAYER_WORK_CLASS;
 use crate::games::{gen6::gflheap, oras::field::sky};
@@ -700,4 +704,48 @@ fn test_soaring_the_way_the_player_faces_is_said_once_a_turn_stops() {
     heading(std::f64::consts::PI / 2.0);
     heading(std::f64::consts::PI / 2.0);
     assert_eq!(backend.spoken(), ["facing north", "facing east"]);
+}
+
+/// `[pa3ds.amie] head_it_cue` reaches Head It as the game's "!" (`CUE_SOUND`), and nothing
+/// is cued with the setting off: the spike that timed the cue turned it on itself, and so never
+/// went through the setting (Orion, 2026-11-01: "it didn't cue me at all").
+///
+/// Python's fakes the sounds and plays the cue; `Clips` here plays through this machine's sound
+/// device, so the cue is found and not played.
+#[test]
+fn test_head_its_cue_is_the_games_exclamation_once_the_setting_is_on() {
+    let sounds = Clips::new(Loudness::full(), 1.0);
+    sounds.add(
+        CUE_SOUND,
+        Sound {
+            rate: 32728,
+            samples: Vec::new(),
+            volume: 1.0,
+            quietest: 1.0,
+        },
+    );
+    let sounds = Rc::new(sounds);
+    for on in [true, false] {
+        let memory = FakeMemory::new();
+        let made = Gen6Profile::new(
+            Phased::new(memory.clone()),
+            Rc::new(ClassNames::new(memory.clone(), CODE)),
+            Rc::new(Speech::plain(Recorder::new())),
+            no_log(),
+            oras::game(),
+            Options {
+                tables: Some(Tables {
+                    amie: Amie {
+                        head_it_cue: on,
+                        ..Amie::default()
+                    },
+                    ..Tables::default()
+                }),
+                feedback_sounds: Some(sounds.clone()),
+                ..Options::default()
+            },
+        );
+        let head_it = made.subscreens.ticked[0].clone();
+        assert_eq!(head_it.borrow().cue.is_some(), on, "on {on}");
+    }
 }

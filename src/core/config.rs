@@ -303,8 +303,8 @@ pub struct Amie {
     /// Berry Picker says one Pokémon wanting a berry at a time, the next once a berry has been
     /// given or the one said has gone: three said together took 1.5 s (Orion).
     pub one_at_a_time: bool,
-    /// Head It sounds a tone, toward the Pokémon a ball falls at, as the moment to tap it comes:
-    /// an aid, off as it ships (Orion, 2026-10-31).
+    /// Head It plays the game's "!" as the moment to tap a ball comes: an aid, off as it ships
+    /// (Orion, 2026-10-31; the game's sound in place of a tone, 2026-11-01).
     pub head_it_cue: bool,
 }
 

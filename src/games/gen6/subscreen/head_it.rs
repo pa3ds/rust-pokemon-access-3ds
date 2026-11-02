@@ -51,7 +51,7 @@ use crate::core::words::own;
 use crate::games::common::field::keys::{HEAD_IT, HEADERS};
 use crate::games::common::layout::Layouts;
 use crate::games::common::pokemon;
-use crate::games::common::touch::{HEIGHT, ImageOf, Target, Tone, WIDTH};
+use crate::games::common::touch::{HEIGHT, ImageOf, Target, WIDTH};
 use crate::games::gen6::subscreen::berry_picker::{Name, Touching};
 use crate::games::gen6::subscreen::super_training::pictures;
 use crate::py::{Error, Result};
@@ -104,6 +104,9 @@ pub const NOT_UP: &str = "head-it-no-pokemon";
 /// What the log calls what Head It says.
 pub const LOG: &str = "head it";
 
+/// `Callable[[], None]`: what sounds the cue.
+pub type Cue = Rc<dyn Fn()>;
+
 /// Says which Pokémon each of Head It's balls of yarn falls at, and offers each Pokémon up to
 /// be tapped.
 pub struct HeadIt {
@@ -120,9 +123,9 @@ pub struct HeadIt {
     /// The balls on their way down at the last poll, by pane: each one's column, and its
     /// layout's root's height, which its own is told from.
     falling: IndexMap<i64, (i64, f64)>,
-    /// Sounds the cue at a place on the screen, across and down from 0 to 1, or None where
-    /// the cue is off (`[pa3ds.amie] head_it_cue`).
-    cue: Option<Tone>,
+    /// Sounds the cue, the game's "!" (`profile.CUE_SOUND`), or None where the cue is off
+    /// (`[pa3ds.amie] head_it_cue`) or the game's sounds are.
+    pub(crate) cue: Option<Cue>,
     clock: Rc<dyn Fn() -> f64>,
     /// Each ball falling -> the heights it has fallen through, each with when it was first
     /// read there, from the newest at least `SPAN` old.
@@ -145,7 +148,7 @@ impl HeadIt {
         layouts: Rc<Layouts>,
         image_of: ImageOf,
         name: Name,
-        cue: Option<Tone>,
+        cue: Option<Cue>,
         clock: Rc<dyn Fn() -> f64>,
     ) -> Self {
         HeadIt {
@@ -282,7 +285,7 @@ impl HeadIt {
         let falling = &self.falling;
         self.heights.retain(|pane, _| falling.contains_key(pane));
         self.cued.retain(|pane| falling.contains_key(pane));
-        for (&pane, &(column, root)) in &self.falling {
+        for (&pane, &(_column, root)) in &self.falling {
             // Not through `Layouts`, which keeps what it read until the screen's next poll.
             let height = f32(&self.memory.read(pane + y, 4)?, 0)? - root;
             let seen = self.heights.entry(pane).or_default();
@@ -303,10 +306,7 @@ impl HeadIt {
             }
             if (height - SWEET) * (now - then) / (was - height) <= LEAD {
                 self.cued.insert(pane);
-                cue(
-                    COLUMNS[column as usize] as f64 / WIDTH as f64,
-                    BODY as f64 / HEIGHT as f64,
-                );
+                cue();
             }
         }
         Ok(())

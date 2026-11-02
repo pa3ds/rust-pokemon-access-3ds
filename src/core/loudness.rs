@@ -41,6 +41,15 @@ impl Loudness {
         loudness
     }
 
+    /// The game at full loudness, with no Azahar watched: a test's, where Python's fakes the
+    /// sounds whole and `new`'s thread would read this machine's mixer.
+    #[cfg(test)]
+    pub(crate) fn full() -> Self {
+        Loudness {
+            azahar: Arc::new(AtomicU64::new(1.0f64.to_bits())),
+        }
+    }
+
     /// How loud Azahar plays the game, 0 to 1.
     pub fn azahar(&self) -> f64 {
         f64::from_bits(self.azahar.load(Ordering::Relaxed))

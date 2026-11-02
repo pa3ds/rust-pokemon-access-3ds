@@ -174,6 +174,10 @@ pub const DROP_SOUND: &str = "SEQ_SE_RELEASE";
 /// `SEQ_SE_SYS_015` too, the same wave 271 samples longer; X's `SEQ_SE_BEEP` is that same wave at
 /// the same volume, where X's `SEQ_SE_SYS_015` is another sound, 0.93 s long.
 pub const WRONG_SOUND: &str = "SEQ_SE_BEEP";
+/// The "!" the field plays over someone's head, played as Head It's cue (Orion, 2026-11-01, in
+/// place of a tone): 0.3 s, the same wave and volume in Omega Ruby and X, where `SEQ_SE_FLD_277` is
+/// that wave too (spike B).
+pub const CUE_SOUND: &str = "SEQ_SE_FLD_036";
 /// Where the tone of each quarter up walks sounds, across and down as `Tones.play` has them,
 /// north first and clockwise: north high, south low, east in the right ear and west in the left, as
 /// the Hoenn map's cursor sounds its place (`core.tones`).
@@ -747,12 +751,15 @@ impl Gen6Profile {
             },
             Rc::new(move |why: &str| heard(WRONG_SOUND, why.to_string())),
             ui.descriptions,
-            tones.clone().map(|tones| {
-                Rc::new(move |across: f64, down: f64| {
-                    // The sound thread not starting, raised to the tick in Python.
-                    let _ = tones.play(across, down);
-                }) as touch::Tone
-            }),
+            feedback_sounds
+                .clone()
+                .filter(|sounds| sounds.names().contains(CUE_SOUND))
+                .map(|sounds| {
+                    Rc::new(move || {
+                        // The sound thread not starting, raised to the tick in Python.
+                        let _ = sounds.play(CUE_SOUND);
+                    }) as Rc<dyn Fn()>
+                }),
         ));
         let classes: IndexSet<String> = HEAP_CLASSES
             .iter()

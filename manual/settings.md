@@ -27,7 +27,7 @@ they take effect the next time pa3ds starts.
 | `tones` | `1.0` | The short tone as the map's cursor or touch mode moves: higher the further up, panned the further right. Also the tone as the way up walks you turns. |
 | `footsteps` | `1.0` | pa3ds's footsteps, where the game plays none. |
 | `ticks` | `0.0` | A short tone at each second of a game's clock, as in Pokémon-Amie's games. The clock is said each half minute and in its last seconds either way. Off as it ships. |
-| `feedback_sounds` | `1.0` | The game's own short sounds for what a key has done: the PC Box's sounds for picking up and putting down a Pokémon, as touch mode picks up a drag and lets go, and the game's error sound for a key with nothing to do, as a berry Berry Picker's round does not have. At 0, pa3ds says them instead: "holding", "let go on" and what was wrong. It was called `drag_sounds` before. |
+| `feedback_sounds` | `1.0` | The game's own short sounds for what a key has done: the PC Box's sounds for picking up and putting down a Pokémon, as touch mode picks up a drag and lets go, and the game's error sound for a key with nothing to do, as a berry Berry Picker's round does not have; and Head It's cue. At 0, pa3ds says them instead: "holding", "let go on" and what was wrong, and plays no cue. It was called `drag_sounds` before. |
 | **`[pa3ds.navigation]`** | | |
 | `positions` | `true` | Say where a thing is in the list: "door, 1 of 3". |
 | `position_first` | `true` | Say the place in the list before the way to it. `false` says "door, 1 north, 1 of 3". |
@@ -44,7 +44,7 @@ they take effect the next time pa3ds starts.
 | **`[pa3ds.amie]`** | | Pokémon-Amie's games. |
 | `berry_first` | `true` | Berry Picker says the berry first, in the order you give it: "Pinap Berry for Pikachu". `false` says "Pikachu wants Pinap Berry". |
 | `one_at_a_time` | `true` | Berry Picker says one Pokémon wanting a berry at a time, and the next once you have given a berry or the one said has gone. `false` says each as it comes. |
-| `head_it_cue` | `false` | Head It plays a tone toward the Pokémon a ball falls at, a fifth of a second before the ball reaches it, as the moment to tap. It needs `tones` above 0. |
+| `head_it_cue` | `false` | Head It plays the game's own "!" sound a fifth of a second before a ball reaches its Pokémon, as the moment to tap. It needs `feedback_sounds` above 0. |
 | **`[pa3ds.extras]`** | | See [Extras](#extras). |
 | `conditions` | `false` | Say a Pokémon's contest conditions as numbers, on its summary and in the Pokéblock Case. |
 | `hidden_items` | `"off"` | List the hidden items you have not found yet among the items, as "hidden item": `"underwater"` under the sea alone, `"all"` everywhere. |
