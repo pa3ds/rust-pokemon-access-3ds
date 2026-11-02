@@ -433,3 +433,60 @@ id = "y-weapon-heart"
 [[scene.beat]]
 at = 70
 id = "y-weapon-over-town"
+
+# Xerneas wakes in the Team Flare Secret HQ (x_legend_wakening_boss, 2026-10-31): after
+# "Aaaaauh!" before the tree in zone 0x155, a field demo of 68 s, with no words, of the tree
+# becoming Xerneas, until its battle. X's alone: no replay has shown Y's.
+[[scene]]
+after = "story:163:18"
+zone = 0x155
+title = 0x0004000000055D00
+
+[[scene.beat]]
+demo = true
+at = 2
+id = "xerneas-walk"
+
+[[scene.beat]]
+at = 9
+id = "xerneas-look"
+
+[[scene.beat]]
+at = 12.5
+id = "xerneas-light"
+
+[[scene.beat]]
+at = 16.5
+id = "xerneas-sphere"
+
+[[scene.beat]]
+at = 27
+id = "xerneas-white"
+
+[[scene.beat]]
+at = 34
+id = "xerneas-stands"
+
+[[scene.beat]]
+at = 38
+id = "xerneas-eye"
+
+[[scene.beat]]
+at = 42.5
+id = "xerneas-descends"
+
+[[scene.beat]]
+at = 49.5
+id = "xerneas-you"
+
+[[scene.beat]]
+at = 52.5
+id = "xerneas-colours"
+
+[[scene.beat]]
+at = 56
+id = "xerneas-turns"
+
+[[scene.beat]]
+at = 60
+id = "xerneas-gaze"

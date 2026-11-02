@@ -115,3 +115,18 @@ y-weapon-beam = Darkness. A beam of pink light pours down into the bud, and its 
 y-weapon-bloom = In pink light, rings of light spread round it, and the bud opens: its petals unfold into a huge star-shaped flower of crystal, glowing at its heart.
 y-weapon-heart = Close by its petals, over the broken rocks and houses, a tall spike of glowing red stands at the flower's heart, narrowing to a point, wrapped in smoke.
 y-weapon-over-town = Seen from above, the crystal flower lies open over the whole town, its red spike at its heart. It fades into darkness.
+
+# Xerneas waking in the Team Flare Secret HQ (x_legend_wakening_boss): the tree in its cage of
+# red pipes, until its battle.
+xerneas-walk = A flash of white. Close by your boots, you walk slowly up to the machine.
+xerneas-look = You look up, wide-eyed.
+xerneas-light = Purple light flares round the white tree inside its cage of glowing red pipes.
+xerneas-sphere = Beams of blue light sweep round the tree, and a sphere of light forms round it, sparks circling.
+xerneas-white = The tree glows pink and white, brighter and brighter, until all is white. A great pink jewel shines in the cage.
+xerneas-stands = In the tree's place stands { POKEMON(716) }: a tall deer, its body blue, its long legs dark, its antlers pale and colourless.
+xerneas-eye = Close up, its blue eye opens, and sparks of light circle its head.
+xerneas-descends = Held in a sphere of blue light, it floats down out of the cage in a burst of white, and its long legs reach the floor.
+xerneas-you = You stand back in the dark, startled.
+xerneas-colours = In a blaze of pink light, its antlers fill with colour: yellow, pink, blue and purple, every colour of the rainbow.
+xerneas-turns = It lifts its head among drifting purple lights and turns to look across the room at you.
+xerneas-gaze = Close up, its blue eyes look down at you, its rainbow antlers spread wide.
