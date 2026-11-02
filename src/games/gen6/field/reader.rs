@@ -723,7 +723,7 @@ impl FieldReader {
                     .ok_or_else(|| py::Error::index("index out of range"))? as i64,
             ),
         };
-        let bike = mmodel::on_bike(&head, form)?;
+        let (bike, acro) = (mmodel::on_bike(&head, form)?, mmodel::acro(&head, form)?);
         self.on_rail.set(mmodel::on_rail(&head)?);
         // One map's streets for the whole poll, the sweep's as the grid is (#18). Without the ROM
         // the sweep keeps no files, and only the field map's own let the last map's lines go.
@@ -742,6 +742,7 @@ impl FieldReader {
             self.behind.set(behind.is_some());
             return Ok(Some(Field {
                 on_bike: bike,
+                acro,
                 place: Some(mmodel::place(&head)?),
                 surfing: mmodel::surfing(&head, form)?,
                 height: self.height.get(),
@@ -898,7 +899,7 @@ impl FieldReader {
             ));
         }
         let ladders = self.ladders_here()?;
-        let cliffs = self.terrain.cliffs(level, &ladders)?;
+        let cliffs = self.terrain.cliffs(&ladders)?;
         let doors = match &self.doors {
             None => Vec::new(),
             Some(doors) => doors.doors(r#where.zone)?,

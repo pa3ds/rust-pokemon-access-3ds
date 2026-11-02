@@ -314,6 +314,10 @@ pub struct Ground {
     /// Whether the player is riding the Mach Bike, which rides up a slope as well as down: P's
     /// ground goes up one only then (spike 158).
     pub bike: bool,
+    /// Whether the player is riding the Acro Bike, which rides along a rail and hops a bumpy
+    /// slope: P's ground takes them only then (spike 267). On the Acro Bike in the Safari Zone P
+    /// said to go north up a slope only the Mach Bike climbs (or_which_bike, Orion, 2026-11-01).
+    pub acro: bool,
     /// Cells side by side, each way, that can both be stood in and are not walked between: a
     /// platform in Fortree City's trees and the ground beside it, 108 below, but for its ladder
     /// (`joined`, spike 160).
@@ -330,9 +334,9 @@ pub struct Ground {
     /// (266, 216), B held and down pressed (`over`; or_safari_zone, spike 267).
     pub hops: IndexMap<Cell, &'static str>,
     /// The Acro Bike's rails, each cell with the way its beam runs, north or east (`BIKE_RAILS`):
-    /// walls on foot, and to a player on the bike or a ground with HMs ridden along, got onto and
-    /// off only in line with a beam, from and onto ground stood on as high as the rail, and hopped
-    /// across from one onto the next beside it (`joined`, `across`; spike 267).
+    /// walls on foot, and to a player on the Acro Bike or a ground with HMs ridden along, got onto
+    /// and off only in line with a beam, from and onto ground stood on as high as the rail, and
+    /// hopped across from one onto the next beside it (`joined`, `across`; spike 267).
     pub rails: IndexMap<Cell, &'static str>,
     /// The waterfalls, each cell with the way it is climbed: jumped over either way as the shore
     /// is, where the ground is one with HMs, and a wall to any other (`over`, spike 170).
@@ -475,6 +479,7 @@ impl Default for Ground {
             hm: false,
             filled: HashSet::new(),
             bike: false,
+            acro: false,
             cliffs: IndexSet::new(),
             ladders: IndexMap::new(),
             hops: IndexMap::new(),
@@ -527,6 +532,7 @@ impl fmt::Debug for Ground {
             .field("shoves", &self.shoves)
             .field("hm", &self.hm)
             .field("bike", &self.bike)
+            .field("acro", &self.acro)
             .field("cliffs", &self.cliffs)
             .field("ladders", &self.ladders)
             .field("hops", &self.hops)
@@ -796,7 +802,7 @@ impl Ground {
             || self.walls.slides.contains_key(&cell)
             || self.grind_rails.cells.contains(&cell)
             || (height.is_none() && self.vines.cells.contains(&cell))
-            || (self.rails.contains_key(&cell) && (self.bike || self.hm)))
+            || (self.rails.contains_key(&cell) && (self.acro || self.hm)))
             && (self.surf || !chunk.water(cell, ANY_FLOOR)?))
     }
 
@@ -934,8 +940,8 @@ impl Ground {
     /// The floor a step from `cell`, walked on `floor`, lands on at `step`: of its open floors
     /// nobody stands on, the nearest the height left, the same floor first; None where there is
     /// none and the step is not taken, and `ANY_FLOOR` where `step` has no floors to choose
-    /// between. Another floor is stepped onto only within `CLIMB`; along one floor a step is
-    /// taken as on any ground, rising no more than `RISE`, a drop being a cliff: the Poké Ball
+    /// between. Another floor is stepped onto only within `CLIMB`; along one floor a step rises or
+    /// falls no more than `RISE`, but off a climbing wall's face: the Poké Ball
     /// Factory's floor at (1, 20) is 36 under the switch's at (1, 21), whose stair steps from it
     /// onto another floor at 45 (spike 259). Each of Sootopolis Gym's two stairs climbs its lower
     /// floor 18 or 19 a cell to 189, and steps across onto the entrance's room at 198
@@ -974,13 +980,12 @@ impl Ground {
                 if away > CLIMB && k != floor {
                     continue;
                 }
-                // Along one floor too a step rises no more than `RISE`: a drop past `2 * CLIMB`
-                // is a cliff (`cliffs`), and a climber steps off a face onto its ledge.
-                if k == floor
-                    && RISE < away
-                    && away <= 2.0 * CLIMB
-                    && !self.walls.sideways(cell, step)
-                {
+                // Along one floor too a step rises or falls no more than `RISE`, however far:
+                // `cliffs` are found on every floor of a cell (`Terrain.cliffs`), and the bank
+                // under Route 119's north bridge at 126 is the first floor of its cells, as the
+                // ground beside them at 189 is of theirs (or_no_path). A climber steps off a
+                // face onto its ledge.
+                if k == floor && away > RISE && !self.walls.sideways(cell, step) {
                     continue;
                 }
             } else if k == floor || floor == ANY_FLOOR {
@@ -1138,12 +1143,12 @@ impl Ground {
 
     /// Whether the cell is blocked but jumped over either way: the shore, a waterfall on a
     /// ground with HMs, climbed with Waterfall and gone down with nothing, a bumpy slope on the
-    /// bike or a ground with HMs, bunny hopped up or down (`hops`), and a mud pit's mud between
-    /// two of its stones in a line, hopped over (`STONE`).
+    /// Acro Bike or a ground with HMs, bunny hopped up or down (`hops`), and a mud pit's mud
+    /// between two of its stones in a line, hopped over (`STONE`).
     pub fn over(&self, cell: Cell) -> Result<bool> {
         Ok(self.shore(cell)?
             || (self.hm && self.falls.contains_key(&cell))
-            || ((self.bike || self.hm) && self.hops.contains_key(&cell))
+            || ((self.acro || self.hm) && self.hops.contains_key(&cell))
             || self.mud(cell)?)
     }
 
@@ -1188,8 +1193,8 @@ impl Ground {
 
     /// What a move from `cell` to `step` costs on top of its steps: going onto water,
     /// through what a move clears, up a waterfall, over a bumpy slope, bunny hopped, or up a
-    /// slope from the foot of it or onto a rail on foot, where the player gets on the bike
-    /// first, or into a Pokémon waiting to be ridden, faced and
+    /// slope from the foot of it off the Mach Bike or onto a rail off the Acro Bike, where the
+    /// player gets on that bike first, or into a Pokémon waiting to be ridden, faced and
     /// got on with A (`mounts`), or into a thing it smashes, faced and smashed with A
     /// (`smashed`); through a big boulder or somebody of `crowd`, `SHOVE`; along a street a
     /// way it does not run, which the keys never walk and a way takes only where the cells laid
@@ -1223,7 +1228,7 @@ impl Ground {
         // Jagged Pass's ways round its bumpy slopes are as long (or_jagged_pass_slopes).
         if self.hopping(cell, step)
             || self.climbing(cell, step)
-            || (!self.bike && self.rails.contains_key(&step) && !self.rails.contains_key(&cell))
+            || (!self.acro && self.rails.contains_key(&step) && !self.rails.contains_key(&cell))
         {
             return Ok(BOARD);
         }

@@ -3800,6 +3800,43 @@ fn test_p_rides_up_a_slope_only_on_the_bike_and_shift_p_says_the_bike_on_foot() 
     assert_eq!(last(&rig.backend), "14 north");
 }
 
+/// The Safari Zone: on the Acro Bike P said to go north up a slope only the Mach Bike climbs
+/// (Orion, 2026-11-01). The model says which bike is ridden (or_which_bike, spike D of
+/// `feat/places-of-parts`), and P takes only that bike's ground; both where it is not known.
+#[test]
+fn test_p_on_the_acro_bike_rides_up_no_slope_and_on_the_mach_bike_along_no_rail() {
+    let mut rig = navigator(Want {
+        blocked: cliff(),
+        slopes: slope(),
+        ..on(Field {
+            on_bike: true,
+            acro: Some(true),
+            ..pass()
+        })
+    });
+    rig.press(PATHFIND);
+    let way = path_of(&guidance(&rig));
+    assert!(!way.iter().any(|cell| slope().contains(cell)));
+    *rig.field.r#where.borrow_mut() = Some(Field {
+        on_bike: true,
+        acro: Some(false),
+        ..pass()
+    });
+    rig.press(PATHFIND);
+    assert_eq!(last(&rig.backend), "14 north");
+    let mut rig = railed((95, 175), true);
+    let r#where = rig.field.r#where.borrow().clone().expect("the field");
+    *rig.field.r#where.borrow_mut() = Some(Field {
+        acro: Some(false),
+        ..r#where
+    });
+    rig.press(PATHFIND);
+    assert_eq!(
+        last(&rig.backend),
+        "2 east, then can't continue, requires rail"
+    );
+}
+
 /// Jagged Pass: the player hopped north up the bumpy slope at (49, 30) on the Acro Bike, from
 /// (49, 31) to (49, 29) (the user, 2026-10-03). On foot P goes round it; Shift and P hops it,
 /// said as the bunny hop it takes (or_safari_zone, spike 267).
@@ -4928,10 +4965,16 @@ fn test_a_bridge_crossed_and_surfed_under_says_surf_only_on_the_water() {
         ..Field::new(0x31, (94, 175))
     }));
     pond_under_a_bridge(&rig);
+    // A bank at the pond's level, a stair down from the bridge's end: no step along one floor
+    // drops 63 onto the water.
     rig.field
         .floors
         .borrow_mut()
-        .insert((104, 176), (Some(0.0), None));
+        .insert((104, 176), (Some(-63.0), None));
+    *rig.field.ladders.borrow_mut() = IndexMap::from([
+        (((104, 175), (104, 176)), (0.0, -63.0)),
+        (((104, 176), (104, 175)), (-63.0, 0.0)),
+    ]);
     rig.field.level.set(Some(0.0));
     rig.press(CATEGORY_NEXT);
     rig.backend.spoken.borrow_mut().clear();

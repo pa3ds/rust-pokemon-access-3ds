@@ -166,9 +166,9 @@ the bike category lists each end of one. Ride onto a rail in line with it from i
 ride along a rail with the bike's name, "Acro Bike 9 east", and where a rail steps sideways over
 short bars, a hop across onto each, "hop 3 south": press B and the way together, once a hop. `P`
 also finds the way on from a rail you have stopped on. Up or down a bumpy slope `P` says "bunny
-hop 2 north": hold B until the bike bounces in place, then press the way with B still held. pa3ds
-cannot tell the Acro Bike from the Mach Bike, so a way that says "Acro Bike" or "bunny hop" needs
-you on the Acro Bike.
+hop 2 north": hold B until the bike bounces in place, then press the way with B still held. On the
+Mach Bike `P` takes no rail or bumpy slope, and on the Acro Bike no sandy slope up, so it says
+which bike the way needs.
 
 **Jumping stones.** In Pokémon X, `P` crosses a mud pit by its stones: each press of the way hops
 you two squares, onto the next stone.

@@ -470,8 +470,12 @@ pub struct Field {
     /// turns them round, the camera swinging after them, and only up walks (spike 239,
     /// x_glittering_cave). Meaningful only with `heading` set.
     pub turning: bool,
-    /// Whether the player is riding the Mach Bike, which rides up a sandy slope (spike 158).
+    /// Whether the player is riding the bike, either of Omega Ruby's: the Mach Bike rides up a
+    /// sandy slope (spike 158), the Acro Bike along a rail and up a bumpy slope (spike 267).
     pub on_bike: bool,
+    /// On the bike, whether it is the Acro Bike rather than the Mach Bike; None where that is not
+    /// known, and either's ground is ridden.
+    pub acro: Option<bool>,
     /// Whether the player is surfing, where a current can carry them (spike 208).
     pub surfing: bool,
     /// How far direction mode looks, in this map's steps each way, where not the field's ten
@@ -505,6 +509,7 @@ impl Default for Field {
             bearing: None,
             turning: false,
             on_bike: false,
+            acro: None,
             surfing: false,
             reach: None,
             steer: None,

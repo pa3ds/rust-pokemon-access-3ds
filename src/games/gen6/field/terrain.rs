@@ -122,8 +122,8 @@ pub struct Terrain {
     ///
     /// The id is the `Rc`'s address, which the chunk kept here holds fixed.
     flat: RefCell<HashMap<(usize, Option<i64>), (Rc<Chunk>, Rc<Chunk>)>>,
-    /// (the chunk files, the height rounded) -> the drops found for them (`cliffs`).
-    drops: RefCell<HashMap<(Vec<i64>, Option<i64>), IndexSet<(Cell, Cell)>>>,
+    /// The chunk files -> the drops found for them (`cliffs`).
+    drops: RefCell<HashMap<Vec<i64>, IndexSet<(Cell, Cell)>>>,
     /// Kinds -> the chunk files the ways up their cells were found for, and the ways (`rises`).
     ///
     /// Python keys it by a `frozenset`; a `BTreeSet` is equal where the frozenset is.
@@ -287,38 +287,34 @@ impl Terrain {
         Ok(self.flat.borrow()[&key].1.clone())
     }
 
-    /// Open cells side by side, each way, a drop apart (`mapblock.DROP`), but for the zone's
-    /// `ladders`: Fortree City's platforms stand 108 over the ground beside them in one cell
-    /// table, and P walked the player off one, "9 south" into nothing, where the game lets them
-    /// down only by a ladder (spike 160). Read off the ROM's chunks of one floor across the whole
-    /// matrix, a chunk with a deck on the floor each cell is walked on at `level`, the player's
-    /// height; none without the ROM.
+    /// Open cells side by side, each way, a drop apart (`mapblock.DROP`) on every floor of
+    /// each, but for the zone's `ladders`: Fortree City's platforms stand 108 over the ground
+    /// beside them in one cell table, and P walked the player off one, "9 south" into nothing,
+    /// where the game lets them down only by a ladder (spike 160). Read off the ROM's chunks
+    /// across the whole matrix, found once a matrix; none without the ROM. Which floors a step
+    /// is taken between is `Ground.climb`'s, which takes none along one floor rising or falling
+    /// more than a stair's step.
+    ///
+    /// Read on the floor nearest the player's height, Route 119's north bridge, a deck at 189
+    /// over a bank at 126, was the bank to a player at 137 on the route below, and a drop from
+    /// the ground at 189 at both its ends: the river beyond it, and every thing past it, out of
+    /// Shift and P's reach (or_no_path, Orion, 2026-11-01).
     pub fn cliffs(
         &self,
-        level: Option<f64>,
         ladders: &IndexMap<(Cell, Cell), (f64, f64)>,
     ) -> Result<IndexSet<(Cell, Cell)>> {
         let (wide, files) = {
             let held = self.files.borrow();
             (held.0, held.1.clone())
         };
-        let key = (
-            (*files).clone(),
-            match level {
-                None => None,
-                Some(level) => Some(py::round(level)?),
-            },
-        );
-        let held = self.drops.borrow().get(&key).cloned();
+        let held = self.drops.borrow().get(&*files).cloned();
         let drops = match held {
             Some(drops) => drops,
             None => {
-                // ponytail: emptied whole when full; a map is walked at a few heights.
-                if self.drops.borrow().len() as i64 > FLATTENED {
-                    self.drops.borrow_mut().clear();
-                }
-                let found = self.find_drops(wide, &files, level)?;
-                self.drops.borrow_mut().insert(key, found.clone());
+                let found = self.find_drops(wide, &files)?;
+                self.drops
+                    .borrow_mut()
+                    .insert((*files).clone(), found.clone());
                 found
             }
         };
@@ -331,75 +327,90 @@ impl Terrain {
             .collect())
     }
 
-    /// Every drop on the matrix with its decks walked at `level` (`cliffs`).
-    fn find_drops(
-        &self,
-        wide: i64,
-        files: &[i64],
-        level: Option<f64>,
-    ) -> Result<IndexSet<(Cell, Cell)>> {
+    /// Every drop on the matrix (`cliffs`).
+    fn find_drops(&self, wide: i64, files: &[i64]) -> Result<IndexSet<(Cell, Cell)>> {
         if self.heights.is_none() || wide == 0 {
             return Ok(IndexSet::new());
         }
-        let mut tables: IndexMap<(i64, i64), (Vec<i64>, Vec<Option<f64>>)> = IndexMap::new();
+        #[allow(clippy::type_complexity)]
+        let mut tables: IndexMap<(i64, i64), Vec<(Vec<i64>, Vec<Option<f64>>)>> = IndexMap::new();
         for (at, &file) in files.iter().enumerate() {
             let at = at as i64;
             let Some(chunk) = self.far(py::modulo(at, wide), py::floordiv(at, wide))? else {
                 continue;
             };
             if !chunk.floors.is_empty() {
-                let flat = self.flattened(&chunk, level, true)?;
-                let heights = if flat.heights.is_empty() {
-                    chunk.floors[0].heights.clone()
-                } else {
-                    flat.heights.clone()
-                };
-                tables.insert(chunk.key(), (flat.words.clone(), heights));
+                tables.insert(
+                    chunk.key(),
+                    chunk
+                        .floors
+                        .iter()
+                        .map(|floor| (floor.words.clone(), floor.heights.clone()))
+                        .collect(),
+                );
             } else if let Some(heights) = self.heights.as_ref().map_or(Ok(None), |f| f(file))? {
-                tables.insert(chunk.key(), (chunk.words.clone(), heights));
+                tables.insert(chunk.key(), vec![(chunk.words.clone(), heights)]);
             }
         }
 
-        let height = |cell: Cell| -> Result<Option<f64>> {
+        // The heights of the floors open at `cell`.
+        let floors = |cell: Cell| -> Result<Vec<f64>> {
+            let i = py::modulo(cell.1, CHUNK) * CHUNK + py::modulo(cell.0, CHUNK);
+            let mut out: Vec<f64> = Vec::new();
             let Some(table) =
                 tables.get(&(py::floordiv(cell.0, CHUNK), py::floordiv(cell.1, CHUNK)))
             else {
-                return Ok(None);
+                return Ok(out);
             };
-            let i = py::modulo(cell.1, CHUNK) * CHUNK + py::modulo(cell.0, CHUNK);
-            let word = *usize::try_from(i)
-                .ok()
-                .and_then(|i| table.0.get(i))
-                .ok_or_else(|| Error::index("tuple index out of range"))?;
-            if word & BLOCKED != 0 {
-                return Ok(None);
+            for (words, heights) in table {
+                let word = *usize::try_from(i)
+                    .ok()
+                    .and_then(|i| words.get(i))
+                    .ok_or_else(|| Error::index("tuple index out of range"))?;
+                if word & BLOCKED != 0 {
+                    continue;
+                }
+                let height = *usize::try_from(i)
+                    .ok()
+                    .and_then(|i| heights.get(i))
+                    .ok_or_else(|| Error::index("tuple index out of range"))?;
+                if let Some(height) = height {
+                    out.push(height);
+                }
             }
-            Ok(*usize::try_from(i)
-                .ok()
-                .and_then(|i| table.1.get(i))
-                .ok_or_else(|| Error::index("tuple index out of range"))?)
+            Ok(out)
         };
 
-        // A street's floor is not among the floors flattened here, and a ramp's height changes
-        // from one cell to the next: a drop beside one is the ground's under it, which
-        // `Ground.climb` keeps it from as it does any floor a stair's step away.
+        // A street's floor is not among the floors here, and a ramp's height changes from one
+        // cell to the next: a drop beside one is the ground's under it, which `Ground.climb`
+        // keeps it from as it does any floor a stair's step away.
         let streets = self.found_streets()?.1;
         let mut out: IndexSet<(Cell, Cell)> = IndexSet::new();
         for &(column, row) in tables.keys() {
             for z in row * CHUNK..(row + 1) * CHUNK {
                 for x in column * CHUNK..(column + 1) * CHUNK {
-                    let Some(here) = height((x, z))? else {
+                    let here = floors((x, z))?;
+                    if here.is_empty() || streets.contains(&(x, z)) {
                         continue;
-                    };
+                    }
                     for near in [(x + 1, z), (x, z + 1)] {
-                        let there = height(near)?;
-                        if let Some(there) = there
-                            && (here - there).abs() > mapblock::DROP
-                            && !streets.contains(&(x, z))
-                            && !streets.contains(&near)
-                        {
-                            out.insert(((x, z), near));
-                            out.insert((near, (x, z)));
+                        let there = floors(near)?;
+                        if !there.is_empty() && !streets.contains(&near) {
+                            // `min(abs(a - b) for a in here for b in there)`: the first of
+                            // equals, a NaN kept where Python keeps it.
+                            let mut least: Option<f64> = None;
+                            for a in &here {
+                                for b in &there {
+                                    let gap = (a - b).abs();
+                                    if least.is_none_or(|least| gap < least) {
+                                        least = Some(gap);
+                                    }
+                                }
+                            }
+                            if least.is_some_and(|least| least > mapblock::DROP) {
+                                out.insert(((x, z), near));
+                                out.insert((near, (x, z)));
+                            }
                         }
                     }
                 }

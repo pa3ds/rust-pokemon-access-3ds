@@ -849,6 +849,30 @@ fn test_the_bike_is_told_from_a_pokemon_by_what_the_player_moves_as() -> Result<
     Ok(())
 }
 
+/// or_which_bike (spike D of `feat/places-of-parts`): switching bikes in the Safari Zone, +0x59
+/// went 3, 2, 3, 2; 2 all through Jagged Pass on the Mach Bike, 3 to 6 through the Acro Bike's
+/// tricks. Not known off the bike, nor in X, whose rides were not read.
+#[test]
+fn test_which_bike_is_ridden_is_the_models_ride() -> Result<()> {
+    let ride = |form: i64, ride: u8| -> (Vec<u8>, Option<i64>) {
+        let mut head = vec![0u8; mmodel::HEAD as usize];
+        head[mmodel::RIDING as usize] = 0x21;
+        head[mmodel::RIDING as usize + 1] = 0x03;
+        head[mmodel::RIDE as usize] = ride;
+        (head, Some(form))
+    };
+    let (head, form) = ride(2, 2);
+    assert_eq!(mmodel::acro(&head, form)?, Some(false));
+    for one in [3, 4, 5, 6] {
+        let (head, form) = ride(2, one);
+        assert_eq!(mmodel::acro(&head, form)?, Some(true), "ride {one}");
+    }
+    let (head, form) = ride(0, 7);
+    assert_eq!(mmodel::acro(&head, form)?, None); // surfing
+    assert_eq!(mmodel::acro(&ride(2, 3).0, None)?, None);
+    Ok(())
+}
+
 #[test]
 fn test_nothing_is_said_before_a_sweep() -> Result<()> {
     assert!(Town::new().reader.poll()?.is_none());
@@ -3466,6 +3490,94 @@ fn ramp_terrain(streets: Option<rail::Streets>) -> Terrain {
         Some(Rc::new(|_number| Ok(None)) as FarMatrices),
         streets,
     )
+}
+
+/// The ROM's map chunks for one chunk, file 0: Route 119's north bridge (or_no_path), the
+/// ground open along z 8 at 189 from x 0 to 3 and from 13 to 16, and between them the bank at 126
+/// on the ground's floor, under the bridge's deck at 189 on a floor of its own.
+///
+/// Python's `BridgeChunks` class; here its ground and deck, which `bridge_terrain` hands the
+/// terrain as its methods would be.
+fn bridge_chunks() -> (Floor, Floor) {
+    let cells: Vec<(i64, i64)> = (0..CHUNK * CHUNK).map(|i| (i % CHUNK, i / CHUNK)).collect();
+    let row: HashSet<(i64, i64)> = (0..17).map(|x| (x, 8)).collect();
+    let deck: HashSet<(i64, i64)> = (4..13).map(|x| (x, 8)).collect();
+    let words = |open: &HashSet<(i64, i64)>| -> Vec<i64> {
+        cells
+            .iter()
+            .map(|cell| {
+                if open.contains(cell) {
+                    0x20
+                } else {
+                    0x01000021
+                }
+            })
+            .collect()
+    };
+    (
+        Floor {
+            words: words(&row),
+            heights: cells
+                .iter()
+                .map(|cell| {
+                    if !row.contains(cell) {
+                        None
+                    } else if deck.contains(cell) {
+                        Some(126.0)
+                    } else {
+                        Some(189.0)
+                    }
+                })
+                .collect(),
+            ramp: false,
+        },
+        Floor {
+            words: words(&deck),
+            heights: cells
+                .iter()
+                .map(|cell| deck.contains(cell).then_some(189.0))
+                .collect(),
+            ramp: false,
+        },
+    )
+}
+
+/// or_no_path (Orion, 2026-11-01): Route 119's north bridge is a deck at 189 over a bank at
+/// 126, the ground at 189 at both its ends. Read on the floor nearest a player at 137 on the
+/// route below, the bank was a drop of 63 from the ground at both ends, and nothing past the
+/// bridge was reached. A drop is one on every floor of its cells now, and which floor a step goes
+/// onto is the ground's: none along one floor rising more than a stair's step, up off the bank.
+#[test]
+fn test_a_deck_level_with_the_ground_is_no_drop_wherever_the_player_stands() -> Result<()> {
+    let (ground, deck) = bridge_chunks();
+    let (cells, heights) = (ground.words.clone(), ground.heights.clone());
+    let floors = vec![ground, deck];
+    let terrain = Terrain::new(
+        Some(Rc::new(move |_file| Ok(Some(cells.clone()))) as FarCells),
+        Some(Rc::new(move |_file| Ok(floors.clone())) as FarFloors),
+        Some(Rc::new(move |_file| Ok(Some(heights.clone()))) as FarHeights),
+        Some(Rc::new(|_number| Ok(None)) as FarMatrices),
+        None,
+    );
+    *terrain.files.borrow_mut() = (1, Rc::new(vec![0]));
+    assert!(terrain.cliffs(&IndexMap::new())?.is_empty());
+    let far = terrain.far(0, 0)?.expect("the chunk");
+    let laid = Chunk {
+        floors: far.floors.clone(),
+        ..(*terrain.flattened(&far, None, false)?).clone()
+    };
+    let ground = Ground {
+        chunks: vec![Rc::new(laid)],
+        stacked: terrain.stacked(&|| Ok(Vec::new()))?,
+        level: Some(137.0),
+        ..Ground::default()
+    };
+    let way = ground.find((0, 8), &goals_of(&[((16, 8), None)]), "", None, false, None)?;
+    let way = way.expect("a way over the bridge");
+    let walked: HashSet<i64> = ground.walked(&way)?[4..13].iter().copied().collect();
+    assert_eq!(walked, HashSet::from([1]));
+    assert_eq!(ground.climb(0, (4, 8), (3, 8))?, None);
+    Ok(())
 }
 
 /// x_tower_of_mastery (spike 248): the Tower of Mastery's ramp winds up round the ring of

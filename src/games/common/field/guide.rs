@@ -1026,9 +1026,9 @@ pub struct Guide {
     /// when there is no ROM to read it from.
     moves: IndexMap<i64, String>,
     /// The game's words a landform says its steps with (`Ground.words`): what a leg up a sandy
-    /// slope is said with, the game's name for the Mach Bike; and a hop up a bumpy slope and a leg
-    /// along a rail, its name for the Acro Bike, said on the bike too, since nothing read says
-    /// which of the two the player is riding (spikes 159 and 267).
+    /// slope is said with, the game's name for the Mach Bike, where the player is not on it; and
+    /// a hop up a bumpy slope and a leg along a rail, its name for the Acro Bike, said on it too
+    /// (spikes 159 and 267, and D of `feat/places-of-parts`).
     words: StepWords,
     /// Whether the field's walls are read, so P can find a way. Sun keeps its walls as
     /// meshes pa3ds does not read, and a way found without them would lead through them.
@@ -2285,16 +2285,20 @@ impl Guide {
 
     /// The field's ground, crossing water for a way with HMs and for a player already on it:
     /// P from the water keeps to it, or there is no first step to take. Only a way with HMs cuts
-    /// through a bush. A slope is ridden up with HMs and by a player on the bike, not on a
-    /// Pokémon they ride, which sets the bike's bits too (`Ground.riding`, spike 238).
+    /// through a bush. A slope is ridden up with HMs and by a player on the Mach Bike, and a
+    /// rail or a bumpy slope by one on the Acro Bike, either where which bike is not known, but
+    /// not on a Pokémon they ride, which sets the bike's bits too (`Ground.riding`, spike
+    /// 238).
     pub fn ground(&self, r#where: &Field, hm: bool) -> Result<Ground> {
         let mut ground = match &self.ground {
             Some(ground) => ground.clone(),
             None => self.field.ground(r#where)?,
         };
+        let bike = r#where.on_bike && !ground.riding;
         ground.surf = hm || ground.water(r#where.cell, None)?;
         ground.hm = hm;
-        ground.bike = r#where.on_bike && !ground.riding;
+        ground.bike = bike && r#where.acro != Some(true);
+        ground.acro = bike && r#where.acro != Some(false);
         Ok(ground)
     }
 
