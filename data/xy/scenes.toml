@@ -436,7 +436,9 @@ id = "y-weapon-over-town"
 
 # Xerneas wakes in the Team Flare Secret HQ (x_legend_wakening_boss, 2026-10-31): after
 # "Aaaaauh!" before the tree in zone 0x155, a field demo of 68 s, with no words, of the tree
-# becoming Xerneas, until its battle. X's alone: no replay has shown Y's.
+# becoming Xerneas, until its battle. Y plays it to the same frames after "Rrrrrh!"
+# (y_legend_wakening_boss, 2026-10-31): a dark cocoon for the tree, a golden jewel for the pink,
+# red light for the blue round it as it floats down, and Yveltal.
 [[scene]]
 after = "story:163:18"
 zone = 0x155
@@ -490,3 +492,57 @@ id = "xerneas-turns"
 [[scene.beat]]
 at = 60
 id = "xerneas-gaze"
+
+[[scene]]
+after = "story:163:19"
+zone = 0x155
+title = 0x0004000000055E00
+
+[[scene.beat]]
+demo = true
+at = 2
+id = "yveltal-walk"
+
+[[scene.beat]]
+at = 9
+id = "yveltal-look"
+
+[[scene.beat]]
+at = 12.5
+id = "yveltal-light"
+
+[[scene.beat]]
+at = 16.5
+id = "yveltal-sphere"
+
+[[scene.beat]]
+at = 27
+id = "yveltal-white"
+
+[[scene.beat]]
+at = 34
+id = "yveltal-stands"
+
+[[scene.beat]]
+at = 38
+id = "yveltal-eye"
+
+[[scene.beat]]
+at = 42.5
+id = "yveltal-descends"
+
+[[scene.beat]]
+at = 49.5
+id = "yveltal-you"
+
+[[scene.beat]]
+at = 52.5
+id = "yveltal-colours"
+
+[[scene.beat]]
+at = 56
+id = "yveltal-turns"
+
+[[scene.beat]]
+at = 60
+id = "yveltal-gaze"

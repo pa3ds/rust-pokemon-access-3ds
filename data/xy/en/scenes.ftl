@@ -130,3 +130,16 @@ xerneas-you = You stand back in the dark, startled.
 xerneas-colours = In a blaze of pink light, its antlers fill with colour: yellow, pink, blue and purple, every colour of the rainbow.
 xerneas-turns = It lifts its head among drifting purple lights and turns to look across the room at you.
 xerneas-gaze = Close up, its blue eyes look down at you, its rainbow antlers spread wide.
+# Y's: a dark cocoon for the tree, and Yveltal.
+yveltal-walk = Darkness. Then, close by your boots, you walk slowly up to the machine.
+yveltal-look = { xerneas-look }
+yveltal-light = Purple light flares round the dark cocoon inside its cage of glowing red pipes: grey and black, with pale diamond markings.
+yveltal-sphere = Beams of blue light sweep round the cocoon, and a sphere of light forms round it, sparks circling.
+yveltal-white = The cocoon glows white, brighter and brighter, until all is white. A great golden jewel shines in the cage.
+yveltal-stands = In the cocoon's place is { POKEMON(717) }, curled up with its wings wrapped round it: a great bird, red and black, with a pale ruff at its neck.
+yveltal-eye = { xerneas-eye }
+yveltal-descends = Held in a sphere of red light, it floats down out of the cage in a burst of white, its wings spread wide, and its claws reach the floor.
+yveltal-you = { xerneas-you }
+yveltal-colours = In a blaze of pink light, its wings and tail glow bright pink.
+yveltal-turns = { xerneas-turns }
+yveltal-gaze = Close up, its blue eyes look down at you, its great red wings spread wide.
