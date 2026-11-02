@@ -322,10 +322,38 @@ fn test_a_height_misread_far_below_the_ball_is_skipped() {
         stalled.found.poll(Some(head_it::APP)).unwrap(),
         [(
             head_it::LOG.to_string(),
-            "no cue for a ball gone by, its last heights 385 at 0.03, 35 at 0.70".to_string(),
+            "no cue for a ball gone by, its last heights 400 at 0.00, 385 at 0.03, 35 at 0.70"
+                .to_string(),
             None
         )]
     );
+}
+
+/// Live, a height changes once a frame, a thirtieth of a second, and is read up to a frame
+/// later, and a ball's first read can be the spare balls' 480 (spike 273): its whole fall is
+/// fitted, that read left out, and the cue sounds at the read nearest its moment.
+#[test]
+fn test_a_ball_read_at_uneven_times_with_a_stale_first_height_is_cued_within_a_frame() {
+    let (cued, cue, now, clock) = cued();
+    let mut game = game_with(Some(cue), clock);
+    heard(&mut game.found, head_it::APP);
+    // From 400 at 120 a second, 450 faster each second, as the live runs' balls fell: at `SWEET`
+    // at 1.035 s, so due 0.4 s ahead at 0.635. Each frame's height read 0 to 25 ms after it was
+    // drawn, in a pattern that repeats every 5; the first read 480.
+    for frame in 0..40 {
+        let drawn = frame as f64 / 30.0;
+        let height = if frame == 0 {
+            480.0
+        } else {
+            400.0 - 120.0 * drawn - 225.0 * drawn.powf(2.0)
+        };
+        place(&game.memory, game.panes[0], 0.0, height as f32);
+        now.set(drawn + [0.0, 0.025, 0.01, 0.02, 0.005][frame % 5]);
+        game.found.tick().unwrap();
+    }
+    assert_eq!(cued.borrow().len(), 1);
+    let when = cued.borrow()[0].0;
+    assert!((when - 0.635).abs() <= 1.0 / 30.0, "{when}");
 }
 
 /// Bigger, it is headed higher (spike 273, live): cued for the others' `SWEET`, its "!" came

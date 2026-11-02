@@ -57,7 +57,7 @@ use crate::games::common::pokemon;
 use crate::games::common::touch::{HEIGHT, ImageOf, Target, WIDTH};
 use crate::games::gen6::subscreen::berry_picker::{Name, Touching};
 use crate::games::gen6::subscreen::super_training::pictures;
-use crate::py::{self, Error, Kind, PySet, Result};
+use crate::py::{self, Error, PySet, Result};
 
 pub const APP: &str = "N3app7heading7ProcessE";
 /// Where the app's object says what the round is doing (spike 273, live): 0 and 1 its opening, 2
@@ -111,10 +111,10 @@ pub const GIANT_SWEET: f64 = 104.0;
 /// which the spike's own taps, sent by a timer, all hit the sweet spot; Orion's, by ear, hit nothing
 /// at it (2026-11-01).
 pub const LEAD: f64 = 0.4;
-/// Seconds between the heights a ball's fall is measured by, three of them. Read from one tick to
-/// the next, a frame apart or none, its speed jumped; and on a tape, whose heights change five times
+/// Seconds a ball is followed before it may be cued. Timed by fewer heights, read from one tick to
+/// the next a frame apart or none, its speed jumped; and on a tape, whose heights change five times
 /// a second, a ball 43 units lower a tick later was cued 374 above `SWEET` (as_amie_head_it).
-pub const SPAN: f64 = 0.1;
+pub const RUN_IN: f64 = 0.2;
 pub const FASTEST: f64 = 1500.0;
 /// A ball read lower than `MISREAD` below where it could have fallen at `FASTEST` units a second
 /// since its last height is misread, and skipped: of 1,700 reads a round live, 1 to 6 were a single
@@ -161,7 +161,7 @@ pub struct HeadIt {
     lead: f64,
     clock: Rc<dyn Fn() -> f64>,
     /// Each ball falling -> the heights it has fallen through, each with when it was first
-    /// read there, from the newest at least twice `SPAN` old.
+    /// read there: its whole fall.
     heights: IndexMap<i64, Vec<(f64, f64)>>,
     /// The balls falling whose cue has sounded.
     ///
@@ -460,13 +460,14 @@ impl HeadIt {
     }
 
     /// Follow each ball falling, every tick, and sound the cue as it is due: the lead before
-    /// the ball reaches its sweet spot, `SWEET` or the giant's `GIANT_SWEET`, by how fast it
-    /// falls and how much faster it has grown over the last two `SPAN`s. Balls fall at different
-    /// speeds (Bulbapedia: slow, fast and quickening with a combo), and each faster and faster:
-    /// on as_amie_head_it's tape one went from 120 units a second to 520 over 2 s, another
-    /// reached 680 at `SWEET`, so a ball taken to fall on as fast as it falls now was cued late,
-    /// the more so the longer the lead. The screen's poll, a fifth of a second, finds the balls;
-    /// a ball's height alone is read every tick.
+    /// the ball reaches its sweet spot, `SWEET` or the giant's `GIANT_SWEET`, by its whole fall
+    /// so far (`due`), at the read nearest that moment. Balls fall at different speeds
+    /// (Bulbapedia: slow, fast and quickening with a combo), and each faster and faster: on
+    /// as_amie_head_it's tape one went from 120 units a second to 520 over 2 s, another reached
+    /// 680 at `SWEET`. A height changes once a frame, a thirtieth of a second, so a cue sounded
+    /// at the first read past its moment was half a frame late on the whole (spike 273, live).
+    /// The screen's poll, a fifth of a second, finds the balls; a ball's height alone is read
+    /// every tick.
     pub fn tick(&mut self) -> Result<()> {
         let Some(cue) = self.cue.clone() else {
             return Ok(());
@@ -491,13 +492,11 @@ impl HeadIt {
                 seen.clear();
             }
             seen.push((now, height));
-            while seen.len() > 1 && now - seen[1].0 >= 2.0 * SPAN {
-                seen.remove(0);
-            }
-            if self.cued.contains(pane) || height < sweet || now - seen[0].0 < 2.0 * SPAN {
+            if self.cued.contains(pane) || height < sweet || now - seen[0].0 < RUN_IN {
                 continue;
             }
-            if due(seen, sweet)? <= self.lead {
+            // Now, or at the next read, whichever is nearer the moment.
+            if due(seen, sweet) - self.lead <= (now - seen[seen.len() - 2].0) / 2.0 {
                 self.cued.add(pane);
                 self.cues.insert(column, now);
                 cue(column);
@@ -589,38 +588,82 @@ fn column(x: f64) -> i64 {
     i64::from(x > -APART as f64) + i64::from(x > APART as f64)
 }
 
-/// Seconds until a ball reaches the height `at`, from the (when, height) it fell through,
-/// oldest first: falling on as it has, and growing faster as steadily as it has. Its speed over
-/// the older half and over the newer is its speed in the middle of each, exactly so for a ball
-/// sped up steadily, and how much it grew between the two is how fast it speeds up. Never, for
-/// a ball no longer falling.
-pub fn due(seen: &[(f64, f64)], at: f64) -> Result<f64> {
-    if seen.len() < 3 {
-        return Ok(f64::INFINITY);
+/// Seconds from the newest read until a ball reaches the height `at`, below 0 once past it,
+/// from the (when, height) of its whole fall so far, oldest first: a parabola fitted to them by
+/// least squares, all but the first, which can be the spare balls' 480 where the ball was 264 a
+/// tick later (spike 273, live). A ball speeds up steadily as it falls, and each read is timed
+/// as it was read, up to a frame after the game drew it, so the more of the fall the better:
+/// over 528 falls of the live runs, replayed, its moment came within a frame of the cue's for
+/// 75% of them, where the speeds over the last 0.2 s alone managed 44%, and within 50 ms for
+/// 92%, against 58% (spike 273). Never, for a ball no longer falling.
+pub fn due(seen: &[(f64, f64)], at: f64) -> f64 {
+    let Some((a, b, c)) = parabola(py::slice_from(seen, 1), seen[seen.len() - 1].0) else {
+        return f64::INFINITY;
+    };
+    // The root where it falls, c t^2 + b t + (a - at) = 0 written so as not to lose b to
+    // cancelling where c is small.
+    let left = a - at;
+    let reach = b * b - 4.0 * c * left;
+    if b >= 0.0 || reach < 0.0 {
+        return f64::INFINITY;
     }
-    let ((first, top), (last, now)) = (seen[0], seen[seen.len() - 1]);
-    // Python's `min(..., key=...)`: the first of equal nearest.
-    let mut nearest = seen[1];
-    for &each in &seen[2..seen.len() - 1] {
-        if (each.0 - (first + last) / 2.0).abs() < (nearest.0 - (first + last) / 2.0).abs() {
-            nearest = each;
+    2.0 * left / (-b + reach.sqrt())
+}
+
+/// The least-squares height = a + b t + c t^2 through the points, t from `origin`; None for
+/// fewer than four, or points that fix no parabola.
+fn parabola(points: &[(f64, f64)], origin: f64) -> Option<(f64, f64, f64)> {
+    if points.len() < 4 {
+        return None;
+    }
+    let mut sums = [0.0; 5];
+    let mut by = [0.0; 3];
+    for &(when, height) in points {
+        let t = when - origin;
+        for (power, sum) in sums.iter_mut().enumerate() {
+            *sum += power_of(t, power as i32);
+        }
+        for (power, sum) in by.iter_mut().enumerate() {
+            *sum += power_of(t, power as i32) * height;
         }
     }
-    let (middle, height) = nearest;
-    let older = divide(top - height, middle - first)?;
-    let newer = divide(height - now, last - middle)?;
-    // Python's `max(x, 0.0)`: the first unless the second is strictly greater.
-    let grown = divide(newer - older, (last - first) / 2.0)?;
-    let faster = if 0.0 > grown { 0.0 } else { grown };
-    let speed = newer + faster * (last - middle) / 2.0;
-    let left = now - at;
-    if speed <= 0.0 {
-        return Ok(f64::INFINITY);
+    let rows = [
+        [sums[0], sums[1], sums[2]],
+        [sums[1], sums[2], sums[3]],
+        [sums[2], sums[3], sums[4]],
+    ];
+    let whole = determinant(&rows);
+    if whole.abs() < 1e-12 {
+        return None;
     }
-    if faster == 0.0 {
-        return Ok(left / speed);
+    let [a, b, c] = [0, 1, 2].map(|k| {
+        let mut m = rows;
+        for (i, row) in m.iter_mut().enumerate() {
+            row[k] = by[i];
+        }
+        determinant(&m) / whole
+    });
+    Some((a, b, c))
+}
+
+fn determinant(m: &[[f64; 3]; 3]) -> f64 {
+    m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1])
+        - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
+        + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0])
+}
+
+/// `t ** power` as Python's float does it: 1 for a power of 0, else the C library's `pow` of the
+/// size, as rail's are, never `powi`, its sign put back after for a negative `t`.
+fn power_of(t: f64, power: i32) -> f64 {
+    if power == 0 {
+        return 1.0;
     }
-    Ok(((speed * speed + 2.0 * faster * left).sqrt() - speed) / faster)
+    let size = t.abs().powf(f64::from(power));
+    if t < 0.0 && power % 2 == 1 {
+        -size
+    } else {
+        size
+    }
 }
 
 /// `statistics.median`: the middle of the values sorted, or the mean of the two middle ones.
@@ -631,19 +674,6 @@ fn median(values: &[f64]) -> f64 {
         return data[n / 2];
     }
     (data[n / 2 - 1] + data[n / 2]) / 2.0
-}
-
-/// `a / b` on floats, raising `ZeroDivisionError` as Python does where `b` is 0: two heights read
-/// at the same time.
-#[track_caller]
-fn divide(a: f64, b: f64) -> Result<f64> {
-    if b == 0.0 {
-        return Err(Error::new(
-            Kind::ZeroDivisionError,
-            "float division by zero",
-        ));
-    }
-    Ok(a / b)
 }
 
 /// Head It's own keys (Orion, 2026-10-31): a key a Pokémon, by where it stands, left, in the
