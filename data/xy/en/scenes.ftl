@@ -143,3 +143,19 @@ yveltal-you = { xerneas-you }
 yveltal-colours = In a blaze of pink light, its wings and tail glow bright pink.
 yveltal-turns = { xerneas-turns }
 yveltal-gaze = Close up, its blue eyes look down at you, its great red wings spread wide.
+
+# The ultimate weapon fires its last, Lysandre beaten (x_legend_wakening_boss): the crystal flower
+# over the town, then the town as the player arrives.
+weapon-fires-flower = { PLACE(52) }, under grey storm clouds. The crystal flower lies open over the houses, and a column of blue light rises from its heart.
+weapon-fires-above = Seen from above, rings of light spread round the blue orb at the flower's heart, and beams of light rise round it.
+weapon-fires-beam = Its petals fold up round the glowing orb, and a great beam of blue light shoots out of it into the sky.
+weapon-fires-world = Far above, the world curves away below, white cloud and green land. The beam bursts up out of it into space.
+weapon-fires-spark = Among pink and purple stars, the light streaks on and dwindles to a tiny spark.
+weapon-fires-falls = The spark turns and falls back like a comet, trailing blue light, down through the clouds onto the flower.
+weapon-fires-blast = A blast of golden light bursts out across the town.
+weapon-fires-arch = Seen through a stone arch, flames and golden light roar beyond it.
+weapon-fires-smoke = The crystal stands glowing among fire and rolling smoke.
+weapon-fires-sinks = As the dust settles, the crystal sinks down into a round pit in the middle of the town, until only the pit is left.
+weapon-fires-column = A tall column of dark smoke rises out of the pit.
+weapon-fires-pit = Seen from above, the smoke thins over the empty pit among the houses. Darkness.
+weapon-fires-arrive = You look down into the pit. A ring of dark machinery lines its walls, and broken rocks fill its floor. Then the view pulls back to the path at its edge, where you stand with everyone.

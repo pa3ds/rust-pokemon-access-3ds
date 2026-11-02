@@ -65,7 +65,7 @@ the Game Boy games. Nothing here is taken from its code.
   the Trainer Passport's photos in Sun and Moon, described in pa3ds's own words.
 - **Scenes without words**, described when the `descriptions` setting is on: many in Omega Ruby
   and Alpha Sapphire, each one's intro and title screen among them, X's and Y's intro and title
-  screen, AZ's story in X's Lysandre Labs, the ultimate weapon's rising seen from there in X and Y, Xerneas and Yveltal waking, and one in Sun so far. Pokémon-Amie's Tile Puzzle says which of your Pokémon stand
+  screen, AZ's story in X's Lysandre Labs, the ultimate weapon's rising seen from there in X and Y, Xerneas and Yveltal waking, the weapon firing its last after Lysandre's battle in X, and one in Sun so far. Pokémon-Amie's Tile Puzzle says which of your Pokémon stand
   where in each picture it draws, Play Again's too, and where the picture is set.
 - **Footsteps** where Omega Ruby, Alpha Sapphire, X and Y play none, as on streets, floors and in
   caves: the game's own step sound, as loud as the game and Azahar would play it.
