@@ -279,6 +279,38 @@ fn test_the_cue_sounds_the_lead_before_a_ball_falling_faster_and_faster_reaches_
     );
 }
 
+/// Bigger, it is headed higher (spike 273, live): cued for the others' `SWEET`, its "!" came
+/// late, and Orion's tap the lead after it missed (or_amie_head_it_normal).
+#[test]
+fn test_the_giant_ball_is_cued_the_lead_before_its_own_sweet_spot() {
+    let (cued, cue, now, clock) = cued();
+    let mut game = game_with(Some(cue), clock);
+    // Time up: the ball down the middle gone, the giant ball falling there at a steady 500 a
+    // second, at `GIANT_SWEET` at 0.6 s, so due 0.4 s ahead at 0.2.
+    place(&game.memory, game.panes[0], 10500.0, 480.0);
+    place(
+        &game.memory,
+        game.panes[1],
+        0.0,
+        (head_it::GIANT_SWEET + 300.0) as f32,
+    );
+    game.layouts.refresh();
+    heard(&mut game.found, head_it::APP);
+    for tick in 0..36 {
+        now.set(tick as f64 / 60.0);
+        place(
+            &game.memory,
+            game.panes[1],
+            0.0,
+            (head_it::GIANT_SWEET + 300.0 - 500.0 * now.get()) as f32,
+        );
+        game.found.tick().unwrap();
+    }
+    assert_eq!(cued.borrow().len(), 1);
+    let when = cued.borrow()[0].0;
+    assert!((0.2..=0.2 + 1.0 / 60.0).contains(&when), "{when}");
+}
+
 /// A ball gone by with no cue is logged, never said, with its last heights.
 #[test]
 fn test_a_ball_headed_back_up_is_not_cued_and_without_the_cue_nothing_is_followed() {

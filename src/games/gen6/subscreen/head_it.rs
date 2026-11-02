@@ -78,22 +78,33 @@ pub const PLACE: i64 = 0x14;
 /// How far either side of the middle a Pokémon or a ball is in the middle column: the Pokémon
 /// stand at -120, 0 and 120, the balls fall at -100, 0 and 100.
 pub const APART: i64 = 50;
+pub const GIANT: &str = "giant";
 /// The balls' pictures: `ball00_00.bclim` and on through the round, and after time up one more,
 /// the giant ball, `giant01.bclim` or `giant02.bclim`, down the middle (spike 273, live).
-pub const BALLS: [&str; 2] = ["ball", "giant"];
+pub const BALLS: [&str; 2] = ["ball", GIANT];
 /// Where each column's Pokémon is tapped across the screen: the middles of the touch areas over
 /// them, `1f` to `1h`.
 pub const COLUMNS: [i64; 3] = [53, 160, 267];
 /// How far down the screen a Pokémon is tapped, within the touch area over it and the lowest of
 /// the three its column's ball passes through: taps there headed balls in all three columns (spike
-/// A, live).
+/// 273, live).
 pub const BODY: i64 = 200;
 /// How tall the touch areas over the Pokémon are.
 pub const TALL: f64 = 120.0;
 /// How far above the screen's middle a ball is as a tap sent then heads it at the sweet spot, for
 /// 3 points rather than 1: tapped by a timer as the ball reached it, 0.2 s after a cue that much
 /// ahead, all 6 were, and 0.05 s either side none of 12, though all were headed (spike 273, live).
+/// Every ball's but the giant's (`GIANT_SWEET`).
 pub const SWEET: f64 = 35.0;
+/// `SWEET` for the giant ball after time up, 50 points rather than 10, higher as the ball is
+/// bigger: or_amie_head_it_hard cut before it and played on, it fell through the same heights each
+/// run, a frame apart, and a tap sent as it was read at 125 or 104 was a sweet spot every time, five
+/// runs; at 82 and 60, 10; at 145, and at 37 and below, a miss (spike 273, live). A tap counts for
+/// the frame it comes in, so the sweet spot runs from the frame at 125 to the one at 82, and 104
+/// starts its middle: a frame to spare either side. Aimed at 115, half a frame early, a tap 0.4 s
+/// after the cue was read at 145 once in two. Cued for `SWEET`, its "!" came late, and a tap the
+/// lead after it missed (Orion, or_amie_head_it_normal).
+pub const GIANT_SWEET: f64 = 104.0;
 /// Seconds before the ball reaches `SWEET` the cue sounds, as it ships (`[pa3ds.amie]
 /// head_it_lead`): about how long a player takes from the cue to the tap, the sound's way out to
 /// their ears, hearing it, and the key's way through pa3ds to the game. It was 0.2, the delay after
@@ -133,9 +144,10 @@ pub struct HeadIt {
     models: IndexMap<i64, i64>,
     /// The app's own object -> the vtable it was found with: what the round is doing.
     apps: IndexMap<i64, i64>,
-    /// The balls on their way down at the last poll, by pane: each one's column, and its
-    /// layout's root's height, which its own is told from.
-    falling: IndexMap<i64, (i64, f64)>,
+    /// The balls on their way down at the last poll, by pane: each one's column, its
+    /// layout's root's height, which its own is told from, and its sweet spot's height
+    /// (`SWEET`, `GIANT_SWEET`).
+    falling: IndexMap<i64, (i64, f64, f64)>,
     /// Sounds the cue for a ball in a column, the game's "!" (`profile.CUE_SOUND`), or None
     /// where the cue is off (`[pa3ds.amie] head_it_cue`) or the game's sounds are.
     pub(crate) cue: Option<Cue>,
@@ -252,7 +264,7 @@ impl HeadIt {
         let new: Vec<i64> = falling
             .iter()
             .filter(|(pane, _)| !self.falling.contains_key(*pane))
-            .map(|(_, &(column, _))| column)
+            .map(|(_, &(column, _, _))| column)
             .collect();
         let falling_keys: Vec<i64> = falling.keys().copied().collect();
         if self.cue.is_some() {
@@ -428,19 +440,20 @@ impl HeadIt {
     }
 
     /// Follow each ball falling, every tick, and sound the cue as it is due: the lead before
-    /// the ball reaches `SWEET`, by how fast it falls and how much faster it has grown over the
-    /// last two `SPAN`s. Balls fall at different speeds (Bulbapedia: slow, fast and quickening
-    /// with a combo), and each faster and faster: on as_amie_head_it's tape one went from 120
-    /// units a second to 520 over 2 s, another reached 680 at `SWEET`, so a ball taken to fall
-    /// on as fast as it falls now was cued late, the more so the longer the lead. The screen's
-    /// poll, a fifth of a second, finds the balls; a ball's height alone is read every tick.
+    /// the ball reaches its sweet spot, `SWEET` or the giant's `GIANT_SWEET`, by how fast it
+    /// falls and how much faster it has grown over the last two `SPAN`s. Balls fall at different
+    /// speeds (Bulbapedia: slow, fast and quickening with a combo), and each faster and faster:
+    /// on as_amie_head_it's tape one went from 120 units a second to 520 over 2 s, another
+    /// reached 680 at `SWEET`, so a ball taken to fall on as fast as it falls now was cued late,
+    /// the more so the longer the lead. The screen's poll, a fifth of a second, finds the balls;
+    /// a ball's height alone is read every tick.
     pub fn tick(&mut self) -> Result<()> {
         let Some(cue) = self.cue.clone() else {
             return Ok(());
         };
         let now = (self.clock)();
         let y = self.layouts.shape.y;
-        for (&pane, &(column, root)) in &self.falling {
+        for (&pane, &(column, root, sweet)) in &self.falling {
             // Not through `Layouts`, which keeps what it read until the screen's next poll.
             let height = f32(&self.memory.read(pane + y, 4)?, 0)? - root;
             let seen = self.heights.entry(pane).or_default();
@@ -455,10 +468,10 @@ impl HeadIt {
             while seen.len() > 1 && now - seen[1].0 >= 2.0 * SPAN {
                 seen.remove(0);
             }
-            if self.cued.contains(pane) || height < SWEET || now - seen[0].0 < 2.0 * SPAN {
+            if self.cued.contains(pane) || height < sweet || now - seen[0].0 < 2.0 * SPAN {
                 continue;
             }
-            if due(seen, SWEET)? <= self.lead {
+            if due(seen, sweet)? <= self.lead {
                 self.cued.add(pane);
                 self.cues.insert(column, now);
                 cue(column);
@@ -475,17 +488,22 @@ impl HeadIt {
             .find(|target| target.x == COLUMNS[column]))
     }
 
-    /// The balls on the screen or above it on their way down, by pane, each with its column
-    /// and its layout's root's height.
-    fn balls(&self) -> Result<IndexMap<i64, (i64, f64)>> {
+    /// The balls on the screen or above it on their way down, by pane, each with its column,
+    /// its layout's root's height and its sweet spot's.
+    fn balls(&self) -> Result<IndexMap<i64, (i64, f64, f64)>> {
         let shown = pictures(&self.layouts, &self.image_of, false, &|image: &str| {
             BALLS.iter().any(|ball| image.starts_with(ball))
         })?;
         let mut found = IndexMap::new();
-        for (pane, _, _, across, up) in shown {
+        for (pane, _, image, across, up) in shown {
             if across.abs() < WIDTH as f64 / 2.0 && up > -(HEIGHT as f64) / 2.0 {
                 let root = f32(&self.layouts.pane(pane)?, self.layouts.shape.y)? - up;
-                found.insert(pane, (column(across), root));
+                let sweet = if image.starts_with(GIANT) {
+                    GIANT_SWEET
+                } else {
+                    SWEET
+                };
+                found.insert(pane, (column(across), root, sweet));
             }
         }
         Ok(found)
