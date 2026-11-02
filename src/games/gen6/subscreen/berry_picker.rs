@@ -138,8 +138,10 @@ pub struct Want {
     pub berry: String,
     /// The Pokémon wanting it, for its cry; None where it cannot be read.
     pub who: Option<pokemon::Pokemon>,
-    /// Left 0, the middle 1, right 2.
-    pub place: i64,
+    /// Its Pokémon's place in the game's own order, its key's and the lineup's, 0 to 2: where its
+    /// cry is heard, the first on the left. Not where it pops up, which changes all round: cries
+    /// heard there came from every side for one Pokémon (Orion, 2026-11-02).
+    pub key: i64,
 }
 
 /// Says which berry each of Berry Picker's Pokémon wants, and offers each to be given one.
@@ -367,13 +369,14 @@ impl BerryPicker {
         Ok(lineup)
     }
 
-    /// A want's words as it is said, its Pokémon's cry played toward its place where cries
-    /// are on: the berry alone in the name's place where the player asks, and the cry played.
+    /// A want's words as it is said, its Pokémon's cry played toward its key's side where
+    /// cries are on: the berry alone in the name's place where the player asks, and the cry
+    /// played.
     fn spoken(&self, want: &Want) -> Result<String> {
         let (Some(who), Some(cry)) = (&want.who, &self.cry) else {
             return Ok(want.said.clone());
         };
-        if !cry(who, want.place as f64 / 2.0)? {
+        if !cry(who, want.key as f64 / 2.0)? {
             return Ok(want.said.clone());
         }
         Ok(if self.instead {
@@ -478,10 +481,9 @@ impl BerryPicker {
                 Some(word) if !word.is_empty() => word.clone(),
                 _ => image.strip_suffix(".bclim").unwrap_or(&image).to_string(),
             };
-            let place = place(across);
-            let (who, read) = match standing.get(&place) {
-                Some((who, read)) => (Some(who), read.clone()),
-                None => (None, None),
+            let (who, read, key) = match standing.get(&place(across)) {
+                Some((who, read, key)) => (Some(who), read.clone(), *key),
+                None => (None, None, 1),
             };
             let said = match who {
                 None => own(WANTED, &[("berry", &berry)]),
@@ -494,7 +496,7 @@ impl BerryPicker {
                 said,
                 berry,
                 who: read,
-                place,
+                key,
             });
         }
         Ok(found)
@@ -560,19 +562,22 @@ impl BerryPicker {
         Ok(true)
     }
 
-    /// Each place -> what the Pokémon highest in it is called, and its record.
-    fn standing(&self) -> Result<IndexMap<i64, (String, Option<pokemon::Pokemon>)>> {
-        let mut heights: IndexMap<i64, (f64, String, Option<pokemon::Pokemon>)> = IndexMap::new();
-        for (called, place, y, read) in self.records()? {
+    /// Each place -> what the Pokémon highest in it is called, its record and its place in
+    /// the game's own order, its key's.
+    #[allow(clippy::type_complexity)]
+    fn standing(&self) -> Result<IndexMap<i64, (String, Option<pokemon::Pokemon>, i64)>> {
+        let mut heights: IndexMap<i64, (f64, String, Option<pokemon::Pokemon>, i64)> =
+            IndexMap::new();
+        for (key, (called, place, y, read)) in self.records()?.into_iter().enumerate() {
             if let Some(called) = called
-                && heights.get(&place).is_none_or(|(high, _, _)| *high < y)
+                && heights.get(&place).is_none_or(|(high, _, _, _)| *high < y)
             {
-                heights.insert(place, (y, called, read));
+                heights.insert(place, (y, called, read, key as i64));
             }
         }
         Ok(heights
             .into_iter()
-            .map(|(place, (_, called, read))| (place, (called, read)))
+            .map(|(place, (_, called, read, key))| (place, (called, read, key)))
             .collect())
     }
 

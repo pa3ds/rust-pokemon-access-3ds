@@ -251,17 +251,20 @@ fn crying() -> (Rc<RefCell<Vec<(i64, f64)>>>, Crier) {
 }
 
 /// A player's request (Orion, 2026-11-02): the Pokémon's own cry where its name is said;
-/// instead of it, the berry alone. Touch mode's target keeps the name.
+/// instead of it, the berry alone. Touch mode's target keeps the name. The cry is heard from its
+/// key's side, not from where it pops up: Treecko pops up on the left, and is the second of the
+/// game's own order, the lineup's and the keys', so it is heard in both ears. By where they
+/// popped up, Orion heard one Pokémon's cry from every side in a round.
 #[test]
-fn test_a_want_plays_its_pokemons_cry_toward_its_place_with_its_name_or_in_its_place() {
+fn test_a_want_plays_its_pokemons_cry_toward_its_key_with_its_name_or_in_its_place() {
     let app = Some(berry_picker::APP);
     let (cried, cry) = crying();
     let none = || -> Rc<dyn Fn() -> f64> { Rc::new(|| 0.0) };
     let mut found = picker_crying(None, none(), false, false, Some(cry.clone()), false).found;
     assert_eq!(heard(&mut found, app), ["Treecko wants Pinap Berry"]);
-    assert_eq!(*cried.borrow(), [(TREECKO, 0.0)]);
+    assert_eq!(*cried.borrow(), [(TREECKO, 0.5)]);
     assert_eq!(heard(&mut found, app), Vec::<String>::new());
-    assert_eq!(*cried.borrow(), [(TREECKO, 0.0)]);
+    assert_eq!(*cried.borrow(), [(TREECKO, 0.5)]);
     let mut instead = picker_crying(None, none(), false, true, Some(cry), true).found;
     assert_eq!(heard(&mut instead, app), ["Pinap Berry wanted"]);
     assert_eq!(
