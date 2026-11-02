@@ -412,7 +412,7 @@ impl SunProfile {
             return Ok(());
         }
         *self.place.borrow_mut() = Some(name.clone());
-        self.screen_announcer.borrow_mut().place(&name);
+        self.screen_announcer.borrow_mut().place(&name, None);
         Ok(())
     }
 }

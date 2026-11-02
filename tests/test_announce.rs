@@ -2599,7 +2599,7 @@ fn test_a_place_said_from_the_field_is_not_said_again_by_areanav_or_the_sign() {
     // after those (spike 87): the name is said once, first, and the screen's copies are left.
     let mut screen = Screen::new();
     screen.quiet();
-    screen.announcer.place("Route 101");
+    screen.announcer.place("Route 101", None);
     assert_eq!(screen.backend.spoken(), ["Route 101"]);
     for _ in 0..3 {
         assert_eq!(screen.quiet(), NOTHING);
@@ -2614,6 +2614,29 @@ fn test_a_place_said_from_the_field_is_not_said_again_by_areanav_or_the_sign() {
     );
 }
 
+/// ADR-0042: walking off Route 118 into Southern Route 119, pa3ds says the part, and the
+/// sign's "Route 119", which says less, is left; said after the sign, the part is still heard.
+#[test]
+fn test_a_part_of_a_place_is_said_and_the_signs_place_left_after_it() {
+    let mut screen = Screen::new();
+    screen.quiet();
+    screen
+        .announcer
+        .place("Southern Route 119", Some("Route 119"));
+    let area = changed(&piece(1, "Route 119", 0.0, 100.0, AREA_NAV));
+    assert_eq!(screen.say(args(&one(&area), vec![], &one(&area))), NOTHING);
+    let mut later = Screen::new();
+    let first = changed(&piece(1, "Route 119", 0.0, 100.0, AREA_NAV));
+    assert_eq!(
+        later.say(args(&one(&first), vec![], &one(&first))),
+        ["Route 119"]
+    );
+    later
+        .announcer
+        .place("Northern Route 119", Some("Route 119"));
+    assert_eq!(later.backend.spoken(), ["Route 119", "Northern Route 119"]);
+}
+
 #[test]
 fn test_a_place_the_screen_said_first_is_not_said_again_from_the_field() {
     // Before a sweep has found the zone table, AreaNav can be first.
@@ -2623,14 +2646,14 @@ fn test_a_place_the_screen_said_first_is_not_said_again_from_the_field() {
         screen.say(args(&one(&area), vec![], &one(&area))),
         ["Littleroot Town"]
     );
-    screen.announcer.place("Littleroot Town");
+    screen.announcer.place("Littleroot Town", None);
     assert_eq!(screen.backend.spoken(), ["Littleroot Town"]);
 }
 
 #[test]
 fn test_the_same_place_on_screen_long_after_the_field_said_it_is_heard() {
     let mut screen = Screen::new();
-    screen.announcer.place("Littleroot Town");
+    screen.announcer.place("Littleroot Town", None);
     for _ in 0..PLACE_POLLS + 1 {
         screen.quiet();
     }

@@ -127,6 +127,11 @@ move with the Circle Pad, or raise a shield with L.
 **Into another place.** A step of the way that takes you into another town or route names it:
 "5 north into Route 101".
 
+**Parts of a place.** The game splits a few places into parts with no line you can see: the
+Safari Zone's four quarters, Route 119's north and south, Route 120's plateau, and Route 123's
+four berry plots. pa3ds names each part, "Safari Zone Northwest", says it as you walk into it, and
+says it for an exit or a step of the way into it: "way out to Northern Route 119".
+
 **Lining up.** The circle pad can leave you between two squares, and the game then refuses some
 steps past the corner of a wall. Where that would stop you, `P` first says which way to step,
 "a little west, then 2 north". Tilt the circle pad gently that way, and pa3ds says "lined up".

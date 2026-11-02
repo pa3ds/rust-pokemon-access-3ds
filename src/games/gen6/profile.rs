@@ -11,6 +11,8 @@
 //!   subscreens' among them), and Shift alone drags only where the subscreens say.
 //! - ADR-0041: a replay logs touch mode's targets as they change, so a tape holds them, and a tape
 //!   replay P's ways at each listing (`ways`).
+//! - ADR-0042: a part of a place in parts is said walking into it, every time, and an exit or a leg
+//!   into it says it (`part`, `arrive`, `leads_to`, `place_of`).
 
 use std::cell::{Cell, RefCell};
 use std::collections::HashSet;
@@ -29,7 +31,7 @@ use crate::core::rtti::{ClassNames, demangle};
 use crate::core::speech::{Category, Speech};
 use crate::core::tones::{Tones, ticking};
 use crate::core::touch::TouchScreen;
-use crate::core::words::own;
+use crate::core::words::{current, own};
 use crate::games::common::announce::{Announcements, Speaker};
 use crate::games::common::cursors::reader::CursorReader;
 use crate::games::common::dialogue::{DialogueReader, Shown};
@@ -229,6 +231,9 @@ pub struct Gen6Profile {
     text: Rc<GameText>,
     /// The place-name index of the zone the player was last polled in.
     place: Cell<Option<i64>>,
+    /// The part of a place in parts last said, or None since the player left one
+    /// (ADR-0042).
+    part: RefCell<Option<String>>,
     pub layouts: Rc<Layouts>,
     /// Which screen the game is running, and the moment another starts (spike 99).
     ///
@@ -1067,6 +1072,7 @@ impl Gen6Profile {
             ways,
             text,
             place: Cell::new(None),
+            part: RefCell::new(None),
             layouts,
             apps,
             dialogue: RefCell::new(dialogue),
@@ -1894,6 +1900,11 @@ impl Gen6Profile {
     /// Say where the player is when the place changes, not the zone: a town and every
     /// building in it share a place, so walking out of a house arrives nowhere, as the game has
     /// it (spike 87). The name comes from RAM's index and the ROM's words, ahead of AreaNav's.
+    ///
+    /// A part of a place in parts is said too as the player walks into it, every time, from the
+    /// next part or from another place, "Safari Zone Northwest": the confirmation they have
+    /// moved that the game, its zones all one place, never gives (ADR-0042). Into a house of the
+    /// place and back out into the part it stands in, nothing is said.
     fn arrive(&self, zone: i64) -> Result<()> {
         let text = &self.text;
         if !text.loaded() {
@@ -1903,12 +1914,23 @@ impl Gen6Profile {
         let Some(index) = index else {
             return Ok(());
         };
+        let name = text.place(index);
+        let part = name.as_deref().and_then(|name| part(zone, name));
+        if part.is_some() && part != *self.part.borrow() {
+            self.place.set(Some(index));
+            *self.part.borrow_mut() = part.clone();
+            self.screen_announcer
+                .borrow_mut()
+                .place(part.as_deref().unwrap_or_default(), name.as_deref());
+            return Ok(());
+        }
         if Some(index) == self.place.get() {
             return Ok(());
         }
         self.place.set(Some(index));
-        if let Some(name) = text.place(index) {
-            self.screen_announcer.borrow_mut().place(&name);
+        *self.part.borrow_mut() = part;
+        if let Some(name) = name {
+            self.screen_announcer.borrow_mut().place(&name, None);
         }
         Ok(())
     }
@@ -2188,7 +2210,9 @@ fn door_sign_of(text: Rc<GameText>) -> DoorSign {
 ///
 /// The other zone of the player's own matrix is said all the same: Route 119 is two zones
 /// the game calls by one name, and the edge between them was the only exit said bare, "edge"
-/// (the user, 2026-10-03, spike 159).
+/// (the user, 2026-10-03, spike 159). And an exit into a part of a place in parts says the
+/// part, from anywhere: the way out of the Weather Institute, "way out to Northern Route 119"
+/// (ADR-0042).
 fn leads_to_of(text: Rc<GameText>, field: Rc<RefCell<Rc<FieldReader>>>) -> LeadsTo {
     Rc::new(move |here, there| {
         if !text.loaded() {
@@ -2202,23 +2226,42 @@ fn leads_to_of(text: Rc<GameText>, field: Rc<RefCell<Rc<FieldReader>>>) -> Leads
         let (Some(ours), Some(theirs)) = (ours, theirs) else {
             return Ok(None);
         };
+        let place = text.place(theirs);
+        if let Some(name) = &place
+            && there != here
+            && let Some(part) = part(there, name)
+        {
+            return Ok(Some(part));
+        }
         if ours == theirs && !field.zones.one_matrix(here, there)? {
             return Ok(None);
         }
-        Ok(text.place(theirs))
+        Ok(place)
     })
 }
 
-/// What the game calls the place `zone` is in, or None.
+/// What the game calls the place `zone` is in, or the part of it where it is a place in
+/// parts, "Southern Route 119" (ADR-0042); None where not known.
 fn place_of(text: Rc<GameText>, field: Rc<RefCell<Rc<FieldReader>>>) -> Place {
     Rc::new(move |zone| {
         let field = field.borrow().clone();
         let index = field.zones.place_index(zone)?;
-        match index {
-            Some(index) if text.loaded() => Ok(text.place(index)),
-            _ => Ok(None),
-        }
+        let place = match index {
+            Some(index) if text.loaded() => text.place(index),
+            _ => None,
+        };
+        Ok(place.map(|place| {
+            part(zone, &place)
+                .filter(|part| !part.is_empty())
+                .unwrap_or(place)
+        }))
     })
+}
+
+/// What pa3ds calls `zone` as a part of a place in parts, the game's `place` in it, "Southern
+/// Route 119"; None for a zone that is no part (ADR-0042, the game's `zones.ftl`).
+fn part(zone: i64, place: &str) -> Option<String> {
+    current().get(&format!("part-{zone:#x}"), &[("place", &place)])
 }
 
 /// The street of Lumiose's a warp between two of its zones comes out on, in the game's

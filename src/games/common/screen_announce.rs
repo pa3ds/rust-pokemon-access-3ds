@@ -54,6 +54,8 @@
 //! - ADR-0010: a cursor's details are one line, after its item, and never interrupt.
 //! - ADR-0013: each clause of screen text is from live play: replay the tapes before and after
 //!   changing one.
+//! - ADR-0042: a part of a place in parts is said where the game's sign says its place, which is
+//!   left unsaid after it (`place`'s `shown`).
 
 use std::collections::HashSet;
 use std::ops::Range;
@@ -313,12 +315,17 @@ impl ScreenAnnouncer {
     /// words and the location sign say the same (spike 87), so those are left unsaid when they
     /// follow it — and it is left unsaid when they came first, as they do before the field has
     /// found the zone table.
-    pub fn place(&mut self, name: &str) {
-        if !self.fresh(name, FIELD_ROOT) {
+    ///
+    /// `shown` is what the game's sign says where pa3ds says more, a part of a place in parts,
+    /// "Southern Route 119" for the sign's "Route 119" (ADR-0042): the sign is left unsaid after
+    /// it, and it is said after the sign, which says less.
+    pub fn place(&mut self, name: &str, shown: Option<&str>) {
+        let sign = shown.unwrap_or(name);
+        if !self.fresh(sign, FIELD_ROOT) && sign == name {
             (self.log)(&format!("field place, just said elsewhere: {name}"));
             return;
         }
-        self.placed = Some((name.to_string(), self.polls));
+        self.placed = Some((sign.to_string(), self.polls));
         (self.log)(&format!("field place: {name}"));
         self.speech.say(name, Category::Screen);
     }

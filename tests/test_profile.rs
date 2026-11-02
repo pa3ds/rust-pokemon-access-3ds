@@ -7,16 +7,18 @@ use std::rc::Rc;
 use indexmap::IndexMap;
 
 use super::fake_memory::{CODE, FakeMemory};
+use super::fake_rom::TmpDir;
 use super::fake_speech::Recorder;
+use super::fake_words::words_in;
 use super::test_field::{
-    HOUSE, PC_TILE, POOCHYENA, ROUTE_BLOCK, TOWN, TOWN_BLOCK, TOWN_CHUNK, Town, border,
+    HOUSE, PC_TILE, POOCHYENA, ROUTE, ROUTE_BLOCK, TOWN, TOWN_BLOCK, TOWN_CHUNK, Town, border,
 };
 use crate::core::memory::{Cache, Memory};
 use crate::core::names::Names;
 use crate::core::rtti::ClassNames;
 use crate::core::speech::Speech;
 use crate::games::common::field::keys::{ITEM_NEXT, MODE_TOGGLE, PATHFIND};
-use crate::games::common::field::things::WARP_SOURCE;
+use crate::games::common::field::things::{Interactable, WARP_SOURCE};
 use crate::games::common::session::Ways;
 use crate::games::common::touch::Target;
 use crate::games::gen6::apps::{BATTLE, DEMO, FIELD};
@@ -144,6 +146,63 @@ fn test_the_place_is_said_on_arriving_and_not_on_walking_into_a_building() {
     town.model(0, TOWN, PLAYER_INDEX, 0xAC, (99, 150));
     made.poll_field().unwrap();
     assert_eq!(backend.spoken(), ["Littleroot Town", "Route 101"]);
+}
+
+/// ADR-0042: a part of a place in parts is said as the player walks into it, from another
+/// place or the next part, and not on walking out of a house back into it; and an exit into a
+/// part says the part, the way out of a house of the place too (Orion, 2026-10-31: "way out to
+/// South Side" said nothing of where). Here the town's two zones are given parts of their own.
+#[test]
+fn test_a_part_of_a_place_is_said_walking_into_it_and_by_the_exits_into_it() {
+    let tmp_path = TmpDir::new();
+    words_in(
+        tmp_path.path(),
+        &format!(
+            "part-{TOWN:#x} = Northern {{ $place }}\npart-{ROUTE:#x} = Southern {{ $place }}\n"
+        ),
+        "oras",
+        "en",
+        "zones.ftl",
+    );
+    let town = Town::new();
+    let (made, backend) = profile(&town, GameText::new(places(), trainers()), None, no_log());
+    made.poll_field().unwrap();
+    assert_eq!(backend.spoken(), ["Northern Littleroot Town"]);
+    town.model(0, HOUSE, PLAYER_INDEX, 0xAC, (5, 5));
+    made.poll_field().unwrap();
+    let door = Interactable {
+        zone: Some(TOWN),
+        ..Interactable::new("exits", "door", (5, 6))
+    };
+    assert_eq!(
+        made.navigator
+            .borrow()
+            .destination(&door, HOUSE)
+            .unwrap()
+            .as_deref(),
+        Some("Northern Littleroot Town")
+    );
+    town.model(0, TOWN, PLAYER_INDEX, 0xAC, (94, 172));
+    made.poll_field().unwrap();
+    assert_eq!(backend.spoken(), ["Northern Littleroot Town"]);
+    let edge = Interactable {
+        zone: Some(ROUTE),
+        ..Interactable::new("exits", "edge", (95, 159))
+    };
+    assert_eq!(
+        made.navigator
+            .borrow()
+            .destination(&edge, TOWN)
+            .unwrap()
+            .as_deref(),
+        Some("Southern Route 101")
+    );
+    town.model(0, TOWN, PLAYER_INDEX, 0xAC, (99, 150));
+    made.poll_field().unwrap();
+    assert_eq!(
+        backend.spoken(),
+        ["Northern Littleroot Town", "Southern Route 101"]
+    );
 }
 
 /// ADR-0041: what P says of each thing listed is logged where a tape replay asks for it, read
