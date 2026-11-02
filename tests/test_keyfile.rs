@@ -1120,12 +1120,25 @@ fn test_a_modes_own_key_wins_over_the_one_above_it() {
 fn test_nvdas_modifier_is_held_from_the_hooks_own_events() {
     let (insert, caps_lock, r) = (0x2D, 0x14, 0x52);
     let mut held: HashSet<i64> = HashSet::new();
-    track(&mut held, insert, WM_KEYDOWN);
-    track(&mut held, r, WM_KEYDOWN);
+    track(&mut held, insert, WM_KEYDOWN, false);
+    track(&mut held, r, WM_KEYDOWN, false);
     assert_eq!(held, HashSet::from([insert]));
-    track(&mut held, caps_lock, WM_SYSKEYDOWN);
-    track(&mut held, insert, WM_KEYUP);
+    track(&mut held, caps_lock, WM_SYSKEYDOWN, false);
+    track(&mut held, insert, WM_KEYUP, false);
     assert_eq!(held, HashSet::from([caps_lock]));
-    track(&mut held, caps_lock, WM_KEYUP);
+    track(&mut held, caps_lock, WM_KEYUP, false);
+    assert!(held.is_empty());
+}
+
+/// Issue 23: insert's release went to an NVDA dialog, and every key of pa3ds's stayed dead after
+/// the player came back to the game.
+#[test]
+fn test_a_modifier_whose_release_was_missed_is_forgotten_back_in_the_emulator() {
+    let (insert, j) = (0x2D, 0x4A);
+    let mut held: HashSet<i64> = HashSet::new();
+    track(&mut held, insert, WM_KEYDOWN, false);
+    track(&mut held, j, WM_KEYDOWN, false);
+    assert_eq!(held, HashSet::from([insert]));
+    track(&mut held, j, WM_KEYDOWN, true);
     assert!(held.is_empty());
 }

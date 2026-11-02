@@ -38,9 +38,11 @@ use std::sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError};
 use std::time::Duration;
 
 #[cfg(windows)]
-use windows_sys::Win32::Foundation::{GetLastError, LPARAM, LRESULT, WPARAM};
+use windows_sys::Win32::Foundation::{GetLastError, HWND, LPARAM, LRESULT, WPARAM};
 #[cfg(windows)]
 use windows_sys::Win32::System::Threading::GetCurrentThreadId;
+#[cfg(windows)]
+use windows_sys::Win32::UI::Accessibility::{HWINEVENTHOOK, SetWinEventHook, UnhookWinEvent};
 #[cfg(windows)]
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::GetAsyncKeyState;
 #[cfg(windows)]
@@ -148,9 +150,14 @@ pub fn modified(name: &str, ctrl: bool, alt: bool, shift: bool) -> String {
 
 /// Keep in `held` which keys of `ELSEWHERE` the hook has seen go down and not yet come up.
 ///
-/// A release the hook never sees, as on the secure desktop that Ctrl+Alt+Del opens, leaves the
-/// key held and pa3ds's keys dead until that key is pressed and released again.
-pub fn track(held: &mut HashSet<i64>, virtual_key: i64, message: i64) {
+/// A release the hook never sees, as while an NVDA dialog opened with Insert+N or the secure
+/// desktop that Ctrl+Alt+Del opens has the keyboard, would leave the key held and every key of
+/// pa3ds's dead. So `back`, the emulator's window in front again after another window was, forgets
+/// every key held (issue 23).
+pub fn track(held: &mut HashSet<i64>, virtual_key: i64, message: i64, back: bool) {
+    if back {
+        held.clear();
+    }
     if !ELSEWHERE.contains(&virtual_key) {
         return;
     }
@@ -246,6 +253,11 @@ fn held(virtual_key: i64) -> bool {
 }
 
 #[cfg(windows)]
+pub const EVENT_SYSTEM_FOREGROUND: i64 = 0x0003;
+#[cfg(windows)]
+pub const WINEVENT_OUTOFCONTEXT: i64 = 0x0000;
+
+#[cfg(windows)]
 #[repr(C)]
 #[allow(non_snake_case)]
 struct KeyboardHookStruct {
@@ -333,6 +345,12 @@ struct State {
     contextual: Mutex<HashSet<String>>,
     pressed: Mutex<VecDeque<String>>,
     elsewhere: Mutex<HashSet<i64>>,
+    /// Whether the emulator's window was in front at the last key or change of window in front
+    /// the hook saw. Keys typed into NVDA's own windows never reach the hook: NVDA runs at a
+    /// higher integrity than pa3ds, and Windows calls a hook for no window above its own. So the
+    /// change of window is heard too, or a modifier whose release went to an NVDA dialog stays
+    /// held after it closes, until Alt+Tab (Khai, 2026-10-31).
+    front: AtomicBool,
     /// Whether a key of pa3ds's has been taken with Shift since Shift last came up, or Shift went
     /// down alone in front of the emulator.
     shifted: AtomicBool,
@@ -370,6 +388,19 @@ impl State {
             self.ready.set();
             return;
         }
+        // On this thread, so the change of window and the keys are never heard at once.
+        // SAFETY: `foreground_proc` has the signature of a WinEventProc and is never unloaded.
+        let on_front = unsafe {
+            SetWinEventHook(
+                EVENT_SYSTEM_FOREGROUND as u32,
+                EVENT_SYSTEM_FOREGROUND as u32,
+                null_mut(),
+                Some(foreground_proc),
+                0,
+                0,
+                WINEVENT_OUTOFCONTEXT as u32,
+            )
+        };
         self.ready.set();
         // SAFETY: MSG is plain data that GetMessageW fills in.
         let mut message: MSG = unsafe { std::mem::zeroed() };
@@ -377,6 +408,25 @@ impl State {
         while unsafe { GetMessageW(&mut message, null_mut(), 0, 0) } > 0 {}
         // SAFETY: `hook` was returned by SetWindowsHookExW above and is removed once.
         unsafe { UnhookWindowsHookEx(hook) };
+        if !on_front.is_null() {
+            // SAFETY: `on_front` was returned by SetWinEventHook above and is removed once.
+            unsafe { UnhookWinEvent(on_front) };
+        }
+    }
+
+    /// Whether the emulator's window is in front again after another was, and so whether it is
+    /// now in front, which this keeps.
+    fn back(&self) -> bool {
+        let front = window::in_front(&self.emulator);
+        let back = front && !self.front.load(Ordering::SeqCst);
+        self.front.store(front, Ordering::SeqCst);
+        back
+    }
+
+    fn foreground(&self) {
+        if self.back() {
+            lock(&self.elsewhere).clear();
+        }
     }
 
     fn hook(&self, code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
@@ -385,7 +435,14 @@ impl State {
             // KBDLLHOOKSTRUCT that lives until the hook returns.
             let event = unsafe { &*(lparam as *const KeyboardHookStruct) };
             let message = wparam as i64;
-            track(&mut lock(&self.elsewhere), event.vkCode as i64, message);
+            let back = self.back();
+            track(
+                &mut lock(&self.elsewhere),
+                event.vkCode as i64,
+                message,
+                back,
+            );
+            let front = self.front.load(Ordering::SeqCst);
             if message == WM_KEYUP || message == WM_SYSKEYUP {
                 let up = lock(&self.released).up(event.vkCode as i64);
                 if !up.is_empty() {
@@ -409,7 +466,7 @@ impl State {
                     && !held(VK_MENU)
                     && lock(&self.elsewhere).is_empty()
                     && !ELSEWHERE.iter().any(|&key| held(key))
-                    && window::in_front(&self.emulator)
+                    && front
                 {
                     self.shift_down.store(true, Ordering::SeqCst);
                     self.shifted.store(true, Ordering::SeqCst);
@@ -439,7 +496,7 @@ impl State {
                     .cloned()
                     .collect();
                 let key = bound(&name, &keys, ctrl, alt, elsewhere);
-                if !key.is_empty() && window::in_front(&self.emulator) {
+                if !key.is_empty() && front {
                     if lock(&self.released).down(event.vkCode as i64, &key) {
                         if shift {
                             self.shifted.store(true, Ordering::SeqCst);
@@ -463,6 +520,24 @@ unsafe extern "system" fn hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -
         Some(state) => state.hook(code, wparam, lparam),
         // SAFETY: the arguments are the ones this hook was called with.
         None => unsafe { CallNextHookEx(null_mut(), code, wparam, lparam) },
+    }
+}
+
+/// Windows' call on a change of window in front: on to the `State` this thread heard it for, as
+/// `hook_proc` is. An out-of-context event comes on the thread that asked for it.
+#[cfg(windows)]
+unsafe extern "system" fn foreground_proc(
+    _hook: HWINEVENTHOOK,
+    _event: u32,
+    _hwnd: HWND,
+    _object: i32,
+    _child: i32,
+    _thread: u32,
+    _time: u32,
+) {
+    let state = HOOKED.with(|hooked| hooked.borrow().clone());
+    if let Some(state) = state {
+        state.foreground();
     }
 }
 
@@ -493,6 +568,7 @@ impl Hotkeys {
                 contextual: Mutex::new(HashSet::new()),
                 pressed: Mutex::new(VecDeque::new()),
                 elsewhere: Mutex::new(HashSet::new()),
+                front: AtomicBool::new(true),
                 shifted: AtomicBool::new(false),
                 shift_down: AtomicBool::new(false),
                 thread_id: AtomicU32::new(0),
