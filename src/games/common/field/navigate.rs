@@ -44,8 +44,9 @@
 //! the guiding, since the path's cells belong to the map the player has left.
 //!
 //! Bound by:
-//! - ADR-0009: Shift alone drags in touch mode only on the screens that drag, held or tapped as
-//!   `drag` says; elsewhere touch mode keeps its keys with Shift, and nothing drags.
+//! - ADR-0009: the drag key, Shift alone as it ships, drags in touch mode only on the screens that
+//!   drag, held or tapped as `drag` says; elsewhere touch mode keeps its keys with Shift, and
+//!   nothing drags. Shift alone drags only while it is drag's key.
 //! - ADR-0024: nearest first by category unless `sort_by_distance` is off, all a category, and
 //!   direction mode a half-box 10 cells deep, nearest first always.
 //! - ADR-0037: a search's find is guided to, and the detector's only with the DexNav open in touch
@@ -455,13 +456,23 @@ impl Navigator {
     ///
     /// While touch mode holds a press, Shift is held all the while (`SHIFT_UP` lets it go), so
     /// a key with Shift means what it means without: Shift and J walks back as J does, where
-    /// Shift and J would rename the speaker (ADR-0009). A key the player binds to drag does as
-    /// Shift alone does, and comes up as `UP` after its name.
+    /// Shift and J would rename the speaker (ADR-0009). Shift alone drags where it is bound to
+    /// drag, as it ships; another key bound to drag does as Shift alone did, and comes up as `UP`
+    /// after its name (Orion, 2026-11-01).
     pub fn press_key(&mut self, key: &str) -> Result<()> {
         let holding = self.touch.as_ref().is_some_and(TouchMode::holding);
         let toggle = self.toggle;
         if key == SHIFT_DOWN || key == SHIFT_UP {
-            return self.drag(key == SHIFT_DOWN, holding, toggle, false);
+            if self
+                .bindings
+                .get(self.mode)
+                .and_then(|keys| keys.get(SHIFT))
+                .map(String::as_str)
+                == Some(DRAG)
+            {
+                self.drag(key == SHIFT_DOWN, holding, toggle, false)?;
+            }
+            return Ok(());
         }
         let up = key.ends_with(UP);
         let key = key.strip_suffix(UP).unwrap_or(key).to_lowercase();

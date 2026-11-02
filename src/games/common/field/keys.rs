@@ -3,8 +3,8 @@
 //! something only while one screen runs (`DEFAULT_CONTEXTS`).
 //!
 //! Bound by:
-//! - ADR-0009: touch mode's drag is Shift alone's, and the player's to bind to no key by default;
-//!   Berry Picker's berries and Pokémon are a key each.
+//! - ADR-0009: touch mode's drag is a key like any other, Shift alone as it ships, and Shift drags
+//!   nothing once it is bound elsewhere; Berry Picker's berries and Pokémon are a key each.
 //! - ADR-0022: the navigation keys by mode, list, direction and touch, rebindable in `keys.toml`; a
 //!   context's keys are taken only while its screen runs.
 
@@ -13,6 +13,7 @@ use std::sync::LazyLock;
 
 use indexmap::IndexMap;
 
+use crate::core::keys::SHIFT;
 use crate::games::common::touch::{DRAG, ROW_NEXT, ROW_PREVIOUS, TAP};
 
 pub const LIST: &str = "list";
@@ -129,7 +130,7 @@ pub const POKEMON: [&str; 3] = ["first pokemon", "second pokemon", "third pokemo
 /// falling at it (Orion, 2026-10-31; `head_it.HeadItKeys`).
 pub const HEADERS: [&str; 3] = ["left pokemon", "middle pokemon", "right pokemon"];
 
-pub const EXPLAINED: [(&str, &str); 6] = [
+pub const EXPLAINED: [(&str, &str); 7] = [
     (
         ENEMY_SIDE,
         "The enemy's Pokémon are said in the order the battle places them. In a horde of five that \
@@ -144,6 +145,12 @@ pub const EXPLAINED: [(&str, &str); 6] = [
     (
         TAP,
         "Touches the button touch mode last said, and nothing else.",
+    ),
+    (
+        DRAG,
+        "In Pokémon-Amie, picks up the button touch mode last said to drag it, held or pressed \
+         twice as the drag setting says. \"shift\" is Shift alone; bound to another key, Shift \
+         drags nothing.",
     ),
     (
         BERRIES[0],
@@ -185,8 +192,10 @@ fn keys(pairs: &[(&str, &str)]) -> IndexMap<String, String> {
 /// battle again and shift and R the enemy's (2026-09-29). The apostrophe steps on to touch mode
 /// after direction mode (Orion, 2026-10-02; it was shift and T for a day), where J and L walk the
 /// bottom screen's buttons, I and O a row at a time, K says the one chosen again and U taps it.
-/// Shift alone drags it, in Pokémon-Amie, and no key is bound to it (`UNBOUND`): Shift and U did
-/// from 2026-10-26 to 2026-10-29, when Shift alone took its place (Orion, ADR-0009).
+/// Shift alone drags it, in Pokémon-Amie: Shift and U did from 2026-10-26 to 2026-10-29, when Shift
+/// alone took its place (Orion, ADR-0009), and from 2026-11-01 Shift alone is drag's key as any
+/// other key is an action's, so a player who binds drag elsewhere has Shift drag nothing (Orion:
+/// players who never read of a key added beside it were left with Shift).
 /// C says the player's cell and alt and P stops guiding (2026-10-10), and shift and C the cells of
 /// the thing chosen (Orion, 2026-10-15). All of these are the player's to change in
 /// `<pa3ds>\user\keys.toml`.
@@ -250,6 +259,7 @@ pub static DEFAULT_BINDINGS: LazyLock<Bindings> = LazyLock::new(|| {
                 ("o", ROW_NEXT),
                 ("k", ITEM_READ),
                 ("u", TAP),
+                (SHIFT, DRAG),
                 ("[", CATEGORY_PREVIOUS),
                 ("]", CATEGORY_NEXT),
                 ("'", MODE_TOGGLE),
@@ -269,10 +279,6 @@ pub static DEFAULT_BINDINGS: LazyLock<Bindings> = LazyLock::new(|| {
         ),
     ])
 });
-
-/// The actions a player may bind that no key does by default: touch mode's drag, which Shift alone
-/// does, for a player who would rather hold or tap a key of their own (Orion, 2026-10-29).
-pub const UNBOUND: [&str; 1] = [DRAG];
 
 /// Every key bound in any mode: what the hook keeps from the emulator.
 pub fn bound_keys(bindings: &Bindings) -> HashSet<String> {

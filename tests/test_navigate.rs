@@ -5526,16 +5526,12 @@ fn test_the_users_keys_map_to_the_actions() {
         .collect();
     expected.extend(
         [
-            "shift+k", "shift+j", "shift+p", "alt+p", "ctrl+p", "shift+r", "shift+c",
+            "shift+k", "shift+j", "shift+p", "alt+p", "ctrl+p", "shift+r", "shift+c", "shift",
         ]
         .map(str::to_string),
     );
     assert_eq!(bound_keys(&DEFAULT_BINDINGS), expected);
-    assert!(
-        !DEFAULT_BINDINGS[TOUCH]
-            .values()
-            .any(|action| action == DRAG)
-    );
+    assert_eq!(DEFAULT_BINDINGS[TOUCH]["shift"], DRAG);
     for mode in [LIST, DIRECTION, TOUCH] {
         assert_eq!(
             [",", "."].map(|key| bound(mode, key)),
@@ -5909,11 +5905,12 @@ fn test_shift_alone_drags_on_the_screens_that_drag_held_or_tapped() {
     }
 }
 
-/// ADR-0009 as amended 2026-10-29 (Orion): a player may bind drag to a key of their own, held or
-/// tapped as `drag` says, with Shift or without; where nothing drags it says so, a key the player
-/// chose that would otherwise be heard doing nothing.
+/// ADR-0009 as amended 2026-10-29 and 2026-11-01 (Orion): drag is bound as any action is,
+/// Shift alone as it ships; bound to a key of the player's, held or tapped as `drag` says, with
+/// Shift or without, Shift alone drags nothing. Where nothing drags the key says so, a key the
+/// player chose that would otherwise be heard doing nothing.
 #[test]
-fn test_a_key_bound_to_drag_drags_as_shift_alone_does() {
+fn test_a_key_bound_to_drag_drags_as_shift_alone_did_and_shift_no_longer_does() {
     for (drag, key, keys) in [
         ("hold", "d", vec!["d", "l", "d up"]),
         ("toggle", "d", vec!["d", "d up", "l", "d", "d up"]),
@@ -5930,12 +5927,14 @@ fn test_a_key_bound_to_drag_drags_as_shift_alone_does() {
             Rc::new(move || amie.get())
         };
         let mut bindings = DEFAULT_BINDINGS.clone();
-        bindings
-            .get_mut(TOUCH)
-            .unwrap()
-            .insert(key.to_string(), DRAG.to_string());
+        let touch = bindings.get_mut(TOUCH).unwrap();
+        touch.retain(|_, action| action != DRAG);
+        touch.insert(key.to_string(), DRAG.to_string());
         let (mut nav, held, backend) =
             holding_navigator(drag == "toggle", Some(drags), Some(bindings));
+        nav.press_key(SHIFT_DOWN).unwrap();
+        nav.press_key(SHIFT_UP).unwrap();
+        assert!(held.touches.borrow().is_empty(), "{keys:?}");
         for each in &keys {
             nav.press_key(each).unwrap();
         }

@@ -76,7 +76,7 @@ use indexmap::{IndexMap, IndexSet};
 use regex::Regex;
 
 use crate::core::config::Value;
-use crate::core::keys::{ORDER, PUNCTUATION};
+use crate::core::keys::{ORDER, PUNCTUATION, SHIFT};
 use crate::core::words::{listed, own};
 use crate::core::{toml, window};
 use crate::py::{self, Error, Kind, Result};
@@ -1011,7 +1011,6 @@ fn strings(section: Option<&::toml::Value>) -> IndexMap<String, String> {
 }
 
 /// `[pa3ds.navigation]` and its modes, merged: a mode's own key wins over a shared one.
-/// `unbound` are the actions pa3ds has that no default key does.
 ///
 /// None is the defaults themselves, which `prepare` tells from a file that happens to say the same
 /// (`bindings is defaults` in Python).
@@ -1020,7 +1019,6 @@ fn read_keys(
     loaded: &IndexMap<String, ::toml::Value>,
     defaults: &Bindings,
     notes: &mut Vec<String>,
-    unbound: &[&str],
 ) -> Option<Bindings> {
     let group = toml::table(loaded.get(SECTION)).get(GROUP).cloned();
     let Some(group) = group else {
@@ -1036,7 +1034,6 @@ fn read_keys(
     let known: HashSet<&str> = defaults
         .values()
         .flat_map(|keys| keys.values().map(String::as_str))
-        .chain(unbound.iter().copied())
         .collect();
     let both = actions(path, Some(&group), &known, notes);
     let mut bindings: Bindings = IndexMap::new();
@@ -1345,15 +1342,20 @@ pub fn fill(
 ///
 /// A key bound with a modifier takes its button only while the modifier is held, and is not said
 /// to sit on it: shift and T, touch mode for a day, was chosen so T stays this machine's D-pad
-/// up (Orion, 2026-10-01). Sorted by the control, so the same overlap is reported the same way
-/// every run.
+/// up (Orion, 2026-10-01). Nor is Shift alone, touch mode's drag as it ships, which the hook hears
+/// and passes on (`core.keys`): a stick's modifier on Shift still walks. Sorted by the control,
+/// so the same overlap is reported the same way every run.
 pub fn taken(
     bindings: &Bindings,
     emulator: &IndexMap<String, Vec<String>>,
 ) -> Vec<(String, String, bool)> {
     let mine: HashSet<String> = bindings
         .values()
-        .flat_map(|keys| keys.keys().filter(|key| bare(key) == **key).cloned())
+        .flat_map(|keys| {
+            keys.keys()
+                .filter(|key| bare(key) == **key && *key != SHIFT)
+                .cloned()
+        })
         .collect();
     let mut found: Vec<(String, String, bool)> = Vec::new();
     for (control, names) in emulator {
@@ -1384,13 +1386,11 @@ pub fn prepare(
     running: bool,
     explained: Option<&IndexMap<String, String>>,
 ) -> Result<Keys> {
-    prepare_with(defaults, home, config, write, running, explained, &[], None)
+    prepare_with(defaults, home, config, write, running, explained, None)
 }
 
-/// `prepare` with every argument: `unbound` are actions a player may bind that no default key
-/// does, never written into the file. `contexts` are the keys of each screen that has its own, by
+/// `prepare` with every argument: `contexts` are the keys of each screen that has its own, by
 /// default.
-#[allow(clippy::too_many_arguments)]
 pub fn prepare_with(
     defaults: &Bindings,
     home: Option<&Path>,
@@ -1398,7 +1398,6 @@ pub fn prepare_with(
     write: bool,
     running: bool,
     explained: Option<&IndexMap<String, String>>,
-    unbound: &[&str],
     contexts: Option<&Bindings>,
 ) -> Result<Keys> {
     let no_contexts = IndexMap::new();
@@ -1490,7 +1489,7 @@ pub fn prepare_with(
                     notes.push(format!("{} could not be written", py::path_str(&path)));
                 }
             }
-            read = read_keys(&path, &loaded, defaults, &mut notes, unbound);
+            read = read_keys(&path, &loaded, defaults, &mut notes);
             keyed = read_contexts(&path, &loaded, contexts, &mut notes);
             wanted = read_emulator(&path, &loaded, &mut notes);
         }

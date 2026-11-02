@@ -486,44 +486,57 @@ fn test_an_action_pa3ds_does_not_do_is_said_and_dropped() {
     );
 }
 
-/// Touch mode's drag is Shift alone's, and a key of the player's too where they bind one (Orion,
-/// 2026-10-29); the file pa3ds writes binds no key to it.
+/// Touch mode's drag is bound as every action is, to Shift alone as pa3ds writes the file;
+/// a player who has it on a key of their own gets no Shift added beside it (Orion, 2026-11-01:
+/// "If they bound it to something else, shift won't drag"). Shift alone is passed on to Azahar,
+/// so it is never said to take a button there.
 #[test]
-fn test_an_action_no_default_key_does_is_the_players_to_bind() {
+fn test_drag_is_shift_alone_as_it_ships_and_the_players_to_move() {
     let tmp_path = TmpPath::new();
-    let home = tmp_path.join("home");
-    fs::create_dir(&home).unwrap();
-    fs::write(
-        home.join("keys.toml"),
-        "[pa3ds.navigation.list]\nd = \"drag\"\n",
-    )
-    .unwrap();
-    let keys = keyfile::prepare_with(
-        &bindings(),
-        Some(&home),
-        Some(&written(&tmp_path)),
-        true,
-        false,
-        None,
-        &["drag"],
-        None,
-    )
-    .unwrap();
-    assert_eq!(keys.bindings[LIST]["d"], "drag");
+    let mut bindings = bindings();
+    bindings.insert(
+        "touch".to_string(),
+        mode(&[("'", "mode"), ("shift", "drag")]),
+    );
     let fresh = tmp_path.join("fresh");
     fs::create_dir(&fresh).unwrap();
-    keyfile::prepare_with(
-        &bindings(),
+    keyfile::prepare(
+        &bindings,
         Some(&fresh),
         Some(&written(&tmp_path)),
         true,
         false,
         None,
-        &["drag"],
+    )
+    .unwrap();
+    assert!(read_text(&fresh.join("keys.toml")).contains("\"shift\" = \"drag\""));
+    let home = tmp_path.join("home");
+    fs::create_dir(&home).unwrap();
+    fs::write(
+        home.join("keys.toml"),
+        "[pa3ds.navigation.touch]\nd = \"drag\"\n",
+    )
+    .unwrap();
+    let keys = keyfile::prepare(
+        &bindings,
+        Some(&home),
+        Some(&written(&tmp_path)),
+        true,
+        false,
         None,
     )
     .unwrap();
-    assert!(!read_text(&fresh.join("keys.toml")).contains("drag"));
+    assert!(keys.bindings["touch"]["d"] == "drag" && !keys.bindings["touch"].contains_key("shift"));
+    assert_eq!(
+        keyfile::taken(
+            &bindings,
+            &IndexMap::from([
+                ("button_a".to_string(), vec!["shift".to_string()]),
+                ("button_b".to_string(), vec!["'".to_string()]),
+            ])
+        ),
+        [("B".to_string(), "'".to_string(), false)]
+    );
 }
 
 fn contexts() -> Bindings {
@@ -544,7 +557,6 @@ fn prepare_contexts(home: &Path, config: &Path) -> keyfile::Keys {
         true,
         false,
         None,
-        &[],
         Some(&contexts()),
     )
     .unwrap()

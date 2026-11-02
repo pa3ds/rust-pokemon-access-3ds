@@ -14,7 +14,7 @@ use crate::core::rpc::{DEFAULT_PORT, Rpc, UdpRpc};
 use crate::core::speech::{self, Backend, Category, Speech};
 use crate::core::words::{self, ENGLISH, Words, own};
 use crate::core::{config, instance, keyfile, window};
-use crate::games::common::field::keys::{DEFAULT_BINDINGS, DEFAULT_CONTEXTS, EXPLAINED, UNBOUND};
+use crate::games::common::field::keys::{DEFAULT_BINDINGS, DEFAULT_CONTEXTS, EXPLAINED};
 use crate::py::{self, Log, time};
 use crate::ux::folder;
 use crate::ux::settings as settings_dialog;
@@ -355,7 +355,6 @@ fn run(args: Args, hooks: &Hooks) -> py::Result<()> {
             true,
             running,
             Some(&explained),
-            &UNBOUND,
             Some(&*DEFAULT_CONTEXTS),
         )?;
         for note in &keys.notes {

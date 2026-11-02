@@ -84,7 +84,7 @@ does, and touch mode says "nothing to touch".
 | `I` and `O` | The button above and below: the nearest in the previous and next row. |
 | `K` | The chosen button again. |
 | `U` | Tap the chosen button. |
-| `Shift` | In Pokémon-Amie, pick up the chosen button to drag it, with the PC Box's sound for picking up a Pokémon. Keep Shift down: `J`, `L`, `I` and `O` choose where to, and `K` says where it is. Let go of Shift to drop it there, with another sound. With the `drag` setting at `"toggle"`, press once to pick up and again to drop; with `feedback_sounds` at 0, "holding" and "let go on" are said instead of the sounds. Nothing else drags. A key of your own can drag too (Changing keys, below). |
+| `Shift` | In Pokémon-Amie, pick up the chosen button to drag it, with the PC Box's sound for picking up a Pokémon. Keep Shift down: `J`, `L`, `I` and `O` choose where to, and `K` says where it is. Let go of Shift to drop it there, with another sound. With the `drag` setting at `"toggle"`, press once to pick up and again to drop; with `feedback_sounds` at 0, "holding" and "let go on" are said instead of the sounds. Nothing else drags. You can move drag to another key (Changing keys, below). |
 
 In the AreaNav, touch mode offers each place on the map by name, and a tap chooses it.
 
@@ -265,9 +265,10 @@ its line: a line you delete is put back the next time pa3ds starts.
 - `[pa3ds.navigation]` holds the keys of every mode. `[pa3ds.navigation.list]`,
   `[pa3ds.navigation.direction]` and `[pa3ds.navigation.touch]` hold one mode's, and win over it.
   A key can have modifiers: `"shift+k"`.
-- `"drag"` has no key of its own: Shift drags. To drag with another key as well, add one under
-  `[pa3ds.navigation.touch]`, such as `"d" = "drag"`. It works as Shift does, held or pressed
-  as the `drag` setting says, and elsewhere says "nothing to drag".
+- `"shift" = "drag"` under `[pa3ds.navigation.touch]` is the drag key, `"shift"` meaning Shift
+  alone. Change it to another key, such as `"d" = "drag"`, and that key drags instead and Shift
+  no longer does. It works as Shift did, held or pressed as the `drag` setting says, and outside
+  Pokémon-Amie says "nothing to drag".
 - `[pa3ds.amie.berry_picker]` holds Berry Picker's own keys, `"first berry"` to `"seventh berry"`
   and `"first pokemon"` to `"third pokemon"`. pa3ds takes them only while Berry Picker runs,
   and there they win over the keys above. `[pa3ds.amie.head_it]` holds Head It's,
