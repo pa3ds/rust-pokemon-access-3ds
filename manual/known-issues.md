@@ -52,7 +52,9 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
 - **The moves `P` says a way needs** are those of `Shift+P`'s shortest way, so one of them may only
   be a shortcut, such as a slope the Mach Bike rides up where a longer way goes round on foot.
 - **Parts of a place**: someone in another part of the Safari Zone or of Routes 119, 120 and 123
-  is listed where they start, and may have wandered off until you walk into their part. None of
+  is listed where they start, and may have wandered off until you walk into their part. Until
+  you have been in a part since starting pa3ds, it may also list someone the game has taken
+  away, such as Route 119's Kecleon after the story. None of
   this has been heard in play yet. Mauville City's floors, a cave's floors and a hideout's rooms
   are not named as parts yet, so their exits still say only what they are.
 

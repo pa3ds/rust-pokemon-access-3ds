@@ -1819,6 +1819,62 @@ fn test_a_place_in_parts_lists_the_other_parts_things_out_of_the_rom() -> Result
     Ok(())
 }
 
+/// or_no_path (Orion, 2026-11-01): in Southern Route 119 the list held a Kecleon out of the
+/// northern strip's records, whom the game had built no model for there: its zone's script keeps
+/// some of its records unbuilt, by works no record says, and P said "Kecleon in the way" of ways
+/// past it. A part the player has been in lists only the records the game built in it when they
+/// were last there. Here the townsperson is not built, and once the player is on the route the
+/// town's records leave him out.
+#[test]
+fn test_another_parts_people_are_those_the_game_built_there_when_last_seen() -> Result<()> {
+    let town_records = zone_file(&ZoneSpec {
+        npcs: &[
+            (0x119, 91, 175, 0x227, None),
+            (mmodel::ITEM_BALL, 100, 180, 0x51A, None),
+            (PROP_MODEL + 0x4E, 110, 170, 0x205, None),
+        ],
+        ..ZoneSpec::default()
+    });
+    let mut town = Town::new();
+    let both = vec![TOWN, ROUTE];
+    town.reader = field_reader(
+        town.memory.clone(),
+        Given {
+            parts: IndexMap::from([(TOWN, both.clone()), (ROUTE, both.clone())]),
+            part_data: IndexMap::from([
+                (ROUTE, zone_file(&ZoneSpec::default())),
+                (TOWN, town_records),
+            ]),
+            ..Given::default()
+        },
+        Game {
+            hidden: Some(dex_nav),
+            ..game()
+        },
+    );
+    town.memory.u16(TABLE + ROUTE * INFO_SIZE + INFO_NAME, 170);
+    town.memory.u32(POOL + MODEL_STRIDE, &[town.vtable, 0]);
+
+    let people = |town: &Town| -> Result<Vec<Option<(i64, i64)>>> {
+        Ok(town
+            .r#where()?
+            .interactables
+            .iter()
+            .filter(|item| item.category == "people")
+            .map(|item| item.record)
+            .collect())
+    };
+
+    assert_eq!(people(&town)?, []);
+    town.model(0, ROUTE, mmodel::PLAYER_INDEX, 0xAC, (94, 150));
+    for slot in [2, 3] {
+        town.memory
+            .u32(POOL + slot * MODEL_STRIDE, &[town.vtable, 0]);
+    }
+    assert_eq!(people(&town)?, []);
+    Ok(())
+}
+
 /// ADR-0042: the Safari Zone's two southern quarters both keep the item ball at (244, 217),
 /// record 3 in each with one flag, so that whichever is loaded shows it, and it was listed twice
 /// (or_safari_zone). It is one thing, told by the first part's record whichever part's model the

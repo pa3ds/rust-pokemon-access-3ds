@@ -23,7 +23,8 @@
 //!
 //! Bound by:
 //! - ADR-0042: the gaps into the next part of a place in parts are one exit (`edges`), and the list
-//!   holds the whole place, the other parts' things out of the ROM (`with_other_parts`).
+//!   holds the whole place, the other parts' things out of the ROM (`with_other_parts`), of a part
+//!   the player has stood in only what the game built there (`built`).
 
 use std::cell::{Cell as Slot, RefCell};
 use std::collections::{HashMap, HashSet};
@@ -345,6 +346,10 @@ pub struct FieldReader {
     /// the ROM, its things listed from the other parts (ADR-0042).
     part_data: IndexMap<i64, Vec<u8>>,
     twins_of: RefCell<HashMap<Vec<i64>, Rc<Twins>>>,
+    /// Each part of a place in parts the player has stood in -> the indices of the NPC records
+    /// the game built models for there, when last seen: another part's records are listed only
+    /// where it built them (`part_records`).
+    built: RefCell<HashMap<i64, HashSet<i64>>>,
     /// Where the game keeps the sprite a move model is drawn with (`mmodel.drawn_as`).
     drawn: i64,
     /// Where the game's things' and Pokémon's models start (`Game.models`).
@@ -555,6 +560,7 @@ impl FieldReader {
             parts: text.parts.clone(),
             part_data: text.part_data.clone(),
             twins_of: RefCell::new(HashMap::new()),
+            built: RefCell::new(HashMap::new()),
             drawn: game.drawn,
             model_starts: game.models,
             form: game.form,
@@ -2556,6 +2562,14 @@ impl FieldReader {
         items: Vec<Interactable>,
         _people: &[Interactable],
     ) -> Result<Vec<Interactable>> {
+        let built: HashSet<i64> = items
+            .iter()
+            .filter(|item| item.move_model)
+            .filter_map(|item| item.record)
+            .filter(|record| record.0 == r#where.zone)
+            .map(|record| record.1)
+            .collect();
+        self.built.borrow_mut().insert(r#where.zone, built);
         let twins = self.twins(parts)?;
         let items: Vec<Interactable> = items
             .into_iter()
@@ -2632,13 +2646,19 @@ impl FieldReader {
     /// Another part's furniture, warps and NPC records out of its zone data in the ROM, each
     /// as its zone's own are listed: an NPC record whose model is built already, or listed
     /// already, `live`, which it adds to, is listed as that, and one another part keeps too as
-    /// that part's (`twins`).
+    /// that part's (`twins`). Of a part the player has stood in, only the records the game built
+    /// there when they were last in it (`built`): its zone's script keeps some unbuilt, by
+    /// works no record says. In Southern Route 119 the list held a Kecleon out of the northern
+    /// strip's records, whom the game had not built there, and P said "Kecleon in the way"; its
+    /// record's +0x0a and six others' unbuilt, 2 to 6 and 2000, are no flags the save sets, and
+    /// the same numbers in the southern strip's are built (or_no_path).
     fn part_records(
         &self,
         zone: i64,
         live: &mut HashSet<(i64, i64)>,
         twins: &Twins,
     ) -> Result<Vec<Interactable>> {
+        let built = self.built.borrow().get(&zone).cloned();
         let Some(data) = self.part_data.get(&zone) else {
             return Ok(Vec::new());
         };
@@ -2677,6 +2697,9 @@ impl FieldReader {
         out.extend(exits(found_exits, &|zone| self.zones.place_of(zone))?);
         for record in read_records(&memory, &found, NPC)? {
             let here = (zone, u16(&record, NPC_INDEX)?);
+            if built.as_ref().is_some_and(|built| !built.contains(&here.1)) {
+                continue;
+            }
             let one = twins.get(&here).copied().unwrap_or(here);
             if !live.contains(&one)
                 && let Some(item) = self.record_item(zone, &record)?
