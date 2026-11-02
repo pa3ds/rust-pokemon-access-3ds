@@ -1,5 +1,5 @@
 //! Pokémon-Amie's Head It: which Pokémon each ball of yarn falls at, and where each is tapped
-//! (spike A).
+//! (spike 273).
 //!
 //! Balls of yarn fall from the top screen at the player's Pokémon, who stand along the bottom of the
 //! bottom screen, left, in the middle and right; a tap on the Pokémon a ball falls at heads it back
@@ -30,11 +30,11 @@
 //! back, and behind the results, so balls are said and the Pokémon offered only while the app's
 //! object, `app::heading::Process`, says balls fall (`PHASE`). A tap heads a ball back once it is a
 //! little over halfway down, about 1.1 to 1.2 seconds after pa3ds first sees it at the top, for
-//! about a fifth of a second (spike A, live).
+//! about a fifth of a second (spike 273, live).
 //!
 //! Head It's own keys tap the Pokémon left to right, the game's own order of its records, and the
 //! round's three are said in that order in its opening, as Berry Picker's are (`_lineup`): all
-//! three are in the records from the opening, those not yet up below the screen (spike A's tape).
+//! three are in the records from the opening, those not yet up below the screen (spike 273's tape).
 //!
 //! Bound by:
 //! - ADR-0009: a Pokémon is tapped on the player's key, by touch mode, as the target it has just
@@ -60,7 +60,7 @@ use crate::games::gen6::subscreen::super_training::pictures;
 use crate::py::{self, Error, Kind, PySet, Result};
 
 pub const APP: &str = "N3app7heading7ProcessE";
-/// Where the app's object says what the round is doing (spike A, live): 0 and 1 its opening, 2
+/// Where the app's object says what the round is doing (spike 273, live): 0 and 1 its opening, 2
 /// the balls falling (`FALLING`), 3 time up, its "!", 4 one ball more, at the middle Pokémon, as
 /// "Big Yarn Bonus" comes (`LAST`), 5 the results and 6 Play Again and Quit (`LIST`). Its clock, at
 /// +0x4C, counts 1800 down from START! to -10, and stands there from time up.
@@ -79,7 +79,7 @@ pub const PLACE: i64 = 0x14;
 /// stand at -120, 0 and 120, the balls fall at -100, 0 and 100.
 pub const APART: i64 = 50;
 /// The balls' pictures: `ball00_00.bclim` and on through the round, and after time up one more,
-/// the giant ball, `giant01.bclim` or `giant02.bclim`, down the middle (spike A, live).
+/// the giant ball, `giant01.bclim` or `giant02.bclim`, down the middle (spike 273, live).
 pub const BALLS: [&str; 2] = ["ball", "giant"];
 /// Where each column's Pokémon is tapped across the screen: the middles of the touch areas over
 /// them, `1f` to `1h`.
@@ -92,7 +92,7 @@ pub const BODY: i64 = 200;
 pub const TALL: f64 = 120.0;
 /// How far above the screen's middle a ball is as a tap sent then heads it at the sweet spot, for
 /// 3 points rather than 1: tapped by a timer as the ball reached it, 0.2 s after a cue that much
-/// ahead, all 6 were, and 0.05 s either side none of 12, though all were headed (spike A, live).
+/// ahead, all 6 were, and 0.05 s either side none of 12, though all were headed (spike 273, live).
 pub const SWEET: f64 = 35.0;
 /// Seconds before the ball reaches `SWEET` the cue sounds, as it ships (`[pa3ds.amie]
 /// head_it_lead`): about how long a player takes from the cue to the tap, the sound's way out to
@@ -304,7 +304,7 @@ impl HeadIt {
     /// again in each Play Again's, as Berry Picker's are (Orion, 2026-11-01: "the same precedent
     /// as berry picker"): on Easy two come up only as the round goes on, and in Orion's first
     /// logged round he pressed the keys in the order the Pokémon came up, all but Windsong's
-    /// wrong. Left to right is the game's own order of its records too (spike A's tape).
+    /// wrong. Left to right is the game's own order of its records too (spike 273's tape).
     fn lineup(&mut self, phase: Option<i64>) -> Result<Vec<(String, String, Category)>> {
         if phase.is_none_or(|phase| phase >= FALLING) {
             self.told = false;
@@ -398,7 +398,7 @@ impl HeadIt {
 
     /// Whether balls fall, from START! through the one after time up. The opening
     /// demonstrates a ball falling at the Pokémon and headed back, the game's own, said nothing
-    /// of as Berry Picker's opening is (spike A, live). With no app's object found, none do: the
+    /// of as Berry Picker's opening is (spike 273, live). With no app's object found, none do: the
     /// sweep finds it with the Pokémon, and as Quit closed the round it was gone while they were
     /// not, and they were offered for 2 s (as_amie_head_it's tape).
     fn playing(&self) -> Result<bool> {

@@ -51,7 +51,7 @@ fn game() -> Game {
 
 /// As as_amie_head_it's round went 30 s in: Poochyena down on the left, Ralts up in the
 /// middle and rowan up on the right; a ball falling at the middle, the giant ball parked off to
-/// the right and a ball past the bottom (spike A). The game, the memory, the balls' panes and the
+/// the right and a ball past the bottom (spike 273). The game, the memory, the balls' panes and the
 /// layouts. With `cue`, the cue is on, sounding through it, timed by `clock`.
 fn game_with(cue: Option<head_it::Cue>, clock: Rc<dyn Fn() -> f64>) -> Game {
     let memory = FakeMemory::new();
@@ -182,7 +182,7 @@ fn test_each_pokemon_up_is_offered_at_its_body_by_its_name() {
 }
 
 /// Its opening demonstrates a ball headed back, and its Pokémon stand on behind the results
-/// and Play Again; the last ball falls after time up (spike A, live). The opening says the
+/// and Play Again; the last ball falls after time up (spike 273, live). The opening says the
 /// lineup alone.
 #[test]
 fn test_no_ball_is_said_nor_pokemon_offered_before_balls_fall_or_once_they_have() {

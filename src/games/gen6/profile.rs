@@ -178,7 +178,7 @@ pub const DROP_SOUND: &str = "SEQ_SE_RELEASE";
 pub const WRONG_SOUND: &str = "SEQ_SE_BEEP";
 /// The "!" the field plays over someone's head, played as Head It's cue (Orion, 2026-11-01, in
 /// place of a tone): 0.3 s, the same wave and volume in Omega Ruby and X, where `SEQ_SE_FLD_277` is
-/// that wave too (spike B).
+/// that wave too (spike 274).
 pub const CUE_SOUND: &str = "SEQ_SE_FLD_036";
 /// Where the tone of each quarter up walks sounds, across and down as `Tones.play` has them,
 /// north first and clockwise: north high, south low, east in the right ear and west in the left, as
