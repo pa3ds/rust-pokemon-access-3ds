@@ -41,7 +41,6 @@
 //!   named.
 
 use std::cell::RefCell;
-use std::collections::HashSet;
 use std::rc::Rc;
 
 use indexmap::IndexMap;
@@ -58,7 +57,7 @@ use crate::games::common::pokemon;
 use crate::games::common::touch::{HEIGHT, ImageOf, Target, WIDTH};
 use crate::games::gen6::subscreen::berry_picker::{Name, Touching};
 use crate::games::gen6::subscreen::super_training::pictures;
-use crate::py::{Error, Kind, Result};
+use crate::py::{self, Error, Kind, PySet, Result};
 
 pub const APP: &str = "N3app7heading7ProcessE";
 /// Where the app's object says what the round is doing (spike A, live): 0 and 1 its opening, 2
@@ -109,6 +108,12 @@ pub const COMING: &str = "head-it-ball";
 pub const NOBODY: &str = "head-it-ball-nobody";
 pub const NOT_UP: &str = "head-it-no-pokemon";
 pub const LINEUP: &str = "head-it-lineup";
+pub const ESTIMATE: &str = "head-it-estimate";
+/// Seconds after a cue within which the key of its ball's Pokémon answers it: the ball is past
+/// the bottom about 0.9 s after it (Orion's logged round at a 0.4 s lead).
+pub const ANSWER: f64 = 1.0;
+/// Answers a round needs before pa3ds says its estimate of the lead.
+pub const TAPS: usize = 3;
 /// What the log calls what Head It says.
 pub const LOG: &str = "head it";
 
@@ -141,10 +146,17 @@ pub struct HeadIt {
     heights: IndexMap<i64, Vec<(f64, f64)>>,
     /// The balls falling whose cue has sounded.
     ///
-    /// A set only tested.
-    cued: HashSet<i64>,
+    /// A `PySet`: the balls gone by with none sounded are what is left of a set without them,
+    /// which Python iterates as it lays it out (`poll`).
+    cued: PySet,
     /// Whether the round about to start has had its three Pokémon said (`_lineup`).
     told: bool,
+    /// Each column -> when its last cue sounded, until its key answers it (`pressed`).
+    cues: IndexMap<i64, f64>,
+    /// How long after its cue each answer of the round came.
+    delays: Vec<f64>,
+    /// Whether the round's results have had pa3ds's estimate said (`_estimate`).
+    estimated: bool,
 }
 
 impl HeadIt {
@@ -178,8 +190,11 @@ impl HeadIt {
             lead,
             clock,
             heights: IndexMap::new(),
-            cued: HashSet::new(),
+            cued: PySet::new(),
             told: false,
+            cues: IndexMap::new(),
+            delays: Vec::new(),
+            estimated: false,
         }
     }
 
@@ -211,17 +226,27 @@ impl HeadIt {
     }
 
     /// The round's three Pokémon as its opening starts (`_lineup`), and while balls fall each
-    /// ball that has just come, by the Pokémon it falls at, as the screen's words.
-    pub fn poll(&mut self, running: Option<&str>) -> Result<Vec<(String, String, Category)>> {
+    /// ball that has just come, by the Pokémon it falls at, as the screen's words; and, only
+    /// logged (None), each ball gone by with the cue on and none sounded for it, with its last
+    /// heights: one of Orion's logged round's twenty went so (77.49 s), and nothing said why.
+    pub fn poll(
+        &mut self,
+        running: Option<&str>,
+    ) -> Result<Vec<(String, String, Option<Category>)>> {
         let phase = if running == Some(APP) {
             self.phase()?
         } else {
             None
         };
-        let mut lineup = self.lineup(phase)?;
+        let mut said: Vec<(String, String, Option<Category>)> = Vec::new();
+        for (logged, line, category) in self.lineup(phase)?.into_iter().chain(self.estimate(phase))
+        {
+            said.push((logged, line, Some(category)));
+        }
         if phase.is_none_or(|phase| !(FALLING..=LAST).contains(&phase)) {
             self.falling = IndexMap::new();
-            return Ok(lineup);
+            (self.heights, self.cued) = (IndexMap::new(), PySet::new());
+            return Ok(said);
         }
         let falling = self.balls()?;
         let new: Vec<i64> = falling
@@ -229,19 +254,50 @@ impl HeadIt {
             .filter(|(pane, _)| !self.falling.contains_key(*pane))
             .map(|(_, &(column, _))| column)
             .collect();
+        let falling_keys: Vec<i64> = falling.keys().copied().collect();
+        if self.cue.is_some() {
+            // `self._falling.keys() - falling.keys() - self._cued`: a set of the dict's keys, the
+            // others discarded from it, then a set of those `_cued` lacks, iterated as laid out.
+            let was: Vec<i64> = self.falling.keys().copied().collect();
+            let mut gone = PySet::of_dict(&was);
+            gone.difference_update(&PySet::of_dict(&falling_keys));
+            for pane in gone.difference(&self.cued).iter() {
+                let seen = self.heights.get(&pane).map(Vec::as_slice).unwrap_or(&[]);
+                let last = &seen[seen.len().saturating_sub(4)..];
+                let heights: Vec<String> = last
+                    .iter()
+                    .map(|&(when, height)| {
+                        format!("{} at {}", py::fixed(height, 0), py::fixed(when, 2))
+                    })
+                    .collect();
+                said.push((
+                    LOG.to_string(),
+                    format!(
+                        "no cue for a ball gone by, its last heights {}",
+                        heights.join(", ")
+                    ),
+                    None,
+                ));
+            }
+        }
         self.falling = falling;
+        // Here, not in `tick`, where it was: with no ball falling nothing ticks.
+        let falling = &self.falling;
+        self.heights.retain(|pane, _| falling.contains_key(pane));
+        self.cued
+            .intersection_update(&PySet::of_dict(&falling_keys));
         if new.is_empty() {
-            return Ok(lineup);
+            return Ok(said);
         }
         let standing = self.standing()?;
-        lineup.extend(new.into_iter().map(|column| {
+        said.extend(new.into_iter().map(|column| {
             let line = match standing.get(&column) {
                 Some(called) => own(COMING, &[("pokemon", called)]),
                 None => own(NOBODY, &[]),
             };
-            (LOG.to_string(), line, Category::Screen)
+            (LOG.to_string(), line, Some(Category::Screen))
         }));
-        Ok(lineup)
+        Ok(said)
     }
 
     /// The round's three Pokémon left to right, its keys' order, said once in its opening and
@@ -276,6 +332,45 @@ impl HeadIt {
             ),
             Category::Screen,
         )])
+    }
+
+    /// pa3ds's estimate of the player's lead, said once at the round's results: the middle
+    /// of how long after each cue the key of its ball's Pokémon came, for the player to put in
+    /// `[pa3ds.amie] head_it_lead` or nudge from. Never used in the round itself (Orion,
+    /// 2026-11-01: a lead changed mid-round throws off a player's own sense of it), and said as
+    /// pa3ds's, not the game's.
+    fn estimate(&mut self, phase: Option<i64>) -> Vec<(String, String, Category)> {
+        let Some(phase) = phase.filter(|&phase| phase >= FALLING) else {
+            (self.cues, self.delays, self.estimated) = (IndexMap::new(), Vec::new(), false);
+            return Vec::new();
+        };
+        if phase <= LAST || self.estimated || self.delays.len() < TAPS {
+            return Vec::new();
+        }
+        self.estimated = true;
+        vec![(
+            LOG.to_string(),
+            own(
+                ESTIMATE,
+                &[
+                    ("seconds", &py::fixed(median(&self.delays), 2)),
+                    ("taps", &self.delays.len()),
+                ],
+            ),
+            Category::Screen,
+        )]
+    }
+
+    /// A Pokémon's own key has tapped it: an answer to its last cue, timed, where one
+    /// sounded within `ANSWER`.
+    pub fn pressed(&mut self, column: i64) {
+        let when = self.cues.shift_remove(&column);
+        if let Some(when) = when {
+            let delay = (self.clock)() - when;
+            if delay <= ANSWER {
+                self.delays.push(delay);
+            }
+        }
     }
 
     /// Each Pokémon up, by its name, at its body, while balls fall: they stand there through
@@ -345,9 +440,6 @@ impl HeadIt {
         };
         let now = (self.clock)();
         let y = self.layouts.shape.y;
-        let falling = &self.falling;
-        self.heights.retain(|pane, _| falling.contains_key(pane));
-        self.cued.retain(|pane| falling.contains_key(pane));
         for (&pane, &(column, root)) in &self.falling {
             // Not through `Layouts`, which keeps what it read until the screen's next poll.
             let height = f32(&self.memory.read(pane + y, 4)?, 0)? - root;
@@ -363,11 +455,12 @@ impl HeadIt {
             while seen.len() > 1 && now - seen[1].0 >= 2.0 * SPAN {
                 seen.remove(0);
             }
-            if self.cued.contains(&pane) || height < SWEET || now - seen[0].0 < 2.0 * SPAN {
+            if self.cued.contains(pane) || height < SWEET || now - seen[0].0 < 2.0 * SPAN {
                 continue;
             }
             if due(seen, SWEET)? <= self.lead {
-                self.cued.insert(pane);
+                self.cued.add(pane);
+                self.cues.insert(column, now);
                 cue(column);
             }
         }
@@ -486,6 +579,16 @@ pub fn due(seen: &[(f64, f64)], at: f64) -> Result<f64> {
     Ok(((speed * speed + 2.0 * faster * left).sqrt() - speed) / faster)
 }
 
+/// `statistics.median`: the middle of the values sorted, or the mean of the two middle ones.
+fn median(values: &[f64]) -> f64 {
+    let data = py::sorted_by_lt(values.to_vec(), |a: &f64, b: &f64| a < b);
+    let n = data.len();
+    if n % 2 == 1 {
+        return data[n / 2];
+    }
+    (data[n / 2 - 1] + data[n / 2]) / 2.0
+}
+
 /// `a / b` on floats, raising `ZeroDivisionError` as Python does where `b` is 0: two heights read
 /// at the same time.
 #[track_caller]
@@ -539,6 +642,7 @@ impl HeadItKeys {
         let Some(target) = target else {
             return Ok((self.wrong)(&own(NOT_UP, &[("number", &(column + 1))])));
         };
+        self.game.borrow_mut().pressed(column as i64);
         Ok(touch.tap(&target))
     }
 }

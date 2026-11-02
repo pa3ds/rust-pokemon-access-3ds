@@ -336,6 +336,10 @@ head-it-no-pokemon = no Pokémon { $number }
 # Head It's three Pokémon left to right, its keys' order, said as each round's opening starts:
 # "Metagross, Pikachu and Windsong".
 head-it-lineup = { $first }, { $second } and { $third }
+# At a round's results, with the cue on: pa3ds's own estimate of the player's lead, how long after
+# each "!" they pressed that Pokémon's key, for the head_it_lead setting. Said as pa3ds's, so no
+# one takes it for the game's.
+head-it-estimate = pa3ds estimates your cue lead at { $seconds } seconds, from { $taps } taps
 
 ## What pa3ds says of itself
 
@@ -427,7 +431,7 @@ setting-pa3ds-amie-one_at_a_time-about = Say one Pokémon wanting a berry at a t
 setting-pa3ds-amie-head_it_cue = Head It sounds when to tap
 setting-pa3ds-amie-head_it_cue-about = In Head It, play the game's own "!" sound as the moment to tap a ball comes, as long before the ball reaches its Pokémon as the lead below says, in the ear on that Pokémon's side and both ears for the middle; it needs feedback sounds on.
 setting-pa3ds-amie-head_it_lead = Head It's cue lead
-setting-pa3ds-amie-head_it_lead-about = How many seconds before a ball reaches its Pokémon the cue sounds: about how long you take from hearing it to pressing the Pokémon's key. Raise it if your taps come too late, lower it if they come too early.
+setting-pa3ds-amie-head_it_lead-about = How many seconds before a ball reaches its Pokémon the cue sounds: about how long you take from hearing it to pressing the Pokémon's key. At each round's results pa3ds says its estimate of yours, to put here. Raise it if your taps come too late, lower it if they come too early.
 setting-pa3ds-extras-conditions = Contest conditions as numbers
 setting-pa3ds-extras-conditions-about = Say a Pokémon's contest conditions as numbers where the game draws them as a star, on the summary and in the Pokéblock Case: the star is shown to everyone but pa3ds cannot read it, so its numbers are all it can give, and they are more exact than the star.
 setting-pa3ds-extras-hidden_items = Hidden items

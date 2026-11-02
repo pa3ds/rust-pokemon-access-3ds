@@ -129,7 +129,11 @@ those not up yet too. A key where no Pokémon stands, or before the balls start,
 error sound. As Azahar ships, none of the three is one of its buttons; outside Head It they are
 Azahar's as ever. With the `head_it_cue` setting on, the game's "!" sound plays as the moment to
 tap a ball comes: in your left ear for the left Pokémon, both ears for the middle, your right ear
-for the right.
+for the right. Press the Pokémon's key as soon as you hear it: that is steadier than timing your
+tap from the game's sound of the ball falling. At each round's results, pa3ds says its own
+estimate of your lead, from how long after each "!" you pressed that Pokémon's key with these
+keys; put it in the `head_it_lead` setting, or nudge from it. The lead never changes during a
+round.
 
 In a Super Training regimen, touch mode offers each goal the
 Balloon Bot puts up: the tap key's first press says the goal, and each press after that shoots at

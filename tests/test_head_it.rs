@@ -279,6 +279,7 @@ fn test_the_cue_sounds_the_lead_before_a_ball_falling_faster_and_faster_reaches_
     );
 }
 
+/// A ball gone by with no cue is logged, never said, with its last heights.
 #[test]
 fn test_a_ball_headed_back_up_is_not_cued_and_without_the_cue_nothing_is_followed() {
     let (cued, cue, now, clock) = cued();
@@ -290,6 +291,16 @@ fn test_a_ball_headed_back_up_is_not_cued_and_without_the_cue_nothing_is_followe
         on.found.tick().unwrap();
     }
     assert!(cued.borrow().is_empty());
+    place(&on.memory, on.panes[0], 10500.0, 480.0);
+    on.layouts.refresh();
+    assert_eq!(
+        on.found.poll(Some(head_it::APP)).unwrap(),
+        [(
+            head_it::LOG.to_string(),
+            "no cue for a ball gone by, its last heights 180 at 0.20".to_string(),
+            None
+        )]
+    );
     let mut off = game().found;
     heard(&mut off, head_it::APP);
     assert!(!off.ticking(Some(head_it::APP)));
@@ -352,4 +363,63 @@ fn test_a_pokemons_key_taps_it() {
         "no Pokémon 2"
     );
     assert_eq!(touched.tapped, ["Ralts", "rowan"]);
+}
+
+/// Orion, 2026-11-01: learnt while playing, but never used in the round, as a lead changed
+/// mid-round throws off the player's own sense of it; said at the results as pa3ds's, for the
+/// setting. A key answers its column's last cue within `ANSWER`: one later, or a second press,
+/// is no answer.
+#[test]
+fn test_at_the_results_pa3ds_says_its_estimate_of_the_lead_from_each_answered_cue() {
+    let (cued, cue, now, clock) = cued();
+    let Game {
+        found,
+        memory,
+        panes,
+        layouts,
+    } = game_with(Some(cue), clock);
+    let found = Rc::new(RefCell::new(found));
+    let keys = head_it::HeadItKeys::new(found.clone(), Rc::new(|why: &str| why.to_string()));
+    let mut touched = Touched::default();
+    let app = Some(head_it::APP);
+    let heard = || heard(&mut found.borrow_mut(), head_it::APP);
+    heard();
+    let mut start = 0.0;
+    for delay in [0.30, 0.40, 0.55, 1.5] {
+        // The ball down the middle again from 300 above `SWEET`, cued 0.4 s ahead, 0.2 s in.
+        place(&memory, panes[0], 0.0, (head_it::SWEET + 300.0) as f32);
+        layouts.refresh();
+        heard();
+        for tick in 0..15 {
+            let at = tick as f64 / 60.0;
+            now.set(start + at);
+            place(
+                &memory,
+                panes[0],
+                0.0,
+                (head_it::SWEET + 300.0 - 200.0 * at - 500.0 * at * at) as f32,
+            );
+            found.borrow_mut().tick().unwrap();
+        }
+        now.set(cued.borrow().last().unwrap().0 + delay);
+        keys.press(HEADERS[1], app, &mut touched).unwrap();
+        keys.press(HEADERS[1], app, &mut touched).unwrap();
+        place(&memory, panes[0], 10500.0, 480.0);
+        layouts.refresh();
+        heard();
+        start = now.get() + 1.0;
+    }
+    assert_eq!(cued.borrow().len(), 4);
+    memory.u32(APP + head_it::PHASE, &[head_it::LAST]);
+    assert_eq!(heard(), Vec::<String>::new());
+    memory.u32(APP + head_it::PHASE, &[5]);
+    assert_eq!(
+        heard(),
+        ["pa3ds estimates your cue lead at 0.40 seconds, from 3 taps"]
+    );
+    assert_eq!(heard(), Vec::<String>::new());
+    memory.u32(APP + head_it::PHASE, &[1]);
+    heard();
+    memory.u32(APP + head_it::PHASE, &[5]);
+    assert_eq!(heard(), Vec::<String>::new());
 }

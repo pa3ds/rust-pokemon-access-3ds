@@ -1505,7 +1505,9 @@ impl Gen6Profile {
         })?;
         for (logged, line, category) in &played {
             (self.log)(&format!("{logged}: {line}"));
-            self.speech.say(line, *category);
+            if let Some(category) = category {
+                self.speech.say(line, *category);
+            }
         }
         let mut labels = self.lists.borrow().labels();
         labels.extend(self.announcements.borrow_mut().recent_labels());

@@ -17,7 +17,7 @@
 //! - `offer(running)`, the pictures no touch area holds that it offers touch mode as targets, by
 //!   pane with their names, which touch mode places and checks as it does a touch area;
 //! - `poll(running)`, what it says as its screen changes: (what the log calls it, the line, its
-//!   category), read with the screen's words;
+//!   category), read with the screen's words, or of None only logged;
 //! - `describe(running)`, what it describes of a picture the game shows without words (ADR-0038),
 //!   after the screen's words: the narrator's line, `Category.SCENE`, or one only logged, None,
 //!   where descriptions are off;
@@ -107,7 +107,7 @@ pub trait Pictured {
 
 /// A reader saying what it has as its screen changes.
 pub trait Polled {
-    fn poll(&self, running: Option<&str>) -> Result<Vec<(String, String, Category)>>;
+    fn poll(&self, running: Option<&str>) -> Result<Vec<(String, String, Option<Category>)>>;
 }
 
 /// A reader describing a picture the game shows without words.
@@ -252,20 +252,28 @@ impl Pictured for Bags {
     }
 }
 
+/// A reader whose every line is said: each with its category.
+fn said(lines: Vec<(String, String, Category)>) -> Vec<(String, String, Option<Category>)> {
+    lines
+        .into_iter()
+        .map(|(logged, line, category)| (logged, line, Some(category)))
+        .collect()
+}
+
 impl Polled for RefCell<Round> {
-    fn poll(&self, running: Option<&str>) -> Result<Vec<(String, String, Category)>> {
-        self.borrow_mut().poll(running)
+    fn poll(&self, running: Option<&str>) -> Result<Vec<(String, String, Option<Category>)>> {
+        Ok(said(self.borrow_mut().poll(running)?))
     }
 }
 
 impl Polled for RefCell<BerryPicker> {
-    fn poll(&self, running: Option<&str>) -> Result<Vec<(String, String, Category)>> {
-        self.borrow_mut().poll(running)
+    fn poll(&self, running: Option<&str>) -> Result<Vec<(String, String, Option<Category>)>> {
+        Ok(said(self.borrow_mut().poll(running)?))
     }
 }
 
 impl Polled for RefCell<HeadIt> {
-    fn poll(&self, running: Option<&str>) -> Result<Vec<(String, String, Category)>> {
+    fn poll(&self, running: Option<&str>) -> Result<Vec<(String, String, Option<Category>)>> {
         self.borrow_mut().poll(running)
     }
 }
@@ -510,8 +518,9 @@ impl Subscreens {
         }
     }
 
-    /// What each screen says now, as (what the log calls it, the line, its category).
-    pub fn poll(&self, running: Option<&str>) -> Result<Vec<(String, String, Category)>> {
+    /// What each screen says now, as (what the log calls it, the line, its category), one
+    /// of None only logged.
+    pub fn poll(&self, running: Option<&str>) -> Result<Vec<(String, String, Option<Category>)>> {
         let mut said = Vec::new();
         for reader in &self.polled {
             said.extend(reader.poll(running)?);
