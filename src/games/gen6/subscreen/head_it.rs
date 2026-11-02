@@ -54,7 +54,7 @@ use crate::games::common::pokemon;
 use crate::games::common::touch::{HEIGHT, ImageOf, Target, WIDTH};
 use crate::games::gen6::subscreen::berry_picker::{Name, Touching};
 use crate::games::gen6::subscreen::super_training::pictures;
-use crate::py::{Error, Result};
+use crate::py::{Error, Kind, Result};
 
 pub const APP: &str = "N3app7heading7ProcessE";
 /// Where the app's object says what the round is doing (spike A, live): 0 and 1 its opening, 2
@@ -88,15 +88,18 @@ pub const BODY: i64 = 200;
 /// How tall the touch areas over the Pokémon are.
 pub const TALL: f64 = 120.0;
 /// How far above the screen's middle a ball is as a tap sent then heads it at the sweet spot, for
-/// 3 points rather than 1: tapped `LEAD` after the cue, all 6 were, and 0.05 s either side none of
-/// 12 (spike A, live).
+/// 3 points rather than 1: tapped by a timer as the ball reached it, 0.2 s after a cue that much
+/// ahead, all 6 were, and 0.05 s either side none of 12, though all were headed (spike A, live).
 pub const SWEET: f64 = 35.0;
-/// Seconds before the ball reaches `SWEET` the cue sounds: about how long a player takes to tap
-/// once they hear it.
-pub const LEAD: f64 = 0.2;
-/// Seconds over which a ball's speed is measured. Read from one tick to the next, a frame apart or
-/// none, it jumped; and on a tape, whose heights change five times a second, a ball 43 units lower a
-/// tick later was cued 374 above `SWEET` (as_amie_head_it).
+/// Seconds before the ball reaches `SWEET` the cue sounds, as it ships (`[pa3ds.amie]
+/// head_it_lead`): about how long a player takes from the cue to the tap, the sound's way out to
+/// their ears, hearing it, and the key's way through pa3ds to the game. It was 0.2, the delay after
+/// which the spike's own taps, sent by a timer, all hit the sweet spot; Orion's, by ear, hit nothing
+/// at it (2026-11-01).
+pub const LEAD: f64 = 0.4;
+/// Seconds between the heights a ball's fall is measured by, three of them. Read from one tick to
+/// the next, a frame apart or none, its speed jumped; and on a tape, whose heights change five times
+/// a second, a ball 43 units lower a tick later was cued 374 above `SWEET` (as_amie_head_it).
 pub const SPAN: f64 = 0.1;
 pub const COMING: &str = "head-it-ball";
 pub const NOBODY: &str = "head-it-ball-nobody";
@@ -104,8 +107,8 @@ pub const NOT_UP: &str = "head-it-no-pokemon";
 /// What the log calls what Head It says.
 pub const LOG: &str = "head it";
 
-/// `Callable[[], None]`: what sounds the cue.
-pub type Cue = Rc<dyn Fn()>;
+/// `Callable[[int], None]`: what sounds the cue for a ball in a column.
+pub type Cue = Rc<dyn Fn(i64)>;
 
 /// Says which Pokémon each of Head It's balls of yarn falls at, and offers each Pokémon up to
 /// be tapped.
@@ -123,12 +126,13 @@ pub struct HeadIt {
     /// The balls on their way down at the last poll, by pane: each one's column, and its
     /// layout's root's height, which its own is told from.
     falling: IndexMap<i64, (i64, f64)>,
-    /// Sounds the cue, the game's "!" (`profile.CUE_SOUND`), or None where the cue is off
-    /// (`[pa3ds.amie] head_it_cue`) or the game's sounds are.
+    /// Sounds the cue for a ball in a column, the game's "!" (`profile.CUE_SOUND`), or None
+    /// where the cue is off (`[pa3ds.amie] head_it_cue`) or the game's sounds are.
     pub(crate) cue: Option<Cue>,
+    lead: f64,
     clock: Rc<dyn Fn() -> f64>,
     /// Each ball falling -> the heights it has fallen through, each with when it was first
-    /// read there, from the newest at least `SPAN` old.
+    /// read there, from the newest at least twice `SPAN` old.
     heights: IndexMap<i64, Vec<(f64, f64)>>,
     /// The balls falling whose cue has sounded.
     ///
@@ -141,7 +145,9 @@ impl HeadIt {
     /// says whether balls fall.
     pub const CLASSES: [&'static str; 2] = [MODEL, APP];
 
-    /// `HeadIt(...)` with every argument; Python's `clock` defaults to `time.monotonic`.
+    /// `HeadIt(...)` with every argument; Python's `lead` defaults to `LEAD` and its `clock` to
+    /// `time.monotonic`.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         memory: Rc<dyn Memory>,
         names: Rc<ClassNames>,
@@ -149,6 +155,7 @@ impl HeadIt {
         image_of: ImageOf,
         name: Name,
         cue: Option<Cue>,
+        lead: f64,
         clock: Rc<dyn Fn() -> f64>,
     ) -> Self {
         HeadIt {
@@ -161,6 +168,7 @@ impl HeadIt {
             apps: IndexMap::new(),
             falling: IndexMap::new(),
             cue,
+            lead,
             clock,
             heights: IndexMap::new(),
             cued: HashSet::new(),
@@ -272,9 +280,12 @@ impl HeadIt {
         self.cue.is_some() && running == Some(APP) && !self.falling.is_empty()
     }
 
-    /// Follow each ball falling, every tick, and sound the cue as it is due: `LEAD` before
-    /// the ball reaches `SWEET`, by how fast it has fallen over the last `SPAN`, as balls fall
-    /// at different speeds (Bulbapedia: slow, fast and quickening with a combo). The screen's
+    /// Follow each ball falling, every tick, and sound the cue as it is due: the lead before
+    /// the ball reaches `SWEET`, by how fast it falls and how much faster it has grown over the
+    /// last two `SPAN`s. Balls fall at different speeds (Bulbapedia: slow, fast and quickening
+    /// with a combo), and each faster and faster: on as_amie_head_it's tape one went from 120
+    /// units a second to 520 over 2 s, another reached 680 at `SWEET`, so a ball taken to fall
+    /// on as fast as it falls now was cued late, the more so the longer the lead. The screen's
     /// poll, a fifth of a second, finds the balls; a ball's height alone is read every tick.
     pub fn tick(&mut self) -> Result<()> {
         let Some(cue) = self.cue.clone() else {
@@ -285,7 +296,7 @@ impl HeadIt {
         let falling = &self.falling;
         self.heights.retain(|pane, _| falling.contains_key(pane));
         self.cued.retain(|pane| falling.contains_key(pane));
-        for (&pane, &(_column, root)) in &self.falling {
+        for (&pane, &(column, root)) in &self.falling {
             // Not through `Layouts`, which keeps what it read until the screen's next poll.
             let height = f32(&self.memory.read(pane + y, 4)?, 0)? - root;
             let seen = self.heights.entry(pane).or_default();
@@ -297,16 +308,15 @@ impl HeadIt {
                 seen.clear();
             }
             seen.push((now, height));
-            while seen.len() > 1 && now - seen[1].0 >= SPAN {
+            while seen.len() > 1 && now - seen[1].0 >= 2.0 * SPAN {
                 seen.remove(0);
             }
-            let (then, was) = seen[0];
-            if self.cued.contains(&pane) || height < SWEET || now - then < SPAN || was <= height {
+            if self.cued.contains(&pane) || height < SWEET || now - seen[0].0 < 2.0 * SPAN {
                 continue;
             }
-            if (height - SWEET) * (now - then) / (was - height) <= LEAD {
+            if due(seen, SWEET)? <= self.lead {
                 self.cued.insert(pane);
-                cue();
+                cue(column);
             }
         }
         Ok(())
@@ -377,6 +387,53 @@ impl HeadIt {
 /// Left 0, the middle 1, right 2.
 fn column(x: f64) -> i64 {
     i64::from(x > -APART as f64) + i64::from(x > APART as f64)
+}
+
+/// Seconds until a ball reaches the height `at`, from the (when, height) it fell through,
+/// oldest first: falling on as it has, and growing faster as steadily as it has. Its speed over
+/// the older half and over the newer is its speed in the middle of each, exactly so for a ball
+/// sped up steadily, and how much it grew between the two is how fast it speeds up. Never, for
+/// a ball no longer falling.
+pub fn due(seen: &[(f64, f64)], at: f64) -> Result<f64> {
+    if seen.len() < 3 {
+        return Ok(f64::INFINITY);
+    }
+    let ((first, top), (last, now)) = (seen[0], seen[seen.len() - 1]);
+    // Python's `min(..., key=...)`: the first of equal nearest.
+    let mut nearest = seen[1];
+    for &each in &seen[2..seen.len() - 1] {
+        if (each.0 - (first + last) / 2.0).abs() < (nearest.0 - (first + last) / 2.0).abs() {
+            nearest = each;
+        }
+    }
+    let (middle, height) = nearest;
+    let older = divide(top - height, middle - first)?;
+    let newer = divide(height - now, last - middle)?;
+    // Python's `max(x, 0.0)`: the first unless the second is strictly greater.
+    let grown = divide(newer - older, (last - first) / 2.0)?;
+    let faster = if 0.0 > grown { 0.0 } else { grown };
+    let speed = newer + faster * (last - middle) / 2.0;
+    let left = now - at;
+    if speed <= 0.0 {
+        return Ok(f64::INFINITY);
+    }
+    if faster == 0.0 {
+        return Ok(left / speed);
+    }
+    Ok(((speed * speed + 2.0 * faster * left).sqrt() - speed) / faster)
+}
+
+/// `a / b` on floats, raising `ZeroDivisionError` as Python does where `b` is 0: two heights read
+/// at the same time.
+#[track_caller]
+fn divide(a: f64, b: f64) -> Result<f64> {
+    if b == 0.0 {
+        return Err(Error::new(
+            Kind::ZeroDivisionError,
+            "float division by zero",
+        ));
+    }
+    Ok(a / b)
 }
 
 /// Head It's own keys (Orion, 2026-10-31): a key a Pokémon, by where it stands, left, in the

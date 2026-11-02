@@ -306,6 +306,10 @@ pub struct Amie {
     /// Head It plays the game's "!" as the moment to tap a ball comes: an aid, off as it ships
     /// (Orion, 2026-10-31; the game's sound in place of a tone, 2026-11-01).
     pub head_it_cue: bool,
+    /// How many seconds before a ball reaches its Pokémon the cue sounds: how long the player
+    /// takes from hearing it to the tap landing, which is theirs and their machine's
+    /// (`head_it.LEAD`).
+    pub head_it_lead: f64,
 }
 
 impl Default for Amie {
@@ -314,6 +318,7 @@ impl Default for Amie {
             berry_first: true,
             one_at_a_time: true,
             head_it_cue: false,
+            head_it_lead: 0.4,
         }
     }
 }
@@ -324,6 +329,7 @@ impl Table for Amie {
             ("berry_first", Value::Bool(self.berry_first)),
             ("one_at_a_time", Value::Bool(self.one_at_a_time)),
             ("head_it_cue", Value::Bool(self.head_it_cue)),
+            ("head_it_lead", Value::Float(self.head_it_lead)),
         ]
     }
 
@@ -332,6 +338,7 @@ impl Table for Amie {
             ("berry_first", Value::Bool(value)) => self.berry_first = value,
             ("one_at_a_time", Value::Bool(value)) => self.one_at_a_time = value,
             ("head_it_cue", Value::Bool(value)) => self.head_it_cue = value,
+            ("head_it_lead", Value::Float(value)) => self.head_it_lead = value,
             _ => {}
         }
     }

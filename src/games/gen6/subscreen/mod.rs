@@ -400,6 +400,7 @@ impl Subscreens {
             image_of.clone(),
             short,
             if settings.head_it_cue { cue } else { None },
+            settings.head_it_lead,
             Rc::new(py::time::monotonic),
         )));
         // And its own keys, a Pokémon's, which tap it.

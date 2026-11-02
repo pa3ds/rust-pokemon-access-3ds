@@ -86,6 +86,7 @@ use crate::games::gen6::screens::partyicons::PartyIcons;
 use crate::games::gen6::screens::{
     boxes, buttons, distribution, partners, partyicons, summary, townmap,
 };
+use crate::games::gen6::subscreen::head_it::Cue;
 use crate::games::gen6::subscreen::{self, Subscreens};
 use crate::games::gen6::subscreen::{amie, puzzle};
 use crate::games::gen6::{frames, gflheap, mystatus};
@@ -719,18 +720,33 @@ impl Gen6Profile {
             Rc::new(move || buttons.borrow().off())
         };
         // A screen's own keys are heard as the drag's own sounds are and the game's error sound,
-        // or said where they are off.
+        // or said where they are off; logged either way, as a key's line is.
         let heard = {
-            let feedback_sounds = feedback_sounds.clone();
+            let (feedback_sounds, log) = (feedback_sounds.clone(), log.clone());
             Rc::new(move |sound: &str, said: String| -> String {
                 if let Some(sounds) = &feedback_sounds
                     && sounds.names().contains(sound)
                 {
+                    log(&format!("key: {said}, heard as {sound}"));
                     // The sound thread not starting, raised to the key's handler in Python.
                     let _ = sounds.play(sound);
                     return String::new();
                 }
                 said
+            })
+        };
+        // Head It's cue, logged so a round's log shows each beside the key pressed for it.
+        let cue: Cue = {
+            let (feedback_sounds, log) = (feedback_sounds.clone(), log.clone());
+            Rc::new(move |column: i64| {
+                log(&format!(
+                    "head it: cue, {}",
+                    ["left", "middle", "right"][column as usize]
+                ));
+                if let Some(sounds) = &feedback_sounds {
+                    // The sound thread not starting, raised to the tick in Python.
+                    let _ = sounds.play(CUE_SOUND);
+                }
             })
         };
         // The subscreens, Pokémon-Amie's and Super Training's and the apps they open, which name
@@ -752,14 +768,9 @@ impl Gen6Profile {
             Rc::new(move |why: &str| heard(WRONG_SOUND, why.to_string())),
             ui.descriptions,
             feedback_sounds
-                .clone()
-                .filter(|sounds| sounds.names().contains(CUE_SOUND))
-                .map(|sounds| {
-                    Rc::new(move || {
-                        // The sound thread not starting, raised to the tick in Python.
-                        let _ = sounds.play(CUE_SOUND);
-                    }) as Rc<dyn Fn()>
-                }),
+                .as_ref()
+                .is_some_and(|sounds| sounds.names().contains(CUE_SOUND))
+                .then_some(cue),
         ));
         let classes: IndexSet<String> = HEAP_CLASSES
             .iter()

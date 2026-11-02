@@ -99,6 +99,7 @@ fn game_with(cue: Option<head_it::Cue>, clock: Rc<dyn Fn() -> f64>) -> Game {
         Rc::new(move |pane: i64| Ok(drawn.get(&pane).map(|image| image.to_string()))),
         Rc::new(|found: &pokemon::Pokemon| named(found.species)),
         cue,
+        head_it::LEAD,
         clock,
     );
     memory.u32(APP, &[classes.add(head_it::APP)]);
@@ -203,18 +204,19 @@ fn test_nothing_is_said_or_offered_before_balls_fall_or_once_they_have() {
     }
 }
 
-/// The cue's stand-in, keeping when each cue sounded, and the clock it is timed by.
+/// The cue's stand-in, keeping when each cue sounded and for which column, and the clock it is
+/// timed by.
 fn cued() -> (
-    Rc<RefCell<Vec<f64>>>,
+    Rc<RefCell<Vec<(f64, i64)>>>,
     head_it::Cue,
     Rc<Cell<f64>>,
     Rc<dyn Fn() -> f64>,
 ) {
-    let cued: Rc<RefCell<Vec<f64>>> = Rc::new(RefCell::new(Vec::new()));
+    let cued: Rc<RefCell<Vec<(f64, i64)>>> = Rc::new(RefCell::new(Vec::new()));
     let now = Rc::new(Cell::new(0.0));
     let cue: head_it::Cue = {
         let (cued, now) = (cued.clone(), now.clone());
-        Rc::new(move || cued.borrow_mut().push(now.get()))
+        Rc::new(move |column: i64| cued.borrow_mut().push((now.get(), column)))
     };
     let clock: Rc<dyn Fn() -> f64> = {
         let now = now.clone();
@@ -223,41 +225,39 @@ fn cued() -> (
     (cued, cue, now, clock)
 }
 
-/// The game's "!", `LEAD` before the ball reaches `SWEET` by how fast it falls, once a ball
-/// (Orion, 2026-10-31: an aid, off as it ships; 2026-11-01, the game's sound).
+/// The game's "!", `LEAD` before the ball reaches `SWEET`, once a ball, with its column
+/// (Orion, 2026-10-31: an aid, off as it ships; 2026-11-01, the game's sound and a lead a player
+/// can tap in). A ball speeds up as it falls, as on as_amie_head_it's tape, so it is cued by how
+/// fast it speeds up too: taken to fall on at its speed, this one was cued at 0.29 s, 0.1 s late,
+/// half the time a tap heads it in.
 #[test]
-fn test_the_cue_sounds_as_the_moment_to_tap_comes() {
+fn test_the_cue_sounds_the_lead_before_a_ball_falling_faster_and_faster_reaches_it() {
     let (cued, cue, now, clock) = cued();
     let mut game = game_with(Some(cue), clock);
     heard(&mut game.found, head_it::APP);
     assert!(game.found.ticking(Some(head_it::APP)));
-    // 600 a second, as a ball falls near the bottom: 120 above `SWEET` is 0.2 s away. A height
-    // read again unchanged, as a tape answers between its polls, times nothing.
-    for (at, height) in [
-        (0.0, 300.0),
-        (0.05, 270.0),
-        (0.1, 240.0),
-        (0.12, 240.0),
-        (0.15, 210.0),
-        (0.2, 180.0),
-        (0.25, 150.0),
-        (0.3, 120.0),
-    ] {
-        now.set(at);
+    // 300 above `SWEET` at 200 a second, 1,000 faster each second: there at 0.6 s, so due 0.4 s
+    // ahead at 0.2. Ticks of a sixtieth, each height read twice, as a tick between two frames
+    // reads one again, which times nothing.
+    for tick in 0..36 {
+        let at = tick as f64 / 60.0;
         place(
             &game.memory,
             game.panes[0],
             0.0,
-            (head_it::SWEET + height) as f32,
+            (head_it::SWEET + 300.0 - 200.0 * at - 500.0 * at * at) as f32,
         );
-        game.found.tick().unwrap();
-        let expected: Vec<f64> = if at < 0.3 { vec![] } else { vec![0.3] };
-        assert_eq!(*cued.borrow(), expected, "at {at}");
+        for again in [0.0, 0.005] {
+            now.set(at + again);
+            game.found.tick().unwrap();
+        }
     }
-    now.set(0.4);
-    place(&game.memory, game.panes[0], 0.0, head_it::SWEET as f32);
-    game.found.tick().unwrap();
     assert_eq!(cued.borrow().len(), 1);
+    let (when, column) = cued.borrow()[0];
+    assert!(
+        (0.2..=0.2 + 1.0 / 60.0).contains(&when) && column == 1,
+        "{when} {column}"
+    );
 }
 
 #[test]
