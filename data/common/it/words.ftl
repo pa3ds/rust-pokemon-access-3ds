@@ -200,6 +200,11 @@ berry-picker-lineup = { $first }, { $second } e { $third }
 berry-picker-not-up = { $pokemon } non è fuori
 berry-picker-no-berry = nessuna bacca { $number }
 berry-picker-no-pokemon = nessun Pokémon { $number }
+head-it-ball = { $pokemon }
+head-it-ball-nobody = gomitolo
+head-it-no-pokemon = nessun Pokémon { $number }
+head-it-lineup = { $first }, { $second } e { $third }
+head-it-estimate = pa3ds stima il tuo anticipo in { $seconds } secondi, su { $taps } tocchi
 
 ## What pa3ds says of itself
 
@@ -249,7 +254,7 @@ setting-pa3ds-audio-footsteps-about = Quanto sono forti i passi di pa3ds sul ter
 setting-pa3ds-audio-ticks = Volume relativo del ticchettio dell'orologio
 setting-pa3ds-audio-ticks-about = Quanto è forte un breve tono a ogni secondo dell'orologio di un gioco, come nei giochi di Poké io&te; l'orologio stesso viene detto ogni mezzo minuto e negli ultimi secondi: 1 forte quanto il gioco, 0.5 a metà volume, 1.5 più forte, 0 nessun tono, come di serie; nella finestra delle impostazioni, in percentuale, 100 forte quanto il gioco.
 setting-pa3ds-audio-feedback_sounds = Volume relativo dei suoni di risposta
-setting-pa3ds-audio-feedback_sounds-about = Quanto sono forti i brevi suoni del gioco per ciò che un tasto ha fatto: i suoni del Box del PC quando si prende e si posa un Pokémon, quando la modalità touch prende qualcosa da trascinare e lo lascia, e il suono di errore del gioco per un tasto che non ha niente da fare, come una bacca che il turno di Cogli la Bacca non ha. A 0 pa3ds li dice invece, "tenendo", "lasciato su" e il motivo: 1 forte quanto il gioco, 0.5 a metà volume, 1.5 più forte; nella finestra delle impostazioni, in percentuale, 100 forte quanto il gioco.
+setting-pa3ds-audio-feedback_sounds-about = Quanto sono forti i brevi suoni del gioco per ciò che un tasto ha fatto: i suoni del Box del PC quando si prende e si posa un Pokémon, quando la modalità touch prende qualcosa da trascinare e lo lascia, e il suono di errore del gioco per un tasto che non ha niente da fare, come una bacca che il turno di Cogli la Bacca non ha; e l'avviso di Colpo di Testa. A 0 pa3ds li dice invece e non dà l'avviso, "tenendo", "lasciato su" e il motivo: 1 forte quanto il gioco, 0.5 a metà volume, 1.5 più forte; nella finestra delle impostazioni, in percentuale, 100 forte quanto il gioco.
 setting-pa3ds-navigation-positions = Annuncia la posizione nell'elenco
 setting-pa3ds-navigation-positions-about = Dice dove si trova una cosa nell'elenco, come in "porta, 1 di 3".
 setting-pa3ds-navigation-position_first = Posizione nell'elenco prima delle direzioni
@@ -278,6 +283,10 @@ setting-pa3ds-amie-berry_first = Cogli la Bacca dice prima la bacca
 setting-pa3ds-amie-berry_first-about = Dice ogni Pokémon che vuole una bacca nell'ordine in cui la dai, la bacca e poi il Pokémon, "Baccananas per Pikachu"; false dice prima il Pokémon, "Pikachu vuole Baccananas".
 setting-pa3ds-amie-one_at_a_time = Cogli la Bacca dice un Pokémon alla volta
 setting-pa3ds-amie-one_at_a_time-about = Dice un solo Pokémon che vuole una bacca alla volta, e il successivo quando hai dato una bacca o quello detto se n'è andato; false li dice man mano che arrivano.
+setting-pa3ds-amie-head_it_cue = Colpo di Testa avvisa quando toccare
+setting-pa3ds-amie-head_it_cue-about = In Colpo di Testa, riproduce il suono "!" del gioco quando arriva il momento di toccare un gomitolo, tanto prima che il gomitolo raggiunga il suo Pokémon quanto dice l'anticipo qui sotto, nell'orecchio dal lato di quel Pokémon e in entrambi per quello al centro; servono i suoni di risposta attivi.
+setting-pa3ds-amie-head_it_lead = Anticipo dell'avviso di Colpo di Testa
+setting-pa3ds-amie-head_it_lead-about = Quanti secondi prima che un gomitolo raggiunga il suo Pokémon suona l'avviso: circa il tempo che ti serve da quando lo senti a quando premi il tasto del Pokémon. Alla fine di ogni turno pa3ds dice la sua stima del tuo, da mettere qui. Alzalo se tocchi troppo tardi, abbassalo se tocchi troppo presto.
 setting-pa3ds-extras-conditions = Caratteristiche da gara in numeri
 setting-pa3ds-extras-conditions-about = Dice le caratteristiche da gara di un Pokémon in numeri dove il gioco le disegna come una stella, nella schermata del Pokémon e nel Portapokémelle: la stella è visibile a tutti ma pa3ds non la sa leggere, quindi i numeri sono tutto ciò che può dare, e sono più precisi della stella.
 setting-pa3ds-extras-hidden_items = Strumenti nascosti

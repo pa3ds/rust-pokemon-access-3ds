@@ -200,6 +200,11 @@ berry-picker-lineup = { $first }, { $second } y { $third }
 berry-picker-not-up = { $pokemon } no ha salido
 berry-picker-no-berry = sin baya { $number }
 berry-picker-no-pokemon = sin Pokémon { $number }
+head-it-ball = { $pokemon }
+head-it-ball-nobody = ovillo
+head-it-no-pokemon = sin Pokémon { $number }
+head-it-lineup = { $first }, { $second } y { $third }
+head-it-estimate = pa3ds calcula que tu anticipación es de { $seconds } segundos, con { $taps } toques
 
 ## What pa3ds says of itself
 
@@ -249,7 +254,7 @@ setting-pa3ds-audio-footsteps-about = Lo fuertes que suenan los pasos propios de
 setting-pa3ds-audio-ticks = Volumen relativo del tictac del reloj
 setting-pa3ds-audio-ticks-about = Lo fuerte que suena un tono corto en cada segundo del reloj de un juego, como en los juegos del Poké Recreo; el propio reloj se dice cada medio minuto y en sus últimos segundos: 1 tan fuerte como el juego, 0.5 la mitad, 1.5 más fuerte, 0 nada, como viene de serie; en el diálogo de ajustes, en porcentaje, 100 tan fuerte como el juego.
 setting-pa3ds-audio-feedback_sounds = Volumen relativo de los sonidos de respuesta
-setting-pa3ds-audio-feedback_sounds-about = Lo fuertes que suenan los sonidos cortos del propio juego para lo que ha hecho una tecla: los de las cajas del PC al coger y dejar un Pokémon, cuando el modo táctil coge algo para arrastrarlo y lo suelta, y el sonido de error del juego para una tecla que no tiene nada que hacer, como una baya que la ronda de Recogebayas no tiene. A 0, pa3ds lo dice en su lugar, "sujetando", "soltado en" y el motivo: 1 tan fuerte como el juego, 0.5 la mitad, 1.5 más fuerte; en el diálogo de ajustes, en porcentaje, 100 tan fuerte como el juego.
+setting-pa3ds-audio-feedback_sounds-about = Lo fuertes que suenan los sonidos cortos del propio juego para lo que ha hecho una tecla: los de las cajas del PC al coger y dejar un Pokémon, cuando el modo táctil coge algo para arrastrarlo y lo suelta, y el sonido de error del juego para una tecla que no tiene nada que hacer, como una baya que la ronda de Recogebayas no tiene; y el aviso de Usa la cabeza. A 0, pa3ds lo dice en su lugar y no da el aviso, "sujetando", "soltado en" y el motivo: 1 tan fuerte como el juego, 0.5 la mitad, 1.5 más fuerte; en el diálogo de ajustes, en porcentaje, 100 tan fuerte como el juego.
 setting-pa3ds-navigation-positions = Anunciar la posición en la lista
 setting-pa3ds-navigation-positions-about = Decir en qué lugar de la lista está algo, como en "puerta, 1 de 3".
 setting-pa3ds-navigation-position_first = Posición en la lista antes de las direcciones
@@ -278,6 +283,10 @@ setting-pa3ds-amie-berry_first = Recogebayas dice primero la baya
 setting-pa3ds-amie-berry_first-about = Decir cada Pokémon que quiere una baya en el orden en que se la das, la baya y luego el Pokémon, "Baya Pinia para Pikachu"; con false dice primero el Pokémon, "Pikachu quiere Baya Pinia".
 setting-pa3ds-amie-one_at_a_time = Recogebayas dice un Pokémon cada vez
 setting-pa3ds-amie-one_at_a_time-about = Decir un solo Pokémon que quiere una baya cada vez, y el siguiente cuando le hayas dado una baya o el que se ha dicho se haya ido; con false dice cada uno según llega.
+setting-pa3ds-amie-head_it_cue = Usa la cabeza avisa de cuándo tocar
+setting-pa3ds-amie-head_it_cue-about = En Usa la cabeza, reproducir el propio sonido "!" del juego cuando llega el momento de tocar un ovillo, tanto antes de que el ovillo llegue a su Pokémon como diga la anticipación de abajo, en el oído del lado de ese Pokémon y en los dos para el del centro; necesita los sonidos de respuesta activados.
+setting-pa3ds-amie-head_it_lead = Anticipación del aviso de Usa la cabeza
+setting-pa3ds-amie-head_it_lead-about = Cuántos segundos antes de que un ovillo llegue a su Pokémon suena el aviso: más o menos lo que tardas desde oírlo hasta pulsar la tecla del Pokémon. Al final de cada ronda pa3ds dice su cálculo de la tuya, para ponerla aquí. Súbela si tocas demasiado tarde, bájala si tocas demasiado pronto.
 setting-pa3ds-extras-conditions = Condiciones de concurso como números
 setting-pa3ds-extras-conditions-about = Decir las condiciones de concurso de un Pokémon como números donde el juego las dibuja como una estrella, en la ficha del Pokémon y en el Kit de Pokécubos: la estrella se muestra a todos pero pa3ds no puede leerla, así que sus números son todo lo que puede dar, y son más exactos que la estrella.
 setting-pa3ds-extras-hidden_items = Objetos ocultos

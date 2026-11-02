@@ -198,6 +198,11 @@ berry-picker-lineup = { $first }、{ $second }和{ $third }
 berry-picker-not-up = { $pokemon }没有出来
 berry-picker-no-berry = 没有树果{ $number }
 berry-picker-no-pokemon = 没有宝可梦{ $number }
+head-it-ball = { $pokemon }
+head-it-ball-nobody = 毛线球
+head-it-no-pokemon = 没有宝可梦{ $number }
+head-it-lineup = { $first }、{ $second }和{ $third }
+head-it-estimate = pa3ds 估计你的提示提前量为 { $seconds } 秒，基于 { $taps } 次点击
 
 ## What pa3ds says of itself
 
@@ -247,7 +252,7 @@ setting-pa3ds-audio-footsteps-about = 在游戏不播放脚步声的地面上，
 setting-pa3ds-audio-ticks = 时钟滴答声相对音量
 setting-pa3ds-audio-ticks-about = 游戏计时器每过一秒时短提示音的音量，比如在宝可拍乐乐的小游戏中；剩余时间本身每半分钟和最后几秒会朗读出来：1与游戏一样响，0.5为一半，1.5更响，0为无声，也是默认值；在设置对话框中以百分比表示，100与游戏一样响。
 setting-pa3ds-audio-feedback_sounds = 反馈音效相对音量
-setting-pa3ds-audio-feedback_sounds-about = 游戏自己用来表示按键结果的短音效有多响：电脑盒子里拿起和放下宝可梦的音效，用于触摸模式拿起和松开拖动；还有游戏的错误音效，用于无事可做的按键，比如采摘坚果这一轮没有的树果。设为0时，pa3ds改为说出来：“按住”“在……上松开”以及原因：1与游戏一样响，0.5为一半，1.5更响；在设置对话框中以百分比表示，100与游戏一样响。
+setting-pa3ds-audio-feedback_sounds-about = 游戏自己用来表示按键结果的短音效有多响：电脑盒子里拿起和放下宝可梦的音效，用于触摸模式拿起和松开拖动；还有游戏的错误音效，用于无事可做的按键，比如采摘坚果这一轮没有的树果；以及瞄准头球的提示。设为0时，不播放提示，pa3ds改为说出来：“按住”“在……上松开”以及原因：1与游戏一样响，0.5为一半，1.5更响；在设置对话框中以百分比表示，100与游戏一样响。
 setting-pa3ds-navigation-positions = 朗读列表位置
 setting-pa3ds-navigation-positions-about = 说出一样东西在列表中的位置，如“门，第1，共3”。
 setting-pa3ds-navigation-position_first = 列表位置在方向之前
@@ -276,6 +281,10 @@ setting-pa3ds-amie-berry_first = 采摘坚果先说树果
 setting-pa3ds-amie-berry_first-about = 按你给树果的顺序说出每只想要树果的宝可梦，先说树果再说宝可梦，如“凰梨果给皮卡丘”；设为false则先说宝可梦，如“皮卡丘想要凰梨果”。
 setting-pa3ds-amie-one_at_a_time = 采摘坚果一次说一只宝可梦
 setting-pa3ds-amie-one_at_a_time-about = 一次只说一只想要树果的宝可梦，等你给了树果，或者说到的那只离开后，再说下一只；设为false则每只一出现就说。
+setting-pa3ds-amie-head_it_cue = 瞄准头球提示何时点击
+setting-pa3ds-amie-head_it_cue-about = 在瞄准头球中，到了该点击毛线球的时刻时，播放游戏自己的“！”音效：在毛线球到达宝可梦之前，提前下面设定的时间响起，从那只宝可梦那一侧的耳朵传来，中间的宝可梦则两只耳朵都有；需要开启反馈音效。
+setting-pa3ds-amie-head_it_lead = 瞄准头球的提示提前量
+setting-pa3ds-amie-head_it_lead-about = 提示在毛线球到达宝可梦之前多少秒响起：大约是你从听到提示到按下那只宝可梦的键所需的时间。每轮结果时，pa3ds会说出它对你的估计值，可以填在这里。点击太晚就调高，太早就调低。
 setting-pa3ds-extras-conditions = 以数值朗读华丽大赛状态
 setting-pa3ds-extras-conditions-about = 在概况和宝可方块盒中，游戏把宝可梦的华丽大赛状态画成星形图，pa3ds则以数值说出：星形图人人都能看到，但pa3ds读不出来，所以只能给出数值，而数值比星形图更精确。
 setting-pa3ds-extras-hidden_items = 隐藏道具

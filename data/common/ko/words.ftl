@@ -199,6 +199,11 @@ berry-picker-lineup = { $first }, { $second }, { $third }
 berry-picker-not-up = { $pokemon } 나와 있지 않음
 berry-picker-no-berry = 나무열매 { $number } 없음
 berry-picker-no-pokemon = 포켓몬 { $number } 없음
+head-it-ball = { $pokemon }
+head-it-ball-nobody = 털실 뭉치
+head-it-no-pokemon = 포켓몬 { $number } 없음
+head-it-lineup = { $first }, { $second }, { $third }
+head-it-estimate = pa3ds 추정 신호 선행 시간 { $seconds }초, 탭 { $taps }번 기준
 
 ## What pa3ds says of itself
 
@@ -248,7 +253,7 @@ setting-pa3ds-audio-footsteps-about = 거리, 바닥, 동굴처럼 게임이 발
 setting-pa3ds-audio-ticks = 시계 째깍 소리 상대 음량
 setting-pa3ds-audio-ticks-about = 포켓파를레의 게임처럼 게임에 시계가 있을 때, 1초마다 나는 짧은 신호음의 크기입니다. 시계 자체는 30초마다, 그리고 마지막 몇 초 동안 말합니다. 1은 게임과 같은 크기, 0.5는 절반, 1.5는 더 크게, 0은 소리 없음으로 기본값입니다. 설정 창에서는 퍼센트로, 100이 게임과 같은 크기입니다.
 setting-pa3ds-audio-feedback_sounds = 피드백 효과음 상대 음량
-setting-pa3ds-audio-feedback_sounds-about = 키로 한 일을 알리는 게임 자체의 짧은 효과음의 크기입니다. 터치 모드가 드래그로 잡고 놓을 때 나는 박스의 포켓몬을 집고 내려놓는 소리, 그리고 너츠를 따자의 이번 판에 없는 나무열매처럼 할 일이 없는 키에 나는 게임의 오류음입니다. 0이면 pa3ds가 소리 대신 "잡고 있음", "놓음"과 그 이유를 말합니다. 1은 게임과 같은 크기, 0.5는 절반, 1.5는 더 크게. 설정 창에서는 퍼센트로, 100이 게임과 같은 크기입니다.
+setting-pa3ds-audio-feedback_sounds-about = 키로 한 일을 알리는 게임 자체의 짧은 효과음의 크기입니다. 터치 모드가 드래그로 잡고 놓을 때 나는 박스의 포켓몬을 집고 내려놓는 소리, 그리고 너츠를 따자의 이번 판에 없는 나무열매처럼 할 일이 없는 키에 나는 게임의 오류음, 그리고 헤드로 노려라의 신호입니다. 0이면 신호는 울리지 않고, pa3ds가 소리 대신 "잡고 있음", "놓음"과 그 이유를 말합니다. 1은 게임과 같은 크기, 0.5는 절반, 1.5는 더 크게. 설정 창에서는 퍼센트로, 100이 게임과 같은 크기입니다.
 setting-pa3ds-navigation-positions = 목록 위치 알리기
 setting-pa3ds-navigation-positions-about = "문, 3개 중 1"처럼, 대상이 목록에서 몇 번째인지 말합니다.
 setting-pa3ds-navigation-position_first = 방향보다 목록 위치 먼저
@@ -277,6 +282,10 @@ setting-pa3ds-amie-berry_first = 너츠를 따자에서 나무열매 먼저 말�
 setting-pa3ds-amie-berry_first-about = 나무열매를 원하는 포켓몬을, 나무열매를 줄 때의 순서대로 나무열매 다음 포켓몬으로 말합니다: "파인열매, 피카츄에게". false이면 포켓몬을 먼저 말합니다: "피카츄, 파인열매 원함".
 setting-pa3ds-amie-one_at_a_time = 너츠를 따자에서 포켓몬을 하나씩 말하기
 setting-pa3ds-amie-one_at_a_time-about = 나무열매를 원하는 포켓몬을 한 번에 하나씩 말하고, 나무열매를 주거나 말한 포켓몬이 사라지면 다음 포켓몬을 말합니다. false이면 나올 때마다 하나하나 말합니다.
+setting-pa3ds-amie-head_it_cue = 헤드로 노려라에서 탭할 때 알리기
+setting-pa3ds-amie-head_it_cue-about = 헤드로 노려라에서 털실 뭉치를 탭할 순간이 오면 게임 자체의 "!" 소리를 냅니다. 털실 뭉치가 포켓몬에 닿기 아래 선행 시간만큼 전에, 그 포켓몬 쪽 귀에, 가운데 포켓몬이면 양쪽 귀에 들립니다. 피드백 효과음이 켜져 있어야 합니다.
+setting-pa3ds-amie-head_it_lead = 헤드로 노려라 신호 선행 시간
+setting-pa3ds-amie-head_it_lead-about = 털실 뭉치가 포켓몬에 닿기 몇 초 전에 신호가 울리는지입니다. 신호를 듣고 포켓몬의 키를 누르기까지 걸리는 시간 정도입니다. 매 판의 결과에서 pa3ds가 추정한 값을 말해 주니 여기에 넣으세요. 탭이 너무 늦으면 올리고, 너무 빠르면 내리세요.
 setting-pa3ds-extras-conditions = 콘테스트 컨디션을 숫자로
 setting-pa3ds-extras-conditions-about = 정보 화면과 포켓블록 케이스에서 게임이 별 모양으로 그리는 포켓몬의 콘테스트 컨디션을 숫자로 말합니다. 별은 누구에게나 보이지만 pa3ds는 별을 읽을 수 없어서 숫자만 알려 줄 수 있고, 숫자는 별보다 더 정확합니다.
 setting-pa3ds-extras-hidden_items = 숨겨진 도구

@@ -198,6 +198,11 @@ berry-picker-lineup = { $first }、{ $second }と{ $third }
 berry-picker-not-up = { $pokemon }は出ていない
 berry-picker-no-berry = きのみ{ $number }はない
 berry-picker-no-pokemon = ポケモン{ $number }はいない
+head-it-ball = { $pokemon }
+head-it-ball-nobody = 毛糸玉
+head-it-no-pokemon = ポケモン{ $number }はいない
+head-it-lineup = { $first }、{ $second }と{ $third }
+head-it-estimate = pa3dsの推定では、合図の先行時間は{ $seconds }秒です（{ $taps }回のタップから）
 
 ## What pa3ds says of itself
 
@@ -247,7 +252,7 @@ setting-pa3ds-audio-footsteps-about = 通りや床、洞くつなど、ゲーム
 setting-pa3ds-audio-ticks = 時計の刻み音の相対音量
 setting-pa3ds-audio-ticks-about = ポケパルレのミニゲームのように、ゲームの時計が1秒進むごとに鳴る短いトーンの大きさ。時計そのものは30秒ごとと最後の数秒に読み上げる。1でゲームと同じ大きさ、0.5で半分、1.5でより大きく、0で鳴らない（初期設定）。設定ダイアログではパーセントで、100がゲームと同じ大きさ。
 setting-pa3ds-audio-feedback_sounds = 操作音の相対音量
-setting-pa3ds-audio-feedback_sounds-about = キーで何が起きたかを伝える、ゲーム自体の短い音の大きさ。タッチモードでドラッグをつかんだり離したりするときの、パソコンのボックスでポケモンを持ち上げる音と置く音。そして、もぎってナッツのラウンドにないきのみのキーのように、何もすることのないキーで鳴るゲームのエラー音。0にすると、pa3dsが代わりに「つかんでいる」「の上で離した」とその理由を言う。1でゲームと同じ大きさ、0.5で半分、1.5でより大きく。設定ダイアログではパーセントで、100がゲームと同じ大きさ。
+setting-pa3ds-audio-feedback_sounds-about = キーで何が起きたかを伝える、ゲーム自体の短い音の大きさ。タッチモードでドラッグをつかんだり離したりするときの、パソコンのボックスでポケモンを持ち上げる音と置く音。そして、もぎってナッツのラウンドにないきのみのキーのように、何もすることのないキーで鳴るゲームのエラー音。それと、ねらってヘッドの合図。0にすると合図は鳴らず、pa3dsが代わりに「つかんでいる」「の上で離した」とその理由を言う。1でゲームと同じ大きさ、0.5で半分、1.5でより大きく。設定ダイアログではパーセントで、100がゲームと同じ大きさ。
 setting-pa3ds-navigation-positions =リスト内の位置を読み上げる
 setting-pa3ds-navigation-positions-about = 「ドア、3中1」のように、リストの何番目にあるかを言う。
 setting-pa3ds-navigation-position_first = 方向の前に位置を読み上げる
@@ -276,6 +281,10 @@ setting-pa3ds-amie-berry_first = もぎってナッツできのみを先に言�
 setting-pa3ds-amie-berry_first-about = きのみをほしがるポケモンを、きのみをあげる順に、きのみ、ポケモンの順で言う：「パイルのみをピカチュウに」。falseにするとポケモンを先に言う：「ピカチュウはパイルのみがほしい」。
 setting-pa3ds-amie-one_at_a_time = もぎってナッツでポケモンを一匹ずつ言う
 setting-pa3ds-amie-one_at_a_time-about = きのみをほしがるポケモンを一匹ずつ言い、きのみをあげるか、言ったポケモンがいなくなると次を言う。falseにすると、現れるたびにそれぞれを言う。
+setting-pa3ds-amie-head_it_cue = ねらってヘッドでタップの合図を鳴らす
+setting-pa3ds-amie-head_it_cue-about = ねらってヘッドで、毛糸玉をタップする瞬間が来たら、ゲーム自体の「！」の音を鳴らす。毛糸玉がポケモンに届く、下の先行時間だけ前に鳴り、そのポケモンの側の耳に、真ん中のポケモンなら両耳に聞こえる。操作音がオンである必要がある。
+setting-pa3ds-amie-head_it_lead = ねらってヘッドの合図の先行時間
+setting-pa3ds-amie-head_it_lead-about = 毛糸玉がポケモンに届く何秒前に合図が鳴るか。聞いてからポケモンのキーを押すまでにかかる時間くらい。ラウンドの結果でpa3dsがあなたの推定値を言うので、ここに入れる。タップが遅すぎるなら上げ、早すぎるなら下げる。
 setting-pa3ds-extras-conditions = コンテストのコンディションを数値で
 setting-pa3ds-extras-conditions-about = ステータス画面やポロックケースでゲームが星で表示するポケモンのコンテストのコンディションを、数値で言う。星は誰にでも見えるがpa3dsは読み取れないので、伝えられるのは数値だけ。数値は星より正確。
 setting-pa3ds-extras-hidden_items = 隠された道具

@@ -200,6 +200,11 @@ berry-picker-lineup = { $first }, { $second } und { $third }
 berry-picker-not-up = { $pokemon } ist gerade nicht da
 berry-picker-no-berry = keine Beere { $number }
 berry-picker-no-pokemon = kein Pokémon { $number }
+head-it-ball = { $pokemon }
+head-it-ball-nobody = Wollknäuel
+head-it-no-pokemon = kein Pokémon { $number }
+head-it-lineup = { $first }, { $second } und { $third }
+head-it-estimate = pa3ds schätzt deinen Vorlauf für das Signal auf { $seconds } Sekunden, aus { $taps } Tipps
 
 ## What pa3ds says of itself
 
@@ -249,7 +254,7 @@ setting-pa3ds-audio-footsteps-about = Wie laut die eigenen Schritte von pa3ds au
 setting-pa3ds-audio-ticks = Relative Lautstärke des Uhrtickens
 setting-pa3ds-audio-ticks-about = Wie laut ein kurzer Ton bei jeder Sekunde der Uhr eines Spiels ist, etwa in den Spielen von PokéMonAmi; die Uhr selbst wird jede halbe Minute und in ihren letzten Sekunden angesagt: 1 so laut wie das Spiel, 0.5 halb so laut, 1.5 lauter, 0 gar nicht, die Voreinstellung; im Einstellungsdialog in Prozent, 100 so laut wie das Spiel.
 setting-pa3ds-audio-feedback_sounds = Relative Lautstärke der Rückmeldetöne
-setting-pa3ds-audio-feedback_sounds-about = Wie laut die eigenen kurzen Töne des Spiels für das sind, was eine Taste getan hat: die Töne der PC-Boxen beim Aufnehmen und Absetzen eines Pokémon, wenn der Touch-Modus etwas zum Ziehen aufnimmt und loslässt, und der Fehlerton des Spiels für eine Taste, die nichts zu tun hat, etwa für eine Beere, die eine Runde von Beerenernte nicht hat. Bei 0 sagt pa3ds sie stattdessen an, „gehalten“, „losgelassen auf“ und warum: 1 so laut wie das Spiel, 0.5 halb so laut, 1.5 lauter; im Einstellungsdialog in Prozent, 100 so laut wie das Spiel.
+setting-pa3ds-audio-feedback_sounds-about = Wie laut die eigenen kurzen Töne des Spiels für das sind, was eine Taste getan hat: die Töne der PC-Boxen beim Aufnehmen und Absetzen eines Pokémon, wenn der Touch-Modus etwas zum Ziehen aufnimmt und loslässt, und der Fehlerton des Spiels für eine Taste, die nichts zu tun hat, etwa für eine Beere, die eine Runde von Beerenernte nicht hat; und das Signal von Kopfball. Bei 0 sagt pa3ds sie stattdessen an und spielt kein Signal, „gehalten“, „losgelassen auf“ und warum: 1 so laut wie das Spiel, 0.5 halb so laut, 1.5 lauter; im Einstellungsdialog in Prozent, 100 so laut wie das Spiel.
 setting-pa3ds-navigation-positions =Listenposition ansagen
 setting-pa3ds-navigation-positions-about = Sagen, wo ein Ding in der Liste steht, wie in „Tür, 1 von 3“.
 setting-pa3ds-navigation-position_first = Listenposition vor der Richtung
@@ -278,6 +283,10 @@ setting-pa3ds-amie-berry_first = Beerenernte nennt die Beere zuerst
 setting-pa3ds-amie-berry_first-about = Jedes Pokémon, das eine Beere möchte, in der Reihenfolge ansagen, in der du sie gibst, erst die Beere und dann das Pokémon, „Sananabeere für Pikachu“; false nennt zuerst das Pokémon, „Pikachu möchte Sananabeere“.
 setting-pa3ds-amie-one_at_a_time = Beerenernte nennt ein Pokémon nach dem anderen
 setting-pa3ds-amie-one_at_a_time-about = Immer nur ein Pokémon ansagen, das eine Beere möchte, und das nächste, sobald du eine Beere gegeben hast oder das angesagte weg ist; false sagt jedes an, sobald es kommt.
+setting-pa3ds-amie-head_it_cue = Kopfball sagt an, wann du tippen sollst
+setting-pa3ds-amie-head_it_cue-about = In Kopfball den eigenen „!“-Ton des Spiels spielen, wenn der Moment kommt, ein Knäuel zu tippen, so lange bevor das Knäuel sein Pokémon erreicht, wie der Vorlauf unten sagt, im Ohr auf der Seite dieses Pokémon und auf beiden Ohren für das mittlere; braucht die Rückmeldetöne.
+setting-pa3ds-amie-head_it_lead = Vorlauf des Signals in Kopfball
+setting-pa3ds-amie-head_it_lead-about = Wie viele Sekunden, bevor ein Knäuel sein Pokémon erreicht, das Signal ertönt: etwa so lange, wie du vom Hören bis zum Drücken der Taste des Pokémon brauchst. Am Ende jeder Runde sagt pa3ds seine Schätzung deines Werts, um ihn hier einzutragen. Erhöhe ihn, wenn du zu spät tippst, senke ihn, wenn du zu früh tippst.
 setting-pa3ds-extras-conditions = Wettbewerbswerte als Zahlen
 setting-pa3ds-extras-conditions-about = Die Wettbewerbswerte eines Pokémon als Zahlen sagen, wo das Spiel sie als Stern zeichnet, auf der Statusseite und in der Knurspbox: Der Stern ist für alle sichtbar, aber pa3ds kann ihn nicht lesen, also sind seine Zahlen alles, was es geben kann, und sie sind genauer als der Stern.
 setting-pa3ds-extras-hidden_items = Versteckte Items

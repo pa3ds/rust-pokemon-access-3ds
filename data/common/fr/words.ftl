@@ -200,6 +200,11 @@ berry-picker-lineup = { $first }, { $second } et { $third }
 berry-picker-not-up = { $pokemon } n'est pas là
 berry-picker-no-berry = pas de baie { $number }
 berry-picker-no-pokemon = pas de Pokémon { $number }
+head-it-ball = { $pokemon }
+head-it-ball-nobody = pelote de laine
+head-it-no-pokemon = pas de Pokémon { $number }
+head-it-lineup = { $first }, { $second } et { $third }
+head-it-estimate = pa3ds estime votre avance à { $seconds } secondes, sur { $taps } appuis
 
 ## What pa3ds says of itself
 
@@ -249,7 +254,7 @@ setting-pa3ds-audio-footsteps-about = Le volume des bruits de pas de pa3ds sur l
 setting-pa3ds-audio-ticks = Volume relatif du tic-tac de l'horloge
 setting-pa3ds-audio-ticks-about = Le volume d'une courte tonalité à chaque seconde de l'horloge d'un jeu, comme dans les jeux de Poké Récré ; l'horloge elle-même est annoncée toutes les demi-minutes et dans ses dernières secondes : 1 aussi fort que le jeu, 0.5 moitié moins fort, 1.5 plus fort, 0 aucune, la valeur par défaut ; dans la boîte de dialogue des paramètres, en pourcentage, 100 aussi fort que le jeu.
 setting-pa3ds-audio-feedback_sounds = Volume relatif des sons de retour
-setting-pa3ds-audio-feedback_sounds-about = Le volume des courts sons du jeu pour ce qu'une touche a fait : les sons des Boîtes du PC quand on prend et pose un Pokémon, lorsque le mode tactile prend un élément à faire glisser et le relâche, et le son d'erreur du jeu pour une touche qui n'a rien à faire, comme pour une baie qu'une manche de Cueille-Baies n'a pas. À 0, pa3ds les annonce à la place, « maintenu sur », « relâché sur » et pourquoi : 1 aussi fort que le jeu, 0.5 moitié moins fort, 1.5 plus fort ; dans la boîte de dialogue des paramètres, en pourcentage, 100 aussi fort que le jeu.
+setting-pa3ds-audio-feedback_sounds-about = Le volume des courts sons du jeu pour ce qu'une touche a fait : les sons des Boîtes du PC quand on prend et pose un Pokémon, lorsque le mode tactile prend un élément à faire glisser et le relâche, et le son d'erreur du jeu pour une touche qui n'a rien à faire, comme pour une baie qu'une manche de Cueille-Baies n'a pas ; et le signal de Jongle-Tête. À 0, pa3ds les annonce à la place et ne joue pas le signal, « maintenu sur », « relâché sur » et pourquoi : 1 aussi fort que le jeu, 0.5 moitié moins fort, 1.5 plus fort ; dans la boîte de dialogue des paramètres, en pourcentage, 100 aussi fort que le jeu.
 setting-pa3ds-navigation-positions =Annoncer la position dans la liste
 setting-pa3ds-navigation-positions-about = Dire où se trouve un élément dans la liste, comme dans « porte, 1 sur 3 ».
 setting-pa3ds-navigation-position_first = Position dans la liste avant les directions
@@ -278,6 +283,10 @@ setting-pa3ds-amie-berry_first = Cueille-Baies annonce la baie d'abord
 setting-pa3ds-amie-berry_first-about = Annoncer chaque Pokémon qui veut une baie dans l'ordre où vous la donnez, la baie puis le Pokémon, « Baie Nanana pour Pikachu » ; false annonce le Pokémon d'abord, « Pikachu veut Baie Nanana ».
 setting-pa3ds-amie-one_at_a_time = Cueille-Baies annonce un Pokémon à la fois
 setting-pa3ds-amie-one_at_a_time-about = Annoncer un seul Pokémon qui veut une baie à la fois, et le suivant une fois que vous avez donné une baie ou que celui annoncé est parti ; false annonce chacun dès qu'il arrive.
+setting-pa3ds-amie-head_it_cue = Jongle-Tête signale quand toucher
+setting-pa3ds-amie-head_it_cue-about = Dans Jongle-Tête, jouer le son « ! » du jeu quand vient le moment de toucher une pelote, autant avant que la pelote atteigne son Pokémon que le dit l'avance ci-dessous, dans l'oreille du côté de ce Pokémon et dans les deux pour celui du milieu ; il faut les sons de retour activés.
+setting-pa3ds-amie-head_it_lead = Avance du signal de Jongle-Tête
+setting-pa3ds-amie-head_it_lead-about = Combien de secondes avant qu'une pelote atteigne son Pokémon le signal retentit : à peu près le temps qu'il vous faut entre l'entendre et appuyer sur la touche du Pokémon. À la fin de chaque manche, pa3ds annonce son estimation de la vôtre, à mettre ici. Augmentez-la si vous touchez trop tard, baissez-la si vous touchez trop tôt.
 setting-pa3ds-extras-conditions = Conditions de concours en chiffres
 setting-pa3ds-extras-conditions-about = Dire les conditions de concours d'un Pokémon en chiffres là où le jeu les dessine sous forme d'étoile, dans le résumé et dans la Boîte Pokéblocs : l'étoile est visible de tous mais pa3ds ne peut pas la lire, donc ses chiffres sont tout ce qu'il peut donner, et ils sont plus précis que l'étoile.
 setting-pa3ds-extras-hidden_items = Objets cachés
