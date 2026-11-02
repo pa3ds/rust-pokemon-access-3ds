@@ -115,7 +115,7 @@ pub const GIANT_SWEET: f64 = 104.0;
 pub const LEAD: f64 = 0.4;
 /// The game's frames a second as `gen6.frames` counts them, the screen's: 59.83. Most falls fit
 /// best stepping every other one, and the round's own count of frames (`Process` +0x60, 30 a second)
-/// stands still while the giant ball falls (spike B, live).
+/// stands still while the giant ball falls (spike 277, live).
 pub const FRAME_RATE: f64 = 268111856.0 / 4481136.0;
 /// Seconds of ticks the frame clock is set by: when each frame began, by the tick that read its
 /// count soonest after, so a stall of the emulator is forgotten a second on.
@@ -570,7 +570,7 @@ impl HeadIt {
     /// after it did, over the last second (`WINDOW`). And a cue due before the next tick waits
     /// for its moment here, where it sounded at the read nearest it, up to half a tick off. A
     /// perfect player's taps, the lead after each cue on Hard, found the ball 0 to 50 above the
-    /// middle at the next read 32 times in 33, against 23 to 28 before (spike B, live). Without
+    /// middle at the next read 32 times in 33, against 23 to 28 before (spike 277, live). Without
     /// the count, each height is timed as it was read.
     pub fn tick(&mut self) -> Result<()> {
         let Some(cue) = self.cue.clone() else {
@@ -749,7 +749,7 @@ fn column(x: f64) -> i64 {
 /// the better: over 528 falls of the live runs, each height timed as it was read, its moment
 /// came within a frame of the cue's for 75% of them, where the speeds over the last 0.2 s alone
 /// managed 44%, and within 50 ms for 92%, against 58% (spike 273). Timed by the frames the ball
-/// stepped on (`stepped`), a fall lies on its parabola exactly (spike B). Never, for a ball no
+/// stepped on (`stepped`), a fall lies on its parabola exactly (spike 277). Never, for a ball no
 /// longer falling.
 pub fn due(seen: &[(f64, f64)], at: f64) -> f64 {
     let Some((a, b, c)) = parabola(py::slice_from(seen, 1), seen[seen.len() - 1].0) else {

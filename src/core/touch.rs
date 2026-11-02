@@ -61,7 +61,7 @@ pub const HOLD: f64 = 0.1;
 /// down. Carried on, the press was one touch to the game: Pokémon-Amie's Pokémon, its back to the
 /// player, turns only to separate presses, and the stroke key pressed again within a stroke's three
 /// seconds kept one press down for 16 s, Ralts turning away all along (as_amie_petting_issue,
-/// spike A).
+/// spike 276).
 pub const LIFT: f64 = HOLD;
 /// How often the pad's state is sent while a client listens: twice a frame.
 pub const TICK: f64 = 1.0 / 120.0;

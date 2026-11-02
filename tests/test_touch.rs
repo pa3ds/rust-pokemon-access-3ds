@@ -146,7 +146,7 @@ fn test_a_held_press_stays_down_moves_and_lets_go_when_released_or_held_too_long
 }
 
 /// Pokémon-Amie's Pokémon turns round only to separate presses, and the stroke key pressed
-/// again mid-stroke had carried one press on for 16 s (spike A): a new slide lets go for
+/// again mid-stroke had carried one press on for 16 s (spike 276): a new slide lets go for
 /// `LIFT` before it presses.
 #[test]
 fn test_a_press_asked_for_while_one_is_down_lifts_first() {

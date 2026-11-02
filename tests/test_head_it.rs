@@ -467,7 +467,7 @@ fn test_a_ball_read_at_uneven_times_with_a_stale_first_height_is_cued_within_a_f
     assert!((when - 0.635).abs() <= 1.0 / 30.0, "{when}");
 }
 
-/// Spike B: a cue sounded at the read nearest its moment was up to half a tick off. Each
+/// Spike 277: a cue sounded at the read nearest its moment was up to half a tick off. Each
 /// height is timed by the frame the ball stepped on, by the game's count of frames, and the cue
 /// waits for its moment: timed by the frame each height was read in, this one was 25 ms
 /// early.
