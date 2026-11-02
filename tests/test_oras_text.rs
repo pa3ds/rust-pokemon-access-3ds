@@ -97,6 +97,21 @@ fn test_an_argument_that_is_half_a_surrogate_pair_does_not_break_decoding() {
     );
 }
 
+/// A Chinese patch leaves other halfwords after a line's zero (rust-pokemon-access-3ds#34).
+#[test]
+fn test_a_zero_ends_the_text_but_not_inside_a_sequence() {
+    let raw = [text("小"), code(0xFF00, &[0]), text("悠\0비づ")].concat();
+    assert_eq!(
+        tokens(&raw).unwrap(),
+        [
+            word("小"),
+            Token::Control(Control::new(0xFF00, &[0])),
+            word("悠")
+        ]
+    );
+    assert_eq!(texts(&raw), ["小悠"]);
+}
+
 #[test]
 fn test_text_outside_the_basic_plane_survives() {
     assert_eq!(

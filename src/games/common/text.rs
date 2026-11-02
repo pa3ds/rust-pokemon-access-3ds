@@ -19,6 +19,7 @@
 use crate::py::{self, Error, Result};
 
 pub const MARKER: i64 = 0x0010;
+pub const END: i64 = 0x0000;
 pub const NEWLINE: i64 = 0x000A;
 pub const PAGE_CLEAR: i64 = 0xBE01;
 pub const PAGE_SCROLL: i64 = 0xBE00;
@@ -145,13 +146,22 @@ fn units(raw: &[u8]) -> Result<Vec<i64>> {
         .collect())
 }
 
-/// (start, end, control) for each run: control is None for a run of text.
+/// (start, end, control) for each run: control is None for a run of text. A zero outside a
+/// control sequence ends the text, as it ends it for the game: a Chinese patch of ORAS leaves
+/// other halfwords after it in a line, a different one after each of the six trainer names that
+/// are otherwise the same two (pa3ds/rust-pokemon-access-3ds#34).
 fn walk(units: &[i64]) -> Result<Vec<(i64, i64, Option<Control>)>> {
     let len = units.len() as i64;
     let mut runs = Vec::new();
     let mut start = 0;
     let mut at = 0;
     while at < len {
+        if units[at as usize] == END {
+            if at > start {
+                runs.push((start, at, None));
+            }
+            return Ok(runs);
+        }
         if units[at as usize] != MARKER {
             at += 1;
             continue;

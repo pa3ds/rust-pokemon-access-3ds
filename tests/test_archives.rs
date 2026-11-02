@@ -761,6 +761,28 @@ fn test_a_tag_that_is_not_a_national_number_is_named_through_the_battle_models()
     );
 }
 
+/// A Chinese patch of Omega Ruby ends each of the six names with a zero and another halfword
+/// after it, a different one each time (rust-pokemon-access-3ds#34).
+#[test]
+fn test_trainer_names_ended_early_by_a_zero_are_still_the_protagonists() {
+    let tmp_path = TmpDir::new();
+    let mut names = strings(&TRAINER_NAMES);
+    for n in 1..7u32 {
+        names[n as usize].push('\0');
+        names[n as usize].push(char::from_u32(0xB000 + n).unwrap());
+    }
+    let text = text_archive(Text {
+        trainers: Some(names),
+        ..Text::default()
+    });
+    let rom = open_rom(tmp_path.path(), &oras_files(Some(text)), OMEGA_RUBY);
+    let text = GameText::load(&rom, "en", oras::rom()).unwrap();
+    assert_eq!(
+        [0x13A, 0x13B].map(|sprite| text.character(sprite)),
+        [Some("May".to_string()), Some("Brendan".to_string())]
+    );
+}
+
 /// The file numbers are a fact about ORAS; a ROM they do not fit is refused, not misread.
 #[test]
 fn test_a_trainer_list_that_is_not_the_protagonists_is_turned_away() {
