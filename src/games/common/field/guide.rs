@@ -1533,21 +1533,6 @@ impl Guide {
         // A player already surfing needs no telling that the water is crossed with Surf.
         let surfing = ground.water(r#where.cell, None)?;
         let (cells, walked) = (pathfind::cells(&path), ground.walked(&path)?);
-        let mut wet: HashSet<Cell> = HashSet::new();
-        for (&cell, &floor) in cells.iter().zip(&walked) {
-            if ground.water(cell, Some(floor))? {
-                wet.insert(cell);
-            }
-        }
-
-        let lands = |cell: Cell, step: Cell| -> Result<Cell> {
-            // The jump over the shore is one move, said with the side it lands on: "Surf 30
-            // east, 2 north", not "Surf 30 east, Surf 1 north, 1 north".
-            if !ground.shore(step)? {
-                return Ok(step);
-            }
-            Ok((2 * step.0 - cell.0, 2 * step.1 - cell.1))
-        };
 
         let standing = |cells: &HashSet<Cell>| -> Result<String> {
             for thing in &r#where.interactables {
@@ -1559,24 +1544,24 @@ impl Guide {
         };
 
         let (ramped, ramp_ways) = self::ramped(&ground, &cells, &walked)?;
-        // The floor each step is walked from: a belt carries only on its own floor.
-        let floor_of: HashMap<(Cell, Cell), i64> = cells
-            .windows(2)
-            .map(|pair| (pair[0], pair[1]))
-            .zip(walked.iter().copied())
-            .collect();
-        let floor = |cell: Cell, step: Cell| -> Result<i64> {
-            floor_of
-                .get(&(cell, step))
+        let floor = |i: usize| -> Result<i64> {
+            walked
+                .get(i)
                 .copied()
-                .ok_or_else(|| Error::key(format!("({cell:?}, {step:?})")))
+                .ok_or_else(|| Error::index("list index out of range"))
         };
-        let how = |cell: Cell, step: Cell| -> Result<String> {
+
+        let word = |i: usize| -> Result<String> {
+            // By the step's place in the way, each cell on the floor it is walked on there: on
+            // Route 119 Shift and P's way crossed a bridge's deck and later surfed back under it,
+            // and the deck's cell over the river said "Surf 1 east" (or_acro_bike_pathfinding).
+            let (cell, step) = (cells[i - 1], cells[i]);
             if let Some(word) = ramped.get(&(cell, step)) {
                 return Ok(word.to_string());
             }
             for one in &ground.words {
-                if let Some(said) = one(&ground, cell, step, floor(cell, step)?, &self.words)?
+                // The floor the step is walked from: a belt carries only on its own floor.
+                if let Some(said) = one(&ground, cell, step, floor(i - 1)?, &self.words)?
                     && !said.is_empty()
                 {
                     return Ok(said);
@@ -1589,7 +1574,15 @@ impl Guide {
                     .cloned()
                     .ok_or_else(|| Error::key(clear.to_string()));
             }
-            if !surfing && wet.contains(&lands(cell, step)?) {
+            // The jump over the shore is one move, said with the side it lands on, the next
+            // cell: "Surf 30 east, 2 north", not "Surf 30 east, Surf 1 north, 1 north".
+            let lands = if ground.shore(step)? && i + 1 < cells.len() {
+                i + 1
+            } else {
+                i
+            };
+            let wet = ground.water(cells[lands], Some(floor(lands)?))?;
+            if !surfing && wet {
                 return self
                     .moves
                     .get(&SURF)
@@ -1598,12 +1591,22 @@ impl Guide {
             }
             Ok(String::new())
         };
+
         let key = |cell: Cell, step: Cell| ground.key(cell, step);
         let placed = ground.named(&path, &standing)?;
+        let placed: IndexMap<i64, String> = (1..cells.len())
+            .map(|i| -> Result<(i64, String)> {
+                let said = match placed.get(&(i as i64)) {
+                    Some(said) => said.clone(),
+                    None => word(i)?,
+                };
+                Ok((i as i64, said))
+            })
+            .collect::<Result<_>>()?;
         let legs = ground.legs(
             &path,
             ramps(
-                pathfind::legs_with(&cells, Some(&how), Some(&key), Some(&placed))?,
+                pathfind::legs_with(&cells, None, Some(&key), Some(&placed))?,
                 &ramp_ways,
             ),
         )?;

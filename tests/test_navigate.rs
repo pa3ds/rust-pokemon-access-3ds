@@ -4539,6 +4539,36 @@ fn test_a_bridge_over_water_is_walked_on_foot_and_never_surfed() {
     assert_eq!(said(&rig.backend), ["12 east", "12 east", "6 east"]);
 }
 
+/// or_acro_bike_pathfinding (Orion, 2026-10-31): on Route 119 Shift and P's way crossed a
+/// bridge's deck and later surfed back under it, and the deck's cell it crossed again on the
+/// river said "8 east, Surf 1 east, 15 east": water was looked for by cell, not by the floor.
+#[test]
+fn test_a_bridge_crossed_and_surfed_under_says_surf_only_on_the_water() {
+    let ball = Interactable {
+        source: 0x08D269E8,
+        move_model: true,
+        height: Some(-63.0),
+        ..Interactable::new("items", "item ball", (100, 173))
+    };
+    let mut rig = navigator(on(Field {
+        interactables: vec![ball],
+        ..Field::new(0x31, (94, 175))
+    }));
+    pond_under_a_bridge(&rig);
+    rig.field
+        .floors
+        .borrow_mut()
+        .insert((104, 176), (Some(0.0), None));
+    rig.field.level.set(Some(0.0));
+    rig.press(CATEGORY_NEXT);
+    rig.backend.spoken.borrow_mut().clear();
+    rig.press(PATHFIND_HM);
+    assert_eq!(
+        said(&rig.backend),
+        ["10 east, 1 south, Surf 4 west, Surf 2 north"]
+    );
+}
+
 /// Under Route 120's bridges the pond runs on at -63, and a player surfing there keeps to it,
 /// under the deck at 0 (or_route-120).
 #[test]
