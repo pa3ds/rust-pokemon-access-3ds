@@ -138,6 +138,18 @@ pub const LOG: &str = "head it";
 /// `Callable[[int], None]`: what sounds the cue for a ball in a column.
 pub type Cue = Rc<dyn Fn(i64)>;
 
+/// A ball on its way down, as the screen's poll read it.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Ball {
+    pub column: i64,
+    /// Above the screen's middle.
+    pub height: f64,
+    /// Its layout's root's height, which `tick` tells its own from.
+    pub root: f64,
+    /// Its sweet spot's height: `SWEET`, or the giant's `GIANT_SWEET`.
+    pub sweet: f64,
+}
+
 /// Says which Pokémon each of Head It's balls of yarn falls at, and offers each Pokémon up to
 /// be tapped.
 pub struct HeadIt {
@@ -151,10 +163,8 @@ pub struct HeadIt {
     models: IndexMap<i64, i64>,
     /// The app's own object -> the vtable it was found with: what the round is doing.
     apps: IndexMap<i64, i64>,
-    /// The balls on their way down at the last poll, by pane: each one's column, its
-    /// layout's root's height, which its own is told from, and its sweet spot's height
-    /// (`SWEET`, `GIANT_SWEET`).
-    falling: IndexMap<i64, (i64, f64, f64)>,
+    /// The balls on their way down at the last poll, by pane.
+    falling: IndexMap<i64, Ball>,
     /// Sounds the cue for a ball in a column, the game's "!" (`profile.CUE_SOUND`), or None
     /// where the cue is off (`[pa3ds.amie] head_it_cue`) or the game's sounds are.
     pub(crate) cue: Option<Cue>,
@@ -178,6 +188,8 @@ pub struct HeadIt {
     estimated: bool,
     /// Whether balls fell at the last poll, from START! to the giant ball (`holding`).
     round: bool,
+    /// The balls kept falling though the last poll missed them (`poll`).
+    missed: PySet,
 }
 
 impl HeadIt {
@@ -217,6 +229,7 @@ impl HeadIt {
             delays: Vec::new(),
             estimated: false,
             round: false,
+            missed: PySet::new(),
         }
     }
 
@@ -267,23 +280,50 @@ impl HeadIt {
         }
         self.round = phase.is_some_and(|phase| (FALLING..=LAST).contains(&phase));
         if !self.round {
-            self.falling = IndexMap::new();
+            (self.falling, self.missed) = (IndexMap::new(), PySet::new());
             (self.heights, self.cued) = (IndexMap::new(), PySet::new());
             return Ok(said);
         }
-        let falling = self.balls()?;
+        let mut falling = self.balls()?;
+        // A ball missing from one poll and back at the next no higher is the same ball, not said
+        // again nor timed afresh: one in two or three rounds went so mid-fall, at 271, and came
+        // back at 170, said again and cued too late (spike 273, live). Gone, it is missing from
+        // two; back higher, its pane holds the next ball.
+        let back = std::mem::take(&mut self.missed);
+        let kept: IndexMap<i64, Ball> = self
+            .falling
+            .iter()
+            .filter(|&(pane, _)| !falling.contains_key(pane) && !back.contains(*pane))
+            .map(|(&pane, &ball)| (pane, ball))
+            .collect();
+        self.missed = PySet::of_dict(&kept.keys().copied().collect::<Vec<i64>>());
+        // `back & falling.keys()`, a set and a dict's keys: the set's `intersection` of the keys,
+        // added in the dict's order, where the dict has no more of them; else a set of the
+        // set's keys the dict has, added in the set's order.
+        let shared = if falling.len() <= back.len() {
+            PySet::of(falling.keys().copied().filter(|&pane| back.contains(pane)))
+        } else {
+            PySet::of(back.iter().filter(|pane| falling.contains_key(pane)))
+        };
+        let again = PySet::of(
+            shared
+                .iter()
+                .filter(|pane| falling[pane].height > self.falling[pane].height),
+        );
+        falling.extend(kept);
+        let falling_keys: Vec<i64> = falling.keys().copied().collect();
+        // `self._falling.keys() - falling.keys() | again`: a set of the dict's keys, the others
+        // discarded from it, and `again`'s added to a copy of it.
+        let was: Vec<i64> = self.falling.keys().copied().collect();
+        let mut gone = PySet::of_dict(&was);
+        gone.difference_update(&PySet::of_dict(&falling_keys));
+        let gone = gone.union(&again);
         let new: Vec<i64> = falling
             .iter()
-            .filter(|(pane, _)| !self.falling.contains_key(*pane))
-            .map(|(_, &(column, _, _))| column)
+            .filter(|&(pane, _)| !self.falling.contains_key(pane) || again.contains(*pane))
+            .map(|(_, ball)| ball.column)
             .collect();
-        let falling_keys: Vec<i64> = falling.keys().copied().collect();
         if self.cue.is_some() {
-            // `self._falling.keys() - falling.keys() - self._cued`: a set of the dict's keys, the
-            // others discarded from it, then a set of those `_cued` lacks, iterated as laid out.
-            let was: Vec<i64> = self.falling.keys().copied().collect();
-            let mut gone = PySet::of_dict(&was);
-            gone.difference_update(&PySet::of_dict(&falling_keys));
             for pane in gone.difference(&self.cued).iter() {
                 let seen = self.heights.get(&pane).map(Vec::as_slice).unwrap_or(&[]);
                 let last = &seen[seen.len().saturating_sub(4)..];
@@ -306,9 +346,12 @@ impl HeadIt {
         self.falling = falling;
         // Here, not in `tick`, where it was: with no ball falling nothing ticks.
         let falling = &self.falling;
-        self.heights.retain(|pane, _| falling.contains_key(pane));
-        self.cued
-            .intersection_update(&PySet::of_dict(&falling_keys));
+        self.heights
+            .retain(|pane, _| falling.contains_key(pane) && !gone.contains(*pane));
+        // `falling.keys() - gone`: a set of the dict's keys, `gone`'s discarded from it.
+        let mut left = PySet::of_dict(&falling_keys);
+        left.difference_update(&gone);
+        self.cued.intersection_update(&left);
         if new.is_empty() {
             return Ok(said);
         }
@@ -474,9 +517,10 @@ impl HeadIt {
         };
         let now = (self.clock)();
         let y = self.layouts.shape.y;
-        for (&pane, &(column, root, sweet)) in &self.falling {
+        for (&pane, ball) in &self.falling {
+            let (column, sweet) = (ball.column, ball.sweet);
             // Not through `Layouts`, which keeps what it read until the screen's next poll.
-            let height = f32(&self.memory.read(pane + y, 4)?, 0)? - root;
+            let height = f32(&self.memory.read(pane + y, 4)?, 0)? - ball.root;
             let seen = self.heights.entry(pane).or_default();
             // Not moved since, the same frame read again; or headed back up, a fall no longer.
             if !seen.is_empty() && height == seen[seen.len() - 1].1 {
@@ -513,9 +557,8 @@ impl HeadIt {
             .find(|target| target.x == COLUMNS[column]))
     }
 
-    /// The balls on the screen or above it on their way down, by pane, each with its column,
-    /// its layout's root's height and its sweet spot's.
-    fn balls(&self) -> Result<IndexMap<i64, (i64, f64, f64)>> {
+    /// The balls on the screen or above it on their way down, by pane.
+    fn balls(&self) -> Result<IndexMap<i64, Ball>> {
         let shown = pictures(&self.layouts, &self.image_of, false, &|image: &str| {
             BALLS.iter().any(|ball| image.starts_with(ball))
         })?;
@@ -528,7 +571,15 @@ impl HeadIt {
                 } else {
                     SWEET
                 };
-                found.insert(pane, (column(across), root, sweet));
+                found.insert(
+                    pane,
+                    Ball {
+                        column: column(across),
+                        height: up,
+                        root,
+                        sweet,
+                    },
+                );
             }
         }
         Ok(found)

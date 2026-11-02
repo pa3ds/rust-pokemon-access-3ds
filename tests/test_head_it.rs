@@ -155,6 +155,30 @@ fn test_a_ball_is_said_as_it_comes_by_the_pokemon_it_falls_at() {
     assert_eq!(heard(&mut game.found, OTHER), Vec::<String>::new());
 }
 
+/// Live, a ball went missing from a poll mid-fall and came back at the next, and was said
+/// again and cued too late (spike 273).
+#[test]
+fn test_a_ball_missing_from_one_poll_is_the_same_ball_and_from_two_is_gone() {
+    let mut game = game();
+    assert_eq!(heard(&mut game.found, head_it::APP), ["Ralts"]);
+    let ralts: &[&str] = &["Ralts"];
+    for (x, y, said) in [
+        // Back, lower: the same.
+        (10500.0f32, 300.0f32, &[] as &[&str]),
+        (0.0, 250.0, &[]),
+        (10500.0, 300.0, &[]),
+        (10500.0, 300.0, &[]),
+        (0.0, 470.0, ralts),
+        // Back higher: the next.
+        (10500.0, 480.0, &[]),
+        (0.0, 475.0, ralts),
+    ] {
+        place(&game.memory, game.panes[0], x, y);
+        game.layouts.refresh();
+        assert_eq!(heard(&mut game.found, head_it::APP), said, "{x} {y}");
+    }
+}
+
 #[test]
 fn test_a_ball_at_no_pokemon_that_can_be_read_is_said_a_ball() {
     let mut game = game();
@@ -318,6 +342,8 @@ fn test_a_height_misread_far_below_the_ball_is_skipped() {
     }
     place(&stalled.memory, stalled.panes[0], 10500.0, 480.0);
     stalled.layouts.refresh();
+    // Gone once missing from two polls.
+    assert_eq!(stalled.found.poll(Some(head_it::APP)).unwrap(), []);
     assert_eq!(
         stalled.found.poll(Some(head_it::APP)).unwrap(),
         [(
@@ -402,6 +428,7 @@ fn test_a_ball_headed_back_up_is_not_cued_and_without_the_cue_nothing_is_followe
     assert!(cued.borrow().is_empty());
     place(&on.memory, on.panes[0], 10500.0, 480.0);
     on.layouts.refresh();
+    assert_eq!(on.found.poll(Some(head_it::APP)).unwrap(), []);
     assert_eq!(
         on.found.poll(Some(head_it::APP)).unwrap(),
         [(
@@ -515,6 +542,7 @@ fn test_at_the_results_pa3ds_says_its_estimate_of_the_lead_from_each_answered_cu
         keys.press(HEADERS[1], app, &mut touched).unwrap();
         place(&memory, panes[0], 10500.0, 480.0);
         layouts.refresh();
+        heard();
         heard();
         start = now.get() + 1.0;
     }
