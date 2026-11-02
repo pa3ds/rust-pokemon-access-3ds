@@ -423,6 +423,7 @@ impl FieldSource for FakeField {
                 &rides.stops,
                 &rides.mounts,
                 &rides.smashes,
+                rides.body,
             )?;
         }
         let edit = self.edit.borrow().clone();
@@ -2136,6 +2137,91 @@ fn test_p_on_foot_gets_on_the_mamoswine_waiting_on_flat_ground_to_cross_the_snow
     );
 }
 
+/// Route 9 (spike 272): riding, the player's model stands in 3 by 3 cells round their own, and
+/// held east along spikes beside a wall it stopped at (35, 61), the spikes going on east. P said
+/// "20 north" along them, and riding through a gap two cells wide is no way at all.
+#[test]
+fn test_p_riding_keeps_the_ridden_pokemons_body_off_the_walls() {
+    let wall: HashSet<Cell> = (160..200)
+        .filter(|z| ![170, 171, 180, 181, 182].contains(z))
+        .map(|z| (95, z))
+        .collect();
+    let riding = Field {
+        interactables: vec![person_at((102, 171))],
+        on_bike: true,
+        ..Field::new(street().zone, (91, 171))
+    };
+    let mut blocked: Vec<Cell> = vec![(102, 171)];
+    blocked.extend(wall.iter().copied());
+    let mut rig = navigator(Want {
+        blocked,
+        ..on(riding)
+    });
+    *rig.field.spiky.borrow_mut() = spikes().difference(&wall).copied().collect();
+    *rig.field.flat.borrow_mut() = flats();
+    rig.press(PATHFIND);
+    let way = guidance(&rig);
+    assert!(
+        way.is_some() && path_of(&way).contains(&(95, 181)) && !path_of(&way).contains(&(95, 171))
+    );
+}
+
+/// Route 9 (spike 272): flat ground runs on into corners the ridden Pokémon's body does not
+/// fit, as round the item ball at (58, 55); the player gets off on the flat ground and walks on.
+#[test]
+fn test_p_riding_gets_off_where_the_ridden_pokemon_no_longer_fits_on_flat_ground() {
+    let nook: Vec<Cell> = [100, 101]
+        .into_iter()
+        .flat_map(|x| (160..200).filter(|&z| z != 175).map(move |z| (x, z)))
+        .collect();
+    let riding = Field {
+        interactables: vec![person_at((103, 175))],
+        on_bike: true,
+        ..Field::new(street().zone, (95, 175))
+    };
+    let mut blocked: Vec<Cell> = vec![(103, 175)];
+    blocked.extend(nook.iter().copied());
+    let mut rig = navigator(Want {
+        blocked,
+        ..on(riding)
+    });
+    *rig.field.spiky.borrow_mut() = spikes();
+    let mut flat = flats();
+    flat.extend([(100, 175), (101, 175)]);
+    *rig.field.flat.borrow_mut() = flat;
+    rig.press(PATHFIND);
+    assert_eq!(last(&rig.backend), "3 east, get off 4 east");
+}
+
+/// Route 17 (spike A): a rock stands at the foot of the flat ground at (82, 92), across the
+/// only way on; the Mamoswine smashes it, the player gets off beside it and walks on where it
+/// stood. P said "get off 1 south, then can't continue".
+#[test]
+fn test_p_riding_walks_on_over_the_rock_it_smashed_before_getting_off() {
+    let nook: Vec<Cell> = [100, 101]
+        .into_iter()
+        .flat_map(|x| (160..200).filter(|&z| z != 175).map(move |z| (x, z)))
+        .collect();
+    let riding = Field {
+        interactables: vec![person_at((103, 175)), rock_at((99, 175))],
+        on_bike: true,
+        ..Field::new(street().zone, (95, 175))
+    };
+    let mut blocked: Vec<Cell> = vec![(103, 175)];
+    blocked.extend(nook.iter().copied());
+    let mut rig = navigator(Want {
+        blocked,
+        ..on(riding)
+    });
+    *rig.field.spiky.borrow_mut() = spikes();
+    let mut flat = flats();
+    flat.extend([(100, 175), (101, 175)]);
+    *rig.field.flat.borrow_mut() = flat;
+    rig.press(CATEGORY_PREVIOUS);
+    rig.press(PATHFIND);
+    assert_eq!(last(&rig.backend), "2 east, smash 1 east, get off 4 east");
+}
+
 /// Route 9 (spike 238): only a player riding crosses the spikes, so with nothing to ride the way
 /// goes round them, here past the chunk, never across.
 #[test]
@@ -2158,10 +2244,14 @@ fn test_p_on_foot_with_no_rhyhorn_takes_spiky_ground_for_a_wall() {
 
 /// Route 9 (spike 238): two rocks close the only way east across the spikes at x 51, and the
 /// player smashed them riding, pressing A at each: they were gone from the list after 103 s, and
-/// the player at (58, 59) by 130 s. P riding stopped at them, "then can't continue".
+/// the player at (58, 59) by 130 s. P riding stopped at them, "then can't continue". The smash
+/// is said where the ridden Pokémon's body first reaches the rock (spike A).
 #[test]
 fn test_p_riding_smashes_a_rock_standing_in_the_only_way_across_the_spikes() {
-    let wall: HashSet<Cell> = (160..200).filter(|&z| z != 175).map(|z| (94, z)).collect();
+    let wall: HashSet<Cell> = (160..200)
+        .filter(|z| ![174, 175, 176].contains(z))
+        .map(|z| (94, z))
+        .collect();
     let riding = Field {
         interactables: vec![person_at((102, 175)), rock_at((94, 175))],
         on_bike: true,
@@ -2179,16 +2269,17 @@ fn test_p_riding_smashes_a_rock_standing_in_the_only_way_across_the_spikes() {
     rig.press(PATHFIND);
     assert_eq!(
         last(&rig.backend),
-        "2 east, smash 1 east, 5 east, get off 2 east"
+        "1 east, smash 1 east, 6 east, get off 2 east"
     );
 }
 
 /// Route 9 (spike 238): a rock is faced and smashed with A, so a way round it a step or two longer
-/// is taken, as P goes round a cracked boulder.
+/// is taken, as P goes round a cracked boulder, the ridden Pokémon's body kept clear of it
+/// (spike A).
 #[test]
 fn test_p_riding_goes_round_a_rock_where_that_costs_less_than_smashing_it() {
     let riding = Field {
-        interactables: vec![person_at((102, 175)), rock_at((94, 175))],
+        interactables: vec![person_at((102, 175)), rock_at((94, 176))],
         on_bike: true,
         ..Field::new(street().zone, (91, 175))
     };
@@ -2201,7 +2292,12 @@ fn test_p_riding_goes_round_a_rock_where_that_costs_less_than_smashing_it() {
     rig.press(CATEGORY_PREVIOUS);
     rig.press(PATHFIND);
     let way = guidance(&rig);
-    assert!(way.is_some() && !path_of(&way).contains(&(94, 175)));
+    assert!(
+        way.is_some()
+            && !path_of(&way)
+                .iter()
+                .any(|&(x, z)| (93..=95).contains(&x) && (175..=177).contains(&z))
+    );
     assert!(!last(&rig.backend).contains("smash"));
 }
 

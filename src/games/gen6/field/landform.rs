@@ -786,6 +786,8 @@ pub struct Rides {
     pub mounts: HashSet<i64>,
     /// The sprites of the things the ridden Pokémon smashes with A, in the way on foot.
     pub smashes: HashSet<i64>,
+    /// How many cells the ridden Pokémon's body reaches past the player's own each way.
+    pub body: i64,
 }
 
 impl Landform for Rides {
@@ -834,6 +836,7 @@ impl Landform for Rides {
             &self.stops,
             &self.mounts,
             &self.smashes,
+            self.body,
         )
     }
 }

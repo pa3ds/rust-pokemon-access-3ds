@@ -384,7 +384,10 @@ pub const STRAND: i64 = 0x8;
 /// faced the Mamoswine, character `0x1007`, waiting on flat ground at (66, 54), pressed A and was
 /// moved into its cell with the bike's bits set, as on the Rhyhorn, then rode south onto the snow at
 /// (66, 58). Its ten rocks, sprite `0x2035` (`ISNOW01`), are "nothing against Mamoswine's
-/// strength!" (story 70:5) (spike 263).
+/// strength!" (story 70:5) (spike 263). Riding either, the player's model stands in 3 by 3 cells,
+/// +0x150 reading 3 and 3 from getting on, and every cell of both routes' spikes and snow lies in a
+/// square of 3 by 3 open to a rider; held east along the spikes beside the wall at row 62, the player
+/// stopped at (35, 61) (spike A).
 ///
 /// Python's `RIDES` constant: a function, since a `HashSet` is no const.
 pub fn rides() -> Rides {
@@ -393,6 +396,7 @@ pub fn rides() -> Rides {
         stops: HashSet::from([0x31, 0x33]),
         mounts: HashSet::from([0x100F, 0x1007]),
         smashes: HashSet::from([0x200D, 0x2035]),
+        body: 1,
     }
 }
 

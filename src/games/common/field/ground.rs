@@ -21,7 +21,7 @@ use crate::games::common::field::chunk::{
 };
 use crate::games::common::field::climb::Walls;
 use crate::games::common::field::grind::GrindRails;
-use crate::games::common::field::ride::{Riding, riding};
+use crate::games::common::field::ride::{Riding, bumps, riding};
 use crate::games::common::field::rotating::{Doors, RotatingDoor};
 use crate::games::common::field::teleport::Teleporters;
 use crate::games::common::field::things::{
@@ -409,6 +409,10 @@ pub struct Ground {
     /// and smashed first (`ride.after`, `toll`), and open from then on: Route 9's rocks, smashed on
     /// the Rhyhorn, needing no HM (spike 238). Nobody stands in them; on foot they are in the way.
     pub smashed: HashSet<Cell>,
+    /// How many cells the ridden Pokémon's body reaches past the player's own each way: the
+    /// square a step riding must find open, and smashes a thing as it first reaches (`ride.fits`,
+    /// `ride.bumps`, spike A).
+    pub body: i64,
     /// The climbing walls: a face's line walked on foot or climbed, onto it only at a blue spot
     /// and off it sideways onto a ledge only climbing; and their slides, open though blocked, which
     /// carry the player down them as a current does (`carry`; `climb.Walls`, spike 245).
@@ -501,6 +505,7 @@ impl Default for Ground {
             riding: false,
             mounts: HashSet::new(),
             smashed: HashSet::new(),
+            body: 0,
             walls: Rc::new(Walls::default()),
             grind_rails: Rc::new(GrindRails::default()),
             vines: Rc::new(Vines::default()),
@@ -552,6 +557,7 @@ impl fmt::Debug for Ground {
             .field("riding", &self.riding)
             .field("mounts", &self.mounts)
             .field("smashed", &self.smashed)
+            .field("body", &self.body)
             .field("walls", &self.walls)
             .field("grind_rails", &self.grind_rails)
             .field("vines", &self.vines)
@@ -707,10 +713,12 @@ impl Ground {
         stops: &HashSet<i64>,
         mounts: &HashSet<i64>,
         smashes: &HashSet<i64>,
+        body: i64,
     ) -> Result<Ground> {
         let mut ground = Ground {
             rides: rides.clone(),
             stops: stops.clone(),
+            body,
             ..self.clone()
         };
         let both: HashSet<i64> = rides.union(stops).copied().collect();
@@ -1220,7 +1228,7 @@ impl Ground {
         if self.cleared.contains_key(&step)
             || (self.water(step, None)? && !self.water(cell, None)?)
             || (self.mounts.contains(&step) && !self.mounts.contains(&cell))
-            || self.smashed.contains(&step)
+            || bumps(self, cell, step)
         {
             return Ok(BOARD);
         }

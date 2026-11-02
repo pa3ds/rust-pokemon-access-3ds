@@ -4573,6 +4573,7 @@ fn route_9(smashes: &[i64]) -> Rides {
         stops: HashSet::from([0x31]),
         mounts: HashSet::from([0x100F]),
         smashes: smashes.iter().copied().collect(),
+        body: 0,
     }
 }
 
