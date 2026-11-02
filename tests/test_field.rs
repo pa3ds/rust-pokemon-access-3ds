@@ -1826,7 +1826,7 @@ fn test_a_place_in_parts_lists_the_other_parts_things_out_of_the_rom() -> Result
     Ok(())
 }
 
-/// ADR-0042 as amended 2026-11-01: listed whole, Routes 119, 120 and 123 slowed every key, and
+/// ADR-0042 (2026-11-01): listed whole, Routes 119, 120 and 123 slowed every key, and
 /// nothing there needs a way out of a part and back; only the Safari Zone is listed whole
 /// (`Game.whole`). Another place in parts lists the player's own part, and the gaps into the next
 /// as one exit, as before.

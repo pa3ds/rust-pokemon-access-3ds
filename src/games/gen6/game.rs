@@ -342,7 +342,7 @@ pub struct Game {
     /// X's (spikes 230 and 239).
     pub camera: camera::Shape,
     /// The zones of the places in parts listed whole, the other parts' things out of the ROM
-    /// (ADR-0042 as amended 2026-11-01); every other place in parts is listed a part at a time.
+    /// (ADR-0042); every other place in parts is listed a part at a time.
     pub whole: HashSet<i64>,
 }
 
