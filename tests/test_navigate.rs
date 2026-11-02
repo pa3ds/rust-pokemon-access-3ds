@@ -681,7 +681,7 @@ fn test_unsorted_the_list_keeps_the_tables_order_as_the_player_walks() {
         heard,
         [
             "door, 1 of 5, 4 east 10 south",
-            "edge, 2 of 5, 2 north",
+            "path, 2 of 5, 2 north",
             "person, 1 of 2, 1 north"
         ]
     );
@@ -898,9 +898,9 @@ fn test_items_are_said_with_their_place_nearest_first_and_wrap() {
     assert_eq!(
         said(&rig.backend),
         [
-            "edge, 2 of 2, 13 north",
+            "path, 2 of 2, 13 north",
             "door, 1 of 2, 1 north",
-            "edge, 2 of 2, 13 north"
+            "path, 2 of 2, 13 north"
         ]
     );
 }
@@ -978,7 +978,7 @@ fn test_shift_c_says_where_the_chosen_thing_is_by_the_cells_it_spans() {
         said(&rig.backend),
         [
             "x 94, z 171",
-            "edge, 2 of 2, 13 north",
+            "path, 2 of 2, 13 north",
             "x 80 to 119, z 159"
         ]
     );
@@ -1151,7 +1151,7 @@ fn test_an_exit_into_another_place_says_the_place() {
         said(&rig.backend),
         [
             "door, 1 of 2, 1 north",
-            "edge to Route 101, 2 of 2, 13 north"
+            "path to Route 101, 2 of 2, 13 north"
         ]
     );
 }
@@ -1205,7 +1205,7 @@ fn test_an_exit_within_one_place_says_the_street_it_comes_out_on() {
         said(&rig.backend),
         [
             "door to Vernal Avenue, 1 of 2, 1 north",
-            "edge, 2 of 2, 13 north"
+            "path, 2 of 2, 13 north"
         ]
     );
 }
@@ -1302,7 +1302,7 @@ fn test_without_the_games_words_an_exit_is_what_it_is() {
         ..Want::default()
     });
     rig.press(ITEM_PREVIOUS);
-    assert_eq!(said(&rig.backend), ["edge, 2 of 2, 13 north"]);
+    assert_eq!(said(&rig.backend), ["path, 2 of 2, 13 north"]);
 }
 
 // Direction mode.
@@ -1353,9 +1353,9 @@ fn test_a_direction_looks_ten_cells_each_way_and_no_further() {
     assert_eq!(
         said(&rig.backend),
         [
-            "edge, 1 of 2, 10 north",
+            "path, 1 of 2, 10 north",
             "person, 2 of 2, 4 west 9 north",
-            "edge, 1 of 2, 10 north"
+            "path, 1 of 2, 10 north"
         ]
     );
 }

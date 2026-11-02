@@ -479,7 +479,9 @@ kind-conveyor-belt = conveyor belt
 kind-switch = switch
 kind-warp = warp
 kind-path = path
-kind-edge = edge
+# An edge, where a zone's ground runs on into the next, is said as a path is: the player
+# walks on that way into somewhere else either way (ADR-0042).
+kind-edge = path
 kind-stairs = stairs
 kind-stairs-up = stairs up
 kind-stairs-down = stairs down

@@ -431,7 +431,7 @@ fn test_an_exit_into_another_place_is_said_with_it_and_a_door_of_the_town_is_not
         .iter()
         .map(|item| made.navigator.borrow().label(item, TOWN).unwrap())
         .collect();
-    assert_eq!(labels, ["door", "door", "edge to Route 101"]);
+    assert_eq!(labels, ["door", "door", "path to Route 101"]);
     made.poll_field().unwrap();
     assert!(logged.borrow().iter().any(|line| {
         line.starts_with("field exits: ") && line.contains("edge to zone 0x17 (Route 101) ")
@@ -449,7 +449,7 @@ fn test_without_the_rom_an_exit_is_only_what_it_is() {
         .iter()
         .map(|item| made.navigator.borrow().label(item, TOWN).unwrap())
         .collect();
-    assert_eq!(labels, ["door", "door", "edge"]);
+    assert_eq!(labels, ["door", "door", "path"]);
 }
 
 /// The profile hands the field the word the PC's own lines share (`archives.PC_LINES`).
