@@ -19,6 +19,7 @@ mod test_boxes;
 mod test_buttons;
 mod test_catalog;
 mod test_choices;
+mod test_clips;
 mod test_conditions;
 mod test_config;
 mod test_contest;

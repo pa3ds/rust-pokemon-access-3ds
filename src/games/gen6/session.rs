@@ -175,8 +175,9 @@ pub fn start(
     })
 }
 
-/// Plays a Pokémon's own cry toward a side, 0 the left and 1 the right, and says whether it
-/// played: read out of the player's ROM the first time each is wanted and kept (`rom.cries`).
+/// Plays a Pokémon's own cry toward a side, 0 the left and 1 the right, over the other sides'
+/// cries, and says whether it played: read out of the player's ROM the first time each is wanted
+/// and kept (`rom.cries`).
 /// None where cries are off or the game's are not read; once the ROM fails, none plays, and
 /// the log says why.
 pub fn cry_player(setup: &Setup, layout: &RomLayout, image: &[u8]) -> Result<Option<Crier>> {
@@ -226,7 +227,8 @@ pub fn cry_player(setup: &Setup, layout: &RomLayout, image: &[u8]) -> Result<Opt
             clips.add(&name, sound);
         }
         log(&format!("cry: {name} toward {}", py::fixed(across, 1)));
-        clips.play_across(&name, across)?;
+        // A voice a side, so a cry cuts off only its own Pokémon's last.
+        clips.play_on(&name, across, py::round(across * 2.0)?)?;
         Ok(true)
     })))
 }

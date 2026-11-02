@@ -4,8 +4,12 @@
 //! A clip is one or more sounds played together, mixed into one as a game starts (`mix`): the
 //! game's own, decoded out of the player's ROM (`bcsar`), and WAV files of pa3ds's own (`wave`). It
 //! plays through Windows' waveOut on the default output, where Azahar's sound goes while its output
-//! device is Auto; a clip cuts off the one before it. How loud is what the game would make it: the
-//! sound's own volume and its sequence's random one; times how loud Azahar plays the game
+//! device is Auto, which mixes it with the game's. A clip cuts off the one before it on the same
+//! voice, an output of its own: a footstep the last, a key's sound the last. The Pokémon's cries
+//! have a voice a side, so each cuts off only its own Pokémon's, and the three can be heard over
+//! each other as the game's sounds are (Orion, 2026-11-02: waiting their turn, a cry would come
+//! too late, and cut off, the Pokémon before went unheard). How loud is what the game would make
+//! it: the sound's own volume and its sequence's random one; times how loud Azahar plays the game
 //! (`loudness`); times `[pa3ds.audio] footsteps`, above 1 louder than the game would. A clip plays
 //! in both ears, as the game plays it, but where it is asked toward one side: Head It's cue, and
 //! the Pokémon's cries in Amie's games.
@@ -20,6 +24,7 @@ use std::collections::hash_map::RandomState;
 use std::fs;
 use std::hash::{BuildHasher, Hasher};
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 
 use indexmap::IndexMap;
 
@@ -34,22 +39,44 @@ pub fn sounds() -> Result<PathBuf> {
     Ok(data_path()?.join("sounds"))
 }
 
-/// The clips a game has, by name, and the one output they play on, opened at the first.
+/// What a voice plays on: Windows' waveOut, or a test's stand-in where Python's test patches
+/// `_WaveOut`.
+pub trait Output {
+    fn rate(&self) -> i64;
+    fn play(&mut self, data: &[u8]);
+}
+
+/// Opens an output at a rate: `_WaveOut(rate)`.
+pub type Opener = Rc<dyn Fn(i64) -> Result<Box<dyn Output>>>;
+
+/// The clips a game has, by name, and the outputs they play on, a voice each, each opened at
+/// its first clip.
 pub struct Clips {
     sounds: RefCell<IndexMap<String, Sound>>,
     loudness: Loudness,
     level: f64,
-    out: RefCell<Option<waveout::WaveOut>>,
+    outs: RefCell<IndexMap<i64, Box<dyn Output>>>,
+    open: Opener,
 }
 
 impl Clips {
     /// `Clips(loudness, level)`; Python's `level` defaults to 1.
     pub fn new(loudness: Loudness, level: f64) -> Self {
+        Clips::opening(
+            loudness,
+            level,
+            Rc::new(|rate| Ok(Box::new(waveout::WaveOut::new(rate)?) as Box<dyn Output>)),
+        )
+    }
+
+    /// `Clips(loudness, level)` playing on what `open` opens: a test's outputs.
+    pub fn opening(loudness: Loudness, level: f64, open: Opener) -> Self {
         Clips {
             sounds: RefCell::new(IndexMap::new()),
             loudness,
             level,
-            out: RefCell::new(None),
+            outs: RefCell::new(IndexMap::new()),
+            open,
         }
     }
 
@@ -66,8 +93,14 @@ impl Clips {
         self.play_across(name, 0.5)
     }
 
-    /// Play the clip `name`, as loud as the game would play it, toward `across` (`stereo`).
+    /// `play(name, across)`, on voice 0, as Python's `voice` defaults.
     pub fn play_across(&self, name: &str, across: f64) -> Result<()> {
+        self.play_on(name, across, 0)
+    }
+
+    /// Play the clip `name`, as loud as the game would play it, toward `across` (`stereo`),
+    /// cutting off only what `voice` was playing.
+    pub fn play_on(&self, name: &str, across: f64, voice: i64) -> Result<()> {
         let Some(sound) = self.sounds.borrow().get(name).cloned() else {
             return Ok(());
         };
@@ -82,20 +115,33 @@ impl Clips {
             .iter()
             .flat_map(|sample| sample.to_le_bytes())
             .collect();
-        let mut out = self.out.borrow_mut();
-        let opened = match out.take() {
-            Some(open) if open.rate == sound.rate => Ok(open),
-            _ => waveout::WaveOut::new(sound.rate),
-        };
-        match opened {
-            Ok(mut open) => {
-                open.play(&data);
-                *out = Some(open);
+        let mut outs = self.outs.borrow_mut();
+        if outs.get(&voice).is_none_or(|out| out.rate() != sound.rate) {
+            match (self.open)(sound.rate) {
+                Ok(out) => {
+                    outs.insert(voice, out);
+                }
+                // No sound device: nothing more to play.
+                Err(_) => {
+                    self.sounds.borrow_mut().clear();
+                    return Ok(());
+                }
             }
-            // No sound device: nothing more to play.
-            Err(_) => self.sounds.borrow_mut().clear(),
+        }
+        if let Some(out) = outs.get_mut(&voice) {
+            out.play(&data);
         }
         Ok(())
+    }
+}
+
+impl Output for waveout::WaveOut {
+    fn rate(&self) -> i64 {
+        self.rate
+    }
+
+    fn play(&mut self, data: &[u8]) {
+        waveout::WaveOut::play(self, data);
     }
 }
 
