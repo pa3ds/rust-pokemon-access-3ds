@@ -1,6 +1,7 @@
 //! Pokémon-Amie's Head It: each ball of yarn is said by the Pokémon it falls at, and each Pokémon
 //! up is offered in touch mode to be tapped.
 
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 use indexmap::IndexMap;
@@ -9,10 +10,13 @@ use super::fake_layouts::FakeLayouts;
 use super::fake_memory::{CODE, FakeClasses, FakeMemory};
 use super::test_battle::record_of;
 use crate::core::rtti::ClassNames;
+use crate::games::common::field::keys::{DEFAULT_CONTEXTS, HEAD_IT, HEADERS};
 use crate::games::common::layout::Layouts;
-use crate::games::common::touch::Target;
+use crate::games::common::touch::{Target, Tone};
 use crate::games::common::{lyt, pokemon};
+use crate::games::gen6::subscreen::berry_picker::Touching;
 use crate::games::gen6::subscreen::head_it;
+use crate::py::Result;
 
 const MODEL: i64 = 0x08B00000;
 const PARAM: i64 = 0x08B10000;
@@ -39,11 +43,15 @@ struct Game {
     layouts: Rc<Layouts>,
 }
 
+fn game() -> Game {
+    game_with(None, Rc::new(|| 0.0))
+}
+
 /// As as_amie_head_it's round went 30 s in: Poochyena down on the left, Ralts up in the
 /// middle and rowan up on the right; a ball falling at the middle, the giant ball parked off to
 /// the right and a ball past the bottom (spike A). The game, the memory, the balls' panes and the
-/// layouts.
-fn game() -> Game {
+/// layouts. With `cue`, the cue is on, sounding through it, timed by `clock`.
+fn game_with(cue: Option<Tone>, clock: Rc<dyn Fn() -> f64>) -> Game {
     let memory = FakeMemory::new();
     let classes = FakeClasses::new(memory.clone());
     let picture = classes.add(lyt::PICTURE_CLASS);
@@ -90,6 +98,8 @@ fn game() -> Game {
         fake.layouts.clone(),
         Rc::new(move |pane: i64| Ok(drawn.get(&pane).map(|image| image.to_string()))),
         Rc::new(|found: &pokemon::Pokemon| named(found.species)),
+        cue,
+        clock,
     );
     memory.u32(APP, &[classes.add(head_it::APP)]);
     memory.u32(APP + head_it::PHASE, &[head_it::FALLING]);
@@ -191,4 +201,140 @@ fn test_nothing_is_said_or_offered_before_balls_fall_or_once_they_have() {
             "phase {phase}"
         );
     }
+}
+
+/// The cue's stand-in, keeping where each cue sounded, and the clock it is timed by.
+fn cued() -> (
+    Rc<RefCell<Vec<(f64, f64)>>>,
+    Tone,
+    Rc<Cell<f64>>,
+    Rc<dyn Fn() -> f64>,
+) {
+    let cued: Rc<RefCell<Vec<(f64, f64)>>> = Rc::new(RefCell::new(Vec::new()));
+    let now = Rc::new(Cell::new(0.0));
+    let cue: Tone = {
+        let cued = cued.clone();
+        Rc::new(move |across: f64, down: f64| cued.borrow_mut().push((across, down)))
+    };
+    let clock: Rc<dyn Fn() -> f64> = {
+        let now = now.clone();
+        Rc::new(move || now.get())
+    };
+    (cued, cue, now, clock)
+}
+
+/// A tone, at the Pokémon the ball falls at, `LEAD` before the ball reaches `SWEET` by how
+/// fast it falls, once a ball (Orion, 2026-10-31: an aid, off as it ships).
+#[test]
+fn test_the_cue_sounds_toward_the_pokemon_as_the_moment_to_tap_comes() {
+    let (cued, cue, now, clock) = cued();
+    let mut game = game_with(Some(cue), clock);
+    heard(&mut game.found, head_it::APP);
+    assert!(game.found.ticking(Some(head_it::APP)));
+    // 600 a second, as a ball falls near the bottom: 120 above `SWEET` is 0.2 s away. A height
+    // read again unchanged, as a tape answers between its polls, times nothing.
+    for (at, height) in [
+        (0.0, 300.0),
+        (0.05, 270.0),
+        (0.1, 240.0),
+        (0.12, 240.0),
+        (0.15, 210.0),
+        (0.2, 180.0),
+        (0.25, 150.0),
+        (0.3, 120.0),
+    ] {
+        now.set(at);
+        place(
+            &game.memory,
+            game.panes[0],
+            0.0,
+            (head_it::SWEET + height) as f32,
+        );
+        game.found.tick().unwrap();
+        let expected: Vec<(f64, f64)> = if at < 0.3 {
+            vec![]
+        } else {
+            vec![(160.0 / 320.0, head_it::BODY as f64 / 240.0)]
+        };
+        assert_eq!(*cued.borrow(), expected, "at {at}");
+    }
+    now.set(0.4);
+    place(&game.memory, game.panes[0], 0.0, head_it::SWEET as f32);
+    game.found.tick().unwrap();
+    assert_eq!(cued.borrow().len(), 1);
+}
+
+#[test]
+fn test_a_ball_headed_back_up_is_not_cued_and_without_the_cue_nothing_is_followed() {
+    let (cued, cue, now, clock) = cued();
+    let mut on = game_with(Some(cue), clock);
+    heard(&mut on.found, head_it::APP);
+    for (at, height) in [(0.0, 60.0f32), (0.1, 120.0), (0.2, 180.0)] {
+        now.set(at);
+        place(&on.memory, on.panes[0], 0.0, height);
+        on.found.tick().unwrap();
+    }
+    assert!(cued.borrow().is_empty());
+    let mut off = game().found;
+    heard(&mut off, head_it::APP);
+    assert!(!off.ticking(Some(head_it::APP)));
+}
+
+/// Touch mode as Head It's keys ask it: each tap made.
+#[derive(Default)]
+struct Touched {
+    tapped: Vec<String>,
+}
+
+impl Touching for Touched {
+    fn targets(&mut self) -> Result<Vec<Target>> {
+        unreachable!("Head It's keys ask for no targets")
+    }
+
+    fn give(&mut self, _picked: &Target, _over: &Target) -> String {
+        unreachable!("Head It's keys never drag")
+    }
+
+    fn tap(&mut self, target: &Target) -> String {
+        self.tapped.push(target.name.clone());
+        String::new()
+    }
+}
+
+/// ADR-0009 as amended 2026-10-31: Head It's keys tap a Pokémon touch mode offers, by where it
+/// stands, 8, 9 and 0 left to right; a key where none stands, or before balls fall, plays the
+/// game's error sound or says why.
+#[test]
+fn test_a_pokemons_key_taps_it() {
+    let game = game();
+    let memory = game.memory.clone();
+    let mut touched = Touched::default();
+    let keys = head_it::HeadItKeys::new(
+        Rc::new(RefCell::new(game.found)),
+        Rc::new(|why: &str| why.to_string()),
+    );
+    assert_eq!(
+        DEFAULT_CONTEXTS[HEAD_IT],
+        IndexMap::from([
+            ("8".to_string(), HEADERS[0].to_string()),
+            ("9".to_string(), HEADERS[1].to_string()),
+            ("0".to_string(), HEADERS[2].to_string()),
+        ])
+    );
+    let app = Some(head_it::APP);
+    assert_eq!(keys.context(app), Some(HEAD_IT));
+    assert_eq!(keys.context(Some(OTHER)), None);
+    assert_eq!(keys.press(HEADERS[1], app, &mut touched).unwrap(), "");
+    assert_eq!(keys.press(HEADERS[2], app, &mut touched).unwrap(), "");
+    assert_eq!(touched.tapped, ["Ralts", "rowan"]);
+    assert_eq!(
+        keys.press(HEADERS[0], app, &mut touched).unwrap(),
+        "no Pokémon 1"
+    );
+    memory.u32(APP + head_it::PHASE, &[1]);
+    assert_eq!(
+        keys.press(HEADERS[1], app, &mut touched).unwrap(),
+        "no Pokémon 2"
+    );
+    assert_eq!(touched.tapped, ["Ralts", "rowan"]);
 }

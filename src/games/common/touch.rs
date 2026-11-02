@@ -376,14 +376,7 @@ impl TouchMode {
                     .slide(&target.path, target.seconds)
                     .unwrap_or_default());
             }
-            let Some(screen) = &self.screen else {
-                return Ok(own("touch-off", &[]));
-            };
-            (self.log)(&format!(
-                "touch: tap {} at ({}, {})",
-                target.name, target.x, target.y
-            ));
-            return Ok(screen.tap(target.x, target.y).unwrap_or_default());
+            return Ok(self.tap(target));
         }
         let before = found[at].clone();
         let lines = rows(&found);
@@ -447,6 +440,19 @@ impl TouchMode {
             return self.give(&picked, &over);
         }
         self.dropped(&over)
+    }
+
+    /// Tap a target, with the line to say: the one touch mode has just said, or one a
+    /// screen's own key names, Head It's Pokémon's (ADR-0009 as amended 2026-10-31).
+    pub fn tap(&self, target: &Target) -> String {
+        let Some(screen) = &self.screen else {
+            return own("touch-off", &[]);
+        };
+        (self.log)(&format!(
+            "touch: tap {} at ({}, {})",
+            target.name, target.x, target.y
+        ));
+        screen.tap(target.x, target.y).unwrap_or_default()
     }
 
     /// Drag from one target straight to another and let go, with the line to say, as a screen

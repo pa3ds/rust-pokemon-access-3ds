@@ -36,6 +36,7 @@
 //! - ADR-0009: a Pokémon is tapped on the player's key, by touch mode, as the target it has just
 //!   named.
 
+use std::cell::RefCell;
 use std::collections::HashSet;
 use std::rc::Rc;
 
@@ -47,12 +48,13 @@ use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
 use crate::core::speech::Category;
 use crate::core::words::own;
+use crate::games::common::field::keys::{HEAD_IT, HEADERS};
 use crate::games::common::layout::Layouts;
 use crate::games::common::pokemon;
-use crate::games::common::touch::{HEIGHT, ImageOf, Target, WIDTH};
-use crate::games::gen6::subscreen::berry_picker::Name;
+use crate::games::common::touch::{HEIGHT, ImageOf, Target, Tone, WIDTH};
+use crate::games::gen6::subscreen::berry_picker::{Name, Touching};
 use crate::games::gen6::subscreen::super_training::pictures;
-use crate::py::Result;
+use crate::py::{Error, Result};
 
 pub const APP: &str = "N3app7heading7ProcessE";
 /// Where the app's object says what the round is doing (spike A, live): 0 and 1 its opening, 2
@@ -85,8 +87,19 @@ pub const COLUMNS: [i64; 3] = [53, 160, 267];
 pub const BODY: i64 = 200;
 /// How tall the touch areas over the Pokémon are.
 pub const TALL: f64 = 120.0;
+/// How far above the screen's middle a ball is as a tap sent then heads it at the sweet spot, for
+/// 3 points rather than 1 (spike A, live).
+pub const SWEET: f64 = 35.0;
+/// Seconds before the ball reaches `SWEET` the cue sounds: about how long a player takes to tap
+/// once they hear it.
+pub const LEAD: f64 = 0.2;
+/// Seconds over which a ball's speed is measured. Read from one tick to the next, a frame apart or
+/// none, it jumped; and on a tape, whose heights change five times a second, a ball 43 units lower a
+/// tick later was cued 374 above `SWEET` (as_amie_head_it).
+pub const SPAN: f64 = 0.1;
 pub const COMING: &str = "head-it-ball";
 pub const NOBODY: &str = "head-it-ball-nobody";
+pub const NOT_UP: &str = "head-it-no-pokemon";
 /// What the log calls what Head It says.
 pub const LOG: &str = "head it";
 
@@ -103,10 +116,20 @@ pub struct HeadIt {
     models: IndexMap<i64, i64>,
     /// The app's own object -> the vtable it was found with: what the round is doing.
     apps: IndexMap<i64, i64>,
-    /// The balls on their way down at the last poll, by pane.
+    /// The balls on their way down at the last poll, by pane: each one's column, and its
+    /// layout's root's height, which its own is told from.
+    falling: IndexMap<i64, (i64, f64)>,
+    /// Sounds the cue at a place on the screen, across and down from 0 to 1, or None where
+    /// the cue is off (`[pa3ds.amie] head_it_cue`).
+    cue: Option<Tone>,
+    clock: Rc<dyn Fn() -> f64>,
+    /// Each ball falling -> the heights it has fallen through, each with when it was first
+    /// read there, from the newest at least `SPAN` old.
+    heights: IndexMap<i64, Vec<(f64, f64)>>,
+    /// The balls falling whose cue has sounded.
     ///
     /// A set only tested.
-    falling: HashSet<i64>,
+    cued: HashSet<i64>,
 }
 
 impl HeadIt {
@@ -114,12 +137,15 @@ impl HeadIt {
     /// says whether balls fall.
     pub const CLASSES: [&'static str; 2] = [MODEL, APP];
 
+    /// `HeadIt(...)` with every argument; Python's `clock` defaults to `time.monotonic`.
     pub fn new(
         memory: Rc<dyn Memory>,
         names: Rc<ClassNames>,
         layouts: Rc<Layouts>,
         image_of: ImageOf,
         name: Name,
+        cue: Option<Tone>,
+        clock: Rc<dyn Fn() -> f64>,
     ) -> Self {
         HeadIt {
             memory,
@@ -129,7 +155,11 @@ impl HeadIt {
             name,
             models: IndexMap::new(),
             apps: IndexMap::new(),
-            falling: HashSet::new(),
+            falling: IndexMap::new(),
+            cue,
+            clock,
+            heights: IndexMap::new(),
+            cued: HashSet::new(),
         }
     }
 
@@ -164,16 +194,16 @@ impl HeadIt {
     /// balls fall.
     pub fn poll(&mut self, running: Option<&str>) -> Result<Vec<(String, String, Category)>> {
         if running != Some(APP) || !self.playing()? {
-            self.falling = HashSet::new();
+            self.falling = IndexMap::new();
             return Ok(Vec::new());
         }
         let falling = self.balls()?;
         let new: Vec<i64> = falling
             .iter()
-            .filter(|(pane, _)| !self.falling.contains(*pane))
-            .map(|(_, &column)| column)
+            .filter(|(pane, _)| !self.falling.contains_key(*pane))
+            .map(|(_, &(column, _))| column)
             .collect();
-        self.falling = falling.keys().copied().collect();
+        self.falling = falling;
         if new.is_empty() {
             return Ok(Vec::new());
         }
@@ -233,18 +263,76 @@ impl HeadIt {
         Ok(false)
     }
 
-    /// The balls on the screen or above it on their way down, by pane, each with its column.
-    fn balls(&self) -> Result<IndexMap<i64, i64>> {
+    /// Whether `tick` has balls to follow: while the cue is on and balls fall.
+    pub fn ticking(&self, running: Option<&str>) -> bool {
+        self.cue.is_some() && running == Some(APP) && !self.falling.is_empty()
+    }
+
+    /// Follow each ball falling, every tick, and sound the cue as it is due: `LEAD` before
+    /// the ball reaches `SWEET`, by how fast it has fallen over the last `SPAN`, as balls fall
+    /// at different speeds (Bulbapedia: slow, fast and quickening with a combo). The screen's
+    /// poll, a fifth of a second, finds the balls; a ball's height alone is read every tick.
+    pub fn tick(&mut self) -> Result<()> {
+        let Some(cue) = self.cue.clone() else {
+            return Ok(());
+        };
+        let now = (self.clock)();
+        let y = self.layouts.shape.y;
+        let falling = &self.falling;
+        self.heights.retain(|pane, _| falling.contains_key(pane));
+        self.cued.retain(|pane| falling.contains_key(pane));
+        for (&pane, &(column, root)) in &self.falling {
+            // Not through `Layouts`, which keeps what it read until the screen's next poll.
+            let height = f32(&self.memory.read(pane + y, 4)?, 0)? - root;
+            let seen = self.heights.entry(pane).or_default();
+            // Not moved since, the same frame read again; or headed back up, a fall no longer.
+            if !seen.is_empty() && height == seen[seen.len() - 1].1 {
+                continue;
+            }
+            if !seen.is_empty() && height > seen[seen.len() - 1].1 {
+                seen.clear();
+            }
+            seen.push((now, height));
+            while seen.len() > 1 && now - seen[1].0 >= SPAN {
+                seen.remove(0);
+            }
+            let (then, was) = seen[0];
+            if self.cued.contains(&pane) || height < SWEET || now - then < SPAN || was <= height {
+                continue;
+            }
+            if (height - SWEET) * (now - then) / (was - height) <= LEAD {
+                self.cued.insert(pane);
+                cue(
+                    COLUMNS[column as usize] as f64 / WIDTH as f64,
+                    BODY as f64 / HEIGHT as f64,
+                );
+            }
+        }
+        Ok(())
+    }
+
+    /// The Pokémon up in a column while balls fall, as touch mode offers it, or None.
+    pub fn pokemon(&self, column: usize, running: Option<&str>) -> Result<Option<Target>> {
+        Ok(self
+            .targets(running)?
+            .into_iter()
+            .find(|target| target.x == COLUMNS[column]))
+    }
+
+    /// The balls on the screen or above it on their way down, by pane, each with its column
+    /// and its layout's root's height.
+    fn balls(&self) -> Result<IndexMap<i64, (i64, f64)>> {
         let shown = pictures(&self.layouts, &self.image_of, false, &|image: &str| {
             BALLS.iter().any(|ball| image.starts_with(ball))
         })?;
-        Ok(shown
-            .into_iter()
-            .filter(|&(_, _, _, across, up)| {
-                across.abs() < WIDTH as f64 / 2.0 && up > -(HEIGHT as f64) / 2.0
-            })
-            .map(|(pane, _, _, across, _)| (pane, column(across)))
-            .collect())
+        let mut found = IndexMap::new();
+        for (pane, _, _, across, up) in shown {
+            if across.abs() < WIDTH as f64 / 2.0 && up > -(HEIGHT as f64) / 2.0 {
+                let root = f32(&self.layouts.pane(pane)?, self.layouts.shape.y)? - up;
+                found.insert(pane, (column(across), root));
+            }
+        }
+        Ok(found)
     }
 
     /// Each column -> what the Pokémon up in it is called.
@@ -288,4 +376,48 @@ impl HeadIt {
 /// Left 0, the middle 1, right 2.
 fn column(x: f64) -> i64 {
     i64::from(x > -APART as f64) + i64::from(x > APART as f64)
+}
+
+/// Head It's own keys (Orion, 2026-10-31): a key a Pokémon, by where it stands, left, in the
+/// middle and right, which taps it, as touch mode's tap does the Pokémon it has just said. Touch
+/// mode's own keys still tap there as ever.
+///
+/// `wrong` is what is heard for a key with nothing to do, a Pokémon not up or no ball falling: a
+/// sound, and "", or else the words.
+///
+/// Python's holds touch mode, which is built after the subscreens, as it offers their targets;
+/// here touch mode, which the navigator owns, is handed to `press`, as `BerryKeys`' is.
+pub struct HeadItKeys {
+    game: Rc<RefCell<HeadIt>>,
+    wrong: Rc<dyn Fn(&str) -> String>,
+}
+
+impl HeadItKeys {
+    pub fn new(game: Rc<RefCell<HeadIt>>, wrong: Rc<dyn Fn(&str) -> String>) -> Self {
+        HeadItKeys { game, wrong }
+    }
+
+    /// The keys' table in the keys file while Head It runs, `[pa3ds.amie.head_it]`, else
+    /// None.
+    pub fn context(&self, running: Option<&str>) -> Option<&'static str> {
+        (running == Some(APP)).then_some(HEAD_IT)
+    }
+
+    /// Tap the Pokémon of the key, with the line to say.
+    pub fn press(
+        &self,
+        action: &str,
+        running: Option<&str>,
+        touch: &mut dyn Touching,
+    ) -> Result<String> {
+        let column = HEADERS
+            .iter()
+            .position(|&header| header == action)
+            .ok_or_else(|| Error::value("tuple.index(x): x not in tuple"))?;
+        let target = self.game.borrow().pokemon(column, running)?;
+        let Some(target) = target else {
+            return Ok((self.wrong)(&own(NOT_UP, &[("number", &(column + 1))])));
+        };
+        Ok(touch.tap(&target))
+    }
 }

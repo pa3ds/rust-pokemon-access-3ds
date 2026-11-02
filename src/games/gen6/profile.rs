@@ -747,6 +747,12 @@ impl Gen6Profile {
             },
             Rc::new(move |why: &str| heard(WRONG_SOUND, why.to_string())),
             ui.descriptions,
+            tones.clone().map(|tones| {
+                Rc::new(move |across: f64, down: f64| {
+                    // The sound thread not starting, raised to the tick in Python.
+                    let _ = tones.play(across, down);
+                }) as touch::Tone
+            }),
         ));
         let classes: IndexSet<String> = HEAP_CLASSES
             .iter()
@@ -1652,13 +1658,20 @@ impl Gen6Profile {
 
     /// Sample where each named cursor on screen stands, every tick while there is one, so the
     /// screen poll can tell one at rest from one gliding past (spike 129). One small read each.
+    /// And what a subscreen follows every tick: Head It's balls, while its cue is on.
     pub fn poll_pointers(&self) -> Result<()> {
-        if !self.cursors.borrow().sampling() {
-            return Ok(());
+        if self.cursors.borrow().sampling() {
+            phase(&*self.memory, "pointers", || {
+                self.cursors.borrow_mut().sample(&*self.memory)
+            })?;
         }
-        phase(&*self.memory, "pointers", || {
-            self.cursors.borrow_mut().sample(&*self.memory)
-        })
+        let running = self.apps.borrow().running.clone();
+        if self.subscreens.ticking(running.as_deref()) {
+            phase(&*self.memory, "ticked", || {
+                self.subscreens.tick(running.as_deref())
+            })?;
+        }
+        Ok(())
     }
 
     /// Keep any name the player has just given. Costs one empty queue read a poll, and the

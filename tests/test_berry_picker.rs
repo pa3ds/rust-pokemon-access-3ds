@@ -315,6 +315,11 @@ impl berry_picker::Touching for Touched {
         self.given.push((picked.name.clone(), over.name.clone()));
         format!("let go on {}", over.name)
     }
+
+    /// Python's stand-in has none: Berry Picker's keys never tap.
+    fn tap(&mut self, _target: &Target) -> String {
+        unreachable!("Berry Picker's keys never tap")
+    }
 }
 
 struct Keys {

@@ -23,7 +23,9 @@
 //!   where descriptions are off;
 //! - `context(running)` and `press(action, running)`, a screen's own keys: the table of the keys
 //!   file they are in while it runs (`field.keys.DEFAULT_CONTEXTS`), and the line a key's action
-//!   says.
+//!   says;
+//! - `ticking(running)` and `tick()`, what it follows every tick rather than every screen poll:
+//!   Head It's balls, for its cue.
 //!
 //! A new one is built here and put in the tuples of what it answers, in the order it is asked in:
 //! touch mode names a picture by the first reader with a name for it, and offers targets in order.
@@ -56,13 +58,13 @@ use crate::core::rtti::ClassNames;
 use crate::core::speech::Category;
 use crate::games::common::layout::Layouts;
 use crate::games::common::pokemon;
-use crate::games::common::touch::{ImageOf, Target};
+use crate::games::common::touch::{ImageOf, Target, Tone};
 use crate::games::gen6::game::Game;
 use crate::games::gen6::rom::archives::GameText;
 use crate::py::{self, Result};
 use amie::{AmiePage, Goods, Puffs};
 use berry_picker::{BerryKeys, BerryPicker, Touching};
-use head_it::HeadIt;
+use head_it::{HeadIt, HeadItKeys};
 use puzzle::TilePuzzle;
 use super_training::{Bags, Goals, Round, TrainingPage, Waiting};
 
@@ -137,6 +139,37 @@ impl Keyed for RefCell<BerryKeys> {
         touch: &mut dyn Touching,
     ) -> Result<String> {
         self.borrow_mut().press(action, running, touch)
+    }
+}
+
+impl Keyed for HeadItKeys {
+    fn context(&self, running: Option<&str>) -> Option<&'static str> {
+        HeadItKeys::context(self, running)
+    }
+
+    fn press(
+        &self,
+        action: &str,
+        running: Option<&str>,
+        touch: &mut dyn Touching,
+    ) -> Result<String> {
+        HeadItKeys::press(self, action, running, touch)
+    }
+}
+
+/// A reader following something every tick rather than every screen poll.
+pub trait Ticked {
+    fn ticking(&self, running: Option<&str>) -> bool;
+    fn tick(&self) -> Result<()>;
+}
+
+impl Ticked for RefCell<HeadIt> {
+    fn ticking(&self, running: Option<&str>) -> bool {
+        self.borrow().ticking(running)
+    }
+
+    fn tick(&self) -> Result<()> {
+        self.borrow_mut().tick()
     }
 }
 
@@ -266,6 +299,7 @@ pub struct Subscreens {
     polled: Vec<Rc<dyn Polled>>,
     described: Vec<Rc<dyn Described>>,
     keyed: Vec<Rc<dyn Keyed>>,
+    ticked: Vec<Rc<dyn Ticked>>,
 }
 
 /// `yours`: a Pokémon of the player's by the nickname they gave it, or else as the game calls its
@@ -301,6 +335,7 @@ impl Subscreens {
         picked: Rc<dyn Fn(&str) -> String>,
         wrong: Rc<dyn Fn(&str) -> String>,
         describing: bool,
+        tone: Option<Tone>,
     ) -> Subscreens {
         // The Pokémon-Amie page draws its Pokémon's icon, and says nothing of whose; Amie itself is
         // stroked by a slide over it.
@@ -368,17 +403,21 @@ impl Subscreens {
             berry_picker.clone(),
             images,
             picked,
-            wrong,
+            wrong.clone(),
         )));
         // Its Head It drops balls of yarn at the party's Pokémon, and names neither the Pokémon nor
-        // which one each ball falls at.
+        // which one each ball falls at; a tone says when to tap, where the player asks for it.
         let head_it = Rc::new(RefCell::new(HeadIt::new(
             memory.clone(),
             names,
             layouts.clone(),
             image_of.clone(),
             short,
+            if settings.head_it_cue { tone } else { None },
+            Rc::new(py::time::monotonic),
         )));
+        // And its own keys, a Pokémon's, which tap it.
+        let head_keys = Rc::new(HeadItKeys::new(head_it.clone(), wrong));
         // A round says its score, clock and banners, and warns of a Bot's shot.
         let sparring = Rc::new(RefCell::new(Round::new(layouts, image_of, memory, None)));
         let tracked: Vec<Rc<dyn Tracked>> = vec![
@@ -401,9 +440,10 @@ impl Subscreens {
             named: vec![page.clone(), training, puffs, goods, puzzle.clone()],
             offering: vec![page, goals, berry_picker.clone(), head_it.clone()],
             pictured: vec![waiting, bags],
-            polled: vec![sparring, berry_picker.clone(), head_it],
+            polled: vec![sparring, berry_picker.clone(), head_it.clone()],
             described: vec![puzzle.clone()],
-            keyed: vec![berry_keys],
+            keyed: vec![berry_keys, head_keys],
+            ticked: vec![head_it],
             puzzle,
             berry_picker,
         }
@@ -490,6 +530,21 @@ impl Subscreens {
             said.extend(reader.poll(running)?);
         }
         Ok(said)
+    }
+
+    /// Whether a screen follows something every tick now (`tick`).
+    pub fn ticking(&self, running: Option<&str>) -> bool {
+        self.ticked.iter().any(|reader| reader.ticking(running))
+    }
+
+    /// Follow what each screen follows every tick: Head It's balls, for its cue.
+    pub fn tick(&self, running: Option<&str>) -> Result<()> {
+        for reader in &self.ticked {
+            if reader.ticking(running) {
+                reader.tick()?;
+            }
+        }
+        Ok(())
     }
 
     /// Whether touch mode's drag is made only as it is let go, straight from where it was

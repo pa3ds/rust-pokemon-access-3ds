@@ -330,6 +330,9 @@ berry-picker-no-pokemon = no Pokémon { $number }
 # its record cannot be read: "ball of yarn".
 head-it-ball = { $pokemon }
 head-it-ball-nobody = ball of yarn
+# Head It's own keys, where the game's error sound is off: a Pokémon's key, by its number left to
+# right, while no Pokémon stands there or no ball falls, "no Pokémon 3".
+head-it-no-pokemon = no Pokémon { $number }
 
 ## What pa3ds says of itself
 
@@ -418,6 +421,8 @@ setting-pa3ds-amie-berry_first = Berry Picker says the berry first
 setting-pa3ds-amie-berry_first-about = Say each Pokémon wanting a berry in the order you give it, the berry and then the Pokémon, "Pinap Berry for Pikachu"; false says the Pokémon first, "Pikachu wants Pinap Berry".
 setting-pa3ds-amie-one_at_a_time = Berry Picker says one Pokémon at a time
 setting-pa3ds-amie-one_at_a_time-about = Say one Pokémon wanting a berry at a time, and the next once you have given a berry or the one said has gone; false says each as it comes.
+setting-pa3ds-amie-head_it_cue = Head It sounds when to tap
+setting-pa3ds-amie-head_it_cue-about = In Head It, play a tone toward the Pokémon a ball falls at as the moment to tap it comes, a fifth of a second before the ball reaches it; it needs tones on.
 setting-pa3ds-extras-conditions = Contest conditions as numbers
 setting-pa3ds-extras-conditions-about = Say a Pokémon's contest conditions as numbers where the game draws them as a star, on the summary and in the Pokéblock Case: the star is shown to everyone but pa3ds cannot read it, so its numbers are all it can give, and they are more exact than the star.
 setting-pa3ds-extras-hidden_items = Hidden items

@@ -125,8 +125,11 @@ pub const BERRIES: [&str; 7] = [
 /// Berry Picker's three Pokémon, a key each, in the game's own order of them, in which each keeps
 /// its place all round wherever it pops up (spike 262): given the berry picked up.
 pub const POKEMON: [&str; 3] = ["first pokemon", "second pokemon", "third pokemon"];
+/// Head It's three Pokémon, a key each, by where each stands all round: tapped, to head the ball
+/// falling at it (Orion, 2026-10-31; `head_it.HeadItKeys`).
+pub const HEADERS: [&str; 3] = ["left pokemon", "middle pokemon", "right pokemon"];
 
-pub const EXPLAINED: [(&str, &str); 5] = [
+pub const EXPLAINED: [(&str, &str); 6] = [
     (
         ENEMY_SIDE,
         "The enemy's Pokémon are said in the order the battle places them. In a horde of five that \
@@ -152,6 +155,11 @@ pub const EXPLAINED: [(&str, &str); 5] = [
         POKEMON[0],
         "In Berry Picker, gives the berry picked up to one of the round's three Pokémon, in the \
          game's own order of them; with none picked up, says what it wants.",
+    ),
+    (
+        HEADERS[0],
+        "In Head It, taps the Pokémon standing on the left, in the middle or on the right, to head \
+         the ball falling at it.",
     ),
 ];
 
@@ -288,6 +296,8 @@ pub fn drag_keys(bindings: &Bindings) -> HashSet<String> {
 
 /// Pokémon-Amie's Berry Picker while it runs: `[pa3ds.amie.berry_picker]` in the keys file.
 pub const BERRY_PICKER: &str = "amie.berry_picker";
+/// Pokémon-Amie's Head It while it runs: `[pa3ds.amie.head_it]` in the keys file.
+pub const HEAD_IT: &str = "amie.head_it";
 
 /// Context -> key -> action: keys that mean something only while one screen runs, in every mode,
 /// and are taken from the emulator only then, so a key that is a button of Azahar's elsewhere stays
@@ -296,7 +306,8 @@ pub type Contexts = IndexMap<String, IndexMap<String, String>>;
 
 /// The number row in Berry Picker: 1 to 7 the berries, which no difficulty has more of, and 8, 9
 /// and 0 the Pokémon (Orion, 2026-10-29), for a player who would rather not walk to each with touch
-/// mode's keys, which still drag there as ever.
+/// mode's keys, which still drag there as ever. In Head It 8, 9 and 0 the Pokémon too, left to right
+/// (Orion, 2026-10-31), none of them a button of Azahar's as it ships.
 pub static DEFAULT_CONTEXTS: LazyLock<Contexts> = LazyLock::new(|| {
     let mut keys: IndexMap<String, String> = BERRIES
         .iter()
@@ -306,7 +317,17 @@ pub static DEFAULT_CONTEXTS: LazyLock<Contexts> = LazyLock::new(|| {
     keys.insert("8".to_string(), POKEMON[0].to_string());
     keys.insert("9".to_string(), POKEMON[1].to_string());
     keys.insert("0".to_string(), POKEMON[2].to_string());
-    IndexMap::from([(BERRY_PICKER.to_string(), keys)])
+    IndexMap::from([
+        (BERRY_PICKER.to_string(), keys),
+        (
+            HEAD_IT.to_string(),
+            IndexMap::from([
+                ("8".to_string(), HEADERS[0].to_string()),
+                ("9".to_string(), HEADERS[1].to_string()),
+                ("0".to_string(), HEADERS[2].to_string()),
+            ]),
+        ),
+    ])
 });
 
 /// The keys a context binds: those the hook takes while its screen runs.

@@ -123,6 +123,12 @@ second after its name to head the ball back, as the ball reaches it. Too early o
 miss. On Easy the Pokémon you play with stands alone in the middle at first, and two more come up
 beside it as the round goes on.
 
+Head It also has keys of its own, in any mode: `8`, `9` and `0` tap the Pokémon on the left, in
+the middle and on the right. A key where no Pokémon stands, or before the balls start, plays the
+game's error sound. As Azahar ships, none of the three is one of its buttons; outside Head It they
+are Azahar's as ever. With the `head_it_cue` setting on, a tone toward the Pokémon a ball falls
+at sounds as the moment to tap it comes.
+
 In a Super Training regimen, touch mode offers each goal the
 Balloon Bot puts up: the tap key's first press says the goal, and each press after that shoots at
 it, wherever it has moved. pa3ds says "shot coming" about a second before the bot's ball arrives:
@@ -264,7 +270,8 @@ its line: a line you delete is put back the next time pa3ds starts.
   as the `drag` setting says, and elsewhere says "nothing to drag".
 - `[pa3ds.amie.berry_picker]` holds Berry Picker's own keys, `"first berry"` to `"seventh berry"`
   and `"first pokemon"` to `"third pokemon"`. pa3ds takes them only while Berry Picker runs,
-  and there they win over the keys above.
+  and there they win over the keys above. `[pa3ds.amie.head_it]` holds Head It's,
+  `"left pokemon"`, `"middle pokemon"` and `"right pokemon"`, taken only while Head It runs.
 - `[azahar]` rebinds Azahar's own buttons, and `[azahar.circle_pad]` and `[azahar.c_stick]` its
   two sticks. Changes apply the next time pa3ds starts with Azahar closed.
 

@@ -561,11 +561,12 @@ impl BerryPicker {
     }
 }
 
-/// Touch mode as Berry Picker's keys ask it: the targets it offers, and a drag given
-/// (`TouchMode`, or a test's stand-in, as Python duck-types it).
+/// Touch mode as a screen's own keys ask it: the targets it offers, and a drag given, Berry
+/// Picker's, or a tap, Head It's (`TouchMode`, or a test's stand-in, as Python duck-types it).
 pub trait Touching {
     fn targets(&mut self) -> Result<Vec<Target>>;
     fn give(&mut self, picked: &Target, over: &Target) -> String;
+    fn tap(&mut self, target: &Target) -> String;
 }
 
 impl Touching for TouchMode {
@@ -575,6 +576,10 @@ impl Touching for TouchMode {
 
     fn give(&mut self, picked: &Target, over: &Target) -> String {
         TouchMode::give(self, picked, over)
+    }
+
+    fn tap(&mut self, target: &Target) -> String {
+        TouchMode::tap(self, target)
     }
 }
 

@@ -303,6 +303,9 @@ pub struct Amie {
     /// Berry Picker says one Pokémon wanting a berry at a time, the next once a berry has been
     /// given or the one said has gone: three said together took 1.5 s (Orion).
     pub one_at_a_time: bool,
+    /// Head It sounds a tone, toward the Pokémon a ball falls at, as the moment to tap it comes:
+    /// an aid, off as it ships (Orion, 2026-10-31).
+    pub head_it_cue: bool,
 }
 
 impl Default for Amie {
@@ -310,6 +313,7 @@ impl Default for Amie {
         Amie {
             berry_first: true,
             one_at_a_time: true,
+            head_it_cue: false,
         }
     }
 }
@@ -319,6 +323,7 @@ impl Table for Amie {
         vec![
             ("berry_first", Value::Bool(self.berry_first)),
             ("one_at_a_time", Value::Bool(self.one_at_a_time)),
+            ("head_it_cue", Value::Bool(self.head_it_cue)),
         ]
     }
 
@@ -326,6 +331,7 @@ impl Table for Amie {
         match (setting, value) {
             ("berry_first", Value::Bool(value)) => self.berry_first = value,
             ("one_at_a_time", Value::Bool(value)) => self.one_at_a_time = value,
+            ("head_it_cue", Value::Bool(value)) => self.head_it_cue = value,
             _ => {}
         }
     }

@@ -44,6 +44,7 @@ fn subscreens() -> Subscreens {
         Rc::new(|said: &str| said.to_string()),
         Rc::new(|said: &str| said.to_string()),
         false,
+        None,
     );
     found
         .track(&IndexMap::from([(PAGE, amie::CLASS.to_string())]), false)
@@ -113,6 +114,10 @@ impl Touching for Untouched {
     }
 
     fn give(&mut self, _picked: &Target, _over: &Target) -> String {
+        String::new()
+    }
+
+    fn tap(&mut self, _target: &Target) -> String {
         String::new()
     }
 }
