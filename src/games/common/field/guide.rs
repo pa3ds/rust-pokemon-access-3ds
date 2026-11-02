@@ -231,6 +231,15 @@ pub const OWN_SLOPE_WORD: &str = "slope";
 /// read.
 pub const OWN_HOP_WORD: &str = "bumpy slope";
 
+/// What a leg onto, along or off a rail is said with where the ROM's name for the Acro Bike cannot
+/// be read.
+pub const OWN_RAIL_WORD: &str = "rail";
+
+/// What a hop sideways from one of the Acro Bike's rails onto the next beside it is said with,
+/// "hop 3 south": B and the way pressed together, a press a hop (spike A). The game names no such
+/// thing.
+pub const HOP: &str = "hop";
+
 /// Degrees the camera may be turned off a way of Lumiose's streets and still be said to look
 /// along it. A tap of left or right leaves it 6 to 70 degrees round, and up then walks the player
 /// across the street at that angle; a hold settles it within a degree of the way the player was
@@ -723,7 +732,7 @@ fn walks(ground: &Ground, cell: Cell, step: Cell) -> Result<bool> {
     Ok(ground.passable(step)?
         && ground.ledge(step)?.is_none_or(|ledge| ledge == way)
         && ground.ledge(cell)?.is_none_or(|ledge| ledge == way)
-        && ground.joined(cell, step))
+        && ground.joined(cell, step)?)
 }
 
 /// The ways a big boulder is to be pushed, whose sides a way to it ends on: `push` where it
@@ -975,9 +984,9 @@ pub struct Guide {
     /// when there is no ROM to read it from.
     moves: IndexMap<i64, String>,
     /// The game's words a landform says its steps with (`Ground.words`): what a leg up a sandy
-    /// slope is said with, the game's name for the Mach Bike; and a hop up a bumpy slope, its name
-    /// for the Acro Bike, said on the bike too, since nothing read says which of the two the
-    /// player is riding.
+    /// slope is said with, the game's name for the Mach Bike; and a hop up a bumpy slope and a leg
+    /// along a rail, its name for the Acro Bike, said on the bike too, since nothing read says
+    /// which of the two the player is riding (spikes 159 and A).
     words: StepWords,
     /// Whether the field's walls are read, so P can find a way. Sun keeps its walls as
     /// meshes pa3ds does not read, and a way found without them would lead through them.
@@ -1048,9 +1057,13 @@ impl Guide {
                     Some(bike) if !bike.is_empty() => bike,
                     _ => OWN_SLOPE_WORD.to_string(),
                 },
-                acro: match acro {
-                    Some(acro) if !acro.is_empty() => acro,
+                acro: match &acro {
+                    Some(acro) if !acro.is_empty() => acro.clone(),
                     _ => OWN_HOP_WORD.to_string(),
+                },
+                rail: match acro {
+                    Some(acro) if !acro.is_empty() => acro,
+                    _ => OWN_RAIL_WORD.to_string(),
                 },
             },
             moves: own,
@@ -1963,7 +1976,7 @@ impl Guide {
         let mut found: Option<usize> = None;
         for (i, &cell) in cells.iter().enumerate() {
             if ground.stands(cell, floors[i])?
-                || (i > 0 && (!ground.joined(cells[i - 1], cell) || rode[i].is_none()))
+                || (i > 0 && (!ground.joined(cells[i - 1], cell)? || rode[i].is_none()))
             {
                 found = Some(i);
                 break;
@@ -2031,6 +2044,8 @@ impl Guide {
             Some(word(WATERFALL)?)
         } else if hm.water(step, None)? || hm.shore(step)? {
             Some(word(SURF)?)
+        } else if hm.on_rails(cell, step) {
+            Some(self.words.rail.clone())
         } else if hm.hopping(cell, step) {
             Some(self.words.acro.clone())
         } else if hm.climbs(cell, step)? {

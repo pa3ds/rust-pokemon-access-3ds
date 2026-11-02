@@ -105,12 +105,13 @@ pub fn pushes(
 }
 
 /// The game's own words a step can be said with, which the guide has: its moves by number, the
-/// Mach Bike and the Acro Bike.
+/// Mach Bike and the Acro Bike, up a bumpy slope and along a rail.
 #[derive(Debug, Clone, PartialEq)]
 pub struct StepWords {
     pub moves: IndexMap<i64, String>,
     pub bike: String,
     pub acro: String,
+    pub rail: String,
 }
 
 /// What a landform calls a step from a cell to the next on a floor, of its own ground, or None
@@ -320,6 +321,11 @@ pub struct Ground {
     /// The bumpy slopes, each with the way it is hopped up on the Acro Bike, from the cell before
     /// it to the cell after, as a ledge is jumped down: walls on foot (spike 159).
     pub hops: IndexMap<Cell, &'static str>,
+    /// The Acro Bike's rails, each cell with the way its beam runs, north or east (`BIKE_RAILS`):
+    /// walls on foot, and to a player on the bike or a ground with HMs ridden along, got onto and
+    /// off only in line with a beam, from and onto ground stood on, and hopped across from one
+    /// onto the next beside it (`joined`, `across`; spike A).
+    pub rails: IndexMap<Cell, &'static str>,
     /// The waterfalls, each cell with the way it is climbed: jumped over either way as the shore
     /// is, where the ground is one with HMs, and a wall to any other (`over`, spike 170).
     pub falls: IndexMap<Cell, &'static str>,
@@ -464,6 +470,7 @@ impl Default for Ground {
             cliffs: IndexSet::new(),
             ladders: IndexMap::new(),
             hops: IndexMap::new(),
+            rails: IndexMap::new(),
             falls: IndexMap::new(),
             doors: Vec::new(),
             ice: Vec::new(),
@@ -780,7 +787,8 @@ impl Ground {
             || self.rides.contains(&chunk.kind(cell)?)
             || self.walls.slides.contains_key(&cell)
             || self.grind_rails.cells.contains(&cell)
-            || (height.is_none() && self.vines.cells.contains(&cell)))
+            || (height.is_none() && self.vines.cells.contains(&cell))
+            || (self.rails.contains_key(&cell) && (self.bike || self.hm)))
             && (self.surf || !chunk.water(cell, ANY_FLOOR)?))
     }
 
@@ -1167,8 +1175,9 @@ impl Ground {
     }
 
     /// What a move from `cell` to `step` costs on top of its steps: going onto water,
-    /// through what a move clears, up a waterfall, or up a slope from the foot of it on foot,
-    /// where the player gets on the bike first, or into a Pokémon waiting to be ridden, faced and
+    /// through what a move clears, up a waterfall, or up a slope from the foot of it or onto a
+    /// rail on foot, where the player gets on the bike first, or into a Pokémon waiting to be
+    /// ridden, faced and
     /// got on with A (`mounts`), or into a thing it smashes, faced and smashed with A
     /// (`smashed`); through a big boulder or somebody of `crowd`, `SHOVE`; along a street a
     /// way it does not run, which the keys never walk and a way takes only where the cells laid
@@ -1198,7 +1207,11 @@ impl Ground {
         {
             return Ok(BOARD);
         }
-        if (!self.bike && self.hopping(cell, step)) || self.climbing(cell, step) {
+        if (!self.bike
+            && (self.hopping(cell, step)
+                || (self.rails.contains_key(&step) && !self.rails.contains_key(&cell))))
+            || self.climbing(cell, step)
+        {
             return Ok(BOARD);
         }
         Ok(
@@ -1493,12 +1506,58 @@ impl Ground {
     }
 
     /// Whether a step from `cell` to the cell beside it can be taken: not off a drop but
-    /// off a climbing wall's face onto its ledge, which only a climber takes (`Walls.hold`), and
-    /// into a big boulder only a way it moves (`shoves`).
-    pub fn joined(&self, cell: Cell, step: Cell) -> bool {
+    /// off a climbing wall's face onto its ledge, which only a climber takes (`Walls.hold`), into
+    /// a big boulder only a way it moves (`shoves`), and onto or off a rail only in line with its
+    /// beam, from or onto ground that is no water (`rails`).
+    pub fn joined(&self, cell: Cell, step: Cell) -> Result<bool> {
         let ways = self.shoves.get(&step);
-        (!self.cliffs.contains(&(cell, step)) || self.walls.sideways(cell, step))
-            && ways.is_none_or(|ways| ways.contains(pathfind::towards(cell, step)))
+        Ok(
+            (!self.cliffs.contains(&(cell, step)) || self.walls.sideways(cell, step))
+                && ways.is_none_or(|ways| ways.contains(pathfind::towards(cell, step)))
+                && (self.rails.is_empty() || self.railed(cell, step)?),
+        )
+    }
+
+    /// Whether a step between a rail and a cell beside it can be taken: between two rails
+    /// any way, along a beam or hopped across; onto or off one only along its beam, and never
+    /// from or onto the water, where the river runs under Route 119's (spike A).
+    fn railed(&self, cell: Cell, step: Cell) -> Result<bool> {
+        let (on, to) = (
+            self.rails.contains_key(&cell),
+            self.rails.contains_key(&step),
+        );
+        if on == to {
+            return Ok(true);
+        }
+        let (rail, other) = if on { (cell, step) } else { (step, cell) };
+        Ok(self.along(rail, other)? && !self.water(other, None)?)
+    }
+
+    /// Whether `other`, beside `rail`, lies along the way its beam runs, not across it.
+    fn along(&self, rail: Cell, other: Cell) -> Result<bool> {
+        let way = self
+            .rails
+            .get(&rail)
+            .ok_or_else(|| Error::key(format!("{rail:?}")))?;
+        Ok(if *way == pathfind::EAST {
+            rail.1 == other.1
+        } else {
+            rail.0 == other.0
+        })
+    }
+
+    /// Whether the move from `cell` to `step` is onto, along, across or off a rail.
+    pub fn on_rails(&self, cell: Cell, step: Cell) -> bool {
+        self.rails.contains_key(&cell) || self.rails.contains_key(&step)
+    }
+
+    /// Whether the move from `cell` to `step` hops sideways off one rail onto the next beside
+    /// it, B and the way pressed together: off the end of Route 119's beam at (107, 116) onto
+    /// each bar south of it, where down alone did nothing (spike A).
+    pub fn across(&self, cell: Cell, step: Cell) -> Result<bool> {
+        Ok(self.rails.contains_key(&cell)
+            && self.rails.contains_key(&step)
+            && !self.along(cell, step)?)
     }
 
     /// The cell's kind, as far as a loaded chunk or the ROM's says.
@@ -1663,7 +1722,7 @@ impl Ground {
         let r#box = self.r#box(start, goals.keys().copied())?;
         let ledge = |cell: Cell| self.ledge(cell);
         let toll = |cell: Cell, step: Cell| self.toll(cell, step);
-        let joined = |cell: Cell, step: Cell| Ok(self.joined(cell, step));
+        let joined = |cell: Cell, step: Cell| self.joined(cell, step);
         let over = |cell: Cell| self.over(cell);
         let ends: HashSet<Cell> =
             if item.is_some_and(|item| item.landing.is_some() || item.category == ARROWS) {
@@ -1743,7 +1802,7 @@ impl Ground {
             self.r#box(start, aims.iter().copied())?
         };
         let ledge = |cell: Cell| self.ledge(cell);
-        let joined = |cell: Cell, step: Cell| Ok(self.joined(cell, step));
+        let joined = |cell: Cell, step: Cell| self.joined(cell, step);
         let over = |cell: Cell| self.over(cell);
         let open = |cell: Cell| self.open(cell);
         // shortcut: an arrow among `aims` is an end for whatever it is an aim of, a thing beside

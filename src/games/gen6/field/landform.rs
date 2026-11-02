@@ -30,7 +30,7 @@ use crate::games::common::field::chunk::{
 use crate::games::common::field::climb::Walls;
 use crate::games::common::field::grind::GrindRails;
 use crate::games::common::field::ground::{Ground, STRENGTH, StepWords, WATERFALL};
-use crate::games::common::field::guide::{BELT, CURRENT as CURRENT_WORD, SLIDE};
+use crate::games::common::field::guide::{BELT, CURRENT as CURRENT_WORD, HOP, SLIDE};
 use crate::games::common::field::things::{
     ARROW_SOURCE, ARROWS, BIKE, BIKE_SOURCE, CLIMB_SOURCE, CLIMBING, CURRENT_SOURCE,
     CURRENTS_CATEGORY, DIVE_SOURCE, Field, Interactable, OBSTACLES, RIDE_SOURCE, RIDING,
@@ -252,14 +252,14 @@ pub fn patches(found: &IndexMap<Cell, i64>) -> Vec<Vec<Cell>> {
     let mut left: BTreeSet<Cell> = found.keys().copied().collect();
     while let Some(&first) = left.iter().next() {
         left.remove(&first);
-        let railed = BIKE_RAILS.contains(&found[&first]);
+        let railed = in_rails(found[&first]);
         let mut patch = vec![first];
         let mut todo = vec![first];
         while let Some(cell) = todo.pop() {
             for near in beside(cell) {
                 if left.contains(&near)
                     && if railed {
-                        BIKE_RAILS.contains(&found[&near])
+                        in_rails(found[&near])
                     } else {
                         found[&near] == found[&first]
                     }
@@ -280,21 +280,37 @@ fn in_slopes(kind: i64) -> bool {
     SLOPES.iter().any(|&(known, _)| known == kind)
 }
 
+/// `BIKE_RAILS.get(kind)`, the way a rail of the kind runs.
+fn rail_way(kind: i64) -> Option<&'static str> {
+    BIKE_RAILS
+        .iter()
+        .find(|&&(known, _)| known == kind)
+        .map(|&(_, way)| way)
+}
+
+/// `in BIKE_RAILS`, the kinds of the Acro Bike's rails.
+fn in_rails(kind: i64) -> bool {
+    rail_way(kind).is_some()
+}
+
 /// The ground the bikes cross and walking does not: the Mach Bike's slopes, each patch of one kind
-/// a thing; the Acro Bike's rails, each end where the player gets on one; and its bumpy slopes,
-/// each hopped up from the cell before it to the cell after, as a ledge is jumped down
-/// (`Ground.hops`, spike 159). Listed under bike.
+/// a thing; the Acro Bike's rails, each end where the player gets on one, ridden along and hopped
+/// across (`Ground.rails`, spike A); and its bumpy slopes, each hopped up from the cell before it
+/// to the cell after, as a ledge is jumped down (`Ground.hops`, spike 159). Listed under bike.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Bike;
 
-/// What `Bike` finds: its things, and the bumpy slopes' ways up.
-type BikeFound = (Vec<Interactable>, IndexMap<Cell, &'static str>);
+/// What `Bike` finds: its things, the bumpy slopes' ways up, and the rails' ways.
+type BikeFound = (
+    Vec<Interactable>,
+    IndexMap<Cell, &'static str>,
+    IndexMap<Cell, &'static str>,
+);
 
 impl Landform for Bike {
     fn found(&self, matrix: &Matrix) -> Result<Found> {
-        let kinds = matrix.cells(&|kind| {
-            in_slopes(kind) || BIKE_RAILS.contains(&kind) || BUMPY_SLOPES.contains(&kind)
-        })?;
+        let kinds = matrix
+            .cells(&|kind| in_slopes(kind) || in_rails(kind) || BUMPY_SLOPES.contains(&kind))?;
         let mut out: Vec<Interactable> = Vec::new();
         for patch in patches(&kinds) {
             if BUMPY_SLOPES.contains(&kinds[&patch[0]]) {
@@ -335,7 +351,11 @@ impl Landform for Bike {
                 }
             }
         }
-        let found: BikeFound = (out, matrix.terrain.rises(&BUMPY_SLOPES)?);
+        let rails: IndexMap<Cell, &'static str> = kinds
+            .iter()
+            .filter_map(|(&cell, &kind)| rail_way(kind).map(|way| (cell, way)))
+            .collect();
+        let found: BikeFound = (out, matrix.terrain.rises(&BUMPY_SLOPES)?, rails);
         Ok(Rc::new(found))
     }
 
@@ -344,12 +364,16 @@ impl Landform for Bike {
     }
 
     fn laid(&self, found: &Found, ground: Ground, _here: &Here) -> Result<Ground> {
+        let found = found_as::<BikeFound>(found);
         Ok(Ground {
-            hops: found_as::<BikeFound>(found).1.clone(),
+            hops: found.1.clone(),
+            rails: found.2.clone(),
             ..ground
         })
     }
 
+    /// A hop across from rail to rail is "hop 3 south", and the legs onto, along and off
+    /// a rail are said with the Acro Bike, as a hop up a bumpy slope is: "Acro Bike 9 east".
     fn word(
         &self,
         ground: &Ground,
@@ -358,6 +382,12 @@ impl Landform for Bike {
         _floor: i64,
         words: &StepWords,
     ) -> Result<Option<String>> {
+        if ground.across(cell, step)? {
+            return Ok(Some(HOP.to_string()));
+        }
+        if ground.on_rails(cell, step) {
+            return Ok(Some(words.rail.clone()));
+        }
         if ground.hopping(cell, step) {
             return Ok(Some(words.acro.clone()));
         }

@@ -58,6 +58,8 @@ const SOUTH_LEDGE: i64 = 0x75020021;
 /// Jagged Pass's bumpy slopes, hopped up on the Acro Bike (omega_ruby_bike-jagged2.ctm,
 /// spike 159).
 const BUMPY: i64 = 0x6F000021;
+/// Route 119's rails by the way each beam runs, walled (spikes 159 and A).
+const RAILS: [(&str, i64); 2] = [(pathfind::EAST, 0x6E000021), (pathfind::NORTH, 0x6D000021)];
 /// Route 109's sea (omega_ruby_surf.ctm, spike 136).
 const SEA: i64 = 0x3D1A0006;
 /// Route 122's strip of shore, jumped over getting on the water and off (spike 162).
@@ -133,6 +135,8 @@ struct FakeField {
     slopes: HashSet<Cell>,
     /// Cells of the Acro Bike's bumpy slopes, each hopped up north.
     bumpy: RefCell<HashSet<Cell>>,
+    /// Cells of the Acro Bike's rails, each with the way its beam runs, north or east.
+    rails: RefCell<IndexMap<Cell, &'static str>>,
     shore: RefCell<HashSet<Cell>>,
     /// Cells of a waterfall, each climbed north.
     falls: RefCell<HashSet<Cell>>,
@@ -192,6 +196,7 @@ impl FakeField {
             sea: sea.iter().copied().collect(),
             slopes: slopes.iter().copied().collect(),
             bumpy: RefCell::new(HashSet::new()),
+            rails: RefCell::new(IndexMap::new()),
             shore: RefCell::new(HashSet::new()),
             falls: RefCell::new(HashSet::new()),
             currents: RefCell::new(HashSet::new()),
@@ -255,6 +260,7 @@ impl FieldSource for FakeField {
             .collect();
         let blocked = self.blocked.borrow();
         let bumpy = self.bumpy.borrow();
+        let rails = self.rails.borrow();
         let shore = self.shore.borrow();
         let falls = self.falls.borrow();
         let arrows = self.arrows.borrow();
@@ -278,6 +284,12 @@ impl FieldSource for FakeField {
                     SOUTH_SLOPE
                 } else if bumpy.contains(cell) {
                     BUMPY
+                } else if let Some(way) = rails.get(cell) {
+                    RAILS
+                        .iter()
+                        .find(|(runs, _)| runs == way)
+                        .map(|&(_, word)| word)
+                        .expect("a beam runs north or east")
                 } else if shore.contains(cell) {
                     SHORE
                 } else if falls.contains(cell) {
@@ -366,6 +378,7 @@ impl FieldSource for FakeField {
             .iter()
             .map(|&cell| (cell, pathfind::NORTH))
             .collect::<IndexMap<_, _>>();
+        ground.rails = rails.clone();
         ground.falls = falls
             .iter()
             .map(|&cell| (cell, pathfind::NORTH))
@@ -3621,6 +3634,102 @@ fn test_shift_p_hops_up_a_bumpy_slope_and_says_the_bike() {
     assert!(!way.contains(&(95, 170)));
     rig.press_key("shift+p");
     assert_eq!(last(&rig.backend), "4 north, bumpy slope 2 north, 8 north");
+}
+
+/// Route 119's top (or_acro_bike_pathfinding, spike A): a beam running east, two bars lying east
+/// and west stepping south from its end, and another beam running on east, river either side.
+///
+/// Python's `RAILED`; `railed` is the navigator on them.
+fn railed_beams() -> IndexMap<Cell, &'static str> {
+    let mut out: IndexMap<Cell, &'static str> =
+        (98..107).map(|x| ((x, 175), pathfind::EAST)).collect();
+    out.insert((106, 176), pathfind::EAST);
+    out.insert((106, 177), pathfind::EAST);
+    out.extend((106..112).map(|x| ((x, 178), pathfind::EAST)));
+    out
+}
+
+fn river() -> HashSet<Cell> {
+    (99..106)
+        .chain(107..111)
+        .flat_map(|x| [176, 177].map(|z| (x, z)))
+        .collect()
+}
+
+fn banks() -> HashSet<Cell> {
+    (90..98)
+        .map(|x| (x, 175))
+        .chain((112..119).map(|x| (x, 178)))
+        .collect()
+}
+
+fn keeper() -> Interactable {
+    Interactable {
+        source: 0x08D1E9A8,
+        ..Interactable::new("people", "person", (117, 178))
+    }
+}
+
+/// A navigator on the rails of `RAILED`, the player at `cell`, the Bird Keeper past them.
+fn railed(cell: Cell, on_bike: bool) -> Rig {
+    let banks = banks();
+    let chunk: Vec<Cell> = (80..120)
+        .flat_map(|x| (160..200).map(move |z| (x, z)))
+        .filter(|cell| !banks.contains(cell))
+        .collect();
+    let rig = navigator(Want {
+        blocked: chunk,
+        sea: river().into_iter().collect(),
+        ..on(Field {
+            interactables: vec![keeper()],
+            on_bike,
+            ..Field::new(street().zone, cell)
+        })
+    });
+    *rig.field.rails.borrow_mut() = railed_beams();
+    rig
+}
+
+/// Spike A: on Route 119's top the player rode east along a beam, and at its end down alone
+/// did nothing; B and down together hopped them across each bar south of it onto the next beam,
+/// which they rode east and off. Walled in the cell table, the rails were no way at all.
+#[test]
+fn test_p_on_the_acro_bike_rides_a_rail_and_hops_across_its_bars() {
+    let mut rig = railed((95, 175), true);
+    rig.press(PATHFIND);
+    assert_eq!(
+        last(&rig.backend),
+        "2 east, rail 9 east, hop 3 south, rail 6 east, 5 east"
+    );
+}
+
+/// Spike A: stopped on a rail, P said "no path to" everything listed, the rail's cells being
+/// walls, and the player on one boxed in by them.
+#[test]
+fn test_p_from_a_rail_finds_the_way_on() {
+    let mut rig = railed((102, 175), true);
+    rig.press(PATHFIND);
+    assert_eq!(
+        last(&rig.backend),
+        "rail 4 east, hop 3 south, rail 6 east, 5 east"
+    );
+}
+
+/// Spike A: P to the Bird Keeper on Route 119's top said "then can't continue" with nothing of
+/// what it needed. Shift and P takes the rails as it takes a bumpy slope, never off a bar into the
+/// river either side of it.
+#[test]
+fn test_on_foot_p_says_the_rail_needs_the_acro_bike_and_shift_p_rides_it() {
+    let mut rig = railed((95, 175), false);
+    rig.press(PATHFIND);
+    rig.press_key("shift+p");
+    assert_eq!(
+        tail(&rig.backend, 2),
+        [
+            "2 east, then can't continue, requires rail",
+            "2 east, rail 9 east, hop 3 south, rail 6 east, 5 east"
+        ]
+    );
 }
 
 /// A wall across the chunk, its one gap at (95, 177) with a bush or a rock in it.

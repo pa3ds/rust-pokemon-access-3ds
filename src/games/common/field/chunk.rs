@@ -160,13 +160,17 @@ pub const ICE: i64 = 0x91;
 /// too (spike 159, 2026-10-03). Read off the map, not seen hopped.
 pub const BUMPY_SLOPES: [i64; 1] = [0x6F];
 
-/// The Acro Bike's rails, by their kinds, not Lumiose's (`gen6.field.rail`): walled to the player, and
-/// crossed only on the Acro Bike, hopping from rail to rail. Both are only in Route 119's map
-/// files, the Safari Zone's, which has rails too, and one other, and on Route 119 each runs in a
-/// line from open ground to open ground: 0x6e at (107, 219) to (114, 219), (114, 222) and (121,
-/// 222), beside the path north up the route, and 0x6d up and down the lines of 0x6e in the route's
-/// top (spike 159). Read off the map, not seen ridden.
-pub const BIKE_RAILS: [i64; 2] = [0x6D, 0x6E];
+/// The Acro Bike's rails, by their kinds, not Lumiose's (`gen6.field.rail`), each with the way its
+/// beam runs, north and south or east and west: walled to the player, and crossed only on the Acro
+/// Bike. Both are only in Route 119's map files, the Safari Zone's, which has rails too, and one
+/// other (spike 159). On Route 119's top a beam of `0x6e` runs east from open ground at (98, 116) to
+/// (107, 116), and south of its end two short bars of it at (107, 117) and (107, 118), each lying
+/// east and west, step down to another beam running east from (107, 119) to open ground at (113,
+/// 119). The player rode east onto the first and along it, held right at its end and stopped, and
+/// down alone did nothing; B and down together hopped them a bar at a time onto the lower beam, and
+/// right rode it east and off (or_acro_bike_pathfinding, spike A). `0x6d` runs down x 86 and x 88
+/// there, joined by a bar at (87, 108): north and south by symmetry, not seen ridden.
+pub const BIKE_RAILS: [(i64, &str); 2] = [(0x6D, NORTH), (0x6E, EAST)];
 
 /// `table.get(kind)`, for a table in the order its Python dict was written in.
 fn way_of(table: &[(i64, &'static str)], kind: i64) -> Option<&'static str> {

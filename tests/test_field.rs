@@ -2833,9 +2833,9 @@ fn test_a_drop_is_not_walked_off_but_by_its_ladder() -> Result<()> {
     town.memory
         .u32(HOLDER + 8, &[0x11 | (data.len() as i64) << 8]);
     let ground = town.reader.ground(&town.r#where()?)?;
-    assert!(!ground.joined((94, 170), (94, 171)) && !ground.joined((94, 171), (94, 170)));
-    assert!(ground.joined((95, 170), (95, 171)) && ground.joined((95, 171), (95, 170)));
-    assert!(ground.joined((94, 170), (95, 170)));
+    assert!(!ground.joined((94, 170), (94, 171))? && !ground.joined((94, 171), (94, 170))?);
+    assert!(ground.joined((95, 170), (95, 171))? && ground.joined((95, 171), (95, 170))?);
+    assert!(ground.joined((94, 170), (95, 170))?);
     Ok(())
 }
 
@@ -4274,8 +4274,8 @@ fn test_a_ramps_side_is_never_stepped_across_on_foot() -> Result<()> {
         },
     );
     let ground = town.reader.ground(&town.r#where()?)?;
-    assert!(!ground.joined((94, 175), (95, 175)) && !ground.joined((95, 175), (94, 175)));
-    assert!(ground.joined((94, 175), (93, 175)) && ground.joined((94, 175), (94, 176)));
+    assert!(!ground.joined((94, 175), (95, 175))? && !ground.joined((95, 175), (94, 175))?);
+    assert!(ground.joined((94, 175), (93, 175))? && ground.joined((94, 175), (94, 176))?);
     Ok(())
 }
 
