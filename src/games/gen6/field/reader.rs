@@ -245,6 +245,9 @@ type FoundKey = (i64, Rc<Vec<i64>>, Vec<(i64, i64)>, Option<Grid>);
 /// cells of the zone's warps, and the records' indices of its gates.
 type StandIns = (IndexMap<i64, i64>, HashSet<Cell>, HashSet<i64>);
 
+/// `_twins`: each NPC record of a place in parts an earlier part keeps too -> that part's.
+type Twins = HashMap<(i64, i64), (i64, i64)>;
+
 /// Tracks the player's model and the current zone's data, and lists what is on the map.
 ///
 /// Every holder shares the one reader, so it is made in an `Rc` (`FieldReader::new`) and its
@@ -341,6 +344,7 @@ pub struct FieldReader {
     /// Each zone of a place in parts, with every zone of its place, and its zone data out of
     /// the ROM, its things listed from the other parts (ADR-0042).
     part_data: IndexMap<i64, Vec<u8>>,
+    twins_of: RefCell<HashMap<Vec<i64>, Rc<Twins>>>,
     /// Where the game keeps the sprite a move model is drawn with (`mmodel.drawn_as`).
     drawn: i64,
     /// Where the game's things' and Pokémon's models start (`Game.models`).
@@ -550,6 +554,7 @@ impl FieldReader {
             outdoors: text.outdoors.clone(),
             parts: text.parts.clone(),
             part_data: text.part_data.clone(),
+            twins_of: RefCell::new(HashMap::new()),
             drawn: game.drawn,
             model_starts: game.models,
             form: game.form,
@@ -2539,15 +2544,35 @@ impl FieldReader {
     /// once the player left the way in the next quarter (or_safari_zone_multizone_pathfinding).
     /// Each other part's furniture, warps and NPC records out of the ROM (`part_records`), its
     /// landforms, its features, and its edges into other places; and each part one way in, with
-    /// every gap into it from any part of the place, at the nearest of them.
+    /// every gap into it from any part of the place, at the nearest of them. A record two parts
+    /// keep is one thing, told by the first part's (`twins`).
+    ///
+    /// Python's `people` is no longer read here.
     fn with_other_parts(
         &self,
         r#where: &Field,
         parts: &[i64],
         items: Vec<Interactable>,
-        people: &[Interactable],
+        _people: &[Interactable],
     ) -> Result<Vec<Interactable>> {
-        let live: HashSet<(i64, i64)> = people.iter().filter_map(|item| item.record).collect();
+        let twins = self.twins(parts)?;
+        let items: Vec<Interactable> = items
+            .into_iter()
+            .map(
+                |item| match item.record.and_then(|record| twins.get(&record)) {
+                    Some(&one) if item.move_model => Interactable {
+                        record: Some(one),
+                        ..item
+                    },
+                    _ => item,
+                },
+            )
+            .collect();
+        let mut live: HashSet<(i64, i64)> = items
+            .iter()
+            .filter(|item| item.move_model)
+            .filter_map(|item| item.record)
+            .collect();
         let mut gaps: IndexMap<i64, HashSet<Cell>> = IndexMap::new();
         let mut out: Vec<Interactable> = items
             .into_iter()
@@ -2568,7 +2593,7 @@ impl FieldReader {
             if part == r#where.zone {
                 continue;
             }
-            out.extend(self.part_records(part, &live)?);
+            out.extend(self.part_records(part, &mut live, &twins)?);
             let there = Field {
                 zone: part,
                 ..r#where.clone()
@@ -2604,9 +2629,15 @@ impl FieldReader {
     }
 
     /// Another part's furniture, warps and NPC records out of its zone data in the ROM, each
-    /// as its zone's own are listed: an NPC record whose model is built already, `live`, is
-    /// listed as the model.
-    fn part_records(&self, zone: i64, live: &HashSet<(i64, i64)>) -> Result<Vec<Interactable>> {
+    /// as its zone's own are listed: an NPC record whose model is built already, or listed
+    /// already, `live`, which it adds to, is listed as that, and one another part keeps too as
+    /// that part's (`twins`).
+    fn part_records(
+        &self,
+        zone: i64,
+        live: &mut HashSet<(i64, i64)>,
+        twins: &Twins,
+    ) -> Result<Vec<Interactable>> {
         let Some(data) = self.part_data.get(&zone) else {
             return Ok(Vec::new());
         };
@@ -2644,12 +2675,57 @@ impl FieldReader {
         }
         out.extend(exits(found_exits, &|zone| self.zones.place_of(zone))?);
         for record in read_records(&memory, &found, NPC)? {
-            if !live.contains(&(zone, u16(&record, NPC_INDEX)?))
+            let here = (zone, u16(&record, NPC_INDEX)?);
+            let one = twins.get(&here).copied().unwrap_or(here);
+            if !live.contains(&one)
                 && let Some(item) = self.record_item(zone, &record)?
             {
-                out.push(item);
+                live.insert(one);
+                out.push(Interactable {
+                    record: Some(one),
+                    ..item
+                });
             }
         }
+        Ok(out)
+    }
+
+    /// Each NPC record of a place in parts that an earlier part keeps too, the same sprite and
+    /// script on the same cell, -> that part's: one thing. The Safari Zone's two southern
+    /// quarters both keep the item ball at (244, 217), its record 3 in each and the one flag,
+    /// so that whichever is loaded shows it, and it was listed twice.
+    fn twins(&self, parts: &[i64]) -> Result<Rc<Twins>> {
+        if let Some(known) = self.twins_of.borrow().get(parts) {
+            return Ok(known.clone());
+        }
+        let mut first: HashMap<(i64, i64, i64, i64), (i64, i64)> = HashMap::new();
+        let mut out: Twins = HashMap::new();
+        for &zone in parts {
+            let Some(data) = self.part_data.get(&zone) else {
+                continue;
+            };
+            let memory = Bytes(data);
+            let Some(found) = read_zone(&memory, 0)? else {
+                continue;
+            };
+            for record in read_records(&memory, &found, NPC)? {
+                let here = (zone, u16(&record, NPC_INDEX)?);
+                let same = (
+                    u16(&record, NPC_X)?,
+                    u16(&record, NPC_Z)?,
+                    u16(&record, NPC_SPRITE)?,
+                    u16(&record, NPC_SCRIPT)?,
+                );
+                let one = *first.entry(same).or_insert(here);
+                if one != here {
+                    out.insert(here, one);
+                }
+            }
+        }
+        let out = Rc::new(out);
+        self.twins_of
+            .borrow_mut()
+            .insert(parts.to_vec(), out.clone());
         Ok(out)
     }
 

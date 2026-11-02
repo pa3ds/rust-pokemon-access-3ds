@@ -1795,6 +1795,79 @@ fn test_a_place_in_parts_lists_the_other_parts_things_out_of_the_rom() -> Result
     Ok(())
 }
 
+/// ADR-0042: the Safari Zone's two southern quarters both keep the item ball at (244, 217),
+/// record 3 in each with one flag, so that whichever is loaded shows it, and it was listed twice
+/// (or_safari_zone). It is one thing, told by the first part's record whichever part's model the
+/// game has built, so guiding keeps it from one part into the other. Here the route keeps the
+/// town's ball, record 1 there and 0 here.
+#[test]
+fn test_a_record_two_parts_keep_is_one_thing_told_by_the_first_parts_record() -> Result<()> {
+    let ball = (mmodel::ITEM_BALL, 100, 180, 0x51A, None);
+    let town_records = zone_file(&ZoneSpec {
+        npcs: &[
+            (0x119, 91, 175, 0x227, None),
+            ball,
+            (PROP_MODEL + 0x4E, 110, 170, 0x205, None),
+        ],
+        ..ZoneSpec::default()
+    });
+    let mut town = Town::new();
+    let order = vec![ROUTE, TOWN];
+    town.reader = field_reader(
+        town.memory.clone(),
+        Given {
+            parts: IndexMap::from([(ROUTE, order.clone()), (TOWN, order.clone())]),
+            part_data: IndexMap::from([
+                (
+                    ROUTE,
+                    zone_file(&ZoneSpec {
+                        npcs: &[ball],
+                        ..ZoneSpec::default()
+                    }),
+                ),
+                (TOWN, town_records),
+            ]),
+            ..Given::default()
+        },
+        Game {
+            hidden: Some(dex_nav),
+            ..game()
+        },
+    );
+    town.memory.u16(TABLE + ROUTE * INFO_SIZE + INFO_NAME, 170);
+    town.reader.track(&Found {
+        pages: IndexMap::new(),
+        heap: IndexMap::from([(EVENT_WORK, EVENT_CLASS.to_string())]),
+        partial: false,
+    })?;
+    town.memory.write(EVENT_WORK + FLAGS + 0x51A / 8, &[0]);
+
+    let balls = |town: &Town| -> Result<Vec<(String, String, i64, Option<i64>)>> {
+        Ok(town
+            .r#where()?
+            .interactables
+            .iter()
+            .filter(|item| item.cell == (100, 180))
+            .map(|item| item.key())
+            .collect())
+    };
+
+    let built = balls(&town)?;
+    assert_eq!(
+        built,
+        [(
+            "items".to_string(),
+            "item ball".to_string(),
+            (ROUTE << 16) << 32,
+            None
+        )]
+    );
+    // Out of the town's part, where the game has built neither, the route's record says it.
+    town.memory.u32(POOL + 2 * MODEL_STRIDE, &[town.vtable, 0]);
+    assert_eq!(balls(&town)?, built);
+    Ok(())
+}
+
 #[test]
 fn test_a_border_with_no_chunk_loaded_is_listed_whole() -> Result<()> {
     assert_eq!(
