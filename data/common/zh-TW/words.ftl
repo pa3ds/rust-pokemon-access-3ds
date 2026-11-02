@@ -352,6 +352,7 @@ kind-vine-up = 向上的藤蔓
 kind-vine-down = 向下的藤蔓
 kind-swinging-vine = 可盪的藤蔓
 kind-gym-leader-spot = 道館館主的位置
+kind-machine = 裝置
 kind-slope = 斜坡
 kind-bumpy-slope = 崎嶇斜坡
 kind-rail = 軌道

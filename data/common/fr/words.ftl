@@ -354,6 +354,7 @@ kind-vine-up = liane vers le haut
 kind-vine-down = liane vers le bas
 kind-swinging-vine = liane à balancer
 kind-gym-leader-spot = place du champion d'arène
+kind-machine = machine
 kind-slope = pente
 kind-bumpy-slope = pente cahoteuse
 kind-rail = rail

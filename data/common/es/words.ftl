@@ -354,6 +354,7 @@ kind-vine-up = liana hacia arriba
 kind-vine-down = liana hacia abajo
 kind-swinging-vine = liana para balancearse
 kind-gym-leader-spot = lugar del líder de gimnasio
+kind-machine = máquina
 kind-slope = pendiente
 kind-bumpy-slope = pendiente escarpada
 kind-rail = raíl

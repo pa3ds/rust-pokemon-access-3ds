@@ -465,6 +465,13 @@ pub const SHALOUR_GYM: i64 = 0xAF;
 /// then (spike 247).
 pub const KORRINA: i64 = 0x7;
 
+pub const LEGEND_ROOM: i64 = 0x155;
+/// The script of the Team Flare Secret HQ's deepest room's trigger, (37..41, 38), 5 wide and 1
+/// deep, work 0x40ca: where the Legendary Pokémon's scene starts as the player walks up to the
+/// machine. Its model at (39, 32) stands inside the machine's walls, so it is never listed
+/// (y_legend_wakening_boss, 2026-10-31).
+pub const LEGEND_MACHINE: i64 = 0x6;
+
 pub const COUMARINE_GYM: i64 = 0xBF;
 /// The script of Coumarine Gym's one trigger, on its top level's east street at 720 by (65,
 /// 73.7): walked onto east, it drops the player to the ground at (63.6, 73.8), as it did twice in
@@ -767,6 +774,10 @@ pub fn game() -> &'static Game {
             (
                 (SHALOUR_GYM, KORRINA),
                 ("signs".to_string(), "gym leader spot".to_string(), None),
+            ),
+            (
+                (LEGEND_ROOM, LEGEND_MACHINE),
+                ("signs".to_string(), "machine".to_string(), None),
             ),
             (
                 (COUMARINE_GYM, WAY_DOWN),

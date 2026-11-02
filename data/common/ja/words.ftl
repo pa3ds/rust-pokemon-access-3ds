@@ -352,6 +352,7 @@ kind-vine-up = 上りのつる
 kind-vine-down = 下りのつる
 kind-swinging-vine = スイングするつる
 kind-gym-leader-spot = ジムリーダーの場所
+kind-machine = 装置
 kind-slope = 坂
 kind-bumpy-slope = でこぼこの坂
 kind-rail = レール

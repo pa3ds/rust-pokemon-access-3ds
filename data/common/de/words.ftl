@@ -354,6 +354,7 @@ kind-vine-up = Ranke hoch
 kind-vine-down = Ranke runter
 kind-swinging-vine = Schwingranke
 kind-gym-leader-spot = Platz des Arenaleiters
+kind-machine = Maschine
 kind-slope = Hang
 kind-bumpy-slope = holpriger Hang
 kind-rail = Schiene

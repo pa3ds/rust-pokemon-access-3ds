@@ -520,6 +520,9 @@ kind-vine-down = vine down
 kind-swinging-vine = swinging vine
 # Where Shalour Gym's leader comes out to meet the player, at the centre's edges (spike 247).
 kind-gym-leader-spot = gym leader's spot
+# The machine in the Team Flare Secret HQ's deepest room that holds the Legendary Pokémon,
+# listed where the player walks up to it.
+kind-machine = machine
 kind-slope = slope
 kind-bumpy-slope = bumpy slope
 kind-rail = rail

@@ -354,6 +354,7 @@ kind-vine-up = liana in su
 kind-vine-down = liana in giù
 kind-swinging-vine = liana oscillante
 kind-gym-leader-spot = posto del capopalestra
+kind-machine = macchina
 kind-slope = pendio
 kind-bumpy-slope = pendio accidentato
 kind-rail = binario

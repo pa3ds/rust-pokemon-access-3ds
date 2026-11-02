@@ -353,6 +353,7 @@ kind-vine-up = 오르는 덩굴
 kind-vine-down = 내려가는 덩굴
 kind-swinging-vine = 건너는 덩굴
 kind-gym-leader-spot = 체육관 관장 자리
+kind-machine = 장치
 kind-slope = 비탈
 kind-bumpy-slope = 울퉁불퉁한 비탈
 kind-rail = 레일
