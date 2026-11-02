@@ -46,7 +46,7 @@ use crate::core::keyfile;
 use crate::core::toml;
 use crate::core::touch;
 use crate::core::words::own;
-use crate::py::{self, Error, Result};
+use crate::py::{self, Result};
 
 pub const FILE_NAME: &str = "config.toml";
 pub const EMULATOR_SECTION: &str = "azahar";
@@ -938,21 +938,31 @@ pub fn prepare(
         general.poll_rate = rate;
     }
     let ui: Ui = table(&toml::table(ours.get("ui")), "pa3ds.ui", &path, &mut notes);
-    let audio: Audio = table(
+    let mut audio: Audio = table(
         &toml::table(ours.get("audio")),
         "pa3ds.audio",
         &path,
         &mut notes,
     );
-    if audio.tones < 0.0 || audio.footsteps < 0.0 || audio.ticks < 0.0 {
+    let volumes = [
+        audio.tones,
+        audio.footsteps,
+        audio.ticks,
+        audio.feedback_sounds,
+    ];
+    if volumes.iter().any(|&each| each < 0.0) {
         notes.push(format!(
             "{}: [pa3ds.audio] cannot be below 0, playing at its default",
             py::path_str(&path)
         ));
-        // The Python zips the three with `dataclasses.astuple(Audio())`, strict, and since
-        // `drag_sounds`, now `feedback_sounds`, that has four: it raises here (an upstream bug,
-        // ported as it is).
-        return Err(Error::value("zip() argument 2 is longer than argument 1"));
+        let default = Audio::default();
+        let or_default = |each: f64, default: f64| if each >= 0.0 { each } else { default };
+        audio = Audio {
+            tones: or_default(audio.tones, default.tones),
+            footsteps: or_default(audio.footsteps, default.footsteps),
+            ticks: or_default(audio.ticks, default.ticks),
+            feedback_sounds: or_default(audio.feedback_sounds, default.feedback_sounds),
+        };
     }
     let navigation: Navigation = table(
         &toml::table(ours.get("navigation")),

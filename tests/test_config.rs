@@ -266,6 +266,36 @@ fn test_the_tones_turned_off_stay_off_as_they_move_to_the_audio_table() {
     );
 }
 
+/// Issue 22: `Audio` gained a fourth volume, and a negative one raised `ValueError`.
+#[test]
+fn test_a_volume_below_0_plays_at_its_default() {
+    let tmp_path = TmpPath::new();
+    let home = tmp_path.join("home");
+    fs::create_dir(&home).unwrap();
+    fs::write(
+        home.join("config.toml"),
+        "[pa3ds.audio]\ntones = -1\nfootsteps = 0.5\nfeedback_sounds = -2\n",
+    )
+    .unwrap();
+    let settings =
+        config::prepare(Some(&home), Some(&tmp_path.join("none.ini")), true, false).unwrap();
+    assert_eq!(
+        settings.tables.audio,
+        config::Audio {
+            tones: 1.0,
+            footsteps: 0.5,
+            feedback_sounds: 1.0,
+            ..Default::default()
+        }
+    );
+    assert!(
+        settings
+            .notes
+            .iter()
+            .any(|note| note.contains("[pa3ds.audio] cannot be below 0"))
+    );
+}
+
 /// Orion, 2026-10-29: touch mode's settings go to `[pa3ds.touch]`, without their prefix, and
 /// `drag_sounds` is `feedback_sounds`; a player's values come with them.
 #[test]
