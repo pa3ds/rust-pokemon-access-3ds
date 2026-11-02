@@ -812,31 +812,6 @@ fn reached(
     ground.ends_at(item, end, walked[0])
 }
 
-/// The fewest moves a walk out (`Ground.reached`) takes to end at each thing it reaches, by
-/// the thing's key: on one of its `aims`, on a floor it ends at it on (`Ground.ends_at`).
-#[allow(clippy::type_complexity)]
-fn lengths(
-    ground: &Ground,
-    aims: &[(&Interactable, IndexMap<Cell, Option<&'static str>>)],
-    reached: &IndexMap<Cell, IndexMap<i64, i64>>,
-) -> Result<IndexMap<Key, i64>> {
-    let mut out: IndexMap<Key, i64> = IndexMap::new();
-    for (item, cells) in aims {
-        let mut moves: Vec<i64> = Vec::new();
-        for &cell in cells.keys() {
-            for (&floor, &far) in reached.get(&cell).into_iter().flatten() {
-                if ground.ends_at(item, cell, floor)? {
-                    moves.push(far);
-                }
-            }
-        }
-        if let Some(&fewest) = moves.iter().min() {
-            out.insert(item.key(), fewest);
-        }
-    }
-    Ok(out)
-}
-
 /// The way P finds to a thing, before it is said (`Guide._way`).
 struct Way {
     /// The ground it was found on.
@@ -1045,9 +1020,8 @@ pub struct Guide {
     /// Where the player was last looked at on the water and every cell a current carries them
     /// through from there, so it is said once (`swept`).
     drift: Vec<Cell>,
-    /// What `lengths` was last asked and found: the keys walk the list a category at a time,
-    /// and every press asks again from where the player stands.
-    reached: RefCell<Option<(Asked, Rc<IndexMap<Key, i64>>)>>,
+    /// What `reachable` was last asked and found.
+    reached: RefCell<Option<(Asked, HashSet<Key>)>>,
     /// The thing a way through the belts' switch goes on to once it is pressed, or None.
     after: Option<After>,
     /// When to look next at whether the switch has been pressed.
@@ -1057,7 +1031,7 @@ pub struct Guide {
     ground: Option<Ground>,
 }
 
-/// What `lengths` is asked: the zone, the player's cell, what is listed and the visit.
+/// What `reachable` is asked: the zone, the player's cell, what is listed and the visit.
 type Asked = (i64, Cell, Vec<Interactable>, Option<(i64, i64)>);
 
 impl Guide {
@@ -1181,26 +1155,13 @@ impl Guide {
     /// Victory Road's stacked 1F kept all 13 things listed, 8 of them short of Shift and P's
     /// reach (movie47, spike 215).
     pub fn reachable(&self, r#where: &Field) -> Result<HashSet<Key>> {
-        let lengths = self.lengths(r#where)?;
-        Ok(match lengths {
-            None => r#where
-                .interactables
-                .iter()
-                .map(|item| item.key())
-                .collect(),
-            Some(lengths) => lengths.keys().cloned().collect(),
-        })
-    }
-
-    /// How long Shift and P's way is to each thing listed in `where` it reaches, ending at it
-    /// and not short of it, in moves, a step or a jump each: the things `reachable` keeps, by
-    /// the same walk; None where no way is found on this ground. List mode sorts by it, since a
-    /// thing across a river is no nearer for being near as the crow flies: in the Safari Zone a
-    /// hidden item 5 east 9 south was listed before an item ball 18 west 7 north, a quarter of
-    /// its way's length (Orion, 2026-11-01).
-    pub fn lengths(&self, r#where: &Field) -> Result<Option<Rc<IndexMap<Key, i64>>>> {
+        let everything: HashSet<Key> = r#where
+            .interactables
+            .iter()
+            .map(|item| item.key())
+            .collect();
         if !self.routes || r#where.on_rail || r#where.steer.is_some() {
-            return Ok(None);
+            return Ok(everything);
         }
         let asked: Asked = (
             r#where.zone,
@@ -1208,15 +1169,16 @@ impl Guide {
             r#where.interactables.clone(),
             self.field.visit(),
         );
-        if let Some((last, lengths)) = &*self.reached.borrow()
+        if let Some((last, keys)) = &*self.reached.borrow()
             && *last == asked
         {
-            return Ok(Some(lengths.clone()));
+            return Ok(keys.clone());
         }
+        let mut out: HashSet<Key> = HashSet::new();
         let ground = self.ground(r#where, true)?;
-        // ponytail: a walk over the whole matrix each time the player has moved, 0.1 to 0.16 s
-        // in the Safari Zone and on Route 119 (2026-11-01), more on the sea's 8 by 8 chunks; keep
-        // it while they stay where it reached, if a list key's wait is heard.
+        // ponytail: a walk over the whole matrix each time the player has moved, 0.9 s on one of
+        // 8 by 8 chunks and tens of milliseconds in a cave; keep it while they stay where it
+        // reached, if a route's wait is heard.
         let mut goals: Vec<(&Interactable, IndexMap<Cell, Option<&'static str>>)> = Vec::new();
         for item in &r#where.interactables {
             goals.push((item, aims(&ground, item, None)?));
@@ -1226,14 +1188,27 @@ impl Guide {
             .flat_map(|(_, cells)| cells.keys().copied())
             .collect();
         let reached = ground.reached(r#where.cell, &cells)?;
-        let mut out = lengths(&ground, &goals, &reached)?;
+        for (item, cells) in &goals {
+            let mut any = false;
+            'cells: for &cell in cells.keys() {
+                for &floor in reached.get(&cell).into_iter().flatten() {
+                    if ground.ends_at(item, cell, floor)? {
+                        any = true;
+                        break 'cells;
+                    }
+                }
+            }
+            if any {
+                out.insert(item.key());
+            }
+        }
         let switch = r#where.interactables.iter().find(|one| {
             ground
                 .switch
                 .is_some_and(|switch| one.cells().contains(&switch))
         });
         let spot = match switch {
-            Some(switch) if out.contains_key(&switch.key()) => aims(&ground, switch, None)?
+            Some(switch) if out.contains(&switch.key()) => aims(&ground, switch, None)?
                 .into_keys()
                 .find(|cell| reached.contains_key(cell)),
             _ => None,
@@ -1244,30 +1219,36 @@ impl Guide {
             // What a way reaches past the belts' switch, pressed, is reached too (`to`).
             let turned = ground.turned();
             let past = turned.reached(spot, &cells)?;
-            let there = reached[&spot]
-                .values()
-                .copied()
-                .min()
-                .ok_or_else(|| Error::value("min() arg is an empty sequence"))?;
-            for (key, moves) in lengths(&turned, &goals, &past)? {
-                out.entry(key).or_insert(there + moves);
+            for (item, cells) in &goals {
+                let mut any = false;
+                'past: for &cell in cells.keys() {
+                    for &floor in past.get(&cell).into_iter().flatten() {
+                        if turned.ends_at(item, cell, floor)? {
+                            any = true;
+                            break 'past;
+                        }
+                    }
+                }
+                if any {
+                    out.insert(item.key());
+                }
             }
         }
         if !ground.ice.is_empty() {
             // A way over thin ice steps on every tile once, which no walk out follows.
+            let mut over: HashSet<Key> = HashSet::new();
             for item in &r#where.interactables {
-                if !out.contains_key(&item.key())
+                if !out.contains(&item.key())
                     && let Some(way) = self.way(r#where, item, true, "", None)?
                     && !way.short
-                    && let Some(path) = &way.path
                 {
-                    out.insert(item.key(), path.len() as i64 - 1);
+                    over.insert(item.key());
                 }
             }
+            out.extend(over);
         }
-        let out = Rc::new(out);
         *self.reached.borrow_mut() = Some((asked, out.clone()));
-        Ok(Some(out))
+        Ok(out)
     }
 
     /// The belts' switch, where the way to `item` falls short and goes there past it: listed

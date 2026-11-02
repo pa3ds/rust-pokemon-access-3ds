@@ -55,8 +55,7 @@ The battle's keys work throughout.
 | `C` | Say the square you are standing on, as x and z: x grows going east, z going south. |
 | `Shift+C` | Say the chosen thing's squares the same way. |
 
-**List mode** walks the whole list, nearest first: the shortest way there first, and after them
-the things no way reaches, nearest first as the crow flies.
+**List mode** walks the whole list, nearest first.
 
 | Key | What it does |
 |---|---|

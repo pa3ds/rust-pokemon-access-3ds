@@ -1,9 +1,9 @@
 //! Navigation: the keys that walk the list of what is on the map, in one of two modes.
 //!
 //! **List mode** walks the whole map. Two keys step between categories and two between a
-//! category's items, nearest first by the way there, or in the zone's tables' order with
-//! `[pa3ds.navigation] sort_by_distance` off, so a thing keeps its place as the player walks; a
-//! fifth says the chosen item again. **Direction mode** looks one way at a time: four keys, one a compass point, each
+//! category's items, nearest first, or in the zone's tables' order with `[pa3ds.navigation]
+//! sort_by_distance` off, so a thing keeps its place as the player walks; a fifth says the chosen
+//! item again. **Direction mode** looks one way at a time: four keys, one a compass point, each
 //! cycling through the category's items on that side of the player within `RANGE` cells each way
 //! (a half-box: north is everything with a smaller z, so a thing north-east is heard under north
 //! and under east both), nearest first. A
@@ -46,8 +46,8 @@
 //! Bound by:
 //! - ADR-0009: Shift alone drags in touch mode only on the screens that drag, held or tapped as
 //!   `drag` says; elsewhere touch mode keeps its keys with Shift, and nothing drags.
-//! - ADR-0024: nearest first by category unless `sort_by_distance` is off, list mode's by the way
-//!   there, all a category, and direction mode a half-box 10 cells deep, nearest first always.
+//! - ADR-0024: nearest first by category unless `sort_by_distance` is off, all a category, and
+//!   direction mode a half-box 10 cells deep, nearest first always.
 //! - ADR-0037: a search's find is guided to, and the detector's only with the DexNav open in touch
 //!   mode.
 //! - ADR-0041: a tape replay's census of P's ways says what P and Shift and P would, and touches
@@ -800,25 +800,12 @@ impl Navigator {
     }
 
     /// The category's items, nearest first unless `[pa3ds.navigation] sort_by_distance` is
-    /// off, where they keep the zone's tables' order; `nearest` true sorts them regardless, as
-    /// the crow flies. List mode's nearest is the shortest way there, Shift and P's, and what
-    /// no way reaches comes after, as the crow flies (`Guide.lengths`; Orion, 2026-11-01).
+    /// off, where they keep the zone's tables' order; `nearest` true sorts them regardless.
     fn items(&self, r#where: &Field, nearest: bool) -> Result<Vec<Interactable>> {
         let mut items = r#where.of_with(
             &self.categories[self.category as usize],
             nearest || self.wording.sort_by_distance,
         );
-        if !nearest
-            && self.wording.sort_by_distance
-            && let Some(lengths) = self.guide.lengths(r#where)?
-        {
-            let length = |item: &Interactable| -> f64 {
-                lengths
-                    .get(&item.key())
-                    .map_or(f64::INFINITY, |&moves| moves as f64)
-            };
-            py::sort_by_lt(&mut items, |a, b| length(a) < length(b));
-        }
         if self.wording.hide_door_signs {
             // A person's source has a record's index where a sign's has its kind.
             items.retain(|item| {

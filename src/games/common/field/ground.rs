@@ -1812,16 +1812,11 @@ impl Ground {
     }
 
     /// Every cell a way from `start` across this ground can end on, in the box round it and
-    /// `aims`, with each floor it is reached on, `ANY_FLOOR` off a stacked ground, and the fewest
-    /// moves it takes to get there on it: by `find`'s
+    /// `aims`, with each floor it is reached on, `ANY_FLOOR` off a stacked ground: by `find`'s
     /// moves, walked as `find` walks them (`_walk`, `pathfind.reached`), a teleporter's cell and
     /// an arrow's among `aims` reached as a way to it ends there. Whether one ends at a thing is
     /// `ends_at`.
-    pub fn reached(
-        &self,
-        start: Cell,
-        aims: &[Cell],
-    ) -> Result<IndexMap<Cell, IndexMap<i64, i64>>> {
+    pub fn reached(&self, start: Cell, aims: &[Cell]) -> Result<IndexMap<Cell, HashSet<i64>>> {
         // ponytail: the rotating doors' turns are left out, every way they stand times every cell
         // being more than a walk can take (`find` through Fortree Gym's seven takes 0.4 to 0.6 s),
         // so what lies past them is taken to be reached; follow them if that keeps too much.
@@ -1878,20 +1873,22 @@ impl Ground {
                 leap: if walk.carries { Some(&leap) } else { None },
             },
         )?;
-        let mut out: IndexMap<Cell, IndexMap<i64, i64>> = IndexMap::new();
-        for (cell, all) in states {
-            let floors = out.entry(cell).or_default();
-            for (turns, moves) in all {
-                let floor = if self.stacked {
-                    turns[turns.len() - 1]
-                } else {
-                    ANY_FLOOR
-                };
-                let known = floors.get(&floor).copied().unwrap_or(moves);
-                floors.insert(floor, moves.min(known));
-            }
-        }
-        Ok(out)
+        Ok(states
+            .into_iter()
+            .map(|(cell, all)| {
+                let floors = all
+                    .iter()
+                    .map(|turns| {
+                        if self.stacked {
+                            turns[turns.len() - 1]
+                        } else {
+                            ANY_FLOOR
+                        }
+                    })
+                    .collect();
+                (cell, floors)
+            })
+            .collect())
     }
 
     /// Whether a way ending on `cell`, on `floor`, ends at `item`: on a stacked ground on the

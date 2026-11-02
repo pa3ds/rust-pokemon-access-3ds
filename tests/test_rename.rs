@@ -238,8 +238,6 @@ fn navigator(wanted: Wanted) -> (Navigator, Rc<Recorder>, Arc<FakeDialog>, Rc<Na
             asker: Some(Asker::new(Some(dialog.shown()))),
             speaker: Some(Rc::new(move || spoke.map(|spoke| (spoke, own)))),
             leads_to: wanted.leads_to,
-            // No ground to find a way over: the list nearest as the crow flies.
-            routes: false,
             ..Options::default()
         },
     );

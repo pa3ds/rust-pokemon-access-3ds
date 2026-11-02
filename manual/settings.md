@@ -35,7 +35,7 @@ they take effect the next time pa3ds starts.
 | `guide_to_hidden` | `true` | When the DexNav finds a hidden Pokémon, find the way to it as `P` does. |
 | `track_boulders` | `false` | Say how far a big boulder has moved from where it started, so you know which you have pushed. Off by default, since the game never shows where a boulder started. |
 | `hide_door_signs` | `true` | Leave a sign out of the list when all it says is the name of the door beside it. |
-| `sort_by_distance` | `true` | List mode's list nearest first, by the way there. `false` keeps each thing in one place in the list as you walk, so you can tell by its place which house you have been in. Direction mode is nearest first either way. |
+| `sort_by_distance` | `true` | List mode's list nearest first. `false` keeps each thing in one place in the list as you walk, so you can tell by its place which house you have been in. Direction mode is nearest first either way. |
 | `show_y` | `false` | `C` and `Shift+C` say how high as well, after x and z, in the game's units: 18 to a square. |
 | **`[pa3ds.touch]`** | | Touch mode. These were `touch_wrap`, `touch_next_row` and `drag` under `[pa3ds.navigation]`, and pa3ds carries your values over. |
 | `wrap` | `true` | Go from the last button back to the first, and from the bottom row back to the top. `false` stops at the ends, so pressing `O` a few times always ends on the bottom row. |

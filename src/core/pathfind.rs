@@ -992,8 +992,7 @@ pub struct Reach<'a> {
 }
 
 /// Every cell inside `box` a way from `start` can end on, by `find`'s moves, with each
-/// `state` it can be reached in (`through`, as `find` has them) and the fewest moves it takes to
-/// get there in it, a jump over a ledge one move as a step is: a cell that can be walked, or
+/// `node` it can be reached in (`through`, as `find` has them): a cell that can be walked, or
 /// one of `ends`, which a way may step into and not on from, as `find` steps into a goal it would
 /// walk round on the way to anything else. What `find` would reach from `start`, found once for
 /// every goal at a time. On ice (`slide`), the way the player slides is part of where they are,
@@ -1005,7 +1004,7 @@ pub fn reached(
     walkable: &dyn Fn(Cell) -> Result<bool>,
     r#box: Box,
     options: &Reach,
-) -> Result<IndexMap<Cell, IndexMap<State, i64>>> {
+) -> Result<IndexMap<Cell, HashSet<State>>> {
     let down_cache: Cached<Cell, Option<&'static str>> = Cached::new();
     let walk_cache: Cached<Cell, bool> = Cached::new();
     let walked_cache: Cached<Cell, bool> = Cached::new();
@@ -1055,16 +1054,14 @@ pub fn reached(
         Some(joined) => joined(cell, step),
         None => Ok(true),
     };
-    let mut out: IndexMap<Cell, IndexMap<State, i64>> =
-        IndexMap::from([(start, IndexMap::from([(options.state.clone(), 0)]))]);
+    let mut out: IndexMap<Cell, HashSet<State>> =
+        IndexMap::from([(start, HashSet::from([options.state.clone()]))]);
     let mut seen: HashSet<(Cell, State, &'static str)> =
         HashSet::from([(start, options.state.clone(), "")]);
-    // Breadth first, so a cell and state is first come to by the fewest moves.
-    let mut todo: Vec<(Cell, State, &'static str, i64)> =
-        vec![(start, options.state.clone(), "", 0)];
+    let mut todo: Vec<(Cell, State, &'static str)> = vec![(start, options.state.clone(), "")];
     let mut at = 0;
     while at < todo.len() {
-        let (cell, now, sliding, moves) = todo[at].clone();
+        let (cell, now, sliding) = todo[at].clone();
         at += 1;
         if cell != start && !walk(cell)? {
             continue;
@@ -1094,7 +1091,7 @@ pub fn reached(
                     return Ok(());
                 }
                 seen.insert(node.clone());
-                todo.push((node.0, node.1, node.2, moves + 1));
+                todo.push(node);
                 // A cell slid over is no end: the player is past it before they can stop. Nor is a
                 // rail's, ridden.
                 let past = !on.is_empty() && {
@@ -1107,10 +1104,7 @@ pub fn reached(
                         Some(stops) => stops(step, &after)?,
                     }
                 {
-                    out.entry(step)
-                        .or_default()
-                        .entry(after)
-                        .or_insert(moves + 1);
+                    out.entry(step).or_default().insert(after);
                 }
                 Ok(())
             },
