@@ -279,6 +279,48 @@ fn test_the_cue_sounds_the_lead_before_a_ball_falling_faster_and_faster_reaches_
     );
 }
 
+/// Live, a tick read a ball about 300 too low once in a while, the next back in line, and the
+/// cue sounded at once, 0.66 s early (spike 273); a ball read after a stall, far lower but no
+/// lower than it could have fallen, is followed on.
+#[test]
+fn test_a_height_misread_far_below_the_ball_is_skipped() {
+    let (cued, cue, now, clock) = cued();
+    let mut game = game_with(Some(cue), clock.clone());
+    heard(&mut game.found, head_it::APP);
+    // 300 above `SWEET` at a steady 500 a second, due 0.4 s ahead at 0.2; read 300 too low at 0.1.
+    for tick in 0..36 {
+        now.set(tick as f64 / 60.0);
+        let height = head_it::SWEET + 300.0 - 500.0 * now.get();
+        place(
+            &game.memory,
+            game.panes[0],
+            0.0,
+            (if tick == 6 { height - 300.0 } else { height }) as f32,
+        );
+        game.found.tick().unwrap();
+    }
+    assert_eq!(cued.borrow().len(), 1);
+    let when = cued.borrow()[0].0;
+    assert!((0.2..=0.2 + 1.0 / 60.0).contains(&when), "{when}");
+    let mut stalled = game_with(Some(Rc::new(|_column: i64| {})), clock);
+    heard(&mut stalled.found, head_it::APP);
+    for (at, height) in [(0.0, 400.0f32), (0.03, 385.0), (0.7, 35.0)] {
+        now.set(at);
+        place(&stalled.memory, stalled.panes[0], 0.0, height);
+        stalled.found.tick().unwrap();
+    }
+    place(&stalled.memory, stalled.panes[0], 10500.0, 480.0);
+    stalled.layouts.refresh();
+    assert_eq!(
+        stalled.found.poll(Some(head_it::APP)).unwrap(),
+        [(
+            head_it::LOG.to_string(),
+            "no cue for a ball gone by, its last heights 385 at 0.03, 35 at 0.70".to_string(),
+            None
+        )]
+    );
+}
+
 /// Bigger, it is headed higher (spike 273, live): cued for the others' `SWEET`, its "!" came
 /// late, and Orion's tap the lead after it missed (or_amie_head_it_normal).
 #[test]

@@ -115,6 +115,13 @@ pub const LEAD: f64 = 0.4;
 /// the next, a frame apart or none, its speed jumped; and on a tape, whose heights change five times
 /// a second, a ball 43 units lower a tick later was cued 374 above `SWEET` (as_amie_head_it).
 pub const SPAN: f64 = 0.1;
+pub const FASTEST: f64 = 1500.0;
+/// A ball read lower than `MISREAD` below where it could have fallen at `FASTEST` units a second
+/// since its last height is misread, and skipped: of 1,700 reads a round live, 1 to 6 were a single
+/// tick 249 to 319 below the ball, the next back in line, and timed as a fall such a read sounded the
+/// cue at once, 0.66 s early (spike 273, live). The fastest fall read was 40 units a frame, 1,200 a
+/// second, near the bottom.
+pub const MISREAD: f64 = 150.0;
 pub const COMING: &str = "head-it-ball";
 pub const NOBODY: &str = "head-it-ball-nobody";
 pub const NOT_UP: &str = "head-it-no-pokemon";
@@ -459,6 +466,12 @@ impl HeadIt {
             let seen = self.heights.entry(pane).or_default();
             // Not moved since, the same frame read again; or headed back up, a fall no longer.
             if !seen.is_empty() && height == seen[seen.len() - 1].1 {
+                continue;
+            }
+            if !seen.is_empty()
+                && height
+                    < seen[seen.len() - 1].1 - FASTEST * (now - seen[seen.len() - 1].0) - MISREAD
+            {
                 continue;
             }
             if !seen.is_empty() && height > seen[seen.len() - 1].1 {
