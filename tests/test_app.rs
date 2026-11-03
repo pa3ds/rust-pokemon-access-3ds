@@ -239,6 +239,24 @@ fn test_a_task_is_due_every_period_or_sooner_when_asked() {
     assert!(every.due(14.0));
 }
 
+/// The 30 s sweep came due 0.9 s after the field started again, and the field's own sweep,
+/// asked for 1.5 s after it started, never ran (or_amie_grey_census_3, 2026-11-02).
+#[test]
+fn test_a_time_asked_for_is_kept_when_the_period_comes_due_before_it() {
+    let every = Every::new(30.0);
+    assert!(every.due(127.8));
+    every.soon(158.5);
+    assert!(every.due(157.9));
+    assert!(!every.due(158.4));
+    assert!(every.due(158.5));
+    assert!(!every.due(188.0));
+    assert!(every.due(188.5));
+    every.soon(200.0);
+    every.soon(201.0);
+    assert!(every.due(200.0));
+    assert!(!every.due(201.0));
+}
+
 /// An emulator whose answers took as long as `reply_seconds` says, and that is asked nothing
 /// else.
 struct Answering(Cell<f64>);

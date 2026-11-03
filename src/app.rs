@@ -181,6 +181,11 @@ pub fn wait_for_game(
 pub struct Every {
     period: f64,
     next: Cell<f64>,
+    /// The earliest time asked for that the task has not run at or since. The 30 s sweep came
+    /// due 0.9 s after the field started again, ran, and the field's own sweep 1.5 s after it
+    /// never did: the Amie page Orion had just switched from was read for 30 s more, and his
+    /// Tepig said as the Totodile before it (or_amie_grey_census_3, 2026-11-02).
+    asked: Cell<Option<f64>>,
 }
 
 impl Every {
@@ -188,29 +193,51 @@ impl Every {
         Every {
             period,
             next: Cell::new(0.0),
+            asked: Cell::new(None),
         }
     }
 
-    /// Whether the task is due now. If it is, the next time is set from now.
+    /// Whether the task is due now. If it is, the next time is set from now, or to a time
+    /// asked for that is still to come.
     pub fn due(&self, now: f64) -> bool {
         if now < self.next.get() {
             return false;
         }
-        self.next.set(now + self.period);
+        self.ran(now);
         true
     }
 
-    /// Be due by `at` at the latest.
+    /// Be due by `at` at the latest, and at `at` again if the task runs before then. Of two
+    /// times asked for, the earlier is kept, as before: keeping the later made nearly every tape
+    /// sweep where it never had.
     pub fn soon(&self, at: f64) {
         // `min(self._next, at)`: the first unless the second is less.
         if at < self.next.get() {
             self.next.set(at);
         }
+        // `min(self._asked, at)`: the first unless the second is less.
+        self.asked.set(Some(match self.asked.get() {
+            Some(asked) if at < asked => at,
+            Some(asked) => asked,
+            None => at,
+        }));
     }
 
     /// Be due a whole period from now, as though the task had just run.
     pub fn wait(&self, now: f64) {
-        self.next.set(now + self.period);
+        self.ran(now);
+    }
+
+    fn ran(&self, now: f64) {
+        if self.asked.get().is_some_and(|asked| now >= asked) {
+            self.asked.set(None);
+        }
+        let then = now + self.period;
+        self.next.set(match self.asked.get() {
+            // `min(now + self._period, self._asked)`: the first unless the second is less.
+            Some(asked) if asked < then => asked,
+            _ => then,
+        });
     }
 
     /// Be due at once.
