@@ -1,5 +1,52 @@
 # Changelog
 
+## [0.10.0] - 2026-11-03
+
+### Added
+
+- Pokémon-Amie's Head It: pa3ds says which Pokémon each ball of yarn falls at, "Ralts", and touch
+  mode offers each Pokémon to tap while the round runs. Each round starts by saying its three
+  Pokémon left to right, and `8`, `9` and `0` tap the left, middle and right one.
+- Head It's cue: with the `head_it_cue` setting on, the game's "!" sound plays as the moment to
+  tap comes, in the ear on that Pokémon's side. `head_it_lead` sets how early it sounds, and at
+  each round's results pa3ds says its estimate of your lead.
+- The `feedback_style` setting: Berry Picker and Head It can say a Pokémon by its own cry, from its
+  place in the lineup, or by its name and its cry. Cries of two Pokémon play over each other.
+- In Pokémon-Amie, the tap key strokes your Pokémon across its head, or its body when its head
+  hardly shows, wherever it stands. This needs Azahar 2126.2 or newer.
+- The Acro Bike: the bike category lists each end of a rail on Route 119 and in the Safari Zone.
+  `P` says a ride along a rail, "Acro Bike 9 east", a hop across its bars, "hop 3 south", and a
+  bunny hop up or down a bumpy slope, "bunny hop 2 north".
+- Parts of a place: the Safari Zone's quarters and the parts of Routes 119, 120 and 123 are named
+  as you walk into them and in exits and steps of the way. The ways into the next part are listed
+  as one exit. The Safari Zone's list holds all four quarters, and `P` leads you from one to the
+  next. Of two ways as short, `P` takes the one through fewer parts.
+- Where only `Shift+P` reaches the chosen thing, `P` now says every move and bike the way needs,
+  and anyone standing in it: "then can't continue, requires Acro Bike and Surf, Team Magma Grunt in
+  the way".
+- In X and Y, the Team Flare Secret HQ's lift in Geosenge Town: its panel is listed as "elevator",
+  and the exits list the one way out its door leads to. The machine in the HQ's deepest room is
+  listed too.
+- In X and Y, with `descriptions` on, the ultimate weapon rising, Xerneas or Yveltal waking, and
+  the weapon firing its last after Lysandre's battle are described.
+
+### Changed
+
+- Shift drags in touch mode as a key like any other: `"shift" = "drag"` under
+  `[pa3ds.navigation.touch]`. Change it to another key and that key drags instead of Shift.
+
+### Fixed
+
+- A modifier key held while you switched away from Azahar no longer stays held when you come back.
+- A volume setting below 0 plays at its default, for all four volumes.
+- On a way over a bridge and back under it, `P` says Surf only on the water.
+- `P` rides only the bike you are on, and no longer takes Route 119's north bridge as a drop.
+- Riding a Pokémon on Routes 9 and 17, `P` keeps its wider body clear of walls and rocks.
+- A touch asked for while the stylus is still down lifts it first.
+- Trainer names in a Chinese patch of Omega Ruby and Alpha Sapphire are read correctly.
+- After you leave a Pokémon-Amie page, the next page is read straight away, so your Pokémon is no
+  longer named as the one before.
+
 ## [0.9.0] - 2026-10-31
 
 ### Added
