@@ -111,10 +111,6 @@ sprite-0x20 = アケビ
 sprite-0x9e = エスプリ
 # Emma: C02GIRL: Lumiose, Looker's story; "Looker, you, Emma, Mimi..." (story 347:9) (inferred)
 sprite-0x9d = マチエール
-# Sina: MYSTERYW: Geosenge's masked heroes, "Who are these Sina and Dexio you speak of?" (story 35:25) (inferred)
-sprite-0x8 = ジーナ
-# Dexio: MYSTERYM: likewise (inferred)
-sprite-0x9 = デクシオ
 
 # Team Flare's admins and scientists: the admins by their trainers' class and name, as
 # the grunts are; the scientists as story 378:5 calls them, not yet told apart.
