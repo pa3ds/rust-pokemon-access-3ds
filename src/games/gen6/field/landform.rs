@@ -296,7 +296,7 @@ fn in_rails(kind: i64) -> bool {
 /// The ground the bikes cross and walking does not: the Mach Bike's slopes, each patch of one kind
 /// a thing; the Acro Bike's rails, each end where the player gets on one, ridden along and hopped
 /// across (`Ground.rails`, spike 267); and its bumpy slopes, each bunny hopped up or down from the
-/// cell before it to the cell after, as a ledge is jumped (`Ground.hops`, spikes 159 and A).
+/// cell before it to the cell after, as a ledge is jumped (`Ground.hops`, spikes 159 and 267).
 /// Listed under bike.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Bike;
