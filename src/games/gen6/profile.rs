@@ -251,7 +251,7 @@ pub struct Gen6Profile {
     part: RefCell<Option<String>>,
     pub layouts: Rc<Layouts>,
     /// Which screen the game is running, and the moment another starts (spike 99); and what
-    /// its process leads to, from that moment (spike A).
+    /// its process leads to, from that moment (spike 282).
     ///
     /// Shared with the own apps' `running`, which the Python hands as a bound method.
     pub apps: Rc<RefCell<RunningApp>>,

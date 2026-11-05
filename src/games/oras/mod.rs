@@ -925,12 +925,12 @@ pub const PLAYER_LOOKS: std::ops::Range<i64> = 0xAB..0xB3;
 /// Where the field's process holds the field's work (`gen6.field.dowsing`).
 pub const WORK: i64 = 0x24;
 /// Where the field's work holds the frame round the PlayNav's pages, `field::subscreen::
-/// FieldMenu`, whose +0x4C is Pokémon-Amie's page and +0x50 Super Training's (spike A).
+/// FieldMenu`, whose +0x4C is Pokémon-Amie's page and +0x50 Super Training's (spike 282).
 pub const MENU: i64 = 0x174;
 /// The AreaNav's process +0x20, and its +0xEC, the object holding its views and navigator.
 pub const TOWNMAP_WORK: [i64; 2] = [0x20, 0xEC];
 
-/// What each app's process leads to (`gen6.anchors`, spike A, twelve movies): the field's move
+/// What each app's process leads to (`gen6.anchors`, spike 282, twelve movies): the field's move
 /// models, a pool round the one chained, its four map blocks, by an array, the PlayNav's frame and
 /// pages, a Secret Base's mapper and decorating cursor and Route 113's ash; and the AreaNav's views
 /// and navigator. Each swept for as well, where a chain hands nothing over. Not Amie's

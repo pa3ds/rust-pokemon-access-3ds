@@ -748,9 +748,9 @@ pub const FIELD_MENU: (i64, i64) = (0x70, 0x90);
 pub const DOWSING: i64 = 0x1AC;
 
 /// Where X's field's work holds the frame round the bottom screen's pages, `field::subscreen::
-/// FieldMenu`, 8 before ORAS's, whose +0x48 is Pokémon-Amie's page (spike A).
+/// FieldMenu`, 8 before ORAS's, whose +0x48 is Pokémon-Amie's page (spike 282).
 pub const MENU: i64 = 0x16C;
-/// What X's field's process leads to, as ORAS's does at other offsets (`gen6.anchors`, spike A,
+/// What X's field's process leads to, as ORAS's does at other offsets (`gen6.anchors`, spike 282,
 /// x_lumiose_centrico_plaza_and_avenues): its move models, map blocks, and the bottom screen's
 /// frame and Amie's page. The apps of ORAS's chains are not measured in X, and are swept for.
 pub fn anchors() -> IndexMap<String, Vec<Chain>> {

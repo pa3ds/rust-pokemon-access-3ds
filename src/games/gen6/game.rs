@@ -350,10 +350,10 @@ pub struct Game {
     /// both of Route 111's fossils (`Profile._game_place`).
     pub items_at: IndexMap<(i64, i64), i64>,
     /// Where the field's work holds the current zone's record, which leads to its data and the
-    /// zone table: ORAS's +0xF4, X's +0xE4 (`FieldReader.anchor`, spike A).
+    /// zone table: ORAS's +0xF4, X's +0xE4 (`FieldReader.anchor`, spike 282).
     pub zone_record: i64,
     /// By app, the chains from its process to the objects it keeps, found from the moment it
-    /// starts (`gen6.anchors`, spike A).
+    /// starts (`gen6.anchors`, spike 282).
     pub anchors: IndexMap<String, Vec<Chain>>,
 }
 

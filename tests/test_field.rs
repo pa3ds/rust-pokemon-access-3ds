@@ -7491,7 +7491,7 @@ fn test_the_ice_gyms_rooms_are_read_through_its_module() -> Result<()> {
 }
 
 /// X's player stood at 0, 0, 0 and then at 3, 3, 3 as its field loaded, and was listed at cell
-/// (0, 0) before the game placed it (spike A); placed, it is in a cell.
+/// (0, 0) before the game placed it (spike 282); placed, it is in a cell.
 #[test]
 fn test_a_model_not_yet_placed_stands_nowhere() -> Result<()> {
     let head = |x: f64, y: f64, z: f64| -> Vec<u8> {

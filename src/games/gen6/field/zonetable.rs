@@ -153,7 +153,7 @@ impl ZoneTable {
         Ok(())
     }
 
-    /// Take the table at `base`, where a chain from the field's process leads (spike A), if it
+    /// Take the table at `base`, where a chain from the field's process leads (spike 282), if it
     /// is the ROM's zone table byte for byte; without the ROM, a sweep's find is waited for.
     pub fn take(&self, base: i64) -> Result<bool> {
         if self.base.get().is_none()

@@ -83,14 +83,14 @@ use crate::py::{self, PySet, Result};
 /// The Python's docstring for this follows `MAP_IN`'s since `WORK` and the rest came between
 /// them, where it documents nothing; it is kept here, on the constant it names.
 pub const MOVE_MODEL_CLASS: &str = mmodel::CLASS;
-/// Where the field's process holds the field's work (`FieldReader.anchor`, spike A).
+/// Where the field's process holds the field's work (`FieldReader.anchor`, spike 282).
 pub const WORK: i64 = 0x24;
 pub const RECORD_DATA: i64 = 0x08;
 pub const TABLE_HOPS: [i64; 2] = [0x04, 0x84];
 pub const TABLE_IN: i64 = 0x30;
 pub const MAP_HOPS: [i64; 3] = [0x1C, 0x60, 0x88];
 /// From the zone's record to its data and to the zone table, and from the field's process to the
-/// field map, the same in ORAS and X (spike A).
+/// field map, the same in ORAS and X (spike 282).
 pub const MAP_IN: i64 = 0x18;
 
 /// How far over or under the ground it is walked from a warp walked through may stand and still be
@@ -1699,7 +1699,7 @@ impl FieldReader {
     }
 
     /// Take what the field's process leads to and no class names, each checked by its shape
-    /// (spike A), where none is known that holds: the current zone's data, held where the
+    /// (spike 282), where none is known that holds: the current zone's data, held where the
     /// zone's record keeps it; the zone table, inside an object the record leads to; and the
     /// field map, inside one the game's data leads to. Returns those taken, for the log: the
     /// moment the field can be listed, a second before the sweep 1.5 s after the field starts

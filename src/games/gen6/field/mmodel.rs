@@ -317,7 +317,7 @@ pub fn cell(head: &[u8]) -> Result<Option<(i64, i64)>> {
     let (x, z) = (f32(head, WORLD_X)?, f32(head, WORLD_Z)?);
     // Not placed yet: the player's model, built as X's field loads, stood at 0, 0, 0 and then at
     // 3, 3, 3 for half a second before the game placed it, and was read as cell (0, 0) once the
-    // zone's data was known that soon (spike A, x_lumiose_centrico_plaza_and_avenues).
+    // zone's data was known that soon (spike 282, x_lumiose_centrico_plaza_and_avenues).
     if x == z && z == f32(head, WORLD_Y)? {
         return Ok(None);
     }

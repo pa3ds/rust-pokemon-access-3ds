@@ -1,5 +1,5 @@
 //! What the running app's process leads to: objects found by a chain of offsets from the process,
-//! from the moment the app starts, where a sweep found them seconds on (spike A).
+//! from the moment the app starts, where a sweep found them seconds on (spike 282).
 //!
 //! The runtime knows the process of the app running from its first poll (`gen6.apps`), and an app
 //! keeps its parts in its process, or a few pointers down. A **chain** follows them: from the
