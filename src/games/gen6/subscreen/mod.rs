@@ -10,7 +10,8 @@
 //! these it has, by the same name, for the app running, and nothing in any other app:
 //!
 //! - `classes`, what the heap is swept for to find its objects, and `track(found, adding)`, what a
-//!   sweep found of them, by class;
+//!   sweep found of them, by class; an app's own process is not swept for, but handed to the
+//!   readers that read it (`process`, the running app's `apps.RunningApp.process`);
 //! - `name(picture, running)`, what touch mode calls a picture of its screen's;
 //! - `targets(running)`, the targets it offers touch mode at points no pane places, beside the
 //!   touch areas;
@@ -65,7 +66,7 @@ use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::rom::cries::Crier;
 use crate::py::{self, Result};
 use amie::{AmiePage, Goods, Puffs};
-use berry_picker::{BerryKeys, BerryPicker, Touching};
+use berry_picker::{BerryKeys, BerryPicker, Process, Touching};
 use head_it::{Cue, Frames, HeadIt, HeadItKeys};
 use puzzle::TilePuzzle;
 use super_training::{Bags, Goals, Round, TrainingPage, Waiting};
@@ -336,6 +337,7 @@ impl Subscreens {
         cry: Option<Crier>,
         frames: Frames,
         reads_beside_gpu: bool,
+        process: Process,
     ) -> Subscreens {
         // The Pokémon-Amie page draws its Pokémon's icon, and says nothing of whose; Amie itself is
         // stroked by a slide over it, aimed by a picture the GPU draws, where the emulator lets
@@ -409,6 +411,7 @@ impl Subscreens {
             settings.one_at_a_time,
             crying.clone(),
             instead,
+            process.clone(),
         )));
         // Its own keys, a berry's and a Pokémon's, heard as the drag's own sounds are and the
         // game's error sound, or said where they are off.
@@ -433,6 +436,7 @@ impl Subscreens {
             instead,
             frames,
             Rc::new(py::time::sleep),
+            process,
         )));
         // And its own keys, a Pokémon's, which tap it.
         let head_keys = Rc::new(HeadItKeys::new(head_it.clone(), wrong));

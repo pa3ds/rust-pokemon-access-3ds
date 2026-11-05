@@ -193,13 +193,11 @@ fn picker_crying(
         one_at_a_time,
         cry,
         instead,
+        Rc::new(|app: &str| (app == berry_picker::APP).then_some(APP)),
     );
     memory.u32(APP, &[classes.add(berry_picker::APP)]);
     memory.u32(APP + berry_picker::CLOCK, &[1800]);
-    let mut tracked = IndexMap::from([
-        (MODEL, berry_picker::MODEL.to_string()),
-        (APP, berry_picker::APP.to_string()),
-    ]);
+    let mut tracked = IndexMap::from([(MODEL, berry_picker::MODEL.to_string())]);
     if let Some(demo) = demo {
         memory.u32(DEMO, &[classes.add(berry_picker::DEMO), TEXT]);
         memory.u32(TEXT, &[classes.add(strbuf::CLASS)]);
@@ -537,25 +535,6 @@ fn test_the_rounds_clock_says_how_fast_the_game_runs() {
     now.set(2.0);
     heard(&mut picked.found, app);
     assert_eq!(picked.found.speed(), 0.3);
-    // A copy in the module's code, found first, holds an instruction where the clock is.
-    let r#false = APP - 0x1000;
-    picked
-        .memory
-        .write(r#false, &picked.memory.read(APP, 4).unwrap());
-    picked
-        .memory
-        .u32(r#false + berry_picker::CLOCK, &[0xE59F0010]);
-    picked
-        .found
-        .track(
-            &IndexMap::from([
-                (MODEL, berry_picker::MODEL.to_string()),
-                (r#false, berry_picker::APP.to_string()),
-                (APP, berry_picker::APP.to_string()),
-            ]),
-            false,
-        )
-        .unwrap();
     for (at, frames) in [(3.0, 1800 - 9 - 15), (4.0, 1800 - 9 - 45)] {
         now.set(at);
         picked.memory.u32(APP + berry_picker::CLOCK, &[frames]);

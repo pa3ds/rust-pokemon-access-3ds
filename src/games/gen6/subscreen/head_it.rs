@@ -57,7 +57,7 @@ use crate::games::common::layout::Layouts;
 use crate::games::common::pokemon;
 use crate::games::common::touch::{HEIGHT, ImageOf, Target, WIDTH};
 use crate::games::gen6::rom::cries::Crier;
-use crate::games::gen6::subscreen::berry_picker::{Name, Touching};
+use crate::games::gen6::subscreen::berry_picker::{Name, Process, Touching};
 use crate::games::gen6::subscreen::super_training::pictures;
 use crate::py::{self, Error, PySet, Result};
 
@@ -172,8 +172,9 @@ pub struct HeadIt {
     name: Name,
     /// Model object -> the vtable it was found with.
     models: IndexMap<i64, i64>,
-    /// The app's own object -> the vtable it was found with: what the round is doing.
-    apps: IndexMap<i64, i64>,
+    /// Where an app's process begins while that app runs, else None
+    /// (`apps.RunningApp.process`): Head It's says what the round is doing.
+    process: Process,
     /// The balls on their way down at the last poll, by pane.
     falling: IndexMap<i64, Ball>,
     /// Sounds the cue for a ball in a column, the game's "!" (`profile.CUE_SOUND`), or None
@@ -218,13 +219,14 @@ pub struct HeadIt {
 }
 
 impl HeadIt {
-    /// What the heap is swept for: the Pokémon, who stands where, and the app's own object, which
-    /// says whether balls fall.
-    pub const CLASSES: [&'static str; 2] = [MODEL, APP];
+    /// What the heap is swept for: the Pokémon, who stands where. The app's own object, which
+    /// says whether balls fall, is the process the game runs, known as the app starts
+    /// (`process`).
+    pub const CLASSES: [&'static str; 1] = [MODEL];
 
     /// `HeadIt(...)` with every argument; Python's `lead` defaults to `LEAD`, its `clock` to
-    /// `time.monotonic`, its `cry` to None, its `instead` to False, its `frames` to none and its
-    /// `sleep` to `time.sleep`.
+    /// `time.monotonic`, its `cry` to None, its `instead` to False, its `frames` to none, its
+    /// `sleep` to `time.sleep` and its `process` to none.
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         memory: Rc<dyn Memory>,
@@ -239,6 +241,7 @@ impl HeadIt {
         instead: bool,
         frames: Frames,
         sleep: Rc<dyn Fn(f64)>,
+        process: Process,
     ) -> Self {
         HeadIt {
             memory,
@@ -247,7 +250,7 @@ impl HeadIt {
             image_of,
             name,
             models: IndexMap::new(),
-            apps: IndexMap::new(),
+            process,
             falling: IndexMap::new(),
             cue,
             lead,
@@ -269,30 +272,19 @@ impl HeadIt {
         }
     }
 
-    /// The models and apps a sweep found, by class: all of them, or with `adding` the new
-    /// ones.
+    /// The models a sweep found: all of them, or with `adding` the new ones.
     pub fn track(&mut self, found: &IndexMap<i64, String>, adding: bool) -> Result<()> {
-        let mut kept: IndexMap<&str, IndexMap<i64, i64>> =
-            [(MODEL, &self.models), (APP, &self.apps)]
-                .into_iter()
-                .map(|(kind, have)| {
-                    (
-                        kind,
-                        if adding {
-                            have.clone()
-                        } else {
-                            IndexMap::new()
-                        },
-                    )
-                })
-                .collect();
+        let mut kept = if adding {
+            self.models.clone()
+        } else {
+            IndexMap::new()
+        };
         for (&at, name) in found {
-            if let Some(objects) = kept.get_mut(name.as_str()) {
-                objects.insert(at, u32(&self.memory.read(at, 4)?, 0)?);
+            if name == MODEL {
+                kept.insert(at, u32(&self.memory.read(at, 4)?, 0)?);
             }
         }
-        self.models = kept.shift_remove(MODEL).unwrap_or_default();
-        self.apps = kept.shift_remove(APP).unwrap_or_default();
+        self.models = kept;
         Ok(())
     }
 
@@ -519,28 +511,20 @@ impl HeadIt {
 
     /// Whether balls fall, from START! through the one after time up. The opening
     /// demonstrates a ball falling at the Pokémon and headed back, the game's own, said nothing
-    /// of as Berry Picker's opening is (spike 273, live). With no app's object found, none do: the
-    /// sweep finds it with the Pokémon, and as Quit closed the round it was gone while they were
-    /// not, and they were offered for 2 s (as_amie_head_it's tape).
+    /// of as Berry Picker's opening is (spike 273, live). Outside Head It none do: while the app's
+    /// object was swept for, Quit closed the round with the object gone and the Pokémon not, and
+    /// they were offered for 2 s (as_amie_head_it's tape).
     fn playing(&self) -> Result<bool> {
         let phase = self.phase()?;
         Ok(phase.is_some_and(|phase| (FALLING..=LAST).contains(&phase)))
     }
 
-    /// What the round is doing (`PHASE`), or None with no app's object found.
+    /// What the round is doing (`PHASE`), read from Head It's process, or None outside it.
     fn phase(&self) -> Result<Option<i64>> {
-        for (&at, &vtable) in &self.apps {
-            let head = self.memory.read(at, PHASE + 4)?;
-            // A copy in the module's code, as `Model`'s are, holds an instruction there: a word
-            // far past the last phase.
-            if u32(&head, 0)? == vtable {
-                let phase = u32(&head, PHASE)?;
-                if phase <= LIST {
-                    return Ok(Some(phase));
-                }
-            }
-        }
-        Ok(None)
+        let Some(process) = (self.process)(APP) else {
+            return Ok(None);
+        };
+        Ok(Some(u32(&self.memory.read(process + PHASE, 4)?, 0)?))
     }
 
     /// Whether the heap's whole sweep waits: while balls fall, as the last poll read, cue or

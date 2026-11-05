@@ -149,15 +149,13 @@ fn game_given(given: Given) -> Game {
         instead,
         frames,
         sleep,
+        Rc::new(|app: &str| (app == head_it::APP).then_some(APP)),
     );
     memory.u32(APP, &[classes.add(head_it::APP)]);
     memory.u32(APP + head_it::PHASE, &[head_it::FALLING]);
     found
         .track(
-            &IndexMap::from([
-                (MODEL, head_it::MODEL.to_string()),
-                (APP, head_it::APP.to_string()),
-            ]),
+            &IndexMap::from([(MODEL, head_it::MODEL.to_string())]),
             false,
         )
         .unwrap();

@@ -48,6 +48,7 @@ fn subscreens() -> Subscreens {
         None,
         Rc::new(|| Ok(None)),
         false,
+        Rc::new(|_app: &str| None),
     );
     found
         .track(&IndexMap::from([(PAGE, amie::CLASS.to_string())]), false)

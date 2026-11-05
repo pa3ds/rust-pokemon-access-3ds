@@ -795,6 +795,10 @@ impl Gen6Profile {
             cry,
             frames_of(memory.clone(), managers.clone()),
             reads_beside_gpu,
+            {
+                let apps = apps.clone();
+                Rc::new(move |app: &str| process_of(&apps, app))
+            },
         ));
         let classes: IndexSet<String> = HEAP_CLASSES
             .iter()
@@ -2125,6 +2129,18 @@ impl Gen6Profile {
             }
         }
         Ok(())
+    }
+}
+
+/// `Gen6Profile._process_of`: where `app`'s process begins while it is the app running, else
+/// None: one read of the manager says, from the moment it starts, where a sweep found it seconds
+/// on.
+fn process_of(apps: &RefCell<RunningApp>, app: &str) -> Option<i64> {
+    let apps = apps.borrow();
+    if apps.running.as_deref() == Some(app) {
+        apps.process
+    } else {
+        None
     }
 }
 

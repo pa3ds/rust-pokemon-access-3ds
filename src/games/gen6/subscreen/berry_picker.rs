@@ -64,8 +64,6 @@ pub const CLOCK: i64 = 0x38;
 pub const CLOCK_RATE: i64 = 30;
 /// What the clock stands at before a round's START!, and again from each Play Again (spike 260).
 pub const FULL: i64 = 60 * CLOCK_RATE;
-/// More frames than any round's clock counts: a word past it is not one.
-pub const LONGEST: i64 = 20 * 60 * CLOCK_RATE;
 /// How long the clock is watched to say how fast the game runs: a player lowers Azahar's speed
 /// limit for a higher score, and a drag is timed by the game's frames (`speed`).
 pub const PACE_SECONDS: f64 = 0.5;
@@ -127,6 +125,9 @@ pub const LOG: &str = "berry picker";
 
 /// What a Pokémon of the player's is called (`Gen6Profile._yours`).
 pub type Name = Rc<dyn Fn(&pokemon::Pokemon) -> Option<String>>;
+/// `Callable[[str], int | None]`: where an app's process begins while that app runs, else None
+/// (`Gen6Profile._process_of`).
+pub type Process = Rc<dyn Fn(&str) -> Option<i64>>;
 
 /// A bubble on the screen: its berry's picture, where the Pokémon under it is, and what it
 /// wants, said.
@@ -164,8 +165,9 @@ pub struct BerryPicker {
     models: IndexMap<i64, i64>,
     /// Demo object -> the vtable it was found with.
     demos: IndexMap<i64, i64>,
-    /// The app's own object -> the vtable it was found with: the round's clock.
-    apps: IndexMap<i64, i64>,
+    /// Where an app's process begins while that app runs, else None
+    /// (`apps.RunningApp.process`): Berry Picker's keeps the round's clock.
+    process: Process,
     /// The bubbles shown at the last poll, by their berry's picture and what it said.
     ///
     /// A set only tested.
@@ -187,10 +189,10 @@ pub struct BerryPicker {
 }
 
 impl BerryPicker {
-    /// What the heap is swept for: the app's own object, whose clock says how fast the game
-    /// runs, the Pokémon, who want each berry, and the opening, which says whether the round
-    /// has begun.
-    pub const CLASSES: [&'static str; 3] = [APP, MODEL, DEMO];
+    /// What the heap is swept for: the Pokémon, who want each berry, and the opening, which
+    /// says whether the round has begun. The app's own object, whose clock says how fast the game
+    /// runs, is the process the game runs, known as the app starts (`process`).
+    pub const CLASSES: [&'static str; 2] = [MODEL, DEMO];
 
     /// `BerryPicker(...)` with Python's default clock, `time.monotonic`.
     pub fn new(
@@ -222,12 +224,23 @@ impl BerryPicker {
         clock: Rc<dyn Fn() -> f64>,
     ) -> Self {
         BerryPicker::with_settings(
-            memory, names, layouts, image_of, words, name, clock, false, false, None, false,
+            memory,
+            names,
+            layouts,
+            image_of,
+            words,
+            name,
+            clock,
+            false,
+            false,
+            None,
+            false,
+            Rc::new(|_app: &str| None),
         )
     }
 
-    /// `BerryPicker(...)` with every argument, `berry_first`, `one_at_a_time`, `cry` and
-    /// `instead` among them.
+    /// `BerryPicker(...)` with every argument, `berry_first`, `one_at_a_time`, `cry`, `instead`
+    /// and `process` among them.
     #[allow(clippy::too_many_arguments)]
     pub fn with_settings(
         memory: Rc<dyn Memory>,
@@ -241,6 +254,7 @@ impl BerryPicker {
         one_at_a_time: bool,
         cry: Option<Crier>,
         instead: bool,
+        process: Process,
     ) -> Self {
         BerryPicker {
             cry,
@@ -254,7 +268,7 @@ impl BerryPicker {
             clock,
             models: IndexMap::new(),
             demos: IndexMap::new(),
-            apps: IndexMap::new(),
+            process,
             said: HashSet::new(),
             paced: None,
             speed: 1.0,
@@ -266,26 +280,23 @@ impl BerryPicker {
         }
     }
 
-    /// The models, demonstrations and apps a sweep found, by class: all of them, or with `adding`
+    /// The models and demonstrations a sweep found, by class: all of them, or with `adding`
     /// the new ones.
     pub fn track(&mut self, found: &IndexMap<i64, String>, adding: bool) -> Result<()> {
-        let mut kept: IndexMap<&str, IndexMap<i64, i64>> = [
-            (MODEL, &self.models),
-            (DEMO, &self.demos),
-            (APP, &self.apps),
-        ]
-        .into_iter()
-        .map(|(kind, have)| {
-            (
-                kind,
-                if adding {
-                    have.clone()
-                } else {
-                    IndexMap::new()
-                },
-            )
-        })
-        .collect();
+        let mut kept: IndexMap<&str, IndexMap<i64, i64>> =
+            [(MODEL, &self.models), (DEMO, &self.demos)]
+                .into_iter()
+                .map(|(kind, have)| {
+                    (
+                        kind,
+                        if adding {
+                            have.clone()
+                        } else {
+                            IndexMap::new()
+                        },
+                    )
+                })
+                .collect();
         for (&at, name) in found {
             if let Some(objects) = kept.get_mut(name.as_str()) {
                 objects.insert(at, u32(&self.memory.read(at, 4)?, 0)?);
@@ -293,7 +304,6 @@ impl BerryPicker {
         }
         self.models = kept.shift_remove(MODEL).unwrap_or_default();
         self.demos = kept.shift_remove(DEMO).unwrap_or_default();
-        self.apps = kept.shift_remove(APP).unwrap_or_default();
         Ok(())
     }
 
@@ -527,20 +537,13 @@ impl BerryPicker {
         Ok(())
     }
 
-    /// The round's clock, in frames left, or None with no app object found.
+    /// The round's clock, in frames left, read from Berry Picker's process, or None outside
+    /// it.
     fn frames(&self) -> Result<Option<i64>> {
-        // A copy in the module's code, as `Model`'s are, holds instructions where the clock is:
-        // every one a word far beyond any round's frames.
-        for (&at, &vtable) in &self.apps {
-            let head = self.memory.read(at, CLOCK + 4)?;
-            if u32(&head, 0)? == vtable {
-                let value = u32(&head, CLOCK)?;
-                if value <= LONGEST {
-                    return Ok(Some(value));
-                }
-            }
-        }
-        Ok(None)
+        let Some(process) = (self.process)(APP) else {
+            return Ok(None);
+        };
+        Ok(Some(u32(&self.memory.read(process + CLOCK, 4)?, 0)?))
     }
 
     /// Whether the game runs and no demonstration is showing; with none found, it runs.
