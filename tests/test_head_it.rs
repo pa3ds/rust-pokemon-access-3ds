@@ -65,6 +65,7 @@ struct Given {
     clock: Rc<dyn Fn() -> f64>,
     cry: Option<Crier>,
     instead: bool,
+    named: bool,
     frames: head_it::Frames,
     sleep: Rc<dyn Fn(f64)>,
 }
@@ -76,6 +77,7 @@ impl Default for Given {
             clock: Rc::new(|| 0.0),
             cry: None,
             instead: false,
+            named: true,
             frames: Rc::new(|| Ok(None)),
             sleep: Rc::new(|_seconds| {}),
         }
@@ -93,6 +95,7 @@ fn game_given(given: Given) -> Game {
         clock,
         cry,
         instead,
+        named,
         frames,
         sleep,
     } = given;
@@ -141,12 +144,13 @@ fn game_given(given: Given) -> Game {
         Rc::new(ClassNames::new(memory.clone(), CODE)),
         fake.layouts.clone(),
         Rc::new(move |pane: i64| Ok(drawn.get(&pane).map(|image| image.to_string()))),
-        Rc::new(|found: &pokemon::Pokemon| named(found.species)),
+        Rc::new(|found: &pokemon::Pokemon| self::named(found.species)),
         cue,
         head_it::LEAD,
         clock,
         cry,
         instead,
+        named,
         frames,
         sleep,
         Rc::new(|app: &str| (app == head_it::APP).then_some(APP)),
@@ -260,6 +264,20 @@ fn test_a_ball_plays_its_pokemons_cry_toward_its_column_with_its_name_or_in_its_
     })
     .found;
     assert_eq!(heard(&mut silent, head_it::APP), ["Ralts"]);
+}
+
+/// Players, 2026-11-04: `head_it_style` "none", the "!" and nothing else.
+#[test]
+fn test_a_ball_is_only_logged_for_a_player_who_asks_for_the_cue_alone() {
+    let mut found = game_given(Given {
+        named: false,
+        ..Given::default()
+    })
+    .found;
+    assert_eq!(
+        found.poll(Some(head_it::APP)).unwrap(),
+        [(head_it::LOG.to_string(), "Ralts".to_string(), None)]
+    );
 }
 
 #[test]

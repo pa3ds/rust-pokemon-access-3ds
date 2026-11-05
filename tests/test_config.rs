@@ -464,6 +464,34 @@ fn test_a_file_already_tidy_is_left_as_it_is() {
     assert_eq!(config::tidy(&render, &[]), (render, Vec::new()));
 }
 
+/// Players, 2026-11-04: cries in Berry Picker, the cue alone in Head It.
+#[test]
+fn test_the_feedback_style_of_both_games_becomes_each_game_s_own() {
+    let tmp_path = TmpPath::new();
+    let home = tmp_path.join("home");
+    fs::create_dir(&home).unwrap();
+    fs::write(
+        home.join("config.toml"),
+        "[pa3ds.amie]\nfeedback_style = \"cry\"\n",
+    )
+    .unwrap();
+    let none = tmp_path.join("none.ini");
+    let settings = config::prepare(Some(&home), Some(&none), true, false).unwrap();
+    assert_eq!(
+        settings.tables.amie,
+        config::Amie {
+            berry_picker_style: "cry".to_string(),
+            head_it_style: "cry".to_string(),
+            ..config::Amie::default()
+        }
+    );
+    assert!(
+        !fs::read_to_string(home.join("config.toml"))
+            .unwrap()
+            .contains("feedback_style")
+    );
+}
+
 #[test]
 fn test_an_extra_is_on_only_when_asked_for() {
     let tmp_path = TmpPath::new();

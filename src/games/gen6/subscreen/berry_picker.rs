@@ -148,7 +148,7 @@ pub struct Want {
 /// Says which berry each of Berry Picker's Pokémon wants, and offers each to be given one.
 pub struct BerryPicker {
     /// Plays a Pokémon's cry toward its place as its want is said, and says whether it did;
-    /// None where Pokémon are said by name alone (`[pa3ds.amie] feedback_style`).
+    /// None where Pokémon are said by name alone (`[pa3ds.amie] berry_picker_style`).
     cry: Option<Crier>,
     /// Whether the cry, where it plays, is said in the name's place: the berry alone.
     instead: bool,

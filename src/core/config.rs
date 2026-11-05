@@ -305,6 +305,10 @@ pub struct Amie {
     /// Berry Picker says one Pokémon wanting a berry at a time, the next once a berry has been
     /// given or the one said has gone: three said together took 1.5 s (Orion).
     pub one_at_a_time: bool,
+    /// How Berry Picker says a Pokémon: by its name, by its own cry toward its side, or both (a
+    /// player's request; Orion named it and its words, 2026-11-02, `feedback_style` for both games
+    /// until players asked for cries in one and not the other, 2026-11-04).
+    pub berry_picker_style: String,
     /// Head It plays the game's "!" as the moment to tap a ball comes: an aid, off as it ships
     /// (Orion, 2026-10-31; the game's sound in place of a tone, 2026-11-01).
     pub head_it_cue: bool,
@@ -312,9 +316,9 @@ pub struct Amie {
     /// takes from hearing it to the tap landing, which is theirs and their machine's
     /// (`head_it.LEAD`).
     pub head_it_lead: f64,
-    /// How Berry Picker and Head It say a Pokémon: by its name, by its own cry toward its side,
-    /// or both (a player's request; Orion named it and its words, 2026-11-02).
-    pub feedback_style: String,
+    /// How Head It says the Pokémon a ball falls at: as Berry Picker's, or not at all, for a
+    /// player who wants the cue alone (players, 2026-11-04).
+    pub head_it_style: String,
 }
 
 impl Default for Amie {
@@ -322,9 +326,10 @@ impl Default for Amie {
         Amie {
             berry_first: true,
             one_at_a_time: true,
+            berry_picker_style: "name".to_string(),
             head_it_cue: false,
             head_it_lead: 0.4,
-            feedback_style: "name".to_string(),
+            head_it_style: "name".to_string(),
         }
     }
 }
@@ -334,9 +339,13 @@ impl Table for Amie {
         vec![
             ("berry_first", Value::Bool(self.berry_first)),
             ("one_at_a_time", Value::Bool(self.one_at_a_time)),
+            (
+                "berry_picker_style",
+                Value::Str(self.berry_picker_style.clone()),
+            ),
             ("head_it_cue", Value::Bool(self.head_it_cue)),
             ("head_it_lead", Value::Float(self.head_it_lead)),
-            ("feedback_style", Value::Str(self.feedback_style.clone())),
+            ("head_it_style", Value::Str(self.head_it_style.clone())),
         ]
     }
 
@@ -344,9 +353,10 @@ impl Table for Amie {
         match (setting, value) {
             ("berry_first", Value::Bool(value)) => self.berry_first = value,
             ("one_at_a_time", Value::Bool(value)) => self.one_at_a_time = value,
+            ("berry_picker_style", Value::Str(value)) => self.berry_picker_style = value,
             ("head_it_cue", Value::Bool(value)) => self.head_it_cue = value,
             ("head_it_lead", Value::Float(value)) => self.head_it_lead = value,
-            ("feedback_style", Value::Str(value)) => self.feedback_style = value,
+            ("head_it_style", Value::Str(value)) => self.head_it_style = value,
             _ => {}
         }
     }
@@ -408,21 +418,29 @@ pub const DRAG_TOGGLE: &str = "toggle";
 pub const STYLE_NAME: &str = "name";
 pub const STYLE_CRY: &str = "cry";
 pub const STYLE_BOTH: &str = "both";
+pub const STYLE_NONE: &str = "none";
+/// The styles that play a Pokémon's cry. A `frozenset` in Python, only ever tested for
+/// membership.
+pub const CRYING: [&str; 2] = [STYLE_CRY, STYLE_BOTH];
 /// Each setting that is one of a few words, by its name in the file: its words, the default
 /// first. `[pa3ds.extras] hidden_items` lists none, those under the sea, where the Dowsing Machine
 /// cannot be used and a sighted player is taken to see them, or all (Orion, 2026-10-26); a word it
 /// does not have lists none. `[pa3ds.touch] drag` holds a touch mode drag while its key is held,
 /// or picks up with one press and lets go with the next, for a player who cannot hold a key
 /// (Orion, 2026-10-28).
-pub const CHOICES: [(&str, &[&str]); 3] = [
+pub const CHOICES: [(&str, &[&str]); 4] = [
     (
         "pa3ds.extras.hidden_items",
         &[HIDDEN_OFF, HIDDEN_UNDERWATER, HIDDEN_ALL],
     ),
     ("pa3ds.touch.drag", &[DRAG_HOLD, DRAG_TOGGLE]),
     (
-        "pa3ds.amie.feedback_style",
+        "pa3ds.amie.berry_picker_style",
         &[STYLE_NAME, STYLE_CRY, STYLE_BOTH],
+    ),
+    (
+        "pa3ds.amie.head_it_style",
+        &[STYLE_NAME, STYLE_CRY, STYLE_BOTH, STYLE_NONE],
     ),
 ];
 
@@ -437,23 +455,32 @@ pub const TABLES: [&str; 7] = [
     "pa3ds.amie",
     "pa3ds.extras",
 ];
-/// Settings that moved, (old table, setting) -> (new table, setting): to `[pa3ds.audio]`
+/// Settings that moved, (new table, setting) -> (old table, setting): to `[pa3ds.audio]`
 /// (2026-10-18), `drag_sounds` named `feedback_sounds` and touch mode's own to `[pa3ds.touch]`
-/// (2026-10-29). The player's value is carried into the new line as it is filled in, tones turned
-/// off as 0 (`fill`).
-pub const MOVED: [((&str, &str), (&str, &str)); 6] = [
-    (("pa3ds.ui", "tones"), ("pa3ds.audio", "tones")),
-    (("pa3ds.ui", "footsteps"), ("pa3ds.audio", "footsteps")),
+/// (2026-10-29), and `feedback_style` made one a game (2026-11-04). The player's value is carried
+/// into the new line as it is filled in, tones turned off as 0 (`fill`), and the old line is taken
+/// out (`tidy`).
+pub const MOVED: [((&str, &str), (&str, &str)); 8] = [
+    (("pa3ds.audio", "tones"), ("pa3ds.ui", "tones")),
+    (("pa3ds.audio", "footsteps"), ("pa3ds.ui", "footsteps")),
     (
-        ("pa3ds.audio", "drag_sounds"),
         ("pa3ds.audio", "feedback_sounds"),
+        ("pa3ds.audio", "drag_sounds"),
     ),
-    (("pa3ds.navigation", "touch_wrap"), ("pa3ds.touch", "wrap")),
+    (("pa3ds.touch", "wrap"), ("pa3ds.navigation", "touch_wrap")),
     (
-        ("pa3ds.navigation", "touch_next_row"),
         ("pa3ds.touch", "next_row"),
+        ("pa3ds.navigation", "touch_next_row"),
     ),
-    (("pa3ds.navigation", "drag"), ("pa3ds.touch", "drag")),
+    (("pa3ds.touch", "drag"), ("pa3ds.navigation", "drag")),
+    (
+        ("pa3ds.amie", "berry_picker_style"),
+        ("pa3ds.amie", "feedback_style"),
+    ),
+    (
+        ("pa3ds.amie", "head_it_style"),
+        ("pa3ds.amie", "feedback_style"),
+    ),
 ];
 
 /// `kind().fields()` for the dataclass `TABLES` names.
@@ -729,8 +756,8 @@ fn carried(
 ) -> Value {
     let old = MOVED
         .iter()
-        .find(|&&(_, after)| after == (table, setting))
-        .map(|&(before, _)| before);
+        .find(|&&(new, _)| new == (table, setting))
+        .map(|&(_, old)| old);
     let Some((old_table, old_setting)) = old else {
         return default;
     };

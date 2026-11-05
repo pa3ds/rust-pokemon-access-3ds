@@ -54,8 +54,9 @@ fn test_every_setting_is_one_control_on_its_tables_page() {
             ("pa3ds.audio.ticks", PERCENT),
             ("pa3ds.audio.feedback_sounds", PERCENT),
             ("pa3ds.touch.drag", "choice"),
+            ("pa3ds.amie.berry_picker_style", "choice"),
             ("pa3ds.amie.head_it_lead", SECONDS),
-            ("pa3ds.amie.feedback_style", "choice"),
+            ("pa3ds.amie.head_it_style", "choice"),
             ("pa3ds.extras.hidden_items", "choice"),
         ])
     );

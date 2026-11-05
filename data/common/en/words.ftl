@@ -333,6 +333,9 @@ head-it-ball-nobody = ball of yarn
 # Head It's own keys, where the game's error sound is off: a Pokémon's key, by its number left to
 # right, while no Pokémon stands there or no ball falls, "no Pokémon 3".
 head-it-no-pokemon = no Pokémon { $number }
+# Head It's score key, where the game's error sound is off, while no score is on the
+# screen: before a round starts and after it ends.
+head-it-no-score = no score
 # Head It's three Pokémon left to right, its keys' order, said as each round's opening starts:
 # "Metagross, Pikachu and Windsong".
 head-it-lineup = { $first }, { $second } and { $third }
@@ -432,11 +435,19 @@ setting-pa3ds-amie-head_it_cue = Head It sounds when to tap
 setting-pa3ds-amie-head_it_cue-about = In Head It, play the game's own "!" sound as the moment to tap a ball comes, as long before the ball reaches its Pokémon as the lead below says, in the ear on that Pokémon's side and both ears for the middle; it needs feedback sounds on.
 setting-pa3ds-amie-head_it_lead = Head It's cue lead
 setting-pa3ds-amie-head_it_lead-about = How many seconds before a ball reaches its Pokémon the cue sounds: about how long you take from hearing it to pressing the Pokémon's key. At each round's results pa3ds says its estimate of yours, to put here. Raise it if your taps come too late, lower it if they come too early.
-setting-pa3ds-amie-feedback_style = How Pokémon are told apart
-setting-pa3ds-amie-feedback_style-about = In Berry Picker and Head It, say a Pokémon by its name ("name"), by its own cry ("cry"), or both ("both"). The cry comes from its place in the round's lineup, wherever it pops up: the first in the left ear, the second in both, the third in the right. The cry needs feedback sounds on; where it cannot play, the name is said.
-setting-pa3ds-amie-feedback_style-name = Name
-setting-pa3ds-amie-feedback_style-cry = Cry
-setting-pa3ds-amie-feedback_style-both = Name and cry
+setting-pa3ds-amie-berry_picker_style = How Berry Picker tells Pokémon apart
+setting-pa3ds-amie-berry_picker_style-about = In Berry Picker, say a Pokémon by its name ("name"), by its own cry ("cry"), or both ("both"). The cry comes from its place in the round's lineup, wherever it pops up: the first in the left ear, the second in both, the third in the right. The cry needs feedback sounds on; where it cannot play, the name is said.
+setting-pa3ds-amie-berry_picker_style-name = Name
+setting-pa3ds-amie-berry_picker_style-cry = Cry
+setting-pa3ds-amie-berry_picker_style-both = Name and cry
+setting-pa3ds-amie-head_it_style = How Head It tells Pokémon apart
+setting-pa3ds-amie-head_it_style-about = In Head It, say the Pokémon a ball falls at by its name ("name"), by its own cry ("cry"), both ("both"), or neither ("none"), for the cue alone. The cry comes from its place in the round's lineup: the first in the left ear, the second in both, the third in the right. The cry needs feedback sounds on; where it cannot play, the name is said.
+setting-pa3ds-amie-head_it_style-name = Name
+setting-pa3ds-amie-head_it_style-cry = Cry
+setting-pa3ds-amie-head_it_style-both = Name and cry
+setting-pa3ds-amie-head_it_style-none = Neither
+setting-pa3ds-amie-head_it_score = Head It says the score as it changes
+setting-pa3ds-amie-head_it_score-about = In Head It, say the score, the combo and each miss as they come, the score and the combo once while they keep going up; false leaves them to Head It's score key (R), which says them with the time or the chances left whenever you press it.
 setting-pa3ds-extras-conditions = Contest conditions as numbers
 setting-pa3ds-extras-conditions-about = Say a Pokémon's contest conditions as numbers where the game draws them as a star, on the summary and in the Pokéblock Case: the star is shown to everyone but pa3ds cannot read it, so its numbers are all it can give, and they are more exact than the star.
 setting-pa3ds-extras-hidden_items = Hidden items

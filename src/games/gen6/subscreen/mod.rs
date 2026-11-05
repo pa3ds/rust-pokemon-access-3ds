@@ -54,7 +54,7 @@ use std::rc::Rc;
 
 use indexmap::{IndexMap, IndexSet};
 
-use crate::core::config::{Amie, STYLE_CRY, STYLE_NAME};
+use crate::core::config::{Amie, CRYING, STYLE_CRY, STYLE_NONE};
 use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
 use crate::core::speech::Category;
@@ -387,14 +387,12 @@ impl Subscreens {
         // And the training bags in its page's list, pictures with no touch area of their own.
         let bags = Rc::new(Bags::new(layouts.clone(), image_of.clone(), images.clone()));
         // Both of Amie's games below can say a Pokémon by its own cry, toward its side, in its
-        // name's place or with it (`[pa3ds.amie] feedback_style`, a player's request, Orion
-        // 2026-11-02).
-        let crying = if settings.feedback_style != STYLE_NAME {
-            cry
-        } else {
-            None
-        };
-        let instead = settings.feedback_style == STYLE_CRY;
+        // name's place or with it, each as the player asks (`[pa3ds.amie] berry_picker_style`,
+        // `head_it_style`, a player's request, Orion 2026-11-02; a style a game, 2026-11-04).
+        let (berry, head) = (
+            settings.berry_picker_style.as_str(),
+            settings.head_it_style.as_str(),
+        );
         // Amie's Berry Picker draws the berry each Pokémon wants in a bubble, and says nothing of
         // who wants which.
         let short: berry_picker::Name =
@@ -409,8 +407,12 @@ impl Subscreens {
             Rc::new(py::time::monotonic),
             settings.berry_first,
             settings.one_at_a_time,
-            crying.clone(),
-            instead,
+            if CRYING.contains(&berry) {
+                cry.clone()
+            } else {
+                None
+            },
+            berry == STYLE_CRY,
             process.clone(),
         )));
         // Its own keys, a berry's and a Pokémon's, heard as the drag's own sounds are and the
@@ -432,8 +434,9 @@ impl Subscreens {
             if settings.head_it_cue { cue } else { None },
             settings.head_it_lead,
             Rc::new(py::time::monotonic),
-            crying,
-            instead,
+            if CRYING.contains(&head) { cry } else { None },
+            head == STYLE_CRY,
+            head != STYLE_NONE,
             frames,
             Rc::new(py::time::sleep),
             process,

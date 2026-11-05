@@ -192,10 +192,13 @@ pub struct HeadIt {
     /// read, and as the tick before read it, which saw the height before (`_stepped`).
     reads: IndexMap<i64, Vec<(i64, Option<i64>)>>,
     /// Plays a Pokémon's cry toward its side as its ball comes, and says whether it did; None
-    /// where Pokémon are said by name alone (`[pa3ds.amie] feedback_style`).
+    /// where Pokémon are said by name alone (`[pa3ds.amie] head_it_style`).
     cry: Option<Crier>,
     /// Whether the cry, where it plays, is said in the name's place.
     instead: bool,
+    /// How a ball is said as it comes: spoken, or only logged, for a player who asks for the
+    /// cue alone (`head_it_style` "none").
+    said: Option<Category>,
     /// Each ball falling -> the heights it has fallen through, each with when it was first
     /// read there: its whole fall.
     heights: IndexMap<i64, Vec<(f64, f64)>>,
@@ -225,8 +228,8 @@ impl HeadIt {
     pub const CLASSES: [&'static str; 1] = [MODEL];
 
     /// `HeadIt(...)` with every argument; Python's `lead` defaults to `LEAD`, its `clock` to
-    /// `time.monotonic`, its `cry` to None, its `instead` to False, its `frames` to none, its
-    /// `sleep` to `time.sleep` and its `process` to none.
+    /// `time.monotonic`, its `cry` to None, its `instead` to False, its `named` to True, its
+    /// `frames` to none, its `sleep` to `time.sleep` and its `process` to none.
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         memory: Rc<dyn Memory>,
@@ -239,6 +242,7 @@ impl HeadIt {
         clock: Rc<dyn Fn() -> f64>,
         cry: Option<Crier>,
         instead: bool,
+        named: bool,
         frames: Frames,
         sleep: Rc<dyn Fn(f64)>,
         process: Process,
@@ -261,6 +265,7 @@ impl HeadIt {
             reads: IndexMap::new(),
             cry,
             instead,
+            said: named.then_some(Category::Screen),
             heights: IndexMap::new(),
             cued: PySet::new(),
             told: false,
@@ -393,7 +398,7 @@ impl HeadIt {
             .collect();
         for column in new {
             let Some((_, called, _, found)) = standing.get(&column) else {
-                said.push((LOG.to_string(), own(NOBODY, &[]), Some(Category::Screen)));
+                said.push((LOG.to_string(), own(NOBODY, &[]), self.said));
                 continue;
             };
             // Its cry toward its side, in its name's place where the player asks.
@@ -406,7 +411,7 @@ impl HeadIt {
             said.push((
                 LOG.to_string(),
                 own(COMING, &[("pokemon", called)]),
-                Some(Category::Screen),
+                self.said,
             ));
         }
         Ok(said)

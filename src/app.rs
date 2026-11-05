@@ -23,7 +23,7 @@ use std::sync::{Arc, mpsc};
 use indexmap::IndexMap;
 
 use crate::core::clips::Clips;
-use crate::core::config::{Audio, STYLE_NAME, Tables};
+use crate::core::config::{Audio, CRYING, Tables};
 use crate::core::discovery::{CODE_SPAN, Discovery};
 use crate::core::heaps::Block;
 use crate::core::keyfile::{data_path, emulator_config};
@@ -724,7 +724,12 @@ fn session(
             cries: match &loudness {
                 Some(loudness)
                     if audio.feedback_sounds > 0.0
-                        && settings.tables.amie.feedback_style != STYLE_NAME =>
+                        && [
+                            &settings.tables.amie.berry_picker_style,
+                            &settings.tables.amie.head_it_style,
+                        ]
+                        .iter()
+                        .any(|style| CRYING.contains(&style.as_str())) =>
                 {
                     Some(Rc::new(Clips::new(loudness.clone(), audio.feedback_sounds)))
                 }
