@@ -1,5 +1,43 @@
 # Changelog
 
+## [0.11.0] - 2026-11-05
+
+### Added
+
+- In Head It, `R` says the score, the combo and the time or the misses left: "819, 98-HIT COMBO,
+  Time Left: 23". With the `head_it_score` setting on, the score, the combo and each MISS! are
+  said as they come instead, the score and the combo once while they keep counting up.
+- `feedback_style` is now two settings, `berry_picker_style` and `head_it_style`, and pa3ds
+  carries your choice to each. `head_it_style` can also be `"none"`, for the cue alone with
+  `head_it_cue`.
+- Route 111's fossils are listed under items, by their names in the game: Root Fossil to the west,
+  Claw Fossil to the east.
+
+### Changed
+
+- Head It's cue is timed by each ball itself, and sounds at the moment that heads it at its sweet
+  spot, so taps by the cue score far more. Two balls due together are cued in the order they
+  come.
+- pa3ds takes out of `user\config.toml` the settings it no longer has, and out of
+  `user\keys.toml` the keys bound to something it no longer does, and keeps both files' tables in
+  order with `[azahar]` last. A name in `[azahar]` that Azahar has no setting for is taken out.
+- The field's things are listed about a second sooner after a place loads, and in a Secret Base
+  within two seconds.
+
+### Fixed
+
+- Head It no longer falls behind the balls in long rounds: the score, the combo and each MISS!
+  are left unsaid while balls fall, so the names keep up. The game plays its own sound for a miss.
+- In the mod settings, `head_it_lead` is a box of seconds. It showed as a checkbox, and applying
+  any change set it back to 0.4.
+- In X, Pokémon-Amie's stars are said on the results and the difficulty buttons: "Hard 4 stars".
+- Clerks behind a counter are listed: Lavaridge's herbalist, the Lilycove Department Store's
+  receptionists, Devon's fossil scientist and the Secret Base Guild's two shops.
+- In a Secret Base, `P` walks across Stands, Stairs, Tall Grass, Solid Boards and Pitfall Mats,
+  and through a Breakable Door between its ends.
+- Round Prism Tower, `P` into a street off Centrico Plaza takes you onto the street, where it used
+  to leave you a step short, saying a direction that walked into a wall.
+
 ## [0.10.0] - 2026-11-03
 
 ### Added
