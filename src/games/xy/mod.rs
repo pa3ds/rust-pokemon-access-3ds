@@ -16,14 +16,17 @@ use indexmap::IndexMap;
 use crate::core::keyfile::data_path;
 use crate::core::pathfind;
 use crate::games::common::field::ground::{CUT, ROCK_SMASH, STRENGTH};
-use crate::games::gen6::field::camera;
+use crate::games::gen6::anchors::Chain;
+use crate::games::gen6::apps::FIELD;
 use crate::games::gen6::field::footsteps::{RUN, Steps, WALK};
 use crate::games::gen6::field::landform::{
     ArrowTiles, Climbing, Conveyors, Grinding, Landform, Rides, Strands, Vining, gen6,
 };
+use crate::games::gen6::field::{camera, mapblock, mmodel};
 use crate::games::gen6::game::{Data, FurnitureKind, Game};
 use crate::games::gen6::rom::layout::{RomLayout, TownFacilities, owned};
-use crate::games::gen6::subscreen::berry_picker;
+use crate::games::gen6::screens::buttons;
+use crate::games::gen6::subscreen::{amie, berry_picker};
 use crate::games::xy::intro::IntroReader;
 use crate::py::PySet;
 
@@ -744,6 +747,31 @@ pub const FIELD_MENU: (i64, i64) = (0x70, 0x90);
 /// ORAS's, the record laid out as ORAS's is (spike 243, x_route_8_dowsing).
 pub const DOWSING: i64 = 0x1AC;
 
+/// Where X's field's work holds the frame round the bottom screen's pages, `field::subscreen::
+/// FieldMenu`, 8 before ORAS's, whose +0x48 is Pokémon-Amie's page (spike A).
+pub const MENU: i64 = 0x16C;
+/// What X's field's process leads to, as ORAS's does at other offsets (`gen6.anchors`, spike A,
+/// x_lumiose_centrico_plaza_and_avenues): its move models, map blocks, and the bottom screen's
+/// frame and Amie's page. The apps of ORAS's chains are not measured in X, and are swept for.
+pub fn anchors() -> IndexMap<String, Vec<Chain>> {
+    IndexMap::from([(
+        FIELD.to_string(),
+        vec![
+            Chain {
+                count: 32,
+                stride: mmodel::SLOT_X,
+                ..Chain::new(mmodel::CLASS, &[0x24, 0x158, 0x0C])
+            },
+            Chain {
+                count: 4,
+                ..Chain::new(mapblock::CLASS, &[0x24, 0xFC, 0x44, 0x00])
+            },
+            Chain::new(buttons::MENU_CLASS, &[0x24, MENU]),
+            Chain::new(amie::CLASS, &[0x24, MENU, 0x48]),
+        ],
+    )])
+}
+
 /// X and Y as the gen 6 readers read them.
 pub fn game() -> &'static Game {
     static GAME: OnceLock<Game> = OnceLock::new();
@@ -864,6 +892,8 @@ pub fn game() -> &'static Game {
         worded: WORDED.iter().map(|texture| texture.to_string()).collect(),
         camera: camera::X,
         opening: Some(|memory, _language| Box::new(IntroReader::new(memory))),
+        zone_record: 0xE4,
+        anchors: anchors(),
         ..Game::new("X and Y", [X, Y], DATA, rom().clone(), DRAWN)
     })
 }

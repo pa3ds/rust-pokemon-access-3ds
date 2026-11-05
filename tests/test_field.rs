@@ -7489,3 +7489,19 @@ fn test_the_ice_gyms_rooms_are_read_through_its_module() -> Result<()> {
     assert!(floors.rooms(0x1BB)?.is_empty());
     Ok(())
 }
+
+/// X's player stood at 0, 0, 0 and then at 3, 3, 3 as its field loaded, and was listed at cell
+/// (0, 0) before the game placed it (spike A); placed, it is in a cell.
+#[test]
+fn test_a_model_not_yet_placed_stands_nowhere() -> Result<()> {
+    let head = |x: f64, y: f64, z: f64| -> Vec<u8> {
+        let mut raw = vec![0u8; mmodel::HEAD as usize];
+        let at = mmodel::WORLD_X as usize;
+        raw[at..at + 12].copy_from_slice(&f32s(&[x, y, z]));
+        raw
+    };
+    assert_eq!(mmodel::cell(&head(0.0, 0.0, 0.0))?, None);
+    assert_eq!(mmodel::cell(&head(3.0, 3.0, 3.0))?, None);
+    assert_eq!(mmodel::cell(&head(746.8, 3.0, 1016.1))?, Some((41, 56)));
+    Ok(())
+}

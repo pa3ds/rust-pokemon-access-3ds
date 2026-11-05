@@ -21,6 +21,7 @@ use std::rc::Rc;
 
 use indexmap::{IndexMap, IndexSet};
 
+use crate::app::most_common;
 use crate::core::binary::u32;
 use crate::core::clips::Clips;
 use crate::core::config::{DRAG_TOGGLE, Tables};
@@ -63,6 +64,7 @@ use crate::games::common::touch::{
     TouchTargets,
 };
 use crate::games::common::{lyt, msgwin, pokemon, strbuf};
+use crate::games::gen6::anchors::Anchors;
 use crate::games::gen6::apps::{BATTLE, DEMOS, FIELD, MANAGER_CLASS, RunningApp, TUTORIAL};
 use crate::games::gen6::field::dowsing::Lights;
 use crate::games::gen6::field::footsteps::Footsteps;
@@ -185,6 +187,10 @@ pub const CUE_SOUND: &str = "SEQ_SE_FLD_036";
 /// north first and clockwise: north high, south low, east in the right ear and west in the left, as
 /// the Hoenn map's cursor sounds its place (`core.tones`).
 pub const FACING_TONES: [(f64, f64); 4] = [(0.5, 0.0), (1.0, 0.5), (0.5, 1.0), (0.0, 0.5)];
+/// Seconds between follows of the running app's chains (`gen6.anchors`), and at once as an app
+/// starts: what it keeps is built over its first second or two, and rebuilt as the field loads a
+/// zone.
+pub const ANCHOR_EVERY: f64 = 0.2;
 /// Seconds after the player arrives in a zone, or the field runs again after another app, that a
 /// new facing is taken without a tone: as a zone loads or the Bag opens over the field, the camera
 /// looks south for a poll or two in ORAS and X alike, and over the tapes 44 of 133 tones came
@@ -244,10 +250,14 @@ pub struct Gen6Profile {
     /// (ADR-0042).
     part: RefCell<Option<String>>,
     pub layouts: Rc<Layouts>,
-    /// Which screen the game is running, and the moment another starts (spike 99).
+    /// Which screen the game is running, and the moment another starts (spike 99); and what
+    /// its process leads to, from that moment (spike A).
     ///
     /// Shared with the own apps' `running`, which the Python hands as a bound method.
     pub apps: Rc<RefCell<RunningApp>>,
+    pub anchors: RefCell<Anchors>,
+    /// When the running app's chains were last followed (`ANCHOR_EVERY`).
+    anchored: Cell<f64>,
     pub dialogue: RefCell<DialogueReader>,
     /// Shared with touch mode's `lists`, which the Python hands as a bound method.
     pub lists: Rc<RefCell<ListReader>>,
@@ -1116,6 +1126,8 @@ impl Gen6Profile {
             part: RefCell::new(None),
             layouts,
             apps,
+            anchors: RefCell::new(Anchors::new(memory.clone(), game.anchors.clone())),
+            anchored: Cell::new(0.0),
             dialogue: RefCell::new(dialogue),
             lists,
             choices: RefCell::new(choices),
@@ -1321,9 +1333,12 @@ impl Gen6Profile {
     pub fn poll_app(&self) -> Result<bool> {
         let started = phase(&*self.memory, "app", || self.apps.borrow_mut().poll())?;
         let Some(started) = started else {
+            self.anchor(false)?;
             return Ok(false);
         };
         (self.log)(&format!("app: {}", demangle(&started)));
+        self.anchors.borrow_mut().started();
+        self.anchor(true)?;
         self.dialogue.borrow_mut().forget_hosts();
         // A screen built again where it was may load its archive elsewhere: the PokéNav's came
         // back from the PlayNav's tutorial in another, and its pictures went unnamed (movie24).
@@ -1348,6 +1363,47 @@ impl Gen6Profile {
             app.started();
         }
         Ok(true)
+    }
+
+    /// Follow the running app's chains, `ANCHOR_EVERY` or `at_once`, and hand the readers
+    /// what they lead to that is new (`gen6.anchors`); on the field, its zone's data, the zone
+    /// table and the field map too (`FieldReader.anchor`).
+    fn anchor(&self, at_once: bool) -> Result<()> {
+        let now = py::time::monotonic();
+        if !at_once && now - self.anchored.get() < ANCHOR_EVERY {
+            return Ok(());
+        }
+        self.anchored.set(now);
+        let (running, process) = {
+            let apps = self.apps.borrow();
+            (apps.running.clone(), apps.process)
+        };
+        let anchored = phase(&*self.memory, "anchors", || {
+            let anchored = self
+                .anchors
+                .borrow_mut()
+                .poll(running.as_deref(), process)?;
+            if running.as_deref() == Some(FIELD)
+                && let Some(process) = process
+            {
+                let taken = self.field().anchor(process)?;
+                if !taken.is_empty() {
+                    self.relist.set(true);
+                    (self.log)(&format!("anchors: the field's {}", taken.join(", ")));
+                }
+            }
+            Ok(anchored)
+        })?;
+        if let Some(anchored) = anchored {
+            let names: Vec<&String> = anchored.heap.values().collect();
+            let counted: Vec<String> = most_common(&names)
+                .into_iter()
+                .map(|(name, count)| format!("{count} {}", demangle(&name)))
+                .collect();
+            (self.log)(&format!("anchors: {}", counted.join(", ")));
+            self.track(&anchored)?;
+        }
+        Ok(())
     }
 
     /// Whether the app just started wants the whole heap swept as it builds: not the field

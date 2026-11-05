@@ -60,16 +60,18 @@ pub fn find(memory: &dyn Memory, pages: &IndexMap<i64, Vec<u8>>) -> Result<Optio
     for (&base, page) in pages {
         for index in find_all(page, &needle) {
             let block = base + index as i64 + needle.len() as i64;
-            let head = memory.read(block, MAP_GRID)?;
-            if u32(&head, MAP_KIND)? == 4
-                && u32(&head, MAP_MARK)? == MAP_MARKED
-                && size(&head)?.is_some()
-            {
+            if valid(memory, block)? {
                 return Ok(Some(block));
             }
         }
     }
     Ok(None)
+}
+
+/// Whether the field map is at `block`, by its marks and a size it can be.
+pub fn valid(memory: &dyn Memory, block: i64) -> Result<bool> {
+    let head = memory.read(block, MAP_GRID)?;
+    Ok(u32(&head, MAP_KIND)? == 4 && u32(&head, MAP_MARK)? == MAP_MARKED && size(&head)?.is_some())
 }
 
 /// The grid of zones as the field map at `address` has it now: the game rewrites the one

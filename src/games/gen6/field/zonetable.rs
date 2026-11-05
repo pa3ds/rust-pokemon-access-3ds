@@ -153,6 +153,19 @@ impl ZoneTable {
         Ok(())
     }
 
+    /// Take the table at `base`, where a chain from the field's process leads (spike A), if it
+    /// is the ROM's zone table byte for byte; without the ROM, a sweep's find is waited for.
+    pub fn take(&self, base: i64) -> Result<bool> {
+        if self.base.get().is_none()
+            && !self.rom.is_empty()
+            && self.memory.read(base, self.rom.len() as i64)? == self.rom
+        {
+            self.base.set(Some(base));
+            return Ok(true);
+        }
+        Ok(false)
+    }
+
     /// A zone's row: its parent zone at +0x1a, and at +0x1c a u16 whose low ten bits are its
     /// place-name index, for naming exits once names come from the ROM (spike 85; the bits
     /// above are flags, and 0x400 marks the zone that carries the place's name). None without

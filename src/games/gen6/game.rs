@@ -25,6 +25,7 @@ use crate::games::common::field::things::Field;
 use crate::games::common::layout::Layouts;
 use crate::games::common::layout_file::LayoutFiles;
 use crate::games::common::screen::ScreenText;
+use crate::games::gen6::anchors::Chain;
 use crate::games::gen6::apps::RunningApp;
 use crate::games::gen6::field::camera;
 use crate::games::gen6::field::features::{
@@ -348,6 +349,12 @@ pub struct Game {
     /// ROM the thing is called by: the game names it only as the item taken, and one model draws
     /// both of Route 111's fossils (`Profile._game_place`).
     pub items_at: IndexMap<(i64, i64), i64>,
+    /// Where the field's work holds the current zone's record, which leads to its data and the
+    /// zone table: ORAS's +0xF4, X's +0xE4 (`FieldReader.anchor`, spike A).
+    pub zone_record: i64,
+    /// By app, the chains from its process to the objects it keeps, found from the moment it
+    /// starts (`gen6.anchors`, spike A).
+    pub anchors: IndexMap<String, Vec<Chain>>,
 }
 
 impl Game {
@@ -408,6 +415,8 @@ impl Game {
             camera: camera::ORAS,
             whole: HashSet::new(),
             items_at: IndexMap::new(),
+            zone_record: 0xF4,
+            anchors: IndexMap::new(),
         }
     }
 }

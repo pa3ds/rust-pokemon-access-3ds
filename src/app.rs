@@ -1079,7 +1079,7 @@ fn session(
 
 /// `Counter(names).most_common()`: each name with how often it came, most first, a tie in the
 /// order the names first came.
-fn most_common(names: &[&String]) -> Vec<(String, i64)> {
+pub(crate) fn most_common(names: &[&String]) -> Vec<(String, i64)> {
     let mut counts: IndexMap<String, i64> = IndexMap::new();
     for &name in names {
         *counts.entry(name.clone()).or_insert(0) += 1;

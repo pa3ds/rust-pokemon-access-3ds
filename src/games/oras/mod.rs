@@ -16,22 +16,25 @@ use crate::core::memory::Memory;
 use crate::core::pathfind::SOUTH;
 use crate::games::common::field::ground::{CUT, ROCK_SMASH, STRENGTH};
 use crate::games::common::pictures;
+use crate::games::gen6::anchors::Chain;
+use crate::games::gen6::apps::FIELD;
 use crate::games::gen6::field::features::{
     DoorReader, Feature, HiddenReader, IceReader, SecretBaseReader,
 };
 use crate::games::gen6::field::landform::{Belts, Landform, gen6};
-use crate::games::gen6::field::mmodel;
 use crate::games::gen6::field::reader::{FLAG, PC_TILE};
+use crate::games::gen6::field::{mapblock, mmodel};
 use crate::games::gen6::game::{Data, FurnitureKind, Game};
 use crate::games::gen6::rom::archives::{BOY, GIRL, GameText};
 use crate::games::gen6::rom::layout::{RomLayout, TownFacilities};
-use crate::games::gen6::subscreen::berry_picker;
-use crate::games::oras::field::ash::AshPiles;
+use crate::games::gen6::screens::{buttons, distribution, townmap};
+use crate::games::gen6::subscreen::{amie, berry_picker, super_training};
+use crate::games::oras::field::ash::{self, AshPiles};
 use crate::games::oras::field::berries::BerrySpots;
 use crate::games::oras::field::doors::RotatingDoors;
 use crate::games::oras::field::hidden::DexNav;
 use crate::games::oras::field::ice::IceFloors;
-use crate::games::oras::field::secret_base::{SecretBases, zones as secret_bases_zones};
+use crate::games::oras::field::secret_base::{self, SecretBases, zones as secret_bases_zones};
 use crate::games::oras::field::sky;
 use crate::games::oras::field::sky::Soaring;
 use crate::games::oras::memories::Memories;
@@ -919,6 +922,53 @@ pub const ELEVATORS: std::ops::Range<i64> = 0x27DA..0x27EC;
 /// Python's is a frozenset of the range; a `Range` here, collected where a set is wanted.
 pub const PLAYER_LOOKS: std::ops::Range<i64> = 0xAB..0xB3;
 
+/// Where the field's process holds the field's work (`gen6.field.dowsing`).
+pub const WORK: i64 = 0x24;
+/// Where the field's work holds the frame round the PlayNav's pages, `field::subscreen::
+/// FieldMenu`, whose +0x4C is Pokémon-Amie's page and +0x50 Super Training's (spike A).
+pub const MENU: i64 = 0x174;
+/// The AreaNav's process +0x20, and its +0xEC, the object holding its views and navigator.
+pub const TOWNMAP_WORK: [i64; 2] = [0x20, 0xEC];
+
+/// What each app's process leads to (`gen6.anchors`, spike A, twelve movies): the field's move
+/// models, a pool round the one chained, its four map blocks, by an array, the PlayNav's frame and
+/// pages, a Secret Base's mapper and decorating cursor and Route 113's ash; and the AreaNav's views
+/// and navigator. Each swept for as well, where a chain hands nothing over. Not Amie's
+/// games' objects: Head It's and Berry Picker's processes lead to a model of the class that is not
+/// the round's, and the balls were said "ball of yarn" and the berries "Razz Berry wanted".
+pub fn anchors() -> IndexMap<String, Vec<Chain>> {
+    let [process, work] = TOWNMAP_WORK;
+    let mut townmap: Vec<Chain> = townmap::VIEWS
+        .iter()
+        .zip([0xB8, 0xB4, 0xBC, 0xC0, 0xC4])
+        .map(|(&(view, _), at)| Chain::new(view, &[process, work, at]))
+        .collect();
+    townmap.push(Chain::new(distribution::CLASS, &[process, work, 0xAC]));
+    IndexMap::from([
+        (
+            FIELD.to_string(),
+            vec![
+                Chain {
+                    count: 32,
+                    stride: mmodel::SLOT,
+                    ..Chain::new(mmodel::CLASS, &[WORK, 0x164, 0x0C])
+                },
+                Chain {
+                    count: 4,
+                    ..Chain::new(mapblock::CLASS, &[WORK, 0x10C, 0x44, 0x00])
+                },
+                Chain::new(buttons::MENU_CLASS, &[WORK, MENU]),
+                Chain::new(amie::CLASS, &[WORK, MENU, 0x4C]),
+                Chain::new(super_training::CLASS, &[WORK, MENU, 0x50]),
+                Chain::new(secret_base::MAPPER_CLASS, &[WORK, 0x108, 0x15C]),
+                Chain::new(secret_base::CURSOR_CLASS, &[WORK, 0x108, 0x154]),
+                Chain::new(ash::CLASS, &[WORK, 0x1AC]),
+            ],
+        ),
+        (townmap::APP.to_string(), townmap),
+    ])
+}
+
 /// Omega Ruby and Alpha Sapphire as the gen 6 readers read them.
 pub fn game() -> &'static Game {
     static GAME: OnceLock<Game> = OnceLock::new();
@@ -959,6 +1009,7 @@ pub fn game() -> &'static Game {
         memories: Some(Memories::of),
         form: Some(mmodel::FORM),
         whole: HashSet::from(SAFARI_ZONE),
+        anchors: anchors(),
         ..Game::new(
             "Omega Ruby and Alpha Sapphire",
             [OMEGA_RUBY, ALPHA_SAPPHIRE],

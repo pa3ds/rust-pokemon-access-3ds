@@ -15,6 +15,7 @@
 //!   and X's Lumiose: `rail` and `camera`.
 //! - The ROM: `archives`, the game's own words for places, the rival, the PC and doors.
 
+pub mod anchors;
 pub mod apps;
 pub mod field;
 pub mod frames;

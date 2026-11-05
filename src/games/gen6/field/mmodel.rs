@@ -54,6 +54,9 @@ use crate::py::{self, Error, Result};
 
 pub const CLASS: &str = "N5field6mmodel9MoveModelE";
 pub const CLASSES: [&str; 2] = [CLASS, "N5field6mmodel13MoveModelBaseE"];
+/// How far apart ORAS's slots of the pool are; X's are `SLOT_X` apart.
+pub const SLOT: i64 = 0xAB0;
+pub const SLOT_X: i64 = 0xAA8;
 
 pub const IN_USE: i64 = 0x04;
 pub const RIDING: i64 = 0x06;
@@ -312,7 +315,10 @@ pub fn place(head: &[u8]) -> Result<(f64, f64)> {
 /// of cells off (spike 102); it is nowhere near, and the world's cell stands.
 pub fn cell(head: &[u8]) -> Result<Option<(i64, i64)>> {
     let (x, z) = (f32(head, WORLD_X)?, f32(head, WORLD_Z)?);
-    if x == 0.0 && z == 0.0 {
+    // Not placed yet: the player's model, built as X's field loads, stood at 0, 0, 0 and then at
+    // 3, 3, 3 for half a second before the game placed it, and was read as cell (0, 0) once the
+    // zone's data was known that soon (spike A, x_lumiose_centrico_plaza_and_avenues).
+    if x == z && z == f32(head, WORLD_Y)? {
         return Ok(None);
     }
     let half = CELL as f64 / 2.0;

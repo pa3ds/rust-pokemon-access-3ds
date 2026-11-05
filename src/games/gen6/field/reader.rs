@@ -51,6 +51,7 @@ use crate::games::common::field::things::{
     OPENING_SOURCE, POKEMON, STAIRS_SOURCE, TELEPORT_SOURCE, TELEPORTER, TILE_SOURCE,
     TRIGGER_SOURCE, WARP_SOURCE, kind_said, place_source,
 };
+use crate::games::gen6::anchors::follow;
 use crate::games::gen6::field::conveyors::Switches;
 use crate::games::gen6::field::features::{
     DoorReader, Feature, HiddenReader, Hiding, IceReader, SecretBaseReader, Tracked,
@@ -78,7 +79,19 @@ use crate::games::gen6::rom::maps::{ChunkSource, StreetSource};
 use crate::py::{self, PySet, Result};
 
 /// What a sweep looks for. The slot's own shape is `mmodel`'s, as every structure's is.
+///
+/// The Python's docstring for this follows `MAP_IN`'s since `WORK` and the rest came between
+/// them, where it documents nothing; it is kept here, on the constant it names.
 pub const MOVE_MODEL_CLASS: &str = mmodel::CLASS;
+/// Where the field's process holds the field's work (`FieldReader.anchor`, spike A).
+pub const WORK: i64 = 0x24;
+pub const RECORD_DATA: i64 = 0x08;
+pub const TABLE_HOPS: [i64; 2] = [0x04, 0x84];
+pub const TABLE_IN: i64 = 0x30;
+pub const MAP_HOPS: [i64; 3] = [0x1C, 0x60, 0x88];
+/// From the zone's record to its data and to the zone table, and from the field's process to the
+/// field map, the same in ORAS and X (spike A).
+pub const MAP_IN: i64 = 0x18;
 
 /// How far over or under the ground it is walked from a warp walked through may stand and still be
 /// an opening and not stairs. Over every room-to-room warp of this kind in ORAS the rise is 0 for
@@ -265,6 +278,8 @@ pub struct FieldReader {
     landings: HashSet<i64>,
     /// What the game has of its own to list: ORAS's berry spots and ash piles.
     features: Vec<Rc<dyn Feature>>,
+    /// Where the field's work holds the current zone's record (`anchor`).
+    zone_record: i64,
     /// The game's rotating doors, or None in a game without them.
     doors: Option<Rc<dyn DoorReader>>,
     /// The sprites of the game's invisible blockers (`Game.blockers`).
@@ -524,6 +539,7 @@ impl FieldReader {
             warp_words: game.warps.clone(),
             landings: game.landings.clone(),
             features,
+            zone_record: game.zone_record,
             doors: game.doors.map(|make| make(memory.clone())),
             blockers: game.blockers.clone(),
             elevators: game.elevators.clone(),
@@ -1680,6 +1696,56 @@ impl FieldReader {
             };
         }
         listed
+    }
+
+    /// Take what the field's process leads to and no class names, each checked by its shape
+    /// (spike A), where none is known that holds: the current zone's data, held where the
+    /// zone's record keeps it; the zone table, inside an object the record leads to; and the
+    /// field map, inside one the game's data leads to. Returns those taken, for the log: the
+    /// moment the field can be listed, a second before the sweep 1.5 s after the field starts
+    /// would find them.
+    ///
+    /// ```text
+    /// process  +0x24 -> the field's work  +0xF4, X's +0xE4 -> the zone's record
+    /// record   +0x08 -> the zone's data     +0x04 +0x84 -> the zone table, 0x30 in
+    /// process  +0x1C -> the manager  +0x60 -> the game's data  +0x88 -> the field map,
+    ///          0x18 in
+    /// ```
+    pub fn anchor(&self, process: i64) -> Result<Vec<String>> {
+        let mut taken: Vec<String> = Vec::new();
+        let record = follow(&*self.memory, process, &[WORK, self.zone_record])?;
+        if let Some(record) = record {
+            let holder = record + RECORD_DATA;
+            if self.current()?.is_none()
+                && read_zone(&*self.memory, u32(&self.memory.read(holder, 4)?, 0)?)?.is_some()
+            {
+                *self.holder.borrow_mut() = Some(Holder {
+                    address: holder,
+                    files: IndexMap::new(),
+                });
+                taken.push("zone data".to_string());
+            }
+            let table = follow(&*self.memory, record, &TABLE_HOPS)?;
+            if let Some(table) = table
+                && self.zones.take(table + TABLE_IN)?
+            {
+                taken.push("zone table".to_string());
+            }
+        }
+        let game = follow(&*self.memory, process, &MAP_HOPS)?;
+        let stale = match self.map.get() {
+            None => true,
+            Some(map) => !fieldmap::valid(&*self.memory, map)?,
+        };
+        if stale
+            && let Some(game) = game
+            && fieldmap::valid(&*self.memory, game + MAP_IN)?
+        {
+            self.map.set(Some(game + MAP_IN));
+            self.read_map()?;
+            taken.push("field map".to_string());
+        }
+        Ok(taken)
     }
 
     /// Why to sweep now rather than on schedule, or None.
