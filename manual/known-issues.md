@@ -12,7 +12,8 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
   Affection, Fullness and Enjoyment. Of its games, Berry Picker's Unlimited says the misses you
   have left as a number alone, "2", and Berry Picker does not say when a Pokémon has eaten a
   berry or gone away; Head It says when a ball reaches its Pokémon only with `head_it_cue` on,
-  and reads its results out of order, the total last; in Tile Puzzle "Yes" is said as a puzzle
+  past about 100 hits in a row its balls fall so fast that the cue comes early for about one in
+  three, and it reads its results out of order, the total last; in Tile Puzzle "Yes" is said as a puzzle
   begins, the last
   swap's points are said as it is solved, and a tile says where its piece of the picture belongs,
   not what is on it. pa3ds does not say when your Pokémon has eaten a Poké Puff, and only the five

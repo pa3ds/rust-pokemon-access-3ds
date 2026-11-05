@@ -298,6 +298,7 @@ pub struct Subscreens {
     /// as a trait of one: a test reaches its cue through them, as Python's does.
     pub(crate) ticked: Vec<Rc<RefCell<HeadIt>>>,
     holding: Vec<Rc<RefCell<HeadIt>>>,
+    head_it: Rc<RefCell<HeadIt>>,
 }
 
 /// `yours`: a Pokémon of the player's by the nickname they gave it, or else as the game calls its
@@ -469,7 +470,8 @@ impl Subscreens {
             described: vec![puzzle.clone()],
             keyed: vec![berry_keys, head_keys],
             ticked: vec![head_it.clone()],
-            holding: vec![head_it],
+            holding: vec![head_it.clone()],
+            head_it,
             puzzle,
             berry_picker,
         }
@@ -575,6 +577,22 @@ impl Subscreens {
             }
         }
         Ok(())
+    }
+
+    /// Whether one of Amie's games is mid-play, its numbers the play's and left unsaid
+    /// (`screen_announce`): a Tile Puzzle with a piece away from home (Orion, 2026-10-28).
+    pub fn playing(&self, running: Option<&str>) -> Result<bool> {
+        Ok(running == Some(puzzle::APP) && self.puzzle.borrow().playing()?)
+    }
+
+    /// Whether one of Amie's games plays faster than its numbers can be said, and a number
+    /// heard again within seconds is left unsaid (`screen_announce`): Head It while balls fall,
+    /// whose score and "79-HIT COMBO", said at each hit from the third, queued up behind the
+    /// balls' names at a long Unlimited round's pace, a ball a second, so that the names came
+    /// later and later (players, 2026-11-04; spike 273's `--again`). Not all its numbers: its
+    /// misses left, "Chances:2", are said.
+    pub fn rapid(&self, running: Option<&str>) -> bool {
+        self.head_it.borrow().holding(running)
     }
 
     /// Whether a screen's round holds the heap's whole sweep off: a second of nothing else

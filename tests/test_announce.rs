@@ -139,6 +139,7 @@ impl Screen {
             tick,
             Some(Rc::new(move || timed)),
             playing,
+            None,
         );
         Screen { backend, announcer }
     }

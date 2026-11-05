@@ -90,9 +90,9 @@ use crate::games::gen6::screens::partyicons::PartyIcons;
 use crate::games::gen6::screens::{
     boxes, buttons, distribution, partners, partyicons, summary, townmap,
 };
+use crate::games::gen6::subscreen::amie;
 use crate::games::gen6::subscreen::head_it::Cue;
 use crate::games::gen6::subscreen::{self, Subscreens};
-use crate::games::gen6::subscreen::{amie, puzzle};
 use crate::games::gen6::{frames, gflheap, mystatus};
 use crate::py::{self, Error, Kind, Log, PySet, Result};
 
@@ -1036,10 +1036,11 @@ impl Gen6Profile {
             }),
             Some({
                 let (apps, subscreens) = (apps.clone(), subscreens.clone());
-                Rc::new(move || {
-                    Ok(apps.borrow().running.as_deref() == Some(puzzle::APP)
-                        && subscreens.puzzle.borrow().playing()?)
-                })
+                Rc::new(move || subscreens.playing(apps.borrow().running.as_deref()))
+            }),
+            Some({
+                let (apps, subscreens) = (apps.clone(), subscreens.clone());
+                Rc::new(move || subscreens.rapid(apps.borrow().running.as_deref()))
             }),
         );
         // The scenes the game shows without words, described where the player asks and the game

@@ -42,6 +42,10 @@
 //!   can sound a tone, `[pa3ds.audio] ticks`. While the player plays, a Tile Puzzle with a piece
 //!   away from home, its numbers are the play's, unsaid but for the clock's marks (Orion,
 //!   2026-10-28).
+//! - **A count that keeps going up faster than it can be said is said once** (players,
+//!   2026-11-04): while Head It's balls fall, its score and combo, one up at each hit, are said
+//!   and then left unsaid while they keep coming within 3 s; a count going down, its misses left,
+//!   is said.
 //! - **Words coming back where words of their panel are leaving come alone**, and so does every
 //!   word coming back while a game that times the player runs: neither is a screen coming back
 //!   (2026-10-28).
@@ -121,6 +125,9 @@ pub const REWRITE_ROWS: i64 = 2;
 pub const CLOCK_POLLS: Range<i64> = 3..9;
 
 static NUMBERS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\d+").expect("a fixed pattern"));
+/// Polls, three seconds, within which a number heard again higher in the same words is left
+/// unsaid while a game's play comes faster than it can be said (`rapid`).
+pub const AGAIN_POLLS: i64 = 15;
 
 /// A layout root and the pane a group of pieces hangs from, or the frame drawn round words hanging
 /// from the root itself (`ScreenText.group`).
@@ -197,6 +204,10 @@ pub struct ScreenAnnouncer {
     tick: Option<Rc<dyn Fn()>>,
     timed: Option<Rc<dyn Fn() -> bool>>,
     playing: Option<Rc<dyn Fn() -> Result<bool>>>,
+    rapid: Option<Rc<dyn Fn() -> bool>>,
+    /// Words with a number in them -> the poll they were last heard at while play was rapid,
+    /// and their first number then.
+    numbered: IndexMap<i64, (i64, i64)>,
     /// Clock's TextBox -> the mark it was said at last, said once while it bounces round it.
     marks: IndexMap<i64, i64>,
     /// TextBox -> the words it came on screen with or changed to lately, and the poll, for
@@ -248,12 +259,14 @@ impl ScreenAnnouncer {
 
     /// `ScreenAnnouncer(speech, log, pauses)`: no clock.
     pub fn with(speech: Rc<Speech>, log: Log, pauses: bool) -> Self {
-        ScreenAnnouncer::with_clock(speech, log, pauses, None, None, None)
+        ScreenAnnouncer::with_clock(speech, log, pauses, None, None, None, None)
     }
 
     /// `timed` says whether a game that times the player runs, whose clock is said at its
     /// marks (`_ticked`), none where it is None; `tick` sounds each tick of the clock; `playing`
-    /// whether its player is in the middle of play, whose numbers are left unsaid.
+    /// whether its player is in the middle of play, whose numbers are left unsaid; `rapid`
+    /// whether its play comes faster than its numbers can be said, when one heard again higher
+    /// within `AGAIN_POLLS` in the same words is left unsaid.
     ///
     /// `playing` returns `Result`: it reads the game.
     pub fn with_clock(
@@ -263,6 +276,7 @@ impl ScreenAnnouncer {
         tick: Option<Rc<dyn Fn()>>,
         timed: Option<Rc<dyn Fn() -> bool>>,
         playing: Option<Rc<dyn Fn() -> Result<bool>>>,
+        rapid: Option<Rc<dyn Fn() -> bool>>,
     ) -> Self {
         ScreenAnnouncer {
             speech,
@@ -271,6 +285,8 @@ impl ScreenAnnouncer {
             tick,
             timed,
             playing,
+            rapid,
+            numbered: IndexMap::new(),
             marks: IndexMap::new(),
             set: IndexMap::new(),
             clocks: HashSet::new(),
@@ -618,6 +634,45 @@ impl ScreenAnnouncer {
                 ));
                 heard.retain(|p| !played.contains(&p.r#box));
                 ticks.extend(played.iter().copied());
+            }
+        }
+        // Head It's score and "79-HIT COMBO" came at each hit, a second apart, one up each time,
+        // and queued behind the balls' names, which came later and later (players, 2026-11-04;
+        // spike 273's `--again`). Its misses left count down, "Chances:2" and "Chances:1" 2 s
+        // apart in or_amie_head_it_unlimited, and are said.
+        if timed && self.rapid.as_ref().is_some_and(|rapid| rapid()) {
+            let mut numbered: IndexMap<i64, i64> = IndexMap::new();
+            for p in &heard {
+                if !steps.contains_key(&p.r#box)
+                    && let Some(found) = NUMBERS.find(&p.text)
+                {
+                    numbered.insert(p.r#box, py::int_base10(found.as_str())?);
+                }
+            }
+            let again: HashSet<i64> = numbered
+                .iter()
+                .filter(|&(r#box, &number)| {
+                    self.numbered
+                        .get(r#box)
+                        .is_some_and(|last| self.polls - last.0 < AGAIN_POLLS && number > last.1)
+                })
+                .map(|(&r#box, _)| r#box)
+                .collect();
+            for (&r#box, &number) in &numbered {
+                self.numbered.insert(r#box, (self.polls, number));
+            }
+            if !again.is_empty() {
+                (self.log)(&format!(
+                    "screen again, unsaid: {}",
+                    heard
+                        .iter()
+                        .filter(|p| again.contains(&p.r#box))
+                        .map(|p| p.text.as_str())
+                        .collect::<Vec<&str>>()
+                        .join(", ")
+                ));
+                heard.retain(|p| !again.contains(&p.r#box));
+                ticks.extend(again.iter().copied());
             }
         }
         let mut changed: Vec<ScreenText> = heard

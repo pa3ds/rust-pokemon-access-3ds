@@ -124,7 +124,9 @@ In its Head It, balls of yarn fall at your Pokémon, and pa3ds says which Pokém
 as it comes: "Ralts". Touch mode offers each Pokémon by name while the round runs; tap it about a
 second after its name to head the ball back, as the ball reaches it. Too early or too late is a
 miss. On Easy the Pokémon you play with stands alone in the middle at first, and two more come up
-beside it as the round goes on.
+beside it as the round goes on. While balls fall, pa3ds says the score and the combo once, then
+leaves them unsaid while they keep counting up, so the names keep up with the balls; the misses
+you have left are always said, and the results say the rest.
 
 Head It also has keys of its own, in any mode: `8`, `9` and `0` tap the Pokémon on the left, in
 the middle and on the right. As each round starts, pa3ds says its three Pokémon in that order,
