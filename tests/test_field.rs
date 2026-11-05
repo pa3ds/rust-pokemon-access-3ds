@@ -7257,6 +7257,62 @@ fn test_a_bases_decorations_and_cursor_are_read_from_its_modules_objects() -> Re
     Ok(())
 }
 
+/// The game's hit test leaves every cell of the Stand open and hits the Breakable Door at its two
+/// ends; the player walked over both Stands and through the door's middle
+/// (or_secret_base_objects).
+#[test]
+fn test_a_stand_is_walked_on_and_a_breakable_door_only_through_its_middle() -> Result<()> {
+    let memory = FakeMemory::new();
+    let (mapper, stand, door, balloon) = (0x08441CCC, 0x083F2198, 0x083E3A28, 0x083E4000);
+    memory.u32(mapper, &[0x0084A320, secret_base::GRID, secret_base::GRID]);
+    for (n, &offset) in secret_base::LAYERS.iter().enumerate() {
+        let layer = 0x08450000 + n as i64 * 0x4000;
+        memory.u32(mapper + offset, &[layer]);
+        memory.u32(layer, &[layer + 0x10, secret_base::GRID, secret_base::GRID]);
+    }
+    let floor = 0x08450000
+        + secret_base::LAYERS
+            .iter()
+            .position(|&offset| offset == secret_base::FLOOR)
+            .unwrap() as i64
+            * 0x4000
+        + 0x10;
+    let placed: [(i64, &[(i64, i64)]); 3] = [
+        (stand, &[(16, 22), (17, 22), (16, 23), (17, 23)]),
+        (door, &[(14, 17), (15, 17), (16, 17)]),
+        (balloon, &[(12, 15)]),
+    ];
+    for (model, cells) in placed {
+        for &(x, z) in cells {
+            memory.u32(
+                floor + (z * secret_base::ROW + x) * secret_base::CELL,
+                &[model, 0],
+            );
+        }
+    }
+    memory.u32(stand, &[0x0084A344, 0x32]);
+    memory.u32(door, &[0x0084B064, secret_base::DOOR]);
+    memory.u32(balloon, &[0x0084B064, 0x97]);
+    let bases = secret_base::SecretBases::new(memory.clone(), b"", &GameText::default());
+    bases.track(&Found {
+        pages: pages(&memory),
+        heap: IndexMap::from([
+            (mapper, secret_base::MAPPER_CLASS.to_string()),
+            (
+                stand,
+                "N5field10secretBase29SecretBaseGoodsModelOokinaDaiE".to_string(),
+            ),
+            (door, secret_base::BALLOONS.to_string()),
+        ]),
+        partial: false,
+    })?;
+    assert_eq!(
+        bases.solid()?.into_iter().collect::<HashSet<_>>(),
+        HashSet::from([(14, 17), (16, 17)])
+    );
+    Ok(())
+}
+
 /// ORAS lists its 85 spots in the executable, 20 bytes a spot numbered from 0 (spike 154); a run
 /// too short to be the table is none.
 #[test]

@@ -44,10 +44,18 @@
 //!                                       +0x30 u16 x and +0x32 u16 z, the cell it is on
 //! ```
 //!
-//! +0x1c is the floor, where the desk, the chair and the mats stood; +0x18 and +0x20, empty in
-//! every read so far, are taken for the wall's posters and what stands on a desk. The cell table
-//! knows nothing of any of it: the desk's cell stayed open with the desk in it, and P went through
-//! it.
+//! +0x1c is the floor, where the desk, the chair and the mats stood; +0x18 holds the big mats that
+//! lie under it, the Spikes Mat's and the Thunder Mat's three cells by three, which the player
+//! walked across (or_secret_base_objects); +0x20, empty in every read so far, is taken for what
+//! stands on a desk. The cell table knows nothing of any of it: the desk's cell stayed open with
+//! the desk in it, and P went through it.
+//!
+//! Whether a floor decoration's cell stops the player is its class's to say, in
+//! DllUSSecretBase.cro: the generic `SecretBaseGoodsModel`'s hit test (vtable slot 5) is true on
+//! every cell of its box, and slot 12 sets the cell's blocked bit where it hits. The classes
+//! `WALKED_ON` lists return false on every cell, or set cells of their own whose kinds the
+//! executable's table has open; the balloon class is hit only at the Breakable Door's two ends
+//! (`DOOR`). Spike A reads it all off the ROM.
 
 use std::cell::{Cell as Slot, RefCell};
 use std::collections::{HashMap, HashSet};
@@ -159,25 +167,35 @@ pub fn zones() -> &'static IndexSet<i64> {
 
 pub const MAPPER_CLASS: &str = "N5field10secretBase16SecretBaseMapperE";
 pub const CURSOR_CLASS: &str = "N5field10secretBase21SecretBaseCursorModelE";
-/// The decorations' classes stood on rather than walked round: Your Location, which the player
-/// walked onto, the Welcome Mats beside it, the one whose class says it is not hit, and the note
-/// and glitter mats. Every other decoration is taken to be solid, as the Small Desk was: the player
-/// walked round it where P went through it. The panels and mats that move the player are among
-/// them, so a way keeps off them.
-pub const WALKED_ON: [&str; 5] = [
+/// The decorations' classes stood on rather than walked round, by the game's own hit test (spike
+/// A): Your Location, the Welcome Mats, the cushions and plain mats whose class is not hit, the
+/// note and glitter mats, the Stand, the Stairs, the Tall Grass and the Solid Board. The player
+/// walked six of the Stand's eight cells (or_secret_base_objects). Every other class is solid to
+/// P: those the game hits, as the Small Desk was walked round where P went through it, and the
+/// panels and mats that move the player or drop them in a pit, which the game does not hit but a
+/// way keeps off. The Slide, the tents and the Paradoxical Popper hit some cells and not others,
+/// and are kept whole.
+pub const WALKED_ON: [&str; 9] = [
     "N5field10secretBase33SecretBaseGoodsModelJibunNoIbasyoE",
     "N5field10secretBase30SecretBaseGoodsModelOmanekiMatE",
     "N5field10secretBase26SecretBaseGoodsModelNotHitE",
     "N5field10secretBase27SecretBaseGoodsModelOnpuMatE",
     "N5field10secretBase31SecretBaseGoodsModelKirakiraMatE",
+    "N5field10secretBase29SecretBaseGoodsModelOokinaDaiE",
+    "N5field10secretBase26SecretBaseGoodsModelKaidanE",
+    "N5field10secretBase28SecretBaseGoodsModelKusamuraE",
+    "N5field10secretBase30SecretBaseGoodsModelJoubunaItaE",
 ];
-// ponytail: solid by class, measured for the desk and Your Location alone; a mat found solid, or
-// a desk found walked through, moves its class in or out of WALKED_ON.
+pub const BALLOONS: &str = "N5field10secretBase26SecretBaseGoodsModelFuusenE";
+/// The Breakable Door, a decoration of the balloons' class, which the game hits at its two end
+/// cells alone: the player walked through its middle (or_secret_base_objects). The balloons
+/// themselves are never hit.
+pub const DOOR: i64 = 0x96;
 /// The Invisible Doll's class: the game hides the doll until it is examined, so it is never
 /// listed (the user, 2026-10-10).
 pub const UNSEEN: &str = "N5field10secretBase37SecretBaseGoodsModelSuperKakureonDollE";
 
-/// The mapper's layers, said in this order: what stands on a desk, the floor, the wall.
+/// The mapper's layers, said in this order: what stands on a desk, the floor, the mats under it.
 pub const LAYERS: [i64; 3] = [0x20, 0x1C, 0x18];
 pub const FLOOR: i64 = 0x1C;
 pub const GRID: i64 = 40;
@@ -275,6 +293,8 @@ pub struct SecretBases {
     cursor: Slot<Option<i64>>,
     /// The vtables of `WALKED_ON`'s classes, as the sweeps found them.
     walked_on: RefCell<HashSet<i64>>,
+    /// `BALLOONS`'s vtable, as the sweeps found it.
+    balloons: RefCell<HashSet<i64>>,
     /// `UNSEEN`'s vtable, as the sweeps found it.
     unseen: RefCell<HashSet<i64>>,
 }
@@ -283,6 +303,7 @@ impl SecretBases {
     pub fn new(memory: Rc<dyn Memory>, image: &[u8], text: &GameText) -> Self {
         let mut classes = vec![SAVE_CLASS, MAPPER_CLASS, CURSOR_CLASS];
         classes.extend(WALKED_ON);
+        classes.push(BALLOONS);
         classes.push(UNSEEN);
         SecretBases {
             classes,
@@ -295,6 +316,7 @@ impl SecretBases {
             mapper: Slot::new(None),
             cursor: Slot::new(None),
             walked_on: RefCell::new(HashSet::new()),
+            balloons: RefCell::new(HashSet::new()),
             unseen: RefCell::new(HashSet::new()),
         }
     }
@@ -327,6 +349,10 @@ impl SecretBases {
         for at in found.of(&WALKED_ON) {
             let vtable = u32(&self.memory.read(at, 4)?, 0)?;
             self.walked_on.borrow_mut().insert(vtable);
+        }
+        for at in found.of(&[BALLOONS]) {
+            let vtable = u32(&self.memory.read(at, 4)?, 0)?;
+            self.balloons.borrow_mut().insert(vtable);
         }
         for at in found.of(&[UNSEEN]) {
             let vtable = u32(&self.memory.read(at, 4)?, 0)?;
@@ -393,17 +419,29 @@ impl SecretBases {
             return Ok(IndexSet::new());
         };
         let floor = self.memory.read(layers[&FLOOR], GRID * GRID * CELL)?;
-        let mut out = IndexSet::new();
+        let mut models: IndexMap<i64, Vec<Cell>> = IndexMap::new();
         for z in 0..GRID {
             for x in 0..GRID {
                 let model = u32(&floor, (z * ROW + x) * CELL)?;
                 if within(HEAP_SPAN, model) {
-                    let vtable = u32(&self.memory.read(model, 4)?, 0)?;
-                    if !self.walked_on.borrow().contains(&vtable) {
-                        out.insert((x, z));
-                    }
+                    models.entry(model).or_default().push((x, z));
                 }
             }
+        }
+        let mut out = IndexSet::new();
+        for (model, mut cells) in models {
+            let head = self.memory.read(model, 8)?;
+            if self.walked_on.borrow().contains(&u32(&head, 0)?) {
+                continue;
+            }
+            if self.balloons.borrow().contains(&u32(&head, 0)?) {
+                cells = if u32(&head, 4)? == DOOR {
+                    vec![cells[0], cells[cells.len() - 1]]
+                } else {
+                    Vec::new()
+                };
+            }
+            out.extend(cells);
         }
         Ok(out)
     }
