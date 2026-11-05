@@ -241,6 +241,26 @@ pub const STEPS: Steps = Steps {
 pub const SOUND_ARCHIVE: &str = "sound/xy_sound.bcsar";
 /// The Pokémon's cries, 3,751 sequences and then 797 waves (spike 275; X's, Y's not yet seen).
 pub const CRIES: &str = "a/1/0/1";
+/// The archives holding textures with names, as `games.oras.TEXTURE_ARCHIVES` are Omega Ruby's:
+/// 112 of X's 271, 3.9 s to read, the whole ROM 251 (spike A). Listing none, X had no index, and
+/// said no picture the game fills in as it runs, Pokémon-Amie's stars among them (Orion,
+/// 2026-11-04).
+pub const TEXTURE_ARCHIVES: [&str; 112] = [
+    "a/0/0/0", "a/0/0/2", "a/0/0/4", "a/0/0/5", "a/0/0/8", "a/0/1/0", "a/0/1/1", "a/0/1/4",
+    "a/0/1/5", "a/0/1/6", "a/0/1/7", "a/0/1/8", "a/0/2/6", "a/0/2/7", "a/0/2/8", "a/0/2/9",
+    "a/0/3/0", "a/0/3/2", "a/0/3/5", "a/0/4/3", "a/0/4/4", "a/0/4/5", "a/0/4/6", "a/0/4/8",
+    "a/0/4/9", "a/0/5/0", "a/0/5/1", "a/0/5/2", "a/0/5/3", "a/0/5/4", "a/0/5/5", "a/0/5/6",
+    "a/0/5/7", "a/0/5/8", "a/0/5/9", "a/0/6/3", "a/0/6/6", "a/0/6/7", "a/0/6/9", "a/0/7/0",
+    "a/0/9/1", "a/0/9/5", "a/0/9/6", "a/0/9/7", "a/0/9/8", "a/0/9/9", "a/1/0/0", "a/1/0/4",
+    "a/1/0/9", "a/1/1/1", "a/1/1/3", "a/1/1/4", "a/1/1/7", "a/1/1/8", "a/1/1/9", "a/1/2/0",
+    "a/1/3/7", "a/1/3/8", "a/1/4/1", "a/1/4/3", "a/1/4/5", "a/1/5/0", "a/1/5/2", "a/1/5/3",
+    "a/1/5/4", "a/1/5/8", "a/1/6/1", "a/1/6/2", "a/1/6/3", "a/1/6/5", "a/1/6/6", "a/1/7/0",
+    "a/1/7/2", "a/1/7/6", "a/1/7/9", "a/1/9/0", "a/1/9/3", "a/1/9/8", "a/2/0/0", "a/2/0/8",
+    "a/2/0/9", "a/2/2/2", "a/2/2/3", "a/2/2/5", "a/2/2/6", "a/2/2/7", "a/2/2/8", "a/2/2/9",
+    "a/2/3/1", "a/2/3/2", "a/2/3/4", "a/2/3/9", "a/2/4/0", "a/2/4/2", "a/2/4/3", "a/2/4/4",
+    "a/2/4/6", "a/2/4/9", "a/2/5/2", "a/2/5/3", "a/2/5/4", "a/2/5/7", "a/2/6/0", "a/2/6/2",
+    "a/2/6/3", "a/2/6/4", "a/2/6/5", "a/2/6/6", "a/2/6/7", "a/2/6/8", "a/2/6/9", "a/2/7/0",
+];
 
 /// Place names in file 72 ("Route 4" at the index Route 4's row holds), trainer classes 20 and
 /// names 21, the PC's lines 74 in the order ORAS has them; zone N's file is `a/0/1/2` file N and the
@@ -280,6 +300,10 @@ pub fn rom() -> &'static RomLayout {
         items: Some(ITEM_NAMES),
         sounds: Some(SOUND_ARCHIVE.to_string()),
         cries: Some(CRIES.to_string()),
+        textures: TEXTURE_ARCHIVES
+            .iter()
+            .map(|path| path.to_string())
+            .collect(),
         touch_words: [
             training_bags(),
             training_regimens(),

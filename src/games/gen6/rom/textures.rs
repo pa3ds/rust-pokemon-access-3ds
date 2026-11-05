@@ -15,7 +15,8 @@
 //!
 //! Only textures inside a `darc` are indexed: a texture with no file name gives nothing to say. And
 //! only the archives a game lists (`games.oras.TEXTURE_ARCHIVES`): the whole of Omega Ruby took 554 s,
-//! its 131 archives with named textures 12.7 s, 8.5 of them the title screen's.
+//! its 131 archives with named textures 12.7 s, 8.5 of them the title screen's; X's 112, 3.9 s
+//! (`games.xy.TEXTURE_ARCHIVES`, spike A). A game that lists none has no index.
 //!
 //! The Rust runtime builds the index on a thread, not in a process: Python used a process only to
 //! get out from under its interpreter lock. What is logged, when the index is ready and the file
