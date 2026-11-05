@@ -3014,7 +3014,7 @@ fn laid(
 /// spikes and the Rhyhorn ridden over them were left out (spike 238). Nor is a counter, which a
 /// clerk behind it is talked to across: Lavaridge's herbalist, the Lilycove Department Store's
 /// receptionists, Devon's fossil scientist and the Secret Base Guild's two shops each stand in
-/// walls but for the counter in front, and went unlisted (a player's report, spike B).
+/// walls but for the counter in front, and went unlisted (a player's report, spike 233).
 fn walled_in(chunks: &[Rc<Chunk>], cell: Cell, rides: &HashSet<i64>) -> Result<bool> {
     let wall = |near: Cell| -> Result<bool> {
         match chunks.iter().find(|chunk| chunk.holds(near)) {

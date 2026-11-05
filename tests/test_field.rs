@@ -6858,7 +6858,7 @@ fn test_a_model_walled_in_on_every_side_is_not_on_the_map() -> Result<()> {
 /// Lavaridge's herbalist, the Lilycove Department Store's receptionists, Devon's fossil
 /// scientist and the Secret Base Guild's shops stand in walls but for the counter they are talked
 /// to across, and went unlisted as the secret team parked in a base's walls is (a player's
-/// report, spike B).
+/// report, spike 233).
 #[test]
 fn test_a_clerk_in_walls_but_for_the_counter_in_front_is_somebody() -> Result<()> {
     let mut town = Town::new();

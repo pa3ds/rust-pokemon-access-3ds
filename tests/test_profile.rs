@@ -755,7 +755,7 @@ fn test_head_its_cue_is_the_games_exclamation_once_the_setting_is_on() {
 
 /// One model draws both of Route 111's fossils, and the game names them only as the item
 /// taken: west the Root Fossil, east the Claw Fossil, listed under items (a player's report,
-/// spike B). Their names are the ROM's, in the player's language.
+/// spike 233). Their names are the ROM's, in the player's language.
 #[test]
 fn test_route_111s_fossils_are_called_the_items_they_are_from_the_rom() -> Result<()> {
     use crate::games::common::field::things::{MODEL_SOURCE, place_source};

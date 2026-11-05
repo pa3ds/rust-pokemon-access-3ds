@@ -887,7 +887,7 @@ pub const STOPPER: i64 = 0x8A;
 /// (or_mega_stone: "Raiden found a Sablenite!"): an item found, listed under items.
 pub const KIRAKIRA: i64 = 0x203D;
 /// What Route 111's two fossils in the desert are drawn as, one model for both: things the player
-/// takes an item at, listed under items (a player's report, spike B).
+/// takes an item at, listed under items (a player's report, spike 233).
 pub const FOSSIL: i64 = 0x2051;
 /// Route 111's fossils by record, west and east, and the item each is: the Root Fossil and the
 /// Claw Fossil, as the player reported them and the ROM's item list numbers them.
