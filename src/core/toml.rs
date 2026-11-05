@@ -12,7 +12,9 @@
 //!
 //! The keys file and the settings file are **filled in** as pa3ds gains keys and settings: a line
 //! is added at the end of its table, and nothing else in the file changes (`offered`, `append`). A
-//! line the player has commented out counts as there, which is how they turn one off.
+//! line the player has commented out counts as there, which is how they turn one off. The settings
+//! file is **tidied** too, a setting pa3ds no longer has taken out and its tables put in order
+//! (`blocks`, `drop`, `joined`; `config.tidy`).
 //!
 //! Bound by:
 //! - ADR-0031: TOML for every file a person writes, comments kept; escaping is the one thing it
@@ -192,6 +194,77 @@ pub fn append<S: AsRef<str>>(text: &str, name: &str, lines: &[S]) -> String {
         }
     }
     rows.join("\n") + "\n"
+}
+
+/// Whether a line is a comment and not a setting commented out.
+fn prose(row: &str) -> bool {
+    let bare = py::strip(row);
+    bare.starts_with('#') && entry(bare.strip_prefix('#').unwrap_or(bare)).is_none()
+}
+
+/// A file as its tables in the file's order, each its header and the lines under it, after
+/// what comes before the first header, under "". Comment lines just above a header, with no
+/// blank between, belong to the table they introduce.
+pub fn blocks(text: &str) -> Vec<(String, Vec<String>)> {
+    let mut out: Vec<(String, Vec<String>)> = vec![(String::new(), Vec::new())];
+    for row in rows(text) {
+        let row = row.trim_end_matches(['\r', '\n']).to_string();
+        let under = &mut out.last_mut().expect("out starts with a block").1;
+        let Some(header) = header(&row) else {
+            under.push(row);
+            continue;
+        };
+        let mut at = under.len();
+        while at > 0 && prose(&under[at - 1]) {
+            at -= 1;
+        }
+        let mut moved = under.split_off(at);
+        moved.push(row);
+        out.push((header, moved));
+    }
+    out
+}
+
+/// A table's lines without each setting, in use or commented out, whose key `unknown` says
+/// is not one, nor the comment just above it and the blank line before that, as `fill` writes a
+/// setting; and the keys taken out.
+pub fn drop(rows: &[String], unknown: impl Fn(&str) -> bool) -> (Vec<String>, Vec<String>) {
+    let mut kept: Vec<String> = Vec::new();
+    let mut gone: Vec<String> = Vec::new();
+    for row in rows {
+        let bare = py::strip(row);
+        let Some((key, _)) =
+            entry(bare.strip_prefix('#').unwrap_or(bare)).filter(|(key, _)| unknown(key))
+        else {
+            kept.push(row.clone());
+            continue;
+        };
+        gone.push(key);
+        while kept.last().is_some_and(|row| prose(row)) {
+            kept.pop();
+        }
+        if kept.last().is_some_and(|row| py::strip(row).is_empty()) {
+            kept.pop();
+        }
+    }
+    (kept, gone)
+}
+
+/// Tables' lines (`blocks`) as a file, one blank line between a table and the next.
+pub fn joined(tables: &[(String, Vec<String>)]) -> String {
+    let mut parts: Vec<String> = Vec::new();
+    for (_name, rows) in tables {
+        let mut rows: &[String] = rows;
+        while let Some((last, rest)) = rows.split_last()
+            && py::strip(last).is_empty()
+        {
+            rows = rest;
+        }
+        if !rows.is_empty() {
+            parts.push(rows.join("\n"));
+        }
+    }
+    parts.join("\n\n") + "\n"
 }
 
 /// `text` with `line` in place of the one setting `key` in the table `name`: the one in use,

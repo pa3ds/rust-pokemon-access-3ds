@@ -661,6 +661,19 @@ pub fn patch(text: &str, wanted: &Wanted) -> Result<(String, Vec<String>)> {
     Ok((config.text(), changed))
 }
 
+/// The settings of Azahar's among `names` its config has no line for, as `patch_settings`
+/// finds them: by name, or under the input profile in use.
+pub fn lacks<'a>(text: &str, names: impl IntoIterator<Item = &'a str>) -> Vec<String> {
+    let config = Config::new(text);
+    names
+        .into_iter()
+        .filter(|name| {
+            config.value(name).is_none() && config.value(&config.setting(name)).is_none()
+        })
+        .map(str::to_string)
+        .collect()
+}
+
 /// The config with Azahar's own settings written into it (`pa3ds.core.config`), and a line
 /// for each changed. A setting is found by its name alone: these are unique across the file's
 /// sections, and one the file does not have is said rather than invented. A setting of the

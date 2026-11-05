@@ -5,7 +5,9 @@
 //! changed. A line commented out counts as there (`toml.offered`), so a line of `[azahar]` the
 //! player wants Azahar to keep its own value for is commented out, not deleted (Orion,
 //! 2026-10-17). The keys file is filled in the same way (`pa3ds.core.keyfile`), and stays a file of
-//! its own. Its tables:
+//! its own. And it is **tidied** (`tidy`, Orion, 2026-11-04): a setting pa3ds no longer has, one
+//! moved among them, is taken out with its comment, as is one of `[azahar]` that neither pa3ds
+//! ships nor Azahar has, and the tables are put in this order, `[azahar]` last. Its tables:
 //!
 //! - **`[pa3ds]`**: whether pa3ds answers its keys, how often it reads the game, and the folder of a
 //!   portable Azahar, whose `user\config` holds the `qt-config.ini` patched rather than AppData's.
@@ -34,8 +36,8 @@
 //! Bound by:
 //! - ADR-0017: an Extra, anything the game does not show, is a toggle of its own under
 //!   `[pa3ds.extras]` and ships off.
-//! - ADR-0026: a setting works the same in every game or is not one; `config.toml` is filled in,
-//!   never rewritten.
+//! - ADR-0026: a setting works the same in every game or is not one; `config.toml` is filled in and
+//!   tidied, nothing else of the player's changed (as amended 2026-11-04).
 //! - ADR-0028: `[azahar]` never sets what changes emulated timing, or every movie desyncs.
 
 use std::path::{Path, PathBuf};
@@ -572,9 +574,11 @@ pub fn render() -> Result<String> {
     let mut lines: Vec<String> = vec![
         "# pa3ds's settings, read as pa3ds starts. This file is yours: pa3ds adds the settings it"
             .to_string(),
-        "# gains later and never changes a line you have. To turn a line off, put a # in front of"
+        "# gains later, takes out the ones it no longer has, and changes no other line you have."
             .to_string(),
-        "# it rather than deleting it, or pa3ds adds it back.".to_string(),
+        "# To turn a line off, put a # in front of it rather than deleting it, or pa3ds adds it"
+            .to_string(),
+        "# back.".to_string(),
     ];
     for name in TABLES {
         lines.extend(["".to_string(), format!("[{name}]")]);
@@ -654,6 +658,64 @@ pub fn fill(text: &str) -> Result<(String, Vec<String>)> {
         }
     }
     Ok((text, added))
+}
+
+/// The file with every setting its table does not have taken out, in use or commented out,
+/// with the comment above it, and `[azahar]`'s that Azahar lacks; a table pa3ds does not have
+/// taken out whole; and the tables in `TABLES`' order, `[azahar]` last, where a table added to
+/// the file had gone at its end. The text as it was where nothing needs it, and what was taken
+/// out. Run after `fill`, which carries a moved setting's value before its old line goes (Orion,
+/// 2026-11-04: `[pa3ds.ui] tones` was left behind after it moved to `[pa3ds.audio]`, and
+/// `[pa3ds.touch]` and `[pa3ds.amie]` came after `[azahar]`).
+pub fn tidy(text: &str, azahar_lacks: &[String]) -> (String, Vec<String>) {
+    let order: Vec<&str> = TABLES.into_iter().chain([EMULATOR_SECTION]).collect();
+    let mut kept: Vec<(String, Vec<String>)> = Vec::new();
+    let mut removed: Vec<String> = Vec::new();
+    for (name, rows) in toml::blocks(text) {
+        if !name.is_empty() && !order.contains(&name.as_str()) {
+            removed.push(format!("[{name}]"));
+            continue;
+        }
+        let has: Vec<&str> = if TABLES.contains(&name.as_str()) {
+            defaults(&name).into_iter().map(|(each, _)| each).collect()
+        } else {
+            Vec::new()
+        };
+
+        let unknown = |key: &str| {
+            if name == EMULATOR_SECTION {
+                azahar_lacks.iter().any(|each| each == key)
+            } else {
+                !has.contains(&key)
+            }
+        };
+
+        let (rows, gone) = toml::drop(&rows, unknown);
+        removed.extend(gone.into_iter().map(|key| {
+            if name.is_empty() {
+                key
+            } else {
+                format!("[{name}] {key}")
+            }
+        }));
+        kept.push((name, rows));
+    }
+    let at = |name: &str| {
+        if name.is_empty() {
+            0
+        } else {
+            order
+                .iter()
+                .position(|each| *each == name)
+                .expect("a table kept is in order")
+                + 1
+        }
+    };
+    let ordered = py::sorted_by_lt(kept.clone(), |a, b| at(&a.0) < at(&b.0));
+    if removed.is_empty() && ordered == kept {
+        return (text.to_string(), Vec::new());
+    }
+    (toml::joined(&ordered), removed)
 }
 
 /// A setting's value as the file had it before it moved here (`MOVED`), or its default: a
@@ -839,16 +901,6 @@ fn table<T: Table>(
         if TABLES.contains(&format!("{name}.{setting}").as_str()) {
             continue;
         }
-        if let Some((_, (table, now))) = MOVED
-            .iter()
-            .find(|((old, moved), _)| *old == name && *moved == setting.as_str())
-        {
-            notes.push(format!(
-                "{}: [{name}] {setting} is [{table}] {now} now",
-                py::path_str(path)
-            ));
-            continue;
-        }
         match fields.iter().find(|(field, _)| *field == setting.as_str()) {
             None => notes.push(format!(
                 "{}: [{name}] has no setting called {}",
@@ -895,6 +947,10 @@ pub fn prepare(
     let mut notes: Vec<String> = Vec::new();
     let mut loaded: IndexMap<String, ::toml::Value> = IndexMap::new();
     let mut problem = String::new();
+    // The file as read, and as filled in and tidied, written once Azahar's settings are read,
+    // which say what of `[azahar]` Azahar has no setting for.
+    let mut text = String::new();
+    let mut filled = String::new();
     if !path.exists() {
         if write && toml::write(&path, &render()?)? {
             notes.push(format!(
@@ -916,38 +972,41 @@ pub fn prepare(
         }
         loaded.insert(EMULATOR_SECTION.to_string(), ::toml::Value::Table(shipped));
     } else {
-        let text;
         (text, loaded, problem) = toml::load(&path);
-        let (filled, added) = if problem.is_empty() {
+        let added;
+        (filled, added) = if problem.is_empty() {
             fill(&text)?
         } else {
-            (text, Vec::new())
+            (text.clone(), Vec::new())
+        };
+        let removed;
+        (filled, removed) = if problem.is_empty() {
+            tidy(&filled, &[])
+        } else {
+            (filled, Vec::new())
         };
         if !problem.is_empty() {
             notes.push(format!(
                 "{} could not be read, using the default settings: {problem}",
                 py::path_str(&path)
             ));
-        } else if !added.is_empty() {
+        }
+        if !added.is_empty() {
             notes.push(format!(
                 "added to {}: {}",
                 py::path_str(&path),
                 added.join(", ")
             ));
-            loaded = toml::parse(&filled).0;
-            if write && !toml::write(&path, &filled)? {
-                notes.push(format!("{} could not be written", py::path_str(&path)));
-            }
         }
-    }
-    for name in loaded.keys() {
-        if !TABLES.contains(&name.as_str()) && name != EMULATOR_SECTION {
-            let only: Vec<String> = TABLES.iter().map(|table| format!("[{table}]")).collect();
+        if !removed.is_empty() {
             notes.push(format!(
-                "{}: there is no [{name}] table, only {} and [{EMULATOR_SECTION}]",
+                "took out of {}, which pa3ds has no setting for: {}",
                 py::path_str(&path),
-                only.join(", ")
+                removed.join(", ")
             ));
+        }
+        if filled != text {
+            loaded = toml::parse(&filled).0;
         }
     }
 
@@ -1046,16 +1105,36 @@ pub fn prepare(
         py::path_str(&config)
     ));
     if !wanted.is_empty() {
-        let text = keyfile::read_config(&config, &mut notes);
-        if !text.is_empty() {
-            let (patched, changed) = keyfile::patch_settings(&text, &wanted);
+        let emulated = keyfile::read_config(&config, &mut notes);
+        if !emulated.is_empty() {
+            // Of `[azahar]`, what neither pa3ds ships nor Azahar has goes, as `tidy` takes out a
+            // setting of pa3ds's own it no longer has (Orion, 2026-11-04).
+            let shipped = azahar();
+            let lacking: Vec<String> = keyfile::lacks(&emulated, wanted.keys().map(String::as_str))
+                .into_iter()
+                .filter(|name| !shipped.contains_key(name.as_str()))
+                .collect();
+            if !lacking.is_empty() && !filled.is_empty() && problem.is_empty() {
+                let removed;
+                (filled, removed) = tidy(&filled, &lacking);
+                notes.push(format!(
+                    "took out of {}, which Azahar has no setting for: {}",
+                    py::path_str(&path),
+                    removed.join(", ")
+                ));
+                wanted.retain(|name, _| !lacking.contains(name));
+            }
+            let (patched, changed) = keyfile::patch_settings(&emulated, &wanted);
             notes.extend(changed);
-            saved = keyfile::save(&config, &text, &patched, write, running, &mut notes);
+            saved = keyfile::save(&config, &emulated, &patched, write, running, &mut notes);
         } else {
             // An Azahar never started has no settings yet: said, or its RPC server stays off
             // unheard.
             saved = "missing".to_string();
         }
+    }
+    if filled != text && write && !toml::write(&path, &filled)? {
+        notes.push(format!("{} could not be written", py::path_str(&path)));
     }
     let said = if saved.is_empty() {
         String::new()

@@ -1,8 +1,9 @@
 # Settings
 
 Settings are in `user\config.toml`, written with the defaults on the first start. pa3ds adds the
-settings later versions bring, at their defaults, and never changes a line you have. Each setting
-has a comment in the file saying what it does.
+settings later versions bring, at their defaults, takes out the ones it no longer has, a setting
+that moved among them, and keeps its tables in order with `[azahar]` last; it changes no other line
+you have. Each setting has a comment in the file saying what it does.
 
 The mod settings change them for you: in pa3ds's window, Settings in the **Mod** menu. It has a
 tab for each table below, and Ctrl+Tab and Ctrl+Shift+Tab change the tab from anywhere in it; Tab
@@ -95,7 +96,7 @@ Azahar in `user\config` beside `azahar.exe`. They come from the `[azahar]` table
 
 Put a `#` in front of a line to leave that setting as Azahar has it. A line you delete is put
 back the next time pa3ds starts. Any other Azahar setting can be added by its name in
-`qt-config.ini`.
+`qt-config.ini`; a name Azahar has no setting for is taken out.
 
 ## Your files
 

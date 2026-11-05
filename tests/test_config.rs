@@ -246,12 +246,13 @@ fn test_the_tones_turned_off_stay_off_as_they_move_to_the_audio_table() {
         settings
             .notes
             .iter()
-            .any(|note| note.contains("[pa3ds.ui] tones is [pa3ds.audio] tones now")),
+            .any(|note| note.contains("[pa3ds.ui] tones, [pa3ds.ui] footsteps")),
         "{:?}",
         settings.notes
     );
     let text = read_text(&home.join("config.toml"));
     assert!(text.contains("\ntones = 0\n") && text.contains("\nfootsteps = 0.5\n"));
+    assert!(!text.contains("tones = false"));
     assert_eq!(
         config::prepare(Some(&tmp_path.join("new")), Some(&none), true, false)
             .unwrap()
@@ -310,7 +311,7 @@ fn test_touch_modes_settings_move_to_a_table_of_their_own_as_the_player_had_them
     )
     .unwrap();
     let none = tmp_path.join("none.ini");
-    config::prepare(Some(&home), Some(&none), true, false).unwrap();
+    let moved = config::prepare(Some(&home), Some(&none), true, false).unwrap();
     let settings = config::prepare(Some(&home), Some(&none), true, false).unwrap();
     assert_eq!(
         settings.tables.touch,
@@ -322,14 +323,145 @@ fn test_touch_modes_settings_move_to_a_table_of_their_own_as_the_player_had_them
     );
     assert_eq!(settings.tables.audio.feedback_sounds, 0.5);
     assert!(
+        moved
+            .notes
+            .iter()
+            .any(|note| note.contains("[pa3ds.navigation] touch_wrap")),
+        "{:?}",
+        moved.notes
+    );
+    assert!(!settings.notes.iter().any(|note| note.contains("took out")));
+    assert_eq!(settings.tables.amie, config::Amie::default());
+}
+
+/// Orion, 2026-11-04: `tones` stayed under `[pa3ds.ui]` after it moved to `[pa3ds.audio]`.
+/// One commented out goes too, and one pa3ds has stays, commented out or not.
+#[test]
+fn test_a_setting_pa3ds_no_longer_has_goes_with_its_comment() {
+    let tmp_path = TmpPath::new();
+    let home = tmp_path.join("home");
+    fs::create_dir(&home).unwrap();
+    fs::write(
+        home.join("config.toml"),
+        "[pa3ds.ui]\n\n# Whether tones play.\ntones = false\n\n# A colon after a label.\n\
+         pauses = true\n\n# Gone a while.\n# wibble = 1\n# interrupt = true\n",
+    )
+    .unwrap();
+    let settings =
+        config::prepare(Some(&home), Some(&tmp_path.join("none.ini")), true, false).unwrap();
+    let blocks = toml_text::blocks(&read_text(&home.join("config.toml")));
+    let ui = &blocks
+        .iter()
+        .find(|(name, _)| name == "pa3ds.ui")
+        .unwrap()
+        .1;
+    assert_eq!(
+        ui[..4],
+        [
+            "[pa3ds.ui]",
+            "",
+            "# A colon after a label.",
+            "pauses = true"
+        ]
+    );
+    assert!(ui.contains(&"# interrupt = true".to_string()));
+    assert!(
+        ![
+            "# Whether tones play.",
+            "tones = false",
+            "# Gone a while.",
+            "# wibble = 1"
+        ]
+        .iter()
+        .any(|row| ui.contains(&row.to_string()))
+    );
+    assert!(settings.tables.ui.pauses);
+    assert_eq!(settings.tables.audio.tones, 0.0);
+    assert!(
         settings
             .notes
             .iter()
-            .any(|note| note.contains("[pa3ds.navigation] touch_wrap is [pa3ds.touch] wrap now")),
+            .any(|note| note.contains("[pa3ds.ui] tones, [pa3ds.ui] wibble")),
         "{:?}",
         settings.notes
     );
-    assert_eq!(settings.tables.amie, config::Amie::default());
+}
+
+/// A table the file lacked went at its end, after `[azahar]`; one pa3ds has not goes.
+#[test]
+fn test_the_tables_go_in_pa3ds_s_order_azahar_last() {
+    let tmp_path = TmpPath::new();
+    let home = tmp_path.join("home");
+    fs::create_dir(&home).unwrap();
+    fs::write(
+        home.join("config.toml"),
+        "[pa3ds]\nkeys = true\n\n[azahar]\nuse_vsync = false\n\n# Its own.\n[pa3ds.amie]\n\
+         berry_first = false\n\n[pa3ds.wibble]\nx = 1\n\n[pa3ds.audio]\ntones = 0.5\n",
+    )
+    .unwrap();
+    let settings =
+        config::prepare(Some(&home), Some(&tmp_path.join("none.ini")), true, false).unwrap();
+    let text = read_text(&home.join("config.toml"));
+    let names: Vec<String> = toml_text::blocks(&text)
+        .into_iter()
+        .map(|(name, _)| name)
+        .collect();
+    let expected: Vec<String> = [""]
+        .into_iter()
+        .chain(config::TABLES)
+        .chain(["azahar"])
+        .map(String::from)
+        .collect();
+    assert_eq!(names, expected);
+    assert!(text.contains("# Its own.\n[pa3ds.amie]\nberry_first = false\n"));
+    assert!(!settings.tables.amie.berry_first);
+    assert!(
+        settings
+            .notes
+            .iter()
+            .any(|note| note.contains("[pa3ds.wibble]"))
+    );
+}
+
+#[test]
+fn test_azahar_s_settings_go_only_where_azahar_has_none_and_pa3ds_ships_none() {
+    let tmp_path = TmpPath::new();
+    let home = tmp_path.join("home");
+    fs::create_dir(&home).unwrap();
+    fs::write(
+        home.join("config.toml"),
+        "[azahar]\nuse_vsync = false\nuse_touchpad = true\nmade_up = 1\nregion_value = 1\n",
+    )
+    .unwrap();
+    let ini = tmp_path.join("qt-config.ini");
+    fs::write(
+        &ini,
+        emulator_text() + "region_value\\default=true\r\nregion_value=-1\r\n",
+    )
+    .unwrap();
+    let settings = config::prepare(Some(&home), Some(&ini), true, false).unwrap();
+    let azahar = toml_text::table(toml_text::read(&home.join("config.toml")).get("azahar"));
+    assert!(!azahar.contains_key("made_up"));
+    assert!(
+        ["use_vsync", "use_touchpad", "region_value"]
+            .iter()
+            .all(|name| azahar.contains_key(*name))
+    );
+    assert!(
+        settings
+            .notes
+            .iter()
+            .any(|note| note.contains("made_up") && note.contains("Azahar has no setting")),
+        "{:?}",
+        settings.notes
+    );
+    assert!(read(&ini).contains("region_value=1"));
+}
+
+#[test]
+fn test_a_file_already_tidy_is_left_as_it_is() {
+    let render = config::render().unwrap();
+    assert_eq!(config::tidy(&render, &[]), (render, Vec::new()));
 }
 
 #[test]
@@ -358,7 +490,7 @@ fn test_an_extra_is_on_only_when_asked_for() {
     assert!(!other.tables.extras.conditions);
 }
 
-/// The first file was flat, `positions = true` at the top; it is never overwritten.
+/// The first file was flat, `positions = true` at the top: taken out, and logged.
 #[test]
 fn test_a_file_from_before_the_tables_says_what_it_has_lost() {
     let tmp_path = TmpPath::new();
@@ -371,8 +503,11 @@ fn test_a_file_from_before_the_tables_says_what_it_has_lost() {
         settings
             .notes
             .iter()
-            .any(|note| note.contains("no [positions] table"))
+            .any(|note| note.contains("took out") && note.ends_with(": positions")),
+        "{:?}",
+        settings.notes
     );
+    assert!(!read_text(&home.join("config.toml")).contains("positions = true\n["));
 }
 
 #[test]
