@@ -465,15 +465,16 @@ fn test_an_edit_the_player_makes_is_what_is_answered() {
 }
 
 /// Falling through to the navigator, a typo would not be quiet: an unknown action lands in
-/// the branch that reads an item.
+/// the branch that reads an item. ADR-0022 as amended 2026-11-04: the line goes, its comment
+/// with it, and what went is logged.
 #[test]
-fn test_an_action_pa3ds_does_not_do_is_said_and_dropped() {
+fn test_an_action_pa3ds_does_not_do_is_taken_out() {
     let tmp_path = TmpPath::new();
     let home = tmp_path.join("home");
     fs::create_dir(&home).unwrap();
     fs::write(
         home.join("keys.toml"),
-        "[pa3ds.navigation.list]\nz = \"item reed\"\nk = \"item read\"\n",
+        "[pa3ds.navigation.list]\n# A key of mine.\nz = \"item reed\"\nk = \"item read\"\n",
     )
     .unwrap();
     let keys = prepare(&bindings(), &home, &written(&tmp_path), true, false, None);
@@ -482,8 +483,12 @@ fn test_an_action_pa3ds_does_not_do_is_said_and_dropped() {
     assert!(
         keys.notes
             .iter()
-            .any(|note| note.contains("'item reed', which pa3ds does not do"))
+            .any(|note| note.ends_with("which pa3ds does not do: [pa3ds.navigation.list] z")),
+        "{:?}",
+        keys.notes
     );
+    let text = read_text(&home.join("keys.toml"));
+    assert!(!text.contains("item reed") && !text.contains("A key of mine"));
 }
 
 /// Touch mode's drag is bound as every action is, to Shift alone as pa3ds writes the file;
@@ -600,7 +605,9 @@ fn test_a_screens_own_keys_have_a_table_of_their_own() {
     assert!(
         keys.notes
             .iter()
-            .any(|note| note.contains("'item read', which pa3ds does not do"))
+            .any(|note| note.ends_with("[pa3ds.amie.berry_picker] 6")),
+        "{:?}",
+        keys.notes
     );
     let fresh = tmp_path.join("fresh");
     fs::create_dir(&fresh).unwrap();
@@ -731,7 +738,7 @@ fn test_a_key_the_player_commented_out_stays_unbound() {
 }
 
 #[test]
-fn test_a_mode_pa3ds_does_not_have_is_said_and_dropped() {
+fn test_a_mode_pa3ds_does_not_have_is_taken_out() {
     let tmp_path = TmpPath::new();
     let home = tmp_path.join("home");
     fs::create_dir(&home).unwrap();
@@ -745,7 +752,108 @@ fn test_a_mode_pa3ds_does_not_have_is_said_and_dropped() {
     assert!(
         keys.notes
             .iter()
-            .any(|note| note.contains("no mode called 'compass'"))
+            .any(|note| note.ends_with(": [pa3ds.navigation.compass]")),
+        "{:?}",
+        keys.notes
+    );
+    assert!(!read_text(&home.join("keys.toml")).contains("compass"));
+}
+
+/// Tidied before it is filled in, a key pa3ds gave an action it has renamed is bound to the
+/// new name, not kept commented out beside the old.
+#[test]
+fn test_a_key_whose_action_was_renamed_is_free_for_the_new_name() {
+    let tmp_path = TmpPath::new();
+    let home = tmp_path.join("home");
+    fs::create_dir(&home).unwrap();
+    prepare(&bindings(), &home, &written(&tmp_path), true, false, None);
+    let path = home.join("keys.toml");
+    fs::write(
+        &path,
+        read_text(&path).replace("\"item read\"", "\"item said\""),
+    )
+    .unwrap();
+    let keys = prepare(&bindings(), &home, &written(&tmp_path), true, false, None);
+    assert_eq!(keys.bindings[LIST]["k"], "item read");
+    let text = read_text(&path);
+    assert!(
+        text.contains("\"k\" = \"item read\"") && !text.contains("item said") && !keys.warning,
+        "{text}"
+    );
+}
+
+/// The file's own list of Azahar's buttons is commented out, and a line commented out binds
+/// nothing to free.
+#[test]
+fn test_a_key_commented_out_stays_whatever_it_does() {
+    let tmp_path = TmpPath::new();
+    let home = tmp_path.join("home");
+    fs::create_dir(&home).unwrap();
+    prepare(&bindings(), &home, &written(&tmp_path), true, false, None);
+    let path = home.join("keys.toml");
+    fs::write(
+        &path,
+        read_text(&path).replace("\"k\" = \"item read\"", "# \"k\" = \"item said\""),
+    )
+    .unwrap();
+    prepare(&bindings(), &home, &written(&tmp_path), true, false, None);
+    let text = read_text(&path);
+    assert!(
+        text.contains("# \"k\" = \"item said\"")
+            && text.contains("#   a = ")
+            && text.contains("#   modifier = "),
+        "{text}"
+    );
+}
+
+/// A screen's own table, added at the file's end when it came, goes before `[azahar]`, and
+/// the list of Azahar's buttons stays above `[azahar]`, a blank line away.
+#[test]
+fn test_the_tables_go_in_order_azahar_last_with_its_comments() {
+    let tmp_path = TmpPath::new();
+    let home = tmp_path.join("home");
+    fs::create_dir(&home).unwrap();
+    prepare(&bindings(), &home, &written(&tmp_path), true, false, None);
+    let path = home.join("keys.toml");
+    assert!(read_text(&path).ends_with("modifier_scale = 0.5\n"));
+    prepare_contexts(&home, &written(&tmp_path));
+    let text = read_text(&path);
+    assert!(
+        text.find("[pa3ds.amie.berry_picker]").unwrap() < text.find("# Buttons to bind").unwrap(),
+        "{text}"
+    );
+    assert!(
+        text.split("[azahar]")
+            .next()
+            .unwrap()
+            .split("[pa3ds.amie.berry_picker]")
+            .nth(1)
+            .unwrap()
+            .contains("\n#   start = ")
+    );
+    assert!(text.ends_with("modifier_scale = 0.5\n"));
+    let again = prepare_contexts(&home, &written(&tmp_path));
+    assert_eq!(read_text(&path), text);
+    assert!(!again.notes.iter().any(|note| note.contains("took out")));
+}
+
+#[test]
+fn test_a_file_already_tidy_is_left_as_it_is() {
+    let explained = IndexMap::from([("mode".to_string(), "Steps through the modes.".to_string())]);
+    let text = keyfile::render(
+        &bindings(),
+        &IndexMap::from([("button_a".to_string(), vec!["a".to_string()])]),
+        Some(&IndexMap::from([(
+            "c_stick".to_string(),
+            mode(&[("up", "i")]),
+        )])),
+        Some(&explained),
+        Some(&contexts()),
+    )
+    .unwrap();
+    assert_eq!(
+        keyfile::tidy(&text, &bindings(), Some(&contexts())),
+        (text, Vec::new())
     );
 }
 
@@ -780,17 +888,25 @@ fn test_a_file_that_will_not_parse_costs_the_edit_not_the_keys() {
 }
 
 #[test]
-fn test_a_button_nobody_has_is_said_and_left_out() {
+fn test_a_button_nobody_has_is_taken_out() {
     let tmp_path = TmpPath::new();
     let home = tmp_path.join("home");
     fs::create_dir(&home).unwrap();
-    fs::write(home.join("keys.toml"), "[azahar]\nwibble = \"y\"\n").unwrap();
+    fs::write(
+        home.join("keys.toml"),
+        "[azahar]\nwibble = \"y\"\na = \"z\"\n",
+    )
+    .unwrap();
     let keys = prepare(&bindings(), &home, &written(&tmp_path), true, false, None);
     assert!(
         keys.notes
             .iter()
-            .any(|note| note.contains("no button called 'wibble'"))
+            .any(|note| note.ends_with(": [azahar] wibble")),
+        "{:?}",
+        keys.notes
     );
+    let text = read_text(&home.join("keys.toml"));
+    assert!(!text.contains("wibble") && text.contains("a = \"z\""));
 }
 
 #[test]
@@ -1086,16 +1202,29 @@ fn test_a_stick_is_read_from_the_file_with_its_scale_as_a_number() {
 }
 
 #[test]
-fn test_a_stick_nobody_has_is_said_and_left_out() {
+fn test_a_stick_or_its_setting_nobody_has_is_taken_out() {
     let tmp_path = TmpPath::new();
     let home = tmp_path.join("home");
     fs::create_dir(&home).unwrap();
-    fs::write(home.join("keys.toml"), "[azahar.d_stick]\nup = \"w\"\n").unwrap();
+    fs::write(
+        home.join("keys.toml"),
+        "[azahar.d_stick]\nup = \"w\"\n\n[azahar.c_stick]\nup = \"w\"\nsideways = \"q\"\n",
+    )
+    .unwrap();
     let keys = prepare(&bindings(), &home, &written(&tmp_path), true, false, None);
     assert!(
         keys.notes
             .iter()
-            .any(|note| note.contains("no stick called 'd_stick'"))
+            .any(|note| note.ends_with(": [azahar.d_stick], [azahar.c_stick] sideways")),
+        "{:?}",
+        keys.notes
+    );
+    let text = read_text(&home.join("keys.toml"));
+    assert!(
+        !text.contains("d_stick")
+            && !text.contains("sideways")
+            && text.contains("[azahar.c_stick]\nup = \"w\""),
+        "{text}"
     );
 }
 

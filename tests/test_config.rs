@@ -349,7 +349,7 @@ fn test_a_setting_pa3ds_no_longer_has_goes_with_its_comment() {
     .unwrap();
     let settings =
         config::prepare(Some(&home), Some(&tmp_path.join("none.ini")), true, false).unwrap();
-    let blocks = toml_text::blocks(&read_text(&home.join("config.toml")));
+    let blocks = toml_text::blocks(&read_text(&home.join("config.toml")), &[]);
     let ui = &blocks
         .iter()
         .find(|(name, _)| name == "pa3ds.ui")
@@ -402,7 +402,7 @@ fn test_the_tables_go_in_pa3ds_s_order_azahar_last() {
     let settings =
         config::prepare(Some(&home), Some(&tmp_path.join("none.ini")), true, false).unwrap();
     let text = read_text(&home.join("config.toml"));
-    let names: Vec<String> = toml_text::blocks(&text)
+    let names: Vec<String> = toml_text::blocks(&text, &[])
         .into_iter()
         .map(|(name, _)| name)
         .collect();

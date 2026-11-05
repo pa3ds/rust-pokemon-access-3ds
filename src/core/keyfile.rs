@@ -6,7 +6,8 @@
 //! until M was bound to the navigation mode and M turned out to be Start.
 //!
 //! So `<pa3ds>/user/keys.toml` holds both halves, written with defaults on the first run and
-//! afterwards only **filled in** with the keys pa3ds gains (`fill`):
+//! afterwards **tidied**, a key whose action pa3ds no longer has taken out and the tables put in
+//! order (`tidy`), and **filled in** with the keys pa3ds gains (`fill`):
 //!
 //! - **`[pa3ds.navigation]`** — key to action. A key that means the same thing in both navigation
 //!   modes lives here; a key that does not lives in `[pa3ds.navigation.list]` or
@@ -61,7 +62,8 @@
 //!
 //! Bound by:
 //! - ADR-0022: `keys.toml` is the player's: a key gained is added at its table's end, commented out
-//!   where it conflicts.
+//!   where it conflicts; a key in use whose action pa3ds does not have is taken out, and the tables
+//!   are kept in order (as amended 2026-11-04).
 //! - ADR-0026: Azahar's settings are written only while it is closed, a portable Azahar's through
 //!   `azahar_folder`.
 //! - ADR-0032: everything the player owns is under `<pa3ds>/user`, which `PA3DS_HOME` moves; never
@@ -913,11 +915,11 @@ pub fn render(
     let both = shared(bindings);
     let mut lines: Vec<String> = vec![
         "# What every key does: the keys pa3ds answers and the buttons Azahar is bound to.".into(),
-        "# This file is yours: pa3ds adds the keys it gains later and never changes a line you"
+        "# This file is yours: pa3ds adds the keys it gains later, takes out a key whose action"
             .into(),
-        "# have. To unbind a key, put a # in front of it rather than deleting it, or pa3ds adds"
+        "# it no longer has, and changes no other line you have. To unbind a key, put a # in"
             .into(),
-        "# it back.".into(),
+        "# front of it rather than deleting it, or pa3ds adds it back.".into(),
         "".into(),
         "# pa3ds takes these while Azahar's window is in front, and the game never sees them."
             .into(),
@@ -1350,6 +1352,93 @@ pub fn fill(
     Ok((text, added))
 }
 
+/// The keys file with each key in use bound to an action its table does not have taken out,
+/// with the comment above it, and each button and stick's setting Azahar has none of; a table
+/// pa3ds does not have taken out whole; and the tables in order, the modes', the screens' own and
+/// `[azahar]` and its sticks last, with the comments that introduce `[azahar]`. The text as it
+/// was where nothing needs it, and what was taken out (ADR-0022 as amended 2026-11-04).
+///
+/// A key commented out stays, whatever it does: the file's list of Azahar's buttons above
+/// `[azahar]`, and its sticks' settings under it, are lines commented out.
+pub fn tidy(text: &str, defaults: &Bindings, contexts: Option<&Bindings>) -> (String, Vec<String>) {
+    let no_contexts = IndexMap::new();
+    let contexts = contexts.unwrap_or(&no_contexts);
+    let known: HashSet<&str> = defaults
+        .values()
+        .flat_map(|keys| keys.values().map(String::as_str))
+        .collect();
+    let mut actions: IndexMap<String, HashSet<&str>> = IndexMap::new();
+    actions.insert(format!("{SECTION}.{GROUP}"), known.clone());
+    for mode in defaults.keys() {
+        actions.insert(format!("{SECTION}.{GROUP}.{mode}"), known.clone());
+    }
+    for (context, keys) in contexts {
+        actions.insert(
+            format!("{SECTION}.{context}"),
+            keys.values().map(String::as_str).collect(),
+        );
+    }
+    let sticks: Vec<String> = STICKS
+        .iter()
+        .map(|stick| format!("{EMULATOR_SECTION}.{stick}"))
+        .collect();
+    let order: Vec<String> = actions
+        .keys()
+        .cloned()
+        .chain([EMULATOR_SECTION.to_string()])
+        .chain(sticks.iter().cloned())
+        .collect();
+    let mut kept: Vec<(String, Vec<String>)> = Vec::new();
+    let mut removed: Vec<String> = Vec::new();
+    for (name, rows) in toml::blocks(text, &[EMULATOR_SECTION]) {
+        if !name.is_empty() && !order.contains(&name) {
+            removed.push(format!("[{name}]"));
+            continue;
+        }
+
+        let unknown = |key: &str, value: &::toml::Value| {
+            if let Some(actions) = actions.get(&name) {
+                return !matches!(value, ::toml::Value::String(value)
+                    if actions.contains(value.as_str()));
+            }
+            if name == EMULATOR_SECTION {
+                return !BUTTONS.contains(&key.to_lowercase().as_str());
+            }
+            !sticks.contains(&name)
+                || !STICK_KEYS
+                    .into_iter()
+                    .chain([SCALE])
+                    .any(|each| each == key.to_lowercase())
+        };
+
+        let (rows, gone) = toml::drop(&rows, unknown, false);
+        removed.extend(gone.into_iter().map(|key| {
+            if name.is_empty() {
+                key
+            } else {
+                format!("[{name}] {key}")
+            }
+        }));
+        kept.push((name, rows));
+    }
+    let at = |name: &str| {
+        if name.is_empty() {
+            0
+        } else {
+            order
+                .iter()
+                .position(|each| each == name)
+                .expect("a table kept is in order")
+                + 1
+        }
+    };
+    let ordered = py::sorted_by_lt(kept.clone(), |a, b| at(&a.0) < at(&b.0));
+    if removed.is_empty() && ordered == kept {
+        return (text.to_string(), Vec::new());
+    }
+    (toml::joined(&ordered), removed)
+}
+
 /// Which of the emulator's controls pa3ds's keys are sitting on: what it is called, which key
 /// took it, and whether its loss is one to keep quiet about (`QUIET`).
 ///
@@ -1477,8 +1566,20 @@ pub fn prepare_with(
                 py::path_str(&path)
             ));
         } else {
+            // Tidied first, so a key a renamed action had is free for the new name's line; and
+            // again after, for the tables filling in added at the end.
+            let (tidied, removed) = tidy(&mine, defaults, Some(contexts));
+            if !removed.is_empty() {
+                notes.push(format!(
+                    "took out of {}, which pa3ds does not do: {}",
+                    py::path_str(&path),
+                    removed.join(", ")
+                ));
+                loaded = toml::parse(&tidied).0;
+            }
             let filled;
-            (filled, added) = fill(&mine, &loaded, defaults, explained, Some(contexts))?;
+            (filled, added) = fill(&tidied, &loaded, defaults, explained, Some(contexts))?;
+            let filled = tidy(&filled, defaults, Some(contexts)).0;
             for each in &added {
                 let held = match &each.taken {
                     None => String::new(),
@@ -1496,7 +1597,7 @@ pub fn prepare_with(
                     toml::quote(&each.action)
                 ));
             }
-            if !added.is_empty() {
+            if filled != mine {
                 loaded = toml::parse(&filled).0;
                 if write && !toml::write(&path, &filled)? {
                     notes.push(format!("{} could not be written", py::path_str(&path)));

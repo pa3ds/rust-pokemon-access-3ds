@@ -671,7 +671,7 @@ pub fn tidy(text: &str, azahar_lacks: &[String]) -> (String, Vec<String>) {
     let order: Vec<&str> = TABLES.into_iter().chain([EMULATOR_SECTION]).collect();
     let mut kept: Vec<(String, Vec<String>)> = Vec::new();
     let mut removed: Vec<String> = Vec::new();
-    for (name, rows) in toml::blocks(text) {
+    for (name, rows) in toml::blocks(text, &[]) {
         if !name.is_empty() && !order.contains(&name.as_str()) {
             removed.push(format!("[{name}]"));
             continue;
@@ -682,7 +682,7 @@ pub fn tidy(text: &str, azahar_lacks: &[String]) -> (String, Vec<String>) {
             Vec::new()
         };
 
-        let unknown = |key: &str| {
+        let unknown = |key: &str, _value: &::toml::Value| {
             if name == EMULATOR_SECTION {
                 azahar_lacks.iter().any(|each| each == key)
             } else {
@@ -690,7 +690,7 @@ pub fn tidy(text: &str, azahar_lacks: &[String]) -> (String, Vec<String>) {
             }
         };
 
-        let (rows, gone) = toml::drop(&rows, unknown);
+        let (rows, gone) = toml::drop(&rows, unknown, true);
         removed.extend(gone.into_iter().map(|key| {
             if name.is_empty() {
                 key

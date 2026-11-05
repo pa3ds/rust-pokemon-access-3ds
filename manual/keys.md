@@ -268,8 +268,9 @@ the file.
 ## Changing keys
 
 Keys are in `user\keys.toml`, written with the defaults on the first start. pa3ds adds the keys
-later versions bring and never changes a line you have. To unbind a key, put a `#` in front of
-its line: a line you delete is put back the next time pa3ds starts.
+later versions bring, takes out a key bound to something it no longer does, and keeps its tables
+in order with `[azahar]` last; it changes no other line you have. To unbind a key, put a `#` in
+front of its line: a line you delete is put back the next time pa3ds starts.
 
 - `[pa3ds.navigation]` holds the keys of every mode. `[pa3ds.navigation.list]`,
   `[pa3ds.navigation.direction]` and `[pa3ds.navigation.touch]` hold one mode's, and win over it.

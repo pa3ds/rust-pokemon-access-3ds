@@ -12,9 +12,9 @@
 //!
 //! The keys file and the settings file are **filled in** as pa3ds gains keys and settings: a line
 //! is added at the end of its table, and nothing else in the file changes (`offered`, `append`). A
-//! line the player has commented out counts as there, which is how they turn one off. The settings
-//! file is **tidied** too, a setting pa3ds no longer has taken out and its tables put in order
-//! (`blocks`, `drop`, `joined`; `config.tidy`).
+//! line the player has commented out counts as there, which is how they turn one off. Both are
+//! **tidied** too, a setting or a key's action pa3ds no longer has taken out and the tables put in
+//! order (`blocks`, `drop`, `joined`; `config.tidy`, `keyfile.tidy`).
 //!
 //! Bound by:
 //! - ADR-0031: TOML for every file a person writes, comments kept; escaping is the one thing it
@@ -204,8 +204,10 @@ fn prose(row: &str) -> bool {
 
 /// A file as its tables in the file's order, each its header and the lines under it, after
 /// what comes before the first header, under "". Comment lines just above a header, with no
-/// blank between, belong to the table they introduce.
-pub fn blocks(text: &str) -> Vec<(String, Vec<String>)> {
+/// blank between, belong to the table they introduce; and for a table in `spaced`, the comment
+/// lines above it a blank away, settings commented out among them: the keys file's `[azahar]`,
+/// introduced by the list of Azahar's buttons.
+pub fn blocks(text: &str, spaced: &[&str]) -> Vec<(String, Vec<String>)> {
     let mut out: Vec<(String, Vec<String>)> = vec![(String::new(), Vec::new())];
     for row in rows(text) {
         let row = row.trim_end_matches(['\r', '\n']).to_string();
@@ -215,6 +217,19 @@ pub fn blocks(text: &str) -> Vec<(String, Vec<String>)> {
             continue;
         };
         let mut at = under.len();
+        if spaced.contains(&header.as_str()) {
+            let mut above = at;
+            while above > 0 && py::strip(&under[above - 1]).is_empty() {
+                above -= 1;
+            }
+            let mut comments = above;
+            while comments > 0 && py::lstrip(&under[comments - 1]).starts_with('#') {
+                comments -= 1;
+            }
+            if comments < above {
+                at = comments;
+            }
+        }
         while at > 0 && prose(&under[at - 1]) {
             at -= 1;
         }
@@ -225,17 +240,24 @@ pub fn blocks(text: &str) -> Vec<(String, Vec<String>)> {
     out
 }
 
-/// A table's lines without each setting, in use or commented out, whose key `unknown` says
-/// is not one, nor the comment just above it and the blank line before that, as `fill` writes a
-/// setting; and the keys taken out.
-pub fn drop(rows: &[String], unknown: impl Fn(&str) -> bool) -> (Vec<String>, Vec<String>) {
+/// A table's lines without each setting, in use or, with `commented`, commented out, whose
+/// key and value `unknown` says is not one, nor the comment just above it and the blank line
+/// before that, as `fill` writes a setting; and the keys taken out.
+pub fn drop(
+    rows: &[String],
+    unknown: impl Fn(&str, &Value) -> bool,
+    commented: bool,
+) -> (Vec<String>, Vec<String>) {
     let mut kept: Vec<String> = Vec::new();
     let mut gone: Vec<String> = Vec::new();
     for row in rows {
         let bare = py::strip(row);
-        let Some((key, _)) =
-            entry(bare.strip_prefix('#').unwrap_or(bare)).filter(|(key, _)| unknown(key))
-        else {
+        let found = if commented || !bare.starts_with('#') {
+            entry(bare.strip_prefix('#').unwrap_or(bare))
+        } else {
+            None
+        };
+        let Some((key, _)) = found.filter(|(key, value)| unknown(key, value)) else {
             kept.push(row.clone());
             continue;
         };
