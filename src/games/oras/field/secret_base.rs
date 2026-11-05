@@ -170,13 +170,13 @@ pub const MAPPER_CLASS: &str = "N5field10secretBase16SecretBaseMapperE";
 pub const CURSOR_CLASS: &str = "N5field10secretBase21SecretBaseCursorModelE";
 /// The decorations' classes stood on rather than walked round, by the game's own hit test (spike
 /// A): Your Location, the Welcome Mats, the cushions and plain mats whose class is not hit, the
-/// note and glitter mats, the Stand, the Stairs, the Tall Grass and the Solid Board. The player
-/// walked six of the Stand's eight cells (or_secret_base_objects). Every other class is solid to
-/// P: those the game hits, as the Small Desk was walked round where P went through it, and the
-/// panels and mats that move the player or drop them in a pit, which the game does not hit but a
-/// way keeps off. The Slide, the tents and the Paradoxical Popper hit some cells and not others,
-/// and are kept whole.
-pub const WALKED_ON: [&str; 9] = [
+/// note and glitter mats, the Stand, the Stairs, the Tall Grass, the Solid Board and the Pitfall
+/// Mat. The player walked six of each Stand's eight cells, and fell into the Pitfall Mat once and
+/// was left on it, then crossed it (or_secret_base_objects). Every other class is solid to P:
+/// those the game hits, as the Small Desk was walked round where P went through it, and the panels
+/// and mats that move the player, which the game does not hit but a way keeps off. The Slide, the
+/// tents and the Paradoxical Popper hit some cells and not others, and are kept whole.
+pub const WALKED_ON: [&str; 10] = [
     "N5field10secretBase33SecretBaseGoodsModelJibunNoIbasyoE",
     "N5field10secretBase30SecretBaseGoodsModelOmanekiMatE",
     "N5field10secretBase26SecretBaseGoodsModelNotHitE",
@@ -186,6 +186,7 @@ pub const WALKED_ON: [&str; 9] = [
     "N5field10secretBase26SecretBaseGoodsModelKaidanE",
     "N5field10secretBase28SecretBaseGoodsModelKusamuraE",
     "N5field10secretBase30SecretBaseGoodsModelJoubunaItaE",
+    "N5field10secretBase29SecretBaseGoodsModelAnaakiMatE",
 ];
 pub const BALLOONS: &str = "N5field10secretBase26SecretBaseGoodsModelFuusenE";
 /// The Breakable Door, a decoration of the balloons' class, which the game hits at its two end
