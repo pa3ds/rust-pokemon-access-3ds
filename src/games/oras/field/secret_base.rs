@@ -52,10 +52,11 @@
 //!
 //! Whether a floor decoration's cell stops the player is its class's to say, in
 //! DllUSSecretBase.cro: the generic `SecretBaseGoodsModel`'s hit test (vtable slot 5) is true on
-//! every cell of its box, and slot 12 sets the cell's blocked bit where it hits. The classes
-//! `WALKED_ON` lists return false on every cell, or set cells of their own whose kinds the
-//! executable's table has open; the balloon class is hit only at the Breakable Door's two ends
-//! (`DOOR`). Spike A reads it all off the ROM.
+//! every cell of its box, and slot 12 sets the blocked bit where it hits, in the word the game
+//! works out for the cell as the player moves, over the cell table's own, which stays as the ROM
+//! has it. The classes `WALKED_ON` lists return false on every cell, or set cells of their own
+//! whose kinds the executable's table has open; the balloon class is hit only at the Breakable
+//! Door's two ends (`DOOR`). Spike A reads it all off the ROM.
 
 use std::cell::{Cell as Slot, RefCell};
 use std::collections::{HashMap, HashSet};
