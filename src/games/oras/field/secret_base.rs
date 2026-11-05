@@ -56,7 +56,7 @@
 //! works out for the cell as the player moves, over the cell table's own, which stays as the ROM
 //! has it. The classes `WALKED_ON` lists return false on every cell, or set cells of their own
 //! whose kinds the executable's table has open; the balloon class is hit only at the Breakable
-//! Door's two ends (`DOOR`). Spike A reads it all off the ROM.
+//! Door's two ends (`DOOR`). Spike 281 reads it all off the ROM.
 
 use std::cell::{Cell as Slot, RefCell};
 use std::collections::{HashMap, HashSet};
