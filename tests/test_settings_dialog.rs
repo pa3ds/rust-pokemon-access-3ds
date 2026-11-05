@@ -8,8 +8,8 @@ use super::test_rename::read_template;
 use crate::core::config::{self, Config, Value};
 use crate::ux::dialog::{ATOM_BUTTON, ATOM_EDIT, Class, IDCANCEL, IDOK};
 use crate::ux::settings::{
-    ATOM_COMBOBOX, CHECK, IDC_APPLY, IDC_PAGES, NUMBER, PERCENT, TABS, changed, choices, fields,
-    languages, shown, template, typed, values,
+    ATOM_COMBOBOX, CHECK, IDC_APPLY, IDC_PAGES, NUMBER, PERCENT, SECONDS, TABS, changed, choices,
+    fields, languages, shown, template, typed, values,
 };
 
 #[test]
@@ -54,9 +54,51 @@ fn test_every_setting_is_one_control_on_its_tables_page() {
             ("pa3ds.audio.ticks", PERCENT),
             ("pa3ds.audio.feedback_sounds", PERCENT),
             ("pa3ds.touch.drag", "choice"),
+            ("pa3ds.amie.head_it_lead", SECONDS),
             ("pa3ds.amie.feedback_style", "choice"),
             ("pa3ds.extras.hidden_items", "choice"),
         ])
+    );
+}
+
+/// #25: `head_it_lead`, left out of `KINDS`, was a checkbox, and applying wrote `true`.
+#[test]
+fn test_only_a_setting_that_is_on_or_off_is_a_checkbox() {
+    let defaults: HashMap<String, Value> = config::TABLES
+        .iter()
+        .flat_map(|table| {
+            config::defaults(table)
+                .into_iter()
+                .map(move |(each, value)| (format!("{table}.{each}"), value))
+        })
+        .collect();
+    assert!(
+        fields()
+            .iter()
+            .all(|each| (each.kind == CHECK) == matches!(defaults[&each.name], Value::Bool(_)))
+    );
+}
+
+#[test]
+fn test_seconds_take_a_decimal_point_or_comma_and_nothing_below_0() {
+    assert_eq!(shown(SECONDS, &Value::Float(0.4)).unwrap(), "0.4");
+    assert_eq!(
+        typed(SECONDS, " 0.35 ", &Value::Float(0.4)),
+        Value::Float(0.35)
+    );
+    assert_eq!(
+        typed(SECONDS, "0,25", &Value::Float(0.4)),
+        Value::Float(0.25)
+    );
+    assert_eq!(typed(SECONDS, "0", &Value::Float(0.4)), Value::Float(0.0));
+    assert_eq!(
+        typed(SECONDS, "-0.1", &Value::Float(0.4)),
+        Value::Float(0.4)
+    );
+    assert_eq!(typed(SECONDS, "inf", &Value::Float(0.4)), Value::Float(0.4));
+    assert_eq!(
+        typed(SECONDS, "soon", &Value::Float(0.4)),
+        Value::Float(0.4)
     );
 }
 

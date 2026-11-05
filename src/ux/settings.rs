@@ -18,6 +18,9 @@
 //!   message
 //! - a number: a box to type it into, whose arrows step it; a loudness in percent, 100 as loud as
 //!   the game, where the file has 1
+//! - seconds, Head It's cue lead: a box to type it into with a decimal point, 0.35 as pa3ds says
+//!   its estimate, and no arrows, whose steps are whole numbers (#25: it was a checkbox, and
+//!   applying wrote `true`, which the file cannot take)
 //! - the folder of a portable Azahar: a box to type it into, and Browse, the folder picker
 //!
 //! **OK, Cancel and Apply**, as Windows' own settings dialogs have (Orion): applying writes each
@@ -69,10 +72,11 @@ pub const CHECK: &str = "check";
 pub const CHOICE: &str = "choice";
 pub const NUMBER: &str = "number";
 pub const PERCENT: &str = "percent";
+pub const SECONDS: &str = "seconds";
 pub const FOLDER: &str = "folder";
-/// Each setting that is not on or off, by its control. The last ones are Python's
-/// `**dict.fromkeys(config.CHOICES, CHOICE)`, a const array having no spread.
-pub const KINDS: [(&str, &str); 10] = [
+/// Each setting that is not on or off, by its control: one left out is a checkbox. The last ones
+/// are Python's `**dict.fromkeys(config.CHOICES, CHOICE)`, a const array having no spread.
+pub const KINDS: [(&str, &str); 11] = [
     ("pa3ds.ui.language", CHOICE),
     ("pa3ds.azahar_folder", FOLDER),
     ("pa3ds.poll_rate", NUMBER),
@@ -80,6 +84,7 @@ pub const KINDS: [(&str, &str); 10] = [
     ("pa3ds.audio.footsteps", PERCENT),
     ("pa3ds.audio.ticks", PERCENT),
     ("pa3ds.audio.feedback_sounds", PERCENT),
+    ("pa3ds.amie.head_it_lead", SECONDS),
     (config::CHOICES[0].0, CHOICE),
     (config::CHOICES[1].0, CHOICE),
     (config::CHOICES[2].0, CHOICE),
@@ -240,7 +245,7 @@ pub fn shown(kind: &str, value: &Value) -> Result<String> {
     {
         return Ok(py::round(value * 100.0)?.to_string());
     }
-    if kind == NUMBER
+    if (kind == NUMBER || kind == SECONDS)
         && let Some(value) = number(value)
     {
         return Ok(py::format_g(value));
@@ -254,8 +259,19 @@ pub fn shown(kind: &str, value: &Value) -> Result<String> {
 }
 
 /// What a number's box says, as the file has it, or what it was where the box says nothing a
-/// setting can take: a reads-a-second of 0 never reads the game.
+/// setting can take: a reads-a-second of 0 never reads the game. Seconds take a decimal comma
+/// as well as a point, as a German or French player types one.
 pub fn typed(kind: &str, text: &str, was: &Value) -> Value {
+    if kind == SECONDS {
+        let Ok(seconds) = py::float_of(&py::strip(text).replace(',', ".")) else {
+            return was.clone();
+        };
+        return if seconds.is_finite() && seconds >= 0.0 {
+            Value::Float(seconds)
+        } else {
+            was.clone()
+        };
+    }
     let Ok(number) = py::int_base10(py::strip(text)) else {
         return was.clone();
     };
@@ -398,8 +414,10 @@ pub fn template() -> Result<Vec<u8>> {
                 &own("settings-browse", &[]),
             )?;
         } else {
+            // ES_NUMBER takes digits alone: no decimal point for seconds.
+            let digits = if each.kind == SECONDS { 0 } else { ES_NUMBER };
             add(
-                seen | WS_TABSTOP | WS_GROUP | WS_BORDER | ES_NUMBER,
+                seen | WS_TABSTOP | WS_GROUP | WS_BORDER | digits,
                 WS_EX_CLIENTEDGE,
                 LEFT,
                 at + 10,
