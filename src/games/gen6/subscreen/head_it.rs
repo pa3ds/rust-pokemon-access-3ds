@@ -800,21 +800,37 @@ impl HeadIt {
             }
         }
         let ahead = ahead.unwrap_or(0.0);
+        let mut due: Vec<(f64, i64)> = Vec::new();
         for (&pane, &(height, speed, rise)) in &flights {
             let (ball, seen) = (self.falling[&pane], &self.heights[&pane]);
-            if self.cued.contains(pane) || height < ball.sweet || seen.len() < 2 {
-                continue;
+            if !self.cued.contains(pane) && height >= ball.sweet && seen.len() >= 2 {
+                due.push((
+                    origin + seen[seen.len() - 1].0 + falls(height, speed, rise, ball.sweet)
+                        - self.lead,
+                    pane,
+                ));
             }
-            let moment = origin + seen[seen.len() - 1].0 + falls(height, speed, rise, ball.sweet)
-                - self.lead;
-            if moment - now <= ahead {
-                // Python's `max(0.0, x)`: the first unless the second is strictly greater.
-                let wait = moment - (self.clock)();
-                (self.sleep)(if wait > 0.0 { wait } else { 0.0 });
-                self.cued.add(pane);
-                self.cues.insert(ball.column, (self.clock)());
-                cue(ball.column);
+        }
+        // Soonest first: two balls due before the next tick, waited for in the order found, cued
+        // the sooner late.
+        // Python's `sorted` of (moment, pane) tuples: the first parts that differ, by `<`.
+        let due = py::sorted_by_lt(
+            due,
+            |a: &(f64, i64), b: &(f64, i64)| {
+                if a.0 != b.0 { a.0 < b.0 } else { a.1 < b.1 }
+            },
+        );
+        for (moment, pane) in due {
+            if moment - now > ahead {
+                break;
             }
+            let column = self.falling[&pane].column;
+            // Python's `max(0.0, x)`: the first unless the second is strictly greater.
+            let wait = moment - (self.clock)();
+            (self.sleep)(if wait > 0.0 { wait } else { 0.0 });
+            self.cued.add(pane);
+            self.cues.insert(column, (self.clock)());
+            cue(column);
         }
         Ok(())
     }

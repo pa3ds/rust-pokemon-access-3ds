@@ -587,6 +587,67 @@ fn test_a_cue_due_further_off_than_a_tick_is_not_waited_for_in_the_tick() {
     assert!(most <= head_it::TICK, "{slept:?}");
 }
 
+/// Two balls falling together, both due before the next tick, the one found second due
+/// first: cued in the order they were found, the first was waited for and the second sounded
+/// 15 ms late.
+#[test]
+fn test_balls_due_in_one_tick_are_cued_in_the_order_they_are_due() {
+    let (cued, cue, now, clock) = cued();
+    let Game {
+        mut found,
+        memory,
+        panes,
+        layouts,
+    } = game_given(Given {
+        cue: Some(cue),
+        clock,
+        sleep: {
+            let now = now.clone();
+            Rc::new(move |seconds: f64| now.set(now.get() + seconds))
+        },
+        ..Given::default()
+    });
+    let right = BALLS + head_it::BALL_RECORDS + 4 * head_it::BALL_SIZE;
+    memory.u32(RECORD, &[3]);
+    memory.u32(right, &[4]);
+    found
+        .track(&IndexMap::from([(BALLS, head_it::BALL.to_string())]), true)
+        .unwrap();
+    place(&memory, panes[2], 100.0, 320.3);
+    layouts.refresh();
+    heard(&mut found, head_it::APP);
+    // 20 a step, steady: at the second tick the middle one is 254.2 above `SWEET`, the right
+    // one 245.3, so due 15 ms after and before the next tick.
+    for (at, above) in [(0.0, 20.0), (0.03, 0.0)] {
+        now.set(at);
+        for (pane, at_record, x, height) in [
+            (panes[0], RECORD, 0.0, head_it::SWEET + 254.2 + above),
+            (panes[2], right, 100.0, head_it::SWEET + 245.3 + above),
+        ] {
+            place(&memory, pane, x as f32, height as f32);
+            memory.write(at_record + head_it::SPEED, &pair(20.0, 0.0));
+            memory.write(at_record + head_it::ACROSS, &pair(x, height));
+        }
+        found.tick().unwrap();
+    }
+    let due: Vec<f64> = [245.3, 254.2]
+        .iter()
+        .map(|left| 0.03 + left / 20.0 * head_it::STEP - head_it::LEAD)
+        .collect();
+    let cued = cued.borrow();
+    assert_eq!(
+        cued.iter().map(|&(_, column)| column).collect::<Vec<_>>(),
+        [2, 1]
+    );
+    assert_eq!(cued.len(), due.len());
+    assert!(
+        cued.iter()
+            .zip(&due)
+            .all(|(&(at, _), moment)| (at - moment).abs() < 1e-6),
+        "{cued:?} {due:?}"
+    );
+}
+
 /// Bigger, it is headed higher (spike 273, live): cued for the others' `SWEET`, its "!" came
 /// late, and Orion's tap the lead after it missed (or_amie_head_it_normal). Its record is one of
 /// the round's twenty, stepping as the others do (spike 273, live on Hard).
