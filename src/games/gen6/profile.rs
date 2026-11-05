@@ -43,8 +43,8 @@ use crate::games::common::field::navigate::{
     DoorSign, LeadsTo, Navigator, Options as NavigatorOptions, Part, Sides, Street,
 };
 use crate::games::common::field::things::{
-    FURNITURE_SOURCE, Field, Interactable, WARP_SOURCE, bearing, describe, source_kind,
-    source_number,
+    FURNITURE_SOURCE, Field, Interactable, MODEL_SOURCE, WARP_SOURCE, bearing, describe,
+    source_kind, source_number,
 };
 use crate::games::common::layout::Layouts;
 use crate::games::common::layout_file::{LayoutFile, LayoutFiles};
@@ -1100,7 +1100,10 @@ impl Gen6Profile {
         };
         let place: GamePlace = {
             let text = text.clone();
-            Rc::new(move |zone, slot| game_place(&text, zone, slot))
+            // Python's `self._items_at`: (zone, record) -> the item a thing there is, which names
+            // it (`Game.items_at`). Only `_game_place` reads it, so the closure keeps it.
+            let items_at = game.items_at.clone();
+            Rc::new(move |zone, slot| game_place(&text, &items_at, zone, slot))
         };
         named.use_game(Some(sprite), Some(place));
         Gen6Profile {
@@ -2240,8 +2243,24 @@ fn game_word(text: &GameText, character: i64) -> Option<String> {
 /// where the ROM's own tables pair the two (spike 86). Only a warp's slot is a door's: a sign
 /// is numbered in a table of its own. A warp into one of X's gates is the gate and the place
 /// beyond it, "Lumiose Gate to Route 4": Lumiose's five gates are all "Lumiose Gate" (Khai,
-/// 2026-10-28).
-fn game_place(text: &GameText, zone: i64, slot: i64) -> Option<String> {
+/// 2026-10-28). A thing the player takes an item at is that item, by its record
+/// (`Game.items_at`): Route 111's Root Fossil and Claw Fossil.
+pub(crate) fn game_place(
+    text: &GameText,
+    items_at: &IndexMap<(i64, i64), i64>,
+    zone: i64,
+    slot: i64,
+) -> Option<String> {
+    if source_kind(slot) == MODEL_SOURCE {
+        let item = items_at.get(&(zone, source_number(slot)));
+        let items = &text.items;
+        return match item {
+            Some(&item) if item < items.len() as i64 => {
+                Some(items[item as usize].clone()).filter(|name| !name.is_empty())
+            }
+            _ => None,
+        };
+    }
     if source_kind(slot) != WARP_SOURCE {
         return None;
     }

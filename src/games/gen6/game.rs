@@ -344,6 +344,10 @@ pub struct Game {
     /// The zones of the places in parts listed whole, the other parts' things out of the ROM
     /// (ADR-0042); every other place in parts is listed a part at a time.
     pub whole: HashSet<i64>,
+    /// (zone, record) of a thing the player takes an item at -> the item, whose name out of the
+    /// ROM the thing is called by: the game names it only as the item taken, and one model draws
+    /// both of Route 111's fossils (`Profile._game_place`).
+    pub items_at: IndexMap<(i64, i64), i64>,
 }
 
 impl Game {
@@ -403,6 +407,7 @@ impl Game {
             field_menu: MENU,
             camera: camera::ORAS,
             whole: HashSet::new(),
+            items_at: IndexMap::new(),
         }
     }
 }

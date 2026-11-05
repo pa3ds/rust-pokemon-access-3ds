@@ -752,3 +752,39 @@ fn test_head_its_cue_is_the_games_exclamation_once_the_setting_is_on() {
         assert_eq!(head_it.borrow().cue.is_some(), on, "on {on}");
     }
 }
+
+/// One model draws both of Route 111's fossils, and the game names them only as the item
+/// taken: west the Root Fossil, east the Claw Fossil, listed under items (a player's report,
+/// spike B). Their names are the ROM's, in the player's language.
+#[test]
+fn test_route_111s_fossils_are_called_the_items_they_are_from_the_rom() -> Result<()> {
+    use crate::games::common::field::things::{MODEL_SOURCE, place_source};
+    use crate::games::gen6::profile::game_place;
+
+    let mut items = vec![String::new(); 101];
+    items[99] = "Wurzelfossil".to_string();
+    items[100] = "Klauenfossil".to_string();
+    let text = GameText {
+        items,
+        ..GameText::default()
+    };
+    let mut called = Vec::new();
+    for record in [3, 4, 5] {
+        called.push(game_place(
+            &text,
+            &oras::game().items_at,
+            0x23,
+            place_source(MODEL_SOURCE, record)?,
+        ));
+    }
+    assert_eq!(
+        called,
+        [
+            Some("Wurzelfossil".to_string()),
+            Some("Klauenfossil".to_string()),
+            None
+        ]
+    );
+    assert!(oras::game().pickups.contains(&oras::FOSSIL));
+    Ok(())
+}

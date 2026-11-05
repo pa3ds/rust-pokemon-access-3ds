@@ -886,6 +886,12 @@ pub const STOPPER: i64 = 0x8A;
 /// The sparkle at each of the 28 places a Mega Stone lies, a script each from 0x41f to 0x43a
 /// (or_mega_stone: "Raiden found a Sablenite!"): an item found, listed under items.
 pub const KIRAKIRA: i64 = 0x203D;
+/// What Route 111's two fossils in the desert are drawn as, one model for both: things the player
+/// takes an item at, listed under items (a player's report, spike B).
+pub const FOSSIL: i64 = 0x2051;
+/// Route 111's fossils by record, west and east, and the item each is: the Root Fossil and the
+/// Claw Fossil, as the player reported them and the ROM's item list numbers them.
+pub const FOSSILS: [((i64, i64), i64); 2] = [((0x23, 3), 99), ((0x23, 4), 100)];
 
 /// `STOPPER`, and `STOPPER3` everywhere but Mauville Gym, where it is the barriers: in Seafloor
 /// Cavern ten round the submarine, whose furniture records are what the player reads; on each Regi
@@ -932,7 +938,8 @@ pub fn game() -> &'static Game {
         doors: Some(rotating_doors),
         ice: Some(ice_floors),
         blockers: HashSet::from(BLOCKERS),
-        pickups: HashSet::from([KIRAKIRA]),
+        pickups: HashSet::from([KIRAKIRA, FOSSIL]),
+        items_at: IndexMap::from(FOSSILS),
         elevators: ELEVATORS.collect(),
         hidden_triggers: HashSet::from([(CONTROL_ROOM, SCANNER)]),
         crossed: HashSet::from(DEWFORD_SWITCHES),
