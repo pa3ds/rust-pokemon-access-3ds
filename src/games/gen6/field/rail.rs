@@ -1137,11 +1137,11 @@ impl _Curve {
 }
 
 /// How near square to the line between a street's ends a point's side is, as the cosine between
-/// them, for the street to run straight from that point: Route 7's are 0 (spike A).
+/// them, for the street to run straight from that point: Route 7's are 0 (spike 283).
 pub const SQUARE: f64 = 0.01;
 
 /// Whether a street bends between its ends: neither of its points' sides square to the line
-/// between them, as each of Centrico Plaza's 14 lines and the Tower of Mastery's (spike A).
+/// between them, as each of Centrico Plaza's 14 lines and the Tower of Mastery's (spike 283).
 fn bends(
     line: &Line,
     places: &IndexMap<i64, (f64, f64)>,
@@ -1170,13 +1170,13 @@ fn bends(
 /// world does not place both its ends. Laid straight from end to end, Centrico Plaza's lines put
 /// the player's cell a row and an offset from the place the game had them at, the way out to
 /// Autumnal Avenue beside a cell it is a row away from, and P said "path, 1 south" where down
-/// walked into the wall (x_lumiose_plaza_exits, spike A). Along the curve 32 of the 70
+/// walked into the wall (x_lumiose_plaza_exits, spike 283). Along the curve 32 of the 70
 /// places the player stood still at are in the game's own cell, to 8 along the line, places
 /// (13, 6) and (2, 6) among them, where down did nothing, and both warps are in the cells the
 /// game took the player through them from. A street with a point's side square to the line
 /// between its ends is laid straight: Route 7's way onto Route 6 is square at one end and its
 /// side 45 degrees off at the other, where it meets the next street, and laid straight its
-/// places were a median 9.6 units off the game's, along the cubic 22.2 (spike A).
+/// places were a median 9.6 units off the game's, along the cubic 22.2 (spike 283).
 fn curved(
     line: &Line,
     places: &IndexMap<i64, (f64, f64)>,
@@ -1688,7 +1688,7 @@ impl Rails {
         if wanted.len() == 1 {
             // A record of one place stands in one cell, the one its place is in: along a curve
             // the cells nearest one place are up to three, and Coumarine Gym's vines, each end
-            // one cell, lost three of their eight climbs so (x_gym_4_climbed, spike A).
+            // one cell, lost three of their eight climbs so (x_gym_4_climbed, spike 283).
             let (row, offset) = *wanted.iter().next().expect("one place");
             return Ok(Some(vec![curve.cell(row as f64, offset as f64)?]));
         }

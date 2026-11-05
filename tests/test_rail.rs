@@ -444,7 +444,7 @@ fn test_at_a_joint_each_street_is_laid_the_quarter_it_leaves_the_joint_by() -> R
     Ok(())
 }
 
-/// Spike A: Centrico Plaza's lines are arcs round Prism Tower, and laid straight from end to
+/// Spike 283: Centrico Plaza's lines are arcs round Prism Tower, and laid straight from end to
 /// end the way out to Autumnal Avenue was put beside a cell a row away from it, where down
 /// walked the player into a wall. A street leaving its start south and reaching its end going
 /// east bulges off the line between them: its middle and a record of one place there are where
