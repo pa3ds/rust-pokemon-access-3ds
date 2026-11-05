@@ -129,8 +129,11 @@ pub const POKEMON: [&str; 3] = ["first pokemon", "second pokemon", "third pokemo
 /// Head It's three Pokémon, a key each, by where each stands all round: tapped, to head the ball
 /// falling at it (Orion, 2026-10-31; `head_it.HeadItKeys`).
 pub const HEADERS: [&str; 3] = ["left pokemon", "middle pokemon", "right pokemon"];
+/// Say Head It's score, its combo and its clock or chances left, which are left unsaid as they
+/// come unless the player asks (Orion, 2026-11-04; `head_it.HeadIt.score`).
+pub const SCORE_KEY: &str = "score";
 
-pub const EXPLAINED: [(&str, &str); 7] = [
+pub const EXPLAINED: [(&str, &str); 8] = [
     (
         ENEMY_SIDE,
         "The enemy's Pokémon are said in the order the battle places them. In a horde of five that \
@@ -167,6 +170,10 @@ pub const EXPLAINED: [(&str, &str); 7] = [
         HEADERS[0],
         "In Head It, taps the Pokémon standing on the left, in the middle or on the right, to head \
          the ball falling at it.",
+    ),
+    (
+        SCORE_KEY,
+        "In Head It, says the score, the combo and the time or the chances left.",
     ),
 ];
 
@@ -313,7 +320,9 @@ pub type Contexts = IndexMap<String, IndexMap<String, String>>;
 /// The number row in Berry Picker: 1 to 7 the berries, which no difficulty has more of, and 8, 9
 /// and 0 the Pokémon (Orion, 2026-10-29), for a player who would rather not walk to each with touch
 /// mode's keys, which still drag there as ever. In Head It 8, 9 and 0 the Pokémon too, left to right
-/// (Orion, 2026-10-31), none of them a button of Azahar's as it ships.
+/// (Orion, 2026-10-31), none of them a button of Azahar's as it ships; and R the score (Orion,
+/// 2026-11-04), pa3ds's key everywhere else, a battle's side: S and T, which he offered beside it,
+/// are his B and his D-pad's up, which the list after a round may want.
 pub static DEFAULT_CONTEXTS: LazyLock<Contexts> = LazyLock::new(|| {
     let mut keys: IndexMap<String, String> = BERRIES
         .iter()
@@ -331,6 +340,7 @@ pub static DEFAULT_CONTEXTS: LazyLock<Contexts> = LazyLock::new(|| {
                 ("8".to_string(), HEADERS[0].to_string()),
                 ("9".to_string(), HEADERS[1].to_string()),
                 ("0".to_string(), HEADERS[2].to_string()),
+                ("r".to_string(), SCORE_KEY.to_string()),
             ]),
         ),
     ])

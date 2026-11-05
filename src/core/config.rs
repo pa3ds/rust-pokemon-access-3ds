@@ -319,6 +319,10 @@ pub struct Amie {
     /// How Head It says the Pokémon a ball falls at: as Berry Picker's, or not at all, for a
     /// player who wants the cue alone (players, 2026-11-04).
     pub head_it_style: String,
+    /// Head It says its score, its combo and each "MISS!" as they come, the score and combo once
+    /// while they keep going up: off as it ships, as they came at every ball, faster than they can
+    /// be said, and its key says them (Orion, 2026-11-04).
+    pub head_it_score: bool,
 }
 
 impl Default for Amie {
@@ -330,6 +334,7 @@ impl Default for Amie {
             head_it_cue: false,
             head_it_lead: 0.4,
             head_it_style: "name".to_string(),
+            head_it_score: false,
         }
     }
 }
@@ -346,6 +351,7 @@ impl Table for Amie {
             ("head_it_cue", Value::Bool(self.head_it_cue)),
             ("head_it_lead", Value::Float(self.head_it_lead)),
             ("head_it_style", Value::Str(self.head_it_style.clone())),
+            ("head_it_score", Value::Bool(self.head_it_score)),
         ]
     }
 
@@ -357,6 +363,7 @@ impl Table for Amie {
             ("head_it_cue", Value::Bool(value)) => self.head_it_cue = value,
             ("head_it_lead", Value::Float(value)) => self.head_it_lead = value,
             ("head_it_style", Value::Str(value)) => self.head_it_style = value,
+            ("head_it_score", Value::Bool(value)) => self.head_it_score = value,
             _ => {}
         }
     }

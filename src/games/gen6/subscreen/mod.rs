@@ -27,7 +27,9 @@
 //!   says;
 //! - `ticking(running)` and `tick()`, what it follows every tick rather than every screen poll:
 //!   Head It's balls, for its cue;
-//! - `holding(running)`, whether its round holds the heap's whole sweep off: Head It's.
+//! - `holding(running)`, whether its round holds the heap's whole sweep off: Head It's;
+//! - `scored(piece, running)`, whether words on its screen are its score, left unsaid as they
+//!   come unless the player asks: Head It's.
 //!
 //! A new one is built here and put in the tuples of what it answers, in the order it is asked in:
 //! touch mode names a picture by the first reader with a name for it, and offers targets in order.
@@ -60,7 +62,8 @@ use crate::core::rtti::ClassNames;
 use crate::core::speech::Category;
 use crate::games::common::layout::Layouts;
 use crate::games::common::pokemon;
-use crate::games::common::touch::{ImageOf, Target};
+use crate::games::common::screen::ScreenText;
+use crate::games::common::touch::{FileOf, ImageOf, OnScreen, Target};
 use crate::games::gen6::game::Game;
 use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::rom::cries::Crier;
@@ -339,6 +342,8 @@ impl Subscreens {
         frames: Frames,
         reads_beside_gpu: bool,
         process: Process,
+        file_of: FileOf,
+        on_screen: OnScreen,
     ) -> Subscreens {
         // The Pokémon-Amie page draws its Pokémon's icon, and says nothing of whose; Amie itself is
         // stroked by a slide over it, aimed by a picture the GPU draws, where the emulator lets
@@ -441,8 +446,10 @@ impl Subscreens {
             frames,
             Rc::new(py::time::sleep),
             process,
+            file_of,
+            on_screen,
         )));
-        // And its own keys, a Pokémon's, which tap it.
+        // And its own keys, a Pokémon's, which tap it, and the score's.
         let head_keys = Rc::new(HeadItKeys::new(head_it.clone(), wrong));
         // A round says its score, clock and banners, and warns of a Bot's shot.
         let sparring = Rc::new(RefCell::new(Round::new(layouts, image_of, memory, None)));
@@ -585,14 +592,13 @@ impl Subscreens {
         Ok(running == Some(puzzle::APP) && self.puzzle.borrow().playing()?)
     }
 
-    /// Whether one of Amie's games plays faster than its numbers can be said, and a number
-    /// heard again within seconds is left unsaid (`screen_announce`): Head It while balls fall,
-    /// whose score and "79-HIT COMBO", said at each hit from the third, queued up behind the
-    /// balls' names at a long Unlimited round's pace, a ball a second, so that the names came
-    /// later and later (players, 2026-11-04; spike 273's `--again`). Not all its numbers: its
-    /// misses left, "Chances:2", are said.
-    pub fn rapid(&self, running: Option<&str>) -> bool {
-        self.head_it.borrow().holding(running)
+    /// Whether words on the screen are a game's score, what comes at every hit or miss, left
+    /// unsaid unless the player asks and never a clock (`screen_announce`): Head It's score, its
+    /// "79-HIT COMBO" and its "MISS!", which at a long Unlimited round's pace, a ball a second,
+    /// queued up behind the balls' names, so that the names came later and later (players,
+    /// 2026-11-04; spike 273's `--again`). Not its chances left, "Chances:2", nor its clock.
+    pub fn scored(&self, piece: &ScreenText, running: Option<&str>) -> Result<bool> {
+        self.head_it.borrow().scored(piece, running)
     }
 
     /// Whether a screen's round holds the heap's whole sweep off: a second of nothing else

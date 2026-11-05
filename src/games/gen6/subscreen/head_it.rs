@@ -36,6 +36,12 @@
 //! round's three are said in that order in its opening, as Berry Picker's are (`_lineup`): all
 //! three are in the records from the opening, those not yet up below the screen (spike 273's tape).
 //!
+//! The round's score, its combo and each "MISS!" come at every ball, faster than a screen reader
+//! says them behind the balls (players, 2026-11-04), and are left unsaid as they come unless the
+//! player asks (`[pa3ds.amie] head_it_score`); a key says them, with the clock or the chances left
+//! (`score`, Orion, 2026-11-04). The game's words, as the screen draws them, each known by the
+//! layout it is drawn in and that layout's pane (`SCORE_WINDOW`, `HIT`, `STATUS`).
+//!
 //! Bound by:
 //! - ADR-0009: a Pokémon is tapped on the player's key, by touch mode, as the target it has just
 //!   named.
@@ -52,10 +58,12 @@ use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
 use crate::core::speech::Category;
 use crate::core::words::own;
-use crate::games::common::field::keys::{HEAD_IT, HEADERS};
+use crate::games::common::field::keys::{HEAD_IT, HEADERS, SCORE_KEY};
 use crate::games::common::layout::Layouts;
+use crate::games::common::layout_file::LayoutFile;
 use crate::games::common::pokemon;
-use crate::games::common::touch::{HEIGHT, ImageOf, Target, WIDTH};
+use crate::games::common::screen::{ScreenText, in_rows, join};
+use crate::games::common::touch::{FileOf, HEIGHT, ImageOf, OnScreen, Target, WIDTH};
 use crate::games::gen6::rom::cries::Crier;
 use crate::games::gen6::subscreen::berry_picker::{Name, Process, Touching};
 use crate::games::gen6::subscreen::super_training::pictures;
@@ -131,9 +139,27 @@ pub const FASTEST: f64 = 1500.0;
 /// cue at once, 0.66 s early (spike 273, live). The fastest fall read was 40 units a frame, 1,200 a
 /// second, near the bottom.
 pub const MISREAD: f64 = 150.0;
+/// A picture of the layout the round's score and combo are drawn in: the score in pane `2`,
+/// "819", and from the third hit the combo in pane `7`, "98-HIT COMBO", for a second after each
+/// hit; its other words are the results' "Poké Puffs received!" (or_amie_head_it_normal's and
+/// _unlimited's tapes).
+pub const SCORE_WINDOW: &str = "scorewindow.bclim";
+pub const SCORE_PANE: &str = "2";
+pub const COMBO_PANE: &str = "7";
+/// A picture of the layout a ball headed or missed is drawn in, whose only words are "MISS!", a
+/// pane a column (`MISSED`).
+pub const HIT: &str = "hit01.bclim";
+pub const MISSED: &str = "missed";
+/// A picture of the layout the round's clock is drawn in, "Time Left: 23", in group `5m`, or
+/// Unlimited's chances, "Chances:" and "2", in group `5j` (`GROUPS`, `LEFT`); and its high score,
+/// and the results.
+pub const STATUS: &str = "win_heading.bclim";
+pub const GROUPS: [&str; 2] = ["5m", "5j"];
+pub const LEFT: &str = "left";
 pub const COMING: &str = "head-it-ball";
 pub const NOBODY: &str = "head-it-ball-nobody";
 pub const NOT_UP: &str = "head-it-no-pokemon";
+pub const NO_SCORE: &str = "head-it-no-score";
 pub const LINEUP: &str = "head-it-lineup";
 pub const ESTIMATE: &str = "head-it-estimate";
 /// Seconds after a cue within which the key of its ball's Pokémon answers it: the ball is past
@@ -165,6 +191,13 @@ pub struct Ball {
 /// be tapped.
 pub struct HeadIt {
     memory: Rc<dyn Memory>,
+    /// The layout file a layout's root was built from, which knows the score's layouts by
+    /// their pictures (`scored`).
+    file_of: FileOf,
+    /// The screen's words as its last poll read them.
+    on_screen: OnScreen,
+    /// The round's combo as the screen last showed it, until a "MISS!" ends it (`score`).
+    combo: String,
     names: Rc<ClassNames>,
     layouts: Rc<Layouts>,
     image_of: ImageOf,
@@ -229,7 +262,8 @@ impl HeadIt {
 
     /// `HeadIt(...)` with every argument; Python's `lead` defaults to `LEAD`, its `clock` to
     /// `time.monotonic`, its `cry` to None, its `instead` to False, its `named` to True, its
-    /// `frames` to none, its `sleep` to `time.sleep` and its `process` to none.
+    /// `frames` to none, its `sleep` to `time.sleep`, its `process` to none, its `file_of` to
+    /// none and its `on_screen` to nothing.
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         memory: Rc<dyn Memory>,
@@ -246,9 +280,14 @@ impl HeadIt {
         frames: Frames,
         sleep: Rc<dyn Fn(f64)>,
         process: Process,
+        file_of: FileOf,
+        on_screen: OnScreen,
     ) -> Self {
         HeadIt {
             memory,
+            file_of,
+            on_screen,
+            combo: String::new(),
             names,
             layouts,
             image_of,
@@ -313,10 +352,17 @@ impl HeadIt {
         }
         self.round = phase.is_some_and(|phase| (FALLING..=LAST).contains(&phase));
         if !self.round {
-            (self.falling, self.missed) = (IndexMap::new(), PySet::new());
+            (self.falling, self.missed, self.combo) =
+                (IndexMap::new(), PySet::new(), String::new());
             (self.heights, self.reads, self.cued) =
                 (IndexMap::new(), IndexMap::new(), PySet::new());
             return Ok(said);
+        }
+        let shown = self.shown()?;
+        if shown.contains_key(MISSED) {
+            self.combo = String::new();
+        } else if let Some(combo) = shown.get(COMBO_PANE) {
+            self.combo = join(&in_rows(combo.clone()), false);
         }
         let mut falling = self.balls()?;
         // A ball missing from one poll and back at the next no higher is the same ball, not said
@@ -477,6 +523,74 @@ impl HeadIt {
             ),
             Category::Screen,
         )]
+    }
+
+    /// Whether words on the screen are the round's score, its combo or a "MISS!": what comes
+    /// at every ball (`screen_announce`).
+    pub fn scored(&self, piece: &ScreenText, running: Option<&str>) -> Result<bool> {
+        if running != Some(APP) {
+            return Ok(false);
+        }
+        let part = self.part(piece, (self.file_of)(piece.root).as_deref())?;
+        Ok(part.is_some_and(|part| [SCORE_PANE, COMBO_PANE, MISSED].contains(&part)))
+    }
+
+    /// The round's score, its combo and its clock or chances, "819, 98-HIT COMBO, Time
+    /// Left: 23", or "" where none is on the screen. The combo is the one last shown: the game
+    /// shows it for a second after each hit, and it stands until a "MISS!" (or_amie_head_it_
+    /// normal's tape).
+    pub fn score(&self, running: Option<&str>) -> Result<String> {
+        if running != Some(APP) {
+            return Ok(String::new());
+        }
+        let shown = self.shown()?;
+        let mut said: Vec<String> = Vec::new();
+        if let Some(score) = shown.get(SCORE_PANE) {
+            said.push(join(&in_rows(score.clone()), false));
+        }
+        if !self.combo.is_empty() {
+            said.push(self.combo.clone());
+        }
+        if let Some(left) = shown.get(LEFT) {
+            said.push(join(&in_rows(left.clone()), false));
+        }
+        Ok(said.join(", "))
+    }
+
+    /// The round's words on the screen by what they are (`_part`).
+    fn shown(&self) -> Result<IndexMap<&'static str, Vec<ScreenText>>> {
+        let mut shown: IndexMap<&'static str, Vec<ScreenText>> = IndexMap::new();
+        let mut files: IndexMap<i64, Option<Rc<LayoutFile>>> = IndexMap::new();
+        for piece in (self.on_screen)() {
+            if !files.contains_key(&piece.root) {
+                files.insert(piece.root, (self.file_of)(piece.root));
+            }
+            if let Some(part) = self.part(&piece, files[&piece.root].as_deref())? {
+                shown.entry(part).or_default().push(piece);
+            }
+        }
+        Ok(shown)
+    }
+
+    /// What words of a layout built from `file` are of the round: its score `SCORE_PANE`, its
+    /// combo `COMBO_PANE`, a "MISS!" `MISSED`, or its clock or chances `LEFT`; else None.
+    fn part(&self, piece: &ScreenText, file: Option<&LayoutFile>) -> Result<Option<&'static str>> {
+        let Some(file) = file else {
+            return Ok(None);
+        };
+        if draws(file, HIT) {
+            return Ok(Some(MISSED));
+        }
+        if draws(file, SCORE_WINDOW) {
+            let name = name(&self.layouts, piece.r#box)?;
+            return Ok([SCORE_PANE, COMBO_PANE]
+                .into_iter()
+                .find(|&pane| pane == name));
+        }
+        if draws(file, STATUS) && GROUPS.contains(&name(&self.layouts, piece.parent)?.as_str()) {
+            return Ok(Some(LEFT));
+        }
+        Ok(None)
     }
 
     /// A Pokémon's own key has tapped it: an answer to its last cue, timed, where one
@@ -731,6 +845,22 @@ fn column(x: f64) -> i64 {
     i64::from(x > -APART as f64) + i64::from(x > APART as f64)
 }
 
+/// Whether a layout file has a picture drawn with a texture, shown or not.
+fn draws(file: &LayoutFile, texture: &str) -> bool {
+    file.textures
+        .values()
+        .any(|textures| textures.iter().any(|each| each == texture))
+}
+
+fn name(layouts: &Layouts, pane: i64) -> Result<String> {
+    let name = layouts.name(pane)?;
+    let end = name
+        .iter()
+        .position(|&byte| byte == 0)
+        .unwrap_or(name.len());
+    Ok(py::decode_ascii(&name[..end]))
+}
+
 /// Seconds from the newest read until a ball reaches the height `at`, below 0 once past it,
 /// from the (when, height) of its whole fall so far, oldest first: a parabola fitted to them by
 /// least squares, all but the first, which can be the spare balls' 480 where the ball was 264 a
@@ -868,6 +998,10 @@ fn median(values: &[f64]) -> f64 {
 /// middle and right, which taps it, as touch mode's tap does the Pokémon it has just said. Touch
 /// mode's own keys still tap there as ever.
 ///
+/// And a key that says the round's score, its combo and its clock or chances (`HeadIt.score`),
+/// which are left unsaid as they come unless the player asks (Orion, 2026-11-04: "the game itself
+/// already plays a sound" for a miss).
+///
 /// `wrong` is what is heard for a key with nothing to do, a Pokémon not up or no ball falling: a
 /// sound, and "", or else the words.
 ///
@@ -889,13 +1023,21 @@ impl HeadItKeys {
         (running == Some(APP)).then_some(HEAD_IT)
     }
 
-    /// Tap the Pokémon of the key, with the line to say.
+    /// Tap the Pokémon of the key, or say the score, with the line to say.
     pub fn press(
         &self,
         action: &str,
         running: Option<&str>,
         touch: &mut dyn Touching,
     ) -> Result<String> {
+        if action == SCORE_KEY {
+            let score = self.game.borrow().score(running)?;
+            return Ok(if score.is_empty() {
+                (self.wrong)(&own(NO_SCORE, &[]))
+            } else {
+                score
+            });
+        }
         let column = HEADERS
             .iter()
             .position(|&header| header == action)

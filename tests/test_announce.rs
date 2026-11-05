@@ -15,7 +15,7 @@ use crate::games::common::dialogue::{PageShown, Shown};
 use crate::games::common::screen::{ScreenPoll, ScreenText};
 use crate::games::common::screen_announce::{
     ARRIVAL_MAX_POLLS, CURSOR_HEARD_POLLS, DETAIL_MAX_POLLS, DETAIL_POLLS, PLACE_POLLS,
-    REPEAT_POLLS, ScreenAnnouncer,
+    REPEAT_POLLS, Scored, ScreenAnnouncer,
 };
 use crate::py::{Log, Result};
 
@@ -131,6 +131,18 @@ impl Screen {
         timed: bool,
         playing: Option<Rc<dyn Fn() -> Result<bool>>>,
     ) -> Self {
+        Screen::with_score(pauses, tick, timed, playing, None, false)
+    }
+
+    /// `Screen(pauses, tick, timed, playing, scored, score_said)`.
+    fn with_score(
+        pauses: bool,
+        tick: Option<Rc<dyn Fn()>>,
+        timed: bool,
+        playing: Option<Rc<dyn Fn() -> Result<bool>>>,
+        scored: Option<Scored>,
+        score_said: bool,
+    ) -> Self {
         let backend = Recorder::new();
         let announcer = ScreenAnnouncer::with_clock(
             Rc::new(Speech::plain(backend.clone())),
@@ -139,7 +151,8 @@ impl Screen {
             tick,
             Some(Rc::new(move || timed)),
             playing,
-            None,
+            scored,
+            score_said,
         );
         Screen { backend, announcer }
     }
@@ -1506,6 +1519,59 @@ fn test_numbers_are_the_plays_while_the_player_plays() {
         screen.say(args(&one(&solved), vec![], &[puzzle, solved.clone()])),
         ["Puzzle No. 2 202 Points"]
     );
+}
+
+/// Head It's score, combo and "MISS!" came at every ball, a second apart, and queued behind
+/// the balls' names; its combo, one up each second, ticked as a clock and was said at 30 (spike
+/// 273's `--again`). Its chances left are said (players and Orion, 2026-11-04).
+#[test]
+fn test_a_games_score_is_left_unsaid_and_is_never_a_clock() {
+    let ticks = Rc::new(Cell::new(0));
+    let ticked = ticks.clone();
+    let mut screen = Screen::with_score(
+        false,
+        Some(Rc::new(move || ticked.set(ticked.get() + 1))),
+        true,
+        None,
+        Some(Rc::new(|p: &ScreenText| Ok([1, 2].contains(&p.r#box)))),
+        false,
+    );
+    let combos: Vec<String> = (28..33).map(|hits| format!("{hits}-HIT COMBO")).collect();
+    assert_eq!(run_clock_5(&mut screen, &combos), Vec::<String>::new());
+    let missed = piece(2, "MISS!", 0.0, 0.0, PANEL);
+    let chances = piece(3, "Chances:2", -100.0, 80.0, PANEL);
+    let both = [missed, chances];
+    assert_eq!(screen.say(args(&both, vec![], &both)), ["Chances:2"]);
+    assert_eq!(ticks.get(), 0);
+}
+
+/// `[pa3ds.amie] head_it_score`: the combo once while hits keep coming within 3 s, and again
+/// after a pause or once it starts over.
+#[test]
+fn test_a_games_score_asked_for_is_said_once_while_it_keeps_going_up() {
+    let ticks = Rc::new(Cell::new(0));
+    let ticked = ticks.clone();
+    let mut screen = Screen::with_score(
+        false,
+        Some(Rc::new(move || ticked.set(ticked.get() + 1))),
+        true,
+        None,
+        Some(Rc::new(|p: &ScreenText| Ok(p.r#box == 1))),
+        true,
+    );
+    let combos: Vec<String> = [
+        "3-HIT COMBO",
+        "4-HIT COMBO",
+        "5-HIT COMBO",
+        "6-HIT COMBO",
+        "3-HIT COMBO",
+    ]
+    .iter()
+    .map(|combo| combo.to_string())
+    .collect();
+    let said = run_clock(&mut screen, &combos, &[5, 5, 20, 5]);
+    assert_eq!(said, ["3-HIT COMBO", "6-HIT COMBO", "3-HIT COMBO"]);
+    assert_eq!(ticks.get(), 0);
 }
 
 #[test]

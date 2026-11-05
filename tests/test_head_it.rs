@@ -10,9 +10,11 @@ use super::fake_layouts::FakeLayouts;
 use super::fake_memory::{CODE, FakeClasses, FakeMemory};
 use super::test_battle::record_of;
 use crate::core::rtti::ClassNames;
-use crate::games::common::field::keys::{DEFAULT_CONTEXTS, HEAD_IT, HEADERS};
+use crate::games::common::field::keys::{DEFAULT_CONTEXTS, HEAD_IT, HEADERS, SCORE_KEY};
 use crate::games::common::layout::Layouts;
-use crate::games::common::touch::Target;
+use crate::games::common::layout_file::LayoutFile;
+use crate::games::common::screen::ScreenText;
+use crate::games::common::touch::{FileOf, OnScreen, Target};
 use crate::games::common::{lyt, pokemon};
 use crate::games::gen6::rom::cries::Crier;
 use crate::games::gen6::subscreen::berry_picker::Touching;
@@ -68,6 +70,8 @@ struct Given {
     named: bool,
     frames: head_it::Frames,
     sleep: Rc<dyn Fn(f64)>,
+    file_of: FileOf,
+    on_screen: OnScreen,
 }
 
 impl Default for Given {
@@ -80,6 +84,8 @@ impl Default for Given {
             named: true,
             frames: Rc::new(|| Ok(None)),
             sleep: Rc::new(|_seconds| {}),
+            file_of: Rc::new(|_root| None),
+            on_screen: Rc::new(Vec::new),
         }
     }
 }
@@ -98,6 +104,8 @@ fn game_given(given: Given) -> Game {
         named,
         frames,
         sleep,
+        file_of,
+        on_screen,
     } = given;
     let memory = FakeMemory::new();
     let classes = FakeClasses::new(memory.clone());
@@ -154,6 +162,8 @@ fn game_given(given: Given) -> Game {
         frames,
         sleep,
         Rc::new(|app: &str| (app == head_it::APP).then_some(APP)),
+        file_of,
+        on_screen,
     );
     memory.u32(APP, &[classes.add(head_it::APP)]);
     memory.u32(APP + head_it::PHASE, &[head_it::FALLING]);
@@ -630,6 +640,7 @@ fn test_a_pokemons_key_taps_it() {
             ("8".to_string(), HEADERS[0].to_string()),
             ("9".to_string(), HEADERS[1].to_string()),
             ("0".to_string(), HEADERS[2].to_string()),
+            ("r".to_string(), SCORE_KEY.to_string()),
         ])
     );
     let app = Some(head_it::APP);
@@ -648,6 +659,193 @@ fn test_a_pokemons_key_taps_it() {
         "no Pokémon 2"
     );
     assert_eq!(touched.tapped, ["Ralts", "rowan"]);
+}
+
+const SCORE_ROOT: i64 = 0x14C00000;
+const STATUS_ROOT: i64 = 0x14D00000;
+const HIT_ROOT: i64 = 0x14E00000;
+
+/// Head It's three layouts of words, known by a picture each, as or_amie_head_it_normal's tape
+/// drew them: `FILES.get`.
+fn files(root: i64) -> Option<Rc<LayoutFile>> {
+    let picture = match root {
+        SCORE_ROOT => ("v", "scorewindow.bclim"),
+        STATUS_ROOT => ("0", "win_heading.bclim"),
+        HIT_ROOT => ("b", "hit01.bclim"),
+        _ => return None,
+    };
+    Some(Rc::new(LayoutFile::without_frames(
+        vec!["RootPane".to_string()],
+        IndexMap::from([(picture.0.to_string(), vec![picture.1.to_string()])]),
+    )))
+}
+
+/// Words in a pane of that name, hanging from a pane of the parent's name.
+#[allow(clippy::too_many_arguments)]
+fn words(
+    memory: &FakeMemory,
+    r#box: i64,
+    name: &str,
+    text: &str,
+    root: i64,
+    parent: i64,
+    parent_name: &str,
+    left: f64,
+) -> ScreenText {
+    for (pane, called) in [(r#box, name), (parent, parent_name)] {
+        if pane != 0 {
+            let mut raw = called.as_bytes().to_vec();
+            raw.resize(lyt::NAME_SIZE as usize, 0);
+            memory.write(pane + lyt::NAME, &raw);
+        }
+    }
+    ScreenText {
+        root,
+        parent,
+        ..ScreenText::placed(
+            r#box,
+            text,
+            false,
+            left,
+            left + (8 * text.chars().count()) as f64,
+            0.0,
+            10.0,
+        )
+    }
+}
+
+/// Players and Orion, 2026-11-04: unsaid as they come, said on R with the clock or the
+/// chances left; not the results' "Poké Puffs received!" in the score's layout, nor the high
+/// score beside the clock. The combo is shown for a second after each hit, and said until a
+/// miss ends it.
+#[test]
+fn test_the_score_its_combo_and_a_miss_are_the_rounds_score_and_a_key_says_them() {
+    let shown: Rc<RefCell<Vec<ScreenText>>> = Rc::new(RefCell::new(Vec::new()));
+    let Game { found, memory, .. } = game_given(Given {
+        file_of: Rc::new(files),
+        on_screen: {
+            let shown = shown.clone();
+            Rc::new(move || shown.borrow().clone())
+        },
+        ..Given::default()
+    });
+    let score = words(
+        &memory,
+        SCORE_ROOT + 0x100,
+        "2",
+        "819",
+        SCORE_ROOT,
+        0,
+        "",
+        0.0,
+    );
+    let combo = words(
+        &memory,
+        SCORE_ROOT + 0x200,
+        "7",
+        "98-HIT COMBO",
+        SCORE_ROOT,
+        0,
+        "",
+        0.0,
+    );
+    let puffs = words(
+        &memory,
+        SCORE_ROOT + 0x300,
+        "2t",
+        "Poké Puffs received!",
+        SCORE_ROOT,
+        0,
+        "",
+        0.0,
+    );
+    let clock = words(
+        &memory,
+        STATUS_ROOT + 0x100,
+        "4",
+        "Time Left: 23",
+        STATUS_ROOT,
+        STATUS_ROOT + 0x80,
+        "5m",
+        0.0,
+    );
+    let high = words(
+        &memory,
+        STATUS_ROOT + 0x200,
+        "3h",
+        "0",
+        STATUS_ROOT,
+        STATUS_ROOT + 0x180,
+        "3a",
+        0.0,
+    );
+    let missed = words(
+        &memory,
+        HIT_ROOT + 0x100,
+        "23",
+        "MISS!",
+        HIT_ROOT,
+        0,
+        "",
+        0.0,
+    );
+    let app = Some(head_it::APP);
+    assert_eq!(
+        [&score, &combo, &puffs, &clock, &high, &missed]
+            .map(|each| found.scored(each, app).unwrap()),
+        [true, true, false, false, false, true]
+    );
+    assert!(!found.scored(&score, Some(OTHER)).unwrap());
+    let found = Rc::new(RefCell::new(found));
+    let keys = head_it::HeadItKeys::new(found.clone(), Rc::new(|why: &str| why.to_string()));
+    let mut touched = Touched::default();
+    assert_eq!(
+        keys.press(SCORE_KEY, app, &mut touched).unwrap(),
+        "no score"
+    );
+    *shown.borrow_mut() = vec![high.clone(), clock.clone(), combo, score.clone(), puffs];
+    heard(&mut found.borrow_mut(), head_it::APP);
+    assert_eq!(
+        keys.press(SCORE_KEY, app, &mut touched).unwrap(),
+        "819, 98-HIT COMBO, Time Left: 23"
+    );
+    *shown.borrow_mut() = vec![high.clone(), clock.clone(), score.clone()];
+    heard(&mut found.borrow_mut(), head_it::APP);
+    assert_eq!(
+        keys.press(SCORE_KEY, app, &mut touched).unwrap(),
+        "819, 98-HIT COMBO, Time Left: 23"
+    );
+    *shown.borrow_mut() = vec![high, clock, score.clone(), missed];
+    heard(&mut found.borrow_mut(), head_it::APP);
+    assert_eq!(
+        keys.press(SCORE_KEY, app, &mut touched).unwrap(),
+        "819, Time Left: 23"
+    );
+    *shown.borrow_mut() = vec![
+        words(
+            &memory,
+            STATUS_ROOT + 0x300,
+            "0",
+            "Chances:",
+            STATUS_ROOT,
+            STATUS_ROOT + 0x280,
+            "5j",
+            0.0,
+        ),
+        words(
+            &memory,
+            STATUS_ROOT + 0x400,
+            "5k",
+            "2",
+            STATUS_ROOT,
+            STATUS_ROOT + 0x280,
+            "5j",
+            64.0,
+        ),
+        score,
+    ];
+    assert_eq!(found.borrow().score(app).unwrap(), "819, Chances:2");
+    assert_eq!(found.borrow().score(Some(OTHER)).unwrap(), "");
 }
 
 /// Orion, 2026-11-01: learnt while playing, but never used in the round, as a lead changed

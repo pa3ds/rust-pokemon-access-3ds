@@ -48,7 +48,7 @@ The battle's keys work throughout.
 | `Alt+P` | Stop guiding. |
 | `Ctrl+P` | Leave out of the list everything `Shift+P` finds no way to from where you stand, or put it back. Everything is listed each time pa3ds starts. |
 | `,` and `.` (comma and period) | Previous and next way to the chosen thing, where there is more than one, such as which way to push a big boulder. |
-| `R` | Say your side of the battle again. In a contest, your place. |
+| `R` | Say your side of the battle again. In a contest, your place. In Head It, the score. |
 | `Shift+R` | Say the enemy's side of the battle again. In a contest, everyone else's place. |
 | `Shift+K` | Give the chosen thing a name of your own. |
 | `Shift+J` | Give whoever spoke last a name of your own. |
@@ -124,15 +124,19 @@ In its Head It, balls of yarn fall at your Pokémon, and pa3ds says which Pokém
 as it comes: "Ralts". Touch mode offers each Pokémon by name while the round runs; tap it about a
 second after its name to head the ball back, as the ball reaches it. Too early or too late is a
 miss. On Easy the Pokémon you play with stands alone in the middle at first, and two more come up
-beside it as the round goes on. While balls fall, pa3ds says the score and the combo once, then
-leaves them unsaid while they keep counting up, so the names keep up with the balls; the misses
-you have left are always said, and the results say the rest.
+beside it as the round goes on. pa3ds leaves the score, the combo and each MISS! unsaid, so the
+names keep up with the balls; the game plays its own sound for a miss. The time left is said
+each half minute and over the last ten seconds, the misses you have left as they change, and the
+results say the rest. With the `head_it_score` setting on, the score and the combo are said once,
+then left unsaid while they keep counting up.
 
 Head It also has keys of its own, in any mode: `8`, `9` and `0` tap the Pokémon on the left, in
 the middle and on the right. As each round starts, pa3ds says its three Pokémon in that order,
 those not up yet too. A key where no Pokémon stands, or before the balls start, plays the game's
 error sound. As Azahar ships, none of the three is one of its buttons; outside Head It they are
-Azahar's as ever. With the `head_it_cue` setting on, the game's "!" sound plays as the moment to
+Azahar's as ever. `R` says the score, the combo and the time or the misses left: "819, 98-HIT
+COMBO, Time Left: 23". The game shows the combo for a moment after each hit; `R` says it until a
+miss ends it. With the `head_it_cue` setting on, the game's "!" sound plays as the moment to
 tap a ball comes: in your left ear for the left Pokémon, both ears for the middle, your right ear
 for the right. Press the Pokémon's key as soon as you hear it: that is steadier than timing your
 tap from the game's sound of the ball falling. At each round's results, pa3ds says its own
@@ -284,7 +288,8 @@ front of its line: a line you delete is put back the next time pa3ds starts.
 - `[pa3ds.amie.berry_picker]` holds Berry Picker's own keys, `"first berry"` to `"seventh berry"`
   and `"first pokemon"` to `"third pokemon"`. pa3ds takes them only while Berry Picker runs,
   and there they win over the keys above. `[pa3ds.amie.head_it]` holds Head It's,
-  `"left pokemon"`, `"middle pokemon"` and `"right pokemon"`, taken only while Head It runs.
+  `"left pokemon"`, `"middle pokemon"`, `"right pokemon"` and `"score"`, taken only while Head
+  It runs.
 - `[azahar]` rebinds Azahar's own buttons, and `[azahar.circle_pad]` and `[azahar.c_stick]` its
   two sticks. Changes apply the next time pa3ds starts with Azahar closed.
 

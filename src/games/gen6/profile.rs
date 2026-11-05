@@ -799,6 +799,8 @@ impl Gen6Profile {
                 let apps = apps.clone();
                 Rc::new(move |app: &str| process_of(&apps, app))
             },
+            file_of.clone(),
+            on_screen.clone(),
         ));
         let classes: IndexSet<String> = HEAP_CLASSES
             .iter()
@@ -1040,8 +1042,11 @@ impl Gen6Profile {
             }),
             Some({
                 let (apps, subscreens) = (apps.clone(), subscreens.clone());
-                Rc::new(move || subscreens.rapid(apps.borrow().running.as_deref()))
+                Rc::new(move |piece: &ScreenText| {
+                    subscreens.scored(piece, apps.borrow().running.as_deref())
+                })
             }),
+            tables.amie.head_it_score,
         );
         // The scenes the game shows without words, described where the player asks and the game
         // has descriptions in their language (ADR-0038), those of the other version left out.
