@@ -444,6 +444,38 @@ fn test_at_a_joint_each_street_is_laid_the_quarter_it_leaves_the_joint_by() -> R
     Ok(())
 }
 
+/// Spike A: Centrico Plaza's lines are arcs round Prism Tower, and laid straight from end to
+/// end the way out to Autumnal Avenue was put beside a cell a row away from it, where down
+/// walked the player into a wall. A street leaving its start south and reaching its end going
+/// east bulges off the line between them: its middle and a record of one place there are where
+/// the curve is, in (52, 55), a cell and a half off the line's (54, 54), and in one cell, as
+/// Coumarine Gym's vines' ends must be.
+#[test]
+fn test_a_street_its_points_turn_is_laid_on_the_grid_along_its_curve() -> Result<()> {
+    let line = Line::new(0x8001, 1, 2, 8, 3, vec![0; 27]);
+    let network = Network {
+        lines: IndexMap::from([(line.id, line.clone())]),
+        places: IndexMap::from([(1, (900.0, 900.0)), (2, (1044.0, 1044.0))]),
+        cameras: 1,
+        sides: IndexMap::from([(1, (27.0, 0.0)), (2, (0.0, 27.0))]),
+        ..Default::default()
+    };
+    let rails = rail::Rails::new(
+        FakeMemory::new(),
+        Some(std::rc::Rc::new(move |_files: &[i64]| Ok(network.clone()))),
+        rail::Records::default(),
+        crate::games::gen6::field::camera::ORAS,
+        Vec::new(),
+    );
+    assert_eq!(
+        rails.laid((line.id, 4, 0, 1, 1), &[1])?,
+        Some(vec![(52, 55)])
+    );
+    let lanes = rails.lanes(&[1], false, 0)?;
+    assert!(lanes.contains_key(&(52, 55)) && !lanes.contains_key(&(54, 54)));
+    Ok(())
+}
+
 /// Spike 251: the alley off North Boulevard ends in a joint of one track at each end, and one
 /// opens onto Magenta Plaza, walked on the grid. Each end no other line meets is its cell in
 /// the corridor and the grid's cell the world has it in; a point two lines meet is none.

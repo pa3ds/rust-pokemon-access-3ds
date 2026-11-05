@@ -47,7 +47,7 @@
 //! compass (`Network.folded`, spike 264).
 
 use std::cell::{Cell as Slot, RefCell};
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::rc::Rc;
 
 use indexmap::{IndexMap, IndexSet};
@@ -377,6 +377,8 @@ impl World {
     }
 
     /// The row and the offset of the line a grid cell's middle is nearest.
+    // Nothing calls it since streets are laid along their curves, in Python either.
+    #[allow(dead_code)]
     fn place(&self, at: Cell) -> Result<(i64, i64)> {
         let ((ax, az), (sx, sz)) = (self.ahead, self.start);
         let cell = zonedata::CELL as f64;
@@ -995,63 +997,22 @@ pub fn street_floors(
 /// statue, bulge two cells out from that line, where the player walked: laid so, all 177 cells
 /// x_tower_of_mastery stood on lie on a floor at their height (spike 248). None where the world
 /// does not place both its ends or say how high they are.
-// `t ** 3` and `t ** 2` are `powf`, the C library's `pow` as Python's are, never `powi`.
 fn laid(line: &Line, network: &Network) -> Result<IndexMap<Cell, f64>> {
-    let (start, end) = (
-        network.places.get(&line.start),
-        network.places.get(&line.end),
-    );
     let (low, high) = (
         network.heights.get(&line.start),
         network.heights.get(&line.end),
     );
-    let (Some(&start), Some(&end), Some(&low), Some(&high)) = (start, end, low, high) else {
+    let curve = hermite(line, &network.places, &network.sides);
+    let (Some(curve), Some(&low), Some(&high)) = (curve, low, high) else {
         return Ok(IndexMap::new());
     };
-    if start == end {
-        return Ok(IndexMap::new());
-    }
-    let ((x0, z0), (x1, z1)) = (start, end);
-    // `math.dist`, which is `hypot` of the differences.
-    let chord = py::hypot(x0 - x1, z0 - z1);
-    let ahead = ((x1 - x0) / chord, (z1 - z0) / chord);
-
-    let leaving = |point: i64| -> (f64, f64) {
-        let (sx, sz) = network.sides.get(&point).copied().unwrap_or((0.0, 0.0));
-        if py::hypot(sx, sz) == 0.0 {
-            return ahead;
-        }
-        let way = if sz * ahead.0 - sx * ahead.1 >= 0.0 {
-            (sz, -sx)
-        } else {
-            (-sz, sx)
-        };
-        (way.0 / py::hypot(sx, sz), way.1 / py::hypot(sx, sz))
-    };
-
-    let ((a0, b0), (a1, b1)) = (leaving(line.start), leaving(line.end));
     let cell_units = zonedata::CELL as f64;
     let mut out: IndexMap<Cell, f64> = IndexMap::new();
     let mut nearest: HashMap<Cell, f64> = HashMap::new();
     let steps = SAMPLES * line.along;
     for k in 0..=steps {
         let t = k as f64 / steps as f64;
-        let (h00, h10, h01, h11) = (
-            2.0 * t.powf(3.0) - 3.0 * t.powf(2.0) + 1.0,
-            t.powf(3.0) - 2.0 * t.powf(2.0) + t,
-            -2.0 * t.powf(3.0) + 3.0 * t.powf(2.0),
-            t.powf(3.0) - t.powf(2.0),
-        );
-        let (d00, d10, d01, d11) = (
-            6.0 * t.powf(2.0) - 6.0 * t,
-            3.0 * t.powf(2.0) - 4.0 * t + 1.0,
-            -6.0 * t.powf(2.0) + 6.0 * t,
-            3.0 * t.powf(2.0) - 2.0 * t,
-        );
-        let x = h00 * x0 + h10 * chord * a0 + h01 * x1 + h11 * chord * a1;
-        let z = h00 * z0 + h10 * chord * b0 + h01 * z1 + h11 * chord * b1;
-        let dx = d00 * x0 + d10 * chord * a0 + d01 * x1 + d11 * chord * a1;
-        let dz = d00 * z0 + d10 * chord * b0 + d01 * z1 + d11 * chord * b1;
+        let (x, z, dx, dz) = curve(t);
         let speed = py::hypot(dx, dz);
         let speed = if speed == 0.0 { 1.0 } else { speed };
         let row = py::round(t * line.along as f64)?;
@@ -1080,6 +1041,197 @@ fn laid(line: &Line, network: &Network) -> Result<IndexMap<Cell, f64>> {
         }
     }
     Ok(out)
+}
+
+/// A street from its start (0) to its end (1): where the world has it and the way it runs there,
+/// (x, z, dx, dz), in world units.
+pub type Curve = Rc<dyn Fn(f64) -> (f64, f64, f64, f64)>;
+
+/// `line` as the world lays it: the cubic from its start point to its end point that leaves
+/// each square to its side there, as fast as the line between them is long (`_laid`). A street
+/// whose points' sides are square to the line between its ends is that line; Centrico Plaza's 14
+/// lines are each a fourteenth of its ring. None where the world does not place both its ends.
+// `t ** 3` and `t ** 2` are `powf`, the C library's `pow` as Python's are, never `powi`.
+fn hermite(
+    line: &Line,
+    places: &IndexMap<i64, (f64, f64)>,
+    sides: &IndexMap<i64, (f64, f64)>,
+) -> Option<Curve> {
+    let (Some(&start), Some(&end)) = (places.get(&line.start), places.get(&line.end)) else {
+        return None;
+    };
+    if start == end {
+        return None;
+    }
+    let ((x0, z0), (x1, z1)) = (start, end);
+    // `math.dist`, which is `hypot` of the differences.
+    let chord = py::hypot(x0 - x1, z0 - z1);
+    let ahead = ((x1 - x0) / chord, (z1 - z0) / chord);
+
+    let leaving = |point: i64| -> (f64, f64) {
+        let (sx, sz) = sides.get(&point).copied().unwrap_or((0.0, 0.0));
+        if py::hypot(sx, sz) == 0.0 {
+            return ahead;
+        }
+        let way = if sz * ahead.0 - sx * ahead.1 >= 0.0 {
+            (sz, -sx)
+        } else {
+            (-sz, sx)
+        };
+        (way.0 / py::hypot(sx, sz), way.1 / py::hypot(sx, sz))
+    };
+
+    let ((a0, b0), (a1, b1)) = (leaving(line.start), leaving(line.end));
+
+    let at = move |t: f64| -> (f64, f64, f64, f64) {
+        let (h00, h10, h01, h11) = (
+            2.0 * t.powf(3.0) - 3.0 * t.powf(2.0) + 1.0,
+            t.powf(3.0) - 2.0 * t.powf(2.0) + t,
+            -2.0 * t.powf(3.0) + 3.0 * t.powf(2.0),
+            t.powf(3.0) - t.powf(2.0),
+        );
+        let (d00, d10, d01, d11) = (
+            6.0 * t.powf(2.0) - 6.0 * t,
+            3.0 * t.powf(2.0) - 4.0 * t + 1.0,
+            -6.0 * t.powf(2.0) + 6.0 * t,
+            3.0 * t.powf(2.0) - 2.0 * t,
+        );
+        (
+            h00 * x0 + h10 * chord * a0 + h01 * x1 + h11 * chord * a1,
+            h00 * z0 + h10 * chord * b0 + h01 * z1 + h11 * chord * b1,
+            d00 * x0 + d10 * chord * a0 + d01 * x1 + d11 * chord * a1,
+            d00 * z0 + d10 * chord * b0 + d01 * z1 + d11 * chord * b1,
+        )
+    };
+
+    Some(Rc::new(at))
+}
+
+/// A street laid on the grid along its curve (`_hermite`): each grid cell it passes over with
+/// the row and the offset whose place passes nearest the cell's middle, its walls among them, and
+/// the way the street runs at each row, a unit step in the world's (x, z).
+// Python's `_Curve` sits beside a public `Curve`, so it keeps its underscore.
+struct _Curve {
+    places: IndexMap<Cell, (i64, i64)>,
+    ways: HashMap<i64, (f64, f64)>,
+    curve: Curve,
+    along: i64,
+}
+
+impl _Curve {
+    /// The grid's cell a row and an offset are in.
+    fn cell(&self, row: f64, offset: f64) -> Result<Cell> {
+        let (x, z, dx, dz) = (self.curve)(if self.along != 0 {
+            row / self.along as f64
+        } else {
+            0.0
+        });
+        let speed = py::hypot(dx, dz);
+        let speed = if speed == 0.0 { 1.0 } else { speed };
+        let cell = zonedata::CELL as f64;
+        Ok((
+            py::floor((x + offset * dz / speed * cell) / cell)?,
+            py::floor((z - offset * dx / speed * cell) / cell)?,
+        ))
+    }
+}
+
+/// How near square to the line between a street's ends a point's side is, as the cosine between
+/// them, for the street to run straight from that point: Route 7's are 0 (spike A).
+pub const SQUARE: f64 = 0.01;
+
+/// Whether a street bends between its ends: neither of its points' sides square to the line
+/// between them, as each of Centrico Plaza's 14 lines and the Tower of Mastery's (spike A).
+fn bends(
+    line: &Line,
+    places: &IndexMap<i64, (f64, f64)>,
+    sides: &IndexMap<i64, (f64, f64)>,
+) -> bool {
+    let (Some(&start), Some(&end)) = (places.get(&line.start), places.get(&line.end)) else {
+        return false;
+    };
+    if start == end {
+        return false;
+    }
+    // `math.dist`, which is `hypot` of the differences.
+    let chord = py::hypot(start.0 - end.0, start.1 - end.1);
+    let (ux, uz) = ((end.0 - start.0) / chord, (end.1 - start.1) / chord);
+
+    let square = |point: i64| -> bool {
+        let (sx, sz) = sides.get(&point).copied().unwrap_or((0.0, 0.0));
+        let size = py::hypot(sx, sz);
+        size == 0.0 || (sx * ux + sz * uz).abs() / size < SQUARE
+    };
+
+    !square(line.start) && !square(line.end)
+}
+
+/// `line` laid on the grid along its curve, sampled as `_laid` samples it; None where the
+/// world does not place both its ends. Laid straight from end to end, Centrico Plaza's lines put
+/// the player's cell a row and an offset from the place the game had them at, the way out to
+/// Autumnal Avenue beside a cell it is a row away from, and P said "path, 1 south" where down
+/// walked into the wall (x_lumiose_plaza_exits, spike A). Along the curve 32 of the 70
+/// places the player stood still at are in the game's own cell, to 8 along the line, places
+/// (13, 6) and (2, 6) among them, where down did nothing, and both warps are in the cells the
+/// game took the player through them from. A street with a point's side square to the line
+/// between its ends is laid straight: Route 7's way onto Route 6 is square at one end and its
+/// side 45 degrees off at the other, where it meets the next street, and laid straight its
+/// places were a median 9.6 units off the game's, along the cubic 22.2 (spike A).
+fn curved(
+    line: &Line,
+    places: &IndexMap<i64, (f64, f64)>,
+    sides: &IndexMap<i64, (f64, f64)>,
+) -> Result<Option<_Curve>> {
+    let unsided = IndexMap::new();
+    let Some(curve) = hermite(
+        line,
+        places,
+        if bends(line, places, sides) {
+            sides
+        } else {
+            &unsided
+        },
+    ) else {
+        return Ok(None);
+    };
+    let cell_units = zonedata::CELL as f64;
+    let mut out: IndexMap<Cell, (i64, i64)> = IndexMap::new();
+    let mut nearest: HashMap<Cell, f64> = HashMap::new();
+    let mut ways: HashMap<i64, (f64, f64)> = HashMap::new();
+    let steps = 1.max(SAMPLES * line.along);
+    for k in 0..=steps {
+        let t = k as f64 / steps as f64;
+        let (x, z, dx, dz) = curve(t);
+        let speed = py::hypot(dx, dz);
+        let speed = if speed == 0.0 { 1.0 } else { speed };
+        let row = py::round(t * line.along as f64)?;
+        if k % SAMPLES == 0 || !ways.contains_key(&row) {
+            ways.insert(row, (dx / speed, dz / speed));
+        }
+        for fourth in -2 * line.across + 1..2 * line.across {
+            let offset = fourth as f64 / 4.0;
+            // Offsets rise to the line's left, as `_World.cell` lays them.
+            let (px, pz) = (
+                x + offset * dz / speed * cell_units,
+                z - offset * dx / speed * cell_units,
+            );
+            let cell = (py::floor(px / cell_units)?, py::floor(pz / cell_units)?);
+            let off = py::hypot(
+                px - (cell.0 as f64 + 0.5) * cell_units,
+                pz - (cell.1 as f64 + 0.5) * cell_units,
+            );
+            if off < nearest.get(&cell).copied().unwrap_or(f64::INFINITY) {
+                nearest.insert(cell, off);
+                out.insert(cell, (row, py::round(offset)?));
+            }
+        }
+    }
+    Ok(Some(_Curve {
+        places: out,
+        ways,
+        curve,
+        along: line.along,
+    }))
 }
 
 fn sized(head: &[u8]) -> Result<bool> {
@@ -1228,6 +1380,10 @@ pub struct Rails {
     places: RefCell<IndexMap<i64, (f64, f64)>>,
     /// How high the world has each of them (`Network.heights`).
     heights: RefCell<IndexMap<i64, f64>>,
+    /// Each point's side (`Network.sides`), which says the way its streets leave it.
+    sides: RefCell<IndexMap<i64, (f64, f64)>>,
+    /// Each line laid on the grid along its curve, once a map (`_curved`).
+    curves: RefCell<IndexMap<i64, Option<Rc<_Curve>>>>,
     /// The table of the rails loaded, found through the line the player was on.
     table: Slot<Option<i64>>,
     /// Every line read from it, by id, kept once read: a line's walls and the points it joins
@@ -1281,6 +1437,8 @@ impl Rails {
             chunk_files: RefCell::new(Vec::new()),
             places: RefCell::new(IndexMap::new()),
             heights: RefCell::new(IndexMap::new()),
+            sides: RefCell::new(IndexMap::new()),
+            curves: RefCell::new(IndexMap::new()),
             table: Slot::new(None),
             lines: RefCell::new(IndexMap::new()),
             corridor: RefCell::new(None),
@@ -1513,35 +1671,47 @@ impl Rails {
         self.read_streets(files)?;
         let (number, a, x, width, height) = place;
         let line = self.lines.borrow().get(&number).cloned();
-        let world = line.as_ref().and_then(|line| self.in_world(line));
-        let (Some(line), Some(world)) = (line, world) else {
+        let curve = match &line {
+            None => None,
+            Some(line) => self.curve(line)?,
+        };
+        let (Some(line), Some(curve)) = (line, curve) else {
             return Ok(None);
         };
-        // Python's is a set of tuples, visited in its own order where none of the cells round
-        // them is the warp's; in the order the record spans them here.
-        let mut wanted: IndexSet<(i64, i64)> = IndexSet::new();
+        let mut wanted: HashSet<(i64, i64)> = HashSet::new();
         for along in span(a, width) {
             for across in span(x, height) {
                 let (row, offset) = line.upright(along as f64, across as f64);
                 wanted.insert((py::round(row)?, py::round(offset)?));
             }
         }
-        // Each grid cell is the row and offset its middle is nearest, as `lanes` lays them, so
-        // none of the warp's is a cell of the street the player stands in.
-        let mut around: Vec<Cell> = Vec::new();
-        for &(row, offset) in &wanted {
-            around.push(world.cell(row as f64, offset as f64)?);
+        if wanted.len() == 1 {
+            // A record of one place stands in one cell, the one its place is in: along a curve
+            // the cells nearest one place are up to three, and Coumarine Gym's vines, each end
+            // one cell, lost three of their eight climbs so (x_gym_4_climbed, spike A).
+            let (row, offset) = *wanted.iter().next().expect("one place");
+            return Ok(Some(vec![curve.cell(row as f64, offset as f64)?]));
         }
-        let r#box = Box::around(around.iter().copied(), 1)?;
-        let mut out: Vec<Cell> = Vec::new();
-        for cz in r#box.north..=r#box.south {
-            for cx in r#box.west..=r#box.east {
-                if wanted.contains(&world.place((cx, cz))?) {
-                    out.push((cx, cz));
-                }
-            }
+        // Each grid cell is the row and offset passing nearest its middle, as `lanes` lays
+        // them, so none of the warp's is a cell of the street the player stands in.
+        let mut cells: Vec<Cell> = curve
+            .places
+            .iter()
+            .filter(|(_, at)| wanted.contains(*at))
+            .map(|(&cell, _)| cell)
+            .collect();
+        cells.sort_by_key(|cell| (cell.1, cell.0));
+        if !cells.is_empty() {
+            return Ok(Some(cells));
         }
-        Ok(Some(if out.is_empty() { around } else { out }))
+        let mut sorted: Vec<(i64, i64)> = wanted.into_iter().collect();
+        sorted.sort();
+        // `dict.fromkeys`: each cell once, where it first came.
+        let mut out: IndexSet<Cell> = IndexSet::new();
+        for (row, offset) in sorted {
+            out.insert(curve.cell(row as f64, offset as f64)?);
+        }
+        Ok(Some(out.into_iter().collect()))
     }
 
     /// How high a record placed on a rail stands: as high as the world has its line's start
@@ -1682,10 +1852,9 @@ impl Rails {
         if !cached {
             let mut lanes: Lanes = IndexMap::new();
             for line in self.lines.borrow().values() {
-                let Some(world) = self.in_world(line) else {
+                let Some(curve) = self.curve(line)? else {
                     continue;
                 };
-                let (ax, az) = world.ahead;
                 let upright = (line.way == WAY_NORTH || line.way == WAY_SOUTH) != (odd != 0);
                 let (along, across): (&[(&str, Step)], &[(&str, Step)]) = if compass {
                     (&COMPASS_KEYS, &COMPASS_KEYS)
@@ -1694,34 +1863,41 @@ impl Rails {
                 } else {
                     (&EAST_KEYS, &NORTH_KEYS)
                 };
-                let mut ways: IndexMap<Step, &'static str> = IndexMap::new();
-                for ((dx, dz), keys) in [
-                    ((ax, az), along),
-                    ((-ax, -az), along),
-                    ((az, -ax), across),
-                    ((-az, ax), across),
-                ] {
-                    ways.insert(nearest_step(dx, dz)?, key(dx, dz, keys));
-                }
-                let mut corners: Vec<Cell> = Vec::new();
-                for row in [0, line.along] {
-                    for offset in [-line.across, line.across] {
-                        corners.push(world.cell(row as f64, offset as f64)?);
+                // Round Prism Tower a line turns a fourteenth of the ring along its rows, so
+                // each row's steps are the ways the street runs there.
+                let mut rows: IndexMap<i64, IndexMap<Step, &'static str>> = IndexMap::new();
+                for (&cell, &(row, offset)) in &curve.places {
+                    if !line.open(row, offset + py::floordiv(line.across, 2)) {
+                        continue;
                     }
-                }
-                let r#box = Box::around(corners, 0)?;
-                for cx in r#box.west..=r#box.east {
-                    for cz in r#box.north..=r#box.south {
-                        let (row, offset) = world.place((cx, cz))?;
-                        if line.open(row, offset + py::floordiv(line.across, 2)) {
-                            lanes.entry((cx, cz)).or_default().extend(ways.clone());
+                    if !rows.contains_key(&row) {
+                        let (ax, az) = curve.ways[&row];
+                        let mut ways: IndexMap<Step, &'static str> = IndexMap::new();
+                        for ((dx, dz), keys) in [
+                            ((ax, az), along),
+                            ((-ax, -az), along),
+                            ((az, -ax), across),
+                            ((-az, ax), across),
+                        ] {
+                            ways.insert(nearest_step(dx, dz)?, key(dx, dz, keys));
                         }
+                        rows.insert(row, ways);
                     }
+                    lanes.entry(cell).or_default().extend(rows[&row].clone());
                 }
             }
             *self.lanes.borrow_mut() = ((files.to_vec(), compass, odd), Rc::new(lanes));
         }
         Ok(self.lanes.borrow().1.clone())
+    }
+
+    /// `line` laid on the grid along its curve, once a map (`_curved`).
+    fn curve(&self, line: &Line) -> Result<Option<Rc<_Curve>>> {
+        if !self.curves.borrow().contains_key(&line.id) {
+            let curved = curved(line, &self.places.borrow(), &self.sides.borrow())?.map(Rc::new);
+            self.curves.borrow_mut().insert(line.id, curved);
+        }
+        Ok(self.curves.borrow()[&line.id].clone())
     }
 
     /// Where the world has `line`, or None where the ROM does not place both its ends.
@@ -1756,6 +1932,8 @@ impl Rails {
         *self.heights.borrow_mut() = IndexMap::new();
         self.folded.set(false);
         *self.keyed.borrow_mut() = None;
+        *self.sides.borrow_mut() = IndexMap::new();
+        *self.curves.borrow_mut() = IndexMap::new();
         if let Some(streets) = &self.streets {
             let wanted: Vec<i64> = files.iter().copied().filter(|&file| file != 0).collect();
             let network = streets(&wanted)?;
@@ -1768,6 +1946,7 @@ impl Rails {
             self.lines.borrow_mut().extend(network.lines);
             self.places.borrow_mut().extend(network.places);
             self.heights.borrow_mut().extend(network.heights);
+            self.sides.borrow_mut().extend(network.sides);
             self.cameras.set(network.cameras);
             self.folded.set(folded);
             *self.keyed.borrow_mut() = keyed;

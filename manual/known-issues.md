@@ -84,8 +84,11 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
   does not take it on the way to anything, so `P` to the way out from the top climbs back down
   the vines.
 - **Lumiose City's plazas**: walking off a street onto a plaza at its "open ground" has not been
-  tried, nor has `P` across a plaza into the next street. Round Prism Tower the directions have
-  been tried on the tower's west side only.
+  tried. Round Prism Tower the directions have been tried on the tower's west side only, and `P`
+  to a street off it from the Pokémon Center's street and from Autumnal Avenue; where it used to
+  leave you a step short of the street, saying a direction that walked you into a wall, it now
+  takes you to where that direction steps onto the street, which has not been tried in the game
+  yet.
 - **The Poké Ball Factory's conveyor belts** were tried while Team Flare holds the factory. Of the
   belts the switch could turn, two have not been ridden turned; `P` takes them to run as before.
 - **Lysandre Labs** has been tried from the entrance west over the first arrow tile. Riding a
