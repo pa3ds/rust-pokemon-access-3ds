@@ -6855,6 +6855,31 @@ fn test_a_model_walled_in_on_every_side_is_not_on_the_map() -> Result<()> {
     Ok(())
 }
 
+/// Lavaridge's herbalist, the Lilycove Department Store's receptionists, Devon's fossil
+/// scientist and the Secret Base Guild's shops stand in walls but for the counter they are talked
+/// to across, and went unlisted as the secret team parked in a base's walls is (a player's
+/// report, spike B).
+#[test]
+fn test_a_clerk_in_walls_but_for_the_counter_in_front_is_somebody() -> Result<()> {
+    let mut town = Town::new();
+    let counter = COUNTER << KIND_SHIFT | BLOCKED;
+    let walled: Vec<(i64, i64)> = border(160)
+        .into_iter()
+        .chain((110..113).flat_map(|x| (176..178).map(move |z| (x, z))))
+        .collect();
+    let counters: Vec<((i64, i64), i64)> = (110..113).map(|x| ((x, 178), counter)).collect();
+    town.block_tiles(TOWN_BLOCK, TOWN_CHUNK, (80, 160), &walled, &counters);
+    town.model(4, TOWN, 3, 0x142, (111, 177));
+    let people: Vec<(i64, i64)> = town
+        .r#where()?
+        .of("people")
+        .iter()
+        .map(|item| item.cell)
+        .collect();
+    assert!(people.contains(&(111, 177)));
+    Ok(())
+}
+
 /// Decorating, the cursor went over the floor, the PC and the hedge with the game saying
 /// "Select location" over all three, and nothing from one empty cell to the next
 /// (omega_ruby_secret-base2.ctm). A decoration is said by the game's name for it.

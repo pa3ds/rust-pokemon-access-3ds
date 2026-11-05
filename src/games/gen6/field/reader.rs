@@ -40,7 +40,7 @@ use crate::core::discovery::{Found, HEAP_SPAN, within};
 use crate::core::memory::Memory;
 use crate::core::pathfind::{self, Cell};
 use crate::core::words::own;
-use crate::games::common::field::chunk::{BLOCKED, CHUNK, Chunk};
+use crate::games::common::field::chunk::{BLOCKED, CHUNK, COUNTER, Chunk};
 use crate::games::common::field::ground::{
     self as common, BLOCK, CRACKED, Far, Grid, Ground, GroundHeight, NO_ZONE, Of, STRENGTH,
     StepWords, Word, pushes, walkable,
@@ -3011,12 +3011,17 @@ fn laid(
 /// player's secret team in the walls of its far corner until each is registered, and they were
 /// listed as six people there with no way to them (spike 154). Ground only a ridden Pokémon
 /// crosses, of a kind of `rides`, is no wall: once its chunk was loaded, Route 9's rocks on the
-/// spikes and the Rhyhorn ridden over them were left out (spike 238).
+/// spikes and the Rhyhorn ridden over them were left out (spike 238). Nor is a counter, which a
+/// clerk behind it is talked to across: Lavaridge's herbalist, the Lilycove Department Store's
+/// receptionists, Devon's fossil scientist and the Secret Base Guild's two shops each stand in
+/// walls but for the counter in front, and went unlisted (a player's report, spike B).
 fn walled_in(chunks: &[Rc<Chunk>], cell: Cell, rides: &HashSet<i64>) -> Result<bool> {
     let wall = |near: Cell| -> Result<bool> {
         match chunks.iter().find(|chunk| chunk.holds(near)) {
             None => Ok(false),
-            Some(chunk) => Ok(!chunk.walkable(near)? && !rides.contains(&chunk.kind(near)?)),
+            Some(chunk) => Ok(!chunk.walkable(near)?
+                && !rides.contains(&chunk.kind(near)?)
+                && chunk.kind(near)? != COUNTER),
         }
     };
     let (x, z) = cell;
