@@ -72,6 +72,7 @@ struct Given {
     sleep: Rc<dyn Fn(f64)>,
     file_of: FileOf,
     on_screen: OnScreen,
+    lead: f64,
 }
 
 impl Default for Given {
@@ -86,6 +87,7 @@ impl Default for Given {
             sleep: Rc::new(|_seconds| {}),
             file_of: Rc::new(|_root| None),
             on_screen: Rc::new(Vec::new),
+            lead: head_it::LEAD,
         }
     }
 }
@@ -106,6 +108,7 @@ fn game_given(given: Given) -> Game {
         sleep,
         file_of,
         on_screen,
+        lead,
     } = given;
     let memory = FakeMemory::new();
     let classes = FakeClasses::new(memory.clone());
@@ -154,7 +157,7 @@ fn game_given(given: Given) -> Game {
         Rc::new(move |pane: i64| Ok(drawn.get(&pane).map(|image| image.to_string()))),
         Rc::new(|found: &pokemon::Pokemon| self::named(found.species)),
         cue,
-        head_it::LEAD,
+        lead,
         clock,
         cry,
         instead,
@@ -386,202 +389,240 @@ fn cued() -> (
     (cued, cue, now, clock)
 }
 
-/// The game's "!", `LEAD` before the ball reaches `SWEET`, once a ball, with its column
-/// (Orion, 2026-10-31: an aid, off as it ships; 2026-11-01, the game's sound and a lead a player
-/// can tap in). A ball speeds up as it falls, as on as_amie_head_it's tape, so it is cued by how
-/// fast it speeds up too: taken to fall on at its speed, this one was cued at 0.29 s, 0.1 s late,
-/// half the time a tap heads it in.
-#[test]
-fn test_the_cue_sounds_the_lead_before_a_ball_falling_faster_and_faster_reaches_it() {
-    let (cued, cue, now, clock) = cued();
-    let mut game = game_with(Some(cue), clock);
-    heard(&mut game.found, head_it::APP);
-    assert!(game.found.ticking(Some(head_it::APP)));
-    // 300 above `SWEET` at 200 a second, 1,000 faster each second: there at 0.6 s, so due 0.4 s
-    // ahead at 0.2. Ticks of a sixtieth, each height read twice, as a tick between two frames
-    // reads one again, which times nothing.
-    for tick in 0..36 {
-        let at = tick as f64 / 60.0;
-        place(
-            &game.memory,
-            game.panes[0],
-            0.0,
-            (head_it::SWEET + 300.0 - 200.0 * at - 500.0 * at * at) as f32,
-        );
-        for again in [0.0, 0.005] {
-            now.set(at + again);
-            game.found.tick().unwrap();
+const BALLS: i64 = 0x08B40000;
+/// The round's `Ball`, and the record of the ball falling in the tests.
+const RECORD: i64 = BALLS + head_it::BALL_RECORDS + 3 * head_it::BALL_SIZE;
+
+/// `struct.pack("<2f", a, b)`.
+fn pair(a: f64, b: f64) -> Vec<u8> {
+    let mut packed = (a as f32).to_le_bytes().to_vec();
+    packed.extend((b as f32).to_le_bytes());
+    packed
+}
+
+/// A ball and its record `n` steps into a fall down the middle from `top`, where it fell
+/// `speed`, each step `rise` faster: by default as Unlimited's fastest fell (`step(memory, pane,
+/// n)`).
+fn step(memory: &FakeMemory, pane: i64, n: i64, top: f64, speed: f64, rise: f64) {
+    let k = n as f64;
+    let height = top - speed * k - rise * k * (k + 1.0) / 2.0;
+    place(memory, pane, 0.0, height as f32);
+    memory.write(RECORD + head_it::SPEED, &pair(speed + rise * k, rise));
+    memory.write(RECORD + head_it::ACROSS, &pair(0.0, height));
+}
+
+/// `step`'s defaults: from 477.6 at 2.4 a step, 1 faster each.
+const FASTEST: (f64, f64, f64) = (477.6, 2.4, 1.0);
+
+/// `falling(...)`'s keyword arguments, each as the Python defaults it.
+struct Fall {
+    idle: bool,
+    giant: bool,
+    as_read: bool,
+    gaps: Vec<f64>,
+    delays: Vec<f64>,
+}
+
+impl Default for Fall {
+    fn default() -> Self {
+        Fall {
+            idle: false,
+            giant: false,
+            as_read: false,
+            gaps: vec![0.01, 0.04, 0.025, 0.03],
+            delays: vec![0.0, 0.02, 0.005, 0.015, 0.025],
         }
     }
-    assert_eq!(cued.borrow().len(), 1);
-    let (when, column) = cued.borrow()[0];
-    assert!(
-        (0.2..=0.2 + 1.0 / 60.0).contains(&when) && column == 1,
-        "{when} {column}"
-    );
 }
 
-/// Live, a tick read a ball about 300 too low once in a while, the next back in line, and the
-/// cue sounded at once, 0.66 s early (spike 273); a ball read after a stall, far lower but no
-/// lower than it could have fallen, is followed on.
-#[test]
-fn test_a_height_misread_far_below_the_ball_is_skipped() {
-    let (cued, cue, now, clock) = cued();
-    let mut game = game_with(Some(cue), clock.clone());
-    heard(&mut game.found, head_it::APP);
-    // 300 above `SWEET` at a steady 500 a second, due 0.4 s ahead at 0.2; read 300 too low at 0.1.
-    for tick in 0..36 {
-        now.set(tick as f64 / 60.0);
-        let height = head_it::SWEET + 300.0 - 500.0 * now.get();
-        place(
-            &game.memory,
-            game.panes[0],
-            0.0,
-            (if tick == 6 { height - 300.0 } else { height }) as f32,
-        );
-        game.found.tick().unwrap();
-    }
-    assert_eq!(cued.borrow().len(), 1);
-    let when = cued.borrow()[0].0;
-    assert!((0.2..=0.2 + 1.0 / 60.0).contains(&when), "{when}");
-    let mut stalled = game_with(Some(Rc::new(|_column: i64| {})), clock);
-    heard(&mut stalled.found, head_it::APP);
-    for (at, height) in [(0.0, 400.0f32), (0.03, 385.0), (0.7, 35.0)] {
-        now.set(at);
-        place(&stalled.memory, stalled.panes[0], 0.0, height);
-        stalled.found.tick().unwrap();
-    }
-    place(&stalled.memory, stalled.panes[0], 10500.0, 480.0);
-    stalled.layouts.refresh();
-    // Gone once missing from two polls.
-    assert_eq!(stalled.found.poll(Some(head_it::APP)).unwrap(), []);
-    assert_eq!(
-        stalled.found.poll(Some(head_it::APP)).unwrap(),
-        [(
-            head_it::LOG.to_string(),
-            "no cue for a ball gone by, its last heights 400 at 0.00, 385 at 0.03, 35 at 0.70"
-                .to_string(),
-            None
-        )]
-    );
-}
-
-/// Live, a height changes once a frame, a thirtieth of a second, and is read up to a frame
-/// later, and a ball's first read can be the spare balls' 480 (spike 273): its whole fall is
-/// fitted, that read left out, and the cue sounds at the read nearest its moment.
-#[test]
-fn test_a_ball_read_at_uneven_times_with_a_stale_first_height_is_cued_within_a_frame() {
-    let (cued, cue, now, clock) = cued();
-    let mut game = game_with(Some(cue), clock);
-    heard(&mut game.found, head_it::APP);
-    // From 400 at 120 a second, 450 faster each second, as the live runs' balls fell: at `SWEET`
-    // at 1.035 s, so due 0.4 s ahead at 0.635. Each frame's height read 0 to 25 ms after it was
-    // drawn, in a pattern that repeats every 5; the first read 480.
-    for frame in 0..40 {
-        let drawn = frame as f64 / 30.0;
-        let height = if frame == 0 {
-            480.0
-        } else {
-            400.0 - 120.0 * drawn - 225.0 * drawn.powf(2.0)
-        };
-        place(&game.memory, game.panes[0], 0.0, height as f32);
-        now.set(drawn + [0.0, 0.025, 0.01, 0.02, 0.005][frame % 5]);
-        game.found.tick().unwrap();
-    }
-    assert_eq!(cued.borrow().len(), 1);
-    let when = cued.borrow()[0].0;
-    assert!((when - 0.635).abs() <= 1.0 / 30.0, "{when}");
-}
-
-/// Spike 277: a cue sounded at the read nearest its moment was up to half a tick off. Each
-/// height is timed by the frame the ball stepped on, by the game's count of frames, and the cue
-/// waits for its moment: timed by the frame each height was read in, this one was 25 ms
-/// early.
-#[test]
-fn test_a_ball_timed_by_the_games_frames_is_cued_at_its_moment_however_late_it_is_read() {
-    let (cued, cue, now, clock) = cued();
-    let counted = Rc::new(Cell::new(0i64));
-    let mut game = game_given(Given {
-        cue: Some(cue),
-        clock,
+/// A ball down the middle whose record the round's `Ball` holds, cued `lead` ahead: when its
+/// cue sounded and for which column, each wait for it, and its moment. From 477.6, 2.4 a step
+/// and 1 faster each, a step every other frame, as Unlimited's fastest fell: 442.6 above
+/// `SWEET`, it is there 26.99 steps on, at 0.902 s. With `giant`, the giant ball after time up
+/// as Omega Ruby's and X's fell, from 469.2 at 3.6 a step, 0.6 faster each: at `GIANT_SWEET`
+/// 28.99 steps on, at 0.969 s. Each tick reads `gaps` after the last, `delays` into a frame, by
+/// default 10 to 40 ms and 0 to 25; with `idle`, a tick half a second before read it as the spare
+/// balls' 480; with `as_read`, each height is timed by the frame it was read in.
+fn falling(lead: f64, fall: Fall) -> (Vec<(f64, i64)>, Vec<f64>, f64) {
+    let cued: Rc<RefCell<Vec<(f64, i64)>>> = Rc::new(RefCell::new(Vec::new()));
+    let now = Rc::new(Cell::new(-0.5));
+    let slept: Rc<RefCell<Vec<f64>>> = Rc::new(RefCell::new(Vec::new()));
+    let counted = Rc::new(Cell::new(-30i64));
+    let Game {
+        mut found,
+        memory,
+        panes,
+        layouts,
+    } = game_given(Given {
+        cue: {
+            let (cued, now) = (cued.clone(), now.clone());
+            Some(Rc::new(move |column: i64| {
+                cued.borrow_mut().push((now.get(), column))
+            }))
+        },
+        clock: {
+            let now = now.clone();
+            Rc::new(move || now.get())
+        },
         frames: {
             let counted = counted.clone();
             Rc::new(move || Ok(Some(counted.get())))
         },
         sleep: {
-            let now = now.clone();
-            Rc::new(move |seconds: f64| now.set(now.get() + seconds))
+            let (slept, now) = (slept.clone(), now.clone());
+            Rc::new(move |seconds: f64| {
+                slept.borrow_mut().push(seconds);
+                now.set(now.get() + seconds);
+            })
         },
+        lead,
         ..Given::default()
     });
-    heard(&mut game.found, head_it::APP);
-    // The ball moves every other frame, from 400 at 120 a second, 450 faster each second: at
-    // `SWEET` at 1.0346 s, so due 0.4 s ahead at 0.6346. Each tick reads 10 to 40 ms after the
-    // last, 0 to 25 ms into a frame, in patterns that repeat.
+    memory.u32(RECORD, &[3]);
+    found
+        .track(&IndexMap::from([(BALLS, head_it::BALL.to_string())]), true)
+        .unwrap();
+    let (mut pane, mut falls) = (panes[0], FASTEST);
+    if fall.giant {
+        // Time up: the ball down the middle gone, the giant ball falling there.
+        place(&memory, panes[0], 10500.0, 480.0);
+        (pane, falls) = (panes[1], (469.2, 3.6, 0.6));
+        place(&memory, pane, 0.0, 469.2);
+        layouts.refresh();
+    }
+    heard(&mut found, head_it::APP);
+    if fall.idle {
+        place(&memory, pane, 0.0, 480.0);
+        found.tick().unwrap();
+    }
     let mut tick = 0.0;
-    for step in 0..60 {
-        tick += [0.01, 0.04, 0.025, 0.03][step % 4];
+    for tock in 0..36 {
+        tick += fall.gaps[tock % fall.gaps.len()];
         counted.set(py::int(tick * head_it::FRAME_RATE).unwrap());
-        let moved = (counted.get() / 2 * 2) as f64 / head_it::FRAME_RATE;
-        place(
-            &game.memory,
-            game.panes[0],
-            0.0,
-            (400.0 - 120.0 * moved - 225.0 * moved.powf(2.0)) as f32,
+        let (top, speed, rise) = falls;
+        step(
+            &memory,
+            pane,
+            py::floordiv(counted.get(), 2),
+            top,
+            speed,
+            rise,
         );
         // Python's `max(now, x)`: the first unless the second is strictly greater.
-        let read = tick + [0.0, 0.02, 0.005, 0.015, 0.025][step % 5];
+        let read = tick + fall.delays[tock % fall.delays.len()];
         if read > now.get() {
             now.set(read);
         }
-        game.found.tick().unwrap();
+        if fall.as_read {
+            found.parity = [0, 0];
+        }
+        found.tick().unwrap();
     }
-    assert_eq!(cued.borrow().len(), 1);
-    let when = cued.borrow()[0].0;
-    assert!((when - 0.6346).abs() <= 0.003, "{when}");
+    let expected = (if fall.giant { 28.9906 } else { 26.9933 }) * head_it::STEP - lead;
+    (cued.take(), slept.take(), expected)
+}
+
+/// The game's "!", `LEAD` before the ball reaches `SWEET`, once a ball, with its column
+/// (Orion, 2026-10-31: an aid, off as it ships; 2026-11-01, the game's sound and a lead a player
+/// can tap in). The game's own record of the ball says how far it falls at its next step and how
+/// much faster each makes it (spike 273): past about 100 hits a ball falls in under a second,
+/// and fitted to the heights read of its first 0.2 s, as the cue was timed before, a third or
+/// more of such a ball's cues came early.
+#[test]
+fn test_the_cue_sounds_the_lead_before_a_ball_reaches_its_sweet_spot_by_its_own_record() {
+    let (cued, _, expected) = falling(0.4, Fall::default());
+    assert_eq!(
+        cued.iter().map(|&(_, column)| column).collect::<Vec<_>>(),
+        [1]
+    );
+    assert!((cued[0].0 - expected).abs() <= 0.002, "{cued:?} {expected}");
+}
+
+/// Spike 277: a cue sounded at the read nearest its moment was up to half a tick off. Each
+/// height is timed by the frame the ball stepped on, every other one on the parity most of the
+/// round's steps were first read on (spike 273), and the cue waits for its moment: timed by the
+/// frame each height was read in, this one, read 17 to 33 ms apart, was a frame late. A ball is
+/// cued from its second read, 0.8 s ahead too, within the frame the clock knows its first by.
+#[test]
+fn test_a_ball_is_timed_by_the_frame_it_stepped_on_however_late_it_is_read() {
+    let uneven = || Fall {
+        gaps: vec![0.017, 0.025, 0.033],
+        delays: vec![0.0],
+        ..Fall::default()
+    };
+    let (cued, _, expected) = falling(0.4, uneven());
+    assert!((cued[0].0 - expected).abs() <= 0.002, "{cued:?} {expected}");
+    let (cued, _, expected) = falling(
+        0.4,
+        Fall {
+            as_read: true,
+            ..uneven()
+        },
+    );
+    assert!(cued[0].0 - expected >= 0.016, "{cued:?} {expected}");
+    let (cued, _, expected) = falling(0.8, Fall::default());
+    let late = cued[0].0 - expected;
+    assert!((0.0..=1.0 / 60.0).contains(&late), "{cued:?} {expected}");
+}
+
+/// A ball cued from its first read, the tick before half a second back, waited for its cue's
+/// moment in the tick, 0.29 s, and live 0.3 to 0.7 s, the screen waiting with it (spike 273):
+/// the next tick is taken to come no later than `TICK`.
+#[test]
+fn test_a_cue_due_further_off_than_a_tick_is_not_waited_for_in_the_tick() {
+    let (cued, slept, expected) = falling(
+        0.6,
+        Fall {
+            idle: true,
+            ..Fall::default()
+        },
+    );
+    assert!((cued[0].0 - expected).abs() <= 0.002, "{cued:?} {expected}");
+    // Python's `max(slept)`, which raises with nothing slept.
+    let most = slept
+        .iter()
+        .copied()
+        .reduce(|most, each| if each > most { each } else { most })
+        .expect("a wait");
+    assert!(most <= head_it::TICK, "{slept:?}");
 }
 
 /// Bigger, it is headed higher (spike 273, live): cued for the others' `SWEET`, its "!" came
-/// late, and Orion's tap the lead after it missed (or_amie_head_it_normal).
+/// late, and Orion's tap the lead after it missed (or_amie_head_it_normal). Its record is one of
+/// the round's twenty, stepping as the others do (spike 273, live on Hard).
 #[test]
 fn test_the_giant_ball_is_cued_the_lead_before_its_own_sweet_spot() {
-    let (cued, cue, now, clock) = cued();
-    let mut game = game_with(Some(cue), clock);
-    // Time up: the ball down the middle gone, the giant ball falling there at a steady 500 a
-    // second, at `GIANT_SWEET` at 0.6 s, so due 0.4 s ahead at 0.2.
-    place(&game.memory, game.panes[0], 10500.0, 480.0);
-    place(
-        &game.memory,
-        game.panes[1],
-        0.0,
-        (head_it::GIANT_SWEET + 300.0) as f32,
+    let (cued, _, expected) = falling(
+        0.4,
+        Fall {
+            giant: true,
+            ..Fall::default()
+        },
     );
-    game.layouts.refresh();
-    heard(&mut game.found, head_it::APP);
-    for tick in 0..36 {
-        now.set(tick as f64 / 60.0);
-        place(
-            &game.memory,
-            game.panes[1],
-            0.0,
-            (head_it::GIANT_SWEET + 300.0 - 500.0 * now.get()) as f32,
-        );
-        game.found.tick().unwrap();
-    }
-    assert_eq!(cued.borrow().len(), 1);
-    let when = cued.borrow()[0].0;
-    assert!((0.2..=0.2 + 1.0 / 60.0).contains(&when), "{when}");
+    assert_eq!(
+        cued.iter().map(|&(_, column)| column).collect::<Vec<_>>(),
+        [1]
+    );
+    assert!((cued[0].0 - expected).abs() <= 0.002, "{cued:?} {expected}");
 }
 
-/// A ball gone by with no cue is logged, never said, with its last heights.
+/// Headed back up, its record's speed stands where it was, 22.2 the giant ball's (spike 273,
+/// live). A ball gone by with no cue is logged, never said, with its last heights.
 #[test]
 fn test_a_ball_headed_back_up_is_not_cued_and_without_the_cue_nothing_is_followed() {
     let (cued, cue, now, clock) = cued();
     let mut on = game_with(Some(cue), clock);
+    on.memory.u32(RECORD, &[3]);
+    on.found
+        .track(&IndexMap::from([(BALLS, head_it::BALL.to_string())]), true)
+        .unwrap();
     heard(&mut on.found, head_it::APP);
     for (at, height) in [(0.0, 60.0f32), (0.1, 120.0), (0.2, 180.0)] {
         now.set(at);
         place(&on.memory, on.panes[0], 0.0, height);
+        on.memory.write(RECORD + head_it::SPEED, &pair(22.2, 0.6));
+        on.memory
+            .write(RECORD + head_it::ACROSS, &pair(0.0, f64::from(height)));
         on.found.tick().unwrap();
     }
     assert!(cued.borrow().is_empty());
@@ -865,23 +906,23 @@ fn test_at_the_results_pa3ds_says_its_estimate_of_the_lead_from_each_answered_cu
     let keys = head_it::HeadItKeys::new(found.clone(), Rc::new(|why: &str| why.to_string()));
     let mut touched = Touched::default();
     let app = Some(head_it::APP);
+    memory.u32(RECORD, &[3]);
+    found
+        .borrow_mut()
+        .track(&IndexMap::from([(BALLS, head_it::BALL.to_string())]), true)
+        .unwrap();
     let heard = || heard(&mut found.borrow_mut(), head_it::APP);
     heard();
+    let (top, speed, rise) = FASTEST;
     let mut start = 0.0;
     for delay in [0.30, 0.40, 0.55, 1.5] {
-        // The ball down the middle again from 300 above `SWEET`, cued 0.4 s ahead, 0.2 s in.
-        place(&memory, panes[0], 0.0, (head_it::SWEET + 300.0) as f32);
+        // The ball down the middle again from the top, cued 0.4 s ahead, 0.5 s in.
+        step(&memory, panes[0], 0, top, speed, rise);
         layouts.refresh();
         heard();
-        for tick in 0..15 {
-            let at = tick as f64 / 60.0;
-            now.set(start + at);
-            place(
-                &memory,
-                panes[0],
-                0.0,
-                (head_it::SWEET + 300.0 - 200.0 * at - 500.0 * at * at) as f32,
-            );
+        for tick in 0..36 {
+            now.set(start + tick as f64 / 60.0);
+            step(&memory, panes[0], tick / 2, top, speed, rise);
             found.borrow_mut().tick().unwrap();
         }
         now.set(cued.borrow().last().unwrap().0 + delay);
