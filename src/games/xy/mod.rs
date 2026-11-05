@@ -242,7 +242,7 @@ pub const SOUND_ARCHIVE: &str = "sound/xy_sound.bcsar";
 /// The Pokémon's cries, 3,751 sequences and then 797 waves (spike 275; X's, Y's not yet seen).
 pub const CRIES: &str = "a/1/0/1";
 /// The archives holding textures with names, as `games.oras.TEXTURE_ARCHIVES` are Omega Ruby's:
-/// 112 of X's 271, 3.9 s to read, the whole ROM 251 (spike A). Listing none, X had no index, and
+/// 112 of X's 271, 3.9 s to read, the whole ROM 251 (spike 284). Listing none, X had no index, and
 /// said no picture the game fills in as it runs, Pokémon-Amie's stars among them (Orion,
 /// 2026-11-04).
 pub const TEXTURE_ARCHIVES: [&str; 112] = [
