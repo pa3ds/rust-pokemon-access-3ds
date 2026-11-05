@@ -124,10 +124,13 @@ pub const BODY: i64 = 200;
 /// How tall the touch areas over the Pokémon are.
 pub const TALL: f64 = 120.0;
 /// How far above the screen's middle a ball is as a tap sent then heads it at the sweet spot, for
-/// 3 points rather than 1: tapped by a timer as the ball reached it, 0.2 s after a cue that much
-/// ahead, all 6 were, and 0.05 s either side none of 12, though all were headed (spike 273, live).
-/// Every ball's but the giant's (`GIANT_SWEET`).
-pub const SWEET: f64 = 35.0;
+/// 3 points rather than 1, and 6 rather than 2 from the 16th hit of a combo: the middle of 12 to -38,
+/// where taps sent 0 to 0.2 s after balls of 23 to 33 a step reached 35 were, the same heights at
+/// every speed; a ball is headed at all from about 50 to -100 (or_amie_head_it_hard, spike 273,
+/// live). It was 35, from taps by a cue that took a ball to keep its speed, 40 to 70 ms late: timed
+/// by its record, every tap at 35 was headed and none at the sweet spot. Every ball's but the
+/// giant's (`GIANT_SWEET`).
+pub const SWEET: f64 = -13.0;
 /// `SWEET` for the giant ball after time up, 50 points rather than 10, higher as the ball is
 /// bigger: or_amie_head_it_hard cut before it and played on, it fell through the same heights each
 /// run, a frame apart, and a tap sent as it was read at 125 or 104 was a sweet spot every time, five

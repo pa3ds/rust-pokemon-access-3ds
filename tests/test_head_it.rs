@@ -437,8 +437,8 @@ impl Default for Fall {
 
 /// A ball down the middle whose record the round's `Ball` holds, cued `lead` ahead: when its
 /// cue sounded and for which column, each wait for it, and its moment. From 477.6, 2.4 a step
-/// and 1 faster each, a step every other frame, as Unlimited's fastest fell: 442.6 above
-/// `SWEET`, it is there 26.99 steps on, at 0.902 s. With `giant`, the giant ball after time up
+/// and 1 faster each, a step every other frame, as Unlimited's fastest fell: 490.6 above
+/// `SWEET`, it is there 28.56 steps on, at 0.955 s. With `giant`, the giant ball after time up
 /// as Omega Ruby's and X's fell, from 469.2 at 3.6 a step, 0.6 faster each: at `GIANT_SWEET`
 /// 28.99 steps on, at 0.969 s. Each tick reads `gaps` after the last, `delays` into a frame, by
 /// default 10 to 40 ms and 0 to 25; with `idle`, a tick half a second before read it as the spare
@@ -518,7 +518,7 @@ fn falling(lead: f64, fall: Fall) -> (Vec<(f64, i64)>, Vec<f64>, f64) {
         }
         found.tick().unwrap();
     }
-    let expected = (if fall.giant { 28.9906 } else { 26.9933 }) * head_it::STEP - lead;
+    let expected = (if fall.giant { 28.9906 } else { 28.5581 }) * head_it::STEP - lead;
     (cued.take(), slept.take(), expected)
 }
 
@@ -546,7 +546,7 @@ fn test_the_cue_sounds_the_lead_before_a_ball_reaches_its_sweet_spot_by_its_own_
 #[test]
 fn test_a_ball_is_timed_by_the_frame_it_stepped_on_however_late_it_is_read() {
     let uneven = || Fall {
-        gaps: vec![0.017, 0.025, 0.033],
+        gaps: vec![0.017, 0.033, 0.029],
         delays: vec![0.0],
         ..Fall::default()
     };
