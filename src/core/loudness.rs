@@ -2,7 +2,8 @@
 //! (`clips`) and its tones (`tones`), each times its own `[pa3ds.audio]` setting.
 //!
 //! Azahar's volume slider cubed, as Azahar scales its output (`audio_core/dsp_interface.cpp`),
-//! times its slider in Windows' volume mixer (`mixer`). Read on a thread of its own once a second
+//! times its slider in Windows' volume mixer (`mixer`), which macOS and Linux have none of, as
+//! Windows has none where COM finds no session. Read on a thread of its own once a second
 //! from the moment it is made, as the game starts, so the first sound is already as loud as the
 //! rest; the slider out of Azahar's `qt-config.ini` whenever that changes.
 
@@ -31,13 +32,11 @@ impl Loudness {
         let loudness = Loudness {
             azahar: Arc::new(AtomicU64::new(1.0f64.to_bits())),
         };
-        if cfg!(windows) {
-            let (shared, qt_config) = (loudness.azahar.clone(), qt_config.to_path_buf());
-            // A thread that cannot start leaves the game's loudness at full, as before it read.
-            let _ = std::thread::Builder::new()
-                .name("loudness".to_string())
-                .spawn(move || watch(&qt_config, &shared));
-        }
+        let (shared, qt_config) = (loudness.azahar.clone(), qt_config.to_path_buf());
+        // A thread that cannot start leaves the game's loudness at full, as before it read.
+        let _ = std::thread::Builder::new()
+            .name("loudness".to_string())
+            .spawn(move || watch(&qt_config, &shared));
         loudness
     }
 

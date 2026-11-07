@@ -158,27 +158,104 @@ mod win {
 #[cfg(windows)]
 pub use win::{alive, alone, end, hide, opened, started};
 
-// The runtime is Windows; this keeps the import working elsewhere.
+/// macOS and Linux have no handle on a process to hold: a process is its number, asked about
+/// afresh each time, and its start time is what tells it from a later one given the same number.
+#[cfg(unix)]
+mod unix {
+    use std::time::{Duration, Instant};
 
-#[cfg(not(windows))]
-pub fn opened(_pid: i64, _access: u32) -> i64 {
-    0
+    use super::PATIENCE;
+
+    /// Whether a process is running rather than ended and not yet reaped, and when it started,
+    /// or None for no such process. A number that cannot be a process, as a lock file may hold,
+    /// is none: `kill(-1)` would signal every process there is.
+    fn status(pid: i64) -> Option<(bool, i64)> {
+        if pid <= 0 || pid > i64::from(i32::MAX) {
+            return None;
+        }
+        state(pid)
+    }
+
+    /// `/proc/<pid>/stat`: the state is the field after the command's closing parenthesis, the
+    /// start time in clock ticks since boot the 22nd field.
+    #[cfg(target_os = "linux")]
+    fn state(pid: i64) -> Option<(bool, i64)> {
+        let stat = std::fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
+        let fields: Vec<&str> = stat
+            .get(stat.rfind(')')? + 1..)?
+            .split_whitespace()
+            .collect();
+        let began = fields.get(19)?.parse().ok()?;
+        Some((!matches!(fields.first(), Some(&("Z" | "X" | "x"))), began))
+    }
+
+    /// `proc_pidinfo`'s BSD info: its status, and its start time in microseconds.
+    #[cfg(target_os = "macos")]
+    fn state(pid: i64) -> Option<(bool, i64)> {
+        // SAFETY: proc_bsdinfo is plain integers, for which zero is a value.
+        let mut info: libc::proc_bsdinfo = unsafe { std::mem::zeroed() };
+        let size = std::mem::size_of::<libc::proc_bsdinfo>() as i32;
+        // SAFETY: `info` is a live proc_bsdinfo of `size` bytes for the call to fill.
+        let filled = unsafe {
+            libc::proc_pidinfo(
+                pid as i32,
+                libc::PROC_PIDTBSDINFO,
+                0,
+                (&raw mut info).cast(),
+                size,
+            )
+        };
+        if filled != size {
+            return None;
+        }
+        let began = info.pbi_start_tvsec as i64 * 1_000_000 + info.pbi_start_tvusec as i64;
+        Some((info.pbi_status != libc::SZOMB, began))
+    }
+
+    /// The process's own number, which `alive` asks about, or 0 when there is no such process.
+    pub fn opened(pid: i64, _access: u32) -> i64 {
+        if alive(pid) { pid } else { 0 }
+    }
+
+    /// Whether the process is still running.
+    // shortcut: a number taken by another process between two looks, a second apart, reads as
+    // still running; keep the start time with the number if that is ever seen.
+    pub fn alive(handle: i64) -> bool {
+        status(handle).is_some_and(|(running, _)| running)
+    }
+
+    /// When a process started, or 0 for no such process.
+    pub fn started(pid: i64) -> i64 {
+        status(pid).map_or(0, |(_, began)| began)
+    }
+
+    /// End a process if it is still the one that started at `began`, and wait for it to be
+    /// gone: asked to stop, then killed, as Windows' TerminateProcess would, once `PATIENCE` is
+    /// up.
+    pub fn end(pid: i64, began: i64) -> bool {
+        if status(pid).is_none_or(|(_, now)| now != began) {
+            return false;
+        }
+        let running = || status(pid) == Some((true, began));
+        // SAFETY: kill only sends a signal; `status` has checked the number is one process's.
+        unsafe { libc::kill(pid as i32, libc::SIGTERM) };
+        let patience = Instant::now() + Duration::from_millis(PATIENCE.into());
+        while running() && Instant::now() < patience {
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        if running() {
+            // SAFETY: as above.
+            unsafe { libc::kill(pid as i32, libc::SIGKILL) };
+        }
+        true
+    }
 }
 
-#[cfg(not(windows))]
-pub fn alive(_handle: i64) -> bool {
-    false
-}
+#[cfg(unix)]
+pub use unix::{alive, end, opened, started};
 
-#[cfg(not(windows))]
-pub fn started(_pid: i64) -> i64 {
-    0
-}
-
-#[cfg(not(windows))]
-pub fn end(_pid: i64, _began: i64) -> bool {
-    false
-}
+// pa3ds's console window is Windows' alone: elsewhere pa3ds never hides it, and has no window
+// of its own to show in its place.
 
 #[cfg(not(windows))]
 pub fn alone() -> bool {

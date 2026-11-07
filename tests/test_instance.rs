@@ -43,18 +43,20 @@ impl std::ops::Deref for TmpPath {
 }
 
 /// A program that runs until it is ended: the Python's sleeping interpreter, as `ping`, which
-/// needs no console to wait in.
+/// needs no console to wait in, and `sleep` off Windows.
 struct Other(Child);
 
 impl Other {
     fn new() -> Self {
-        Other(
-            Command::new("ping")
-                .args(["-n", "61", "127.0.0.1"])
-                .stdout(Stdio::null())
-                .spawn()
-                .unwrap(),
-        )
+        #[cfg(windows)]
+        let mut command = Command::new("ping");
+        #[cfg(windows)]
+        command.args(["-n", "61", "127.0.0.1"]);
+        #[cfg(not(windows))]
+        let mut command = Command::new("sleep");
+        #[cfg(not(windows))]
+        command.arg("61");
+        Other(command.stdout(Stdio::null()).spawn().unwrap())
     }
 
     fn pid(&self) -> i64 {
@@ -78,14 +80,22 @@ fn lock(home: &Path, pid: i64, started: i64) {
     .unwrap();
 }
 
-/// With exit code 0, or Windows Terminal keeps a hidden window open for it.
+/// With exit code 0, or Windows Terminal keeps a hidden window open for it. Elsewhere it is asked
+/// to stop, by SIGTERM.
 #[test]
 fn test_a_pa3ds_started_again_ends_the_one_running_and_takes_its_place() {
     let tmp_path = TmpPath::new();
     let mut other = Other::new();
     lock(&tmp_path, other.pid(), instance::started(other.pid()));
     assert!(instance::replace(&tmp_path).unwrap());
-    assert_eq!(other.0.wait().unwrap().code(), Some(0));
+    let ended = other.0.wait().unwrap();
+    #[cfg(windows)]
+    assert_eq!(ended.code(), Some(0));
+    #[cfg(unix)]
+    assert_eq!(
+        std::os::unix::process::ExitStatusExt::signal(&ended),
+        Some(libc::SIGTERM)
+    );
     assert_eq!(
         toml::read(&tmp_path.join(instance::LOCK))["pid"],
         ::toml::Value::Integer(i64::from(std::process::id()))
