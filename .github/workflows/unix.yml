@@ -1,0 +1,47 @@
+# The macOS and Linux builds, tested: run by hand, or on a push to a branch porting them
+# (`os/...`). Releases are release.yml's.
+name: unix
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["os/**", "t3/mac-release-build"]
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    env:
+      # The oldest macOS the binary runs on; Prism's CMake build and rustc both follow it.
+      MACOSX_DEPLOYMENT_TARGET: "13.0"
+    steps:
+      - uses: actions/checkout@v4
+      # Prism's C23 needs CMake 4.2 or newer.
+      - name: Build tools (macOS)
+        if: runner.os == 'macOS'
+        run: brew install cmake || brew upgrade cmake
+      - name: Build tools (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libspeechd-dev pkg-config
+          pipx install "cmake>=4.2"
+      - name: Build
+        run: cargo build --release
+      - name: Clippy
+        run: cargo clippy --all-targets -- -D warnings
+      - name: Test
+        run: cargo test --lib
+      - name: Starts and stops with no Azahar
+        run: ./target/release/pa3ds --silent --no-log --seconds 3
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: pa3ds-${{ runner.os }}
+          path: |
+            target/release/pa3ds
+            target/release/tape
+          if-no-files-found: warn

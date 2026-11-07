@@ -1,0 +1,5 @@
+ts	phase	decision	why	evidence	result
+2026-11-07T09:56:11Z	frame	scoped the Mac and Linux port to hotkeys, sounds, finding Azahar, the instance lock, prompts, updater and packages	the user wants real Mac and Linux players to try it	issue #41	open
+2026-11-07T09:56:12Z	frame	left the settings dialog and pa3ds's own window Windows-only	they are Win32 dialog templates; a Mac or Linux player edits user/config.toml	src/ux/settings.rs, src/ux/window.rs	open
+2026-11-07T09:56:12Z	frame	Linux speech goes through speech-dispatcher, not Orca's D-Bus backend	Orca's backend needs giomm-2.68 at run time, which most desktops lack and without which pa3ds would not start	prism PrismBackends.cmake orca PKG_CONFIG	open
+2026-11-07T09:56:12Z	harness	replayed all 162 tapes on the untouched tree as label rust-base	Windows must behave the same after the shared key and audio code changes	captures/regress/rust-base	pending
