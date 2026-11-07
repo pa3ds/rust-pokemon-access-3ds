@@ -32,10 +32,13 @@ jobs:
       - name: Build
         run: cargo build --release
       - name: Clippy
+        if: ${{ !cancelled() }}
         run: cargo clippy --all-targets -- -D warnings
       - name: Test
+        if: ${{ !cancelled() }}
         run: cargo test --lib
       - name: Starts and stops with no Azahar
+        if: ${{ !cancelled() }}
         run: ./target/release/pa3ds --silent --no-log --seconds 3
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
