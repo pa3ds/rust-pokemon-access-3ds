@@ -373,37 +373,65 @@ fn working_folder(pid: i64) -> Option<PathBuf> {
 }
 
 /// Whether the window in front is one of the emulator's showing the game (ADR-0021, ADR-0022),
-/// as on Windows. The front window is the first ordinary one, at layer 0, in Quartz's list,
-/// which runs front to back. Its title is there only for a program the player has given Screen
-/// Recording: without it, a window of Azahar's in front is taken as showing the game, dialogs
-/// too.
+/// as on Windows, from what `quartz::poll` last found. It is asked from inside the keys' event
+/// tap, on every key in every program, so it asks nothing of the system itself: a question to
+/// another process there would hold up the player's typing everywhere. Until the first answer,
+/// nothing is in front.
 #[cfg(target_os = "macos")]
 pub fn in_front(emulator: &str) -> bool {
-    let Some((pid, title)) = quartz::windows(true).into_iter().next() else {
-        return false;
-    };
-    named(pid) == emulator && (title.is_empty() || shows_game(&title))
+    use std::sync::atomic::Ordering;
+    static POLLING: std::sync::Once = std::sync::Once::new();
+    POLLING.call_once(|| {
+        let emulator = emulator.to_string();
+        let started = std::thread::Builder::new()
+            .name("front".to_string())
+            .spawn(move || quartz::poll(&emulator));
+        if started.is_err() {
+            quartz::FRONT.store(quartz::UNKNOWN, Ordering::Relaxed);
+        }
+    });
+    quartz::FRONT.load(Ordering::Relaxed) != quartz::BEHIND
 }
 
-/// Every window of the emulator's at layer 0, by its title, shown or not: "" for each where
-/// macOS keeps titles back (`in_front`), so that Azahar is still known to be open.
+/// Every window of the emulator's, by its title: through Accessibility where pa3ds has it, and
+/// otherwise each window at layer 0 in Quartz's list, shown or not, "" where macOS keeps the
+/// title back from a program without Screen Recording, so that Azahar is still known to be open.
 #[cfg(target_os = "macos")]
 pub fn titles(emulator: &str) -> Vec<String> {
-    quartz::windows(false)
+    let pid = emulator_pid(emulator);
+    if pid == 0 {
+        return Vec::new();
+    }
+    let titled = quartz::titles(pid);
+    if !titled.is_empty() {
+        return titled;
+    }
+    quartz::windows()
         .into_iter()
         .filter(|(pid, _)| named(*pid) == emulator)
         .map(|(_, title)| title)
         .collect()
 }
 
-/// Quartz's window list, through CoreGraphics and CoreFoundation's plain C.
+/// Quartz's window list and the Accessibility API, through CoreGraphics, ApplicationServices and
+/// CoreFoundation's plain C.
 #[cfg(target_os = "macos")]
 mod quartz {
     use std::ffi::{CStr, c_char, c_void};
+    use std::ptr::null;
+    use std::sync::atomic::{AtomicU8, Ordering};
+    use std::time::Duration;
 
     type Object = *const c_void;
 
-    const ON_SCREEN_ONLY: u32 = 1 << 0;
+    /// What `poll` last found: Accessibility refused, or no poller, which `in_front` takes as
+    /// the emulator in front so that speech is never lost to a question pa3ds cannot ask; the
+    /// emulator's game window in front; anything else, and nothing found yet.
+    pub static FRONT: AtomicU8 = AtomicU8::new(BEHIND);
+    pub const UNKNOWN: u8 = 0;
+    pub const SHOWING: u8 = 1;
+    pub const BEHIND: u8 = 2;
+
     const EXCLUDE_DESKTOP_ELEMENTS: u32 = 1 << 4;
     const NULL_WINDOW: u32 = 0;
     const SINT64: isize = 4;
@@ -424,6 +452,14 @@ mod quartz {
             encoding: u32,
         ) -> u8;
         fn CFRelease(object: Object);
+        fn CFGetTypeID(object: Object) -> usize;
+        fn CFStringGetTypeID() -> usize;
+        fn CFArrayGetTypeID() -> usize;
+        fn CFStringCreateWithCString(
+            allocator: Object,
+            text: *const c_char,
+            encoding: u32,
+        ) -> Object;
     }
 
     #[link(name = "CoreGraphics", kind = "framework")]
@@ -434,16 +470,164 @@ mod quartz {
         static kCGWindowName: Object;
     }
 
-    /// The owner and title of each window at layer 0, front to back: only those on screen, or
-    /// every one there is.
-    pub fn windows(on_screen: bool) -> Vec<(i64, String)> {
-        let option = if on_screen {
-            ON_SCREEN_ONLY | EXCLUDE_DESKTOP_ELEMENTS
-        } else {
-            EXCLUDE_DESKTOP_ELEMENTS
+    #[link(name = "ApplicationServices", kind = "framework")]
+    unsafe extern "C" {
+        fn AXIsProcessTrusted() -> u8;
+        fn AXUIElementCreateSystemWide() -> Object;
+        fn AXUIElementCreateApplication(pid: i32) -> Object;
+        fn AXUIElementCopyAttributeValue(
+            element: Object,
+            attribute: Object,
+            value: *mut Object,
+        ) -> i32;
+        fn AXUIElementGetPid(element: Object, pid: *mut i32) -> i32;
+        fn AXUIElementSetMessagingTimeout(element: Object, seconds: f32) -> i32;
+    }
+
+    const AX_SUCCESS: i32 = 0;
+    const AX_API_DISABLED: i32 = -25211;
+    /// How long a question to another program waits for its answer: 6 s otherwise, for a
+    /// program that has stopped answering.
+    const AX_TIMEOUT: f32 = 0.25;
+    const EVERY: Duration = Duration::from_millis(100);
+
+    /// A CoreFoundation object this code owns, released when it goes.
+    struct Owned(Object);
+
+    impl Drop for Owned {
+        fn drop(&mut self) {
+            if !self.0.is_null() {
+                // SAFETY: an `Owned` holds an object from a Create or Copy call, released once.
+                unsafe { CFRelease(self.0) };
+            }
+        }
+    }
+
+    impl Owned {
+        /// An attribute's name as a CFString, `kAX...Attribute` being a macro and not a symbol.
+        fn name(name: &CStr) -> Owned {
+            // SAFETY: `name` is a terminated UTF-8 string; the call returns a string this owns.
+            Owned(unsafe { CFStringCreateWithCString(null(), name.as_ptr(), UTF8) })
+        }
+
+        /// An element's attribute, or the error Accessibility gave.
+        fn attribute(&self, name: &Owned) -> Result<Owned, i32> {
+            let mut value: Object = null();
+            // SAFETY: `self` is a live AXUIElement and `name` a CFString; a value written is a
+            // Copy, which the `Owned` releases.
+            let error = unsafe { AXUIElementCopyAttributeValue(self.0, name.0, &mut value) };
+            let value = Owned(value);
+            match error {
+                AX_SUCCESS if !value.0.is_null() => Ok(value),
+                AX_SUCCESS => Err(AX_SUCCESS),
+                error => Err(error),
+            }
+        }
+
+        /// The CFString this holds as text, or "" where it is not one.
+        fn text(&self) -> String {
+            // SAFETY: CFGetTypeID takes any live CF object, as this holds.
+            if self.0.is_null() || unsafe { CFGetTypeID(self.0) != CFStringGetTypeID() } {
+                return String::new();
+            }
+            // SAFETY: the object is a CFString.
+            unsafe { string(self.0) }
+        }
+    }
+
+    /// Ask Accessibility, every `EVERY`, which program is in front and whether it is the
+    /// emulator with a window showing the game, and keep the answer in `FRONT`. Only the
+    /// emulator's own window is asked for its title.
+    pub fn poll(emulator: &str) {
+        // SAFETY: the call takes nothing and returns an element this owns.
+        let system = Owned(unsafe { AXUIElementCreateSystemWide() });
+        // Set on the system-wide element, it is every element's.
+        // SAFETY: `system` is a live AXUIElement.
+        unsafe { AXUIElementSetMessagingTimeout(system.0, AX_TIMEOUT) };
+        let application = Owned::name(c"AXFocusedApplication");
+        let window = Owned::name(c"AXFocusedWindow");
+        let title = Owned::name(c"AXTitle");
+        loop {
+            let found = front(emulator, &system, &application, &window, &title);
+            FRONT.store(found, Ordering::Relaxed);
+            std::thread::sleep(EVERY);
+        }
+    }
+
+    fn front(
+        emulator: &str,
+        system: &Owned,
+        application: &Owned,
+        window: &Owned,
+        title: &Owned,
+    ) -> u8 {
+        // SAFETY: AXIsProcessTrusted takes nothing.
+        if unsafe { AXIsProcessTrusted() } == 0 {
+            return UNKNOWN;
+        }
+        let focused = match system.attribute(application) {
+            Ok(focused) => focused,
+            Err(AX_API_DISABLED) => return UNKNOWN,
+            Err(_) => return BEHIND,
         };
+        let mut pid = 0;
+        // SAFETY: `focused` is the AXUIElement of an application, `pid` a live i32.
+        if unsafe { AXUIElementGetPid(focused.0, &mut pid) } != AX_SUCCESS
+            || super::named(i64::from(pid)) != emulator
+        {
+            return BEHIND;
+        }
+        match focused
+            .attribute(window)
+            .and_then(|window| window.attribute(title))
+        {
+            Ok(named) if super::shows_game(&named.text()) => SHOWING,
+            _ => BEHIND,
+        }
+    }
+
+    /// The titles of a process's windows through Accessibility, or none where pa3ds does not
+    /// have it.
+    pub fn titles(pid: i64) -> Vec<String> {
+        let Ok(pid) = i32::try_from(pid) else {
+            return Vec::new();
+        };
+        // SAFETY: AXIsProcessTrusted takes nothing.
+        if unsafe { AXIsProcessTrusted() } == 0 {
+            return Vec::new();
+        }
+        // SAFETY: the call takes a process number and returns an element this owns.
+        let application = Owned(unsafe { AXUIElementCreateApplication(pid) });
+        // SAFETY: `application` is a live AXUIElement.
+        unsafe { AXUIElementSetMessagingTimeout(application.0, AX_TIMEOUT) };
+        let (windows, title) = (Owned::name(c"AXWindows"), Owned::name(c"AXTitle"));
+        let Ok(list) = application.attribute(&windows) else {
+            return Vec::new();
+        };
+        // SAFETY: `list` is a live CF object.
+        if unsafe { CFGetTypeID(list.0) != CFArrayGetTypeID() } {
+            return Vec::new();
+        }
+        // SAFETY: `list` is a CFArray, alive while it is held.
+        let count = unsafe { CFArrayGetCount(list.0) };
+        (0..count)
+            .map(|index| {
+                // SAFETY: `index` is within the array; the window got is the array's.
+                let window = unsafe { CFArrayGetValueAtIndex(list.0, index) };
+                // The array's, so never released here.
+                let window = std::mem::ManuallyDrop::new(Owned(window));
+                window
+                    .attribute(&title)
+                    .map(|named| named.text())
+                    .unwrap_or_default()
+            })
+            .collect()
+    }
+
+    /// The owner and title of each window at layer 0, front to back, shown or not.
+    pub fn windows() -> Vec<(i64, String)> {
         // SAFETY: the call takes plain values and returns an array this function owns, or null.
-        let list = unsafe { CGWindowListCopyWindowInfo(option, NULL_WINDOW) };
+        let list = unsafe { CGWindowListCopyWindowInfo(EXCLUDE_DESKTOP_ELEMENTS, NULL_WINDOW) };
         if list.is_null() {
             return Vec::new();
         }
@@ -486,6 +670,14 @@ mod quartz {
         if value.is_null() {
             return String::new();
         }
+        // SAFETY: a window's name is a CFString.
+        unsafe { string(value) }
+    }
+
+    /// A CFString as text, or "" where it cannot be.
+    ///
+    /// SAFETY: `value` is a live CFString.
+    unsafe fn string(value: Object) -> String {
         let size = unsafe { CFStringGetMaximumSizeForEncoding(CFStringGetLength(value), UTF8) } + 1;
         let mut buffer = vec![0 as c_char; size.max(1) as usize];
         if unsafe { CFStringGetCString(value, buffer.as_mut_ptr(), size, UTF8) } == 0 {
@@ -499,24 +691,83 @@ mod quartz {
 }
 
 /// Whether the window in front is one of the emulator's showing the game (ADR-0021, ADR-0022),
-/// as on Windows, through X's `_NET_ACTIVE_WINDOW`. An Azahar with no X window, as a Wayland
-/// one has, is never the active X window, and pa3ds cannot tell whether it is in front: it is
-/// taken to be while it runs. With no X display at all, it always is, so that speech is never
-/// lost to a question pa3ds cannot ask.
+/// as on Windows, for speech: where pa3ds cannot tell (`front_known`), it is taken to be, so
+/// that speech is never lost to a question pa3ds cannot ask.
 #[cfg(target_os = "linux")]
 pub fn in_front(emulator: &str) -> bool {
+    front_known(emulator).unwrap_or(true)
+}
+
+/// Whether X says the emulator's window showing the game is in front, or None where it cannot
+/// tell: no X display, a window manager that names no active window (`_NET_ACTIVE_WINDOW`), or
+/// an Azahar with no X window, as a Wayland one has. The keys take nothing on None, since a key
+/// grabbed is taken from whatever program is in front.
+#[cfg(target_os = "linux")]
+pub fn front_known(emulator: &str) -> Option<bool> {
     x11::with(|x| {
-        let active = x.windows(x.root, x.active)?.first().copied().unwrap_or(0);
-        if active != 0 && x.is_emulator(active, emulator) {
-            return Ok(shows_game(&x.title(active)));
-        }
-        let clients = x.windows(x.root, x.clients)?;
-        let on_x = clients
-            .into_iter()
-            .any(|window| x.is_emulator(window, emulator));
-        Ok(!on_x && emulator_pid(emulator) != 0)
+        let active = x.windows(x.root, x.active)?.map(|active| {
+            let active = active.first().copied().unwrap_or(0);
+            (active != 0 && x.is_emulator(active, emulator)).then(|| shows_game(&x.title(active)))
+        });
+        let on_x = || {
+            let clients = x.windows(x.root, x.clients).ok().flatten()?;
+            let on_x = clients
+                .iter()
+                .any(|&window| x.is_emulator(window, emulator));
+            wayland_note(on_x);
+            Some(on_x)
+        };
+        Ok(known_front(active, on_x, || emulator_pid(emulator) != 0))
     })
-    .unwrap_or(true)
+    .flatten()
+}
+
+/// Say once why no keys are taken from an Azahar running as a Wayland window: once it has run
+/// 5 s with no X window, as one starting under XWayland has none for its first moments.
+#[cfg(target_os = "linux")]
+fn wayland_note(on_x: bool) {
+    use std::time::{Duration, Instant};
+    static SINCE: Mutex<Option<Instant>> = Mutex::new(None);
+    static SAID: std::sync::Once = std::sync::Once::new();
+    let mut since = SINCE.lock().unwrap_or_else(PoisonError::into_inner);
+    if on_x || std::env::var_os("WAYLAND_DISPLAY").is_none() {
+        *since = None;
+        return;
+    }
+    if since.get_or_insert_with(Instant::now).elapsed() >= Duration::from_secs(5) {
+        SAID.call_once(|| {
+            // shortcut: on stderr, as the key thread has no hold of the runtime's log; pass it
+            // the log if players need the line in the file.
+            eprintln!(
+                "Azahar has no X window, as a Wayland one has none: pa3ds cannot tell whether \
+                 it is in front, so it takes no keys. Start Azahar under XWayland, with \
+                 QT_QPA_PLATFORM=xcb."
+            );
+        });
+    }
+}
+
+/// `front_known`'s rule, from what X said. `active` is None where X names no active window,
+/// Some(None) where the active window is none or not the emulator's, and Some(Some(..)) where it
+/// is the emulator's, with whether it shows the game; `on_x` whether any window X manages is the
+/// emulator's, None where X lists none; `running` whether the emulator runs at all.
+#[cfg(any(target_os = "linux", test))]
+pub(crate) fn known_front(
+    active: Option<Option<bool>>,
+    on_x: impl FnOnce() -> Option<bool>,
+    running: impl FnOnce() -> bool,
+) -> Option<bool> {
+    if let Some(Some(shows)) = active {
+        return Some(shows);
+    }
+    if !running() {
+        return Some(false);
+    }
+    // Another window is active and the emulator's are among X's: they are behind it.
+    match (active, on_x()) {
+        (Some(None), Some(true)) => Some(false),
+        _ => None,
+    }
 }
 
 /// Every titled X window of the emulator's: `_NET_CLIENT_LIST`, the windows the window manager
@@ -526,6 +777,7 @@ pub fn in_front(emulator: &str) -> bool {
 pub fn titles(emulator: &str) -> Vec<String> {
     let found = x11::with(|x| {
         Ok(x.windows(x.root, x.clients)?
+            .unwrap_or_default()
             .into_iter()
             .filter(|&window| x.is_emulator(window, emulator))
             .map(|window| x.title(window))
@@ -610,13 +862,23 @@ mod x11 {
                 .reply()
         }
 
-        /// A property of a window's that lists windows.
-        pub fn windows(&self, window: Window, property: Atom) -> Result<Vec<Window>, ReplyError> {
+        /// A property of a window's that lists windows, or None where the window has no such
+        /// property, as a window manager without it leaves the root.
+        pub fn windows(
+            &self,
+            window: Window,
+            property: Atom,
+        ) -> Result<Option<Vec<Window>>, ReplyError> {
             let reply = self.property(window, property, AtomEnum::WINDOW)?;
-            Ok(reply
-                .value32()
-                .map(|windows| windows.collect())
-                .unwrap_or_default())
+            if reply.type_ == u32::from(AtomEnum::NONE) {
+                return Ok(None);
+            }
+            Ok(Some(
+                reply
+                    .value32()
+                    .map(|windows| windows.collect())
+                    .unwrap_or_default(),
+            ))
         }
 
         /// A window's title, or "" where it has none or has gone.
@@ -720,5 +982,39 @@ pub fn emulator_folder(emulator: &str) -> Option<PathBuf> {
     match emulator_pid(emulator) {
         0 => None,
         pid => working_folder(pid),
+    }
+}
+
+#[cfg(test)]
+mod checks {
+    use super::known_front;
+
+    #[test]
+    fn the_emulators_window_active_is_in_front_by_its_title() {
+        assert_eq!(known_front(Some(Some(true)), || None, || true), Some(true));
+        assert_eq!(
+            known_front(Some(Some(false)), || None, || true),
+            Some(false)
+        );
+    }
+
+    #[test]
+    fn another_window_active_is_known_only_while_the_emulator_has_one_on_x() {
+        assert_eq!(known_front(Some(None), || Some(true), || true), Some(false));
+        // A Wayland Azahar, or a window manager that lists no windows.
+        assert_eq!(known_front(Some(None), || Some(false), || true), None);
+        assert_eq!(known_front(Some(None), || None, || true), None);
+    }
+
+    #[test]
+    fn no_active_window_named_is_not_known() {
+        assert_eq!(known_front(None, || Some(true), || true), None);
+        assert_eq!(known_front(None, || Some(false), || true), None);
+    }
+
+    #[test]
+    fn no_emulator_running_is_never_in_front() {
+        assert_eq!(known_front(None, || None, || false), Some(false));
+        assert_eq!(known_front(Some(None), || None, || false), Some(false));
     }
 }
