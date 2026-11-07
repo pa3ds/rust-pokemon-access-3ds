@@ -59,7 +59,7 @@ jobs:
         include:
           - os: macos-latest
             package: macos.zip
-          - os: ubuntu-24.04
+          - os: ubuntu-22.04
             package: linux.tar.gz
     runs-on: ${{ matrix.os }}
     env:

@@ -32,8 +32,8 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
   window, pa3ds hears none of its keys.
 - **Dragging on Linux**: holding Shift alone does not drag in touch mode. Set `drag` to
   `"toggle"`, or move drag to another key ([Keys](keys.md)).
-- **The Linux package** needs glibc 2.39 or newer, as Ubuntu 24.04 and Fedora 40 have, and does
-  not start on an older Linux such as Debian 12.
+- **The Linux package** needs glibc 2.35 or newer (Ubuntu 22.04, Debian 12, Fedora 36 and
+  later), and Speech Dispatcher installed, as it is wherever Orca is.
 
 ## The map
 
