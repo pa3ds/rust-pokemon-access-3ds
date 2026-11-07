@@ -1,7 +1,7 @@
 # Pushing a version tag (`/release` does, `.claude/skills/release/SKILL.md`) builds the release zip
 # on Windows and publishes it as that tag's GitHub release, its description the tag's section of
-# CHANGELOG.md. Every pa3ds.exe offers the newest release to its player when it starts
-# (`src/update.rs`).
+# CHANGELOG.md, then adds the macOS and Linux packages to it. Every packaged pa3ds offers the
+# newest release to its player when it starts (`src/update.rs`).
 name: release
 
 on:
@@ -48,3 +48,42 @@ jobs:
         with:
           name: package
           path: target/package/*.zip
+
+  # The experimental macOS and Linux packages, added to the release the Windows job made, with the
+  # same build tools as unix.yml.
+  unix:
+    needs: release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            package: macos.zip
+          - os: ubuntu-24.04
+            package: linux.tar.gz
+    runs-on: ${{ matrix.os }}
+    env:
+      MACOSX_DEPLOYMENT_TARGET: "13.0"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build tools (macOS)
+        if: runner.os == 'macOS'
+        run: brew install cmake || brew upgrade cmake
+      - name: Build tools (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libspeechd-dev pkg-config
+          pipx install "cmake>=4.2"
+      - name: Package
+        run: sh tools/package.sh --skip-tests
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$GITHUB_REF_NAME" "target/package/pa3ds-${GITHUB_REF_NAME#v}-${{ matrix.package }}"
+      - uses: actions/upload-artifact@v4
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        with:
+          name: package-${{ runner.os }}
+          path: target/package/pa3ds-*-${{ matrix.package }}

@@ -9,7 +9,8 @@ The mod settings change them for you: in pa3ds's window, Settings in the **Mod**
 tab for each table below, and Ctrl+Tab and Ctrl+Shift+Tab change the tab from anywhere in it; Tab
 walks a tab's settings, each said with what it does after it. A relative volume is in percent there, 100 as loud as the game. OK and Apply write only the
 settings you changed, and ask whether to restart pa3ds now for them to take effect; otherwise
-they take effect the next time pa3ds starts.
+they take effect the next time pa3ds starts. On macOS and Linux there is no window: edit
+`user/config.toml` in a text editor, and start pa3ds again for a change to take effect.
 
 | Setting | Default | What it does |
 |---|---|---|

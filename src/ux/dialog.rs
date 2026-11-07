@@ -22,6 +22,9 @@
 //! comes back the way a keypress does, through a queue the runtime drains at the next poll. One at a
 //! time: a second ask while one is open is refused rather than stacking boxes over the game.
 //!
+//! **On macOS and Linux** the port's own, as an experiment: the box is the system's own dialog,
+//! shown by `osascript`, `zenity` or `kdialog` (`native`), on the same thread of its own.
+//!
 //! Bound by:
 //! - ADR-0023: a rename is a native box on a thread of its own, and the new name is said back as
 //!   stored.
@@ -466,16 +469,245 @@ pub fn ask(title: &str, label: &str, current: &str, check: &str) -> Result<Optio
     Ok(ASKING.with(|asking| asking.borrow_mut().take().and_then(|asking| asking.answer)))
 }
 
-// The runtime is Windows; this keeps the import working elsewhere.
-
+/// `ask` on macOS and Linux: the system's own dialog (`native`), with the checkbox as a second,
+/// yes-or-no question asked after the name, since neither has a text box with a checkbox in it.
 #[cfg(not(windows))]
-pub fn ask(
-    _title: &str,
-    _label: &str,
-    _current: &str,
-    _check: &str,
-) -> Result<Option<(String, bool)>> {
-    Err(Error::new(Kind::OsError, "a dialog needs Windows"))
+pub fn ask(title: &str, label: &str, current: &str, check: &str) -> Result<Option<(String, bool)>> {
+    native::ask(title, label, current, check).map_err(|error| Error::new(Kind::OsError, error))
+}
+
+/// The dialogs of macOS and Linux, each one a run of the program the system has for it:
+/// `osascript` on macOS, `zenity` or else `kdialog` on Linux. VoiceOver and Orca read them as
+/// they read any program's. Every word goes to the program as an argument of its own, never into
+/// a script's text, so a name is never read as AppleScript. A dialog cancelled is None; Err is a
+/// dialog that could not be shown.
+#[cfg(not(windows))]
+pub mod native {
+    use std::path::{Path, PathBuf};
+    use std::process::Command;
+
+    use super::LIMIT;
+
+    /// `osascript` running `script`'s `on run argv` with `argv`.
+    #[cfg(target_os = "macos")]
+    fn osascript(script: &str, argv: &[&str]) -> Command {
+        let mut command = Command::new("/usr/bin/osascript");
+        command.arg("-e").arg(script).args(argv);
+        command
+    }
+
+    /// The Linux dialog program installed, zenity before kdialog.
+    #[cfg(not(target_os = "macos"))]
+    fn tool() -> Result<&'static str, String> {
+        let path = std::env::var_os("PATH").unwrap_or_default();
+        ["zenity", "kdialog"]
+            .into_iter()
+            .find(|tool| std::env::split_paths(&path).any(|dir| dir.join(tool).is_file()))
+            .ok_or_else(|| "neither zenity nor kdialog is installed".to_string())
+    }
+
+    /// What the dialog printed, its last newline off, or None when it was cancelled.
+    fn run(command: &mut Command) -> Result<Option<String>, String> {
+        let output = command.output().map_err(|error| error.to_string())?;
+        outcome(output.status.code(), &output.stdout, &output.stderr)
+    }
+
+    /// `run`'s answer from how the dialog ended. zenity and kdialog end 1 when cancelled;
+    /// osascript ends 1 for any error, and says -128 for the one that is a cancel.
+    pub(super) fn outcome(
+        code: Option<i32>,
+        stdout: &[u8],
+        stderr: &[u8],
+    ) -> Result<Option<String>, String> {
+        let said = String::from_utf8_lossy(stderr);
+        match code {
+            Some(0) => {
+                let printed = String::from_utf8_lossy(stdout);
+                Ok(Some(
+                    printed.strip_suffix('\n').unwrap_or(&printed).to_string(),
+                ))
+            }
+            Some(1) if !cfg!(target_os = "macos") || said.contains("(-128)") => Ok(None),
+            _ => Err(match said.trim() {
+                "" => format!("the dialog ended with {code:?}"),
+                said => said.to_string(),
+            }),
+        }
+    }
+
+    /// The name given, cut to `LIMIT` characters as the Windows box's edit is.
+    fn name(said: &str) -> String {
+        said.chars().take(LIMIT as usize).collect()
+    }
+
+    /// A name, starting as `current`, and whether `check` was answered yes, where there is one.
+    #[cfg(target_os = "macos")]
+    pub fn ask(
+        title: &str,
+        label: &str,
+        current: &str,
+        check: &str,
+    ) -> Result<Option<(String, bool)>, String> {
+        // Printed as the checkbox's answer, 1 or 0, then the name: a cancel of the second
+        // dialog is a box left unticked, not a rename cancelled.
+        const SCRIPT: &str = r#"on run argv
+    activate
+    set answer to text returned of (display dialog (item 2 of argv) with title (item 1 of argv) default answer (item 3 of argv))
+    set ticked to "0"
+    if (item 4 of argv) is not "" then
+        try
+            display dialog (item 4 of argv) with title (item 1 of argv)
+            set ticked to "1"
+        end try
+    end if
+    return ticked & answer
+end run"#;
+        let printed = run(&mut osascript(SCRIPT, &[title, label, current, check]))?;
+        Ok(printed.map(|printed| {
+            let (ticked, said) = printed.split_at(printed.len().min(1));
+            (name(said), ticked == "1")
+        }))
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    pub fn ask(
+        title: &str,
+        label: &str,
+        current: &str,
+        check: &str,
+    ) -> Result<Option<(String, bool)>, String> {
+        let tool = tool()?;
+        let mut entry = Command::new(tool);
+        match tool {
+            "zenity" => entry.args(["--entry", "--title", title, "--text", label]),
+            _ => entry.args(["--title", title, "--inputbox", label]),
+        };
+        match tool {
+            "zenity" => entry.args(["--entry-text", current]),
+            _ => entry.arg(current),
+        };
+        let Some(said) = run(&mut entry)? else {
+            return Ok(None);
+        };
+        let ticked = !check.is_empty() && confirm(title, check).unwrap_or(false);
+        Ok(Some((name(&said), ticked)))
+    }
+
+    /// Whether the player answers yes to `text`. Cancel, or No, is false.
+    pub fn confirm(title: &str, text: &str) -> Result<bool, String> {
+        #[cfg(target_os = "macos")]
+        let mut command = osascript(
+            "on run argv\nactivate\ndisplay dialog (item 2 of argv) with title (item 1 of argv)\nend run",
+            &[title, text],
+        );
+        #[cfg(not(target_os = "macos"))]
+        let mut command = match tool()? {
+            "zenity" => {
+                let mut command = Command::new("zenity");
+                command.args([
+                    "--question",
+                    "--no-markup",
+                    "--title",
+                    title,
+                    "--text",
+                    text,
+                ]);
+                command
+            }
+            tool => {
+                let mut command = Command::new(tool);
+                command.args(["--title", title, "--yesno", text]);
+                command
+            }
+        };
+        run(&mut command).map(|answer| answer.is_some())
+    }
+
+    /// `text` told to the player, until they close it.
+    pub fn tell(title: &str, text: &str) -> Result<(), String> {
+        #[cfg(target_os = "macos")]
+        let mut command = osascript(
+            "on run argv\nactivate\ndisplay alert (item 1 of argv) message (item 2 of argv)\nend run",
+            &[title, text],
+        );
+        #[cfg(not(target_os = "macos"))]
+        let mut command = match tool()? {
+            "zenity" => {
+                let mut command = Command::new("zenity");
+                command.args(["--info", "--no-markup", "--title", title, "--text", text]);
+                command
+            }
+            tool => {
+                let mut command = Command::new(tool);
+                command.args(["--title", title, "--msgbox", text]);
+                command
+            }
+        };
+        run(&mut command).map(drop)
+    }
+
+    /// The folder the player picks, starting in `initial` where it is one and the home folder
+    /// otherwise; None when they cancel.
+    pub fn folder(title: &str, initial: &Path) -> Result<Option<PathBuf>, String> {
+        let home = std::env::var_os("HOME").map(PathBuf::from);
+        let start = match initial.is_dir() {
+            true => initial.to_path_buf(),
+            false => home.unwrap_or_else(|| PathBuf::from("/")),
+        };
+        let start = start.to_string_lossy();
+        #[cfg(target_os = "macos")]
+        let mut command = osascript(
+            "on run argv\nactivate\nreturn POSIX path of (choose folder with prompt (item 1 of argv) default location (POSIX file (item 2 of argv)))\nend run",
+            &[title, &start],
+        );
+        #[cfg(not(target_os = "macos"))]
+        let mut command = match tool()? {
+            "zenity" => {
+                let mut command = Command::new("zenity");
+                // The trailing slash opens the picker inside the folder rather than beside it.
+                let start = format!("{}/", start.trim_end_matches('/'));
+                command.args(["--file-selection", "--directory", "--title", title]);
+                command.args(["--filename", &start]);
+                command
+            }
+            tool => {
+                let mut command = Command::new(tool);
+                command.args(["--title", title, "--getexistingdirectory", &start]);
+                command
+            }
+        };
+        Ok(run(&mut command)?.map(PathBuf::from))
+    }
+}
+
+#[cfg(all(test, not(windows)))]
+mod native_tests {
+    use super::native::outcome;
+
+    #[test]
+    fn a_dialog_answered_is_what_it_printed_without_its_newline() {
+        assert_eq!(
+            outcome(Some(0), b"Sign\n", b""),
+            Ok(Some("Sign".to_string()))
+        );
+    }
+
+    #[test]
+    fn a_dialog_cancelled_is_none() {
+        let said: &[u8] = match cfg!(target_os = "macos") {
+            true => b"execution error: User canceled. (-128)\n",
+            false => b"",
+        };
+        assert_eq!(outcome(Some(1), b"", said), Ok(None));
+    }
+
+    #[test]
+    fn a_dialog_that_failed_says_why() {
+        assert_eq!(
+            outcome(Some(255), b"", b"cannot open display\n"),
+            Err("cannot open display".to_string())
+        );
+    }
 }
 
 /// `threading.Thread`, as far as `Asker` uses one: started, asked if it is alive, and joined with

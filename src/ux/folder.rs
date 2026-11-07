@@ -181,11 +181,8 @@ mod picker {
     }
 }
 
+/// On macOS and Linux, the system's own folder picker (`dialog::native`).
 #[cfg(not(windows))]
 mod picker {
-    use std::path::{Path, PathBuf};
-
-    pub fn choose(_title: &str, _initial: &Path) -> Result<Option<PathBuf>, String> {
-        Ok(None)
-    }
+    pub use crate::ux::dialog::native::folder as choose;
 }
