@@ -618,3 +618,29 @@ impl Hotkeys {
         lock(&self.state.pressed).drain(..).collect()
     }
 }
+
+/// No keyboard hook off Windows: `app::start_hotkeys` never starts one there.
+#[cfg(not(windows))]
+pub struct Hotkeys;
+
+#[cfg(not(windows))]
+impl Hotkeys {
+    pub fn of<S: AsRef<str>, R: AsRef<str>>(
+        _keys: impl IntoIterator<Item = S>,
+        _released: impl IntoIterator<Item = R>,
+    ) -> Self {
+        Hotkeys
+    }
+
+    pub fn start(&mut self) -> crate::py::Result<String> {
+        Ok("keys need Windows".to_string())
+    }
+
+    pub fn stop(&self) {}
+
+    pub fn set_contextual(&self, _keys: HashSet<String>) {}
+
+    pub fn pressed(&self) -> Vec<String> {
+        Vec::new()
+    }
+}
