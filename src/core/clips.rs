@@ -3,8 +3,9 @@
 //!
 //! A clip is one or more sounds played together, mixed into one as a game starts (`mix`): the
 //! game's own, decoded out of the player's ROM (`bcsar`), and WAV files of pa3ds's own (`wave`). It
-//! plays through Windows' waveOut on the default output, where Azahar's sound goes while its output
-//! device is Auto, which mixes it with the game's. A clip cuts off the one before it on the same
+//! plays through Windows' waveOut on the default output, or off Windows the default output
+//! (`audio`), where Azahar's sound goes while its output device is Auto, which mixes it with the
+//! game's. A clip cuts off the one before it on the same
 //! voice, an output of its own: a footstep the last, a key's sound the last. The Pokémon's cries
 //! have a voice a side, so each cuts off only its own Pokémon's, and the three can be heard over
 //! each other as the game's sounds are (Orion, 2026-11-02: waiting their turn, a cry would come
@@ -104,9 +105,6 @@ impl Clips {
         let Some(sound) = self.sounds.borrow().get(name).cloned() else {
             return Ok(());
         };
-        if !cfg!(windows) {
-            return Ok(());
-        }
         let level =
             sound.volume * uniform(sound.quietest, 1.0) * self.loudness.azahar() * self.level;
         // ponytail: the sequence's random pitch bend is left out; add it if steps sound alike.
@@ -450,17 +448,27 @@ mod waveout {
 
 #[cfg(not(windows))]
 mod waveout {
-    use crate::py::{Error, Kind, Result};
+    use crate::core::audio::Output;
+    use crate::py::Result;
 
+    /// The default output, stereo 16-bit at one rate, open for good: a clip cuts off what is
+    /// still to play and plays.
     pub struct WaveOut {
         pub rate: i64,
+        out: Output,
     }
 
     impl WaveOut {
-        pub fn new(_rate: i64) -> Result<Self> {
-            Err(Error::new(Kind::OsError, "no sound device for clips"))
+        pub fn new(rate: i64) -> Result<Self> {
+            Ok(WaveOut {
+                rate,
+                out: Output::open(rate)?,
+            })
         }
 
-        pub fn play(&mut self, _data: &[u8]) {}
+        pub fn play(&mut self, data: &[u8]) {
+            self.out.clear();
+            self.out.write(data);
+        }
     }
 }

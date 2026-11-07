@@ -36,6 +36,8 @@ pub mod touch;
 
 pub mod instance;
 
+#[cfg(not(windows))]
+pub mod audio;
 pub mod bcsar;
 pub mod clips;
 pub mod loudness;
