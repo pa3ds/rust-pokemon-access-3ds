@@ -45,6 +45,8 @@ struct Home {
     _lock: MutexGuard<'static, ()>,
     root: TmpDir,
     home: PathBuf,
+    #[cfg(not(windows))]
+    real_home: Option<std::ffi::OsString>,
 }
 
 impl Home {
@@ -61,10 +63,21 @@ impl Home {
             // test.
             std::env::set_var("APPDATA", root.path().join("appdata"));
         }
+        // And under HOME and XDG_CONFIG_HOME off Windows (`keyfile.azahar_config`).
+        #[cfg(not(windows))]
+        let real_home = std::env::var_os("HOME");
+        #[cfg(not(windows))]
+        // SAFETY: as above.
+        unsafe {
+            std::env::set_var("HOME", root.path());
+            std::env::set_var("XDG_CONFIG_HOME", root.path().join("appdata"));
+        }
         Home {
             _lock: lock,
             root,
             home,
+            #[cfg(not(windows))]
+            real_home,
         }
     }
 
@@ -77,6 +90,11 @@ impl Drop for Home {
     fn drop(&mut self) {
         // SAFETY: as in `new`.
         unsafe { std::env::remove_var(keyfile::HOME_ENV) };
+        #[cfg(not(windows))]
+        if let Some(real_home) = &self.real_home {
+            // SAFETY: as in `new`.
+            unsafe { std::env::set_var("HOME", real_home) };
+        }
     }
 }
 
@@ -1206,11 +1224,18 @@ fn test_the_games_own_words_come_from_the_rom_azahar_last_opened() {
     let home = Home::new();
     let locked = game_rom(home.tmp(), GAME.1 as i64, true);
     let wanted = game_rom(home.tmp(), GAME.1 as i64, false);
+    #[cfg(windows)]
     let config = home
         .tmp()
         .join("appdata")
         .join("Azahar")
         .join("config")
+        .join("qt-config.ini");
+    #[cfg(not(windows))]
+    let config = home
+        .tmp()
+        .join("appdata")
+        .join(keyfile::EMU_DATA_DIR)
         .join("qt-config.ini");
     std::fs::create_dir_all(config.parent().unwrap()).unwrap();
     let posix = |path: &Path| path.to_string_lossy().replace('\\', "/");

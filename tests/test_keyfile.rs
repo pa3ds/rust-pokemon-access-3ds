@@ -14,6 +14,7 @@ use indexmap::IndexMap;
 
 use crate::core::keyfile::{self, Asked, Bindings, Wanted};
 use crate::core::keys::{Released, WM_KEYDOWN, WM_KEYUP, WM_SYSKEYDOWN, bound, modified, track};
+use crate::core::window;
 
 const LIST: &str = "list";
 const DIRECTION: &str = "direction";
@@ -1007,7 +1008,7 @@ fn test_a_missing_emulator_config_is_said_and_nothing_else_stops() {
 #[test]
 fn test_a_portable_azahar_is_the_folder_with_azahar_exe_and_a_user_folder() {
     let tmp_path = TmpPath::new();
-    fs::write(tmp_path.join("azahar.exe"), b"").unwrap();
+    fs::write(tmp_path.join(window::EMULATOR), b"").unwrap();
     assert!(keyfile::portable(&tmp_path).is_err());
     fs::create_dir(tmp_path.join("user")).unwrap();
     assert_eq!(keyfile::portable(&tmp_path), Ok(tmp_path.to_path_buf()));
@@ -1031,8 +1032,87 @@ fn test_a_folder_that_is_not_a_portable_azahar_says_why() {
             .unwrap_err()
             .contains("no azahar.exe")
     );
-    fs::write(empty.join("azahar.exe"), b"").unwrap();
+    fs::write(empty.join(window::EMULATOR), b"").unwrap();
     assert!(keyfile::portable(&empty).unwrap_err().contains("AppData"));
+}
+
+/// Off Windows, Azahar is a build's `azahar`, `Azahar.app` or an AppImage of a release's name,
+/// in any case; a folder named `azahar`, or anything else, is not.
+#[test]
+fn test_azahar_off_windows_is_its_executable_its_app_or_its_appimage() {
+    for (name, is_dir) in [
+        ("azahar", false),
+        ("Azahar", false),
+        ("Azahar.app", true),
+        ("azahar-2123.1-x86_64.AppImage", false),
+        ("Azahar.AppImage", false),
+    ] {
+        assert!(keyfile::is_azahar(name, is_dir), "{name}");
+    }
+    for (name, is_dir) in [
+        ("azahar", true),
+        ("Azahar.app", false),
+        ("azahar.exe", false),
+        ("azahar.AppImage.zsync", false),
+        ("citra.AppImage", false),
+    ] {
+        assert!(!keyfile::is_azahar(name, is_dir), "{name}");
+    }
+}
+
+/// Azahar's own rule (`common/file_util.cpp`): Linux reads `$XDG_CONFIG_HOME`, `~/.config` where
+/// unset, and a Flatpak's where only it is there; macOS reads the XDG folder only where one of
+/// Azahar's XDG folders exists, and otherwise Application Support.
+#[test]
+fn test_azahar_s_settings_off_windows_are_where_azahar_keeps_them() {
+    let home = Path::new("/home/player");
+    let unset = |_: &str| None;
+    let nothing = |_: &Path| false;
+    let native = home
+        .join(".config")
+        .join(keyfile::EMU_DATA_DIR)
+        .join("qt-config.ini");
+    let flatpak = home
+        .join(".var")
+        .join("app")
+        .join("org.azahar_emu.Azahar")
+        .join("config")
+        .join(keyfile::EMU_DATA_DIR)
+        .join("qt-config.ini");
+    assert_eq!(keyfile::azahar_config(home, unset, false, nothing), native);
+    let moved = |name: &str| (name == "XDG_CONFIG_HOME").then(|| PathBuf::from("/elsewhere"));
+    assert_eq!(
+        keyfile::azahar_config(home, moved, false, nothing),
+        Path::new("/elsewhere")
+            .join(keyfile::EMU_DATA_DIR)
+            .join("qt-config.ini")
+    );
+    let only_flatpak = |path: &Path| path == flatpak;
+    assert_eq!(
+        keyfile::azahar_config(home, unset, false, only_flatpak),
+        flatpak
+    );
+    let both = |path: &Path| path == flatpak || path == native;
+    assert_eq!(keyfile::azahar_config(home, unset, false, both), native);
+
+    let library = home
+        .join("Library")
+        .join("Application Support")
+        .join("Azahar")
+        .join("config")
+        .join("qt-config.ini");
+    assert_eq!(keyfile::azahar_config(home, unset, true, nothing), library);
+    assert_eq!(
+        keyfile::azahar_config(home, unset, true, only_flatpak),
+        library
+    );
+    let old_data = |path: &Path| {
+        path == home
+            .join(".local")
+            .join("share")
+            .join(keyfile::EMU_DATA_DIR)
+    };
+    assert_eq!(keyfile::azahar_config(home, unset, true, old_data), native);
 }
 
 // ---------------------------------------------------------------- modifiers
