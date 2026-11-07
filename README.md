@@ -141,7 +141,9 @@ On a Mac:
   `xattr -dr com.apple.quarantine` followed by the pa3ds folder; or Control-click `pa3ds` in
   Finder, choose Open, then Open again.
 - For pa3ds's keys, turn on the terminal you start pa3ds in (Terminal, or iTerm) in System
-  Settings, Privacy & Security, Accessibility.
+  Settings, Privacy & Security, Accessibility. This is also how pa3ds knows Azahar's game window
+  is in front: without it, pa3ds speaks while another window is in front too. Screen Recording
+  is not needed.
 - For pa3ds to speak through VoiceOver, check "Allow VoiceOver to be controlled with
   AppleScript" in VoiceOver Utility's General settings. Otherwise it speaks with the system
   voice.
@@ -149,8 +151,8 @@ On a Mac:
 On Linux:
 
 - pa3ds speaks through speech-dispatcher, as Orca does, and does not start without it installed.
-- pa3ds's keys need an X11 session. On Wayland, start Azahar under XWayland:
-  `QT_QPA_PLATFORM=xcb azahar`.
+- pa3ds's keys need an X11 session, and are taken only from Azahar's own window, never from
+  another program's. On Wayland, start Azahar under XWayland: `QT_QPA_PLATFORM=xcb azahar`.
 - pa3ds asks for a name or a folder with zenity, or kdialog where zenity is not installed.
 
 ## Updating

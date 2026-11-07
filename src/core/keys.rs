@@ -433,7 +433,11 @@ impl State {
     /// Whether the emulator's window is in front again after another was, and so whether it is
     /// now in front, which this keeps.
     fn back(&self) -> bool {
+        #[cfg(not(target_os = "linux"))]
         let front = window::in_front(&self.emulator);
+        // A key grabbed is taken from whatever program is in front, so only where X says.
+        #[cfg(target_os = "linux")]
+        let front = window::front_known(&self.emulator) == Some(true);
         let back = front && !self.front.load(Ordering::SeqCst);
         self.front.store(front, Ordering::SeqCst);
         back
@@ -903,7 +907,9 @@ mod mac {
 /// while it is held still reach the emulator, and one it does not take goes on to the window in
 /// front as if never grabbed. Shift is never grabbed, so Shift alone, "shift down" and "shift
 /// up", is not heard here, and touch mode drags only with a key bound to drag. Wayland gives no
-/// program keys it has not been given, so there pa3ds binds none.
+/// program keys it has not been given, so there pa3ds binds none; and with an Azahar X cannot
+/// show in front, a Wayland window or one under a window manager that names no active window,
+/// pa3ds grabs none (`window::front_known`).
 #[cfg(target_os = "linux")]
 mod x11 {
     use std::collections::HashSet;

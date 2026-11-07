@@ -29,7 +29,9 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
 - **Not signed by Apple**: macOS stops pa3ds the first time until you allow it (see
   [macOS and Linux](../README.md#macos-and-linux)).
 - **Keys on Linux** need an X11 session, or Azahar under XWayland. With Azahar as a Wayland
-  window, pa3ds hears none of its keys.
+  window, or a window manager that does not say which window is active, pa3ds takes no keys.
+- **Without Accessibility on a Mac**, pa3ds has no keys, and speaks while another window is
+  in front of Azahar too.
 - **Dragging on Linux**: holding Shift alone does not drag in touch mode. Set `drag` to
   `"toggle"`, or move drag to another key ([Keys](keys.md)).
 - **The Linux package** needs glibc 2.35 or newer (Ubuntu 22.04, Debian 12, Fedora 36 and
