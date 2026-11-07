@@ -5,6 +5,9 @@ name: macos
 
 on:
   workflow_dispatch:
+  # Hand runs need this file on main; a push that changes it runs it from any branch.
+  push:
+    paths: [".github/workflows/macos.yml"]
 
 jobs:
   build:
