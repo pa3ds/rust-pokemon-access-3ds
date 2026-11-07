@@ -15,6 +15,7 @@ jobs:
     # The oldest macOS the binary runs on; Prism's CMake build and rustc both follow it.
     env:
       MACOSX_DEPLOYMENT_TARGET: "13.0"
+      # build.rs links what prism-sys leaves out.
     steps:
       - uses: actions/checkout@v4
       # Prism's C23 needs CMake 4.2 or newer.
