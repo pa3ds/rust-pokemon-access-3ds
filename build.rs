@@ -1,6 +1,7 @@
 //! macOS only: prism-sys's static build links libc++ but not what its AVSpeech and VoiceOver
 //! backends call, the Apple frameworks and clang's runtime (`@available` is
-//! `__isPlatformVersionAtLeast` there), so pa3ds links them itself. Nothing on Windows.
+//! `__isPlatformVersionAtLeast` there), so pa3ds links them itself, and CoreGraphics for its
+//! keys' event tap. Nothing on Windows.
 
 use std::process::Command;
 
@@ -13,6 +14,7 @@ fn main() {
     for framework in [
         "Foundation",
         "CoreFoundation",
+        "CoreGraphics",
         "AppKit",
         "AVFoundation",
         "IOKit",

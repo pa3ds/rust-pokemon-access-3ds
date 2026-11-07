@@ -1131,13 +1131,9 @@ fn touch_server(
     }
 }
 
-/// The keyboard hook, when keys are bound and this is Windows; otherwise none, and said so.
+/// The keyboard hook, when keys are bound and it starts; otherwise none, and said so.
 fn start_hotkeys(settings: &Settings, log: &Log) -> Option<Hotkeys> {
     let keys = settings.keys.as_ref()?;
-    if !cfg!(windows) {
-        log("keys need Windows; none bound");
-        return None;
-    }
     let mut hotkeys = Hotkeys::of(bound_keys(keys), drag_keys(keys));
     match hotkeys.start() {
         Ok(error) if !error.is_empty() => {
