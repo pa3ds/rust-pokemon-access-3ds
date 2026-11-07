@@ -32,8 +32,9 @@ An experiment, built and tested on every push to an `os/...` branch
 (`.github/workflows/unix.yml`). Building needs Rust, a C and C++ compiler (Xcode's command line
 tools on macOS) and CMake 4.2 or newer on the path (`brew install cmake`, or `pipx install
 "cmake>=4.2"`); on Linux also ALSA's and speech-dispatcher's headers and pkg-config, on Debian and
-Ubuntu `sudo apt-get install libasound2-dev libspeechd-dev pkg-config`. `cargo build --release`
-makes `target/release/pa3ds`. Set `MACOSX_DEPLOYMENT_TARGET=13.0`, as CI does, for a Mac binary
+Ubuntu `sudo apt-get install libasound2-dev libspeechd-dev pkg-config`, and GCC 13 or newer for
+Prism (`CC=gcc-13 CXX=g++-13`), whose C++ library `build.rs` links in so the binary runs on glibc
+2.35. `cargo build --release` makes `target/release/pa3ds`. Set `MACOSX_DEPLOYMENT_TARGET=13.0`, as CI does, for a Mac binary
 that runs on macOS 13 and later.
 
 ```

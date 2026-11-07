@@ -72,12 +72,13 @@ jobs:
       - name: Build tools (Linux)
         if: runner.os == 'Linux'
         run: |
+          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
           sudo apt-get update
-          sudo apt-get install -y libasound2-dev libspeechd-dev pkg-config g++-12
-          # Prism includes C++23 <expected>, which 22.04 has from GCC 12 on, not its default 11.
-          echo "CC=gcc-12" >> "$GITHUB_ENV"
-          echo "CXX=g++-12" >> "$GITHUB_ENV"
-          echo "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=gcc-12" >> "$GITHUB_ENV"
+          sudo apt-get install -y libasound2-dev libspeechd-dev pkg-config g++-13
+          # Prism needs GCC 13's C++ library; build.rs links it in whole (glibc 2.35 is all it asks).
+          echo "CC=gcc-13" >> "$GITHUB_ENV"
+          echo "CXX=g++-13" >> "$GITHUB_ENV"
+          echo "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=gcc-13" >> "$GITHUB_ENV"
           pipx install "cmake>=4.2"
       - name: Package
         run: sh tools/package.sh --skip-tests
