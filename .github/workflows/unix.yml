@@ -27,7 +27,11 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libasound2-dev libspeechd-dev pkg-config
+          sudo apt-get install -y libasound2-dev libspeechd-dev pkg-config g++-12
+          # Prism includes C++23 <expected>, which 22.04 has from GCC 12 on, not its default 11.
+          echo "CC=gcc-12" >> "$GITHUB_ENV"
+          echo "CXX=g++-12" >> "$GITHUB_ENV"
+          echo "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=gcc-12" >> "$GITHUB_ENV"
           pipx install "cmake>=4.2"
       - name: Build
         run: cargo build --release
@@ -37,6 +41,15 @@ jobs:
       - name: Test
         if: ${{ !cancelled() }}
         run: cargo test --lib
+      # The package's promise in manual/known-issues.md: glibc 2.35, and GCC 12's libstdc++
+      # (GLIBCXX 3.4.30), as Ubuntu 22.04 and Debian 12 have.
+      - name: Needs no newer glibc than 2.35 (Linux)
+        if: ${{ !cancelled() && runner.os == 'Linux' }}
+        run: |
+          objdump -T target/release/pa3ds | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1 | tee glibc
+          objdump -T target/release/pa3ds | grep -o 'GLIBCXX_[0-9.]*' | sort -uV | tail -1
+          [ "$(printf '%s\nGLIBC_2.35\n' "$(cat glibc)" | sort -V | tail -1)" = GLIBC_2.35 ]
+          ldd target/release/pa3ds
       - name: Starts and stops with no Azahar
         if: ${{ !cancelled() }}
         run: ./target/release/pa3ds --silent --no-log --seconds 3

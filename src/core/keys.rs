@@ -793,7 +793,8 @@ mod mac {
         fn CFRunLoopGetCurrent() -> Ref;
         fn CFRunLoopAddSource(run_loop: Ref, source: Ref, mode: Ref);
         fn CFRunLoopRunInMode(mode: Ref, seconds: f64, after_one: u8) -> i32;
-        fn CFRelease(object: Ref);
+        // `CFTypeRef` is `const void *`, as `window`'s declaration has it.
+        fn CFRelease(object: *const c_void);
         static kCFRunLoopDefaultMode: Ref;
     }
 
