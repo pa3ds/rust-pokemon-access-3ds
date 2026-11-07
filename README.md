@@ -148,7 +148,7 @@ On a Mac:
 
 On Linux:
 
-- pa3ds speaks through speech-dispatcher, as Orca does.
+- pa3ds speaks through speech-dispatcher, as Orca does, and does not start without it installed.
 - pa3ds's keys need an X11 session. On Wayland, start Azahar under XWayland:
   `QT_QPA_PLATFORM=xcb azahar`.
 - pa3ds asks for a name or a folder with zenity, or kdialog where zenity is not installed.
