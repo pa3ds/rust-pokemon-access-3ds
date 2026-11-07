@@ -669,7 +669,7 @@ fn test_a_portable_azahar_beside_pa3ds_is_found_over_an_old_appdata_config() {
         let ini = folder.join("user").join("config").join("qt-config.ini");
         fs::create_dir_all(ini.parent().unwrap()).unwrap();
         fs::write(&ini, emulator_text()).unwrap();
-        fs::write(folder.join("azahar.exe"), b"").unwrap();
+        fs::write(folder.join(crate::core::window::EMULATOR), b"").unwrap();
         ini
     }
 

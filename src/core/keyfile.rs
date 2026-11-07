@@ -43,7 +43,9 @@
 //!
 //! Where `qt-config.ini` is: `%APPDATA%\Azahar\config`, or `user\config` beside `azahar.exe` for a
 //! portable Azahar, which Azahar is whenever it finds a `user` folder there. A player with a
-//! portable one names its folder in `[pa3ds] azahar_folder` (`emulator_config`, `portable`).
+//! portable one names its folder in `[pa3ds] azahar_folder` (`emulator_config`, `portable`). On
+//! macOS and Linux, Azahar looks for that `user` folder in the folder it was started in, and
+//! otherwise keeps its settings where `azahar_config` says.
 //!
 //! Azahar saves `qt-config.ini` over whatever is there when it closes
 //! (`GMainWindow::closeEvent`), so a patch written while it runs is lost. pa3ds patches at every
@@ -336,11 +338,89 @@ pub fn emulator_config(folder: &str) -> Result<PathBuf> {
             .join("config")
             .join("qt-config.ini"));
     }
+    own_config()
+}
+
+#[cfg(windows)]
+fn own_config() -> Result<PathBuf> {
     let root = match std::env::var_os("APPDATA").filter(|root| !root.is_empty()) {
         Some(root) => PathBuf::from(root),
         None => home()?,
     };
     Ok(root.join("Azahar").join("config").join("qt-config.ini"))
+}
+
+#[cfg(not(windows))]
+fn own_config() -> Result<PathBuf> {
+    Ok(azahar_config(
+        &home()?,
+        |name| {
+            std::env::var_os(name)
+                .filter(|value| !value.is_empty())
+                .map(PathBuf::from)
+        },
+        cfg!(target_os = "macos"),
+        |path| path.exists(),
+    ))
+}
+
+/// The folder Azahar keeps its settings in under each XDG folder. Joined, since `test_words`
+/// takes a literal of its shape for a message's id.
+pub const EMU_DATA_DIR: &str = concat!("azahar", "-emu");
+
+/// Azahar's `qt-config.ini` on macOS and Linux with no `user` folder where it was started, as
+/// its `common/file_util.cpp` (`SetUserPath`) decides: `azahar-emu` in `$XDG_CONFIG_HOME`,
+/// which is `~/.config` where unset. A Flatpak Azahar sees its own `$XDG_CONFIG_HOME` under
+/// `~/.var/app`, read where the native file is not there and the Flatpak's is. On macOS the XDG
+/// folders are Azahar's only where one of them, data, config or cache, is left from a setup
+/// before, and otherwise `~/Library/Application Support/Azahar/config`.
+///
+/// `xdg` reads an environment variable and `exists` the disk, a test's own.
+pub fn azahar_config(
+    home: &Path,
+    xdg: impl Fn(&str) -> Option<PathBuf>,
+    macos: bool,
+    exists: impl Fn(&Path) -> bool,
+) -> PathBuf {
+    const INI: &str = "qt-config.ini";
+    let under = |name: &str, default: &[&str]| {
+        let base = xdg(name).unwrap_or_else(|| {
+            default
+                .iter()
+                .fold(home.to_path_buf(), |path, part| path.join(part))
+        });
+        base.join(EMU_DATA_DIR)
+    };
+    let config = under("XDG_CONFIG_HOME", &[".config"]);
+    if macos {
+        let data = under("XDG_DATA_HOME", &[".local", "share"]);
+        let cache = under("XDG_CACHE_HOME", &[".cache"]);
+        if [&data, &config, &cache]
+            .into_iter()
+            .any(|folder| exists(folder))
+        {
+            return config.join(INI);
+        }
+        return home
+            .join("Library")
+            .join("Application Support")
+            .join("Azahar")
+            .join("config")
+            .join(INI);
+    }
+    let native = config.join(INI);
+    let flatpak = home
+        .join(".var")
+        .join("app")
+        .join("org.azahar_emu.Azahar")
+        .join("config")
+        .join(EMU_DATA_DIR)
+        .join(INI);
+    if !exists(&native) && exists(&flatpak) {
+        flatpak
+    } else {
+        native
+    }
 }
 
 thread_local! {
@@ -358,6 +438,14 @@ pub fn found_portable() -> Result<Option<PathBuf>> {
         Some(folders) => folders,
         None => [window::emulator_folder(window::EMULATOR), Some(app_path()?)],
     };
+    // Off Windows the running Azahar's is the folder it was started in, and a `user` folder there
+    // is where it keeps its settings, whatever is beside it.
+    #[cfg(not(windows))]
+    if let Some(running) = &folders[0]
+        && running.join("user").is_dir()
+    {
+        return Ok(Some(running.clone()));
+    }
     for folder in folders.into_iter().flatten() {
         if let Ok(found) = portable(&folder) {
             return Ok(Some(found));
@@ -367,7 +455,8 @@ pub fn found_portable() -> Result<Option<PathBuf>> {
 }
 
 /// The folder of a portable Azahar for a folder the player chose, or why it is not one. The
-/// folder holding `azahar.exe` will do, and so will its `user` folder.
+/// folder holding `azahar.exe` will do, and so will its `user` folder. On macOS and Linux it is the
+/// folder holding Azahar: an `azahar` executable, `Azahar.app` or an `azahar` AppImage.
 pub fn portable(chosen: &Path) -> std::result::Result<PathBuf, String> {
     let is_user = chosen
         .file_name()
@@ -376,7 +465,17 @@ pub fn portable(chosen: &Path) -> std::result::Result<PathBuf, String> {
         Some(parent) if is_user => parent,
         _ => chosen,
     };
-    if !folder.join("azahar.exe").is_file() {
+    #[cfg(windows)]
+    let holds_azahar = folder.join("azahar.exe").is_file();
+    #[cfg(not(windows))]
+    let holds_azahar = std::fs::read_dir(folder).is_ok_and(|entries| {
+        entries.flatten().any(|entry| {
+            let is_dir = entry.path().is_dir();
+            is_azahar(&entry.file_name().to_string_lossy(), is_dir)
+        })
+    });
+    // The message names azahar.exe on every system: `data/` is upstream's, which has no other.
+    if !holds_azahar {
         return Err(own(
             "azahar-folder-no-exe",
             &[("folder", &py::path_str(folder))],
@@ -389,6 +488,18 @@ pub fn portable(chosen: &Path) -> std::result::Result<PathBuf, String> {
         ));
     }
     Ok(folder.to_path_buf())
+}
+
+/// Whether a folder's entry, by its name and whether it is a folder, is Azahar on macOS or
+/// Linux: the `azahar` executable a build unpacks to, `Azahar.app`, or an AppImage, which a
+/// player keeps under the name of its release (`azahar-2123.1-x86_64.AppImage`). Any case.
+pub fn is_azahar(name: &str, is_dir: bool) -> bool {
+    let name = name.to_lowercase();
+    if is_dir {
+        name == "azahar.app"
+    } else {
+        name == "azahar" || (name.starts_with("azahar") && name.ends_with(".appimage"))
+    }
 }
 
 // ---------------------------------------------------------------- parameter packages

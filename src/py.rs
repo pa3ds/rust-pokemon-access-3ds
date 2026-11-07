@@ -1342,6 +1342,7 @@ pub fn splitroot(path: &str) -> (&str, &str, &str) {
 
 /// `str(Path(text))` on Windows: separators made backslashes, doubled ones and `.` parts gone, a
 /// trailing one dropped, and an empty path `.`.
+#[cfg(windows)]
 pub fn path_text(text: &str) -> String {
     let normal = text.replace('/', "\\");
     let (drive, mut root, rest) = splitroot(&normal);
@@ -1372,12 +1373,12 @@ pub fn path_text(text: &str) -> String {
     }
 }
 
-/// `str(path)` for a `pathlib.Path` on Windows.
+/// `str(path)` for a `pathlib.Path`.
 pub fn path_str(path: &std::path::Path) -> String {
     path_text(&path.to_string_lossy())
 }
 
-/// `Path(text)` on Windows.
+/// `Path(text)`.
 pub fn to_path(text: &str) -> std::path::PathBuf {
     std::path::PathBuf::from(path_text(text))
 }
@@ -1385,6 +1386,7 @@ pub fn to_path(text: &str) -> std::path::PathBuf {
 /// `os.path.normcase(path)` on Windows: backslashes, and lower case as Windows itself lowers it
 /// (`LCMapStringEx`, which Python calls), not as Unicode does: Windows leaves some 475 characters
 /// that `str.lower()` lowers, from U+0130 to the Garay capitals, as they are.
+#[cfg(windows)]
 pub fn normcase(path: &str) -> String {
     let path = path.replace('/', "\\");
     #[cfg(windows)]
@@ -1414,7 +1416,68 @@ pub fn normcase(path: &str) -> String {
     path.to_lowercase()
 }
 
+/// `str(Path(text))` elsewhere, as `PurePosixPath` has it: `.` parts and doubled separators gone,
+/// a trailing one dropped, two leading ones kept (POSIX leaves `//` to the system) and an empty
+/// path `.`.
+#[cfg(not(windows))]
+pub fn path_text(text: &str) -> String {
+    let root = posix_root(text);
+    let tail: Vec<&str> = text
+        .split('/')
+        .filter(|part| !part.is_empty() && *part != ".")
+        .collect();
+    let text = format!("{root}{}", tail.join("/"));
+    if text.is_empty() {
+        ".".to_string()
+    } else {
+        text
+    }
+}
+
+/// The slashes a POSIX path starts with, as `posixpath` keeps them: exactly two stay two, any
+/// other number is one.
+#[cfg(not(windows))]
+fn posix_root(path: &str) -> &'static str {
+    if path.starts_with("//") && !path.starts_with("///") {
+        "//"
+    } else if path.starts_with('/') {
+        "/"
+    } else {
+        ""
+    }
+}
+
+/// `os.path.normcase(path)` elsewhere, which leaves a path as it is.
+#[cfg(not(windows))]
+pub fn normcase(path: &str) -> String {
+    path.to_string()
+}
+
+/// `os.path.normpath(path)` elsewhere, as `posixpath` has it.
+#[cfg(not(windows))]
+pub fn normpath(path: &str) -> String {
+    let root = posix_root(path);
+    let mut comps: Vec<&str> = Vec::new();
+    for comp in path.split('/') {
+        if comp.is_empty() || comp == "." {
+            continue;
+        }
+        if comp != ".." || (root.is_empty() && comps.last().is_none_or(|last| *last == "..")) {
+            comps.push(comp);
+        } else if comps.last().is_some() {
+            comps.pop();
+        }
+    }
+    let text = format!("{root}{}", comps.join("/"));
+    if text.is_empty() {
+        ".".to_string()
+    } else {
+        text
+    }
+}
+
 /// `os.path.normpath(path)` on Windows.
+#[cfg(windows)]
 pub fn normpath(path: &str) -> String {
     let path = path.replace('/', "\\");
     let (drive, root, rest) = splitroot(&path);
@@ -1583,6 +1646,22 @@ mod text_checks {
     }
 
     #[test]
+    #[cfg(not(windows))]
+    fn python_posix_paths() {
+        assert_eq!(path_text("//server/share/x"), "//server/share/x");
+        assert_eq!(path_text("///a//./b/"), "/a/b");
+        assert_eq!(path_text("a/./b//c/"), "a/b/c");
+        assert_eq!(path_text(""), ".");
+        assert_eq!(path_text("C:\\x"), "C:\\x");
+        assert_eq!(normpath("/a/../b/./c//"), "/b/c");
+        assert_eq!(normpath("/../x"), "/x");
+        assert_eq!(normpath("../a/../../b"), "../../b");
+        assert_eq!(normpath(""), ".");
+        assert_eq!(normcase("/Users/\u{130}X"), "/Users/\u{130}X");
+    }
+
+    #[test]
+    #[cfg(windows)]
     fn python_windows_paths() {
         assert_eq!(path_text("//server/share/x"), "\\\\server\\share\\x");
         assert_eq!(path_text("a/./b//c/"), "a\\b\\c");
