@@ -18,8 +18,8 @@
 //!
 //! pa3ds's own sounds, beside the game's (ADR-0025), and nothing like them is said: a tone is
 //! never the only way something is told, only where it is. One `Voice`, written a fiftieth of a
-//! second at a time to Windows' own waveOut by a thread of its own, so a tone changes without
-//! stopping.
+//! second at a time to Windows' own waveOut, or off Windows the default output (`audio`), by a
+//! thread of its own, so a tone changes without stopping.
 //!
 //! Bound by:
 //! - ADR-0025: a tone is said beside a word, never instead of one.
@@ -225,8 +225,8 @@ pub fn ticking(tones: Option<Rc<Tones>>) -> Option<Rc<dyn Fn()>> {
     }))
 }
 
-/// Plays the voice on a thread of its own, started at the first tone; silent off Windows and
-/// without a sound device.
+/// Plays the voice on a thread of its own, started at the first tone; silent without a sound
+/// device.
 pub struct Tones {
     shared: Arc<Shared>,
     thread: Mutex<Option<JoinHandle<()>>>,
@@ -259,9 +259,6 @@ impl Tones {
     }
 
     fn sound(&self) -> Result<()> {
-        if !cfg!(windows) {
-            return Ok(());
-        }
         let mut thread = self.thread.lock().unwrap_or_else(PoisonError::into_inner);
         if thread.is_none() {
             let shared = self.shared.clone();
@@ -282,7 +279,6 @@ impl Default for Tones {
     }
 }
 
-#[cfg(windows)]
 fn run(shared: &Shared) {
     let Ok(mut out) = waveout::WaveOut::new() else {
         return;
@@ -311,9 +307,6 @@ fn run(shared: &Shared) {
         }
     }
 }
-
-#[cfg(not(windows))]
-fn run(_shared: &Shared) {}
 
 #[cfg(windows)]
 mod waveout {
@@ -395,6 +388,32 @@ mod waveout {
                 waveOutWrite(self.handle, header, std::mem::size_of::<WAVEHDR>() as u32);
             }
             self.next = (self.next + 1) % BUFFERS as usize;
+        }
+    }
+}
+
+#[cfg(not(windows))]
+mod waveout {
+    use super::{BUFFER, BUFFERS, RATE};
+    use crate::core::audio::Output;
+    use crate::py::{self, Result};
+
+    /// The default output, open for good, with no more queued than waveOut's `BUFFERS` buffers.
+    pub struct WaveOut(Output);
+
+    impl WaveOut {
+        pub fn new() -> Result<Self> {
+            Ok(WaveOut(Output::open(RATE)?))
+        }
+
+        /// Queue `data`, waiting first until no more than `BUFFERS - 1` buffers are left to play,
+        /// as waveOut waits for the oldest of its buffers.
+        pub fn write(&mut self, data: &[u8]) {
+            let most = (BUFFERS - 1) as f64 * BUFFER as f64 / RATE as f64;
+            while self.0.queued() > most {
+                py::time::sleep(0.004);
+            }
+            self.0.write(data);
         }
     }
 }

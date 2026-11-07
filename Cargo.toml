@@ -41,6 +41,10 @@ windows-sys = { version = "0.61", features = [
     "Win32_UI_WindowsAndMessaging",
 ] }
 
+# Sound off Windows: CoreAudio on macOS, ALSA on Linux, which PipeWire and PulseAudio also serve.
+[target.'cfg(not(windows))'.dependencies]
+cpal = "0.15"
+
 [profile.release]
 lto = "thin"
 # Python's ints never overflow, and a product of two words read out of freed memory overflows an
