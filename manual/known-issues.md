@@ -21,6 +21,19 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
   middle of the screen, and can miss a Pokémon standing to one side.
 - **X, Y, Sun and Moon** are read less completely than Omega Ruby and Alpha Sapphire.
 
+## macOS and Linux
+
+- **An experiment**: nobody has played with pa3ds on a Mac or on Linux yet.
+- **No pa3ds window**: no mod settings, no menus and no Check for updates. Edit
+  `user/config.toml` instead; pa3ds still offers an update when it starts.
+- **Not signed by Apple**: macOS stops pa3ds the first time until you allow it (see
+  [macOS and Linux](../README.md#macos-and-linux)).
+- **Keys on Linux** need an X11 session, or Azahar under XWayland. With Azahar as a Wayland
+  window, pa3ds hears none of its keys.
+- **Dragging on Linux**: holding Shift alone does not drag in touch mode. Set `drag` to
+  `"toggle"`, or move drag to another key ([Keys](keys.md)).
+- **The Linux package** is built on Ubuntu 24.04, and may not start on an older Linux.
+
 ## The map
 
 - **How far above or below** a thing is, is in the game's units, 18 to a square, as `C` and

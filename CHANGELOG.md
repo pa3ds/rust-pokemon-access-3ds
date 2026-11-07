@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- pa3ds for macOS, on Apple silicon, and for Linux, as an experiment: unpack
+  `pa3ds-<version>-macos.zip` or `pa3ds-<version>-linux.tar.gz` and see the README's macOS and
+  Linux section. Naming things and choosing Azahar's folder use the system's own dialogs, and
+  pa3ds updates itself there as on Windows.
+
 ## [0.11.0] - 2026-11-05
 
 ### Added

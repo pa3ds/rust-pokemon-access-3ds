@@ -13,7 +13,8 @@ and only when you press its tap key.
 Inspired by [pokemon-access](https://github.com/nuive/pokemon-access), which does the same job for
 the Game Boy games. Nothing here is taken from its code.
 
-**Status: pre-alpha.** pa3ds is one program, `pa3ds.exe`, with nothing to install.
+**Status: pre-alpha.** pa3ds is one program, `pa3ds.exe`, with nothing to install. On macOS and
+Linux it is an experiment: see [macOS and Linux](#macos-and-linux).
 
 ## The manual
 
@@ -76,7 +77,7 @@ not read.
 
 ## What you need
 
-- Windows.
+- Windows. A Mac with Apple silicon, or a 64-bit Intel or AMD Linux, as an experiment.
 - Azahar, installed or portable.
 - Your own Pokémon game, dumped from your own 3DS, as a **decrypted** ROM (`.3ds` or `.cci`). An
   encrypted one still plays and is still read, but pa3ds is missing the names it reads from the
@@ -119,13 +120,47 @@ this manual in your browser, or reports an issue on GitHub. Settings opens the m
 Alt+Tab; `hide_window` keeps it in sight. While another window is in front of Azahar, pa3ds says nothing of the
 game, but still answers its keys.
 
+## macOS and Linux
+
+pa3ds on a Mac or on Linux is an experiment: nobody has played with it there yet, and what it
+leaves out is in [Known issues](manual/known-issues.md#macos-and-linux). Please report what you
+find.
+
+1. Unpack `pa3ds-<version>-macos.zip` or `pa3ds-<version>-linux.tar.gz` into a folder of its own
+   that you can write to, such as one in your home folder.
+2. Set up the system as below, then follow [Setting up](#setting-up) from its second step,
+   starting pa3ds from a terminal in its folder with `./pa3ds`. It runs until you press Ctrl+C or
+   Azahar closes.
+3. There is no pa3ds window and no mod settings: change a setting by editing `user/config.toml`
+   in a text editor. [Settings](manual/settings.md) lists every one. Where this manual says
+   `user\`, the folder is `user/`.
+
+On a Mac:
+
+- pa3ds is not signed by Apple, so macOS stops it the first time. In Terminal, run
+  `xattr -dr com.apple.quarantine` followed by the pa3ds folder; or Control-click `pa3ds` in
+  Finder, choose Open, then Open again.
+- For pa3ds's keys, turn on the terminal you start pa3ds in (Terminal, or iTerm) in System
+  Settings, Privacy & Security, Accessibility.
+- For pa3ds to speak through VoiceOver, check "Allow VoiceOver to be controlled with
+  AppleScript" in VoiceOver Utility's General settings. Otherwise it speaks with the system
+  voice.
+
+On Linux:
+
+- pa3ds speaks through speech-dispatcher, as Orca does.
+- pa3ds's keys need an X11 session. On Wayland, start Azahar under XWayland:
+  `QT_QPA_PLATFORM=xcb azahar`.
+- pa3ds asks for a name or a folder with zenity, or kdialog where zenity is not installed.
+
 ## Updating
 
 When pa3ds starts, it checks for a newer version. If there is one, a window asks whether to
 update. Yes downloads it, replaces `pa3ds.exe`, the `data` folder, the manual, `CHANGELOG.md` and
 the licences, and starts the new pa3ds; your `user` folder is kept. No starts the version you
 have, and pa3ds asks again on its next start. Check for updates, in the **Mod** menu of
-pa3ds's window, asks the same at any time, or says you have the latest.
+pa3ds's window, asks the same at any time, or says you have the latest. On macOS and Linux the
+update replaces `pa3ds` the same way.
 
 What changed in each version is in `CHANGELOG.md` beside `pa3ds.exe`, and on the
 [releases page](https://github.com/pa3ds/rust-pokemon-access-3ds/releases).
