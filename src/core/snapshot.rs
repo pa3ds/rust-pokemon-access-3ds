@@ -23,7 +23,9 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use indexmap::{IndexMap, IndexSet};
+#[cfg(windows)]
 use windows_sys::Win32::Foundation::SYSTEMTIME;
+#[cfg(windows)]
 use windows_sys::Win32::System::SystemInformation::GetLocalTime;
 
 use crate::core::memory::Memory;
@@ -76,6 +78,16 @@ pub(crate) fn range_of(low: i64, high: i64, step: i64) -> Result<Vec<i64>> {
 }
 
 /// `time.strftime("%Y%m%d-%H%M%S")`: the local time, which Rust's standard library cannot give.
+#[cfg(not(windows))]
+fn stamp() -> String {
+    std::process::Command::new("date")
+        .arg("+%Y%m%d-%H%M%S")
+        .output()
+        .map(|out| String::from_utf8_lossy(&out.stdout).trim().to_string())
+        .unwrap_or_default()
+}
+
+#[cfg(windows)]
 fn stamp() -> String {
     // SAFETY: GetLocalTime fills the structure it is given and fails never.
     let now: SYSTEMTIME = unsafe {

@@ -1,0 +1,11 @@
+# prism-sys's static build links only libc++ on macOS, not the frameworks its AVSpeech and
+# VoiceOver backends call, so the link of pa3ds fails without these.
+[target.'cfg(target_os = "macos")']
+rustflags = [
+    "-C", "link-arg=-lobjc",
+    "-C", "link-arg=-framework", "-C", "link-arg=Foundation",
+    "-C", "link-arg=-framework", "-C", "link-arg=CoreFoundation",
+    "-C", "link-arg=-framework", "-C", "link-arg=AppKit",
+    "-C", "link-arg=-framework", "-C", "link-arg=AVFoundation",
+    "-C", "link-arg=-framework", "-C", "link-arg=IOKit",
+]
