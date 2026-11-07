@@ -12,7 +12,7 @@ use std::collections::VecDeque;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use cpal::{BufferSize, Device, FromSample, Sample, SampleFormat, SizedSample, StreamConfig};
+use cpal::{Device, FromSample, SampleFormat, SizedSample, StreamConfig};
 
 use crate::py::{Error, Kind, Result};
 
@@ -47,7 +47,9 @@ impl Resampler {
     /// sides' average for one channel, silence on any past the second.
     pub fn convert(&mut self, data: &[u8], channels: usize) -> Vec<f32> {
         let frames: Vec<[f32; 2]> = data
-            .chunks_exact(4)
+            .as_chunks::<4>()
+            .0
+            .iter()
             .map(|frame| {
                 [
                     i16::from_le_bytes([frame[0], frame[1]]) as f32 / 32768.0,
@@ -115,7 +117,9 @@ impl Output {
         let stream = match supported.buffer_size() {
             cpal::SupportedBufferSize::Range { min, max } => {
                 let fixed = StreamConfig {
-                    buffer_size: BufferSize::Fixed((config.sample_rate.0 / 25).clamp(*min, *max)),
+                    buffer_size: cpal::BufferSize::Fixed(
+                        (config.sample_rate.0 / 25).clamp(*min, *max),
+                    ),
                     ..config.clone()
                 };
                 build(&device, &fixed, format, &queue)
@@ -201,6 +205,7 @@ fn build(
 #[cfg(test)]
 mod checks {
     use super::*;
+    use cpal::Sample;
 
     fn stereo(frames: &[(i16, i16)]) -> Vec<u8> {
         frames
