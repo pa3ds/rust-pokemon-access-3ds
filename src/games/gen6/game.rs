@@ -343,10 +343,10 @@ pub struct Game {
     /// X's (spikes 230 and 239).
     pub camera: camera::Shape,
     /// Where the save's Bag keeps the key items of the Y button's menu (`screens.registered`,
-    /// spike B): +0x0E in ORAS and X. None in a game that has no such menu.
+    /// spike 289): +0x0E in ORAS and X. None in a game that has no such menu.
     pub registered: Option<i64>,
     /// Where the PC Box's process keeps its mode, the pointer and the byte behind it
-    /// (`boxes.Mode`, spike A): the same in ORAS and X. None where it has not been measured.
+    /// (`boxes.Mode`, spike 288): the same in ORAS and X. None where it has not been measured.
     pub box_mode: Option<(i64, i64)>,
     /// The zones of the places in parts listed whole, the other parts' things out of the ROM
     /// (ADR-0042); every other place in parts is listed a part at a time.

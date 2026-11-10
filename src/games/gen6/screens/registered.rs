@@ -1,4 +1,4 @@
-//! The key items registered to the Y button's menu, each with the way it is chosen (spike B).
+//! The key items registered to the Y button's menu, each with the way it is chosen (spike 289).
 //!
 //! Y on the field opens four slots, each an item's icon, one used by each way of the circle pad or
 //! D-pad, and in Omega Ruby writes one line, "SELECT/START Switch Buttons", where X writes no words
