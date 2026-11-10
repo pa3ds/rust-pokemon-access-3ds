@@ -34,6 +34,7 @@ const TABLE: i64 = 0x08A04000;
 const TEXTURE: i64 = 0x08A05000;
 pub(crate) const WALKER: i64 = 0x08A06000;
 const OTHER: i64 = 0x08A07000;
+const WALKER_PICTURE: i64 = 0x08A06800;
 const IMAGE: i64 = 0x18200000;
 
 pub(crate) fn species() -> Vec<String> {
@@ -153,6 +154,32 @@ fn test_xs_menu_buttons_have_a_word_in_every_language_x_is_played_in() {
 #[test]
 fn test_a_picture_drawing_another_image_is_not_named() {
     assert_eq!(page(amie::NUMBER).0.name(OTHER, Some(FIELD)).unwrap(), None);
+}
+
+/// Leos's Sceptile stood beside Pikachu in the ring, said by a stale name of the party's until
+/// it was tapped (Orion, 2026-11-06, or_amie_affection_increase): the player's Pokémon is first
+/// in the page's list, and a visitor has a picture of its own after it.
+#[test]
+fn test_a_pokemon_visiting_the_page_is_named_by_the_pages_list_of_who_walks_there() {
+    let (found, memory) = page(amie::NUMBER);
+    for (slot, (picture, number)) in [
+        (WALKER_PICTURE, 254u16),
+        (WALKER_PICTURE, 254),
+        (OTHER, 254),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let at = HOLDER + amie::WALKERS + slot as i64 * amie::WALKER;
+        memory.u32(at, &[picture]);
+        memory.write(at + amie::WALKER_NUMBER, &number.to_le_bytes());
+    }
+    assert_eq!(
+        found.name(OTHER, Some(FIELD)).unwrap().as_deref(),
+        Some("visiting Sceptile")
+    );
+    // its own, drawing no icon here
+    assert_eq!(found.name(WALKER_PICTURE, Some(FIELD)).unwrap(), None);
 }
 
 /// Orion, 2026-11-05: the Pokémon is offered to beckon, a press of 0.4 s, as presses held
@@ -1123,11 +1150,29 @@ fn test_what_a_pet_or_a_high_five_shows_is_said_as_the_numbers_move() {
     assert_eq!(said(66, 165, Some(0)), ["Sceptile dances happily"]);
     assert!(said(66, 175, Some(0)).is_empty()); // Enjoyment rising by itself, no hand up
     said(66, 175, Some(amie::HAND_RAISED));
-    assert_eq!(said(66, 185, Some(0)), ["High five! A burst of pink dots"]);
+    assert_eq!(said(66, 185, Some(0)), ["High five!"]);
     k.now.set(k.now.get() + amie::HIGH_FIVE_SECONDS);
     assert!(said(66, 195, Some(0)).is_empty());
-    assert_eq!(said(255, 195, Some(0)), ["Sceptile dances happily"]);
-    assert!(said(255, 145, Some(0)).is_empty()); // at full Affection a pet gives no hearts to count
+    assert_eq!(said(99, 195, Some(0)), ["Sceptile dances happily"]);
+    assert_eq!(
+        said(102, 145, Some(0)),
+        ["3 hearts", "Sceptile is overjoyed, and hearts pour out"]
+    );
+    assert_eq!(
+        said(254, 145, Some(0)),
+        [
+            "Sceptile dances happily",
+            "Sceptile is overjoyed, and hearts pour out"
+        ]
+    );
+    assert_eq!(
+        said(255, 95, Some(0)),
+        [
+            "1 heart",
+            "Sceptile goes wild with joy in a shower of hearts"
+        ]
+    );
+    assert!(said(255, 45, Some(0)).is_empty()); // at full Affection a pet gives no hearts to count
     assert!(moods.poll(Some(FIELD), &mut held).unwrap().is_empty());
     let mut said = |affection: i64, enjoyment: i64| -> Vec<String> {
         numbers(&k.memory, affection, 0, enjoyment);
@@ -1164,14 +1209,15 @@ fn drawn_rows(
         .collect())
 }
 
-/// Panes of the Switch screen by their places: the root, three of the party's buttons and the
-/// chosen Pokémon's picture. Python's are panes 0 to 4 of a fake `Layouts`; here panes of
-/// `FakeLayouts` at these addresses, under one root.
-const PLACES: [(i64, (f32, f32)); 4] = [
+/// Panes of the Switch screen by their places: three of the party's buttons and the chosen
+/// Pokémon's picture; and of the page lying under it. Python's are panes 1 to 5 of a fake
+/// `Layouts`; here panes of `FakeLayouts` at these addresses, the last under a layout of its own.
+const PLACES: [(i64, (f32, f32)); 5] = [
     (0x08A31000, (-125.0, 66.0)),
     (0x08A32000, (-75.0, 70.0)),
     (0x08A33000, (-25.0, 66.0)),
     (0x08A34000, (-87.0, 15.0)),
+    (0x08A41000, (-75.0, 66.0)),
 ];
 
 /// They said "button pokémon", the icon they draw saying nothing of whose (Orion, 2026-11-06).
@@ -1201,8 +1247,9 @@ fn test_the_switch_screens_buttons_are_named_by_the_party_member_their_place_hol
     memory.write(party + COUNT, &[2]);
     let fake = FakeLayouts::new(&memory, &classes);
     let (_work, root) = fake.screen_with(0x08A30000, false, false);
+    let (_work, page_root) = fake.screen_with(0x08A40000, false, false);
     for (pane, (x, y)) in PLACES {
-        fake.pane(pane, root);
+        fake.pane(pane, if pane == PLACES[4].0 { page_root } else { root });
         memory.write(pane + fake.shape.x, &x.to_le_bytes());
         memory.write(pane + fake.shape.y, &y.to_le_bytes());
     }
@@ -1224,14 +1271,22 @@ fn test_the_switch_screens_buttons_are_named_by_the_party_member_their_place_hol
             })
         }),
     );
-    let [first, second, third, chosen] = PLACES.map(|(pane, _)| pane);
+    let [first, second, third, chosen, under] = PLACES.map(|(pane, _)| pane);
     assert_eq!(screen.name(first, Some(FIELD)).unwrap(), None); // not that screen
     screen
         .reworded(
             ["Affection", "Fullness", "Enjoyment"]
                 .iter()
                 .enumerate()
-                .map(|(r#box, text)| (r#box as i64, ScreenText::new(r#box as i64, *text, false)))
+                .map(|(r#box, text)| {
+                    (
+                        r#box as i64,
+                        ScreenText {
+                            root,
+                            ..ScreenText::new(r#box as i64, *text, false)
+                        },
+                    )
+                })
                 .collect(),
         )
         .unwrap();
@@ -1239,6 +1294,8 @@ fn test_the_switch_screens_buttons_are_named_by_the_party_member_their_place_hol
         screen.name(first, Some(FIELD)).unwrap().as_deref(),
         Some("Blaze")
     );
+    // the page under the screen, whose visitor stood there
+    assert_eq!(screen.name(under, Some(FIELD)).unwrap(), None);
     assert_eq!(
         screen.name(second, Some(FIELD)).unwrap().as_deref(),
         Some("Pikachu")

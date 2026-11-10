@@ -70,8 +70,8 @@ pub struct SwitchScreen {
     party: Rc<dyn Fn() -> Option<i64>>,
     /// A party member as the player knows it.
     called: Name,
-    /// Whether the screen's rows were on the screen at the last poll.
-    up: bool,
+    /// The layout whose rows were on the screen at the last poll, none where they were not.
+    root: Option<i64>,
     /// `pictures`, as a test replaces it.
     pub(crate) pictures: PicturesOf,
 }
@@ -94,7 +94,7 @@ impl SwitchScreen {
             labels,
             party,
             called,
-            up: false,
+            root: None,
             pictures,
         }
     }
@@ -122,20 +122,16 @@ impl SwitchScreen {
         &mut self,
         found: IndexMap<i64, ScreenText>,
     ) -> Result<IndexMap<i64, ScreenText>> {
-        self.up = found
+        let labels: Vec<&ScreenText> = found
             .values()
             .filter(|piece| self.labels.contains(&piece.text))
-            .count()
-            == ROWS.len();
-        if !self.up {
+            .collect();
+        self.root = (labels.len() == ROWS.len()).then(|| labels[0].root);
+        if self.root.is_none() {
             return Ok(found);
         }
         let rows = self.rows()?;
-        let heights: Vec<f64> = found
-            .values()
-            .filter(|piece| self.labels.contains(&piece.text))
-            .map(|piece| piece.row)
-            .collect();
+        let heights: Vec<f64> = labels.iter().map(|piece| piece.row).collect();
         // Python's `min` and `max` of floats: the first unless another is strictly beyond it.
         let low = heights[1..]
             .iter()
@@ -166,9 +162,7 @@ impl SwitchScreen {
     /// The party member a picture of the party's buttons stands for, or None.
     pub fn name(&self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
         let (party, slot) = ((self.party)(), self.slot(picture)?);
-        let (true, true, Some(party), Some(slot)) =
-            (self.up, PAGE_APPS.contains(&running), party, slot)
-        else {
+        let (true, Some(party), Some(slot)) = (PAGE_APPS.contains(&running), party, slot) else {
             return Ok(None);
         };
         let head = self.memory.read(party, COUNT + 1)?;
@@ -187,7 +181,12 @@ impl SwitchScreen {
     /// Which of the party's buttons a picture stands in, by its place, or None.
     fn slot(&self, picture: i64) -> Result<Option<i64>> {
         let layouts = &self.layouts;
-        let Some(placement) = layouts.placement(picture)? else {
+        // Only the screen's own: the page lying under it keeps its pictures, and a visitor there
+        // took the name of the button above it, and kept it (or_amie_affection_increase).
+        let Some(placement) = layouts
+            .placement(picture)?
+            .filter(|placement| Some(placement.root) == self.root)
+        else {
             return Ok(None);
         };
         let (shape, root, here) = (

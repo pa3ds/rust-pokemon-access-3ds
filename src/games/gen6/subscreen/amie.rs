@@ -410,6 +410,16 @@ pub const HIGH_FIVE_SECONDS: f64 = 4.0;
 pub const NUMBER: i64 = 0x14C;
 /// How far after the number the holder is, in ORAS and X alike (spike 228).
 pub const HOLDER: i64 = 0x48;
+pub const WALKERS: i64 = 0x04;
+pub const WALKER: i64 = 0x14;
+pub const WALKER_NUMBER: i64 = 0x08;
+/// Who walks in the page's ring, in its holder from +0x04: a record each of `WALKER` bytes, its
+/// picture first and its national number `WALKER_NUMBER` in. The player's Pokémon is first, and a
+/// Pokémon of a friend's or a passerby's visiting from the PSS has a picture of its own after it, as
+/// Leos's Sceptile did (or_amie_affection_increase). Who it belongs to the game says on a tap.
+pub const WALKERS_MOST: i64 = 6;
+/// A Pokémon visiting the page, as touch mode offers it.
+pub const VISITOR: &str = "amie-visitor";
 /// Seconds before a replace system's textures are read again for an image not among them.
 pub const REREAD: f64 = 1.0;
 
@@ -983,6 +993,9 @@ impl AmiePage {
             if holder == 0 || !(0 < number && number < self.species.len() as i64) {
                 continue;
             }
+            if let Some(visitor) = self.visitor(picture, holder)? {
+                return Ok(Some(visitor));
+            }
             if self.first_image(u32(&memory.read(holder, 4)?, 0)?)? == Some(image) {
                 let name = &self.species[number as usize];
                 return Ok(if name.is_empty() {
@@ -990,6 +1003,27 @@ impl AmiePage {
                 } else {
                     Some(name.clone())
                 });
+            }
+        }
+        Ok(None)
+    }
+
+    /// What a picture is called if it draws a Pokémon visiting the page, or None.
+    fn visitor(&self, picture: i64, holder: i64) -> Result<Option<String>> {
+        let walkers = self.memory.read(holder, WALKERS + WALKER * WALKERS_MOST)?;
+        let own_picture = u32(&walkers, WALKERS)?;
+        for at in (WALKERS..walkers.len() as i64).step_by(WALKER as usize) {
+            let walker = u32(&walkers, at)?;
+            let number = u16(&walkers, at + WALKER_NUMBER)?;
+            if walker == picture
+                && walker != own_picture
+                && 0 < number
+                && number < self.species.len() as i64
+            {
+                return Ok(Some(own(
+                    VISITOR,
+                    &[("pokemon", &self.species[number as usize])],
+                )));
             }
         }
         Ok(None)
@@ -1894,11 +1928,13 @@ impl Moods {
         Ok(said)
     }
 
-    /// What the Pokémon's numbers moving shows, a line at most: a pet takes from Enjoyment and
-    /// gives the hearts seen to Affection, and one it dislikes takes and gives none, Pikachu's
-    /// ears 20 on or_amie_interactions, where a puff eaten gave Affection 2, took nothing, and
-    /// brought a happy dance and no hearts on either screen. At full Affection a pet looks like a
-    /// dislike, so says nothing.
+    /// What the Pokémon's numbers moving shows: a pet takes from Enjoyment and gives the hearts
+    /// seen to Affection, and one it dislikes takes and gives none, Pikachu's ears 20 on
+    /// or_amie_interactions, where a puff eaten gave Affection 2, took nothing, and brought a
+    /// happy dance and no hearts on either screen. At full Affection a pet looks like a dislike,
+    /// so says nothing. Affection filling another of its row's icons brings an animation of its
+    /// own and a fountain of hearts, and the last of them a longer one, the Pokémon tumbling
+    /// round the screen for 8 s (or_amie_affection_increase, or_amie_affection_max).
     fn shown(&mut self) -> Result<Vec<(String, String, Option<Category>)>> {
         let before = self.numbers;
         self.numbers = self.page.borrow().numbers()?;
@@ -1907,23 +1943,31 @@ impl Moods {
         };
         let gained = numbers.0 - before.0;
         let enjoyed = numbers.2 - before.2;
-        let mut line = String::new();
+        let name = self.page.borrow_mut().called()?;
+        let mut lines: Vec<String> = Vec::new();
         if enjoyed < 0 && gained > 0 {
-            line = own("amie-hearts", &[("count", &gained)]);
+            lines.push(own("amie-hearts", &[("count", &gained)]));
         } else if gained > 0 {
-            let called = self.page.borrow_mut().called()?;
-            line = own("amie-mood-delighted", &[("pokemon", &called)]);
+            lines.push(own("amie-mood-delighted", &[("pokemon", &name)]));
         } else if enjoyed < 0 && numbers.0 < METER_FULL {
-            let called = self.page.borrow_mut().called()?;
-            line = own("amie-mood-disliked", &[("pokemon", &called)]);
+            lines.push(own("amie-mood-disliked", &[("pokemon", &name)]));
         } else if enjoyed == HIGH_FIVE && py::time::monotonic() - self.raised < HIGH_FIVE_SECONDS {
-            line = own("amie-high-five", &[]);
+            lines.push(own("amie-high-five", &[]));
         }
-        Ok(if line.is_empty() {
-            Vec::new()
-        } else {
-            vec![(MOOD_LOG.to_string(), line, Some(Category::Screen))]
-        })
+        if meter(numbers.0) > meter(before.0) {
+            lines.push(own(
+                if numbers.0 >= METER_FULL {
+                    "amie-mood-best-friends"
+                } else {
+                    "amie-mood-closer"
+                },
+                &[("pokemon", &name)],
+            ));
+        }
+        Ok(lines
+            .into_iter()
+            .map(|line| (MOOD_LOG.to_string(), line, Some(Category::Screen)))
+            .collect())
     }
 }
 
