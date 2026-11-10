@@ -22,7 +22,7 @@ use crate::games::common::{lyt, pokemon};
 use crate::games::gen6::apps::FIELD;
 use crate::games::gen6::screens::distribution as d;
 use crate::games::gen6::screens::partyicons::COUNT;
-use crate::games::gen6::subscreen::berry_picker::Touching;
+use crate::games::gen6::subscreen::berry_picker::{Name, Touching};
 use crate::games::gen6::subscreen::{amie, amie_switch};
 use crate::games::xy;
 use crate::py::{self, Result, time};
@@ -58,17 +58,27 @@ impl Memory for Paged {
     }
 }
 
-pub(crate) fn page(number: i64) -> (amie::AmiePage, Rc<FakeMemory>) {
-    page_aimed(number, false, 0, false, amie::SHOWN)
+/// A party member as `Subscreens.short` says it: by its nickname, or its species.
+fn call() -> Name {
+    Rc::new(|found: &pokemon::Pokemon| {
+        Some(if found.nicknamed && !found.nickname.is_empty() {
+            found.nickname.clone()
+        } else {
+            species()[found.species as usize].clone()
+        })
+    })
 }
 
-/// `page(number, aimed, later, paged, shown)`.
+pub(crate) fn page(number: i64) -> (amie::AmiePage, Rc<FakeMemory>) {
+    page_aimed(number, false, amie::ORAS_PLAYER, false)
+}
+
+/// `page(number, aimed, fields, paged)`.
 fn page_aimed(
     number: i64,
     aimed: bool,
-    later: i64,
+    fields: amie::PlayerFields,
     paged: bool,
-    shown: i64,
 ) -> (amie::AmiePage, Rc<FakeMemory>) {
     let memory = FakeMemory::new();
     let classes = FakeClasses::new(memory.clone());
@@ -95,10 +105,10 @@ fn page_aimed(
         },
         Rc::new(ClassNames::new(memory.clone(), CODE)),
         species(),
+        call(),
         number,
         aimed.then(|| memory.clone() as Rc<dyn Memory>),
-        later,
-        shown,
+        fields,
     );
     found
         .track(&IndexMap::from([(PAGE, amie::CLASS.to_string())]), false)
@@ -267,35 +277,35 @@ fn amie_running(parts: &[(u8, (i64, i64, i64, i64))], aimed: bool) -> amie::Amie
 
 /// Amie running, its still picture taken of `drawn`'s: the page and the memory.
 fn running(parts: &[(u8, (i64, i64, i64, i64))], aimed: bool) -> (amie::AmiePage, Rc<FakeMemory>) {
-    running_paged(parts, aimed, 0, false)
+    running_paged(parts, aimed, amie::ORAS_PLAYER, false)
 }
 
-/// `running(parts, aimed, later)`.
-fn running_later(
+/// `running(parts, aimed, fields)`.
+fn running_fields(
     parts: &[(u8, (i64, i64, i64, i64))],
     aimed: bool,
-    later: i64,
+    fields: amie::PlayerFields,
 ) -> (amie::AmiePage, Rc<FakeMemory>) {
-    running_paged(parts, aimed, later, false)
+    running_paged(parts, aimed, fields, false)
 }
 
-/// `running(parts, aimed, later, paged)`.
+/// `running(parts, aimed, fields, paged)`.
 fn running_paged(
     parts: &[(u8, (i64, i64, i64, i64))],
     aimed: bool,
-    later: i64,
+    fields: amie::PlayerFields,
     paged: bool,
 ) -> (amie::AmiePage, Rc<FakeMemory>) {
-    let (mut found, memory) = page_aimed(amie::NUMBER, aimed, later, paged, amie::SHOWN);
+    let (mut found, memory) = page_aimed(amie::NUMBER, aimed, fields, paged);
     let classes = FakeClasses::starting(memory.clone(), CODE.0 + 0x8000);
     let player = classes.add(amie::PLAYER);
     memory.u32(PLAYER, &[player]);
-    memory.u32(PLAYER + amie::HOLDS_PICTURE + later, &[ALLOCATOR]);
+    memory.u32(PLAYER + fields.holds_picture, &[ALLOCATOR]);
     memory.u32(ALLOCATOR, &[classes.add(amie::PICTURE_HOLDER)]);
     memory.u32(ALLOCATOR + amie::BUFFERS, &[BUFFER - 0x80000, BUFFER, 1]);
     // A copy of a Player's first words in the module's code, which a sweep finds too (spike 279).
     memory.u32(COPY, &[player]);
-    memory.u32(COPY + amie::HOLDS_PICTURE, &[0xE3550000]);
+    memory.u32(COPY + fields.holds_picture, &[0xE3550000]);
     drawn(&memory, parts);
     found
         .track(
@@ -310,6 +320,18 @@ fn running_paged(
     (found, memory)
 }
 
+/// A poll as `Subscreens.poll` makes it: the page first, then the reader. Python's takes the
+/// stylus's keys too, which `Keyed.poll` polls so.
+fn polled(
+    page: &RefCell<amie::AmiePage>,
+    reader: &mut amie::Moods,
+    running: &str,
+    touch: &mut dyn Touching,
+) -> Vec<(String, String, Option<Category>)> {
+    page.borrow_mut().poll(Some(running));
+    reader.poll(Some(running), touch).unwrap()
+}
+
 /// Rectangles of a Pokémon's head and body in its picture of parts, x 100 to 219.
 const HEAD: (i64, i64, i64, i64) = (100, 60, 220, 120);
 const BODY: (i64, i64, i64, i64) = (100, 120, 220, 230);
@@ -320,7 +342,7 @@ const BODY: (i64, i64, i64, i64) = (100, 120, 220, 230);
 #[test]
 fn test_the_picture_is_read_as_the_gpu_drew_it_and_not_through_the_pages_round_it() {
     assert_eq!(
-        running_paged(&[(8, HEAD), (9, BODY)], true, 0, true)
+        running_paged(&[(8, HEAD), (9, BODY)], true, amie::ORAS_PLAYER, true)
             .0
             .outline(),
         Some((100, 60, 219, 229))
@@ -443,30 +465,29 @@ fn test_the_stylus_is_offered_by_the_kind_of_part_it_is_on() {
 /// copy of the Player's words in the module's code first, which says nothing (spike 287).
 #[test]
 fn test_a_form_and_a_female_are_told_by_what_player_says_it_draws() {
-    let (found, memory) = running(&[(8, HEAD)], true);
+    let (mut found, memory) = running(&[(8, HEAD)], true);
     assert_eq!(found.form().unwrap(), None);
-    memory.u32(PLAYER + amie::SHOWN, &[412, 2, 0, 0]);
+    memory.u32(PLAYER + amie::ORAS_PLAYER.shown, &[412, 2, 0, 0]);
+    found.poll(Some(amie::AMIE));
     assert_eq!(found.form().unwrap().as_deref(), Some("2"));
-    // Pikachu Rock Star, every one female
-    memory.u32(PLAYER + amie::SHOWN, &[25, 1, amie::FEMALE, 0]);
+    // Pikachu Rock Star, every one female.
+    memory.u32(PLAYER + amie::ORAS_PLAYER.shown, &[25, 1, amie::FEMALE, 0]);
+    found.poll(Some(amie::AMIE));
     assert_eq!(found.form().unwrap().as_deref(), Some("1"));
-    memory.u32(PLAYER + amie::SHOWN, &[592, 0, amie::FEMALE, 0]);
+    memory.u32(PLAYER + amie::ORAS_PLAYER.shown, &[592, 0, amie::FEMALE, 0]);
+    found.poll(Some(amie::AMIE));
     assert_eq!(found.form().unwrap().as_deref(), Some(amie::FEMALE_FORM));
 }
 
 #[test]
 fn test_x_keeps_what_it_draws_where_it_does() {
     let game = xy::game();
-    let (mut found, memory) =
-        page_aimed(amie::NUMBER, true, game.amie_player, false, game.amie_shown);
+    let (mut found, memory) = page_aimed(amie::NUMBER, true, game.amie_player, false);
     let classes = FakeClasses::starting(memory.clone(), CODE.0 + 0x8000);
     memory.u32(PLAYER, &[classes.add(amie::PLAYER)]);
-    memory.u32(
-        PLAYER + amie::HOLDS_PICTURE + game.amie_player,
-        &[ALLOCATOR],
-    );
+    memory.u32(PLAYER + game.amie_player.holds_picture, &[ALLOCATOR]);
     memory.u32(ALLOCATOR, &[classes.add(amie::PICTURE_HOLDER)]);
-    memory.u32(PLAYER + game.amie_shown, &[656, 1, 0, 0]);
+    memory.u32(PLAYER + game.amie_player.shown, &[656, 1, 0, 0]);
     found
         .track(&IndexMap::from([(PLAYER, amie::PLAYER.to_string())]), true)
         .unwrap();
@@ -559,7 +580,9 @@ impl Keyed {
             .unwrap()
     }
 
+    /// `polled(found, keys, running)`: the page first, as `Subscreens.poll` has it.
     fn poll(&mut self, running: &str) -> Vec<(String, String, Option<Category>)> {
+        self.found.borrow_mut().poll(Some(running));
         self.keys.poll(Some(running), &mut self.chosen).unwrap()
     }
 
@@ -708,7 +731,7 @@ impl Touching for Held {
 /// Amie's love command as `number`, or none running.
 fn mood(memory: &FakeMemory, number: Option<i64>) {
     memory.u32(
-        PLAYER + amie::LOVE,
+        PLAYER + amie::ORAS_PLAYER.love,
         &[if number.is_none() { 0 } else { COMMAND }],
     );
     memory.write(
@@ -731,15 +754,14 @@ fn test_what_the_pokemon_is_seen_doing_is_said_as_it_starts_and_stops() {
     let (mut found, memory) = running(&[(8, HEAD)], false);
     found.motion_line_of = Some(no_sentence);
     let mut held = Held(None);
-    let mut moods = amie::Moods::new(Rc::new(RefCell::new(found)), false);
+    let found = Rc::new(RefCell::new(found));
+    let mut moods = amie::Moods::new(found.clone(), false);
     let mut said = |numbers: &[Option<i64>], held: &mut Held| -> Vec<String> {
         let mut lines = Vec::new();
         for &number in numbers {
             mood(&memory, number);
             lines.extend(
-                moods
-                    .poll(Some(amie::AMIE), held)
-                    .unwrap()
+                polled(&found, &mut moods, amie::AMIE, held)
                     .into_iter()
                     .map(|(_log, line, _category)| line),
             );
@@ -784,12 +806,10 @@ fn test_what_the_pokemon_is_seen_doing_is_said_as_it_starts_and_stops() {
         said(&[Some(22)], &mut held),
         ["Sceptile is watching your hand"]
     );
-    assert!(moods.poll(Some(FIELD), &mut held).unwrap().is_empty());
+    assert!(polled(&found, &mut moods, FIELD, &mut held).is_empty());
     let mut said = |number: i64| -> Vec<String> {
         mood(&memory, Some(number));
-        moods
-            .poll(Some(amie::AMIE), &mut held)
-            .unwrap()
+        polled(&found, &mut moods, amie::AMIE, &mut held)
             .into_iter()
             .map(|(_log, line, _category)| line)
             .collect()
@@ -838,12 +858,15 @@ fn test_the_pokemon_is_called_by_the_nickname_on_the_record_player_says_it_draws
     );
     found.track(&IndexMap::new(), true).unwrap();
     assert_eq!(found.called().unwrap(), "Sceptile");
-    memory.u32(PLAYER + amie::SHOWN, &[254, 0, 0, 0x303]);
+    memory.u32(PLAYER + amie::ORAS_PLAYER.shown, &[254, 0, 0, 0x303]);
+    found.poll(Some(amie::AMIE));
     assert_eq!(found.called().unwrap(), "Leafy");
-    memory.u32(PLAYER + amie::SHOWN, &[254, 0, 0, 0x101]);
+    memory.u32(PLAYER + amie::ORAS_PLAYER.shown, &[254, 0, 0, 0x101]);
+    found.poll(Some(amie::AMIE));
     assert_eq!(found.called().unwrap(), "Blaze");
-    // a Pikachu's, Khai's save's two sharing one
-    memory.u32(PLAYER + amie::SHOWN, &[254, 0, 0, 0x202]);
+    // A Pikachu's, Khai's save's two sharing one.
+    memory.u32(PLAYER + amie::ORAS_PLAYER.shown, &[254, 0, 0, 0x202]);
+    found.poll(Some(amie::AMIE));
     assert_eq!(found.called().unwrap(), "Sceptile");
 }
 
@@ -851,10 +874,11 @@ fn test_the_pokemon_is_called_by_the_nickname_on_the_record_player_says_it_draws
 /// (x_amie_head_it_hard).
 #[test]
 fn test_xs_player_keeps_its_love_command_and_picture_four_bytes_later() {
-    let later = xy::game().amie_player;
-    let (found, memory) = running_later(&[(8, HEAD)], true, later);
-    memory.u32(PLAYER + amie::LOVE + later, &[COMMAND]);
+    let fields = xy::game().amie_player;
+    let (mut found, memory) = running_fields(&[(8, HEAD)], true, fields);
+    memory.u32(PLAYER + fields.love, &[COMMAND]);
     memory.write(COMMAND + amie::LOVE_NUMBER, &23u16.to_le_bytes());
+    found.poll(Some(amie::AMIE));
     assert_eq!(found.mood().unwrap(), Some(23));
     assert_eq!(found.outline(), Some((100, 60, 219, 119)));
 }
@@ -865,13 +889,12 @@ fn test_xs_player_keeps_its_love_command_and_picture_four_bytes_later() {
 fn test_the_moods_no_movie_reached_are_said_too() {
     let (mut found, memory) = running(&[(8, HEAD)], false);
     found.motion_line_of = Some(no_sentence);
-    let mut moods = amie::Moods::new(Rc::new(RefCell::new(found)), false);
+    let found = Rc::new(RefCell::new(found));
+    let mut moods = amie::Moods::new(found.clone(), false);
     let mut held = Held(Some("Sweet Poké Puff".to_string()));
     let mut said = |number: i64| -> Vec<String> {
         mood(&memory, Some(number));
-        moods
-            .poll(Some(amie::AMIE), &mut held)
-            .unwrap()
+        polled(&found, &mut moods, amie::AMIE, &mut held)
             .into_iter()
             .map(|(_log, line, _category)| line)
             .collect()
@@ -902,6 +925,7 @@ fn test_while_its_hand_is_raised_a_jump_goes_to_the_hand_whichever_way() {
     mood(&k.memory, Some(amie::HAND_RAISED));
     drawn(&k.memory, &[(9, BODY), (8, HEAD), (10, (180, 60, 200, 80))]); // it rose
     k.now.set(k.now.get() + 1.0);
+    k.found.borrow_mut().poll(Some(amie::AMIE));
     assert_eq!(k.press("stylus jump left"), "hand");
     let (x, y) = k.found.borrow().stylus;
     assert!((120..130).contains(&x) && (140..150).contains(&y));
@@ -911,6 +935,7 @@ fn test_while_its_hand_is_raised_a_jump_goes_to_the_hand_whichever_way() {
     mood(&k.memory, Some(0));
     drawn(&k.memory, &[(9, BODY), (8, HEAD)]);
     k.now.set(k.now.get() + 1.0);
+    k.found.borrow_mut().poll(Some(amie::AMIE));
     k.found.borrow_mut().stylus = (120, 105);
     assert_eq!(k.press("stylus jump up"), "! edge");
 }
@@ -922,6 +947,7 @@ fn test_a_hand_the_still_picture_does_not_show_is_jumped_to_all_the_same() {
     mood(&k.memory, Some(amie::HAND_RAISED));
     drawn(&k.memory, &[(9, BODY), (8, HEAD), (10, (180, 60, 200, 80))]);
     k.now.set(k.now.get() + 1.0);
+    k.found.borrow_mut().poll(Some(amie::AMIE));
     assert_eq!(k.press("stylus jump up"), "hand");
     let ((left, y), (right, _same_y)) = k.rubbed();
     assert!((180..200).contains(&py::floordiv(left + right, 2)) && (60..80).contains(&y));
@@ -1136,7 +1162,9 @@ fn test_hoopa_unbound_is_too_big_for_the_bottom_screen_and_its_confined_form_is_
     let k = keyed(&[(9, BODY)]);
     k.found.borrow_mut().unbound = (254, 1);
     assert_eq!(targets(&k), 2);
-    k.memory.u32(PLAYER + amie::SHOWN, &[254, 1, 0, 0]);
+    k.memory
+        .u32(PLAYER + amie::ORAS_PLAYER.shown, &[254, 1, 0, 0]);
+    k.found.borrow_mut().poll(Some(amie::AMIE));
     assert_eq!(targets(&k), 3);
 }
 
@@ -1152,7 +1180,7 @@ const SCRIPT: i64 = 0x08A12000;
 
 /// Amie's script as it runs, holding the Pokémon's numbers.
 fn numbers(memory: &FakeMemory, affection: i64, fullness: i64, enjoyment: i64) {
-    memory.u32(PLAYER + amie::TASK, &[TASK]);
+    memory.u32(PLAYER + amie::ORAS_PLAYER.task, &[TASK]);
     memory.u32(TASK + amie::TASK_SCRIPT, &[SCRIPT]);
     memory.write(
         SCRIPT + amie::SCRIPT_MAGIC_AT,
@@ -1189,6 +1217,7 @@ fn test_a_key_says_the_numbers_as_the_switch_screen_would_show_them() {
         |action: &str, k: &mut Keyed| keys.press(action, Some(amie::AMIE), &mut k.chosen).unwrap();
     assert_eq!(press(STYLUS_NUMBERS, &mut k), "! edge"); // no script running
     numbers(&k.memory, 60, 0, 255);
+    k.found.borrow_mut().poll(Some(amie::AMIE));
     assert_eq!(
         press(STYLUS_NUMBERS, &mut k),
         "Affection 2 of 5, Fullness 0 of 5, Enjoyment 5 of 5"
@@ -1207,9 +1236,7 @@ fn test_what_a_pet_or_a_high_five_shows_is_said_as_the_numbers_move() {
         numbers(&k.memory, affection, 0, enjoyment);
         mood(&k.memory, love);
         k.now.set(k.now.get() + 0.2);
-        moods
-            .poll(Some(amie::AMIE), &mut held)
-            .unwrap()
+        polled(&k.found, &mut moods, amie::AMIE, &mut held)
             .into_iter()
             .map(|(_log, line, _category)| line)
             .collect()
@@ -1242,14 +1269,12 @@ fn test_what_a_pet_or_a_high_five_shows_is_said_as_the_numbers_move() {
         ]
     );
     assert!(said(255, 45, Some(0)).is_empty()); // at full Affection a pet gives no hearts to count
-    assert!(moods.poll(Some(FIELD), &mut held).unwrap().is_empty());
+    assert!(polled(&k.found, &mut moods, FIELD, &mut held).is_empty());
     let mut said = |affection: i64, enjoyment: i64| -> Vec<String> {
         numbers(&k.memory, affection, 0, enjoyment);
         mood(&k.memory, Some(0));
         k.now.set(k.now.get() + 0.2);
-        moods
-            .poll(Some(amie::AMIE), &mut held)
-            .unwrap()
+        polled(&k.found, &mut moods, amie::AMIE, &mut held)
             .into_iter()
             .map(|(_log, line, _category)| line)
             .collect()
@@ -1350,15 +1375,13 @@ amie-motion-254-1-happyB = { $pokemon } leaps in its costume
     let (found, memory) = running(&[(8, HEAD)], false);
     let found = Rc::new(RefCell::new(found));
     let mut moods = amie::Moods::new(found.clone(), false);
-    let said = |animations: &[u16], love: i64, polled: &mut amie::Moods| -> Vec<String> {
+    let said = |animations: &[u16], love: i64, reader: &mut amie::Moods| -> Vec<String> {
         let mut lines = Vec::new();
         for &animation in animations {
-            memory.write(PLAYER + amie::PLAYING, &animation.to_le_bytes());
+            memory.write(PLAYER + amie::ORAS_PLAYER.playing, &animation.to_le_bytes());
             mood(&memory, Some(love));
             lines.extend(
-                polled
-                    .poll(Some(amie::AMIE), &mut Held(None))
-                    .unwrap()
+                polled(&found, reader, amie::AMIE, &mut Held(None))
                     .into_iter()
                     .map(|(_log, line, _category)| line),
             );
@@ -1384,12 +1407,12 @@ amie-motion-254-1-happyB = { $pokemon } leaps in its costume
     assert!(said(&[18, 2], 0, &mut moods).is_empty()); // by itself, unasked for
     let mut fidgeting = amie::Moods::new(found.clone(), true);
     assert_eq!(said(&[18], 0, &mut fidgeting), ["Sceptile flicks its tail"]);
-    memory.u32(PLAYER + amie::SHOWN, &[254, 1, 0, 0]);
+    memory.u32(PLAYER + amie::ORAS_PLAYER.shown, &[254, 1, 0, 0]);
     assert_eq!(
         said(&[2, 14], 0, &mut moods),
         ["Sceptile leaps in its costume"]
     );
-    assert!(moods.poll(Some(FIELD), &mut Held(None)).unwrap().is_empty());
+    assert!(polled(&found, &mut moods, FIELD, &mut Held(None)).is_empty());
     // Amie opened again
     assert_eq!(
         said(&[14], 0, &mut moods),
@@ -1399,9 +1422,9 @@ amie-motion-254-1-happyB = { $pokemon } leaps in its costume
 
 #[test]
 fn test_an_animation_is_read_where_x_keeps_it_four_bytes_later() {
-    let later = xy::game().amie_player;
-    let (found, memory) = running_later(&[(8, HEAD)], true, later);
-    memory.write(PLAYER + amie::PLAYING + later, &13u16.to_le_bytes());
+    let fields = xy::game().amie_player;
+    let (found, memory) = running_fields(&[(8, HEAD)], true, fields);
+    memory.write(PLAYER + fields.playing, &13u16.to_le_bytes());
     assert_eq!(found.motion().unwrap(), Some("happyA"));
 }
 

@@ -36,7 +36,7 @@ use crate::games::gen6::field::landform::{Landform, gen6};
 use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::rom::layout::RomLayout;
 use crate::games::gen6::screens::buttons::MENU;
-use crate::games::gen6::subscreen::amie::{NUMBER, SHOWN};
+use crate::games::gen6::subscreen::amie::{NUMBER, ORAS_PLAYER, PlayerFields};
 use crate::games::gen6::subscreen::super_training::ICONS;
 use crate::py::{Log, Result};
 
@@ -331,12 +331,9 @@ pub struct Game {
     /// Where its Pokémon-Amie page keeps its Pokémon's number, its icon's holder following
     /// (`subscreen.amie`): ORAS's 0x14C, X's 0x124 (spike 228).
     pub amie: i64,
-    /// How much later than ORAS's Amie's `Player` keeps its fields (`subscreen.amie`): X's 4, its
-    /// love command at +0x1BC and its picture's holder at +0x230 (spike 287).
-    pub amie_player: i64,
-    /// Where Amie's `Player` keeps the Pokémon it draws (`subscreen.amie`): ORAS's 0x5FC, X's
-    /// 0x5F8, earlier where its other fields are later (spike 287).
-    pub amie_shown: i64,
+    /// Where Amie's `Player` keeps what is read of it (`subscreen.amie`): ORAS's, or X's
+    /// (`xy.AMIE_PLAYER`), most of them 4 later (spike 287).
+    pub amie_player: PlayerFields,
     /// Textures a game draws as a button's words with no line of its text to name them, named
     /// instead by pa3ds's own words for the picture (`pictures.named`) and offered as a button of
     /// their own, as the game's word would be: X's Pokémon-Amie menu (spike 228).
@@ -422,8 +419,7 @@ impl Game {
             steps: ORAS,
             training: ICONS,
             amie: NUMBER,
-            amie_player: 0,
-            amie_shown: SHOWN,
+            amie_player: ORAS_PLAYER,
             worded: IndexSet::new(),
             field_menu: MENU,
             camera: camera::ORAS,

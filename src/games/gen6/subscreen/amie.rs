@@ -95,7 +95,7 @@ use crate::games::gen6::apps::FIELD;
 use crate::games::gen6::gflheap;
 use crate::games::gen6::screens::distribution as d;
 use crate::games::gen6::screens::townmap;
-use crate::games::gen6::subscreen::berry_picker::Touching;
+use crate::games::gen6::subscreen::berry_picker::{Name, Touching};
 use crate::py::{self, Error, Kind, PySet, Result};
 
 pub const CLASS: &str = "N5field9subscreen9kawaigari12FM_KawaigariE";
@@ -129,10 +129,10 @@ pub fn digit(image: Option<&str>) -> Option<String> {
 }
 
 /// Amie's own object, which keeps the stylus and leads to the picture of the Pokémon's parts. The
-/// module's code holds copies of its first words, which a sweep finds as well (spike 279).
+/// module's code holds copies of its first words, which a sweep finds as well (spike 279). Where it
+/// keeps each field read is a game's own (`PlayerFields`).
 pub const PLAYER: &str = "N9kawaigari6PlayerE";
-pub const HOLDS_PICTURE: i64 = 0x22C;
-/// The class `Player` +0x22C is, whose `BUFFERS` hold the picture.
+/// The class `PlayerFields.holds_picture` points at, whose `BUFFERS` hold the picture.
 pub const PICTURE_HOLDER: &str = "N3gfl4heap11NwAllocatorE";
 /// The picture's two buffers, and after them which is current, 0 or 1.
 pub const BUFFERS: i64 = 0x164;
@@ -186,12 +186,7 @@ pub type Run = (i64, i64, i64);
 pub type Box4 = (i64, i64, i64, i64);
 /// The two ends a rub goes back and forth between.
 type Ends = ((i64, i64), (i64, i64));
-/// Where `Player` keeps the Pokémon it draws, a word each: its species, its form, its sex and the
-/// encryption constant its record starts with, which says whose it is. X's is 0x5F8
-/// (`Game.amie_shown`). Found with the lead rewritten as Burmy's three cloaks on the research rig,
-/// and checked against Metagross's, Rock Star Pikachu's and Froakie's records (spike 287).
-pub const SHOWN: i64 = 0x5FC;
-/// A female, in `SHOWN`'s third word.
+/// A female, in `PlayerFields.shown`'s third word.
 pub const FEMALE: i64 = 1;
 /// A female moving unlike her male in a message's key, `amie-motion-592-f-happyB`.
 pub const FEMALE_FORM: &str = "f";
@@ -241,7 +236,8 @@ pub const BOTH_SCREENS: [i64; 21] = [
 /// reaching the top of the screen with no eyes drawn was pressed at the top edge, and these came down
 /// (spike 287, 2026-11-07). The other 9 were only standing close: Bayleef, Spinda, Flygon, Trubbish,
 /// female Jellicent, Accelgor and the biggest Pumpkaboo and Gourgeist. Nothing read says which are
-/// which: `Player`'s size, the word `SHOWN` + 0x18, has Snorlax at 1 and Charizard at 2.
+/// which: `Player`'s size, the word 0x18 after `PlayerFields.shown`, has Snorlax at 1 and Charizard
+/// at 2.
 pub const UNBOUND: (i64, i64) = (720, 1);
 /// The pane the Pokémon brought between the screens stands in for in touch mode.
 pub const VIEW_TARGET: i64 = 3;
@@ -308,9 +304,7 @@ pub const PARTS: [(i64, &str); 26] = [
 pub const PART: &str = "amie-part";
 /// The grey a Pokémon high-fives with: a hand or arm on most, a mouth on a few (spike 287).
 pub const HAND: i64 = 10;
-pub const LOVE: i64 = 0x1B8;
-/// `Player` +0x1B8 -> the love command running, none for a moment between two, and its number, an
-/// s16 at +0xC (spike 287).
+/// Where the love command running (`PlayerFields.love`) keeps its number, an s16 (spike 287).
 pub const LOVE_NUMBER: i64 = 0xC;
 /// `LoveLookTouch`: a press held off the Pokémon a few seconds raises its hand, longer the lower
 /// its affection (Pikachu Rock Star's 60 took 4.8 s), which it waves about 2 s, about a second a
@@ -379,10 +373,7 @@ pub const OF_THE_PUFF: [&str; 4] = [
 ];
 /// What the log calls a line of `Moods`.
 pub const MOOD_LOG: &str = "amie mood";
-/// `Player` +0x146: the animation its model plays, its number in the model's list plus 2, and 2
-/// while it stands, which it goes back to as each ends (spike 287).
-pub const PLAYING: i64 = 0x146;
-/// The animations a sentence describes, by `PLAYING`: the models' own `kw10_respond` to
+/// The animations a sentence describes, by `PlayerFields.playing`: the models' `kw10_respond` to
 /// `kw60_touch`, the three of eating, the three of nodding off and the two of sleep one action each.
 /// A Pokémon's sentence is `amie-motion-<number>-<this>` in `amie-motions-*.ftl`, one a form moving
 /// unlike its species adding its form (`AmiePage.form`), `amie-motion-25-1-happyB`, as `amie.ftl`'s
@@ -429,12 +420,11 @@ pub const SHOWN_BY: [(&str, &str); 4] = [
     ("amie-mood-asleep", "sleep"),
     ("amie-mood-hand-raised", "touch"),
 ];
-pub const TASK: i64 = 0x1BC;
 pub const TASK_SCRIPT: i64 = 0x04;
 pub const SCRIPT_MAGIC: i64 = 0xF1E0;
 pub const SCRIPT_MAGIC_AT: i64 = 0x04;
-/// `Player` +0x1BC -> its `kawaigari::PawnTask`, +0x04 -> Amie's script as it runs, its magic at
-/// +0x04 and at +0x10 how far in its data starts (spike 287).
+/// `Player`'s `kawaigari::PawnTask` (`PlayerFields.task`) +0x04 -> Amie's script as it runs, its
+/// magic at +0x04 and at +0x10 how far in its data starts (spike 287).
 pub const SCRIPT_DATA: i64 = 0x10;
 pub const NUMBERS: [i64; 3] = [56, 64, 60];
 pub const AFFECTION: usize = 0;
@@ -812,14 +802,229 @@ pub fn meter(number: i64) -> i64 {
     METER_STEPS.partition_point(|&step| step <= number) as i64
 }
 
+/// Where a game's `Player` keeps what is read of it, each by its offset (`Game.amie_player`),
+/// in one place: every read of it goes through `PlayerRead`, where reads adding a game's offset
+/// each for itself had read X's wrong (6eae83a3).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PlayerFields {
+    /// -> the love command running, none for a moment between two (`LOVE_NUMBER`).
+    pub love: i64,
+    /// The animation its model plays, its number in the model's list plus 2, and 2 while it
+    /// stands, which it goes back to as each ends (`MOTIONS`).
+    pub playing: i64,
+    /// -> its `kawaigari::PawnTask`, which leads to Amie's script and its numbers (`NUMBERS`).
+    pub task: i64,
+    /// -> the picture of parts' holder (`PICTURE_HOLDER`).
+    pub holds_picture: i64,
+    /// The Pokémon it draws, a word each: its species, its form, its sex and the encryption
+    /// constant its record starts with, which says whose it is. Found with the lead rewritten as
+    /// Burmy's three cloaks on the research rig, and checked against Metagross's, Rock Star
+    /// Pikachu's and Froakie's records.
+    pub shown: i64,
+}
+
+/// Omega Ruby's and Alpha Sapphire's (spike 287); X's are `xy.AMIE_PLAYER`.
+pub const ORAS_PLAYER: PlayerFields = PlayerFields {
+    love: 0x1B8,
+    playing: 0x146,
+    task: 0x1BC,
+    holds_picture: 0x22C,
+    shown: 0x5FC,
+};
+
+/// A read's value, or None where the emulator could not answer it: Python's `except RpcError`.
+fn answered<T>(read: Result<T>) -> Result<Option<T>> {
+    match read {
+        Ok(value) => Ok(Some(value)),
+        Err(error) if error.is(Kind::RpcError) => Ok(None),
+        Err(error) => Err(error),
+    }
+}
+
+/// `functools.cached_property`: the value kept once it is worked out; an error keeps nothing.
+fn cached<T: Clone>(cell: &OnceCell<T>, work: impl FnOnce() -> Result<T>) -> Result<T> {
+    if let Some(value) = cell.get() {
+        return Ok(value.clone());
+    }
+    let value = work()?;
+    Ok(cell.get_or_init(|| value).clone())
+}
+
+/// Amie's `Player` as read at one poll (`AmiePage.poll`): the first one running, each field
+/// read the first time it is asked and kept until the next poll, so the stylus's keys, the moods
+/// and touch mode's targets, which ask a few times a poll, read it once, and only what they
+/// ask; anything that cannot be read is None.
+pub struct PlayerRead {
+    memory: Rc<dyn Memory>,
+    names: Rc<ClassNames>,
+    players: IndexMap<i64, i64>,
+    fields: PlayerFields,
+    found: OnceCell<Option<(i64, i64)>>,
+    mood: OnceCell<Option<i64>>,
+    motion: OnceCell<Option<&'static str>>,
+    shown: OnceCell<Option<(i64, i64, i64, i64)>>,
+    numbers: OnceCell<Option<(i64, i64, i64)>>,
+}
+
+impl PlayerRead {
+    pub fn new(
+        memory: Rc<dyn Memory>,
+        names: Rc<ClassNames>,
+        players: IndexMap<i64, i64>,
+        fields: PlayerFields,
+    ) -> Self {
+        PlayerRead {
+            memory,
+            names,
+            players,
+            fields,
+            found: OnceCell::new(),
+            mood: OnceCell::new(),
+            motion: OnceCell::new(),
+            shown: OnceCell::new(),
+            numbers: OnceCell::new(),
+        }
+    }
+
+    /// The Player running and its picture's holder, or None.
+    pub fn found(&self) -> Result<Option<(i64, i64)>> {
+        cached(&self.found, || {
+            let fields = self.fields;
+            let read = || -> Result<Option<(i64, i64)>> {
+                for (&player, &vtable) in &self.players {
+                    let head = self.memory.read(player, fields.holds_picture + 4)?;
+                    let holder = u32(&head, fields.holds_picture)?;
+                    // A Player freed, or a copy of its words in the module's code, leads nowhere.
+                    if u32(&head, 0)? == vtable
+                        && within(HEAP_SPAN, holder)
+                        && self.names.of_object(holder)?.as_deref() == Some(PICTURE_HOLDER)
+                    {
+                        return Ok(Some((player, holder)));
+                    }
+                }
+                Ok(None)
+            };
+            Ok(answered(read())?.flatten())
+        })
+    }
+
+    /// `size` bytes of the Player running from `at`, or None.
+    fn field(&self, at: i64, size: i64) -> Result<Option<Vec<u8>>> {
+        let Some((player, _holder)) = self.found()? else {
+            return Ok(None);
+        };
+        answered(self.memory.read(player + at, size))
+    }
+
+    /// The love command running, by its number; None between two.
+    pub fn mood(&self) -> Result<Option<i64>> {
+        cached(&self.mood, || {
+            let head = self.field(self.fields.love, 4)?;
+            let command = match head {
+                Some(head) if !head.is_empty() => u32(&head, 0)?,
+                _ => 0,
+            };
+            if !within(HEAP_SPAN, command) {
+                return Ok(None);
+            }
+            answered(self.memory.read(command + LOVE_NUMBER, 2))?
+                .map(|raw| s16(&raw, 0))
+                .transpose()
+        })
+    }
+
+    /// The animation its model plays, by `MOTIONS`' word; None while it stands.
+    pub fn motion(&self) -> Result<Option<&'static str>> {
+        cached(&self.motion, || {
+            let Some(head) = self.field(self.fields.playing, 2)? else {
+                return Ok(None);
+            };
+            let playing = u16(&head, 0)?;
+            Ok(MOTIONS
+                .iter()
+                .find(|(number, _)| *number == playing)
+                .map(|(_, word)| *word))
+        })
+    }
+
+    /// The species, form, sex and record of the Pokémon it draws.
+    pub fn shown(&self) -> Result<Option<(i64, i64, i64, i64)>> {
+        cached(&self.shown, || {
+            let Some(head) = self.field(self.fields.shown, 16)? else {
+                return Ok(None);
+            };
+            Ok(Some((
+                u32(&head, 0)?,
+                u32(&head, 4)?,
+                u32(&head, 8)?,
+                u32(&head, 12)?,
+            )))
+        })
+    }
+
+    /// The Pokémon's affection, fullness and enjoyment as they stand.
+    pub fn numbers(&self) -> Result<Option<(i64, i64, i64)>> {
+        cached(&self.numbers, || {
+            let memory = &self.memory;
+            let head = self.field(self.fields.task, 4)?;
+            let task = match head {
+                Some(head) if !head.is_empty() => u32(&head, 0)?,
+                _ => 0,
+            };
+            let read = || -> Result<Option<(i64, i64, i64)>> {
+                let script = if within(HEAP_SPAN, task) {
+                    u32(&memory.read(task + TASK_SCRIPT, 4)?, 0)?
+                } else {
+                    0
+                };
+                let head = if within(HEAP_SPAN, script) {
+                    memory.read(script, SCRIPT_DATA + 4)?
+                } else {
+                    Vec::new()
+                };
+                if head.is_empty() || u16(&head, SCRIPT_MAGIC_AT)? != SCRIPT_MAGIC {
+                    return Ok(None);
+                }
+                let data = script + u32(&head, SCRIPT_DATA)?;
+                Ok(Some((
+                    u32(&memory.read(data + NUMBERS[AFFECTION], 4)?, 0)?,
+                    u32(&memory.read(data + NUMBERS[FULLNESS], 4)?, 0)?,
+                    u32(&memory.read(data + NUMBERS[ENJOYMENT], 4)?, 0)?,
+                )))
+            };
+            Ok(answered(read())?.flatten())
+        })
+    }
+
+    /// The buffer of the picture of parts drawn last, read afresh as it is asked, as the two
+    /// take turns.
+    pub fn buffer(&self) -> Result<Option<i64>> {
+        let Some((_player, holder)) = self.found()? else {
+            return Ok(None);
+        };
+        let Some(buffers) = answered(self.memory.read(holder + BUFFERS, 12))? else {
+            return Ok(None);
+        };
+        let which = u32(&buffers, 8)?;
+        let buffer = if which == 0 || which == 1 {
+            u32(&buffers, 4 * which)?
+        } else {
+            0
+        };
+        Ok(within(LINEAR_SPAN, buffer).then_some(buffer))
+    }
+}
+
 /// Names the picture of the Pokémon the Pokémon-Amie page shows by its species, and offers
 /// Amie's Pokémon to beckon and its stylus to rub with.
 pub struct AmiePage {
     memory: Rc<dyn Memory>,
-    /// How much later than ORAS's `Player` keeps its fields (`Game.amie_player`).
-    later: i64,
-    /// Where `Player` keeps the Pokémon it draws (`Game.amie_shown`).
-    shown_at: i64,
+    /// A party member as the player knows it, by nickname or species (`Subscreens.short`).
+    call: Name,
+    /// Where this game's `Player` keeps what is read of it (`Game.amie_player`).
+    fields: PlayerFields,
+    /// `Player` as read at this poll, none until it is first asked of.
+    now: OnceCell<PlayerRead>,
     /// What the picture of parts is read through, none where it is not read: the GPU draws it,
     /// and Azahar before 2126.2 can crash when that memory is read (`Rpc.reads_beside_gpu`).
     /// Reading it flushes it from the GPU's copy, right only from its own first byte on: from the
@@ -878,18 +1083,24 @@ impl AmiePage {
     /// `Player`, which leads to the picture of its parts, and the party's records.
     pub const CLASSES: [&'static str; 3] = [CLASS, PLAYER, pokemon::PARAM_CLASS];
 
-    pub fn new(memory: Rc<dyn Memory>, names: Rc<ClassNames>, species: Vec<String>) -> Self {
-        AmiePage::with_number(memory, names, species, NUMBER)
+    pub fn new(
+        memory: Rc<dyn Memory>,
+        names: Rc<ClassNames>,
+        species: Vec<String>,
+        call: Name,
+    ) -> Self {
+        AmiePage::with_number(memory, names, species, call, NUMBER)
     }
 
-    /// `AmiePage(memory, names, species, number)`; Python's `drawn` defaults to None.
+    /// `AmiePage(memory, names, species, call, number)`; Python's `drawn` defaults to None.
     pub fn with_number(
         memory: Rc<dyn Memory>,
         names: Rc<ClassNames>,
         species: Vec<String>,
+        call: Name,
         number: i64,
     ) -> Self {
-        AmiePage::with_aim(memory, names, species, number, None, 0, SHOWN)
+        AmiePage::with_aim(memory, names, species, call, number, None, ORAS_PLAYER)
     }
 
     /// `AmiePage(...)` with every argument.
@@ -897,15 +1108,16 @@ impl AmiePage {
         memory: Rc<dyn Memory>,
         names: Rc<ClassNames>,
         species: Vec<String>,
+        call: Name,
         number: i64,
         drawn: Option<Rc<dyn Memory>>,
-        later: i64,
-        shown: i64,
+        fields: PlayerFields,
     ) -> Self {
         AmiePage {
             memory,
-            later,
-            shown_at: shown,
+            call,
+            fields,
+            now: OnceCell::new(),
             drawn,
             still: None,
             anew: false,
@@ -972,17 +1184,40 @@ impl AmiePage {
         self.players = kept.shift_remove(PLAYER).unwrap_or_default();
         self.params = params;
         self.called = None;
+        self.now = OnceCell::new();
         self.species()?;
         Ok(())
     }
 
+    /// Start a poll, saying nothing: `Player` is read afresh, once, by what asks of it. The
+    /// first of the subscreens' polled readers (`Subscreens`), before the stylus's keys and the
+    /// moods ask.
+    pub fn poll(&mut self, running: Option<&str>) -> Vec<(String, String, Option<Category>)> {
+        let _ = running; // read only as asked, and only Amie's readers ask
+        self.now = OnceCell::new();
+        Vec::new()
+    }
+
+    /// `Player` as read at this poll.
+    fn player(&self) -> &PlayerRead {
+        self.now.get_or_init(|| {
+            PlayerRead::new(
+                self.memory.clone(),
+                self.names.clone(),
+                self.players.clone(),
+                self.fields,
+            )
+        })
+    }
+
     /// The Pokémon by the nickname its player gave it, or else its species (Orion,
-    /// 2026-10-16): the party's record `Player` says it draws (`SHOWN`), of its species as well,
-    /// as a save edited by hand can have two Pokémon sharing a constant. With no `Player` yet it
-    /// is looked for by its species, and a species two of the party share is said as that.
+    /// 2026-10-16): the party's record `Player` says it draws (`PlayerFields.shown`), of its
+    /// species as well, as a save edited by hand can have two Pokémon sharing a constant. With no
+    /// `Player` yet it is looked for by its species, and a species two of the party share is said
+    /// as that.
     pub fn called(&mut self) -> Result<String> {
         let species = self.species()?.unwrap_or_default();
-        let shown = self.shown()?;
+        let shown = self.player().shown()?;
         let key = shown.map(|shown| shown.3);
         if self
             .called
@@ -1015,45 +1250,22 @@ impl AmiePage {
             } else {
                 mine
             };
-            let mut names: Vec<(String, bool)> = Vec::new();
+            let mut names: Vec<Option<String>> = Vec::new();
             for (_opens, one) in chosen {
-                let name = (one.nickname.clone(), one.nicknamed);
+                let name = (self.call)(one);
                 if !names.contains(&name) {
                     names.push(name);
                 }
             }
-            let (nickname, nicknamed) = if names.len() == 1 {
+            let name = if names.len() == 1 {
                 names.remove(0)
             } else {
-                (String::new(), false)
+                None
             };
-            self.called = Some((self.number, key, if nicknamed { nickname } else { species }));
+            let name = name.filter(|name| !name.is_empty()).unwrap_or(species);
+            self.called = Some((self.number, key, name));
         }
         Ok(self.called.as_ref().expect("looked up above").2.clone())
-    }
-
-    /// The species, form, sex and record of the Pokémon `Player` draws, or None where no
-    /// Player runs.
-    fn shown(&self) -> Result<Option<(i64, i64, i64, i64)>> {
-        let read = || -> Result<Option<(i64, i64, i64, i64)>> {
-            for (&player, &vtable) in &self.players {
-                if self.holder(player, vtable)?.is_none() {
-                    continue;
-                }
-                let head = self.memory.read(player + self.shown_at, 16)?;
-                return Ok(Some((
-                    u32(&head, 0)?,
-                    u32(&head, 4)?,
-                    u32(&head, 8)?,
-                    u32(&head, 12)?,
-                )));
-            }
-            Ok(None)
-        };
-        match read() {
-            Err(error) if error.is(Kind::RpcError) => Ok(None),
-            found => found,
-        }
     }
 
     /// The species a picture draws the Amie page's Pokémon as, in the game's words, or None.
@@ -1184,7 +1396,7 @@ impl AmiePage {
     /// no eyes to tell by, so `_down` remembers the edge last pressed (Orion, 2026-11-07), Amie
     /// opening with it on the top screen.
     fn view(&mut self, name: &str) -> Result<Vec<Target>> {
-        let shown = self.shown()?;
+        let shown = self.player().shown()?;
         if !self.both_screens.contains(&self.number)
             && shown.is_none_or(|shown| (shown.0, shown.1) != self.unbound)
         {
@@ -1275,11 +1487,11 @@ impl AmiePage {
             .or_else(|| words.get(&format!("amie-{kind}-{}-{what}", self.number), values)))
     }
 
-    /// How the messages name the form Amie draws the Pokémon in (`SHOWN`): its number, `"1"`
-    /// for Pikachu Rock Star, `FEMALE_FORM` for a first form's female, and None for a first
-    /// form's male or where no Player runs, which take the species' own.
+    /// How the messages name the form Amie draws the Pokémon in (`PlayerFields.shown`): its
+    /// number, `"1"` for Pikachu Rock Star, `FEMALE_FORM` for a first form's female, and None for
+    /// a first form's male or where no Player runs, which take the species' own.
     pub fn form(&self) -> Result<Option<String>> {
-        let Some((_species, form, sex, _record)) = self.shown()? else {
+        let Some((_species, form, sex, _record)) = self.player().shown()? else {
             return Ok(None);
         };
         Ok(if form != 0 {
@@ -1435,32 +1647,13 @@ impl AmiePage {
 
     /// The love command running, by its number; None between two, or where no Player runs.
     pub fn mood(&self) -> Result<Option<i64>> {
-        for (&player, &vtable) in &self.players {
-            if self.holder(player, vtable)?.is_none() {
-                continue;
-            }
-            let command = u32(&self.memory.read(player + LOVE + self.later, 4)?, 0)?;
-            if within(HEAP_SPAN, command) {
-                return Ok(Some(s16(&self.memory.read(command + LOVE_NUMBER, 2)?, 0)?));
-            }
-        }
-        Ok(None)
+        self.player().mood()
     }
 
     /// The animation its model plays, by `MOTIONS`' word; None while it stands, or where no
     /// Player runs.
     pub fn motion(&self) -> Result<Option<&'static str>> {
-        for (&player, &vtable) in &self.players {
-            if self.holder(player, vtable)?.is_none() {
-                continue;
-            }
-            let playing = u16(&self.memory.read(player + PLAYING + self.later, 2)?, 0)?;
-            return Ok(MOTIONS
-                .iter()
-                .find(|(number, _)| *number == playing)
-                .map(|(_, word)| *word));
-        }
-        Ok(None)
+        self.player().motion()
     }
 
     /// The sentence for an animation of this Pokémon, its form's first, or None.
@@ -1475,41 +1668,7 @@ impl AmiePage {
     /// The Pokémon's affection, fullness and enjoyment as they stand, or None where no Player
     /// runs.
     pub fn numbers(&self) -> Result<Option<(i64, i64, i64)>> {
-        let memory = &self.memory;
-        for (&player, &vtable) in &self.players {
-            if self.holder(player, vtable)?.is_none() {
-                continue;
-            }
-            let read = || -> Result<Option<(i64, i64, i64)>> {
-                let task = u32(&memory.read(player + TASK + self.later, 4)?, 0)?;
-                let script = if within(HEAP_SPAN, task) {
-                    u32(&memory.read(task + TASK_SCRIPT, 4)?, 0)?
-                } else {
-                    0
-                };
-                let head = if within(HEAP_SPAN, script) {
-                    memory.read(script, SCRIPT_DATA + 4)?
-                } else {
-                    Vec::new()
-                };
-                if head.is_empty() || u16(&head, SCRIPT_MAGIC_AT)? != SCRIPT_MAGIC {
-                    return Ok(None);
-                }
-                let data = script + u32(&head, SCRIPT_DATA)?;
-                Ok(Some((
-                    u32(&memory.read(data + NUMBERS[AFFECTION], 4)?, 0)?,
-                    u32(&memory.read(data + NUMBERS[FULLNESS], 4)?, 0)?,
-                    u32(&memory.read(data + NUMBERS[ENJOYMENT], 4)?, 0)?,
-                )))
-            };
-            match read() {
-                Ok(Some(numbers)) => return Ok(Some(numbers)),
-                Ok(None) => continue,
-                Err(error) if error.is(Kind::RpcError) => continue,
-                Err(error) => return Err(error),
-            }
-        }
-        Ok(None)
+        self.player().numbers()
     }
 
     /// Where a jump goes while the Pokémon's hand is raised, whichever way: a player cannot
@@ -1602,36 +1761,7 @@ impl AmiePage {
         if self.drawn.is_none() {
             return Ok(None);
         }
-        let players: Vec<(i64, i64)> = self.players.iter().map(|(&p, &v)| (p, v)).collect();
-        for (player, vtable) in players {
-            let Some(holder) = self.holder(player, vtable)? else {
-                continue;
-            };
-            let buffers = self.memory.read(holder + BUFFERS, 12)?;
-            let which = u32(&buffers, 8)?;
-            let buffer = if which == 0 || which == 1 {
-                u32(&buffers, 4 * which)?
-            } else {
-                0
-            };
-            if within(LINEAR_SPAN, buffer) {
-                return Ok(Some(buffer));
-            }
-        }
-        Ok(None)
-    }
-
-    /// Each Player running, with its picture's holder. Python's `_holders` is a generator over
-    /// the Players; here each caller walks them and asks this of each in turn, so the reads are
-    /// made as lazily.
-    fn holder(&self, player: i64, vtable: i64) -> Result<Option<i64>> {
-        let head = self.memory.read(player, HOLDS_PICTURE + self.later + 4)?;
-        let holder = u32(&head, HOLDS_PICTURE + self.later)?;
-        // A Player freed, or a copy of its words in the module's code, leads nowhere.
-        Ok((u32(&head, 0)? == vtable
-            && within(HEAP_SPAN, holder)
-            && self.names.of_object(holder)?.as_deref() == Some(PICTURE_HOLDER))
-        .then_some(holder))
+        self.player().buffer()
     }
 
     /// The image of texture 0 of a PokeIcon, or None where a link of the chain is not the

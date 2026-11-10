@@ -358,6 +358,16 @@ impl Polled for RefCell<Moods> {
     }
 }
 
+impl Polled for RefCell<AmiePage> {
+    fn poll(
+        &self,
+        running: Option<&str>,
+        _touch: &mut dyn Touching,
+    ) -> Result<Vec<(String, String, Option<Category>)>> {
+        Ok(self.borrow_mut().poll(running))
+    }
+}
+
 impl Named for RefCell<SwitchScreen> {
     fn name(&self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
         self.borrow().name(picture, running)
@@ -427,6 +437,10 @@ impl Subscreens {
         on_screen: OnScreen,
         party: Rc<dyn Fn() -> Option<i64>>,
     ) -> Subscreens {
+        let short: berry_picker::Name = {
+            let text = text.clone();
+            Rc::new(move |found: &pokemon::Pokemon| short(&text, found))
+        };
         // The Pokémon-Amie page draws its Pokémon's icon, and says nothing of whose; Amie itself
         // has its Pokémon beckoned, and petted with a stylus over a picture of its parts the GPU
         // draws, read through `drawn` where the emulator lets that be read.
@@ -434,10 +448,10 @@ impl Subscreens {
             memory.clone(),
             names.clone(),
             text.species.clone(),
+            short.clone(),
             game.amie,
             drawn,
             game.amie_player,
-            game.amie_shown,
         )
         .shared();
         // Its own keys, the arrows, move the stylus, saying the part it comes onto, and keep it
@@ -507,8 +521,6 @@ impl Subscreens {
         );
         // Amie's Berry Picker draws the berry each Pokémon wants in a bubble, and says nothing of
         // who wants which.
-        let short: berry_picker::Name =
-            Rc::new(move |found: &pokemon::Pokemon| short(&text, found));
         let berry_picker = Rc::new(RefCell::new(BerryPicker::with_settings(
             memory.clone(),
             names.clone(),
@@ -573,7 +585,9 @@ impl Subscreens {
             .iter()
             .flat_map(|reader| reader.classes().iter().copied())
             .collect();
+        // The page first: Amie's `Player` is read afresh for each poll as the others ask.
         let mut polled: Vec<Rc<dyn Polled>> = vec![
+            page.clone(),
             sparring,
             berry_picker.clone(),
             head_it.clone(),
