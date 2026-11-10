@@ -23,7 +23,7 @@ gh issue list --label upstream --state open
 
 Stop and say why if the branch is not `main`, the tree is not clean, `main` is not level with
 `origin/main`, or an `upstream` issue is open: a release is cut only with the port level with
-upstream, so that each one closes what upstream had (Orion, 2026-10-25). A branch ported ahead of
+upstream, so that each one closes what upstream had. A branch ported ahead of
 the rest, as pa3ds's window was, waits for that too.
 
 ## 2. Read what changed
@@ -68,7 +68,8 @@ every entry in it.
 - One bullet per change a player would tell apart. Commits that make one change together are one
   bullet.
 - In the manual's words and voice: plain, present tense, keys and settings named as the manual
-  names them. No ADR, spike, finding, file path, commit or upstream hash, and no "port".
+  names them. No ADR, spike, finding, file path, commit or upstream hash, no "port", and no
+  developer: say what changed, not who asked for it.
 - First release: instead of a list, one short paragraph saying what pa3ds does and which games it
   reads, from the README's opening and its Games section.
 
@@ -85,10 +86,12 @@ cargo fmt --check
 cargo clippy --all-targets
 cargo test --lib
 python tools/sync.py tests
+python tools/sync.py anonymous
 powershell -ExecutionPolicy Bypass -File tools\package.ps1 -SkipTests
 ```
 
-Clippy must report no warnings. The last builds the release exactly as the workflow will and
+Clippy must report no warnings. `anonymous` must find no file naming a developer, the section
+just written included. The last builds the release exactly as the workflow will and
 checks it starts. The builds also update `Cargo.lock` to the new version. If anything fails,
 stop and report it: a release is not cut on red.
 

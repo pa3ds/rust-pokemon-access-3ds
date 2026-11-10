@@ -10,6 +10,7 @@ Python file has one place here (`rust_path`), so a change upstream maps to a fil
     python tools/sync.py mirror            copy the files carried over as they are (data, licence)
     python tools/sync.py tests             every Python test without a Rust test of its name
     python tools/sync.py mark [<commit>]   record that the port now matches <commit> (default HEAD)
+    python tools/sync.py anonymous         every line here that names a developer
 
 The Python checkout is `PA3DS_PYTHON`, or `../pokemon-access-3ds` beside this repository. Needs
 only the standard library and git.
@@ -242,6 +243,14 @@ def tests() -> int:
     return 1 if missing_total else 0
 
 
+def anonymous() -> int:
+    """No file this repository tracks names a developer or says who said a thing when. The names
+    are in the Python checkout's `tests/test_anonymous.py`, run here on every file, since this
+    repository is public and its own copy of the names would be one more."""
+    test = PYTHON / "tests" / "test_anonymous.py"
+    return subprocess.run([sys.executable, str(test), str(ROOT), "--all"]).returncode
+
+
 def mark(commit: str) -> int:
     sha = git("rev-parse", commit).strip()
     text = MANIFEST.read_text(encoding="utf-8")
@@ -265,6 +274,8 @@ def main() -> int:
         return tests()
     if command == "mark":
         return mark(sys.argv[2] if len(sys.argv) > 2 else "HEAD")
+    if command == "anonymous":
+        return anonymous()
     print(__doc__)
     return 2
 

@@ -1,11 +1,15 @@
 # pa3ds, in Rust
 
 pa3ds speaks 3DS Pokemon games to blind players: it reads Azahar's emulated memory and sends text
-to a screen reader. Two people work on it, Orion and Khai, each on a machine of their own, sharing
-the movies regression runs on in `regression/` beside the two checkouts (`pa3ds/regression`,
-ADR-0041); each records the tapes of those movies on their own machine. Orion is blind and cannot
-check your work by looking at the game, and you cannot see the screen either: tests, snapshots,
-tapes and screenshots are the only shared evidence.
+to a screen reader. Two people work on it, each on a machine of their own, sharing the movies
+regression runs on in `regression/` beside the two checkouts (`pa3ds/regression`, ADR-0041); each
+records the tapes of those movies on their own machine. The repository's owner is blind and
+cannot check your work by looking at the game, and you cannot see the screen either: tests,
+snapshots, tapes and screenshots are the only shared evidence.
+
+This repository is public, and what is in it ships or is read by anyone: no file names a
+developer, by name or handle, or attributes a line to someone on a date. Give the reason alone.
+`python tools/sync.py anonymous` checks every file.
 
 **This repository is a port.** The Python pa3ds (https://github.com/pa3ds/pokemon-access-3ds)
 is upstream: features are found and built there first, with its spikes and movie rig, and arrive
@@ -31,10 +35,10 @@ in a comment or doc here means the Python checkout's. This repository's only doc
   claimed with `sync.py status`, or opens one starting where the claimed one ends, and a push
   here that brings `port.toml` to an issue's commit closes it. An issue is ported up to the
   commit its title names, never further, and never closed by hand: a claimed issue rewritten
-  under Khai while he ported nearly closed at the commit his agent had read, leaving what was
-  pushed meanwhile in no issue (Orion, 2026-10-25). Several open, port the oldest first.
-- **Claim an issue before working on it**, the `upstream` one or any other. Orion and Khai port
-  from machines of their own, and once nearly cut the same release twice (Orion, 2026-10-18).
+  under a developer while they ported nearly closed at the commit their agent had read, leaving
+  what was pushed meanwhile in no issue. Several open, port the oldest first.
+- **Claim an issue before working on it**, the `upstream` one or any other. Two developers port
+  from machines of their own, and once nearly cut the same release twice.
   Look first (`gh issue view <n>`): an issue labelled `in progress` is someone else's, so stop and
   ask. Otherwise mark it: `gh issue edit <n> --add-label "in progress" --add-assignee @me`. The
   mark stays until the work reaches the default branch, which closes the issue; if you stop
@@ -49,7 +53,7 @@ in a comment or doc here means the Python checkout's. This repository's only doc
 
 ## Hard constraints
 
-Settled. Reopen one only by asking Orion first.
+Settled. Reopen one only by asking the repository's owner first.
 
 - **Announce, never act.** pa3ds never presses buttons and never writes to game memory. The one
   approved exception is a touch on the touch target pa3ds has just named, on the player's keys:
@@ -58,7 +62,7 @@ Settled. Reopen one only by asking Orion first.
 - **No hardcoded game text.** Every name, label and message *the game itself shows* comes from
   the ROM or RAM. Hardcoded struct layouts and anchor definitions are fine; hardcoded strings are
   not. What the game **never** names — a speaker, a sign, a door — may carry a name of pa3ds's own
-  under three rules (Orion, 2026-09-21, reopening this): it never replaces something the game
+  under three rules: it never replaces something the game
   says, it lives in a data file a game and a language rather than in code, and the player's own
   names always win. `pa3ds.core.names`. Every other word pa3ds says of its own is a message in
   `data/` too: code asks for `own("cant-continue", &[])`, and the English goes in a `.ftl` file
@@ -117,20 +121,20 @@ The Python checkout is `PA3DS_PYTHON`, or `../pokemon-access-3ds` beside this on
    has moved on to since. `git fetch` this repository and branch from `origin/main`: its
    `port.toml` must name the commit the issue's body says port.toml matches. Where it does not,
    your main is stale or a port has not landed yet, so stop and ask. A sync begun on a main two
-   days stale ported again what Khai's PR #32 had merged (Orion, 2026-10-30); `status` now
+   days stale ported again what PR #32 had merged; `status` now
    warns where origin's `port.toml` is ahead of yours.
 1. `status`, then for each file listed to port by hand, read its upstream diff
    (`git -C ../pokemon-access-3ds diff <port.toml's commit>..HEAD -- <path>`) and make the same
    change to its Rust file, following `docs/porting.md`. Port the change to its tests too.
    Go an upstream commit at a time (`git -C ../pokemon-access-3ds log --reverse <port.toml's
    commit>..HEAD`), and commit each one, or each coherent group, on its own on a `sync/` branch:
-   twenty small commits are easier to dissect than one of 15,000 lines (Orion, 2026-10-08).
+   twenty small commits are easier to dissect than one of 15,000 lines.
    A rename upstream (`R` in `status`) is a `git mv` here. A file split into several shows only as
    new files, so read the commit that split it; after the split, the new Rust files' lines add up
    to the old file's, and `cargo check` passes before the next split begins.
 2. `mirror` for the data files; rewrite this file, `README.md`, `manual/` or `CLAUDE.md` by hand where
    upstream's changed in a way that applies here.
-3. `cargo test --lib`, `cargo clippy --all-targets`, `sync.py tests`.
+3. `cargo test --lib`, `cargo clippy --all-targets`, `sync.py tests`, `sync.py anonymous`.
 4. With the upstream commit checked out there, replay every tape through it to make the
    references (`uv run python spikes/tape_replay.py replay port-<short sha>` in that checkout),
    then through this runtime against them (`target\release\tape.exe --against
@@ -148,8 +152,8 @@ Conventional Commits: `type(scope): summary`, with `feat`, `fix`, `docs`, `refac
 `chore`, and a scope naming the area (`battle`, `rig`, `speech`, `port`).
 
 Nothing runs the checks on push, so run them before anything reaches the default branch:
-`cargo test --lib`, `cargo clippy --all-targets` with no warnings, `cargo fmt --check` and
-`python tools/sync.py tests`.
+`cargo test --lib`, `cargo clippy --all-targets` with no warnings, `cargo fmt --check`,
+`python tools/sync.py tests` and `python tools/sync.py anonymous`.
 
 ## Releases
 
@@ -170,17 +174,16 @@ and they ship in the release zip: the README the games, what is said, setup and 
 `keys.md` the default keys, the map's list, touch mode and naming; `amie.md` Pokémon-Amie, its
 keys and its games; `settings.md` every setting, the Azahar settings pa3ds writes and the
 player's files; `languages.md` languages and translating; `known-issues.md` every known problem
-and gap a player meets, there and not in the other pages (Orion, 2026-10-24). Upstream's are the
-same manual for the Python pa3ds (Orion, 2026-10-06); a sync that changes them changes these to match, in the same
-commit, but for running `pa3ds.exe` where upstream runs uv, and for the Updating section, which
-only the port has. Write them as upstream's `CODING_STANDARDS.md` (*The player's manual*) says,
-short (Orion, 2026-10-18). They name
-no ADR, finding or spike. Building and releasing are in [BUILDING.md](BUILDING.md), which does
-not ship.
+and gap a player meets, there and not in the other pages. Upstream's are the same manual for the
+Python pa3ds; a sync that changes them changes these to match, in the same commit, but for
+running `pa3ds.exe` where upstream runs uv, and for the Updating section, which only the port
+has. Write them as upstream's `CODING_STANDARDS.md` (*The player's manual*) says, short. They
+name no ADR, finding or spike, and no developer. Building and releasing are in
+[BUILDING.md](BUILDING.md), which does not ship.
 
 ## Runbooks
 
 Upstream's runbooks are in its `docs/runbooks/` and apply as written to the game and the emulator;
 where they run `uv run` or a spike, run them in the Python checkout. Spikes and the movie rig stay
-upstream and are not ported (the user, 2026-10-03): they record how a finding was reached, and
+upstream and are not ported: they record how a finding was reached, and
 drive the emulator rather than ship.

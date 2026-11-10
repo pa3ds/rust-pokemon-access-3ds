@@ -25,7 +25,7 @@ uv run python spikes/tape_replay.py verify <replay>...
 uv run python spikes/tape_replay.py replay <label> [<replay>...] [--covers <tag>...]
 ```
 
-`record` plays a replay as `spikes/regress.py run` plays it: one of the movies Orion and Khai
+`record` plays a replay as `spikes/regress.py run` plays it: one of the movies the developers
 share in `regression/replays.toml`, the `pa3ds/regression` checkout beside the two repositories
 (ADR-0041), or a `[[replay]]` of the Python checkout's `spikes/rig.toml` for a movie not shared
 yet. It writes `<replay>.tape.gz` with, beside it, what the runtime logged and said and the commit

@@ -3,9 +3,9 @@
 # there) dispatches `upstream-push` here on every push to its main; a push here that changes
 # port.toml runs this too, and closes each issue whose commit port.toml has reached. An issue
 # labelled `in progress` is never rewritten: what upstream pushes after it is claimed goes in an
-# issue of its own, from where the claimed one ends. Rewritten under Khai while he ported, the
-# issue nearly closed at the commit his agent had read, leaving what was pushed meanwhile in no
-# issue (Orion, 2026-10-25). PORT_SYNC_TOKEN reads the private upstream repository.
+# issue of its own, from where the claimed one ends. Rewritten under a developer while they
+# ported, the issue nearly closed at the commit their agent had read, leaving what was pushed
+# meanwhile in no issue. PORT_SYNC_TOKEN reads the private upstream repository.
 name: upstream
 
 on:
