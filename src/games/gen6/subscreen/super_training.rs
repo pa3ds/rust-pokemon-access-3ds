@@ -583,6 +583,15 @@ impl Goals {
     }
 }
 
+/// Python's `max` of floats: the first of the largest, a NaN kept only where it came first.
+fn largest(values: &[f64]) -> Option<f64> {
+    let (&first, rest) = values.split_first()?;
+    Some(rest.iter().fold(
+        first,
+        |best, &value| if value > best { value } else { best },
+    ))
+}
+
 /// Goals told apart where several are up, counted from the left: "goal 1", "goal 2", as Orion
 /// did not know there could be more than one (2026-11-10). A goal alone is "goal".
 fn numbered(goals: Vec<Target>) -> Vec<Target> {
@@ -1287,13 +1296,15 @@ impl Round {
     /// How far from the Bot the Pokémon stands, where a ball reaches it: the Circle Pad moves
     /// it from 228 to 162 or so.
     fn arrival(&self) -> Result<f64> {
+        let mut places = Vec::new();
         for (&player, &vtable) in &self.players {
             let head = self.memory.read(player, PLACE_Z + 4)?;
             if u32(&head, 0)? == vtable {
-                return f32(&head, PLACE_Z);
+                places.push(f32(&head, PLACE_Z)?);
             }
         }
-        Ok(ARRIVES_AT)
+        // A round holds more than one object of the class, and only the Pokémon stands far off.
+        Ok(largest(&places).unwrap_or(ARRIVES_AT))
     }
 
     /// What to say now, with what the log calls it and its category, while a round runs:
