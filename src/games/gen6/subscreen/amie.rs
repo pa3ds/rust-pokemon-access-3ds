@@ -425,11 +425,15 @@ pub const MOTIONS: [(i64, &str); 25] = [
 pub const FIDGETS: [&str; 7] = [
     "question", "moveA", "moveB", "moveC", "moveD", "turnA", "turnB",
 ];
-/// The one mood left unsaid where the Pokémon has a sentence for the animation under it, `eat`,
-/// which says the same. Dozing, asleep and a hand held up stay said before theirs: they are states a
-/// player acts on, and a sentence need not name them. Rock Star Pikachu's `touch` is "leans slightly
-/// to one side", and the hand it holds up is a high five's only cue (or_amie_interactions).
-pub const SAID_BY_EATING: &str = "amie-mood-eating";
+/// The moods left unsaid where the Pokémon has a sentence for the animation under them, which says
+/// more (Orion, 2026-11-07: "just have the animations instead"). A hand held up has a cry of its own
+/// as well, and a press held is what brought it.
+pub const SHOWN_BY: [(&str, &str); 4] = [
+    ("amie-mood-eating", "eat"),
+    ("amie-mood-dozing", "drowse"),
+    ("amie-mood-asleep", "sleep"),
+    ("amie-mood-hand-raised", "touch"),
+];
 pub const TASK: i64 = 0x1BC;
 pub const TASK_SCRIPT: i64 = 0x04;
 pub const SCRIPT_MAGIC: i64 = 0xF1E0;
@@ -2006,11 +2010,11 @@ impl Moods {
                 if self.puff.is_empty() && OF_THE_PUFF.contains(&word) {
                     continue;
                 }
-                if word == SAID_BY_EATING
+                if let Some((_, shown)) = SHOWN_BY.iter().find(|(mood, _)| *mood == word)
                     && self
                         .page
                         .borrow_mut()
-                        .motion_line("eat")?
+                        .motion_line(shown)?
                         .is_some_and(|line| !line.is_empty())
                 {
                     continue;

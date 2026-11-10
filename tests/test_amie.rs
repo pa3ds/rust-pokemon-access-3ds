@@ -812,7 +812,8 @@ fn test_xs_player_keeps_its_love_command_and_picture_four_bytes_later() {
 /// started at will on the research rig (spike A's `look`).
 #[test]
 fn test_the_moods_no_movie_reached_are_said_too() {
-    let (found, memory) = running(&[(8, HEAD)], false);
+    let (mut found, memory) = running(&[(8, HEAD)], false);
+    found.motion_line_of = Some(no_sentence);
     let mut moods = amie::Moods::new(Rc::new(RefCell::new(found)), false);
     let mut held = Held(Some("Sweet Poké Puff".to_string()));
     let mut said = |number: i64| -> Vec<String> {
@@ -1247,8 +1248,8 @@ impl Drop for Unused {
 
 /// Orion, 2026-11-06: every Pokémon's animations described, as a pet, a dislike or a finished
 /// puff show them. Back to standing, 2, the same one is seen again; the three of eating are one
-/// action, or_amie_interactions' 25 then 26 and a dance of 14; eating's sentence says what the
-/// mood would, and a form moving unlike its species has its own.
+/// action, or_amie_interactions' 25 then 26 and a dance of 14; a sentence takes the place of the
+/// mood it plays under, and a form moving unlike its species has its own.
 #[test]
 fn test_each_animation_is_said_as_it_begins_by_the_pokemons_own_sentence() {
     let tmp_path = TmpPath::new();
@@ -1259,8 +1260,12 @@ fn test_each_animation_is_said_as_it_begins_by_the_pokemons_own_sentence() {
         "
 amie-mood-eating = { $pokemon } is eating
 amie-mood-hand-raised = { $pokemon } is holding up its hand
+amie-mood-dozing = { $pokemon } is dozing off
+amie-mood-asleep = { $pokemon } is asleep
+amie-mood-awake = { $pokemon } woke up
 amie-mood-looking-around = { $pokemon } is looking around
 amie-motion-254-touch = { $pokemon } leans to one side
+amie-motion-254-drowse = { $pokemon } nods off
 amie-motion-254-happyB = { $pokemon } leaps
 amie-motion-254-eat = { $pokemon } chews with its leaves shaking
 amie-motion-254-moveC = { $pokemon } flicks its tail
@@ -1305,15 +1310,13 @@ amie-motion-254-12-happyB = { $pokemon } leaps in its costume
         ["Sceptile chews with its leaves shaking"]
     );
     assert!(said(&[2], 0, &mut moods).is_empty());
-    // A high five's only cue, whatever its sentence says (or_amie_interactions).
-    assert_eq!(
-        said(&[27], 24, &mut moods),
-        [
-            "Sceptile is holding up its hand",
-            "Sceptile leans to one side"
-        ]
-    );
+    assert_eq!(said(&[27], 24, &mut moods), ["Sceptile leans to one side"]);
     assert!(said(&[2], 0, &mut moods).is_empty());
+    assert_eq!(said(&[6], 8, &mut moods), ["Sceptile nods off"]);
+    assert_eq!(said(&[2], 0, &mut moods), ["Sceptile woke up"]);
+    // one it has no sentence for
+    assert_eq!(said(&[9], 9, &mut moods), ["Sceptile is asleep"]);
+    assert_eq!(said(&[2], 0, &mut moods), ["Sceptile woke up"]);
     assert!(said(&[18, 2], 0, &mut moods).is_empty()); // by itself, unasked for
     let mut fidgeting = amie::Moods::new(found.clone(), true);
     assert_eq!(said(&[18], 0, &mut fidgeting), ["Sceptile flicks its tail"]);
