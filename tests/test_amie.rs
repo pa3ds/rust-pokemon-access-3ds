@@ -354,6 +354,25 @@ fn test_the_stylus_is_offered_by_the_kind_of_part_it_is_on() {
     assert!(away == grey_0 && grey_0 == "stylus, off");
 }
 
+/// Furfrou's trims are drawn by models named `pm0701_12_poodle` and on, past the 12 bytes
+/// read; and the sweep finds a copy of the Player's words in the module's code first, which leads
+/// to no model (spike A's census).
+#[test]
+fn test_a_form_is_told_by_its_models_name_though_the_name_runs_on() {
+    let (mut found, memory) = running(&[(8, HEAD)], true);
+    let (model, resource, records, name) = (0x08A0B000, 0x08A0C000, 0x08A0D000, 0x08A0E000);
+    memory.u32(PLAYER + amie::MODEL, &[model]);
+    memory.u32(model + amie::MODEL_RESOURCE, &[resource]);
+    memory.u32(resource + amie::RECORDS, &[records]);
+    memory.u32(records + amie::RECORD_NAME, &[name]);
+    memory.write(name, b"pm0701_12_poodle\0");
+    found.stylus = (150, 90);
+    assert!(
+        found.part().unwrap().as_deref() == Some("head")
+            && found.form().unwrap().as_deref() == Some("12")
+    );
+}
+
 #[test]
 fn test_where_the_picture_cannot_be_read_the_stylus_is_offered_alone() {
     let mut found = amie_running(&[(8, (100, 60, 220, 120))], false);

@@ -148,12 +148,15 @@ pub const RECORDS: i64 = 0x70;
 /// the first's +0x5C -> the model's name (spike 279).
 pub const RECORD_NAME: i64 = 0x5C;
 /// A Pokémon's model by name, `pm0025_12`: its species' own number, then its number among that
-/// species' models, which tells a form drawn unlike the rest, Pikachu Rock Star's 12. Python's
-/// `MODEL_NAME`, `pm\d{4}_(\d{2})` matched whole: the model's number, or None.
+/// species' models, which tells a form drawn unlike the rest, Pikachu Rock Star's 12. Some names run
+/// on past the 12 bytes read, `pm0701_12_poodle`, Furfrou Heart Trim's. Forms drawn alike but for
+/// colour share a name, Arceus's every type, and so do a few drawn unlike, Burmy's cloaks and East
+/// Shellos: those are named by their species alone (spike A's census). Python's `MODEL_NAME`,
+/// `pm\d{4}_(\d{2})` matched at the start: the model's number, or None.
 pub fn model_name(text: &str) -> Option<String> {
     let chars: Vec<char> = text.chars().collect();
     let digits = |from: usize, to: usize| chars[from..to].iter().all(|&c| py::is_decimal(c));
-    (chars.len() == 9
+    (chars.len() >= 9
         && chars[0] == 'p'
         && chars[1] == 'm'
         && digits(2, 6)
@@ -349,6 +352,9 @@ pub struct AmiePage {
     kept: Option<i64>,
     /// The Player the Pokémon's model was read through, and its number (`form`).
     form: (Option<i64>, Option<String>),
+    /// The Player the picture was last read through (`_buffer`): the sweep finds a copy of
+    /// its words in the module's code as well, which leads to no model.
+    live: Option<i64>,
     /// When the whole picture was read, for the outline and a jump, and the picture.
     whole: (f64, Option<Rc<Band>>),
     /// When the band of the picture round the stylus was read, and the band.
@@ -395,6 +401,7 @@ impl AmiePage {
             stylus: STYLUS_START,
             kept: None,
             form: (None, None),
+            live: None,
             whole: (f64::NEG_INFINITY, None),
             band: (f64::NEG_INFINITY, None),
         }
@@ -555,9 +562,9 @@ impl AmiePage {
     /// The model Amie draws the Pokémon with, by its number among its species' own,
     /// `"12"` for Pikachu Rock Star's `pm0025_12`: `Player` +0x84 leads to its shader model,
     /// whose resource's +0x70 lists its records, the first named for the model (spike 279).
-    /// Read once a Player; None where it cannot be.
+    /// Read once a Player, the one the picture is read through; None where it cannot be.
     pub fn form(&mut self) -> Result<Option<String>> {
-        let Some(&player) = self.players.keys().next() else {
+        let Some(player) = self.live else {
             return Ok(None);
         };
         if self.form.0 != Some(player) {
@@ -787,7 +794,7 @@ impl AmiePage {
 
     /// The buffer of the picture of parts drawn last, or None where no Player leads to one,
     /// or the emulator cannot read it safely (`aimed`).
-    fn buffer(&self) -> Result<Option<i64>> {
+    fn buffer(&mut self) -> Result<Option<i64>> {
         if !self.aim {
             return Ok(None);
         }
@@ -810,6 +817,7 @@ impl AmiePage {
                 0
             };
             if within(LINEAR_SPAN, buffer) {
+                self.live = Some(player);
                 return Ok(Some(buffer));
             }
         }
