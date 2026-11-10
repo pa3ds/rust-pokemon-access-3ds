@@ -599,7 +599,7 @@ impl TouchMode {
         let Some(screen) = &self.screen else {
             return own("touch-off", &[]);
         };
-        let (x, y) = over.drop.unwrap_or((over.x, over.y));
+        let (x, y) = point(over);
         let path = [(picked.x, picked.y), (picked.x, picked.y), (x, y), (x, y)];
         let listed: Vec<String> = path.iter().map(|(x, y)| format!("({x}, {y})")).collect();
         (self.log)(&format!(

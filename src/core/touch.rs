@@ -184,7 +184,8 @@ pub fn along(path: &[(i64, i64)], start: f64, until: f64, now: f64) -> Option<(i
 /// second and back, over and over.
 pub fn rubbed(ends: ((i64, i64), (i64, i64)), travelled: f64) -> (i64, i64) {
     let ((x0, y0), (x1, y1)) = ends;
-    let length = (((x1 - x0).pow(2) + (y1 - y0).pow(2)) as f64).powf(0.5);
+    // `math.dist`, which is `hypot` of the differences.
+    let length = py::hypot((x1 - x0) as f64, (y1 - y0) as f64);
     if length == 0.0 {
         return (x0, y0);
     }

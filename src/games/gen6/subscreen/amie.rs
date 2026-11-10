@@ -76,6 +76,7 @@
 //!   2026-11-06).
 
 use std::cell::{OnceCell, RefCell};
+use std::fmt::Display;
 use std::rc::{Rc, Weak};
 
 use indexmap::IndexMap;
@@ -86,7 +87,7 @@ use crate::core::heaps;
 use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
 use crate::core::speech::Category;
-use crate::core::words::{current, own};
+use crate::core::words::{Values, current, own};
 use crate::games::common::field::keys::{STYLUS, STYLUS_JUMPS, STYLUS_MOVES, STYLUS_NUMBERS};
 use crate::games::common::touch::{After, Target};
 use crate::games::common::{lyt, pokemon, touch};
@@ -443,6 +444,8 @@ pub const FULLNESS: usize = 1;
 pub const ENJOYMENT: usize = 2;
 /// The one number that fills a row's fifth icon.
 pub const METER_FULL: i64 = 255;
+/// The least number filling each of a row's five icons (`meter`).
+pub const METER_STEPS: [i64; 5] = [1, 50, 100, 150, METER_FULL];
 /// One of the numbers said as its row of icons, by the game's word for it: "Affection 2 of 5".
 pub const METER: &str = "amie-meter";
 pub const HIGH_FIVE: i64 = 10;
@@ -554,12 +557,6 @@ impl Picture {
             }
             found
         })
-    }
-
-    /// The greys of the parts drawn. A `frozenset` in Python, iterated only by `cleaned`, whose
-    /// picture comes out the same in any order: here in the order they were first found.
-    pub fn parts(&self) -> Vec<i64> {
-        self.runs().keys().copied().collect()
     }
 
     /// How many pixels of the Pokémon are drawn.
@@ -735,7 +732,7 @@ impl Picture {
     /// The picture without specks of a part with more to it, each given what lies round it.
     pub fn cleaned(&self) -> Picture {
         let mut data = self.data.clone();
-        for grey in self.parts() {
+        for &grey in self.runs().keys() {
             let found = self.patches(grey);
             if found[0].size <= SPECK {
                 continue;
@@ -811,14 +808,8 @@ pub fn placed(before: &Picture, after: &Picture, x: i64, y: i64, grey: i64) -> (
 /// 100 to 149 three, 150 to 254 four, and only 255 five (spike 287's `--meters`, the record
 /// rewritten and the Switch screen read, alike for all three).
 pub fn meter(number: i64) -> i64 {
-    if number <= 0 {
-        return 0;
-    }
-    if number >= METER_FULL {
-        5
-    } else {
-        py::floordiv(number, 50).min(3) + 1
-    }
+    // `bisect.bisect_right`: past every step at most the number.
+    METER_STEPS.partition_point(|&step| step <= number) as i64
 }
 
 /// Names the picture of the Pokémon the Pokémon-Amie page shows by its species, and offers
@@ -1254,13 +1245,8 @@ impl AmiePage {
         if grey == 0 || grey == OFF_PICTURE {
             return Ok(Some(own(OFF, &[("pokemon", &self.called()?)])));
         }
-        let (words, form) = (current(), self.form()?);
-        let named = form
-            .and_then(|form| words.get(&format!("amie-spot-{}-{form}-{grey}", self.number), &[]));
         Ok(Some(
-            named
-                .filter(|named| !named.is_empty())
-                .or_else(|| words.get(&format!("amie-spot-{}-{grey}", self.number), &[]))
+            self.word("spot", &grey, &[])?
                 .filter(|named| !named.is_empty())
                 .unwrap_or_else(|| {
                     own(
@@ -1272,6 +1258,21 @@ impl AmiePage {
                     )
                 }),
         ))
+    }
+
+    /// This Pokémon's own message of a kind, `amie-<kind>-<number>-<what>`, its form's
+    /// first (`form`), or None where it has none.
+    fn word(&self, kind: &str, what: &dyn Display, values: Values<'_>) -> Result<Option<String>> {
+        let (words, form) = (current(), self.form()?);
+        let named = form.and_then(|form| {
+            words.get(
+                &format!("amie-{kind}-{}-{form}-{what}", self.number),
+                values,
+            )
+        });
+        Ok(named
+            .filter(|named| !named.is_empty())
+            .or_else(|| words.get(&format!("amie-{kind}-{}-{what}", self.number), values)))
     }
 
     /// How the messages name the form Amie draws the Pokémon in (`SHOWN`): its number, `"1"`
@@ -1331,12 +1332,12 @@ impl AmiePage {
         let Some(whole) = self.read_whole(LOOK)? else {
             return Ok(());
         };
-        if whole.parts().is_empty() {
+        if whole.runs().is_empty() {
             return Ok(());
         }
         if self.anew
             || still.as_ref().is_none_or(|still| {
-                whole.parts().len() > still.parts().len()
+                whole.runs().len() > still.runs().len()
                     || whole.size() as f64 > still.size() as f64 * BIGGER
             })
         {
@@ -1467,19 +1468,8 @@ impl AmiePage {
         if let Some(replaced) = self.motion_line_of {
             return Ok(replaced(motion));
         }
-        let (words, form, name) = (current(), self.form()?, self.called()?);
-        let named = form.and_then(|form| {
-            words.get(
-                &format!("amie-motion-{}-{form}-{motion}", self.number),
-                &[("pokemon", &name)],
-            )
-        });
-        Ok(named.filter(|named| !named.is_empty()).or_else(|| {
-            words.get(
-                &format!("amie-motion-{}-{motion}", self.number),
-                &[("pokemon", &name)],
-            )
-        }))
+        let name = self.called()?;
+        self.word("motion", &motion, &[("pokemon", &name)])
     }
 
     /// The Pokémon's affection, fullness and enjoyment as they stand, or None where no Player
@@ -1531,10 +1521,11 @@ impl AmiePage {
         if self.mood()? != Some(HAND_RAISED) {
             return Ok(None);
         }
-        let whole = self.read_whole(0.0)?;
         let (x, y) = self.stylus;
-        let found = whole.as_ref().and_then(|whole| whole.closest(x, y, HAND));
-        let (Some(whole), Some(found)) = (whole, found) else {
+        let Some((whole, found)) = self
+            .read_whole(0.0)?
+            .and_then(|whole| whole.closest(x, y, HAND).map(|found| (whole, found)))
+        else {
             return Ok(None);
         };
         let (left, right) = whole.run(found.0, found.1, true);
