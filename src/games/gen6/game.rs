@@ -342,6 +342,9 @@ pub struct Game {
     /// Where its field camera's block keeps where the camera looks (`camera.Shape`): ORAS's, or
     /// X's (spikes 230 and 239).
     pub camera: camera::Shape,
+    /// Where the save's Bag keeps the key items of the Y button's menu (`screens.registered`,
+    /// spike B): ORAS's. None where it has not been measured, X and Y.
+    pub registered: Option<i64>,
     /// Where the PC Box's process keeps its mode, the pointer and the byte behind it
     /// (`boxes.Mode`, spike A): ORAS's. None where it has not been measured, X and Y.
     pub box_mode: Option<(i64, i64)>,
@@ -416,6 +419,7 @@ impl Game {
             worded: IndexSet::new(),
             field_menu: MENU,
             camera: camera::ORAS,
+            registered: None,
             box_mode: None,
             whole: HashSet::new(),
             items_at: IndexMap::new(),

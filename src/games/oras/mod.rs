@@ -1011,6 +1011,7 @@ pub fn game() -> &'static Game {
         whole: HashSet::from(SAFARI_ZONE),
         anchors: anchors(),
         box_mode: Some((0x24, 0x21)),
+        registered: Some(0x0E),
         ..Game::new(
             "Omega Ruby and Alpha Sapphire",
             [OMEGA_RUBY, ALPHA_SAPPHIRE],

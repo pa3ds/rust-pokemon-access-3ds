@@ -15,3 +15,5 @@ pub mod townmap;
 
 pub mod boxes;
 pub mod partners;
+
+pub mod registered;

@@ -90,7 +90,7 @@ use crate::games::gen6::screens::mapcursor::MapCursor;
 use crate::games::gen6::screens::partners::Partners;
 use crate::games::gen6::screens::partyicons::PartyIcons;
 use crate::games::gen6::screens::{
-    boxes, buttons, distribution, partners, partyicons, summary, townmap,
+    boxes, buttons, distribution, partners, partyicons, registered, summary, townmap,
 };
 use crate::games::gen6::subscreen::amie;
 use crate::games::gen6::subscreen::head_it::Cue;
@@ -114,7 +114,7 @@ use crate::py::{self, Error, Kind, Log, PySet, Result};
 /// Not TextBoxes or cursor windows: walking each layout's tree finds every one that can be placed on
 /// screen (spike 62). And the linear heap is not swept: the battle builds its layouts there, and its
 /// message window leads to their pool (spike 64).
-pub const HEAP_CLASSES: [&str; 31] = [
+pub const HEAP_CLASSES: [&str; 32] = [
     msgwin::CLASSES[0],
     msgwin::CLASSES[1],
     talk::CLASSES[0],
@@ -143,6 +143,7 @@ pub const HEAP_CLASSES: [&str; 31] = [
     partyicons::BATTLE_BOX,
     boxes::BOXES,
     boxes::NAMES,
+    registered::BAG,
     buttons::MANAGER_CLASS,
     buttons::BAR_CLASS,
     buttons::MENU_CLASS,
@@ -307,6 +308,7 @@ pub struct Gen6Profile {
     pub party_icons: Rc<RefCell<PartyIcons>>,
     pub partners: Rc<RefCell<Partners>>,
     box_mode: Option<RefCell<boxes::Mode>>,
+    registered: Option<RefCell<registered::Registered>>,
     pub occupants: Rc<RefCell<boxes::Occupants>>,
     pub standings: Option<Rc<RefCell<dyn StandingsReader>>>,
     pub map_cursor: RefCell<MapCursor>,
@@ -678,6 +680,14 @@ impl Gen6Profile {
                         None
                     }
                 }),
+            ))
+        });
+        let registered = game.registered.map(|slots| {
+            RefCell::new(registered::Registered::new(
+                memory.clone(),
+                slots,
+                text.items.clone(),
+                file_of.clone(),
             ))
         });
         // Carrying a Pokémon in the PC Box, the slot it is over says who is in it, from the save.
@@ -1191,6 +1201,7 @@ impl Gen6Profile {
             party_icons,
             partners,
             box_mode,
+            registered,
             occupants,
             standings,
             map_cursor: RefCell::new(map_cursor),
@@ -1263,6 +1274,9 @@ impl Gen6Profile {
         self.subscreens.track(&found.heap, adding)?;
         self.partners.borrow_mut().track(&found.heap, adding)?;
         self.occupants.borrow_mut().track(&found.heap);
+        if let Some(registered) = &self.registered {
+            registered.borrow_mut().track(&found.heap);
+        }
         self.buttons.borrow_mut().track(
             found.of(&[buttons::MANAGER_CLASS]),
             found.of(&[buttons::BAR_CLASS]),
@@ -1590,6 +1604,7 @@ impl Gen6Profile {
     pub fn poll_screen_with(&self, hold: bool, with_choices: bool) -> Result<()> {
         // Set inside the phase, as Python's locals are.
         let mut box_mode: Option<String> = None;
+        let mut slots: Option<String> = None;
         let polled = phase(&*self.memory, "screen", || {
             // The field's layouts come back where they were when a menu screen closes, and a
             // layout found before it was built is taken in once it is.
@@ -1633,6 +1648,10 @@ impl Gen6Profile {
                 None => None,
                 Some(reader) => reader.borrow_mut().poll()?,
             };
+            slots = match &self.registered {
+                None => None,
+                Some(reader) => reader.borrow().poll(&screen.texts)?,
+            };
             let running = self.apps.borrow().running.clone();
             let played = self.subscreens.poll(running.as_deref())?;
             let cursors = self.cursors.borrow_mut().poll(on_screen)?;
@@ -1648,6 +1667,10 @@ impl Gen6Profile {
         if let Some(box_mode) = &box_mode {
             (self.log)(&format!("box mode: {box_mode}"));
             self.speech.say(box_mode, Category::Menu);
+        }
+        if let Some(slots) = &slots {
+            (self.log)(&format!("registered items: {slots}"));
+            self.speech.say(slots, Category::Menu);
         }
         let mut labels = self.lists.borrow().labels();
         labels.extend(self.announcements.borrow_mut().recent_labels());
