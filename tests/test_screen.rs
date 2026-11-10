@@ -1918,6 +1918,43 @@ fn test_a_moves_type_is_read_after_its_name_on_either_side_of_the_move_list() {
         ]),
         "Growl Normal PP 40/40"
     );
+    // A picture built before the name just right of it: the Move Reminder, the Bag's select bar.
+    assert_eq!(
+        read(vec![
+            piece(1, "Flying", -145.0, 15.0, 9, true),
+            piece(2, "Sky Attack", -95.0, 25.0, 9, false),
+            piece(3, "PP", 65.0, 15.0, 9, false),
+            piece(4, "5/5", 103.0, 15.0, 9, false),
+        ]),
+        "Sky Attack Flying PP 5/5"
+    );
+    assert_eq!(
+        read(vec![
+            piece(1, "Skarmory", -156.0, -29.0, 9, true),
+            piece(2, "erza", -101.0, -25.0, 9, false),
+            piece(3, "L20", -151.0, -49.0, 9, false),
+        ]),
+        "erza Skarmory L20"
+    );
+    // Not a level mark, where the picture alone names the Pokémon, nor a move's PP in a battle's
+    // list, its move built before the icon.
+    assert_eq!(
+        read(vec![
+            piece(1, "Mightyena", -160.0, 63.0, 9, true),
+            piece(2, "L", -95.0, 68.0, 9, false),
+            piece(3, "31", -81.0, 68.0, 9, false),
+        ]),
+        "Mightyena L31"
+    );
+    assert_eq!(
+        read(vec![
+            piece(1, "Tackle", -108.0, 61.0, 9, false),
+            piece(2, "Normal", -159.0, 40.0, 9, true),
+            piece(3, "PP", -103.0, 40.0, 9, false),
+            piece(4, "35/35", -63.0, 40.0, 9, false),
+        ]),
+        "Tackle Normal PP 35/35"
+    );
     assert_eq!(
         read(vec![
             piece(1, "Tackle", -108.0, 61.0, 9, false),

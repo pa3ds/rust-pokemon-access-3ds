@@ -111,6 +111,8 @@ pub struct ScreenText {
     pub picture: bool,
     /// Read first in its row, wherever it is drawn in it (`after_the_name`).
     pub leads: bool,
+    /// The piece it is read straight after, wherever either is drawn (`after_the_name`), or 0.
+    pub follows: i64,
     /// It moved onto its screen with the words it had just outside it: a list's row as the list
     /// scrolls, where the language screen moves its rows rather than writing new words into them.
     pub scrolled: bool,
@@ -146,6 +148,7 @@ impl ScreenText {
             returned: false,
             picture: false,
             leads: false,
+            follows: 0,
             scrolled: false,
             frame: 0,
             label: false,
@@ -249,7 +252,33 @@ pub fn in_rows(pieces: impl IntoIterator<Item = ScreenText>) -> Vec<ScreenText> 
         }
     }
     ordered.extend(sorted_across(run));
-    ordered
+    followed(ordered)
+}
+
+/// `ordered` with each piece that `follows` another present moved straight after it.
+fn followed(ordered: Vec<ScreenText>) -> Vec<ScreenText> {
+    // Python's `list.remove` and `list.index` find a piece by identity before equality: `out`
+    // holds each piece by its place in `ordered`, so a piece is found as itself.
+    let mut out: Vec<usize> = (0..ordered.len()).collect();
+    let find = |out: &[usize], i: usize| {
+        out.iter()
+            .position(|&k| k == i || ordered[k] == ordered[i])
+            .expect("in the list")
+    };
+    for (i, piece) in ordered.iter().enumerate() {
+        if piece.follows != 0 {
+            let target = out
+                .iter()
+                .copied()
+                .find(|&k| ordered[k].r#box == piece.follows);
+            if let Some(target) = target {
+                out.remove(find(&out, i));
+                let at = find(&out, target) + 1;
+                out.insert(at, i);
+            }
+        }
+    }
+    out.into_iter().map(|k| ordered[k].clone()).collect()
 }
 
 /// `sorted(run, key=_across)`.
@@ -278,7 +307,7 @@ pub fn by_rows(pieces: impl IntoIterator<Item = ScreenText>) -> Vec<ScreenText> 
         row.push(piece);
     }
     ordered.extend(sorted_across(row));
-    ordered
+    followed(ordered)
 }
 
 /// The pieces without the same words drawn twice in one place.
@@ -686,6 +715,16 @@ impl ScreenTextReader {
         self.carried = carried.keys().copied().collect();
         let mut now: IndexMap<i64, ScreenText> = found.clone();
         now.extend(carried);
+        // A picture whose name is only carried this poll still goes after it: choosing a Move
+        // Reminder's row, "Fairy" was read before "Disarming Voice" (or_move_reminder).
+        for (r#box, piece) in now.iter_mut() {
+            if piece.follows == 0
+                && let Some(last) = self.last.get(r#box)
+                && last.follows != 0
+            {
+                piece.follows = last.follows;
+            }
+        }
         self.last = now.clone();
         self.on_screen = now.values().cloned().collect();
         self.on_screen.sort_by_key(reading_order);
@@ -1177,12 +1216,39 @@ fn level_marks(found: &IndexMap<i64, ScreenText>, words: &str) -> IndexMap<i64, 
     out
 }
 
+/// Glyphs of a name at most between it and the picture left of it that it comes before
+/// (`after_the_name`): the Move Reminder's touch, the Bag's select bar's are 1.15 apart.
+pub const NAME_RIGHT_OF: f64 = 1.5;
+
+/// Is `name`, the first word its group built, the name its one picture goes after? Built
+/// after the picture, just right of it on its row. A sign names nothing, the DexNav's "!" beside
+/// First Move marking the move under it; and a level mark, a word just left of a number, is no
+/// name: where the picture is all that names a Pokémon, the Battle Box's slots said "L 31 ♂
+/// Mightyena" (or_battle_box). A battle's move, built before its icon, is the rule below's.
+fn names_its_picture(name: &ScreenText, icon: &ScreenText, words: &[&ScreenText]) -> bool {
+    icon.text.chars().any(py::is_alpha)
+        && icon.r#box < name.r#box
+        && (name.row - icon.row).abs() <= icon.glyph / 2.0
+        && -name.glyph < name.left - icon.right
+        && name.left - icon.right <= NAME_RIGHT_OF * name.glyph
+        && !words.iter().any(|other| {
+            py::isdigit(&other.text)
+                && other.left > name.left
+                && (other.row - name.row).abs() < max_of(other.glyph, name.glyph) / 2.0
+        })
+}
+
 /// A group's one picture read straight after the one piece above it, as a move's type after
 /// its name. The battle's move list mirrors its two columns, the type icon left of the PP on one
 /// and right of it on the other, and read as drawn the right one's was "Growl PP 40/40 Normal";
 /// where the mirroring cannot be seen it only sounds lopsided (Orion, 2026-09-29), so it is
 /// "Growl Normal PP 40/40". Only a group of two rows with one piece on the upper is shaped so:
 /// the Pokédex entry's TYPE is one of three rows, and stays "TYPE Fire".
+///
+/// A picture built before the word just right of it is that word's too, and said after it: the
+/// Move Reminder's rows said "Flying Sky Attack" (or_move_reminder) and the Bag's select bar
+/// "Skarmory erza" (or_nickname_reading_regression), where every other screen has the name first
+/// (Orion, 2026-11-08).
 pub fn after_the_name(found: &IndexMap<i64, ScreenText>) -> IndexMap<i64, ScreenText> {
     let mut groups: IndexMap<i64, Vec<&ScreenText>> = IndexMap::new();
     for piece in found.values() {
@@ -1196,6 +1262,19 @@ pub fn after_the_name(found: &IndexMap<i64, ScreenText>) -> IndexMap<i64, Screen
         }
         let icon = pictures[0];
         let words: Vec<&ScreenText> = pieces.iter().copied().filter(|p| !p.picture).collect();
+        let name = words.iter().copied().min_by_key(|piece| piece.r#box);
+        if let Some(name) = name
+            && names_its_picture(name, icon, &words)
+        {
+            out.insert(
+                icon.r#box,
+                ScreenText {
+                    follows: name.r#box,
+                    ..icon.clone()
+                },
+            );
+            continue;
+        }
         let above: Vec<&ScreenText> = words
             .iter()
             .copied()
