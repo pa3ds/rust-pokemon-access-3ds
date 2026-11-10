@@ -332,6 +332,8 @@ pub struct FieldReader {
     /// (zone, a trigger's script) -> the category and kind it is listed as, and for an exit into
     /// another place, the zone it leads to (`Game.triggers`).
     triggers: IndexMap<(i64, i64), (String, String, Option<i64>)>,
+    /// (zone, the zone it leads to) of each trigger listed as an exit into another place.
+    trigger_exits: HashSet<(i64, i64)>,
     /// (zone, a trigger's script) of the triggers that give an item (`Game.hidden_triggers`).
     hidden_triggers: HashSet<(i64, i64)>,
     /// Sprite -> the move that clears the thing drawn as it (`Game.clears`).
@@ -564,6 +566,11 @@ impl FieldReader {
             secret_bases,
             barriers: game.barriers.clone(),
             triggers: game.triggers.clone(),
+            trigger_exits: game
+                .triggers
+                .iter()
+                .filter_map(|(&(zone, _), known)| known.2.map(|to| (zone, to)))
+                .collect(),
             hidden_triggers: game.hidden_triggers.clone(),
             clears: game.clears.clone(),
             ambushes: game.ambushes.clone(),
@@ -1233,16 +1240,18 @@ impl FieldReader {
             });
         }
         // Exits of one kind into one zone that touch are one, as warps are (`_exits`): the
-        // Radiant Chamber's lift is four triggers round its platform.
+        // Radiant Chamber's lift is four triggers round its platform. In the table's order still.
         // Python's key is the tuple (kind, zone, height, home); its parts written out here.
-        Ok(joined(out, &|item| {
+        let mut listed = joined(out, &|item| {
             (item.category == "exits").then(|| {
                 format!(
                     "{}|{:?}|{:?}|{:?}",
                     item.kind, item.zone, item.height, item.home
                 )
             })
-        }))
+        });
+        listed.sort_by_key(|item| item.source);
+        Ok(listed)
     }
 
     /// `where` with everything worth walking to in its zone listed.
@@ -1331,9 +1340,16 @@ impl FieldReader {
                     self.warp(i as i64, record, at, home)?,
                     arrives(record, home, &warps)?,
                 );
-                if shape.is_none() && buried(&chunk_at, &warp.cells())? {
+                if home
+                    .zip(warp.zone)
+                    .is_some_and(|exit| self.trigger_exits.contains(&exit))
+                    && shape.is_none()
+                    && buried(&chunk_at, &warp.cells())?
+                {
                     // Walled in, where only a script puts the player: the Radiant Chamber's door,
-                    // whose lift is listed in its place (`Game.triggers`).
+                    // whose lift is listed in its place (`Game.triggers`). Not every walled-in
+                    // warp: arriving in Sootopolis City, the last place's chunks walled in every
+                    // door for a poll (as_cave_of_origin).
                     continue;
                 }
                 // A pad into its own zone is a teleporter P walks through, landing as high as the

@@ -1716,11 +1716,11 @@ impl Ground {
                         continue;
                     }
                     let near = (cell.0 - dx * out, cell.1 - dz * out);
-                    if !cells.contains(&near) && self.passable_at(near, item.height)? {
+                    if !cells.contains(&near) && self.by(near, item.height)? {
                         beside.insert(near, Some(direction));
                     } else if out == 1 && self.counter(near)? {
                         let across = (near.0 - dx, near.1 - dz);
-                        if !cells.contains(&across) && self.passable(across)? {
+                        if !cells.contains(&across) && self.by(across, None)? {
                             beside.insert(across, Some(direction));
                         }
                     }
@@ -1733,7 +1733,7 @@ impl Ground {
                         .get(&near)
                         .is_some_and(|lane| lane.contains_key(&(dx, dz)))
                         && !cells.contains(&near)
-                        && self.passable_at(near, item.height)?
+                        && self.by(near, item.height)?
                     {
                         beside.insert(near, Some(direction));
                     }
@@ -1744,6 +1744,12 @@ impl Ground {
             }
         }
         Ok(beside)
+    }
+
+    /// Whether a way to a thing may end in the cell beside it: never on a mat out, which a
+    /// way onto going south leaves by (`mats`).
+    fn by(&self, cell: Cell, height: Option<f64>) -> Result<bool> {
+        Ok(!self.stepped.contains(&cell) && self.open_at(cell, height)?)
     }
 
     /// The cells a search from `start` may walk: the whole matrix where the ROM's chunks are
