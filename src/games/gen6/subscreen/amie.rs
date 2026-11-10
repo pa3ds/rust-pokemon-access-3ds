@@ -58,8 +58,8 @@
 //! tap or drag goes to the part chosen wherever the Pokémon has moved it to (`placed`). A Pokémon too
 //! big for the bottom screen stays on the
 //! top screen, a strip of it showing, until a press held at the touch screen's top edge brings it
-//! down; touch mode offers that as a target of its own (`AmiePage._view`), and the still picture is
-//! taken anew.
+//! down; touch mode offers that as a target of its own (`AmiePage._view`, `BOTH_SCREENS`), and the
+//! still picture is taken anew.
 //!
 //! What the Pokémon is doing is the **love command** running, a routine and a class each, which
 //! `Player` points at (spike A). `Moods` says what a sighted player sees of it, where the player asks
@@ -232,9 +232,16 @@ pub const OFF_SIDES: (i64, i64) = (24, 295);
 /// at (40, 120) it always did (spike A), and worked out from the Pokémon as it swayed the press
 /// went back and forth 40 pixels (or_amie_interactions).
 pub const OFF_ROWS: (i64, i64) = (60, 180);
-/// The greys of a Pokémon's eyes, which a Pokémon too big for the bottom screen shows only once
-/// brought down onto it (`AmiePage._view`). A `frozenset` in Python, only ever tested against.
-pub const EYES: [i64; 3] = [4, 5, 6];
+pub const BOTH_SCREENS: [i64; 21] = [
+    130, 143, 248, 249, 250, 306, 321, 383, 384, 483, 484, 486, 487, 493, 623, 643, 644, 646, 716,
+    717, 718,
+];
+/// The Pokémon too big for the bottom screen, by species, and Hoopa Unbound: each census Pokémon
+/// reaching the top of the screen with no eyes drawn was pressed at the top edge, and these came down
+/// (spike A, 2026-11-07). The other 9 were only standing close: Bayleef, Spinda, Flygon, Trubbish,
+/// female Jellicent, Accelgor and the biggest Pumpkaboo and Gourgeist. Nothing read says which are
+/// which: `Player`'s size, the word `SHOWN` + 0x18, has Snorlax at 1 and Charizard at 2.
+pub const UNBOUND: (i64, i64) = (720, 1);
 /// The pane the Pokémon brought between the screens stands in for in touch mode.
 pub const VIEW_TARGET: i64 = 3;
 pub const VIEW_TOP: (i64, i64) = (160, 2);
@@ -840,8 +847,8 @@ pub struct AmiePage {
     /// When the Pokémon will have moved between the screens, and what is said then
     /// (`view_said`).
     moving: Option<(f64, String)>,
-    /// Whether the Pokémon is one too big for the bottom screen (`_view`).
-    big: bool,
+    /// Whether a Pokémon too big for the bottom screen has been brought down (`_view`).
+    down: bool,
     names: Rc<ClassNames>,
     species: Vec<String>,
     /// Where the page keeps its Pokémon's number, its holder `HOLDER` after it.
@@ -866,6 +873,10 @@ pub struct AmiePage {
     whole: (f64, Option<Rc<Picture>>),
     /// `motion_line` as a test replaces it, where Python's test sets the method on the page.
     pub(crate) motion_line_of: Option<fn(&str) -> Option<String>>,
+    /// `BOTH_SCREENS` and `UNBOUND`, as a test replaces them, where Python's monkeypatches the
+    /// module's.
+    pub(crate) both_screens: &'static [i64],
+    pub(crate) unbound: (i64, i64),
     /// The page itself, as it is shared (`shared`), for a target's `after` to reach it, where
     /// Python's closes over `self`; nothing where it is not shared.
     this: Weak<RefCell<AmiePage>>,
@@ -910,7 +921,7 @@ impl AmiePage {
             richer_until: f64::INFINITY,
             next_look: 0.0,
             moving: None,
-            big: false,
+            down: false,
             names,
             species,
             at: number,
@@ -924,6 +935,8 @@ impl AmiePage {
             kept: None,
             whole: (f64::NEG_INFINITY, None),
             motion_line_of: None,
+            both_screens: &BOTH_SCREENS,
+            unbound: UNBOUND,
             this: Weak::new(),
         }
     }
@@ -1170,37 +1183,32 @@ impl AmiePage {
                 ..Target::new(STYLUS_TARGET, &stylus, x, y, 0.0, touch::HEIGHT as f64)
             },
         ];
-        found.extend(self.view(&name));
+        found.extend(self.view(&name)?);
         Ok(found)
     }
 
-    /// The Pokémon too big for the bottom screen, offered to bring down from the top screen
-    /// by a press held at the touch screen's top edge, or send back up by one at its bottom
-    /// edge, while the picture shows it by its body alone, reaching the top of the screen, or
-    /// once it has done so its eyes. Which Pokémon these are the game knows and pa3ds cannot
-    /// read: among the census's pictures, Wailord's strip of belly, Snorlax's and Groudon's
-    /// bodies and about twenty more (spike A, live).
-    fn view(&mut self, name: &str) -> Vec<Target> {
-        let Some(still) = &self.still else {
-            return Vec::new();
-        };
-        let Some(outline) = still.outline() else {
-            return Vec::new();
-        };
-        let down = !still.parts().iter().any(|grey| EYES.contains(grey));
-        self.big = self.big || (down && outline.1 == 0);
-        if !self.big {
-            return Vec::new();
+    /// The Pokémon too big for the bottom screen (`BOTH_SCREENS`), offered to bring down from
+    /// the top screen by a press held at the touch screen's top edge, or send back up by one at
+    /// its bottom edge. Nothing read says which screen it is on, and Regigigas and Zygarde have
+    /// no eyes to tell by, so `_down` remembers the edge last pressed (Orion, 2026-11-07), Amie
+    /// opening with it on the top screen.
+    fn view(&mut self, name: &str) -> Result<Vec<Target>> {
+        let shown = self.shown()?;
+        if !self.both_screens.contains(&self.number)
+            && shown.is_none_or(|shown| (shown.0, shown.1) != self.unbound)
+        {
+            return Ok(Vec::new());
         }
-        let (point, word, moved) = if down {
-            (VIEW_TOP, VIEW_DOWN, VIEW_CAME_DOWN)
-        } else {
+        let (point, word, moved) = if self.down {
             (VIEW_BOTTOM, VIEW_UP, VIEW_WENT_UP)
+        } else {
+            (VIEW_TOP, VIEW_DOWN, VIEW_CAME_DOWN)
         };
         let (this, called) = (self.this.clone(), name.to_string());
         let moving = move || {
             if let Some(page) = this.upgrade() {
                 let mut page = page.borrow_mut();
+                page.down = !page.down;
                 page.moving = Some((
                     py::time::monotonic() + VIEW_SECONDS + SETTLE,
                     own(moved, &[("pokemon", &called)]),
@@ -1208,7 +1216,7 @@ impl AmiePage {
                 page.look_again(VIEW_SECONDS);
             }
         };
-        vec![Target {
+        Ok(vec![Target {
             path: vec![point],
             seconds: VIEW_SECONDS,
             after: After(Some(Rc::new(moving))),
@@ -1220,7 +1228,7 @@ impl AmiePage {
                 0.0,
                 touch::HEIGHT as f64,
             )
-        }]
+        }])
     }
 
     /// What is said now the Pokémon has moved between the screens, once, or None.
@@ -1362,7 +1370,7 @@ impl AmiePage {
     /// Leave what is known of the Pokémon behind as Amie closes, or one of its games opens.
     pub fn forget(&mut self) {
         (self.still, self.anew, self.richer_until) = (None, false, f64::INFINITY);
-        (self.moving, self.big) = (None, false);
+        (self.moving, self.down) = (None, false);
     }
 
     /// Where a press off the Pokémon goes: the screen's side nearer the stylus, or the other

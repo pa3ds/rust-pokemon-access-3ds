@@ -1078,10 +1078,12 @@ fn test_amie_closing_leaves_the_still_picture_behind() {
 
 /// Wailord stays on the top screen, a strip of belly on the bottom one, until a press held at
 /// the top edge brings it down, and one at the bottom edge sends it back (spike A's `watch`).
-/// Once it has moved the still picture is taken anew, and that is said.
+/// Once it has moved the still picture is taken anew, and that is said. Regigigas and Zygarde
+/// have no eyes to show it has come down: what was last pressed says (Orion, 2026-11-07).
 #[test]
 fn test_a_pokemon_too_big_for_the_bottom_screen_is_offered_to_bring_down_and_send_back() {
     let mut k = keyed(&[(9, (40, 0, 160, 6))]);
+    k.found.borrow_mut().both_screens = &[254];
     let view = k.found.borrow_mut().targets(Some(amie::AMIE)).unwrap()[2].clone();
     assert_eq!(
         (view.name.as_str(), view.path.clone(), view.seconds),
@@ -1093,14 +1095,7 @@ fn test_a_pokemon_too_big_for_the_bottom_screen_is_offered_to_bring_down_and_sen
     );
     let after = view.after.0.expect("told after");
     after();
-    drawn(
-        &k.memory,
-        &[
-            (9, (0, 0, 320, 240)),
-            (8, (60, 20, 260, 120)),
-            (4, (90, 50, 110, 70)),
-        ],
-    );
+    drawn(&k.memory, &[(9, (0, 0, 320, 240)), (8, (60, 20, 260, 120))]);
     assert!(k.poll(amie::AMIE).is_empty());
     k.now.set(k.now.get() + amie::VIEW_SECONDS + amie::SETTLE);
     let said: Vec<String> = k
@@ -1112,26 +1107,44 @@ fn test_a_pokemon_too_big_for_the_bottom_screen_is_offered_to_bring_down_and_sen
     assert!(k.poll(amie::AMIE).is_empty());
     let view = k.found.borrow_mut().targets(Some(amie::AMIE)).unwrap()[2].clone();
     assert_eq!(
-        (view.name.as_str(), view.path),
+        (view.name.as_str(), view.path.clone()),
         ("send Sceptile back up", vec![amie::VIEW_BOTTOM])
     );
+    let view_name = |k: &Keyed| {
+        k.found.borrow_mut().targets(Some(amie::AMIE)).unwrap()[2]
+            .name
+            .clone()
+    };
+    view.after.0.expect("told after")();
+    assert_eq!(view_name(&k), "bring Sceptile down");
+    let view = k.found.borrow_mut().targets(Some(amie::AMIE)).unwrap()[2].clone();
+    view.after.0.expect("told after")();
+    k.found.borrow_mut().forget(); // Amie opens with it on the top screen again
+    assert_eq!(view_name(&k), "bring Sceptile down");
 }
 
-/// Up close, Butterfree reaches the top of the screen, and shows its eyes (the census).
+fn targets(k: &Keyed) -> usize {
+    k.found
+        .borrow_mut()
+        .targets(Some(amie::AMIE))
+        .unwrap()
+        .len()
+}
+
 #[test]
-fn test_a_pokemon_the_screen_shows_whole_is_offered_no_way_between_the_screens() {
-    let targets = |k: Keyed| {
-        k.found
-            .borrow_mut()
-            .targets(Some(amie::AMIE))
-            .unwrap()
-            .len()
-    };
-    assert_eq!(targets(keyed(&[(9, BODY), (8, HEAD)])), 2);
-    assert_eq!(
-        targets(keyed(&[(8, (100, 0, 220, 100)), (4, (120, 20, 130, 30))])),
-        2
-    );
+fn test_hoopa_unbound_is_too_big_for_the_bottom_screen_and_its_confined_form_is_not() {
+    let k = keyed(&[(9, BODY)]);
+    k.found.borrow_mut().unbound = (254, 1);
+    assert_eq!(targets(&k), 2);
+    k.memory.u32(PLAYER + amie::SHOWN, &[254, 1, 0, 0]);
+    assert_eq!(targets(&k), 3);
+}
+
+/// Bayleef up close reaches the top of the screen with no eyes drawn, and a press at the top
+/// edge only steps it back (spike A).
+#[test]
+fn test_a_pokemon_only_standing_close_is_offered_no_way_between_the_screens() {
+    assert_eq!(targets(&keyed(&[(9, BODY), (8, (100, 0, 220, 100))])), 2);
 }
 
 const TASK: i64 = 0x08A11000;
