@@ -325,6 +325,9 @@ pub struct GameText {
     pub map_places: IndexMap<String, String>,
     /// What the game calls each Secret Base decoration, by its number (`RomLayout.decorations`).
     pub decorations: Vec<String>,
+    /// What the game calls Amie's three numbers (`RomLayout.amie_numbers`); none where they are
+    /// not read.
+    pub amie_numbers: Vec<String>,
     /// What the game calls each kind of Poké Puff, in order (`RomLayout.puffs`).
     pub puffs: Vec<String>,
     /// The words before and after the name in what the game calls another player's Secret Base,
@@ -421,6 +424,7 @@ impl PartialEq for GameText {
             && self.caught == other.caught
             && self.map_places == other.map_places
             && self.decorations == other.decorations
+            && self.amie_numbers == other.amie_numbers
             && self.base_names == other.base_names
             && self.bike == other.bike
             && self.acro == other.acro
@@ -465,6 +469,7 @@ impl Default for GameText {
             caught: HashSet::new(),
             map_places: IndexMap::new(),
             decorations: Vec::new(),
+            amie_numbers: Vec::new(),
             puffs: Vec::new(),
             base_names: Vec::new(),
             goods: Vec::new(),
@@ -863,6 +868,7 @@ impl GameText {
             caught: layout.caught.clone(),
             contest_categories: lines_from(layout.contest_categories)?,
             contest_entrant: py::slice(&lines_from(layout.contest_entrant)?, 0, 2).to_vec(),
+            amie_numbers: py::slice(&lines_from(layout.amie_numbers)?, 0, 3).to_vec(),
             contest_rivals: match layout.contest_rivals {
                 Some(file) => halves(&lines_of_file(&story, file)?),
                 None => Vec::new(),

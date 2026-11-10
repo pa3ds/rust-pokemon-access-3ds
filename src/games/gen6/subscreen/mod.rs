@@ -46,6 +46,7 @@
 //! for the `RefCell` a reader is shared in, and the tuples are lists of them.
 
 pub mod amie;
+pub mod amie_switch;
 pub mod berry_picker;
 pub mod head_it;
 pub mod puzzle;
@@ -69,6 +70,7 @@ use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::rom::cries::Crier;
 use crate::py::{self, Result};
 use amie::{AmiePage, Goods, Moods, Puffs, StylusKeys};
+use amie_switch::SwitchScreen;
 use berry_picker::{BerryKeys, BerryPicker, Process, Touching};
 use head_it::{Cue, Frames, HeadIt, HeadItKeys};
 use puzzle::TilePuzzle;
@@ -354,6 +356,7 @@ pub struct Subscreens {
     pub(crate) ticked: Vec<Rc<RefCell<HeadIt>>>,
     holding: Vec<Rc<RefCell<HeadIt>>>,
     head_it: Rc<RefCell<HeadIt>>,
+    switch: SwitchScreen,
 }
 
 /// `yours`: a Pokémon of the player's by the nickname they gave it, or else as the game calls its
@@ -406,13 +409,19 @@ impl Subscreens {
             text.species.clone(),
             game.amie,
             reads_beside_gpu,
-            settings.still_picture,
             game.amie_player,
         )
         .shared();
         // Its own keys, the arrows, move the stylus, saying the part it comes onto, and keep it
         // there as the Pokémon moves, for touch mode to rub there.
-        let stylus_keys = Rc::new(RefCell::new(StylusKeys::new(page.clone(), wrong.clone())));
+        let stylus_keys = Rc::new(RefCell::new(StylusKeys::new(
+            page.clone(),
+            wrong.clone(),
+            text.amie_numbers.clone(),
+        )));
+        // Its Switch screen draws the three numbers as rows of icons, and names each row alone.
+        let switch =
+            SwitchScreen::new(layouts.clone(), image_of.clone(), text.amie_numbers.clone());
         // Amie's decorate screen draws its Poké Puffs, and says nothing of which.
         let puffs = Rc::new(RefCell::new(Puffs::new(
             memory.clone(),
@@ -548,6 +557,7 @@ impl Subscreens {
             head_it,
             puzzle,
             berry_picker,
+            switch,
         }
     }
 
@@ -670,6 +680,11 @@ impl Subscreens {
     /// 2026-11-04; spike 273's `--again`). Not its chances left, "Chances:2", nor its clock.
     pub fn scored(&self, piece: &ScreenText, running: Option<&str>) -> Result<bool> {
         self.head_it.borrow().scored(piece, running)
+    }
+
+    /// The words on the screen as they are said: the Switch screen's labels with their rows.
+    pub fn reworded(&self, found: IndexMap<i64, ScreenText>) -> Result<IndexMap<i64, ScreenText>> {
+        self.switch.reworded(found)
     }
 
     /// Whether a screen's round holds the heap's whole sweep off: a second of nothing else

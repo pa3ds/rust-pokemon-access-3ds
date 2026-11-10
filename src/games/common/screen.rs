@@ -467,9 +467,15 @@ fn get(map: &IndexMap<i64, i64>, key: i64) -> Result<i64> {
         .ok_or_else(|| Error::key(key.to_string()))
 }
 
+/// `Callable[[dict[int, ScreenText]], dict[int, ScreenText]]`: words on the screen as a screen's
+/// reader would have them said.
+pub type Reworded = Rc<dyn Fn(IndexMap<i64, ScreenText>) -> Result<IndexMap<i64, ScreenText>>>;
+
 /// Tracks layout TextBoxes and reports the words that come on screen.
 pub struct ScreenTextReader {
     level_mark: Option<String>,
+    /// Python's `reworded` keyword (`set_reworded`).
+    reworded: Option<Reworded>,
     pictures: Option<Pictures>,
     /// A label's words -> what a mark in its group says, or "" (`GameText.labels`).
     labels: IndexMap<String, String>,
@@ -538,7 +544,9 @@ impl ScreenTextReader {
     /// (`LEVEL_GLYPH`), which are said in its place. `pictures` says what the game calls what a
     /// picture draws now, by its image (`gen6.rom.textures`), or None. `labels` are the words the
     /// game's text draws as labels, each with what a mark in its group says, and `plain` its
-    /// titles and buttons (`GameText.labels`, `GameText.plain`).
+    /// titles and buttons (`GameText.labels`, `GameText.plain`). `reworded` gives words on the
+    /// screen what pictures beside them show, where a screen's reader has any to give: the
+    /// Pokémon-Amie Switch screen's rows of hearts, puffs and notes (`set_reworded`).
     #[allow(clippy::too_many_arguments)]
     pub fn with(
         memory: Rc<dyn Memory>,
@@ -552,6 +560,7 @@ impl ScreenTextReader {
     ) -> Self {
         ScreenTextReader {
             level_mark,
+            reworded: None,
             pictures,
             labels,
             plain,
@@ -578,6 +587,12 @@ impl ScreenTextReader {
             scrolled: IndexMap::new(),
             frames: IndexMap::new(),
         }
+    }
+
+    /// Python's `reworded` keyword, given once the readers it asks are built: the profile's
+    /// lambda reaches its subscreens, made after its screen reader.
+    pub fn set_reworded(&mut self, reworded: Reworded) {
+        self.reworded = Some(reworded);
     }
 
     /// Every piece on screen at the last poll, reported or not, the top screen first: what touch
@@ -673,6 +688,9 @@ impl ScreenTextReader {
         // such picture: "First Move: egg move, Helping Hand" (spike 195).
         found = by_their_labels(&found, &self.labels);
         found = places_last(&found);
+        if let Some(reworded) = &self.reworded {
+            found = reworded(found)?;
+        }
         if let Some(level_mark) = &self.level_mark {
             found = level_marks(&found, level_mark);
         }

@@ -273,6 +273,8 @@ pub const TEXTURE_ARCHIVES: [&str; 112] = [
 /// 108). The moves' names are text file 13, as file 14 (spike 136); the Pokémon's names file 80
 /// (spike 178). The Pokémon on the map are the field's models from `EV_POKE01`, `0xf2` of `a/0/2/1`,
 /// each tagged as its battle models in `a/0/0/7` are, Fletchling's `pm0753` (spike 218).
+/// "Affection", "Fullness" and "Enjoyment", in Pokémon-Amie's text (spike A).
+pub const AMIE_NUMBERS: (i64, i64) = (93, 14);
 pub fn rom() -> &'static RomLayout {
     static ROM: OnceLock<RomLayout> = OnceLock::new();
     ROM.get_or_init(|| RomLayout {
@@ -297,6 +299,7 @@ pub fn rom() -> &'static RomLayout {
         pokemon_models: Some(("a/0/2/1".to_string(), MODELS.1)),
         battle_models: Some("a/0/0/7".to_string()),
         puffs: Some(PUFF_NAMES),
+        amie_numbers: Some(AMIE_NUMBERS),
         goods: Some(GOODS_NAMES),
         items: Some(ITEM_NAMES),
         sounds: Some(SOUND_ARCHIVE.to_string()),

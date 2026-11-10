@@ -846,6 +846,10 @@ impl Gen6Profile {
             file_of.clone(),
             on_screen.clone(),
         ));
+        screen.borrow_mut().set_reworded({
+            let subscreens = subscreens.clone();
+            Rc::new(move |found| subscreens.reworded(found))
+        });
         let classes: IndexSet<String> = HEAP_CLASSES
             .iter()
             .chain(subscreens.classes.iter())

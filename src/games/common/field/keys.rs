@@ -136,6 +136,8 @@ pub const HEADERS: [&str; 3] = ["left pokemon", "middle pokemon", "right pokemon
 /// Say Head It's score, its combo and its clock or chances left, which are left unsaid as they
 /// come unless the player asks (Orion, 2026-11-04; `head_it.HeadIt.score`).
 pub const SCORE_KEY: &str = "score";
+/// Says Amie's Pokémon's three numbers, as the Switch screen shows them (Orion, 2026-11-06).
+pub const STYLUS_NUMBERS: &str = "stylus numbers";
 /// Amie's stylus moved a step over the Pokémon, which way across and down the screen each goes
 /// (Orion, 2026-11-05; `amie.StylusKeys`).
 pub const STYLUS_MOVES: [(&str, (i64, i64)); 4] = [
@@ -153,7 +155,7 @@ pub const STYLUS_JUMPS: [(&str, (i64, i64)); 4] = [
     ("stylus jump right", (1, 0)),
 ];
 
-pub const EXPLAINED: [(&str, &str); 10] = [
+pub const EXPLAINED: [(&str, &str); 12] = [
     (
         ENEMY_SIDE,
         "The enemy's Pokémon are said in the order the battle places them. In a horde of five that \
@@ -205,6 +207,11 @@ pub const EXPLAINED: [(&str, &str); 10] = [
         "In Pokémon-Amie, jumps the stylus to the next part of your Pokémon that way.",
     ),
     (REPEAT, "Says again the last thing pa3ds said."),
+    (
+        STYLUS_NUMBERS,
+        "In Pokémon-Amie, says your Pokémon's Affection, Fullness and Enjoyment, as its Switch \
+         screen shows them.",
+    ),
 ];
 
 /// Mode -> key -> action. Keys are single characters, as `pa3ds.core.keys.key_name` gives them.
@@ -391,6 +398,7 @@ pub static DEFAULT_CONTEXTS: LazyLock<Contexts> = LazyLock::new(|| {
                 ("ctrl+down".to_string(), "stylus jump down".to_string()),
                 ("ctrl+left".to_string(), "stylus jump left".to_string()),
                 ("ctrl+right".to_string(), "stylus jump right".to_string()),
+                ("r".to_string(), STYLUS_NUMBERS.to_string()),
             ]),
         ),
     ])

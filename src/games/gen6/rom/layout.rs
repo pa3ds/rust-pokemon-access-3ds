@@ -116,6 +116,9 @@ pub struct RomLayout {
     /// The text file naming the contest categories and the line they start at: coolness, beauty,
     /// cuteness, cleverness, toughness, as a contest's move icons number them (`textures`).
     pub contest_categories: Option<(i64, i64)>,
+    /// The text file and line of Pokémon-Amie's three numbers: "Affection", "Fullness" and
+    /// "Enjoyment", as its Switch screen labels them (`subscreen.amie`).
+    pub amie_numbers: Option<(i64, i64)>,
     /// The text file and line of a contest's labels of the entrant under its cursor, "Pokémon:"
     /// and "Trainer:" (`oras.screens.contest`).
     pub contest_entrant: Option<(i64, i64)>,
@@ -227,6 +230,7 @@ impl RomLayout {
             battle_models: None,
             categories: None,
             contest_categories: None,
+            amie_numbers: None,
             contest_entrant: None,
             contest_conditions: None,
             contest_rivals: None,
