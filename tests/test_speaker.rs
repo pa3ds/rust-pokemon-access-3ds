@@ -2,6 +2,7 @@
 
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
+use std::path::Path;
 use std::rc::Rc;
 
 use indexmap::IndexMap;
@@ -16,6 +17,7 @@ use crate::games::common::dialogue::{PageShown, Shown};
 use crate::games::common::field::things::{MODEL_SOURCE, own_name};
 use crate::games::gen6::field::speaker::SpeakerReader;
 use crate::games::gen6::game::Game;
+use crate::games::sm::field as sm_field;
 use crate::games::{gen6::field::mmodel, gen6::field::talk};
 use crate::games::{oras, xy};
 
@@ -299,7 +301,13 @@ fn keys(table: &IndexMap<String, String>) -> HashSet<String> {
 
 /// The sprites one language's `sprites.ftl` names, by key, without English behind it.
 fn sprites(game: &Game, language: &str) -> IndexMap<String, String> {
-    let path = (game.data)().join(language).join("sprites.ftl");
+    sprites_in(&(game.data)(), language)
+}
+
+/// `sprites` of a game's folder of words: Python's `_shipped` takes the folder, which Sun has
+/// without a gen 6 `Game`.
+fn sprites_in(folder: &Path, language: &str) -> IndexMap<String, String> {
+    let path = folder.join(language).join("sprites.ftl");
     let resource = fluent_bundle::FluentResource::try_new(std::fs::read_to_string(path).unwrap())
         .unwrap_or_else(|(resource, _)| resource);
     let id: unic_langid::LanguageIdentifier = language.parse().unwrap();
@@ -385,6 +393,43 @@ fn test_x_ships_a_table_in_every_language_it_carries() {
         shipped(xy::game(), "ja").sprite(0x07).as_deref(),
         Some("ママ")
     );
+}
+
+/// The user, 2026-11-10: Mom and the professor had no name on Sun's map. Neither battles as
+/// the model they stand as, so the ROM names neither (spike A); nor Lillie, nor the captains
+/// battled once, nor the townsfolk, whom the user asked to have named too.
+#[test]
+fn test_sun_ships_the_story_s_people_the_rom_never_names_in_every_language() {
+    let english = sprites_in(&sm_field::names(), "en");
+    for (key, name) in [
+        ("0x21", "Mom"),
+        ("0x5", "Professor Kukui"),
+        ("0x2", "Lillie"),
+        ("0x3", "Lillie"),
+        ("0x15", "Captain Kiawe"),
+        ("0x6b", "Trial Guide"),
+        ("0x3e", "Old woman"),
+        ("0x40", "Clerk"),
+    ] {
+        assert_eq!(english.get(key).map(String::as_str), Some(name), "{key}");
+    }
+    for language in ["ja", "fr", "it", "de", "es", "ko", "zh-CN", "zh-TW"] {
+        let table = sprites_in(&sm_field::names(), language);
+        assert_eq!(keys(&table), keys(&english), "{language}");
+        assert!(table.values().all(|name| !name.is_empty()), "{language}");
+    }
+    let sun = |language: &str| {
+        let words = Words::new(
+            language,
+            Some(&sm_field::names()),
+            IndexMap::new(),
+            Rc::new(|_line: &str| {}),
+        )
+        .unwrap();
+        Names::load("niji_loc", None, "", Some(&words)).unwrap()
+    };
+    assert_eq!(sun(ENGLISH).sprite(0x5).as_deref(), Some("Professor Kukui"));
+    assert_eq!(sun("fr").sprite(0x2).as_deref(), Some("Lilie"));
 }
 
 /// A page no talk object kept shows asks for a sweep: a door builds the next zone's talk

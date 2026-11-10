@@ -2,10 +2,12 @@
 //! each trainer's name, what a sign and a thing say, and the building behind a door (spike A).
 //!
 //! **People.** Every trainer record names its trainer (`zones.TRAINER_FLAGS`), whose file in
-//! `a/1/0/5` gives their class at +0x00: text file 106 the classes, 105 the names. A model two
-//! trainers or more stand as, all of one class, is that class wherever it is drawn, as gen 6's
-//! sprites are (spike 90): "Youngster", or "Team Skull Grunt" where they share the one name too. The
-//! trainer standing on their own record is their class and name, "Youngster Jimmy".
+//! `a/1/0/5` gives their class at +0x00: text file 106 the classes, 105 the names. Each class says
+//! the model it is drawn as (`CLASSES`), and a model is what every trainer of its classes is
+//! (`_drawn`): "Youngster", "Pokémon Trainer Hau", "Hala". Where its classes are two words, a model
+//! two trainers or more stand as, all of one class, is that class, as gen 6's sprites are (spike
+//! 90). The trainer standing on their own record is their class and name, "Youngster Jimmy". A
+//! Pokémon's model is its species (`FIELD_MODELS`), "Meowth".
 //!
 //! **Signs and things** say what their zone's script shows first (`script`): a sign a line of story
 //! file 21, its first line its name, "Trainer Tips", "Route 1"; anything else read by facing it a
@@ -44,6 +46,7 @@
 //! - ADR-0008: the game's words come out of the player's own ROM, in their language.
 //! - ADR-0023: the game's own word comes behind the player's names and ahead of the shipped.
 
+use std::cmp::Reverse;
 use std::collections::{HashMap, HashSet};
 
 use indexmap::IndexMap;
@@ -56,6 +59,7 @@ use crate::games::common::field::things::{
 };
 use crate::games::common::garc::{garc_files, garc_spans, message_lines, plain};
 use crate::games::common::text::{Token, tokens};
+use crate::games::gen6::rom::people;
 use crate::games::sm::field::{CELL, place_of};
 use crate::games::sm::script;
 use crate::games::sm::text::TEXT_ARCHIVES;
@@ -78,6 +82,24 @@ pub const TRAINER_CLASSES: i64 = 106;
 pub const SIGN_TEXT: i64 = 21;
 pub const TRAINERS: &str = "a/1/0/5";
 pub const TRAINER_CLASS: i64 = 0x00;
+/// A file a trainer class, its +0x08 u16 the field model it is drawn as: Youngster `0x43`, the
+/// Pokémon Trainer who is Hau `0x04`, the Island Kahuna who is Hala `0x1b` (spike A).
+pub const CLASSES: &str = "a/1/0/4";
+pub const CLASS_MODEL: i64 = 0x08;
+/// The field's models, model n file n, a Pokémon's tagged with its national number as gen 6's
+/// are (`gen6.rom.people`): Meowth's `0x77` `pm0052`.
+pub const FIELD_MODELS: &str = "a/1/9/6";
+/// System text file 55, the species' names by national number.
+pub const SPECIES: i64 = 55;
+/// The Pokémon's battle models, nine files a model (`people.tagged_species`).
+pub const BATTLE_MODELS: &str = "a/0/9/4";
+pub const BATTLE_MODEL_FILES: i64 = 9;
+/// The file of a battle model's nine that carries its tag alone: the first carries others too,
+/// Cosmog's `pm0871` beside Cosmoem's `pm0872`, and the last two none.
+pub const BATTLE_MODEL_TAGGED: i64 = 2;
+/// The first species a model may tag apart from its number, Chespin: Kalos's and Alola's are
+/// tagged in another order, Stufful `pm0852`, and every tag below is the species itself (spike A).
+pub const RETAGGED: i64 = 650;
 pub const TOWN_MAP: &str = "a/2/4/1";
 pub const TOWN_MAP_RECORD: i64 = 0x2C;
 pub const TOWN_MAP_LINE: i64 = 0x24;
@@ -185,7 +207,7 @@ impl SunGameText {
         let texts = garc_files(&rom.read(system)?)?;
         let stories = garc_files(&rom.read(&story)?)?;
         let mut read: Vec<Vec<String>> = Vec::new();
-        for number in [FACILITIES, TRAINER_NAMES, TRAINER_CLASSES] {
+        for number in [FACILITIES, TRAINER_NAMES, TRAINER_CLASSES, SPECIES] {
             let found = match texts.get(number as usize) {
                 None => Err(Error::index("list index out of range")),
                 Some(blob) => lines(blob),
@@ -201,9 +223,10 @@ impl SunGameText {
                 Err(error) => return Err(error),
             }
         }
-        let classes = read.pop().expect("three files read");
-        let names = read.pop().expect("three files read");
-        let facilities = read.pop().expect("three files read");
+        let species = read.pop().expect("four files read");
+        let classes = read.pop().expect("four files read");
+        let names = read.pop().expect("four files read");
+        let facilities = read.pop().expect("four files read");
         let trainers: Vec<i64> = garc_files(&rom.read(TRAINERS)?)?
             .iter()
             .map(|data| {
@@ -211,12 +234,21 @@ impl SunGameText {
                     .map_or(-1, |&class| class as i64)
             })
             .collect();
+        let mut models: Vec<i64> = Vec::new();
+        for data in garc_files(&rom.read(CLASSES)?)? {
+            models.push(if data.len() as i64 > CLASS_MODEL + 1 {
+                u16(&data, CLASS_MODEL)?
+            } else {
+                -1
+            });
+        }
         let town_map = garc_files(&rom.read(TOWN_MAP)?)?;
         let Some(first) = town_map.first() else {
             return Err(Error::new(Kind::RomError, format!("{TOWN_MAP} is empty")));
         };
         let mut text = Story::new(stories, zones);
-        let (sprites, own_names) = people(zones, &trainers, &classes, &names);
+        let (mut sprites, own_names) = people(zones, &trainers, &classes, &names, &models);
+        sprites.extend(pokemon(rom, &species)?);
         let (signs, things) = signs_and_things(rom, zones, &mut text)?;
         let mut places: IndexMap<Slot, String> = things;
         let (doors, door_signs) = self::doors(zones, first, &facilities, &signs)?;
@@ -319,12 +351,19 @@ fn lines(blob: &[u8]) -> Result<Vec<String>> {
 }
 
 /// Model -> the kind of trainer it is, and (zone, record) -> each trainer record's own.
+///
+/// A model the classes (`CLASSES`) are drawn as, all of one word, is that word, and its name too
+/// where every trainer of them has the one: "Pokémon Trainer Hau", "Island Kahuna Hala". A model
+/// of classes of two words, Collector's and a Pokémon Trainer's, is named by the trainers
+/// standing as it instead, as gen 6's are.
 pub(crate) fn people(
     zones: &SunZones,
     trainers: &[i64],
     classes: &[String],
     names: &[String],
+    models: &[i64],
 ) -> (IndexMap<i64, String>, IndexMap<(i64, i64), String>) {
+    let mut sprites = drawn(trainers, classes, names, models);
     let mut standing: IndexMap<i64, Vec<i64>> = IndexMap::new();
     let mut own_names: IndexMap<(i64, i64), String> = IndexMap::new();
     for area in zones.areas.values() {
@@ -348,13 +387,12 @@ pub(crate) fn people(
             }
         }
     }
-    let mut sprites: IndexMap<i64, String> = IndexMap::new();
     for (&model, numbers) in &standing {
         let kinds: HashSet<i64> = numbers
             .iter()
             .map(|&number| trainers[number as usize])
             .collect();
-        if numbers.len() < 2 || kinds.len() != 1 {
+        if sprites.contains_key(&model) || numbers.len() < 2 || kinds.len() != 1 {
             continue;
         }
         let kind = &classes[*kinds.iter().next().expect("one kind") as usize];
@@ -369,6 +407,127 @@ pub(crate) fn people(
         }
     }
     (sprites, own_names)
+}
+
+/// Model -> what every trainer of the classes drawn as it is. Two trainers or more of one name
+/// are that person: "Pokémon Trainer Hau" where their classes are one word, "Hala" where he is
+/// the Island Kahuna and the Elite Four. Otherwise the word of most of them, "Youngster", where
+/// it is twice any other's, and nothing where it is not. A model of one named trainer says
+/// nothing: the Trial Guide Ben is one of a look every male guide shares, but Captain Kiawe and
+/// Lusamine are themselves, which the ROM cannot tell apart, so the shipped table
+/// (`data/sm/*/sprites.ftl`) says which. Classes no
+/// trainer is (the player's) say nothing, and nor do the table's blanks, named "●●●" or nothing
+/// beside trainers named.
+pub(crate) fn drawn(
+    trainers: &[i64],
+    classes: &[String],
+    names: &[String],
+    models: &[i64],
+) -> IndexMap<i64, String> {
+    let mut numbers: IndexMap<i64, Vec<i64>> = IndexMap::new();
+    for (number, &kind) in trainers.iter().enumerate() {
+        let number = number as i64;
+        let name = at(names, number);
+        if number != 0
+            && 0 <= kind
+            && kind < models.len() as i64
+            && kind < classes.len() as i64
+            && models[kind as usize] >= 0
+            && (name.is_empty() || name.chars().any(py::is_alpha))
+        {
+            numbers
+                .entry(models[kind as usize])
+                .or_default()
+                .push(number);
+        }
+    }
+    let mut sprites: IndexMap<i64, String> = IndexMap::new();
+    for (&model, every) in &numbers {
+        // Nameless trainers are blanks beside named ones (Ilima's, two grunts among 13), and only
+        // where none is named, as the Aether Foundation's staff, are they the trainers.
+        let named: Vec<i64> = every
+            .iter()
+            .copied()
+            .filter(|&number| !at(names, number).is_empty())
+            .collect();
+        let of_model = if named.is_empty() {
+            every.clone()
+        } else {
+            named
+        };
+        if of_model.len() == 1 && !at(names, of_model[0]).is_empty() {
+            continue;
+        }
+        // `Counter(...).most_common(2)`: by count, ties in the order first met.
+        let mut counts: IndexMap<&str, i64> = IndexMap::new();
+        for &number in &of_model {
+            *counts
+                .entry(classes[trainers[number as usize] as usize].as_str())
+                .or_default() += 1;
+        }
+        let mut words: Vec<(&str, i64)> = counts.into_iter().collect();
+        words.sort_by_key(|word| Reverse(word.1));
+        words.truncate(2);
+        let who: HashSet<&str> = of_model.iter().map(|&number| at(names, number)).collect();
+        let name = if who.len() == 1 && of_model.len() >= 2 {
+            *who.iter().next().expect("one name")
+        } else {
+            ""
+        };
+        // The word of most of them, twice any other's: a look the Janitors share with the
+        // Flareon User, the Veterans with the GAME FREAK of the Battle Tree.
+        let mut word = if words.len() == 1 || words[0].1 >= 2 * words[1].1 {
+            words[0].0
+        } else {
+            ""
+        };
+        if !name.is_empty() && words.len() > 1 {
+            word = ""; // one person of two titles is their name alone: Hala
+        }
+        let said = if !word.is_empty() && !name.is_empty() {
+            format!("{word} {name}")
+        } else if !name.is_empty() {
+            name.to_string()
+        } else {
+            word.to_string()
+        };
+        if !said.is_empty() {
+            sprites.insert(model, said);
+        }
+    }
+    sprites
+}
+
+/// Model -> the Pokémon it draws, for a model tagged with one.
+fn pokemon(rom: &Rom, species: &[String]) -> Result<IndexMap<i64, String>> {
+    let retagged = people::tagged_species_with(
+        rom,
+        BATTLE_MODELS,
+        BATTLE_MODEL_FILES,
+        BATTLE_MODEL_TAGGED,
+        Some(RETAGGED..species.len() as i64),
+    )?;
+    let (start, spans) = garc_spans(rom, FIELD_MODELS)?;
+    let mut out: IndexMap<i64, String> = IndexMap::new();
+    for (model, &span) in spans.iter().enumerate() {
+        let tags = people::model_tags(rom, FIELD_MODELS, start, span)?;
+        if tags.len() != 1 {
+            continue;
+        }
+        let tag = *tags.iter().next().expect("one tag");
+        let number = if tag < RETAGGED {
+            Some(tag)
+        } else {
+            retagged.get(&tag).copied()
+        };
+        if let Some(number) = number {
+            let name = at(species, number);
+            if !name.is_empty() {
+                out.insert(model as i64, name.to_string());
+            }
+        }
+    }
+    Ok(out)
 }
 
 /// Every sign with its words, and every other thing named by its first sentence.

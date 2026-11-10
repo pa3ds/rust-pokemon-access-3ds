@@ -2,6 +2,7 @@
 //! (spike 90), the story's people by sprite, and the Pokémon a model draws (spike 193).
 
 use std::collections::HashSet;
+use std::ops::Range;
 use std::sync::LazyLock;
 
 use indexmap::IndexMap;
@@ -104,7 +105,7 @@ pub fn pokemon_models(
     let (start, spans) = garc_spans(rom, archive)?;
     let mut out: IndexMap<i64, i64> = IndexMap::new();
     for (n, &span) in py::slice_from(&spans, first).iter().enumerate() {
-        let named = tags(rom, archive, start, span)?;
+        let named = model_tags(rom, archive, start, span)?;
         if named.len() == 1 {
             let tag = *named.iter().next().expect("one species");
             let number = match species {
@@ -119,24 +120,45 @@ pub fn pokemon_models(
     Ok(out)
 }
 
+/// `tagged_species(rom, archive)`: `files` and `tagged` at their defaults, `MODEL_FILES`, and
+/// every species read.
+pub fn tagged_species(rom: &Rom, archive: &str) -> Result<IndexMap<i64, i64>> {
+    tagged_species_with(rom, archive, MODEL_FILES, MODEL_FILES, None)
+}
+
 /// Tag -> national number, out of the battle models, for a game that tags a Pokémon's models
 /// apart from its number, as X does its Kalos Pokémon's: Fletchling, 661, is `pm0753`, and Litleo
 /// `pm0704` (spike 218). File 0 gives each species from Bulbasaur four bytes, the first of its
-/// models (a u16) and how many (a byte); model m is files 1 + 8m to 8 + 8m, the last of them
-/// tagged. A tag of two species, or a file of two tags, is left out.
-pub fn tagged_species(rom: &Rom, archive: &str) -> Result<IndexMap<i64, i64>> {
+/// models (a u16) and how many (a byte); model m is `files` files from 1 + files·m, the file
+/// `tagged` of them tagged: X's eight, the last; Sun's nine, the second, its Stufful `pm0852`
+/// (spike A). With `numbers`, those species alone are read. A tag of two species, or a file of
+/// two tags, is left out.
+pub fn tagged_species_with(
+    rom: &Rom,
+    archive: &str,
+    files: i64,
+    tagged: i64,
+    numbers: Option<Range<i64>>,
+) -> Result<IndexMap<i64, i64>> {
     let (start, spans) = garc_spans(rom, archive)?;
     let (at, end) = *spans
         .first()
         .ok_or_else(|| Error::index("list index out of range"))?;
     let head = rom.read_part(archive, start + at, end - at)?;
     let mut found: IndexMap<i64, HashSet<i64>> = IndexMap::new();
-    for number in 1..(head.len() as i64 / 4 + 1) {
+    // Python's `numbers or range(...)`: an empty range is as good as none.
+    let read = numbers
+        .filter(|numbers| !numbers.is_empty())
+        .unwrap_or(1..(head.len() as i64 / 4 + 1));
+    for number in read {
+        if !(0 < number && number <= head.len() as i64 / 4) {
+            continue;
+        }
         let model = u16(&head, (number - 1) * 4)?;
         let count = head[((number - 1) * 4 + 2) as usize];
-        let file = MODEL_FILES * (model + 1);
+        let file = files * model + tagged;
         if count != 0 && file < spans.len() as i64 {
-            let tags = tags(rom, archive, start, spans[file as usize])?;
+            let tags = model_tags(rom, archive, start, spans[file as usize])?;
             if tags.len() == 1 {
                 let tag = *tags.iter().next().expect("one tag");
                 found.entry(tag).or_default().insert(number);
@@ -152,7 +174,7 @@ pub fn tagged_species(rom: &Rom, archive: &str) -> Result<IndexMap<i64, i64>> {
 
 /// The species tags in the first `MODEL_NAMES` bytes of one of an archive's files, none where
 /// LZ11 cannot unpack it.
-fn tags(rom: &Rom, archive: &str, start: i64, span: (i64, i64)) -> Result<HashSet<i64>> {
+pub fn model_tags(rom: &Rom, archive: &str, start: i64, span: (i64, i64)) -> Result<HashSet<i64>> {
     let (at, end) = span;
     let data = rom.read_part(archive, start + at, end - at)?;
     let data = if data.first() == Some(&0x11) {

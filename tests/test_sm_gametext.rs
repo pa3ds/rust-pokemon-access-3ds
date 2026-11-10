@@ -339,7 +339,7 @@ fn test_a_model_trainers_of_one_class_stand_as_is_that_class_and_each_trainer_th
     trainers[1] = 3;
     trainers[25] = 2;
     trainers[26] = 2;
-    let (sprites, own) = gametext::people(&rom, &trainers, &classes, &names);
+    let (sprites, own) = gametext::people(&rom, &trainers, &classes, &names, &[-1; 4]);
     assert_eq!(sprites, IndexMap::from([(0x43, "Youngster".to_string())]));
     assert_eq!(
         own,
@@ -347,6 +347,73 @@ fn test_a_model_trainers_of_one_class_stand_as_is_that_class_and_each_trainer_th
             ((TOWN, 0x66), "Youngster Jimmy".to_string()),
             ((TOWN, 0x67), "Youngster Kevin".to_string()),
             ((TOWN, 0x65), "Lass Madison".to_string()),
+        ])
+    );
+}
+
+#[test]
+fn test_a_model_is_what_every_trainer_of_the_classes_drawn_as_it_is() {
+    let classes: Vec<String> = [
+        "Pokémon Trainer",
+        "Youngster",
+        "Pokémon Trainer",
+        "Island Kahuna",
+        "Elite Four",
+        "Trial Guide",
+        "Captain",
+        "Pokémon Trainer",
+        "Aether Foundation",
+        "Team Skull",
+        "Lass",
+        "Beauty",
+        "Janitor",
+        "Flareon User",
+    ]
+    .iter()
+    .map(|class| class.to_string())
+    .collect();
+    let models = [
+        0x02, 0x43, 0x04, 0x1B, 0x1B, 0x6B, 0x127, 0x127, 0x0B, 0x13, 0x50, 0x50, 0x62, 0x62,
+    ];
+    let people = [
+        ("", 0),
+        ("Jimmy", 1),
+        ("Kevin", 1),
+        ("Hau", 2),
+        ("Hau", 2),
+        ("Hala", 3),
+        ("Hala", 4),
+        ("Hala", 4),
+        ("Ben", 5),
+        ("Ilima", 6),
+        ("Ilima", 6),
+        ("●●●", 6),
+        ("", 6),
+        ("", 7),
+        ("", 8),
+        ("", 8),
+        ("Grunt", 9),
+        ("Grunt", 9),
+        ("", 9),
+        ("Audrey", 10),
+        ("Jess", 11),
+        ("Melvin", 12),
+        ("Shawn", 12),
+        ("Chad", 13),
+    ];
+    let names: Vec<String> = people.iter().map(|(name, _)| name.to_string()).collect();
+    let trainers: Vec<i64> = people.iter().map(|&(_, kind)| kind).collect();
+    let sprites = gametext::drawn(&trainers, &classes, &names, &models);
+    assert_eq!(
+        sprites,
+        IndexMap::from([
+            (0x43, "Youngster".to_string()),
+            (0x04, "Pokémon Trainer Hau".to_string()),
+            (0x1B, "Hala".to_string()),
+            (0x127, "Captain Ilima".to_string()),
+            (0x0B, "Aether Foundation".to_string()),
+            (0x13, "Team Skull Grunt".to_string()),
+            (0x62, "Janitor".to_string()),
         ])
     );
 }
