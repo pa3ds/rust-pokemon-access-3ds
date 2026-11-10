@@ -7,9 +7,9 @@
 //! device is Auto, which mixes it with the game's. A clip cuts off the one before it on the same
 //! voice, an output of its own: a footstep the last. The Pokémon's cries have a voice a side, so
 //! each cuts off only its own Pokémon's, and the three can be heard over each other as the game's
-//! sounds are (Orion, 2026-11-02: waiting their turn, a cry would come too late, and cut off, the
-//! Pokémon before went unheard). The feedback sounds, cues and a key's, each have a voice of their
-//! own the same way, and cut off only themselves. How loud is what the game
+//! sounds are (waiting their turn, a cry would come too late, and cut off, the Pokémon before went
+//! unheard). The feedback sounds, cues and a key's, each have a voice of their own the same way,
+//! and cut off only themselves. How loud is what the game
 //! would make it: the sound's own volume and its sequence's random one; times how loud Azahar
 //! plays the game (`loudness`); times `[pa3ds.audio] footsteps`, above 1 louder than the game
 //! would. A clip plays in both ears, as the game plays it, but where it is asked toward one side:

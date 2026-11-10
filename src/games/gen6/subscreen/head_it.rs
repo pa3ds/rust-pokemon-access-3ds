@@ -146,8 +146,8 @@ pub const GIANT_SWEET: f64 = 104.0;
 /// Seconds before the ball reaches `SWEET` the cue sounds, as it ships (`[pa3ds.amie]
 /// head_it_lead`): about how long a player takes from the cue to the tap, the sound's way out to
 /// their ears, hearing it, and the key's way through pa3ds to the game. It was 0.2, the delay after
-/// which the spike's own taps, sent by a timer, all hit the sweet spot; Orion's, by ear, hit nothing
-/// at it (2026-11-01).
+/// which the spike's own taps, sent by a timer, all hit the sweet spot; a player's, by ear, hit
+/// nothing at it (2026-11-01).
 pub const LEAD: f64 = 0.4;
 /// The game's frames a second as `gen6.frames` counts them, the screen's: 59.83. The round's own
 /// count of frames (`Process` +0x60, 30 a second) stands still while the giant ball falls (spike
@@ -197,7 +197,7 @@ pub const NO_SCORE: &str = "head-it-no-score";
 pub const LINEUP: &str = "head-it-lineup";
 pub const ESTIMATE: &str = "head-it-estimate";
 /// Seconds after a cue within which the key of its ball's Pokémon answers it: the ball is past
-/// the bottom about 0.9 s after it (Orion's logged round at a 0.4 s lead).
+/// the bottom about 0.9 s after it (a player's logged round at a 0.4 s lead).
 pub const ANSWER: f64 = 1.0;
 /// Answers a round needs before pa3ds says its estimate of the lead.
 pub const TAPS: usize = 3;
@@ -384,7 +384,7 @@ impl HeadIt {
     /// The round's three Pokémon as its opening starts (`_lineup`), and while balls fall each
     /// ball that has just come, by the Pokémon it falls at, as the screen's words; and, only
     /// logged (None), each ball gone by with the cue on and none sounded for it, with its last
-    /// heights: one of Orion's logged round's twenty went so (77.49 s), and nothing said why.
+    /// heights: one of a player's logged round's twenty went so (77.49 s), and nothing said why.
     pub fn poll(
         &mut self,
         running: Option<&str>,
@@ -513,9 +513,9 @@ impl HeadIt {
     }
 
     /// The round's three Pokémon left to right, its keys' order, said once in its opening and
-    /// again in each Play Again's, as Berry Picker's are (Orion, 2026-11-01: "the same precedent
-    /// as berry picker"): on Easy two come up only as the round goes on, and in Orion's first
-    /// logged round he pressed the keys in the order the Pokémon came up, all but Windsong's
+    /// again in each Play Again's, as Berry Picker's are ("the same precedent as
+    /// berry picker"): on Easy two come up only as the round goes on, and in a player's first
+    /// logged round they pressed the keys in the order the Pokémon came up, all but Windsong's
     /// wrong. Left to right is the game's own order of its records too (spike 273's tape).
     fn lineup(&mut self, phase: Option<i64>) -> Result<Vec<(String, String, Category)>> {
         if phase.is_none_or(|phase| phase >= FALLING) {
@@ -549,8 +549,8 @@ impl HeadIt {
 
     /// pa3ds's estimate of the player's lead, said once at the round's results: the middle
     /// of how long after each cue the key of its ball's Pokémon came, for the player to put in
-    /// `[pa3ds.amie] head_it_lead` or nudge from. Never used in the round itself (Orion,
-    /// 2026-11-01: a lead changed mid-round throws off a player's own sense of it), and said as
+    /// `[pa3ds.amie] head_it_lead` or nudge from. Never used in the round itself
+    /// (a lead changed mid-round throws off a player's own sense of it), and said as
     /// pa3ds's, not the game's.
     fn estimate(&mut self, phase: Option<i64>) -> Vec<(String, String, Category)> {
         let Some(phase) = phase.filter(|&phase| phase >= FALLING) else {
@@ -1076,7 +1076,7 @@ fn median(values: &[f64]) -> f64 {
 /// mode's own keys still tap there as ever.
 ///
 /// And a key that says the round's score, its combo and its clock or chances (`HeadIt.score`),
-/// which are left unsaid as they come unless the player asks (Orion, 2026-11-04: "the game itself
+/// which are left unsaid as they come unless the player asks ("the game itself
 /// already plays a sound" for a miss).
 ///
 /// `wrong` is what is heard for a key with nothing to do, a Pokémon not up or no ball falling: a

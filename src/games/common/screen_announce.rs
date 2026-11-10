@@ -1,8 +1,7 @@
 //! What to say of a screen: the item under its cursor, what changed, and what came on screen.
 //!
 //! The screen text reader reports pieces and the cursor reader reports the pieces under each
-//! cursor. This decides what is said of them, and in what order, by the rules the user set
-//! (2026-09-14):
+//! cursor. This decides what is said of them, and in what order, by these rules:
 //!
 //! - **A menu is heard one item at a time, under its cursor.** A layout a cursor has been over is
 //!   a menu: what comes on screen with it, as it opens or comes back, and its rows as a list
@@ -13,7 +12,7 @@
 //!   gathered until it has settled, then every panel that cursor's moves have changed is read, row
 //!   by row, in the order the screen built them: "The user growls… Category Power — Accuracy 100".
 //!   Saying each change as a poll caught it put a move's description before its panel or after it,
-//! and left the panel out when two moves shared their power and accuracy.
+//!   and left the panel out when two moves shared their power and accuracy.
 //!   A value that changes with no move is said with its row in its own group: "Play time: 0:14".
 //!   Words coming on screen while the details gather are part of them: the Mart's count and
 //!   description coming back as the cursor leaves Quit, a contest's move panel shown afresh for
@@ -40,8 +39,8 @@
 //!   its clock ticking, said each half minute and, counting down, at 10 and each of the last 5,
 //!   once while it bounces round one. They said "Time Left" every second for a minute. Every tick
 //!   can sound a tone, `[pa3ds.audio] ticks`. While the player plays, a Tile Puzzle with a piece
-//! away from home, its numbers are the play's, unsaid but for the clock's marks.
-//! - **A game's score is the player's to ask for** (players and Orion, 2026-11-04): Head It's
+//!   away from home, its numbers are the play's, unsaid but for the clock's marks.
+//! - **A game's score is the player's to ask for** (players, 2026-11-04): Head It's
 //!   score, combo and "MISS!", which come at every ball, faster than they can be said, are left
 //!   unsaid and never taken for a clock, its combo one up a second apart; where the player asks to
 //!   hear them, each is said and then left unsaid while it keeps going up within 3 s. Its misses
@@ -77,7 +76,7 @@ use crate::games::common::screen::{
 use crate::py::{self, Log, Result};
 
 /// Polls after a cursor moves before its details are said, when none of them is still being
-/// written. The move panel changed one poll after its cursor in the user's log.
+/// written. The move panel changed one poll after its cursor in a player's log.
 pub const DETAIL_POLLS: i64 = 2;
 
 /// The most polls details wait for words still being written, so that a value that never holds
@@ -161,8 +160,8 @@ struct Gathering {
     menu: i64,
     /// The list of rows the item is one of, where its cursor knows it (`CursorItem.rows`): the
     /// list its details are of. The fitting room's Change and Back are a list beside its tabs, and
-    /// each move between them read again the card the tabs had changed (Khai,
-    /// x_cyllage_boutique_fitting_room).
+    /// each move between them read again the card the tabs had changed
+    /// (x_cyllage_boutique_fitting_room).
     rows: i64,
 }
 
@@ -518,8 +517,8 @@ impl ScreenAnnouncer {
         // box's name as its menu's cursor moves, "BOX 1" each time (movie9).
         // Words coming to a panel of the menu's layout that words have just left are its own too:
         // the Bag's party draws "ABLE!" or "UNABLE!" for a TM or a stone in place of each level,
-        // and the levels again after it, and both were read at every pocket (movie31, Khai,
-        // 2026-10-18); a paralysed Pokémon shows no level, and its "UNABLE!" came alone
+        // and the levels again after it, and both were read at every pocket (movie31);
+        // a paralysed Pokémon shows no level, and its "UNABLE!" came alone
         // (hm_tm). A question is said. Not a panel no words left: X's language select draws its
         // question in a panel of its own where its list was, "English" in the place of the
         // list's own, and the language went unsaid, "Play Pokémon X in" (x_movie1_opening). The
@@ -958,8 +957,8 @@ impl ScreenAnnouncer {
     ///
     /// The level up reveals its rows over half a second and writes each value a poll after its
     /// label, and said a row and a half, then a label and values out of step, then the rest: "HP",
-    /// "+ 2 ATTACK + 0 DEFENSE SP. ATK SP. DEF", "+ 1 + 1 SPEED + 1" (battles2.ctm, the user,
-    /// 2026-09-17). A layout whose words change or leave has moved on, and what arrived is said
+    /// "+ 2 ATTACK + 0 DEFENSE SP. ATK SP. DEF", "+ 1 + 1 SPEED + 1" (battles2.ctm).
+    /// A layout whose words change or leave has moved on, and what arrived is said
     /// at once, as it was: the gains were on screen for under a second before the totals replaced
     /// them, and waiting on, then dropping what had changed, lost them all. `changed` is the roots
     /// of the layouts with words changed this poll.
@@ -1092,7 +1091,7 @@ impl ScreenAnnouncer {
     /// each row by row, as one line that never interrupts. Returns the TextBoxes said.
     ///
     /// A line a panel, said as menus are, cut off the item they belong to under `interrupt`, and
-    /// each other; the next item still cuts them off (Khai and Orion, 2026-10-05).
+    /// each other; the next item still cuts them off.
     fn say_details(
         &mut self,
         gathering: &Gathering,
@@ -1241,7 +1240,7 @@ impl ScreenAnnouncer {
     ///
     /// The first row is the one naming the `subject`, its highest where two do, or else the
     /// first in reading order that is no sentence: the summary's stats are on the top screen
-    /// and built first, its Pokémon's name on the bottom (Orion, 2026-10-10: the name first,
+    /// and built first, its Pokémon's name on the bottom (the name first,
     /// where it costs no wait; it is written in the same poll as the rest), and the Pokédex's
     /// other languages put the entry's description before its number and name (movie7).
     fn start_rewrite(

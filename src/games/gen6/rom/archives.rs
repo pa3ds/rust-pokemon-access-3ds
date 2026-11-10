@@ -1001,7 +1001,7 @@ impl GameText {
 
     /// What the game calls a Pokémon in a form: the form's own name where it holds the
     /// species' ("Mega Latios"), the form's before the species' where it does not ("Primal
-    /// Reversion Groudon", as most of the game's own put the form first; Orion, 2026-10-16),
+    /// Reversion Groudon", as most of the game's own put the form first),
     /// the species' alone for a first form or one the game gives no name of its own; None for
     /// no species.
     pub fn pokemon(&self, species: i64, form: i64) -> Option<String> {

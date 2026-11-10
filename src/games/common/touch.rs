@@ -100,7 +100,7 @@ pub const HOLDING: &str = "touch-holding";
 pub const DROPPED: &str = "touch-dropped";
 /// How long a drag made as it is let go takes at full speed (`delayed`), a third pressed where it
 /// was picked up, a third sliding, a third on the target, and as much longer as the game runs
-/// slower (`pace`): a player lowers Azahar's speed limit for a higher score. Orion asked for it
+/// slower (`pace`): a player lowers Azahar's speed limit for a higher score. It was asked for
 /// shorter than the first 0.6 s (2026-10-29), and in rounds played live by touch mode's keys
 /// (spike 260's `--keys`) it fed 32 berries of 33 drags at 0.6 s, 31 of 35 at 0.3, 42 of 46 at
 /// 0.15, the quicker giving the more before each Pokémon left, and 12 of 31 at 0.05, where each
@@ -291,8 +291,8 @@ pub struct TouchMode {
     /// must, held at the Pokémon's mouth until it has been eaten (spike 257).
     delayed: Rc<dyn Fn() -> bool>,
     /// A sound for picking up a drag, with True, and letting go of it, played in place of saying
-    /// "holding" and "let go on", which slowed a timed game (`[pa3ds.audio] feedback_sounds`,
-    /// Orion, 2026-10-28); None says them.
+    /// "holding" and "let go on", which slowed a timed game (`[pa3ds.audio]
+    /// feedback_sounds`); None says them.
     sound: Option<Rc<dyn Fn(bool)>>,
     /// How fast the game runs beside full speed, which a drag made on letting go is timed by
     /// (`DROP_SECONDS`): Berry Picker's clock says (`berry_picker.BerryPicker.speed`).
@@ -473,8 +473,7 @@ impl TouchMode {
                 + if action == ITEM_NEXT { 1 } else { -1 };
             at = walked[stepped(step, walked.len() as i64, self.settings.wrap) as usize];
         } else if action == ROW_NEXT || action == ROW_PREVIOUS {
-            // Straight up or down, to the nearest across: a grid's column kept (Orion,
-            // 2026-10-26, Tile Puzzle).
+            // Straight up or down, to the nearest across: a grid's column kept (Tile Puzzle).
             let x = found[at].x;
             let row = stepped(
                 row as i64 + if action == ROW_NEXT { 1 } else { -1 },
@@ -508,7 +507,7 @@ impl TouchMode {
     /// Carry on to where a target is now what goes on with it, choosing nothing and saying
     /// nothing, for a target the screen moves itself: the stylus kept on its part as the
     /// Pokémon moves, which had chosen the stylus again and taken the player's choice from them.
-    ///What goes on is a drag over it, or, while it is chosen, a tap's rub
+    /// What goes on is a drag over it, or, while it is chosen, a tap's rub
     /// the screen says lasts; the targets are listed only then, as a moving part's ends are a
     /// read of the picture.
     pub fn carry(&mut self, pane: i64) -> Result<()> {

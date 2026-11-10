@@ -21,7 +21,7 @@
 //!
 //! The Circle Pad's up flies forward and down back, left and right turn on the spot; X and Y pitch
 //! Latios up and down, which changes the height while it flies, and the D-pad and B did nothing seen
-//! (omega_ruby_aeon-flute.ctm, and the user's session of 2026-10-05 14:18).
+//! (omega_ruby_aeon-flute.ctm, and a session of 2026-10-05 14:18).
 //!
 //! The places are the ROM's (`a/2/5/2`): one file packed in a two-letter archive, "SLAN", a header
 //! then 117 rows of 0x34 bytes, a rectangle each, a place several where it is not a rectangle:

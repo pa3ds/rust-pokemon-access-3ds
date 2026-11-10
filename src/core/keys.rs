@@ -3,7 +3,7 @@
 //! A low-level keyboard hook (`WH_KEYBOARD_LL`) sees every key before the window it is going to,
 //! and can keep it from getting there. pa3ds keeps the keys it is bound to when the foreground
 //! window is the emulator's, so a key that cycles the map's interactables never reaches the game as
-//! a button: the user's Azahar has I, J, K and L on the C-stick and O on the debug button, and
+//! a button: one player's Azahar has I, J, K and L on the C-stick and O on the debug button, and
 //! rebinding the emulator is designed but unbuilt (ADR-0022). Anywhere else in front, every key
 //! passes through untouched, so nothing typed elsewhere is ever swallowed.
 //!
@@ -224,8 +224,8 @@ impl Released {
 ///
 /// Shift falls back: with only `k` bound, shift and k together still read the item, because a
 /// player holding shift from the last thing they typed should not find the key dead; and with
-/// `ctrl+up` bound, ctrl, shift and up jump Amie's stylus while Shift holds its press (Orion,
-/// 2026-11-06: the jump was dead until he let Shift go). **Ctrl and alt never fall back**, since
+/// `ctrl+up` bound, ctrl, shift and up jump Amie's stylus while Shift holds its press (the
+/// jump was dead until Shift was let go). **Ctrl and alt never fall back**, since
 /// ctrl and a letter belongs to whatever is in front — ctrl+c must reach the emulator even when
 /// `c` is pa3ds's. **Nothing is pa3ds's with a key of `ELSEWHERE` held**, the screen reader's
 /// modifier or Windows's.

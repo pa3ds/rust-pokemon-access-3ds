@@ -5,14 +5,14 @@
 //! Wally on Victory Road and Steven. The save records each as the story reaches it, an entry a moment
 //! in `savedata::SubEventSaveData` (the save file's block at 0x1e800, which the object keeps whole
 //! from +4), from +0x2fc: 8 bytes, a u32 the Pokémon's own id, a u16 its species in bits 0 to 9 with
-//! its form in 10 to 14 (1 Orion's Mega Latios and Primal Groudon) and a female bit 15, a u8 of
-//! flags; all zero for a moment the story has not reached, or one the player's game never records.
-//! Orion's save, Birch's rescue to the Champion, filled 20 of the first 26 (spike 222).
+//! its form in 10 to 14 (1 in one save's Mega Latios and Primal Groudon) and a female bit 15, a u8
+//! of flags; all zero for a moment the story has not reached, or one the player's game never
+//! records. That save, Birch's rescue to the Champion, filled 20 of the first 26 (spike 222).
 //!
 //! The id is the Pokémon's encryption constant, the key every stored Pokémon opens with
-//! (`games.common.pokemon`): each of Orion's moments named one of his party by it, or the Masquerain
-//! in his first box, and May's Mudkip nothing of his. So the nickname the player gave a moment's
-//! Pokémon is found by its key among the party's `PokemonParam`s and the PC's boxes,
+//! (`games.common.pokemon`): each of that save's moments named one of its party by it, or the
+//! Masquerain in its first box, and May's Mudkip none of them. So the nickname the player gave a
+//! moment's Pokémon is found by its key among the party's `PokemonParam`s and the PC's boxes,
 //! `savedata::BoxPokemon`, which keeps the save file's block at 0x33000 from +4: 31 boxes of 30
 //! records. One traded away or released is in neither.
 //!

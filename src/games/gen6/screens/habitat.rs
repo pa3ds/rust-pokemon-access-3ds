@@ -38,7 +38,7 @@ use crate::py::{self, Error, Log, Result};
 /// a place and one drawn (spike 152).
 pub const POINT: &str = "poke_point.bclim";
 /// The top screen's icons for how a Pokémon is found, by the image each draws in colour, and
-/// pa3ds's word for each (Orion's, 2026-10-01): the game draws them and never names them. Grass
+/// pa3ds's word for each: the game draws them and never names them. Grass
 /// was seen in colour first (spike 153), fishing on Route 111; a Pokémon met
 /// in seaweed under water lights grass, as the game shows it.
 ///
@@ -50,8 +50,8 @@ pub const WAYS: [(&str, &str); 3] = [
 ];
 /// Half the top screen's height: the icons' middle is within it only once the map is open.
 pub const HALF_HEIGHT: f64 = 120.0;
-/// Said before a place drawn as the Pokémon's: the game draws it and never says it (Orion's
-/// words, 2026-10-01, for the longer "is a known habitat" first tried).
+/// Said before a place drawn as the Pokémon's: the game draws it and never says it (in place
+/// of the longer "is a known habitat" first tried).
 pub const FOUND: &str = "habitat-found";
 
 /// Says the habitat page's places, and owns its top screen's words while its map is up.

@@ -113,7 +113,7 @@ pub const MODEL_NODE: i64 = 0x20;
 pub const MODEL_CODE: i64 = 0x6C;
 /// 1 while the model is drawn, 0 while it stands on the field unseen, its model not loaded
 /// (+0x30c 0xffff). The living room held five such, one in the player's own cell, and the porch
-/// outside four, and P led the user to them (sun_4.ctm, spike 117, 2026-09-26).
+/// outside four, and P led the player to them (sun_4.ctm, spike 117, 2026-09-26).
 pub const MODEL_SHOWN: i64 = 0x308;
 /// Where a model stands now, x, y and z. Its +0x30 is where the save put it: in sun_1.ctm it
 /// stayed zero while +0x3a4 walked from (2411, 2418) to (2126, 1978), and the field's own copy at
@@ -439,7 +439,7 @@ impl SunFieldReader {
     /// cylinder where a drawn person stands, the smallest there. The other groups hold the
     /// range a person is talked to from, the lines of warps, the camera's boxes, and a box 950
     /// units long across Route 1 that the player had walked into to start Kukui's scene: taken
-    /// as solid, they walled the user in at their own door and sent them round Route 1 to get
+    /// as solid, they walled the player in at their own door and sent them round Route 1 to get
     /// home (sun_6.ctm, 2026-09-26). Until a drawn person has shown which group it is, no prop
     /// is taken as solid.
     fn prop_cells(
@@ -995,7 +995,7 @@ fn made(
     }
     if name == ITEM {
         // The field builds an actor for a hidden item too, where nothing is seen: three of the
-        // seven beside the house, and P led the user onto one (sun_4.ctm). Hidden items are an
+        // seven beside the house, and P led the player onto one (sun_4.ctm). Hidden items are an
         // extra the game does not show (parity), so only balls are listed.
         if let Some(record) = record
             && record.kind != sm_zones::ITEM_BALL

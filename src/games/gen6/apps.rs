@@ -50,7 +50,7 @@ pub const PROCESS_REACH: i64 = 0x200;
 /// before leaving the rest to the schedule. The manager lies in memory no heap the watch covers, so
 /// only a whole sweep finds it: attached early in the game's boot, the first sweep came before the
 /// game had built it, no app start was seen, and every key said "no map" until the scheduled sweep
-/// 30 s later (the user's session of 2026-09-27 23:48; omega_ruby_ledges_3.ctm, one replay in
+/// 30 s later (a session of 2026-09-27 23:48; omega_ruby_ledges_3.ctm, one replay in
 /// three).
 pub const ASKS: i64 = 15;
 pub const EVERY: f64 = 2.0;

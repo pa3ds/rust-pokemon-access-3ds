@@ -38,7 +38,7 @@
 //! seven captures over three movies, and it is the same record for the lesson's Poochyena on Route
 //! 101 and a Surskit found on Route 102.
 //!
-//! A battle leaves the species, level and place in the record (the user, 2026-09-22: the entries
+//! A battle leaves the species, level and place in the record (the entries
 //! did not clean up after a battle), and so does walking to another zone; the byte at +0xae is what
 //! says the tail is up, in the nine captures over four movies it was read in. A Pokémon that faints
 //! leaves it 0xd, not 0xff, and was listed "here" until the next search (movie26).
@@ -180,8 +180,8 @@ pub fn read(memory: &dyn Memory, record: i64) -> Result<Option<HiddenPokemon>> {
     }))
 }
 
-/// What a DexNav find is called: the game shows a tail and never names it (the user,
-/// 2026-09-22, asking for the shaking-tail Pokémon under a category of its own).
+/// What a DexNav find is called: the game shows a tail and never names it (the
+/// shaking-tail Pokémon was asked for under a category of its own).
 pub const HIDDEN_POKEMON: &str = "hidden Pokémon";
 
 /// The record, for the gen 6 field to list (`gen6.field.HiddenReader`): found by a sweep and

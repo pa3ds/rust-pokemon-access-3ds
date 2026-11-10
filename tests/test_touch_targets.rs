@@ -233,7 +233,7 @@ fn test_targets_are_walked_row_by_row_from_the_top() {
 
 #[test]
 fn test_a_row_key_moves_straight_up_or_down() {
-    // Orion, 2026-10-26: Tile Puzzle's grid walked by column, to the nearest across.
+    // Tile Puzzle's grid walked by column, to the nearest across.
     let grid: Vec<Target> = (0..6)
         .map(|i: i64| {
             let name = format!("{}{}", ['a', 'b'][(i / 3) as usize], i % 3);
@@ -276,7 +276,7 @@ fn grid() -> Vec<Target> {
         .collect()
 }
 
-/// Orion, 2026-10-28: O a few times always ends on the bottom row, and L at the last.
+/// O a few times always ends on the bottom row, and L at the last.
 #[test]
 fn test_with_wrapping_off_the_keys_stop_at_the_ends() {
     let mut screen = Screen::wrapping(grid(), false, true);
@@ -302,7 +302,7 @@ fn test_with_wrapping_off_the_keys_stop_at_the_ends() {
     assert_eq!(screen.press(touch::ITEM_NEXT), "b0");
 }
 
-/// Orion, 2026-10-28: L a few times always ends at the row's right.
+/// L a few times always ends at the row's right.
 #[test]
 fn test_with_the_next_row_off_left_and_right_keep_to_their_row() {
     let mut screen = Screen::wrapping(grid(), true, false);
@@ -345,7 +345,7 @@ fn test_nothing_on_the_bottom_screen_is_said_so() {
     assert!(started == "nothing to touch" && "nothing to touch" == screen.press(touch::ITEM_NEXT));
 }
 
-/// Orion, 2026-10-29: the Bag, the PC and a battle are worked with the game's buttons, and touch
+/// The Bag, the PC and a battle are worked with the game's buttons, and touch
 /// mode offers nothing there, nor reads their layouts (`gen6.profile.TOUCHED`).
 #[test]
 fn test_a_screen_the_games_buttons_work_has_nothing_to_touch() {
@@ -1491,7 +1491,7 @@ fn test_a_tap_on_a_target_rubbed_rubs_a_second_and_a_move_carries_it_on() {
     );
 }
 
-/// Orion, or_amie_moods: walked off the stylus onto "return", a tap still petted, as the
+/// or_amie_moods: walked off the stylus onto "return", a tap still petted, as the
 /// stylus kept on its part chose itself again each time it moved. Carried on, it chooses
 /// nothing; a tap's rub goes on with it only while the stylus is chosen.
 #[test]
@@ -1580,7 +1580,7 @@ fn test_a_drag_let_go_where_it_was_picked_up_touches_nothing() {
     );
 }
 
-/// Orion, 2026-10-28: "holding" and "let go on" slowed a timed game; the game's own sounds say
+/// Saying "holding" and "let go on" slowed a timed game; the game's own sounds say
 /// it, and nothing names what was picked up.
 #[test]
 fn test_with_feedback_sounds_a_drag_is_heard_not_said() {
@@ -1623,7 +1623,7 @@ fn test_where_the_screen_drags_on_letting_go_nothing_moves_until_then() {
     assert!(screen.pressed.touches.borrow().is_empty() && !screen.targets.holding());
 }
 
-/// Orion asked for the drag shorter (2026-10-29): 0.15 s fed the most berries at full speed, and a
+/// The drag was asked for shorter (2026-10-29): 0.15 s fed the most berries at full speed, and a
 /// drag of a game frame and a half a third fed few (spike 260), so at a lower speed limit, as a
 /// player sets for a higher score, it takes as much longer.
 #[test]

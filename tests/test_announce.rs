@@ -1068,8 +1068,8 @@ fn test_words_coming_back_to_a_menu_come_alone() {
 #[test]
 fn test_words_coming_to_a_menu_in_place_of_words_just_gone_are_its_own() {
     // The Bag's party draws "ABLE!" or "UNABLE!" for a TM or a stone in place of each level,
-    // and the levels again as the cursor moves on, and both were read at every pocket (movie31,
-    // Khai, 2026-10-18). A question in their place is said.
+    // and the levels again as the cursor moves on, and both were read at every pocket (movie31).
+    // A question in their place is said.
     let mut screen = Screen::new();
     let stone = vec![piece(1, "Sun Stone", 77.0, 0.0, MENU)];
     let level = piece_kw(3, "L45", -91.0, 68.0, MENU, Kw { parent: 5, ..PLAIN });
@@ -1523,7 +1523,7 @@ fn test_numbers_are_the_plays_while_the_player_plays() {
 
 /// Head It's score, combo and "MISS!" came at every ball, a second apart, and queued behind
 /// the balls' names; its combo, one up each second, ticked as a clock and was said at 30 (spike
-/// 273's `--again`). Its chances left are said (players and Orion, 2026-11-04).
+/// 273's `--again`). Its chances left are said (players, 2026-11-04).
 #[test]
 fn test_a_games_score_is_left_unsaid_and_is_never_a_clock() {
     let ticks = Rc::new(Cell::new(0));
@@ -1655,7 +1655,7 @@ fn move_panel(power: &str) -> Vec<ScreenText> {
 #[test]
 fn test_details_that_change_with_the_cursor_are_said_whole_once_settled() {
     // Arrowing between moves read only "Power 40": the three moves share an accuracy of 100, so it
-    // never changed, and the user heard it sometimes and not others (2026-09-14).
+    // never changed, and it was heard sometimes and not others.
     let mut screen = Screen::new();
     let growl = vec![
         piece(1, "Growl", -120.0, 70.0, MENU),
@@ -3136,8 +3136,8 @@ fn test_a_group_of_its_own_rows_is_not_read_into_a_table_beside_one_of_them() {
 fn test_details_of_a_screen_of_two_columns_are_read_as_it_was_shown() {
     // The PC Box's summary is one group of two columns, the stats and the moves, and its details
     // were read across both, "SP. ATK: 68, MOVES LEARNED, SP. DEF: 58, Bubble Beam", and
-    // "Intimidate: Sweet Scent, ABILITY", where opening it read each column down (Orion,
-    // or_organize_boxes, 2026-10-24). Places are the summary's.
+    // "Intimidate: Sweet Scent, ABILITY", where opening it read each column down
+    // (or_organize_boxes). Places are the summary's.
     let mut screen = Screen::with(true);
     let slot = vec![piece(1, "BATTLE BOX 1", 80.0, 90.0, MENU)];
     let kw = |parent: i64| Kw {
@@ -3682,7 +3682,7 @@ fn test_an_option_opening_that_was_just_heard_is_logged_and_not_said() {
 
 #[test]
 fn test_a_list_s_place_is_logged_and_never_said() {
-    // Orion, 2026-09-30: no setting says a list's place any more.
+    // No setting says a list's place any more.
     let backend = Recorder::new();
     let (log, logged) = logging();
     let mut announcements = Announcements::new(Rc::new(Speech::plain(backend.clone())), log);

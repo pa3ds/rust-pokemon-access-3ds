@@ -25,7 +25,7 @@
 //! taking its cursor back to the first tile.
 //!
 //! Each tile is said as a spreadsheet names a cell, its column a letter and its row a number, and
-//! where its piece belongs: "B1, in place", "B1, goes to D3" (Orion, 2026-10-28, shorter than "row
+//! where its piece belongs: "B1, in place", "B1, goes to D3" (shorter than "row
 //! 1, column 2, goes to row 3, column 4", and than the row or column alone that a move said
 //! before). Saying where a piece belongs is more than a sighted player is told, who sees the picture whole and matches each piece by
 //! what is on it; it is on for now, until movies of more puzzles show how the

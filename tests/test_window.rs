@@ -78,7 +78,7 @@ fn test_the_windows_of_this_machine_can_be_asked_without_raising() {
 }
 
 /// Azahar's settings were typed into with pa3ds running, and I and O never reached them:
-///any window of the emulator's counted as the game's.
+/// any window of the emulator's counted as the game's.
 #[test]
 fn test_keys_are_taken_in_the_game_windows_and_not_in_the_emulators_dialogs() {
     assert!(window::shows_game("Azahar 2116 | Pokémon Omega Ruby"));

@@ -241,7 +241,7 @@ impl Announcements {
     /// Say each side of a battle whose reading has changed and settled.
     ///
     /// Queued, like every battle message, so it follows "The wild Zigzagoon used Tackle!" rather
-    /// than cutting it off, which is the order the user asked for (2026-09-16).
+    /// than cutting it off, which is the order asked for.
     pub fn battlers(&mut self, sides: &[Battler]) {
         for side in sides {
             (self.log)(&format!(
@@ -272,8 +272,8 @@ impl Announcements {
         self.sides.clear();
     }
 
-    /// Say a scene's description as the narrator's line, named as a speaker is (Orion,
-    /// 2026-10-12 and 2026-10-27). A speaker after it is named again.
+    /// Say a scene's description as the narrator's line, named as a speaker is. A speaker
+    /// after it is named again.
     pub fn narrate(&mut self, text: &str) {
         let said = if self.takes_over(NARRATOR) {
             format!("{}: {text}", own(NARRATOR, &[]))

@@ -112,7 +112,7 @@ pub const ITEM_COORDINATES: &str = "item coordinates";
 pub const REPEAT: &str = "repeat";
 
 /// What the keys file says above an action's key, where its name does not say it all. The
-/// horde's order is Orion's, heard by fainting the bottom left Zigzagoon and the fifth going to 0%
+/// horde's order was heard by fainting the bottom left Zigzagoon and the fifth going to 0%
 /// (movie16, 2026-10-01): the enemy side is said by battle position (`gen6.screens.battle`).
 /// Berry Picker's berries, a key each, in the game's own order of their pictures
 /// (`berry_picker.BERRIES`), left to right on the tree on every difficulty: picked up, for a
@@ -153,8 +153,8 @@ pub const STYLUS_MOVES: [(&str, (i64, i64)); 4] = [
     ("stylus left", (-1, 0)),
     ("stylus right", (1, 0)),
 ];
-/// Amie's stylus jumped to the next part that way, past the one it is on and any gap: Orion could
-/// not find a hand or fur a step at a time (2026-11-05).
+/// Amie's stylus jumped to the next part that way, past the one it is on and any gap: a hand or fur
+/// could not be found a step at a time (2026-11-05).
 pub const STYLUS_JUMPS: [(&str, (i64, i64)); 4] = [
     ("stylus jump up", (0, -1)),
     ("stylus jump down", (0, 1)),
@@ -245,7 +245,7 @@ fn keys(pairs: &[(&str, &str)]) -> IndexMap<String, String> {
         .collect()
 }
 
-/// The user's choice of keys: I, O, J, L and K for the list (2026-09-21); O, semicolon, L and K
+/// The keys chosen: I, O, J, L and K for the list (2026-09-21); O, semicolon, L and K
 /// laid out as a compass for the directions; the brackets for the category, and the apostrophe for
 /// the mode, beside the semicolon that is already east; P for the way there in both (2026-09-24),
 /// Pokemon Access's mnemonic. The mode was M until 2026-09-22, when `pa3ds.core.keyfile` reported
@@ -259,8 +259,8 @@ fn keys(pairs: &[(&str, &str)]) -> IndexMap<String, String> {
 /// bottom screen's buttons, I and O a row at a time, K says the one chosen again and U taps it.
 /// Shift alone drags it, in Pokémon-Amie: Shift and U did from 2026-10-26 to 2026-10-29, when Shift
 /// alone took its place (ADR-0009), and from 2026-11-01 Shift alone is drag's key as any
-/// other key is an action's, so a player who binds drag elsewhere has Shift drag nothing (Orion:
-/// players who never read of a key added beside it were left with Shift).
+/// other key is an action's, so a player who binds drag elsewhere has Shift drag nothing
+/// (players who never read of a key added beside it were left with Shift).
 /// C says the player's cell and alt and P stops guiding (2026-10-10), and shift and C the cells of
 /// the thing chosen. Y says the last line again. All of
 /// these are the player's to change in `<pa3ds>\user\keys.toml`.
@@ -387,13 +387,13 @@ pub type Contexts = IndexMap<String, IndexMap<String, String>>;
 /// The number row in Berry Picker: 1 to 7 the berries, which no difficulty has more of, and 8, 9
 /// and 0 the Pokémon, for a player who would rather not walk to each with touch
 /// mode's keys, which still drag there as ever. In Head It 8, 9 and 0 the Pokémon too, left to
-///right, none of them a button of Azahar's as it ships; and R the score,
-/// pa3ds's key everywhere else, a battle's side: S and T, which he offered beside it,
-/// are his B and his D-pad's up, which the list after a round may want. In Amie itself the arrows
-/// move the stylus over the Pokémon: they are the circle pad as Orion binds it,
+/// right, none of them a button of Azahar's as it ships; and R the score,
+/// pa3ds's key everywhere else, a battle's side: S and T, offered beside it,
+/// are one player's B and D-pad's up, which the list after a round may want. In Amie itself the
+/// arrows move the stylus over the Pokémon: they are the circle pad as a player may bind it,
 /// and Amie's script reads no stick, only that some button is pressed. R says what a screen draws
 /// and does not say, on down that line: Super Training's chart on its page, and a round's numbers.
-///C, the map's coordinates elsewhere, says where a round's Pokémon stands.
+/// C, the map's coordinates elsewhere, says where a round's Pokémon stands.
 pub static DEFAULT_CONTEXTS: LazyLock<Contexts> = LazyLock::new(|| {
     let mut keys: IndexMap<String, String> = BERRIES
         .iter()

@@ -286,7 +286,7 @@ fn test_a_key_pa3ds_takes_is_named_with_the_button_it_costs() {
 }
 
 /// The hook swallows shift and T, not T: touch mode is shift and T so that T stays the D-pad,
-///and saying at every start that it sits on the D-pad would be untrue
+/// and saying at every start that it sits on the D-pad would be untrue
 /// whenever shift is up. Until then `shift+k` was said to take the C-stick's K.
 #[test]
 fn test_a_key_with_a_modifier_takes_its_button_only_while_the_modifier_is_held() {
@@ -431,7 +431,7 @@ fn test_the_file_written_on_the_first_run_is_the_defaults_and_nothing_else() {
     assert_eq!(again.bindings, bindings());
 }
 
-/// Orion, 2026-10-01: the keys file says the order the enemy side is said in.
+/// The keys file says the order the enemy side is said in.
 #[test]
 fn test_an_action_explained_is_explained_above_its_key() {
     let tmp_path = TmpPath::new();
@@ -494,8 +494,8 @@ fn test_an_action_pa3ds_does_not_do_is_taken_out() {
 }
 
 /// Touch mode's drag is bound as every action is, to Shift alone as pa3ds writes the file;
-/// a player who has it on a key of their own gets no Shift added beside it (Orion, 2026-11-01:
-/// "If they bound it to something else, shift won't drag"). Shift alone is passed on to Azahar,
+/// a player who has it on a key of their own gets no Shift added beside it
+/// ("If they bound it to something else, shift won't drag"). Shift alone is passed on to Azahar,
 /// so it is never said to take a button there.
 #[test]
 fn test_drag_is_shift_alone_as_it_ships_and_the_players_to_move() {
@@ -637,7 +637,7 @@ fn test_a_key_held_is_said_once_and_its_release_after() {
 
 // ---------------------------------------------------------------- keys pa3ds gains
 
-/// Orion, 2026-10-17, reopening ADR-0022: players should not have to delete their file to get a
+/// Reopening ADR-0022: players should not have to delete their file to get a
 /// new key. It goes after the table's last key, not after the comment that follows it.
 #[test]
 fn test_a_key_pa3ds_gained_is_added_to_its_table_and_nothing_else_changes() {
@@ -1151,7 +1151,7 @@ fn test_the_real_layout_reads_back_the_way_the_keys_file_shows_it() {
     assert_eq!(sticks["c_stick"]["modifier"], "d");
 }
 
-/// The user, 2026-09-22: w/a/s/d to walk, with the modifier somewhere else, because the
+/// W/a/s/d to walk, with the modifier somewhere else, because the
 /// modifier is what sneaking and DexNav need and w/a/s/d is what some people prefer.
 #[test]
 fn test_a_stick_can_be_moved_onto_other_keys() {

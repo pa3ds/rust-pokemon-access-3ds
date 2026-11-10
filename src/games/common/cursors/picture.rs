@@ -192,7 +192,7 @@ impl PictureCursors {
         let inside = distinct(in_rows(under));
         if !inside.is_empty() && !inside.iter().any(|p| p.text.chars().any(py::is_alnum)) {
             // Words with no letter or digit are no item: the battle's Bag draws an empty slot
-            // dimmed with its times sign still in it, and Orion heard "Times" (movie29, spike
+            // dimmed with its times sign still in it, and was heard as "Times" (movie29, spike
             // 196).
             return Ok(vec![ScreenText {
                 top,

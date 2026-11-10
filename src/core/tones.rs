@@ -229,8 +229,7 @@ pub fn ticking(tones: Option<Rc<Tones>>) -> Option<Rc<dyn Fn()>> {
 pub const BEEP_GAP: f64 = 0.25;
 
 /// `count` tones in the middle, one after another: how many Pokémon a trainer has, where a
-/// player asked for beeps in place of the number (`[pa3ds.ui] trainer_party`, Khai,
-/// 2026-11-05).
+/// player asked for beeps in place of the number (`[pa3ds.ui] trainer_party`).
 pub fn beeps(tones: &Tones, count: i64) {
     for index in 0..count {
         // Python's `threading.Timer`: a thread a beep, its wait the real clock's, as this new

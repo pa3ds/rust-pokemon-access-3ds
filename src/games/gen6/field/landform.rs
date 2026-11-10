@@ -1229,9 +1229,9 @@ impl Landform for Conveyors {
 /// into them (x_eighth_gym, spike 286). The gaps of each strip are its module's (`Here.gym_floor`)
 /// for the times its switch has turned it, as on entering until a sweep finds the Gym's object,
 /// laid on the ground floor alone (`Ground.gaps`). The ends of the ice up the middle are shut on
-/// every floor while the byte after the counts is 0: Khai says the ice is slid only once Wulfric
-/// is beaten, the byte was 0 in both movies, before him, and the module's code tests it; that it
-/// is the leader beaten is not seen.
+/// every floor while the byte after the counts is 0: a player says the ice is slid only once
+/// Wulfric is beaten, the byte was 0 in both movies, before him, and the module's code tests
+/// it; that it is the leader beaten is not seen.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TurningFloor {
     pub zone: i64,

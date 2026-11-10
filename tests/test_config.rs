@@ -298,7 +298,7 @@ fn test_a_volume_below_0_plays_at_its_default() {
     );
 }
 
-/// Orion, 2026-10-29: touch mode's settings go to `[pa3ds.touch]`, without their prefix, and
+/// Touch mode's settings go to `[pa3ds.touch]`, without their prefix, and
 /// `drag_sounds` is `feedback_sounds`; a player's values come with them.
 #[test]
 fn test_touch_modes_settings_move_to_a_table_of_their_own_as_the_player_had_them() {
@@ -335,7 +335,7 @@ fn test_touch_modes_settings_move_to_a_table_of_their_own_as_the_player_had_them
     assert_eq!(settings.tables.amie, config::Amie::default());
 }
 
-/// Orion, 2026-11-04: `tones` stayed under `[pa3ds.ui]` after it moved to `[pa3ds.audio]`.
+/// `tones` stayed under `[pa3ds.ui]` after it moved to `[pa3ds.audio]`.
 /// One commented out goes too, and one pa3ds has stays, commented out or not.
 #[test]
 fn test_a_setting_pa3ds_no_longer_has_goes_with_its_comment() {
@@ -560,7 +560,7 @@ fn test_a_line_commented_out_of_azahar_s_table_leaves_that_setting_alone() {
 
 #[test]
 fn test_a_setting_pa3ds_gained_is_added_and_nothing_else_changes() {
-    // Orion, 2026-10-17: players should not have to delete their file to get a new setting. It
+    // Players should not have to delete their file to get a new setting. It
     // goes in at its default, explained, at the end of its table.
     let tmp_path = TmpPath::new();
     let home = tmp_path.join("home");

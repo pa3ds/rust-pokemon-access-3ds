@@ -412,7 +412,7 @@ fn places(path: &Path) -> Vec<(String, String)> {
     out
 }
 
-/// Orion, 2026-10-11: a person editing the file can tell a door from a sign from a boulder,
+/// A person editing the file can tell a door from a sign from a boulder,
 /// where the kind and the number were one sum, Rustboro's warp 3 `0x10:4294967299`.
 #[test]
 fn test_a_place_is_written_map_kind_number() {

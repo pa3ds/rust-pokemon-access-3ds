@@ -523,7 +523,7 @@ fn falling(lead: f64, fall: Fall) -> (Vec<(f64, i64)>, Vec<f64>, f64) {
 }
 
 /// The game's "!", `LEAD` before the ball reaches `SWEET`, once a ball, with its column
-/// (Orion, 2026-10-31: an aid, off as it ships; 2026-11-01, the game's sound and a lead a player
+/// (an aid, off as it ships; then the game's sound and a lead a player
 /// can tap in). The game's own record of the ball says how far it falls at its next step and how
 /// much faster each makes it (spike 273): past about 100 hits a ball falls in under a second,
 /// and fitted to the heights read of its first 0.2 s, as the cue was timed before, a third or
@@ -649,7 +649,7 @@ fn test_balls_due_in_one_tick_are_cued_in_the_order_they_are_due() {
 }
 
 /// Bigger, it is headed higher (spike 273, live): cued for the others' `SWEET`, its "!" came
-/// late, and Orion's tap the lead after it missed (or_amie_head_it_normal). Its record is one of
+/// late, and a player's tap the lead after it missed (or_amie_head_it_normal). Its record is one of
 /// the round's twenty, stepping as the others do (spike 273, live on Hard).
 #[test]
 fn test_the_giant_ball_is_cued_the_lead_before_its_own_sweet_spot() {
@@ -816,7 +816,7 @@ fn words(
     }
 }
 
-/// Players and Orion, 2026-11-04: unsaid as they come, said on R with the clock or the
+/// Players, 2026-11-04: unsaid as they come, said on R with the clock or the
 /// chances left; not the results' "Poké Puffs received!" in the score's layout, nor the high
 /// score beside the clock. The combo is shown for a second after each hit, and said until a
 /// miss ends it.
@@ -991,7 +991,7 @@ fn test_the_rounds_numbers_are_said_without_the_zeros_they_are_padded_with() {
     );
 }
 
-/// Orion, 2026-11-01: learnt while playing, but never used in the round, as a lead changed
+/// Learnt while playing, but never used in the round, as a lead changed
 /// mid-round throws off the player's own sense of it; said at the results as pa3ds's, for the
 /// setting. A key answers its column's last cue within `ANSWER`: one later, or a second press,
 /// is no answer.

@@ -748,7 +748,7 @@ fn test_a_gym_modules_floor_strips_have_the_gaps_of_their_masks_for_each_turn() 
     Ok(())
 }
 
-/// Khai, 2026-10-30: stepping back onto the landing of Anistar City Gym's first teleporter put the
+/// Stepping back onto the landing of Anistar City Gym's first teleporter put the
 /// player on its start, three times, though the module lists it one way. Each teleport is listed
 /// as a teleporter where it starts and another where it lands, sending back.
 ///

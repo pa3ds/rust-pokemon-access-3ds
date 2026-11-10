@@ -1,5 +1,5 @@
-//! Who is in each of the PC Box's slots, said while the player carries a Pokémon over them (Orion,
-//! or_organize_boxes).
+//! Who is in each of the PC Box's slots, said while the player carries a Pokémon over them
+//! (or_organize_boxes).
 //!
 //! While a Pokémon is carried the top screen's summary is the carried one's, so a slot holding
 //! another said only where it was (`common.slots`). The box's icons say no species; the save does,

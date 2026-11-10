@@ -18,7 +18,7 @@
 //! program's: **Mod**, whose Settings... opens the settings dialog (`ux.settings`), whose Check
 //! for updates offers the latest release (the port's own, `update::check`) and whose Exit
 //! ends pa3ds as Azahar closing does; **Azahar**, to download its latest zip or its installer,
-//!the browser straight at the file; and **Help**, the browser at a page of the manual or
+//! the browser straight at the file; and **Help**, the browser at a page of the manual or
 //! at the port's issues. Closing the window ends pa3ds too;
 //! Escape does nothing, so a stray press never ends it. It runs on a thread of its own with its own
 //! message loop, as long as pa3ds does, and the poll loop never waits on it.
@@ -80,8 +80,8 @@ pub const DOCUMENTS: [(i64, &str); 7] = [
 ];
 /// A line between a menu's items.
 pub const SEPARATOR: (i64, &str) = (0, "");
-/// The menu bar, in order: each menu's message, and its items' ids and messages (Orion,
-/// 2026-10-25: the first menu is the mod's, and Help's pages are in Orion's order).
+/// The menu bar, in order: each menu's message, and its items' ids and messages (the first menu
+/// is the mod's, and Help's pages are in the order chosen).
 pub const MENUS: [(&str, &[(i64, &str)]); 3] = [
     (
         "window-menu-mod",

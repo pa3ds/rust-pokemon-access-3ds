@@ -352,7 +352,7 @@ fn test_a_screen_opening_marks_its_pieces_as_coming_with_it() {
     assert_eq!(arrived, words(&[("TEXT SPEED", true), ("SLOW", true)]));
 }
 
-/// The user chose to hear a screen coming back as a screen opening is heard (2026-09-14).
+/// A screen coming back is heard as a screen opening is.
 #[test]
 fn test_a_screen_coming_back_is_heard_as_it_came() {
     let (mut game, work, _group, _value) = settled();
@@ -612,7 +612,7 @@ fn party_slot(game: &mut Game, group: i64) {
     game.sweep();
 }
 
-/// The user: "Torchic male L5 19/19 is fine as is" (2026-09-14).
+/// Kept as it was: "Torchic male L5 19/19 is fine as is".
 #[test]
 fn test_pieces_drawn_side_by_side_are_joined_as_drawn() {
     let mut game = Game::new();
@@ -710,7 +710,7 @@ fn summary_panel() -> Vec<ScreenText> {
     .collect()
 }
 
-/// Orion, 2026-09-30: "OT: Raiden, ID No.: 16285", to hear where one thing ends.
+/// Asked for: "OT: Raiden, ID No.: 16285", to hear where one thing ends.
 #[test]
 fn test_with_pauses_a_label_is_followed_by_a_colon() {
     assert_eq!(
@@ -812,7 +812,7 @@ fn test_the_games_own_labels_are_labels_wherever_they_are_drawn() {
 }
 
 /// "Potential: 2 stars", "First move: tackle, egg move" under pauses, and spaces otherwise:
-///the stars are three pictures, filled or not, and the red mark is drawn
+/// the stars are three pictures, filled or not, and the red mark is drawn
 /// beside First Move's label, built before it (spike 195).
 #[test]
 fn test_the_dexnav_s_stars_are_counted_and_its_mark_said_after_what_it_marks() {

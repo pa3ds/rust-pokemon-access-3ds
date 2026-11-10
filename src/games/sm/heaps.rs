@@ -17,7 +17,7 @@
 //! cleared whenever anything else reads it, and that asserted and took the emulator down, on Vulkan
 //! and on OpenGL alike: sweeping the linear memory whole, sweeping every heap the table lists, and
 //! sweeping even the two heaps every dialogue object was in, where a 529 KB block of the field's
-//! turned out to be one (spike 111). The user's own Azahar runs Vulkan.
+//! turned out to be one (spike 111). The Azahar it was found on runs Vulkan.
 //!
 //! So nothing is swept whole. The heaps under the dialogue's are walked by their heads, each one's
 //! used blocks by their 16-byte headers, and only blocks of `SMALL` or less are read, to the byte. A

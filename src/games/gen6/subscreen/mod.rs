@@ -625,7 +625,7 @@ impl Subscreens {
         let bags = Rc::new(Bags::new(layouts.clone(), image_of.clone(), images.clone()));
         // Both of Amie's games below can say a Pokémon by its own cry, toward its side, in its
         // name's place or with it, each as the player asks (`[pa3ds.amie] berry_picker_style`,
-        // `head_it_style`, a player's request, Orion 2026-11-02; a style a game, 2026-11-04).
+        // `head_it_style`, a player's request; a style a game, 2026-11-04).
         let (berry, head) = (
             settings.berry_picker_style.as_str(),
             settings.head_it_style.as_str(),

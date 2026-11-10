@@ -156,7 +156,7 @@ fn test_the_place_is_said_on_arriving_and_not_on_walking_into_a_building() {
 
 /// ADR-0042: a part of a place in parts is said as the player walks into it, from another
 /// place or the next part, and not on walking out of a house back into it; and an exit into a
-/// part says the part, the way out of a house of the place too (Orion, 2026-10-31: "way out to
+/// part says the part, the way out of a house of the place too ("way out to
 /// South Side" said nothing of where). Here the town's two zones are given parts of their own.
 #[test]
 fn test_a_part_of_a_place_is_said_walking_into_it_and_by_the_exits_into_it() {
@@ -459,7 +459,7 @@ fn test_the_roms_door_name_is_a_doors_and_never_a_signs() {
     assert_eq!(named.place(TOWN, 0), None);
 }
 
-/// Khai, 2026-10-28: Lumiose's five gates were each "warp to Lumiose Gate".
+/// Lumiose's five gates were each "warp to Lumiose Gate".
 #[test]
 #[allow(clippy::identity_op)]
 fn test_a_warp_into_a_gate_is_called_the_gate_and_the_place_beyond_it() {
@@ -476,7 +476,7 @@ fn test_a_warp_into_a_gate_is_called_the_gate_and_the_place_beyond_it() {
     );
 }
 
-/// The user, 2026-09-24: nothing said the gap north of Littleroot leads to Route 101. The
+/// Nothing said the gap north of Littleroot leads to Route 101. The
 /// place is the zone table's index for each side and the ROM's word for it; the house behind the
 /// first door shares the town's place, and the second door's zone has no place at all.
 #[test]
@@ -709,8 +709,8 @@ fn test_soaring_the_way_the_player_faces_is_said_once_a_turn_stops() {
 /// `[pa3ds.amie] head_it_cue` reaches Head It as the game's "!" (`CUE_SOUND`), in the left
 /// ear for the left Pokémon, both for the middle and the right for the right (ADR-0025 as
 /// amended 2026-11-01), and nothing is cued with the setting off: the spike that timed the cue
-/// turned it on itself, and so never went through the setting (Orion, 2026-11-01: "it didn't
-/// cue me at all").
+/// turned it on itself, and so never went through the setting ("it didn't cue me
+/// at all").
 ///
 /// Python's fakes the sounds and plays the cue toward each column; `Clips` here plays through
 /// this machine's sound device, so the cue is found and not played, and where each column's is

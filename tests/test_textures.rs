@@ -385,7 +385,7 @@ fn test_a_contest_moves_category_is_said_as_the_contest_names_it() {
 
 #[test]
 fn test_a_language_tab_is_said_as_the_game_names_its_language() {
-    // Both of a tab's pictures name its language, in the player's language (Orion: the game's
+    // Both of a tab's pictures name its language, in the player's language (the game's
     // own words where it has them).
     assert_eq!(
         textures::said(&["p_zkn_word_button_fra"], &english()).unwrap(),

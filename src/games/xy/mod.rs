@@ -589,7 +589,7 @@ pub const BELT_ROUTES: [((i64, i64), &[(&str, i64)]); 4] = [
 
 /// The belt the switch turns round, the first of `BELT_ROUTES`, as it runs turned: its walkway
 /// from (9, 16) east to (16, 16), past the corner, and its column from (15, 17) south to (15, 21),
-/// each straight run turned on its own. Ridden on the rig from Khai's save of 10:18, made after one
+/// each straight run turned on its own. Ridden on the rig from the save of 10:18, made after one
 /// press: north onto (9, 16) the player was carried to (16, 16), the edge of the room the
 /// walkthroughs go on through to the stairs up, and west onto (15, 17) to (15, 21). The last belt's
 /// end, north onto (27, 18), still carried them back south, and the two belts between were not ridden
@@ -668,8 +668,8 @@ pub const CHAMPION_ROOM: i64 = 0x100;
 /// The script of the Radiant Chamber's four triggers, round the glass platform at (10..16,
 /// 15..21): stepped onto, the platform rises and the player arrives in the Champion's room. Its
 /// door, the warp at (32, 15) into that room, stands in the wall with no floor beside it, and P to
-/// it said "no path"; Khai walked north onto its south side, row 21, and the lift carried them up
-/// (x_champion.ctm, 2026-11-07).
+/// it said "no path"; the player walked north onto its south side, row 21, and the lift carried
+/// them up (x_champion.ctm, 2026-11-07).
 pub const CHAMPION_LIFT: i64 = 0x1;
 
 /// Coumarine City Gym's vines (zone 0xbf), a tree climbed from 0 to Ramos at 720, its levels 0,

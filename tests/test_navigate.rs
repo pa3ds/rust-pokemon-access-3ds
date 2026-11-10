@@ -694,7 +694,7 @@ fn test_unsorted_the_list_keeps_the_tables_order_as_the_player_walks() {
     );
 }
 
-/// Orion, 2026-09-30: "Nurse, 2 west 1 north, 1 of 9", and a setting for each.
+/// Asked for: "Nurse, 2 west 1 north, 1 of 9", and a setting for each.
 #[test]
 fn test_the_place_in_the_list_may_follow_the_way_or_be_left_out() {
     let mut after = navigator(Want {
@@ -763,7 +763,7 @@ fn boulders() -> Field {
     }
 }
 
-/// Orion, 2026-10-11: what it can do, not what it is doing, and the push that drops it.
+/// What it can do, not what it is doing, and the push that drops it.
 #[test]
 fn test_a_big_boulder_says_the_ways_it_can_be_pushed_after_the_way_to_it() {
     let mut rig = navigator(on(boulders()));
@@ -782,7 +782,7 @@ fn test_a_big_boulder_says_the_ways_it_can_be_pushed_after_the_way_to_it() {
     );
 }
 
-/// Orion, 2026-10-11: which boulders have been pushed, with the way to it as a teleporter's
+/// Which boulders have been pushed, with the way to it as a teleporter's
 /// way out is, the place in the list before or after them both; off unless asked for, since the
 /// game never shows where one started.
 #[test]
@@ -850,7 +850,7 @@ fn hills() -> Field {
     }
 }
 
-/// Orion, 2026-10-13: Mauville Hills' doors are named by their plates, and each plate
+/// Mauville Hills' doors are named by their plates, and each plate
 /// listed beside its door said the name a second time. A person is never taken for one.
 #[test]
 fn test_a_sign_saying_only_its_doors_name_is_left_out_unless_asked_for() {
@@ -998,7 +998,7 @@ fn test_c_says_the_players_cell_and_off_the_map_no_map() {
     );
 }
 
-/// Orion, 2026-10-15: the cells of the thing the keys are on, as C says the player's, for
+/// The cells of the thing the keys are on, as C says the player's, for
 /// picturing the map; an edge 40 cells wide by the cells it spans.
 #[test]
 fn test_shift_c_says_where_the_chosen_thing_is_by_the_cells_it_spans() {
@@ -1171,7 +1171,7 @@ fn route_101() -> LeadsTo {
     })
 }
 
-/// The user, 2026-09-24: nothing said that the gap north of Littleroot leads to Route 101.
+/// Nothing said that the gap north of Littleroot leads to Route 101.
 /// The door into a house of the town leads nowhere new, and says nothing more.
 #[test]
 fn test_an_exit_into_another_place_says_the_place() {
@@ -1342,7 +1342,7 @@ fn test_without_the_games_words_an_exit_is_what_it_is() {
 
 // Direction mode.
 
-/// The user's example (2026-09-21): M into direction mode, then O for north.
+/// An example: M into direction mode, then O for north.
 #[test]
 fn test_standing_south_of_a_door_o_says_door_1_north() {
     let mut rig = navigator(Want::default());
@@ -1522,7 +1522,7 @@ fn test_the_toggle_switches_mode_and_a_key_means_what_its_mode_says() {
     assert_eq!(rig.nav.mode(), LIST);
 }
 
-/// The user's ask (2026-09-22): the shaking-tail Pokémon under a category of its own.
+/// Asked for: the shaking-tail Pokémon under a category of its own.
 #[test]
 fn test_a_hidden_pokemon_is_its_own_category_after_items() {
     let grass = Field {
@@ -1590,7 +1590,7 @@ fn street() -> Field {
     }
 }
 
-/// The user's example (2026-09-24): "5 east, 2 north", and at the end of the 5 east, north.
+/// An example: "5 east, 2 north", and at the end of the 5 east, north.
 /// The door is solid, so the way ends in front of it, and says it there.
 #[test]
 fn test_p_says_the_way_leg_by_leg_and_the_next_leg_at_each_turn() {
@@ -1855,7 +1855,7 @@ fn test_p_says_every_move_shift_p_s_whole_way_needs_before_the_player_sets_out()
     );
 }
 
-/// Orion, 2026-11-01: where the way needs moves and somebody stands in it as well, P says both,
+/// Where the way needs moves and somebody stands in it as well, P says both,
 /// "requires Acro Bike and Surf, Team Magma Grunt in the way", going as far as the first.
 #[test]
 fn test_p_says_what_the_way_needs_and_who_stands_in_it_where_both_stop_it() {
@@ -2805,7 +2805,7 @@ fn test_p_swings_on_a_vine_from_the_end_of_a_platform_to_the_next_ones() {
     );
 }
 
-/// Khai, climbing Coumarine Gym guided by P (spike 250): every press said all 17 vines to
+/// Climbing Coumarine Gym guided by P (spike 250): every press said all 17 vines to
 /// Ramos and the legs between them, again after every step. The way is said as far as its
 /// first vine, and then how many more it rides.
 #[test]
@@ -3561,7 +3561,7 @@ fn switch() -> Interactable {
 }
 
 /// X's Poké Ball Factory: past a Team Flare Grunt on the walkway, the way to the north-east room
-/// is a belt the switch turns round, and Khai, stuck at the Grunt, pressed the switch and heard
+/// is a belt the switch turns round, and a player, stuck at the Grunt, pressed the switch and heard
 /// nothing new (2026-10-29, spike 259). Where the belts as they run lead nowhere and a way goes by
 /// the switch, P says the way to it first; pressed, the way on is said. Nothing past the switch
 /// is unreachable.
@@ -3814,9 +3814,9 @@ fn rooms() -> Vec<Cell> {
         .collect()
 }
 
-/// Lysandre Labs: P's way to a Grunt in a room a pad leads to was "then can't continue" (Khai,
-/// 2026-10-30, spike 265). A pad's warp into its own zone is a teleporter P walks through, and its
-/// partner does nothing until stepped off; Ctrl and P reaches past it.
+/// Lysandre Labs: P's way to a Grunt in a room a pad leads to was "then can't continue"
+/// (spike 265). A pad's warp into its own zone is a teleporter P walks through,
+/// and its partner does nothing until stepped off; Ctrl and P reaches past it.
 #[test]
 fn test_p_walks_through_a_teleporter_pad_onto_its_partner() {
     let beyond = grunt((104, 172));
@@ -3913,7 +3913,7 @@ fn test_p_rides_up_a_slope_only_on_the_bike_and_shift_p_says_the_bike_on_foot() 
 }
 
 /// The Safari Zone: on the Acro Bike P said to go north up a slope only the Mach Bike climbs.
-///The model says which bike is ridden (or_which_bike, spike 271), and P
+/// The model says which bike is ridden (or_which_bike, spike 271), and P
 /// takes only that bike's ground; both where it is not known.
 #[test]
 fn test_p_on_the_acro_bike_rides_up_no_slope_and_on_the_mach_bike_along_no_rail() {
@@ -4286,7 +4286,7 @@ fn loose() -> Field {
     }
 }
 
-/// Orion, 2026-10-11: P left him south of a boulder that moved only east, with no way to
+/// P left the player south of a boulder that moved only east, with no way to
 /// tell how to get round to its west. P goes to the nearest side it can be pushed from and says
 /// the push; comma and period choose another, and P goes there, round the boulder.
 #[test]
@@ -4731,8 +4731,8 @@ fn test_beside_the_thing_p_says_where_it_is() {
     assert!(!rig.nav.guiding());
 }
 
-/// The user, 2026-10-03: "find a path to the closest it can be before saying can't
-/// continue", where P on Route 119 said "no path to edge" and nothing more.
+/// Asked for: "find a path to the closest it can be before saying can't continue", where P
+/// on Route 119 said "no path to edge" and nothing more.
 #[test]
 fn test_with_no_way_there_p_goes_as_near_as_it_can_and_says_it_can_t_continue() {
     let ring: Vec<Cell> = (98..103)
@@ -4858,7 +4858,7 @@ fn test_floor_over_floor_each_is_walked_as_itself_and_joined_by_the_stairs() {
 
 /// X's Poké Ball Factory: its walkway at 90 crosses over a belt at 18, and P's ways off the
 /// walkway were none, the belt carrying the player off it into nothing; the player stuck in the
-/// factory's east room heard "can't continue" for both doors up there (Khai, 2026-10-29, spike
+/// factory's east room heard "can't continue" for both doors up there (spike
 /// 259). A belt carries the player on its own floor, the ground's, and on no floor above it.
 #[test]
 fn test_a_walkway_over_a_conveyor_belt_is_walked_across_and_the_belt_carries_only_below() {
@@ -4900,8 +4900,8 @@ fn test_a_walkway_over_a_conveyor_belt_is_walked_across_and_the_belt_carries_onl
 }
 
 /// X's Poké Ball Factory: the floor at (1, 20) is 36 under the switch's at (1, 21), and P's way
-/// stepped straight up it, "1 south, 15 north", Khai pressing south and hearing it again (Khai,
-/// 2026-10-29, spike 259). Along one floor a step rises no more than a stair's: the way goes up the
+/// stepped straight up it, "1 south, 15 north", the player pressing south and hearing it again
+/// (spike 259). Along one floor a step rises no more than a stair's: the way goes up the
 /// ramp beside it.
 #[test]
 fn test_along_one_floor_a_step_up_a_wall_is_not_taken_and_a_ramp_beside_it_is() {
@@ -4933,7 +4933,7 @@ fn test_along_one_floor_a_step_up_a_wall_is_not_taken_and_a_ramp_beside_it_is() 
 }
 
 /// x_tower_2 (spike 248): the Tower of Mastery's ramp curves round its statue, and P said each
-/// curve of it as a leg of its own, "4 south-east, 9 south, 5 south-west, 11 west", which Khai
+/// curve of it as a leg of its own, "4 south-east, 9 south, 5 south-west, 11 west", which was
 /// walked a key at a time, where one key held carries the player round. A run up a ramp is one
 /// leg, said the way the ramp goes where it starts, whichever way the way zig-zags across it.
 #[test]
@@ -5444,7 +5444,7 @@ fn town_and_hidden() -> Field {
     where_
 }
 
-/// Orion, movie26: out of touch mode and along the list to it took long enough to lose it.
+/// movie26: out of touch mode and along the list to it took long enough to lose it.
 #[test]
 fn test_a_hidden_pokemon_found_is_guided_to_and_p_is_on_it() {
     let r#where = town_and_hidden();
@@ -5549,7 +5549,7 @@ fn test_p_again_that_finds_no_way_keeps_the_way_being_walked_and_says_the_rest()
 
 /// or_pathfinding_through_multiple_entrances: from Verdanturf Town's east end the way to its
 /// houses goes out onto Route 117 and back, and "10 east" led the player out of the town with
-/// no word of why. Orion asked for "10 east into Route 117" (2026-10-24). A leg between two
+/// no word of why; asked for: "10 east into Route 117". A leg between two
 /// zones of one place says nothing more.
 #[test]
 fn test_a_leg_into_another_place_says_it() {

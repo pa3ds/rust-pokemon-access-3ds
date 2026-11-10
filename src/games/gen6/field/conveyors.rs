@@ -50,7 +50,7 @@ pub struct GymFloor {
     /// The floor strips, in the order of their switches' counts.
     pub strips: Vec<TurningStrip>,
     /// The cells shut on every floor until the Gym's leader is beaten: the two ends of the ice
-    /// up Snowbelle City Gym's middle, which Khai says is slid only then.
+    /// up Snowbelle City Gym's middle, which a player says is slid only then.
     pub shut: HashSet<Cell>,
 }
 

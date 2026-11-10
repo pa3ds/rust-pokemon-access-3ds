@@ -183,8 +183,8 @@ pub const DROP_SOUND: &str = "SEQ_SE_RELEASE";
 /// `SEQ_SE_SYS_015` too, the same wave 271 samples longer; X's `SEQ_SE_BEEP` is that same wave at
 /// the same volume, where X's `SEQ_SE_SYS_015` is another sound, 0.93 s long.
 pub const WRONG_SOUND: &str = "SEQ_SE_BEEP";
-/// The "!" the field plays over someone's head, played as Head It's cue (Orion, 2026-11-01, in
-/// place of a tone): 0.3 s, the same wave and volume in Omega Ruby and X, where `SEQ_SE_FLD_277` is
+/// The "!" the field plays over someone's head, played as Head It's cue (in place of a
+/// tone): 0.3 s, the same wave and volume in Omega Ruby and X, where `SEQ_SE_FLD_277` is
 /// that wave too (spike 274).
 pub const CUE_SOUND: &str = "SEQ_SE_FLD_036";
 /// Played as a Balloon Bot fires: 0.23 s, the same wave and volume in Omega
@@ -338,7 +338,7 @@ pub struct Gen6Profile {
     /// between sweeps.
     hiding: Cell<Option<(i64, (i64, i64))>>,
     /// The record's raw words as last logged, so a change is logged whether or not it
-    /// passes as a Pokémon: the user heard a rustle the list did not have (2026-09-22).
+    /// passes as a Pokémon: a rustle was heard that the list did not have.
     hidden_words: RefCell<Option<String>>,
     /// Whether the player was riding the bike at the last field poll, to log each change.
     on_bike: Cell<bool>,
@@ -833,8 +833,8 @@ impl Gen6Profile {
                 speech.say(said, Category::Warning);
             })
         };
-        // Head It's cue, in the ear of the Pokémon's side, the middle's in both (Orion,
-        // 2026-11-01, ADR-0025 as amended); logged so a round's log shows each beside the key
+        // Head It's cue, in the ear of the Pokémon's side, the middle's in both
+        // (ADR-0025 as amended); logged so a round's log shows each beside the key
         // pressed for it.
         let cue: Cue = {
             let (feedback_sounds, log) = (feedback_sounds.clone(), log.clone());

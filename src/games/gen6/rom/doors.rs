@@ -50,7 +50,7 @@ pub const GYM: i64 = 0x11;
 ///    other town's does. In X's Gym towns the Gym comes first, before the Pokémon Center (spike
 ///    107); in ORAS's after the Center and the Poké Mart, where a town has one, and before
 ///    whatever else only that town has: "Mauville City Gym" ahead of "Rydel's Cycles", where
-/// the Gym's plate had named it "Mauville City Pokémon Gym Leader: Wattson".
+///    the Gym's plate had named it "Mauville City Pokémon Gym Leader: Wattson".
 pub fn door_facilities(
     rom: &Rom,
     zones: Option<&[Vec<u8>]>,

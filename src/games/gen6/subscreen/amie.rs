@@ -266,7 +266,7 @@ pub const STEP: i64 = 6;
 /// it.
 pub const OFF: &str = "amie-part-off";
 /// Each grey by the kind of part it is, a message each (spike 287), where the Pokémon has no name of
-/// pa3ds's own for it in `amie.ftl` (Orion, 2026-11-05: "our own name a Pokémon", then "cheeks for
+/// pa3ds's own for it in `amie.ftl` ("our own name a Pokémon", then "cheeks for
 /// Pikachu, tail for the Charmander line"). 2 and 3 are the ears, the Pokémon's own right and left,
 /// as 4 and 6 are its eyes; 10, where it high-fives, a hand or paw on most, a mouth on a few
 /// (spike 287's census). 25 to 28, the danger zone and the sweet spot, are said as the head and the
@@ -321,8 +321,8 @@ pub const NEXT_BITE: i64 = 15;
 /// `LoveFoodIdle`: a puff held out, and where eating goes to when more of it is left; and the last
 /// of `LoveFoodEat`'s.
 pub const LAST_BITE: i64 = 19;
-/// What the Pokémon is seen doing as a love command starts, a message each (Orion, 2026-11-06:
-/// "describe the other moods too, even if nothing reaches them yet"). Which class each number builds
+/// What the Pokémon is seen doing as a love command starts, a message each ("describe the other
+/// moods too, even if nothing reaches them yet"). Which class each number builds
 /// is the module's own table, read from the module loaded (spike 287), each started at will on the
 /// research rig and pictured (`look --loves`): 1 to 7 `LoveAppear`; 8 and 9 `LoveMotionRepeat`, a
 /// sleepy nod and lying asleep; 14 `LoveHate`, which the script sets only for a puff held out to a
@@ -453,7 +453,7 @@ pub const WALKER_NUMBER: i64 = 0x08;
 /// Who walks in the page's ring, in its holder from +0x04: a record each of `WALKER` bytes, its
 /// picture first and its national number `WALKER_NUMBER` in. The player's Pokémon is first, and a
 /// Pokémon of a friend's or a passerby's visiting from the PSS has a picture of its own after it, as
-/// Leos's Sceptile did (or_amie_affection_increase). Who it belongs to the game says on a tap.
+/// a visitor's Sceptile did (or_amie_affection_increase). Who it belongs to the game says on a tap.
 pub const WALKERS_MOST: i64 = 6;
 /// A Pokémon visiting the page, as touch mode offers it.
 pub const VISITOR: &str = "amie-visitor";
@@ -1194,8 +1194,8 @@ impl Stylus {
     /// `RICHER` any showing more of its parts, or more of it, as it idles, as its first frames
     /// may catch it looking away or still walking up. It is left until the Pokémon comes anew,
     /// with its back turned, or `look_again` asks. Left alone Pikachu's box moved 85 pixels in
-    /// 40 s, so that a part found with the arrows had gone by the next press (Orion, 2026-11-06,
-    /// spike 287's `watch`); this holds them still, and a touch finds its part wherever it has
+    /// 40 s, so that a part found with the arrows had gone by the next press (spike 287's
+    /// `watch`); this holds them still, and a touch finds its part wherever it has
     /// gone (`placed`).
     pub fn settle(
         &mut self,

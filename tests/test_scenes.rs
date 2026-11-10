@@ -453,8 +453,8 @@ fn test_a_beat_the_language_lacks_is_said_in_english() -> Result<()> {
 }
 
 /// Steven's "Good luck to you." on Route 128 is one line in one zone in both versions, and he
-/// flies off into Omega Ruby's glare (movie40) but Alpha Sapphire's rain (Orion's
-/// movie1_kyogre_awakens, 2026-10-14): a scene with a title is the running title's alone.
+/// flies off into Omega Ruby's glare (movie40) but Alpha Sapphire's rain
+/// (movie1_kyogre_awakens): a scene with a title is the running title's alone.
 #[test]
 fn test_a_scene_of_one_version_is_left_out_of_the_other() -> Result<()> {
     let tmp_path = TmpDir::new();
@@ -504,7 +504,7 @@ id = "off-1"
 }
 
 /// The Cave of Origin's deepest room, `0x76`: nothing shows the way on but the room itself,
-///so it is described each time the player comes down into it.
+/// so it is described each time the player comes down into it.
 #[test]
 fn test_a_scene_with_no_line_is_said_on_arriving_in_its_zone() -> Result<()> {
     let tmp_path = TmpDir::new();
@@ -856,8 +856,8 @@ fn test_a_beat_is_timed_by_the_games_frames_where_they_can_be_read() -> Result<(
     Ok(())
 }
 
-/// Sun numbers its demos, 55 Kukui's call and 6 the chase after it (Khai, sun_1.ctm,
-/// 2026-09-30): the chase is described from Sun's own file as it starts, a beat as each second
+/// Sun numbers its demos, 55 Kukui's call and 6 the chase after it (sun_1.ctm):
+/// the chase is described from Sun's own file as it starts, a beat as each second
 /// comes, and the arrival after it once the field has come, in Route 1's zone 0x0.
 #[test]
 fn test_a_scene_of_suns_is_said_over_the_demo_it_plays_as() -> Result<()> {
@@ -945,7 +945,7 @@ fn test_every_beat_of_every_scene_shipped_has_english_words() {
     }
 }
 
-/// Orion, 2026-10-12: "Narration:" before a description that follows someone speaking, and not
+/// Asked for: "Narration:" before a description that follows someone speaking, and not
 /// before one that follows another; a speaker after it is named again.
 #[test]
 fn test_a_description_is_the_narrators_named_as_a_speaker_is() -> Result<()> {
@@ -990,7 +990,7 @@ fn test_a_description_is_the_narrators_named_as_a_speaker_is() -> Result<()> {
 #[test]
 fn test_a_screens_words_between_two_lines_name_their_speaker_again() -> Result<()> {
     // ADR-0038: Tile Puzzle's picture came after "Easy", the title screen's beat the last
-    // narrated, and plain it was heard as one more of the screen's lines. Orion, 2026-10-27: the
+    // narrated, and plain it was heard as one more of the screen's lines. The
     // narrator is named again after a screen's words as any speaker is.
     let backend = Recorder::new();
     let speech = Rc::new(Speech::plain(backend.clone()));

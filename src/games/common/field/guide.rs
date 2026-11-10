@@ -32,9 +32,9 @@ use crate::py::{self, Error, Log, Result};
 pub const ICE_REACH: i64 = 3;
 
 /// What a leg a current in the sea carries the player along is said with, a run of them as one
-/// by where it leaves the player: "Surf 3 south, ride the current 28 west 4 north" (spike 208); Orion
-/// asked for "ride the current" over "current", which sounded wrong (2026-10-13). The game names no
-/// such thing.
+/// by where it leaves the player: "Surf 3 south, ride the current 28 west 4 north" (spike 208);
+/// "ride the current" was asked for over "current", which sounded wrong (2026-10-13). The game
+/// names no such thing.
 pub const CURRENT: &str = "ride the current";
 
 /// What a leg down a climbing wall's slide is said with, "slide 5 south": in Cyllage Gym the player
@@ -764,8 +764,8 @@ fn sides(item: &Interactable, push: Option<&str>) -> HashSet<&'static str> {
 }
 
 /// `goals` kept to those faced the ways in `sides`: beside a boulder, facing it is the way it
-/// is pushed from there (Orion, 2026-10-11: P left him south of a boulder that moves only
-/// east). All of them where none of those is open.
+/// is pushed from there (P left the player south of a boulder that moves only east). All of
+/// them where none of those is open.
 fn aimed(
     goals: IndexMap<Cell, Option<&'static str>>,
     sides: &HashSet<&'static str>,
@@ -869,7 +869,7 @@ fn left(guidance: &Guidance, at: i64, r#where: &Field) -> Result<String> {
 /// Each leg of `path` that ends in another place than it starts in, by its end, with what
 /// the game calls that place. From Verdanturf Town's east end the way to its houses goes out
 /// onto Route 117 and back, and said bare, "10 east" led the player out of the town with no
-/// word of why (or_pathfinding_through_multiple_entrances; Orion, 2026-10-24, asked for "10
+/// word of why (or_pathfinding_through_multiple_entrances); asked for instead: "10
 /// east into Route 117, ..., 23 west into Verdanturf Town"). Two zones of one place, as Route
 /// 119's, are one place.
 fn crossings(
@@ -1203,7 +1203,7 @@ impl Guide {
     /// (`Ground.ends_at`), and over thin ice Shift and P's own way (`_way`). Only the rotating
     /// doors are not followed, so what lies past them is kept (`Ground.reached`).
     ///
-    /// Orion's, 2026-10-11: in Team Magma's Hideout the list held every teleporter of the place,
+    /// In Team Magma's Hideout the list held every teleporter of the place,
     /// most of them in rooms the player was not in. Walked a cell at a time, any floor of it,
     /// Victory Road's stacked 1F kept all 13 things listed, 8 of them short of Shift and P's
     /// reach (movie47, spike 215).
@@ -1308,8 +1308,8 @@ impl Guide {
     /// in `where`, reached on this ground, and from beside it a way reaching `item` with the
     /// belts as it turns them (`Ground.turned`). In the Poké Ball Factory a Team Flare Grunt
     /// stands on the walkway to the north-east room, and the way there goes by the switch, down to
-    /// the belt it turns, and up the stairs past the room it sets the player down in (Khai,
-    /// 2026-10-29, spike 259).
+    /// the belt it turns, and up the stairs past the room it sets the player down in (spike
+    /// 259).
     fn switch_first(
         &self,
         r#where: &Field,
@@ -1943,8 +1943,8 @@ impl Guide {
 
     /// Within a cell of the way, tell a player who has stopped off the next leg's line, where
     /// a corner would catch them on it, which way to step, "a little west"; and once they come
-    /// within `LINED_UP` of it, moving or not, "lined up" (Orion, 2026-10-11, who lined up by
-    /// sneaking: a gentle tilt of the circle pad moves them a little at a time).
+    /// within `LINED_UP` of it, moving or not, "lined up" (asked for by a player who lined up
+    /// by sneaking: a gentle tilt of the circle pad moves them a little at a time).
     fn line_up(&self, r#where: &Field, guidance: &Rc<RefCell<Guidance>>) -> Result<()> {
         let Some(place) = r#where.place else {
             return Ok(());
@@ -2096,10 +2096,10 @@ impl Guide {
     /// what stops P first is no such step nor anybody.
     ///
     /// In the Cave of Origin P to Steven, across the water, went the other way, to where the
-    /// cave came nearest him as the crow flies, and Orion asked for the way to where Surf is
-    /// needed instead (2026-10-30). In the Safari Zone it said the Acro Bike alone where Surf
-    /// was needed further on, and Orion asked to hear everything the way needs before setting
-    /// out, and who stands in it too (2026-11-01).
+    /// cave came nearest him as the crow flies, and the way to where Surf is needed was asked
+    /// for instead (2026-10-30). In the Safari Zone it said the Acro Bike alone where Surf was
+    /// needed further on, and everything the way needs was asked for before setting out, and
+    /// who stands in it too (2026-11-01).
     #[allow(clippy::type_complexity)]
     fn needs(
         &self,

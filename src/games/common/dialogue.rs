@@ -659,7 +659,7 @@ fn current_page(message: &[Page], typed: &[Line], said: i64) -> Option<i64> {
 /// but then its text also matches a page after the one last said, and the page going forward wins.
 ///
 /// Only typing under the window's own tag processor counts. The options screen retypes the text
-/// speed description under its own each time the speed changes, as a demonstration, and the user
+/// speed description under its own each time the speed changes, as a demonstration, and a player
 /// heard that as the description repeating over every choice (spike 27).
 fn restarted(message: &[Page], before: &[Line], now: &[Line], said: i64) -> bool {
     if said < 0 || message.is_empty() || message[0].lines.is_empty() {

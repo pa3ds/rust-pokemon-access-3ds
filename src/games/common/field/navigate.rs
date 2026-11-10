@@ -18,8 +18,8 @@
 //! few steps on, another. An item that has gone — a ball picked up — gives
 //! way to the nearest.
 //!
-//! Spoken as "exits, 3" on reaching a category and "door, 1 of 3, 1 north" on an item (the user,
-//! 2026-09-21: the count on a category, the place on an item), the place counted within the
+//! Spoken as "exits, 3" on reaching a category and "door, 1 of 3, 1 north" on an item (the count
+//! on a category, the place on an item), the place counted within the
 //! direction in direction mode. A category with nothing in it is skipped over, "nothing here"
 //! when the map is empty, "nothing north" or "no exits north" when a direction is, and "no map"
 //! off the field. An exit into another place says it, in the game's own words out of the ROM:
@@ -114,8 +114,8 @@ pub const ONLY: &str = "rename-only-this-one";
 
 /// How far direction mode looks, in cells each way: a box, so a thing 10 north and 10 east is
 /// in. The top screen shows about 13 cells across and 9 deep (measured from a rig screenshot,
-/// 2026-09-21), so this is a little over a screen sideways and two screens ahead; the user's
-/// choice, so the keys do not cycle the whole map.
+/// 2026-09-21), so this is a little over a screen sideways and two screens ahead; chosen
+/// so the keys do not cycle the whole map.
 pub const RANGE: i64 = 10;
 
 /// Whether `cell` is on `direction`'s side of `origin`, no more than `within` cells away
@@ -994,7 +994,7 @@ impl Navigator {
     /// `[pa3ds.navigation] guide_to_hidden`, P is on it from now, in the category of all where
     /// the one chosen does not hold it, and the way to it is found as P finds it, said after what
     /// it leads to and queued, since no key asked for it: getting out of touch mode, where the
-    /// search is made, and walking the list to it took Orion long enough to lose it (movie26).
+    /// search is made, and walking the list to it took long enough to lose it (movie26).
     /// Python's `searched` defaults to True.
     pub fn found(&mut self, r#where: &Field, item: &Interactable, searched: bool) -> Result<()> {
         if !self.wording.guide_to_hidden || !(searched || self.mode == TOUCH) {

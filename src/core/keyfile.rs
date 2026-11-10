@@ -1,7 +1,7 @@
 //! One file saying what every key does — pa3ds's keys and the emulator's buttons together.
 //!
 //! pa3ds takes the keys it is bound to and keeps them from the game (`pa3ds.core.keys`). That
-//! hides a problem: **a key pa3ds takes is a button the player has lost.** The user's Azahar
+//! hides a problem: **a key pa3ds takes is a button the player has lost.** One player's Azahar
 //! happens to have I, J, K and L on the C-stick and O on the debug button, which cost nothing —
 //! until M was bound to the navigation mode and M turned out to be Start.
 //!
@@ -52,8 +52,8 @@
 //!
 //! A key pa3ds gains is added to the player's file at the next start, unless its key is already
 //! one of theirs: then it is added **commented out**, with a comment saying what has the key, and
-//! said, interrupting, for the player to choose (Orion, 2026-10-17, reopening ADR-0022's "never
-//! written into a file that exists"). A key commented out counts as there, which is how a player
+//! said, interrupting, for the player to choose (reopening ADR-0022's "never written into a file
+//! that exists"). A key commented out counts as there, which is how a player
 //! unbinds one on purpose.
 //!
 //! Nothing here raises at a player. A keys file that is missing or malformed reads as the
@@ -267,8 +267,8 @@ pub fn app_path() -> Result<PathBuf> {
 /// `<pa3ds>/user`: the folder pa3ds keeps the player's own things in — the log, the keys file,
 /// and the names they have given (`pa3ds.core.names`).
 ///
-/// **Beside pa3ds, never in `%APPDATA%` and never under Program Files** (ADR-0032, the user
-/// 2026-09-22): pa3ds is meant to sit next to its emulator in a folder that can be copied to
+/// **Beside pa3ds, never in `%APPDATA%` and never under Program Files** (ADR-0032):
+/// pa3ds is meant to sit next to its emulator in a folder that can be copied to
 /// another machine whole, names and keys and all. `PA3DS_HOME` moves it, which is what a test
 /// wants and what keeps an agent's run off the player's real files.
 pub fn home_path() -> Result<PathBuf> {

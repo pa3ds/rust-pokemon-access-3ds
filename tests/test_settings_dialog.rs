@@ -149,7 +149,7 @@ fn test_the_dialog_has_a_tab_a_page_then_names_each_control_and_ends_with_its_bu
     );
 }
 
-/// Orion, 2026-10-25: a spin box in percent, 100 as loud as the game, from 0 up.
+/// A spin box in percent, 100 as loud as the game, from 0 up.
 #[test]
 fn test_a_loudness_is_shown_in_percent_and_written_as_the_file_has_it() {
     assert_eq!(shown(PERCENT, &Value::Float(1.0)).unwrap(), "100");
@@ -185,7 +185,7 @@ fn test_only_the_settings_changed_are_written() {
     );
 }
 
-/// Orion, 2026-10-26: hidden items off, under the sea alone, or everywhere.
+/// Hidden items off, under the sea alone, or everywhere.
 #[test]
 fn test_a_setting_of_a_few_words_lists_each_by_its_message_the_default_first() {
     let pair = |code: &str, said: &str| (code.to_string(), said.to_string());

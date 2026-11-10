@@ -27,7 +27,7 @@
 //!
 //! Bound by:
 //! - ADR-0017: an Extra, shipping off. Under the sea it says what a sighted player is taken to see
-//! there, where the Dowsing Machine cannot be used; everywhere, what the game
+//!   there, where the Dowsing Machine cannot be used; everywhere, what the game
 //!   keeps from everyone.
 
 use std::rc::Rc;

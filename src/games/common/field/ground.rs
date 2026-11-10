@@ -271,7 +271,7 @@ pub struct Ground {
     /// The cells of `stepped` that are a mat out, which takes the player out walked onto going
     /// south: a way to anything else steps onto one only going north, and off one any way but south
     /// (`joined`). The Elite Four's rooms in X have one across the steps north of where the player
-    /// arrives, and P went round the platform; Khai walked straight north over it and stayed
+    /// arrives, and P went round the platform; the player walked straight north over it and stayed
     /// (x_elite-fire.ctm, 2026-11-07). A way that ends on one walks round the rest, as before.
     pub mats: HashSet<Cell>,
     /// How many cells out from a solid thing a path may end, looking out from each side until
@@ -1201,11 +1201,11 @@ impl Ground {
     /// floor a hop goes over (`_mud`). Victory Road's stones stand in a pit whose floor is open,
     /// and P walked the player into one from it (x_victory_road_stones, 2026-11-07); its
     /// launches stand on the pit's rim, and the player at (44, 59), between the stone at
-    /// (44, 58) and the launch at (44, 60), pressed south onto the launch and did not move.
-    ///Its ground is stacked, with no height a cell, so the rim is told by
-    /// the hops alone. Khai hopped the way P then found, from the launch at (44, 54) over the
-    /// stones to the launch at (44, 60) (2026-11-07). The cells of a hop, the floor hopped over
-    /// and the stone, are `joined`, as a way found is checked a cell at a time.
+    /// (44, 58) and the launch at (44, 60), pressed south onto the launch and did not move. Its
+    /// ground is stacked, with no height a cell, so the rim is told by the hops alone. The player
+    /// hopped the way P then found, from the launch at (44, 54) over the stones to the launch at
+    /// (44, 60) (2026-11-07). The cells of a hop, the floor hopped over and the stone, are
+    /// `joined`, as a way found is checked a cell at a time.
     pub fn walks(&self, cell: Cell, step: Cell) -> Result<bool> {
         // Python's `_kind`, which is `kind` over again.
         let kinds = (self.kind(cell)?, self.kind(step)?);

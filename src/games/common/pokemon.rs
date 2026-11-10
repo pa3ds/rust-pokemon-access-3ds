@@ -14,8 +14,9 @@
 //!                +0x24 u8 each the contest conditions, coolness to toughness, then sheen
 //!                +0x40 the nickname, UTF-16LE: a Pokémon never nicknamed carries its species name
 //!                +0x74 u32 the IVs in bits 0-29, then whether it is an Egg (30) and whether it
-//!                      was nicknamed (31): set for every one Orion named, clear for Metagross,
-//!                      Gyarados and the five of his first box he never did (spike 222)
+//!                      was nicknamed (31): set for every one the player named, clear for
+//!                      Metagross, Gyarados and the five of their first box they never did
+//!                      (spike 222)
 //! battle stats   +0x04 u8 level    +0x08 u16 HP    +0x0a u16 maximum HP
 //! ```
 //!

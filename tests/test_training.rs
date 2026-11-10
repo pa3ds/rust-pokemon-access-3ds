@@ -202,7 +202,7 @@ fn test_a_goal_shown_while_a_round_runs_is_offered_at_the_pixel_that_shoots_it()
     );
 }
 
-/// Orion did not know there could be more than one (2026-11-10).
+/// A player did not know there could be more than one (2026-11-10).
 #[test]
 fn test_goals_are_numbered_from_the_left_only_when_several_are_up() {
     let memory = FakeMemory::new();
@@ -1261,8 +1261,7 @@ fn cueing(player_z: Option<f32>, lead: f64) -> (super_training::Round, Rc<FakeMe
 }
 
 /// In steps of 10, as the map's list says a bearing, up nearer the Bot; its bobbing where it
-/// started is no step (Orion, 2026-11-10; the places as_st_l1_regimen_again's census
-/// read).
+/// started is no step (the places as_st_l1_regimen_again's census read).
 #[test]
 fn test_c_says_how_far_up_and_across_the_pokemon_stands_from_where_it_started() {
     let (sparring, memory, _heard) = cueing(Some(228.5), 0.6);

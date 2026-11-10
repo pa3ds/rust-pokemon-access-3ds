@@ -50,7 +50,7 @@ pub const PANE: &str = "button-";
 /// `model-boy` (`games.xy.intro`).
 pub const MODEL: &str = "model-";
 /// Textures named by how their name starts: Super Training's cleared regimens draw
-/// `stage_icon00_rock` and every `stage_icon` after it, each `texture-stage_icon` (Khai's session of
+/// `stage_icon00_rock` and every `stage_icon` after it, each `texture-stage_icon` (a session of
 /// 2026-10-09); the battle's move info screen draws its move buttons `waza_pos_00` and on
 /// (or_move-learning, 2026-10-18).
 pub const PREFIXED: [&str; 2] = ["stage_icon", "waza_pos"];

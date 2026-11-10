@@ -1419,8 +1419,9 @@ thread_local! {
 }
 
 /// Say every way of the compass from here on as the pad key that walks it, where up walks the
-/// player `turn` quarters clockwise from north: in Parfum Palace's garden right walked Khai
-/// north and up west, 3 (x_route-6-4.ctm, 2026-10-20). North is the way up walks, as in Sun.
+/// player `turn` quarters clockwise from north: in Parfum Palace's garden right walked the
+/// player north and up west, 3 (x_route-6-4.ctm, 2026-10-20). North is the way up walks, as in
+/// Sun.
 pub fn walked(turn: i64) {
     TURNED.with(|held| held.set(py::modulo(turn, 4)));
 }

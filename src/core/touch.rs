@@ -24,7 +24,7 @@
 //! A slide is a press that moves, along a path walked evenly in time and let go at its end:
 //! Pokémon-Amie is stroked so, and answers it with its hand on the Pokémon (spike 200). A tap is a
 //! slide that stays on one point. ADR-0009 allowed pa3ds a tap alone; the slide is an exploration
-//! Khai asked for (2026-10-08), for Orion to keep or take back.
+//! asked for (2026-10-08), to keep or take back.
 //!
 //! A drag is a press the player holds between keys (`Drag`): held on one point, slid on to the
 //! next in `MOVE` seconds each time the player moves it, and let go when they let go (on the

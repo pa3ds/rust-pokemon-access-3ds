@@ -268,7 +268,7 @@ fn test_every_piece_inside_the_cursor_is_the_item() {
     assert_eq!(menu.heard_with(&slot), said(&[(&["Torchic", "L5"], true)]));
 }
 
-/// The user heard "Growl PP / 40": the "/" is built before the numbers, and one "40" was taken
+/// A player heard "Growl PP / 40": the "/" is built before the numbers, and one "40" was taken
 /// for a doubled label (2026-09-14).
 #[test]
 fn test_a_move_row_is_read_in_place_and_keeps_both_pp_numbers() {
@@ -1821,7 +1821,7 @@ fn test_a_frame_sliding_onto_the_other_choice_says_it_once_it_is_there() {
     assert_eq!(chooser.heard(), said(&[(&["male"], false)]));
 }
 
-/// The user, 2026-10-15: the boy and the girl said as "Boy, ..." and "Girl, ...", as X's
+/// The boy and the girl said as "Boy, ..." and "Girl, ...", as X's
 /// are, not as "male" and "female".
 #[test]
 fn test_a_choice_whose_portrait_pa3ds_describes_says_the_description_whole() {
@@ -2383,8 +2383,8 @@ fn test_a_named_cursors_list_is_the_words_beside_those_it_is_over() {
 }
 
 /// X's Mart draws `shop_cursor.bclim` as a window in its list's window, beside the rows'
-/// TextBoxes, and the description and the count to buy went unsaid as a menu's (x_poke-mart,
-/// Khai, 2026-10-18).
+/// TextBoxes, and the description and the count to buy went unsaid as a menu's
+/// (x_poke-mart).
 #[test]
 fn test_a_window_textured_as_a_cursor_beside_its_rows_knows_its_list() {
     let mut mart = Mart::shaped("shop_cursor.bclim", 0, true);
@@ -3172,8 +3172,8 @@ fn test_a_slot_under_a_pokemon_carried_is_said_without_the_summary() {
     assert_eq!(heard, lines(&[("Party 1", true)]));
 }
 
-/// Carrying Gigas over erza's slot said only "BOX 1, row 1, column 2" (Orion,
-/// or_organize_boxes): the game's reader names who is in it, by the slot's group and place.
+/// Carrying Gigas over erza's slot said only "BOX 1, row 1, column 2"
+/// (or_organize_boxes): the game's reader names who is in it, by the slot's group and place.
 #[test]
 fn test_a_slot_under_a_pokemon_carried_says_who_is_in_it() {
     let r#box = BoxGrid::new();

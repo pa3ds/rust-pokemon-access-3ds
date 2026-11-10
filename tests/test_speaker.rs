@@ -336,7 +336,7 @@ fn sprites_in(folder: &Path, language: &str) -> IndexMap<String, String> {
     table
 }
 
-/// The user, 2026-09-23: a fallback in every language the game carries, each the ROM's own
+/// A fallback in every language the game carries, each the ROM's own
 /// words in that language (spikes 90 and 91). Since 2026-10-14 each names the same sprites as
 /// the English: where the ROM has no word, as for the Nurse, it is pa3ds's own.
 #[test]
@@ -395,9 +395,9 @@ fn test_x_ships_a_table_in_every_language_it_carries() {
     );
 }
 
-/// The user, 2026-11-10: Mom and the professor had no name on Sun's map. Neither battles as
-/// the model they stand as, so the ROM names neither (spike 291); nor Lillie, nor the captains
-/// battled once, nor the townsfolk, whom the user asked to have named too.
+/// Mom and the professor had no name on Sun's map. Neither battles as the model they stand
+/// as, so the ROM names neither (spike 291); nor Lillie, nor the captains battled once, nor the
+/// townsfolk, asked to be named too.
 #[test]
 fn test_sun_ships_the_story_s_people_the_rom_never_names_in_every_language() {
     let english = sprites_in(&sm_field::names(), "en");

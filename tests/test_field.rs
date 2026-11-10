@@ -2174,7 +2174,7 @@ fn house_front() -> Vec<(i64, i64)> {
         .collect()
 }
 
-/// The user, 2026-09-24: a path to something solid ends on an open cell beside it.
+/// A path to something solid ends on an open cell beside it.
 #[test]
 fn test_a_solid_thing_is_walked_up_to_facing_it_and_an_open_one_onto() -> Result<()> {
     let mut town = Town::new();
@@ -3465,7 +3465,7 @@ fn test_a_stair_is_where_the_ground_meets_a_floor_over_it() {
     assert_eq!(mapblock::joins(&chunk), IndexMap::from([((43, 6), 189.0)]));
 }
 
-/// Khai, playing x_tower_of_mastery's save (spike 248): every street of the Tower of Mastery
+/// Playing x_tower_of_mastery's save (spike 248): every street of the Tower of Mastery
 /// is measured east, and its lane's key said "east" for a step north up the ramp, "8 west, 16
 /// east" for a way west and then north. Where the streets are floors of their own a street's
 /// keys are the ways nearest its own.
@@ -3686,7 +3686,7 @@ fn test_a_deck_level_with_the_ground_is_no_drop_wherever_the_player_stands() -> 
     Ok(())
 }
 
-/// Khai, x_eighth_gym: Snowbelle City Gym refused steps into its floor strips' gaps, open in
+/// x_eighth_gym: Snowbelle City Gym refused steps into its floor strips' gaps, open in
 /// the chunk, and P walked into them; up the Gym's middle a floor at 160 stands over the strips,
 /// and P stepped up onto it to cross a gap of the ground at 0.
 #[test]
@@ -4663,9 +4663,10 @@ fn route_9(smashes: &[i64]) -> Rides {
 }
 
 /// Spike 238: on X's Route 9 a Rhyhorn is got on and off on flat ground, five patches between the
-/// spikes and plain ground, and Khai was "not sure when you can get off rhyhorn so that prob need
-/// its own category" (2026-10-22). A patch is one thing, at its cell nearest the player. Vaniville
-/// Town's pen round Mom's Rhyhorn is flat ground with no spikes, and nothing to ride there.
+/// spikes and plain ground, and a player was "not sure when you can get off rhyhorn so that prob
+/// need its own category" (2026-10-22). A patch is one thing, at its cell nearest the player.
+/// Vaniville Town's pen round Mom's Rhyhorn is flat ground with no spikes, and nothing to ride
+/// there.
 #[test]
 fn test_flat_ground_is_listed_under_riding_a_patch_at_a_time() -> Result<()> {
     let square: Vec<((i64, i64), i64)> = (84..87)
@@ -4711,8 +4712,8 @@ fn test_flat_ground_is_listed_under_riding_a_patch_at_a_time() -> Result<()> {
 }
 
 /// Spike 245: Cyllage Gym's walls are climbed from the blue spots at their foot, two side by side
-/// at (25, 32) and (26, 32), and got off onto a ledge at a face's side, (31, 32) at 54; Khai
-/// asked for their "entry point and exit point maybe? in a category" (2026-10-24). The plateau
+/// at (25, 32) and (26, 32), and got off onto a ledge at a face's side, (31, 32) at 54; they were
+/// asked for as "entry point and exit point maybe? in a category" (2026-10-24). The plateau
 /// behind a face's top, open beside it at another height, is neither.
 #[test]
 fn test_climbing_walls_are_listed_a_run_of_blue_spots_or_a_ledge_at_a_time() -> Result<()> {
@@ -5061,8 +5062,8 @@ fn test_a_rock_the_rhyhorn_smashes_is_an_obstacle_and_the_ridden_rhyhorn_is_not_
     Ok(())
 }
 
-/// Spike 208: the sea's currents carry a player surfing to where they let go, and Orion asked
-/// for them in the list, as a teleporter is with where it comes out (2026-10-13). Those that let
+/// Spike 208: the sea's currents carry a player surfing to where they let go, and they were
+/// asked for in the list, as a teleporter is with where it comes out (2026-10-13). Those that let
 /// the player go within `LANDING_REACH` of each other are one current, at its cell nearest the
 /// player, with where that cell lets them go.
 #[test]
@@ -6401,8 +6402,8 @@ fn camera_of(town: &Town, shape: &camera::Shape) -> Result<i64> {
 }
 
 /// Spike 230: Parfum Palace's garden, where the camera looks west, a little south, and up
-/// walked Khai west; it swings round to north as he walks up the garden, past the edge of a
-/// quarter only (`pad.HYSTERESIS`).
+/// walked the player west; it swings round to north as they walk up the garden, past the edge
+/// of a quarter only (`pad.HYSTERESIS`).
 #[test]
 fn test_off_the_rails_up_walks_the_way_the_camera_looks() -> Result<()> {
     let town = Town::of(Game {

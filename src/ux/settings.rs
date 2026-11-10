@@ -3,11 +3,11 @@
 //! **What it is** (ADR-0039 as amended 2026-10-30). A modal `#32770` over pa3ds's window: a tab for
 //! each page, General, Speech, Audio, Navigation and Extras, one a table of the file, and the page
 //! chosen under them, a control a setting. Ctrl+Tab and Ctrl+Shift+Tab change the page from
-//! anywhere in it, as Windows' own property sheets do (Orion, 2026-10-25: a list of pages said its
+//! anywhere in it, as Windows' own property sheets do (a list of pages said its
 //! item twice, a list box raising focus for itself and for the item). Each control is named by its
 //! setting's short name, which is what Tab says. What the setting does is said after it by pa3ds's
 //! own speech a tenth of a second after the control has the focus, without interrupting, so the
-//! screen reader says the name, the control and its value first (Orion: a description Windows gives
+//! screen reader says the name, the control and its value first (a description Windows gives
 //! the control is read between the control and its value, which is clumsier; and sent the moment
 //! the control had the focus, NVDA said pa3ds's first, 2026-10-26).
 //!
@@ -26,7 +26,7 @@
 //! **OK, Cancel and Apply**, as Windows' own settings dialogs have: applying writes each
 //! setting changed on its own line of the file (`config.change`), then asks whether to start pa3ds
 //! again now, for them to take; the new pa3ds takes this one's place (`instance.again`). Otherwise
-//! they take at the next start. Nothing the poll loop does asks after the settings (Orion: rather a
+//! they take at the next start. Nothing the poll loop does asks after the settings (rather a
 //! restart than a check every tick).
 //!
 //! Bound by:

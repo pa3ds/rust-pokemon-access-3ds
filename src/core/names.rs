@@ -6,7 +6,7 @@
 //! Mart's sign".
 //!
 //! So pa3ds carries names of its own, under two rules that keep the "no hardcoded game text"
-//! constraint meaning what it was written to mean (AGENTS.md, reopened by the user 2026-09-21):
+//! constraint meaning what it was written to mean (AGENTS.md, reopened 2026-09-21):
 //!
 //! - **A name pa3ds invents never replaces one the game says.** Anything the game shows is read from
 //!   the game, as it always was. These names fill silence, nothing else.
@@ -105,7 +105,7 @@ pub fn sprite_key(character: i64) -> String {
 
 /// What each kind of slot is written as in a names file, by its tag (`things.SOURCE_KIND`): a
 /// warp's slot 3 is `warp:3`. A word, so a person editing the file can tell a door from a sign;
-///a kind renamed in code keeps its word here, or its names stop matching.
+/// a kind renamed in code keeps its word here, or its names stop matching.
 pub const KINDS: [&str; 22] = [
     "furniture",
     "warp",

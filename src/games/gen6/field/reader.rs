@@ -1604,7 +1604,7 @@ impl FieldReader {
 
     /// The decorations set down in a Secret Base, among the signs by the game's names for them,
     /// each one thing over its cells: set down, the Stairs and the desks were not listed at all.
-    ///The Invisible Doll is not, as the game hides it.
+    /// The Invisible Doll is not, as the game hides it.
     ///
     /// Those of one name that touch are one thing: every base's five Welcome Mats in a line were
     /// listed five times. Apart, they stay apart, so the way to one does not
@@ -1670,7 +1670,7 @@ impl FieldReader {
     /// What makes furniture records that touch one thing (`_joined`): their script, which the
     /// game runs whichever of them the player faces, as round Seafloor Cavern's submarine, four
     /// records saying "“Submarine Explorer 1” is painted on the hull" and listed as four signs.
-    ///The ROM has 33 such pairs in 12 zones. An elevator's door is two
+    /// The ROM has 33 such pairs in 12 zones. An elevator's door is two
     /// records with a shared script each (`Game.elevators`), both of which run the elevator.
     ///
     /// Python's key is the script or `ELEVATOR`, an int or a str; here both are text, which no
@@ -2529,8 +2529,8 @@ impl FieldReader {
     /// along the shared border that can be walked across.
     ///
     /// The border is a run of blocks, and most of it is trees: Littleroot's north side is 40 cells
-    /// wide and the way onto Route 101 is 3 of them (the user, 2026-09-22, asking for the walkable
-    /// cells rather than the whole border). A cell is a way across when neither side of it is
+    /// wide and the way onto Route 101 is 3 of them (the walkable cells were asked for rather than
+    /// the whole border). A cell is a way across when neither side of it is
     /// blocked in the chunks loaded now, or the ROM's where none is, and each run of such cells is
     /// an exit of its own, the same runs whatever is loaded: Route 8's border to Cyllage City split
     /// in two as the chunk north of it unloaded, and P's way to the gap became a way to the new
@@ -3266,8 +3266,8 @@ fn over(item: &Interactable) -> i64 {
 
 /// `items` less every sign whose cells a sign above it covers (`_over`): the Azurill Doll in
 /// Littleroot is a doll drawn, a furniture record in front of it saying "It's an Azurill Doll!",
-/// and the cabinet under it, and was listed three times in one cell (Orion, 2026-10-14; spike
-/// 211). A sign that reaches past what covers it, a shelf longer than what stands on it, stays.
+/// and the cabinet under it, and was listed three times in one cell (spike 211). A sign that
+/// reaches past what covers it, a shelf longer than what stands on it, stays.
 /// A trigger is no layer of a spot: it is stepped on, not read, and on a floor of its own, as
 /// Laverre Gym's teleporter at (29, 1) on its middle floor is under the cells of a bureau's
 /// record, which has no floor (spike 258).
@@ -3301,7 +3301,7 @@ fn layered(item: &Interactable) -> bool {
 /// first of several from one place. Anistar City Gym's lobby carpet puts the player on one of
 /// three tracks of one joint, the cell it is in once the lobby's street is laid onto them: it is
 /// listed, where the Gym appears, and carries the player nowhere (spike 264). Each carries them
-/// back too: the module lists one way of most, and Khai stepping back onto the first one's
+/// back too: the module lists one way of most, and a player stepping back onto the first one's
 /// landing was put on its start, three times (2026-10-30).
 pub(crate) fn rail_teleporters(
     teleports: &[rail::Teleport],

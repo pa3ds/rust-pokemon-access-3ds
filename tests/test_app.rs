@@ -324,7 +324,7 @@ fn test_each_run_logs_afresh_and_keeps_the_runs_before() {
     assert!(!logs.join(format!("pa3ds.{KEPT_LOGS}.log")).exists());
 }
 
-/// ADR-0032, the user 2026-09-22: beside pa3ds, never %APPDATA% and never Program Files, so
+/// ADR-0032: beside pa3ds, never %APPDATA% and never Program Files, so
 /// the whole folder copies to another machine with the names and keys in it.
 #[test]
 fn test_everything_the_player_owns_sits_beside_pa3ds() {
@@ -386,7 +386,7 @@ fn logs_in(folder: &Path) -> Vec<PathBuf> {
         .unwrap_or_default()
 }
 
-/// The user, 2026-09-14: test without writing logs, or write them elsewhere. The keys file
+/// Test without writing logs, or write them elsewhere. The keys file
 /// is written beside where the log would have gone, which is not a log.
 #[test]
 fn test_no_log_writes_no_file() {
@@ -534,7 +534,7 @@ fn test_the_runtime_is_quiet_while_another_window_is_in_front() {
     }
 }
 
-/// The user, 2026-09-16: 60 Hz, with 30 as a setting for machines that cannot keep up.
+/// 60 Hz, with 30 as a setting for machines that cannot keep up.
 #[test]
 fn test_the_poll_rate_is_the_frame_rate_unless_asked_for_less() {
     let home = Home::new();
@@ -962,7 +962,7 @@ fn test_the_same_emulator_answering_again_is_read_on() {
     );
 }
 
-/// Orion, 2026-10-17: a player who started pa3ds again over one that hung may be in another
+/// A player who started pa3ds again over one that hung may be in another
 /// window, so the restart is said where "pa3ds ready" goes, cutting off whatever was being said.
 /// A game that goes and comes back afterwards is ready, not restarted.
 #[test]
@@ -996,7 +996,7 @@ fn test_a_restarted_run_says_so_interrupting_and_only_the_first_time() {
     );
 }
 
-/// Orion, 2026-10-17: someone who copied only pa3ds.exe hears why pa3ds says so little, and pa3ds
+/// Someone who copied only pa3ds.exe hears why pa3ds says so little, and pa3ds
 /// still reads the game.
 #[test]
 fn test_a_missing_data_folder_is_said_once_and_pa3ds_runs_on() {

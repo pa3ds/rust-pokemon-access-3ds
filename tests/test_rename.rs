@@ -680,7 +680,7 @@ fn youngsters() -> Field {
     }
 }
 
-/// Orion, 2026-10-11: the shipped names already call everybody what they look like, so a
+/// The shipped names already call everybody what they look like, so a
 /// rename is more likely for one than for all, and the box opens ticked. Calvin's name is a slot
 /// on his record's map, and the other Youngster keeps the sprite's.
 #[test]
@@ -939,7 +939,7 @@ fn game_names() -> Rc<Names> {
     Rc::new(names)
 }
 
-/// The user, 2026-09-23: a named door replaces the word "door", as a rename does.
+/// A named door replaces the word "door", as a rename does.
 #[test]
 fn test_a_door_the_rom_names_is_said_by_that_name() {
     let (mut nav, backend, _, _) = navigator(Wanted {

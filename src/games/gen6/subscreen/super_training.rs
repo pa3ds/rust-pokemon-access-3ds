@@ -786,7 +786,7 @@ impl Goals {
     }
 }
 
-/// Goals told apart where several are up, counted from the left: "goal 1", "goal 2", as Orion
+/// Goals told apart where several are up, counted from the left: "goal 1", "goal 2", as a player
 /// did not know there could be more than one (2026-11-10). A goal alone is "goal".
 fn numbered(goals: Vec<Target>) -> Vec<Target> {
     if goals.len() < 2 {
@@ -1258,7 +1258,7 @@ impl Gains {
         // Each gain is its nearest stat's, and taken once. A layout's panes read at (0, 0) until
         // the game first draws them, as the hidden "+4"s did in the snapshots of the failure, so
         // all six stats can be on the gain's row as a regimen's description first shows: a second
-        // stat took the "+4" again and threw, four times in Orion's play after a round
+        // stat took the "+4" again and threw, four times in a player's play after a round
         // (2026-11-10).
         let mut beside: IndexMap<i64, ScreenText> = IndexMap::new();
         for piece in &mine {

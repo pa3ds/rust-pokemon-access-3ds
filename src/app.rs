@@ -183,8 +183,8 @@ pub struct Every {
     next: Cell<f64>,
     /// The earliest time asked for that the task has not run at or since. The 30 s sweep came
     /// due 0.9 s after the field started again, ran, and the field's own sweep 1.5 s after it
-    /// never did: the Amie page Orion had just switched from was read for 30 s more, and his
-    /// Tepig said as the Totodile before it (or_amie_grey_census_3, 2026-11-02).
+    /// never did: the Amie page the player had just switched from was read for 30 s more, and
+    /// their Tepig said as the Totodile before it (or_amie_grey_census_3, 2026-11-02).
     asked: Cell<Option<f64>>,
 }
 

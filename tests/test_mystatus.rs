@@ -24,8 +24,8 @@ fn found(language: u8, at: i64) -> Found {
     }
 }
 
-/// Orion's saves say 2, English; the Chinese fan Omega Ruby's says 1, Japanese, whose text its
-/// Chinese replaced, so its game text is read as the Japanese and is Chinese.
+/// An English save says 2, English; the Chinese fan Omega Ruby's says 1, Japanese, whose text
+/// its Chinese replaced, so its game text is read as the Japanese and is Chinese.
 #[test]
 fn test_the_language_is_the_records_byte() {
     assert_eq!(mystatus::language(&found(2, RECORD)), Some("en"));

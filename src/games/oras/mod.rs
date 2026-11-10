@@ -906,8 +906,7 @@ pub const FOSSILS: [((i64, i64), i64); 2] = [((0x23, 3), 99), ((0x23, 4), 100)];
 /// chamber's sealed door (Desert Ruins, Island Cave, Ancient Tomb) and on the Sealed Chamber's wall
 /// the player digs through, each on the warp it shuts, the wall's three cells wide at (40, 25); five
 /// each in Dewford Town, Route 104 and Route 109, and one on Route 120. Every one was listed as a
-/// person, and as "Submarine Explorer 1" once the player named one so (Orion, movie44,
-/// 2026-10-13).
+/// person, and as "Submarine Explorer 1" once the player named one so (movie44).
 ///
 /// Python's is a frozenset; an array here, collected where a set is wanted.
 pub const BLOCKERS: [i64; 2] = [STOPPER, STOPPER3];

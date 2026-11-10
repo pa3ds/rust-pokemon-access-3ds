@@ -252,7 +252,7 @@ fn crying() -> (Rc<RefCell<Vec<(i64, f64)>>>, Crier) {
 /// instead of it, the berry alone. Touch mode's target keeps the name. The cry is heard from its
 /// key's side, not from where it pops up: Treecko pops up on the left, and is the second of the
 /// game's own order, the lineup's and the keys', so it is heard in both ears. By where they
-/// popped up, Orion heard one Pokémon's cry from every side in a round.
+/// popped up, one Pokémon's cry was heard from every side in a round.
 #[test]
 fn test_a_want_plays_its_pokemons_cry_toward_its_key_with_its_name_or_in_its_place() {
     let app = Some(berry_picker::APP);
@@ -543,7 +543,7 @@ fn test_the_rounds_clock_says_how_fast_the_game_runs() {
     assert_eq!(picked.found.speed(), 1.0);
 }
 
-/// Orion, 2026-10-29: pressing the keys as a round begins learns them too late, so the three are
+/// Pressing the keys as a round begins learns them too late, so the three are
 /// said in the game's own order, the keys', once while the clock stands full before START!, and
 /// again before a Play Again's round; with one of them not to be read, not at all.
 #[test]
@@ -605,7 +605,7 @@ fn second_want(memory: &FakeMemory, panes: &[i64], layouts: &Layouts) {
     memory.u32(APP + berry_picker::CLOCK, &[1700]);
 }
 
-/// Orion, 2026-10-29: a berry is given by its key and then the Pokémon's (`[pa3ds.amie]
+/// A berry is given by its key and then the Pokémon's (`[pa3ds.amie]
 /// berry_first`).
 #[test]
 fn test_berry_first_says_a_want_in_the_order_its_berry_is_given() {
@@ -616,7 +616,7 @@ fn test_berry_first_says_a_want_in_the_order_its_berry_is_given() {
     );
 }
 
-/// Orion, 2026-10-29: three wants said together took 1.5 s, the first all a player can act on
+/// Three wants said together took 1.5 s, the first all a player can act on
 /// (`[pa3ds.amie] one_at_a_time`); without it each is said as it comes.
 #[test]
 fn test_one_at_a_time_the_next_is_said_once_a_berry_is_given_or_the_one_said_goes() {

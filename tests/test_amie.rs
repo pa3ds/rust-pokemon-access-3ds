@@ -192,8 +192,8 @@ fn test_a_picture_drawing_another_image_is_not_named() {
     assert_eq!(page(amie::NUMBER).0.name(OTHER, Some(FIELD)).unwrap(), None);
 }
 
-/// Leos's Sceptile stood beside Pikachu in the ring, said by a stale name of the party's until
-/// it was tapped (or_amie_affection_increase): the player's Pokémon is first
+/// A visitor's Sceptile stood beside Pikachu in the ring, said by a stale name of the party's
+/// until it was tapped (or_amie_affection_increase): the player's Pokémon is first
 /// in the page's list, and a visitor has a picture of its own after it.
 #[test]
 fn test_a_pokemon_visiting_the_page_is_named_by_the_pages_list_of_who_walks_there() {
@@ -218,7 +218,7 @@ fn test_a_pokemon_visiting_the_page_is_named_by_the_pages_list_of_who_walks_ther
     assert_eq!(found.name(WALKER_PICTURE, Some(FIELD)).unwrap(), None);
 }
 
-/// Orion, 2026-11-05: the Pokémon is offered to beckon, a press of 0.4 s, as presses held
+/// The Pokémon is offered to beckon, a press of 0.4 s, as presses held
 /// apart turned Ralts round (spike 276); a puff is dragged to its mouth (spike 257).
 #[test]
 fn test_amie_itself_offers_its_pokemon_to_beckon_by_the_species_the_page_showed() {
@@ -634,7 +634,7 @@ fn keyed(parts: &[(u8, (i64, i64, i64, i64))]) -> Keyed {
     }
 }
 
-/// Orion, 2026-11-05: the arrows move the stylus over the Pokémon, a step a press, and touch
+/// The arrows move the stylus over the Pokémon, a step a press, and touch
 /// mode chooses it as it goes, to rub there; a poll chooses nothing in touch mode; and the arrows
 /// keep it within a step of the Pokémon.
 #[test]
@@ -664,7 +664,7 @@ fn test_the_arrows_move_the_stylus_saying_a_part_as_it_comes_onto_one() {
     assert!(k.press("stylus up") == "! edge" && k.found.borrow().stylus.at == (94, 54));
 }
 
-/// Orion could not find a hand or fur a step at a time (2026-11-05): a jump goes past the
+/// A hand or fur could not be found a step at a time (2026-11-05): a jump goes past the
 /// part the stylus is on and any gap, to the middle of the next part's run, and says it.
 #[test]
 fn test_ctrl_and_an_arrow_jump_the_stylus_to_the_next_part_that_way() {
@@ -759,7 +759,7 @@ fn no_sentence(_motion: &str) -> Option<String> {
     None
 }
 
-/// Orion, 2026-11-05: the moods a sighted player sees, read off the love command, which needs
+/// The moods a sighted player sees, read off the love command, which needs
 /// no picture and so reads on any Azahar; a press held off the Pokémon and a puff eaten in two
 /// bites, as the script has it, with a moment of no love command between two. Said where the
 /// Pokémon has no sentence of its own for them, as most have none for a hand held up.
@@ -831,7 +831,7 @@ fn test_what_the_pokemon_is_seen_doing_is_said_as_it_starts_and_stops() {
     assert_eq!(said(22), ["Sceptile is watching your hand"]); // Amie opened again
 }
 
-/// Orion, 2026-10-16: a Pokémon of the player's by the nickname they gave it. `Player` says
+/// A Pokémon of the player's by the nickname they gave it. `Player` says
 /// which of the party Amie shows by its record's constant; before it says, the party's records
 /// are matched by species, and two of one species are said as that.
 #[test]
@@ -878,7 +878,7 @@ fn test_the_pokemon_is_called_by_the_nickname_on_the_record_player_says_it_draws
     memory.u32(PLAYER + amie::ORAS_PLAYER.shown, &[254, 0, 0, 0x101]);
     found.poll(Some(amie::AMIE));
     assert_eq!(found.called().unwrap(), "Blaze");
-    // A Pikachu's, Khai's save's two sharing one.
+    // A Pikachu's, a save's two sharing one.
     memory.u32(PLAYER + amie::ORAS_PLAYER.shown, &[254, 0, 0, 0x202]);
     found.poll(Some(amie::AMIE));
     assert_eq!(found.called().unwrap(), "Sceptile");
@@ -897,7 +897,7 @@ fn test_xs_player_keeps_its_love_command_and_picture_four_bytes_later() {
     assert_eq!(found.stylus.outline(), Some((100, 60, 219, 119)));
 }
 
-/// Orion, 2026-11-06: "describe the other moods too, even if nothing reaches them yet"; seen
+/// Asked for: "describe the other moods too, even if nothing reaches them yet"; seen
 /// started at will on the research rig (spike 287's `look`).
 #[test]
 fn test_the_moods_no_movie_reached_are_said_too() {
@@ -967,7 +967,7 @@ fn test_a_hand_the_still_picture_does_not_show_is_jumped_to_all_the_same() {
     assert!((180..200).contains(&py::floordiv(left + right, 2)) && (60..80).contains(&y));
 }
 
-/// Orion, 2026-11-06: the stylus moves over a picture taken as the Pokémon appears, however it
+/// The stylus moves over a picture taken as the Pokémon appears, however it
 /// moves, and a tap or drag goes to the part chosen wherever it has gone. Touch mode's tone stays
 /// where the player put it.
 #[test]
@@ -1229,7 +1229,7 @@ fn test_each_number_fills_its_row_as_the_switch_screen_does() {
     );
 }
 
-/// Orion, 2026-11-06: the game shows them only on its Switch screen, so a key says them in
+/// The game shows them only on its Switch screen, so a key says them in
 /// Amie itself, by the game's own words for them.
 #[test]
 fn test_a_key_says_the_numbers_as_the_switch_screen_would_show_them() {
@@ -1363,7 +1363,7 @@ impl Drop for Unused {
     }
 }
 
-/// Orion, 2026-11-06: every Pokémon's animations described, as a pet, a dislike or a finished
+/// Every Pokémon's animations described, as a pet, a dislike or a finished
 /// puff show them. Back to standing, 2, the same one is seen again; the three of eating are one
 /// action, or_amie_interactions' 25 then 26 and a dance of 14; a sentence takes the place of the
 /// mood it plays under, and a form moving unlike its species has its own.

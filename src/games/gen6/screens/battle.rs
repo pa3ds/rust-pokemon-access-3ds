@@ -1,6 +1,6 @@
 //! The battle's HP: who is on each side, at what level, and how hurt.
 //!
-//! The user's rule (2026-09-16): say the player's side whole whenever its HP changes — "Torchic ♀
+//! The rule: say the player's side whole whenever its HP changes — "Torchic ♀
 //! L5 20/20" — and the enemy the same but as a percentage, "Wurmple ♂ L2 80%", because ORAS draws
 //! the enemy a bar and never a number, and anything the game does not show is an Extra.
 //!

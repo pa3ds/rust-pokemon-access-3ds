@@ -148,8 +148,8 @@ fn test_nothing_is_news_before_the_manager_is_found() {
 }
 
 /// Only a sweep of the whole heap finds the manager, and the first can come before the game
-/// has built it: every key said "no map" until the scheduled sweep 30 s later (the user's
-/// session of 2026-09-27 23:48).
+/// has built it: every key said "no map" until the scheduled sweep 30 s later (a session
+/// of 2026-09-27 23:48).
 #[test]
 fn test_a_sweep_is_asked_for_every_few_seconds_until_the_manager_is_found() {
     let game = Game::new();

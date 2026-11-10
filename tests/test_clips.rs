@@ -23,7 +23,7 @@ impl Output for FakeOut {
     }
 }
 
-/// Orion, 2026-11-02: one Pokémon's cry cut off another's, and waiting their turn they would
+/// One Pokémon's cry cut off another's, and waiting their turn they would
 /// come too late. A voice a side: a cry cuts off its own Pokémon's last, not the others'.
 #[test]
 fn test_each_voice_has_an_output_of_its_own() {

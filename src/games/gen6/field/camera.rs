@@ -20,7 +20,7 @@
 //! was the way they walked to a tenth of a degree (spike 105). The block is the upper screen
 //! camera's and is there on the grid too, where +0xebc reads 0 and +0xc30 is where the camera
 //! looks: pi in Parfum Palace and on Route 7, -1.22 through the palace's back door into its garden,
-//! where up walked Khai west, swinging round to -pi as he walked north up it (spike 230,
+//! where up walked the player west, swinging round to -pi as they walked north up it (spike 230,
 //! x_route-6-4.ctm, 2026-10-20). The way from where it is to what it looks at turns with it, to the
 //! tenth of a degree.
 //!

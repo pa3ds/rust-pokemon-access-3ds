@@ -120,8 +120,7 @@ pub struct Ui {
     pub pauses: bool,
     pub interrupt: bool,
     pub unfocused: bool,
-    /// On unless turned off: a scene left undescribed is music and silence (Khai, 2026-11-07,
-    /// ADR-0038 as amended).
+    /// On unless turned off: a scene left undescribed is music and silence (ADR-0038 as amended).
     pub descriptions: bool,
     pub language: String,
     /// How many Pokémon a trainer has, as its battle opens: said, "2 Pokémon", after "You are
@@ -331,8 +330,8 @@ pub struct Amie {
     /// given or the one said has gone: three said together took 1.5 s.
     pub one_at_a_time: bool,
     /// How Berry Picker says a Pokémon: by its name, by its own cry toward its side, or both (a
-    /// player's request; Orion named it and its words, 2026-11-02, `feedback_style` for both games
-    /// until players asked for cries in one and not the other, 2026-11-04).
+    /// player's request, `feedback_style` for both games until players asked for cries in one and
+    /// not the other, 2026-11-04).
     pub berry_picker_style: String,
     /// Head It plays the game's "!" as the moment to tap a ball comes: an aid, off as it ships
     /// (the game's sound in place of a tone).
@@ -796,9 +795,9 @@ pub fn fill(text: &str) -> Result<(String, Vec<String>)> {
 /// with the comment above it, and `[azahar]`'s that Azahar lacks; a table pa3ds does not have
 /// taken out whole; and the tables in `TABLES`' order, `[azahar]` last, where a table added to
 /// the file had gone at its end. The text as it was where nothing needs it, and what was taken
-/// out. Run after `fill`, which carries a moved setting's value before its old line goes (Orion,
-/// 2026-11-04: `[pa3ds.ui] tones` was left behind after it moved to `[pa3ds.audio]`, and
-/// `[pa3ds.touch]` and `[pa3ds.amie]` came after `[azahar]`).
+/// out. Run after `fill`, which carries a moved setting's value before its old line goes
+/// (`[pa3ds.ui] tones` was left behind after it moved to `[pa3ds.audio]`, and `[pa3ds.touch]` and
+/// `[pa3ds.amie]` came after `[azahar]`).
 pub fn tidy(text: &str, azahar_lacks: &[String]) -> (String, Vec<String>) {
     let order: Vec<&str> = TABLES.into_iter().chain([EMULATOR_SECTION]).collect();
     let mut kept: Vec<(String, Vec<String>)> = Vec::new();
