@@ -1434,14 +1434,16 @@ fn test_every_species_has_sentences_each_naming_it_and_an_animation_pa3ds_reads(
 }
 
 /// Panes of the Switch screen by their places: three of the party's buttons and the chosen
-/// Pokémon's picture; and of the page lying under it. Python's are panes 1 to 5 of a fake
-/// `Layouts`; here panes of `FakeLayouts` at these addresses, the last under a layout of its own.
-const PLACES: [(i64, (f32, f32)); 5] = [
+/// Pokémon's picture; and of the page lying under it; and a picture where a seventh button would be.
+/// Python's are panes 1 to 6 of a fake `Layouts`; here panes of `FakeLayouts` at these addresses,
+/// the fifth under a layout of its own.
+const PLACES: [(i64, (f32, f32)); 6] = [
     (0x08A31000, (-125.0, 66.0)),
     (0x08A32000, (-75.0, 70.0)),
     (0x08A33000, (-25.0, 66.0)),
     (0x08A34000, (-87.0, 15.0)),
     (0x08A41000, (-75.0, 66.0)),
+    (0x08A36000, (175.0, 66.0)),
 ];
 
 /// They said "button pokémon", the icon they draw saying nothing of whose (Orion, 2026-11-06).
@@ -1495,7 +1497,7 @@ fn test_the_switch_screens_buttons_are_named_by_the_party_member_their_place_hol
             })
         }),
     );
-    let [first, second, third, chosen, under] = PLACES.map(|(pane, _)| pane);
+    let [first, second, third, chosen, under, seventh] = PLACES.map(|(pane, _)| pane);
     assert_eq!(screen.name(first, Some(FIELD)).unwrap(), None); // not that screen
     screen
         .reworded(
@@ -1528,6 +1530,9 @@ fn test_the_switch_screens_buttons_are_named_by_the_party_member_their_place_hol
     // the chosen Pokémon's own picture, lower down
     assert_eq!(screen.name(chosen, Some(FIELD)).unwrap(), None);
     assert_eq!(screen.name(first, Some(amie::AMIE)).unwrap(), None);
+    // A stale list can count past six (`partyicons`), and the party holds six at most.
+    memory.write(party + COUNT, &[9]);
+    assert_eq!(screen.name(seventh, Some(FIELD)).unwrap(), None);
 }
 
 /// The game's words and how many of the five pictures beside them are filled, the heart over

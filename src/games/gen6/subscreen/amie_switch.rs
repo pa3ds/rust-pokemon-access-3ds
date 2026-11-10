@@ -27,7 +27,7 @@ use crate::games::common::layout::Layouts;
 use crate::games::common::pokemon;
 use crate::games::common::screen::ScreenText;
 use crate::games::common::touch::ImageOf;
-use crate::games::gen6::screens::partyicons::COUNT;
+use crate::games::gen6::screens::partyicons::{COUNT, SLOTS};
 use crate::games::gen6::subscreen::amie::{METER, PAGE_APPS};
 use crate::games::gen6::subscreen::berry_picker::Name;
 use crate::games::gen6::subscreen::super_training::pictures;
@@ -166,7 +166,7 @@ impl SwitchScreen {
             return Ok(None);
         };
         let head = self.memory.read(party, COUNT + 1)?;
-        if !(0 <= slot && slot < i64::from(head[COUNT as usize])) {
+        if !(0 <= slot && slot < i64::from(head[COUNT as usize]).min(SLOTS)) {
             return Ok(None);
         }
         let found = pokemon::read(
