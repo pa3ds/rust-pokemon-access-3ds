@@ -56,7 +56,9 @@ fn replay_settings(name: &str, tape: &Rc<Tape>) -> Settings {
         }),
         tables: Tables {
             ui: Ui {
-                descriptions: name.ends_with(DESCRIBED),
+                // On for a described tape, and as the settings ship otherwise, on since
+                // 2026-11-07, as `spikes/tape_replay.py`'s `with_descriptions`.
+                descriptions: name.ends_with(DESCRIBED) || defaults.tables.ui.descriptions,
                 ..defaults.tables.ui.clone()
             },
             ..defaults.tables.clone()

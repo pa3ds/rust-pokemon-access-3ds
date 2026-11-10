@@ -120,6 +120,8 @@ pub struct Ui {
     pub pauses: bool,
     pub interrupt: bool,
     pub unfocused: bool,
+    /// On unless turned off: a scene left undescribed is music and silence (Khai, 2026-11-07,
+    /// ADR-0038 as amended).
     pub descriptions: bool,
     pub language: String,
     /// How many Pokémon a trainer has, as its battle opens: said, "2 Pokémon", after "You are
@@ -133,7 +135,7 @@ impl Default for Ui {
             pauses: false,
             interrupt: false,
             unfocused: false,
-            descriptions: false,
+            descriptions: true,
             language: String::new(),
             trainer_party: PARTY_TEXT.to_string(),
         }
