@@ -48,9 +48,10 @@
 //! and the press stays down, a lift starting its count afresh. So the **stylus**, a point the arrow
 //! keys move over the Pokémon while Amie runs (`StylusKeys`), or jump with Ctrl to the next part,
 //! says the part it comes onto by a name of pa3ds's own for that Pokémon's or form's part where it
-//! has one (`amie.ftl`), else by its kind (`PARTS`); it stays on that part as the Pokémon moves
-//! (`AmiePage.follow`), and near the Pokémon (`AmiePage.outline`); and touch mode's tap or drag on it
-//! rubs back and forth across the part (`AmiePage.rub`), carried on as it moves.
+//! has one (`amie.ftl`), else by its kind (`PARTS`); it moves with that part as the Pokémon moves, as
+//! far as the part does (`AmiePage.follow`), and keeps near the Pokémon (`AmiePage.outline`); and
+//! touch mode's tap or drag on it rubs back and forth across the part (`AmiePage.rub`), carried on as
+//! it moves.
 //!
 //! Bound by:
 //! - ADR-0009: the stylus the arrows move, tapped, rubbed or dragged only by touch mode's keys, and
@@ -58,6 +59,7 @@
 
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::LazyLock;
 
 use indexmap::IndexMap;
 
@@ -117,8 +119,10 @@ pub const PICTURE_HOLDER: &str = "N3gfl4heap11NwAllocatorE";
 /// The picture's two buffers, and after them which is current, 0 or 1.
 pub const BUFFERS: i64 = 0x164;
 pub const PICTURE: i64 = 0x30000;
-/// Where the screen's picture starts in a buffer, and how far apart its columns are.
 pub const COLUMN: i64 = 0x400;
+/// Where the screen's picture starts in a buffer, how far apart its columns are, and how many
+/// pixels that is.
+pub const PER_COLUMN: i64 = COLUMN / 4;
 /// Where a drag carries a Poké Puff to on the Pokémon, its mouth: held there, Pikachu leaned in,
 /// ate it in about 2.5 s and showed a heart; held at the screen's middle, over its eyes, it frowned
 /// and turned away, and 17 above its mouth it ate nothing in 3.5 s (or_amie_dragging_puffs, spike
@@ -172,6 +176,20 @@ pub const FRESH: f64 = 0.1;
 pub const WINDOW: i64 = 32;
 /// How far the part the stylus is on is looked for once it has moved off it.
 pub const NEAR: i64 = 20;
+/// How far round the stylus the edges of its part are compared from one read of the picture to
+/// the next, to tell how far the part moved (`moved`).
+pub const TRACK: i64 = 20;
+pub const SHIFT: i64 = 10;
+/// How far a part is looked for having moved between two reads, a tenth of a second apart
+/// (`FRESH`), either way; the nearest first, which a tie goes to.
+pub static SHIFTS: LazyLock<Vec<(i64, i64)>> = LazyLock::new(|| {
+    let mut shifts: Vec<(i64, i64)> = (-SHIFT..SHIFT + 1)
+        .flat_map(|dx| (-SHIFT..SHIFT + 1).map(move |dy| (dx, dy)))
+        .collect();
+    // Python's `sorted` by an int key, which is stable, as `sort_by_key` is.
+    shifts.sort_by_key(|d| d.0.pow(2) + d.1.pow(2));
+    shifts
+});
 /// How far either side of the stylus a rub goes at most, on its part: at 20, rubbing Pikachu's
 /// chin reached its cheeks (Orion, or_amie_moods).
 pub const RUB_REACH: i64 = 12;
@@ -263,12 +281,26 @@ pub struct Band {
     pub first: i64,
     pub data: Vec<u8>,
     pub last: i64,
+    /// A byte a pixel, its grey, column by column from the bottom up as `data` is: (x, y)
+    /// at `at`.
+    pub greys: Vec<u8>,
 }
 
 impl Band {
     pub fn new(first: i64, data: Vec<u8>) -> Self {
         let last = first + data.len() as i64 / COLUMN - 1;
-        Band { first, data, last }
+        let greys = data.iter().skip(1).step_by(4).copied().collect();
+        Band {
+            first,
+            data,
+            last,
+            greys,
+        }
+    }
+
+    /// Where (x, y) is in `greys`, which `PER_COLUMN` apart a column.
+    pub fn at(&self, x: i64, y: i64) -> i64 {
+        (x - self.first) * PER_COLUMN + touch::HEIGHT - 1 - y
     }
 
     /// The grey drawn at a pixel, `OFF_PICTURE` off the Pokémon, or None outside the band.
@@ -327,6 +359,54 @@ impl Band {
     }
 }
 
+/// How far the part at (x, y) in one read of the picture moved by the next: the shift within
+/// `SHIFT` that lines up the most of its edges within `TRACK` of (x, y), the pixels on both sides
+/// of them, with the later read; (0, 0) where no shift lines up more than none, or no edge of the
+/// part is that near (Orion, 2026-11-06: "if the pokemon moved 3 pixels, the stylus moves 3
+/// pixels in the same direction").
+pub fn moved(before: &Band, after: &Band, x: i64, y: i64) -> (i64, i64) {
+    let (old, new) = (&before.greys, &after.greys);
+    let mine = old[before.at(x, y) as usize];
+    let mut edges: Vec<(i64, u8)> = Vec::new();
+    let across = (x - TRACK).max(before.first + 1).max(after.first + SHIFT)
+        ..(x + TRACK).min(before.last - 1).min(after.last - SHIFT) + 1;
+    for px in across {
+        for py in (y - TRACK).max(SHIFT)..(y + TRACK).min(touch::HEIGHT - 1 - SHIFT) + 1 {
+            let at = before.at(px, py);
+            let grey = old[at as usize];
+            let around = [at + 1, at - 1, at + PER_COLUMN, at - PER_COLUMN];
+            if around
+                .iter()
+                .any(|&near| (old[near as usize] == mine) != (grey == mine))
+            {
+                edges.push((after.at(px, py), grey));
+            }
+        }
+    }
+    if edges.is_empty() {
+        return (0, 0);
+    }
+    let lined_up = |shift: (i64, i64)| -> usize {
+        let off = shift.0 * PER_COLUMN - shift.1;
+        edges
+            .iter()
+            .filter(|&&(at, grey)| new[(at + off) as usize] == grey)
+            .count()
+    };
+    if lined_up((0, 0)) == edges.len() {
+        return (0, 0);
+    }
+    // Python's `max(SHIFTS, key=lined_up)`: the first of equal bests.
+    let mut best = (SHIFTS[0], lined_up(SHIFTS[0]));
+    for &shift in &SHIFTS[1..] {
+        let count = lined_up(shift);
+        if count > best.1 {
+            best = (shift, count);
+        }
+    }
+    best.0
+}
+
 /// Names the picture of the Pokémon the Pokémon-Amie page shows by its species, and offers
 /// Amie's Pokémon to beckon and its stylus to rub with.
 pub struct AmiePage {
@@ -360,6 +440,8 @@ pub struct AmiePage {
     whole: (f64, Option<Rc<Band>>),
     /// When the band of the picture round the stylus was read, and the band.
     band: (f64, Option<Rc<Band>>),
+    /// The band the stylus was last moved with its part by (`follow`).
+    tracked: Option<Rc<Band>>,
 }
 
 impl AmiePage {
@@ -405,6 +487,7 @@ impl AmiePage {
             live: None,
             whole: (f64::NEG_INFINITY, None),
             band: (f64::NEG_INFINITY, None),
+            tracked: None,
         }
     }
 
@@ -621,29 +704,41 @@ impl AmiePage {
         Ok(())
     }
 
-    /// Keep the stylus on its part as the Pokémon moves: where the part has gone from under
-    /// it, onto the part's pixel nearest it within `NEAR`, the middle of its run across. The
-    /// part it is kept on is the one the arrows last left it on, or before any, the first it is
-    /// found on: chosen by touch mode's keys alone, it had kept to nothing (or_amie_moods).
+    /// Move the stylus with the part under it as the Pokémon moves, as far as the part moved
+    /// since the picture was last read (`moved`); and where the part has gone from under it all
+    /// the same, onto the part's pixel nearest it within `NEAR`, the middle of its run across.
+    /// The part it is kept on is the one the arrows last left it on, or before any, the first it
+    /// is found on: chosen by touch mode's keys alone, it had kept to nothing (or_amie_moods).
     /// Whether it moved.
     pub fn follow(&mut self) -> Result<bool> {
         if self.kept.is_none() {
             self.keep()?;
         }
-        let band = self.read()?;
-        let (x, y) = self.stylus;
-        let (Some(kept), Some(band)) = (self.kept, band) else {
+        let (before, band) = (self.tracked.clone(), self.read()?);
+        self.tracked = band.clone();
+        let Some(band) = band else {
             return Ok(false);
         };
-        if kept == OFF_PICTURE || band.grey(x, y) == Some(kept) {
-            return Ok(false);
+        let start = self.stylus;
+        let (mut x, mut y) = start;
+        if let Some(before) = before
+            && !Rc::ptr_eq(&band, &before)
+            && before.grey(x, y).is_some()
+        {
+            let (dx, dy) = moved(&before, &band, x, y);
+            x = (x + dx).clamp(0, touch::WIDTH - 1);
+            y = (y + dy).clamp(0, touch::HEIGHT - 1);
+            self.stylus = (x, y);
         }
-        let Some(found) = band.nearest(x, y, kept, NEAR) else {
-            return Ok(false);
-        };
-        let (left, right) = band.run(found.0, found.1, true);
-        self.stylus = (py::floordiv(left + right, 2), found.1);
-        Ok(true)
+        if let Some(kept) = self.kept
+            && kept != OFF_PICTURE
+            && band.grey(x, y) != Some(kept)
+            && let Some(found) = band.nearest(x, y, kept, NEAR)
+        {
+            let (left, right) = band.run(found.0, found.1, true);
+            self.stylus = (py::floordiv(left + right, 2), found.1);
+        }
+        Ok(self.stylus != start)
     }
 
     /// Where a rub with the stylus goes: back and forth across the part it is on, the way the
@@ -1164,6 +1259,7 @@ impl StylusKeys {
         touch: &mut dyn Touching,
     ) -> Result<String> {
         let page = self.page.clone();
+        page.borrow_mut().follow()?; // a step from where the part has moved it to since the last poll
         let moved = if let Some((_, (across, down))) =
             STYLUS_JUMPS.iter().find(|(name, _)| *name == action)
         {

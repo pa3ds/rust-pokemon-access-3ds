@@ -293,27 +293,41 @@ fn test_a_rub_goes_across_the_part_the_stylus_is_on_the_way_it_is_longer() {
     );
 }
 
-/// Orion, 2026-11-05: Pikachu moved, and the stylus left its chin. The part the arrows left
-/// it on it is kept on, the middle of its row nearest where it was.
+/// Orion, 2026-11-05: Pikachu moved, and the stylus left its chin. Kept on its part by the
+/// middle of its row, a step off the head was the head again as Pikachu bounced (2026-11-06):
+/// "if the pokemon moved 3 pixels, the stylus moves 3 pixels in the same direction".
 #[test]
-fn test_the_stylus_is_kept_on_its_part_as_the_pokemon_moves() {
+fn test_the_stylus_moves_with_its_part_as_far_as_the_part_moves() {
     let now = Rc::new(Cell::new(100.0));
     let _thawed = frozen(&now);
     let (mut found, memory) = running(&[(9, BODY), (8, HEAD), (17, (180, 100, 190, 110))], true);
+    // The head and body moved by (dx, dy), and the cheek where given.
+    let drawn = |dx: i64, dy: i64, cheek: (i64, i64, i64, i64)| {
+        pokemon(
+            &memory,
+            &[
+                (9, (100 + dx, 120 + dy, 220 + dx, 230 + dy)),
+                (8, (100 + dx, 60 + dy, 220 + dx, 120 + dy)),
+                (17, cheek),
+            ],
+        );
+        now.set(now.get() + 1.0);
+    };
     found.stylus = (185, 105);
     found.keep().unwrap();
     assert!(!found.follow().unwrap());
-    pokemon(&memory, &[(9, BODY), (8, HEAD), (17, (170, 104, 180, 114))]); // moved 10 left, 4 down
-    now.set(now.get() + 1.0);
-    assert!(found.follow().unwrap() && found.stylus == (174, 105));
+    drawn(3, -2, (183, 98, 193, 108)); // all of it 3 right and 2 up
+    assert!(found.follow().unwrap() && found.stylus == (188, 103));
     assert!(!found.follow().unwrap());
-    pokemon(&memory, &[(9, BODY), (8, HEAD), (17, (100, 200, 110, 210))]); // gone far off
-    now.set(now.get() + 1.0);
-    assert!(!found.follow().unwrap() && found.stylus == (174, 105));
+    drawn(3, -2, (173, 102, 183, 112)); // the cheek alone 10 left and 4 down
+    assert!(found.follow().unwrap() && found.stylus == (178, 107));
+    drawn(3, -2, (100, 200, 110, 210)); // the cheek gone far off
+    assert!(!found.follow().unwrap() && found.stylus == (178, 107));
     found.stylus = (20, 20);
-    found.keep().unwrap(); // off the Pokémon: kept on nothing
-    pokemon(&memory, &[(9, BODY), (8, HEAD), (17, (20, 30, 30, 40))]);
-    now.set(now.get() + 1.0);
+    found.keep().unwrap(); // off the Pokémon, and far from it: kept on nothing, and where it is
+    drawn(0, 0, (180, 100, 190, 110));
+    assert!(!found.follow().unwrap());
+    drawn(5, 0, (185, 100, 195, 110));
     assert!(!found.follow().unwrap() && found.stylus == (20, 20));
 }
 
