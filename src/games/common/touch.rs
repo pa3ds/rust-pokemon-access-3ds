@@ -53,7 +53,7 @@ use std::rc::Rc;
 use indexmap::{IndexMap, IndexSet};
 
 use crate::core::binary::{f32, u32};
-use crate::core::config::Touch;
+use crate::core::config::{DRAG_TOGGLE, Touch};
 use crate::core::touch::TouchScreen;
 use crate::core::words::own;
 use crate::games::common::layout::Layouts;
@@ -105,6 +105,12 @@ pub const DROPPED: &str = "touch-dropped";
 /// 0.15, the quicker giving the more before each Pokémon left, and 12 of 31 at 0.05, where each
 /// third is a game frame and a half.
 pub const DROP_SECONDS: f64 = 0.15;
+/// How long a tap on a target touched by rubbing rubs; another tap before it ends carries the rub
+/// on, never lifting (Orion, 2026-11-05).
+pub const RUB_SECONDS: f64 = 1.0;
+/// How long a drag held on such a target waits before it rubs: Shift pressed and let go alone,
+/// as to quiet a screen reader, touches nothing (ADR-0009).
+pub const RUB_DELAY: f64 = 0.25;
 /// `[pa3ds.touch]` as it ships.
 pub fn default_touch() -> Touch {
     Touch::default()
@@ -134,6 +140,9 @@ pub struct Target {
     /// Where a drag carries a press to on it, where not its middle: Amie's Pokémon takes a puff
     /// at its mouth (`amie.MOUTH`).
     pub drop: Option<(i64, i64)>,
+    /// The two ends a touch on it rubs between, for a target touched by rubbing, Amie's stylus:
+    /// a tap rubs `RUB_SECONDS`, a drag until it is let go; none for a tap.
+    pub rub: Option<((i64, i64), (i64, i64))>,
 }
 
 impl Target {
@@ -151,6 +160,7 @@ impl Target {
             path: Vec::new(),
             seconds: 0.0,
             drop: None,
+            rub: None,
         }
     }
 }
@@ -269,6 +279,10 @@ pub struct TouchMode {
     /// Whether the press is down: from the first move away from the target picked up, where the
     /// screen does not drag only on letting go.
     pressed: bool,
+    /// Whether the drag picked up a target touched by rubbing, and rubs it until let go.
+    rubbing: bool,
+    /// When the rub a tap began ends, which another tap or a move of the target carries on.
+    rubbed_until: f64,
     chosen: Option<i64>,
 }
 
@@ -294,6 +308,8 @@ impl TouchMode {
             picked: None,
             over: None,
             pressed: false,
+            rubbing: false,
+            rubbed_until: 0.0,
             chosen: None,
         }
     }
@@ -340,7 +356,22 @@ impl TouchMode {
                 return Ok(own("touch-off", &[]));
             }
             // Nothing is pressed until the keys choose another target: Shift pressed and let go
-            // alone, as to pause a screen reader, touches nothing (ADR-0009).
+            // alone, as to pause a screen reader, touches nothing (ADR-0009). But a target
+            // touched by rubbing rubs at once, held a moment first where the key is held.
+            if let Some(ends) = target.rub {
+                let delay = if self.settings.drag == DRAG_TOGGLE {
+                    0.0
+                } else {
+                    RUB_DELAY
+                };
+                let screen = self.screen.as_ref().expect("checked above");
+                if let Some(why) = screen.rub(ends, None, delay)
+                    && !why.is_empty()
+                {
+                    return Ok(why);
+                }
+                (self.pressed, self.rubbing) = (true, true);
+            }
             self.picked = Some(target.clone());
             self.over = Some(target.clone());
             (self.log)(&format!(
@@ -358,6 +389,9 @@ impl TouchMode {
         }
         if action == TAP {
             let target = &found[at];
+            if target.rub.is_some() {
+                return Ok(self.rub(target));
+            }
             if !target.path.is_empty() {
                 let Some(screen) = &self.screen else {
                     return Ok(own("touch-off", &[]));
@@ -419,15 +453,48 @@ impl TouchMode {
         Ok(self.said(&found[at]))
     }
 
-    /// Choose a target a screen's own key has moved, carrying a drag picked up on to where
-    /// it is now, with its name to say: Pokémon-Amie's stylus (`amie.StylusKeys`).
-    pub fn choose(&mut self, pane: i64) -> Result<String> {
+    /// Choose a target a screen's own key has moved, carrying a drag picked up, or a tap's
+    /// rub, on to where it is now, with its name to say: Pokémon-Amie's stylus
+    /// (`amie.StylusKeys`). `quiet` says nothing and sounds no tone, for a target the screen
+    /// moves itself, the stylus kept on its part as the Pokémon moves.
+    pub fn choose(&mut self, pane: i64, quiet: bool) -> Result<String> {
         let Some(target) = (self.targets)()?.into_iter().find(|t| t.pane == pane) else {
             return Ok(String::new());
         };
         self.chosen = Some(pane);
         self.carry(&target);
-        Ok(self.said(&target))
+        let left = self.rubbed_until - py::time::monotonic();
+        if self.picked.is_none()
+            && let Some(ends) = target.rub
+            && left > 0.0
+            && let Some(screen) = &self.screen
+        {
+            screen.rub(ends, Some(left), 0.0);
+        }
+        Ok(if quiet {
+            String::new()
+        } else {
+            self.said(&target)
+        })
+    }
+
+    /// Rub a target touched by rubbing for `RUB_SECONDS`, with the line to say: a tap's, which
+    /// another before it ends carries on, never lifting.
+    pub fn rub(&mut self, target: &Target) -> String {
+        let (Some(screen), Some(ends)) = (&self.screen, target.rub) else {
+            return own("touch-off", &[]);
+        };
+        (self.log)(&format!(
+            "touch: rub {} between [{:?}, {:?}]",
+            target.name, ends.0, ends.1
+        ));
+        if let Some(why) = screen.rub(ends, Some(RUB_SECONDS), 0.0)
+            && !why.is_empty()
+        {
+            return why;
+        }
+        self.rubbed_until = py::time::monotonic() + RUB_SECONDS;
+        String::new()
     }
 
     /// Whether a target is picked up to drag (`DRAG`), pressed yet or not.
@@ -440,7 +507,7 @@ impl TouchMode {
     /// from the target picked up straight to the one chosen, or not at all on the same one.
     pub fn drop(&mut self) -> String {
         let (picked, over, pressed) = (self.picked.take(), self.over.take(), self.pressed);
-        self.pressed = false;
+        (self.pressed, self.rubbing) = (false, false);
         let (Some(picked), Some(over)) = (picked, over) else {
             return String::new();
         };
@@ -513,6 +580,12 @@ impl TouchMode {
         }
         let (picked, screen) = (picked.clone(), screen.clone());
         self.over = Some(target.clone());
+        if self.rubbing {
+            let point = point(target);
+            screen.rub(target.rub.unwrap_or((point, point)), None, 0.0);
+            (self.log)(&format!("touch: rub on {} at {point:?}", target.name));
+            return;
+        }
         if (self.delayed)() {
             (self.log)(&format!("touch: choose {}", target.name));
             return;
@@ -1009,6 +1082,7 @@ impl TouchTargets {
                     path: Vec::new(),
                     seconds: 0.0,
                     drop: None,
+                    rub: None,
                 });
             }
             // A touch area hanging straight from the root is the screen's, and the buttons inside
@@ -1125,6 +1199,7 @@ impl TouchTargets {
                     path: Vec::new(),
                     seconds: 0.0,
                     drop: None,
+                    rub: None,
                 });
             }
         }

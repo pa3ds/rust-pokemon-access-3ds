@@ -1,6 +1,6 @@
 //! The Pokémon-Amie page's Pokémon is named by its species, through the icon it is drawn with.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 use indexmap::IndexMap;
@@ -18,7 +18,7 @@ use crate::games::gen6::screens::distribution as d;
 use crate::games::gen6::subscreen::amie;
 use crate::games::gen6::subscreen::berry_picker::Touching;
 use crate::games::xy;
-use crate::py::Result;
+use crate::py::{Result, time};
 
 pub(crate) const PAGE: i64 = 0x08A00000;
 const HOLDER: i64 = 0x08A01000;
@@ -148,8 +148,10 @@ fn test_a_picture_drawing_another_image_is_not_named() {
     assert_eq!(page(amie::NUMBER).0.name(OTHER, Some(FIELD)).unwrap(), None);
 }
 
+/// Orion, 2026-11-05: the Pokémon is offered to beckon, a press of 0.4 s, as presses held
+/// apart turned Ralts round (spike 276); a puff is dragged to its mouth (spike 257).
 #[test]
-fn test_amie_itself_offers_its_pokemon_to_stroke_by_the_species_the_page_showed() {
+fn test_amie_itself_offers_its_pokemon_to_beckon_by_the_species_the_page_showed() {
     let (mut found, memory) = page(amie::NUMBER);
     memory.u32(PAGE, &[0]); // the page freed as Amie runs
     assert!(
@@ -158,20 +160,25 @@ fn test_amie_itself_offers_its_pokemon_to_stroke_by_the_species_the_page_showed(
             .unwrap()
             .is_empty()
     );
-    let strokes = found.targets(Some(amie::AMIE)).unwrap();
-    let [stroke, _stylus] = strokes.as_slice() else {
-        panic!("a stroke and the stylus: {strokes:?}");
+    let targets = found.targets(Some(amie::AMIE)).unwrap();
+    let [beckon, _stylus] = targets.as_slice() else {
+        panic!("a beckon and the stylus: {targets:?}");
     };
     assert_eq!(
-        (stroke.name.as_str(), stroke.path.clone(), stroke.seconds),
         (
-            "stroke Sceptile",
-            amie::STROKE.to_vec(),
-            amie::STROKE_SECONDS
+            beckon.name.as_str(),
+            beckon.path.clone(),
+            beckon.seconds,
+            beckon.rub
+        ),
+        (
+            "beckon Sceptile",
+            vec![amie::BECKON],
+            amie::BECKON_SECONDS,
+            None
         )
     );
-    // A puff is dragged to its mouth, not its middle (spike 257).
-    assert!(stroke.drop == Some(amie::MOUTH) && stroke.drop != Some((stroke.x, stroke.y)));
+    assert!(beckon.drop == Some(amie::MOUTH) && beckon.drop != Some((beckon.x, beckon.y)));
 }
 
 const PLAYER: i64 = 0x08A08000;
@@ -195,6 +202,11 @@ fn pokemon(memory: &FakeMemory, parts: &[(u8, (i64, i64, i64, i64))]) {
 }
 
 fn amie_running(parts: &[(u8, (i64, i64, i64, i64))], aimed: bool) -> amie::AmiePage {
+    running(parts, aimed).0
+}
+
+/// Amie running, its picture of parts drawn as `pokemon` draws it: the page and the memory.
+fn running(parts: &[(u8, (i64, i64, i64, i64))], aimed: bool) -> (amie::AmiePage, Rc<FakeMemory>) {
     let (mut found, memory) = page_aimed(amie::NUMBER, aimed);
     let classes = FakeClasses::starting(memory.clone(), CODE.0 + 0x8000);
     let player = classes.add(amie::PLAYER);
@@ -215,62 +227,93 @@ fn amie_running(parts: &[(u8, (i64, i64, i64, i64))], aimed: bool) -> amie::Amie
             true,
         )
         .unwrap();
-    found
+    (found, memory)
 }
 
-/// The game tells the Pokémon's parts by a picture of it a grey a part, 8 its head and 9 its
-/// body on every Pokémon (spike 280); the stroke stays on plain head, off its eyes (4 and 6).
+/// Rectangles of a Pokémon's head and body in its picture of parts, x 100 to 219.
+const HEAD: (i64, i64, i64, i64) = (100, 60, 220, 120);
+const BODY: (i64, i64, i64, i64) = (100, 120, 220, 230);
+
+/// `monkeypatch.setattr(amie.time, "monotonic", lambda: now[0])`: this thread's clock reads
+/// `now` until the guard drops.
+struct Frozen(Rc<Cell<f64>>);
+
+impl time::Clock for Frozen {
+    fn monotonic(&mut self) -> f64 {
+        self.0.get()
+    }
+
+    fn sleep(&mut self, _seconds: f64, _ends_tick: bool) {}
+}
+
+struct Thawed;
+
+impl Drop for Thawed {
+    fn drop(&mut self) {
+        time::set_clock(None);
+    }
+}
+
+fn frozen(now: &Rc<Cell<f64>>) -> Thawed {
+    time::set_clock(Some(Box::new(Frozen(now.clone()))));
+    Thawed
+}
+
+/// Amie counts a pet only while the hand moves 4 pixels a tick on one kind of part (spike A):
+/// a rub stays on the part, `NEAR` at most either side of the stylus, and 12 pixels at least.
 #[test]
-fn test_the_stroke_goes_along_the_widest_row_of_the_pokemons_head_in_the_games_picture() {
+fn test_a_rub_goes_across_the_part_the_stylus_is_on_the_way_it_is_longer() {
     let mut found = amie_running(
         &[
-            (9, (110, 120, 210, 230)),
-            (8, (100, 60, 220, 120)),
-            (4, (130, 60, 140, 120)),
-            (6, (180, 80, 190, 100)),
+            (9, BODY),
+            (8, HEAD),
+            (27, (140, 60, 180, 70)),
+            (17, (180, 100, 186, 140)),
+            (25, (100, 60, 108, 66)),
         ],
         true,
     );
-    let strokes = found.targets(Some(amie::AMIE)).unwrap();
-    let [stroke, _stylus] = strokes.as_slice() else {
-        panic!("a stroke and the stylus: {strokes:?}");
+    let mut rub = |x: i64, y: i64| {
+        found.stylus = (x, y);
+        found.targets(Some(amie::AMIE)).unwrap()[1].rub
     };
-    // Rows 80 to 100 are broken by both eyes; above, only the right eye: 140 to 219 is 80 wide.
-    // Back and forth as far as the old stroke went, 500 pixels: 9 passes of 55.
-    assert_eq!(stroke.path, [(152, 62), (207, 62)].repeat(5));
+    assert_eq!(rub(150, 90), Some(((130, 90), (170, 90)))); // the head: across, wider than tall
+    assert_eq!(rub(183, 120), Some(((183, 103), (183, 137)))); // a cheek's strip: down it
+    assert_eq!(rub(160, 65), Some(((143, 65), (177, 65)))); // a sweet spot's strip: across it
+    assert_eq!(rub(104, 62), Some(((97, 62), (109, 62)))); // an ear tip, 8 across: a little past it
+    assert_eq!(rub(20, 20), Some(((14, 20), (26, 20)))); // off the Pokémon: where it is
+    // Where the picture cannot be read, before Azahar 2126.2, it rubs where it is all the same.
     assert_eq!(
-        (stroke.name.as_str(), stroke.seconds, stroke.drop),
-        ("stroke Sceptile", amie::STROKE_SECONDS, Some(amie::MOUTH))
+        amie_running(&[(8, HEAD)], false)
+            .targets(Some(amie::AMIE))
+            .unwrap()[1]
+            .rub,
+        Some(((154, 120), (166, 120)))
     );
 }
 
+/// Orion, 2026-11-05: Pikachu moved, and the stylus left its chin. The part the arrows left
+/// it on it is kept on, the middle of its row nearest where it was.
 #[test]
-fn test_a_head_too_narrow_to_stroke_leaves_the_stroke_on_the_body() {
-    let mut found = amie_running(&[(9, (100, 120, 220, 230)), (8, (150, 90, 170, 120))], true);
-    assert_eq!(
-        found.targets(Some(amie::AMIE)).unwrap()[0].path,
-        [(118, 122), (201, 122)].repeat(4)[..7]
-    );
-}
-
-#[test]
-fn test_with_no_picture_the_stroke_crosses_the_middle_as_before() {
-    let mut found = amie_running(&[], true);
-    assert_eq!(
-        found.targets(Some(amie::AMIE)).unwrap()[0].path,
-        amie::STROKE
-    );
-}
-
-/// Reading what the GPU draws into crashed Orion's Azahar 2126.1.1 twice as he stroked
-/// Pikachu (spike 149's race); before 2126.2 the stroke crosses the middle as it always did.
-#[test]
-fn test_an_azahar_that_cannot_read_beside_the_gpu_has_its_picture_left_alone() {
-    let mut found = amie_running(&[(8, (100, 60, 220, 120))], false);
-    assert_eq!(
-        found.targets(Some(amie::AMIE)).unwrap()[0].path,
-        amie::STROKE
-    );
+fn test_the_stylus_is_kept_on_its_part_as_the_pokemon_moves() {
+    let now = Rc::new(Cell::new(100.0));
+    let _thawed = frozen(&now);
+    let (mut found, memory) = running(&[(9, BODY), (8, HEAD), (17, (180, 100, 190, 110))], true);
+    found.stylus = (185, 105);
+    found.keep().unwrap();
+    assert!(!found.follow().unwrap());
+    pokemon(&memory, &[(9, BODY), (8, HEAD), (17, (170, 104, 180, 114))]); // moved 10 left, 4 down
+    now.set(now.get() + 1.0);
+    assert!(found.follow().unwrap() && found.stylus == (174, 105));
+    assert!(!found.follow().unwrap());
+    pokemon(&memory, &[(9, BODY), (8, HEAD), (17, (100, 200, 110, 210))]); // gone far off
+    now.set(now.get() + 1.0);
+    assert!(!found.follow().unwrap() && found.stylus == (174, 105));
+    found.stylus = (20, 20);
+    found.keep().unwrap(); // off the Pokémon: kept on nothing
+    pokemon(&memory, &[(9, BODY), (8, HEAD), (17, (20, 30, 30, 40))]);
+    now.set(now.get() + 1.0);
+    assert!(!found.follow().unwrap() && found.stylus == (20, 20));
 }
 
 /// A grey is a kind of part, the same on every Pokémon (spike A): 17 Pikachu's cheek, which
@@ -316,10 +359,11 @@ fn test_where_the_picture_cannot_be_read_the_stylus_is_offered_alone() {
     assert_eq!(found.targets(Some(amie::AMIE)).unwrap()[1].name, "stylus");
 }
 
-/// Touch mode as the stylus's keys use it: where it was when each move chose it.
+/// Touch mode as the stylus's keys use it: where the stylus was when each move chose it,
+/// and whether quietly.
 struct Chosen {
     page: Rc<RefCell<amie::AmiePage>>,
-    chosen: Vec<(i64, (i64, i64))>,
+    chosen: Vec<((i64, i64), bool)>,
 }
 
 impl Touching for Chosen {
@@ -335,20 +379,21 @@ impl Touching for Chosen {
         String::new()
     }
 
-    fn choose(&mut self, pane: i64) -> Result<String> {
-        self.chosen.push((pane, self.page.borrow().stylus));
+    fn choose(&mut self, pane: i64, quiet: bool) -> Result<String> {
+        assert_eq!(pane, amie::STYLUS_TARGET);
+        self.chosen.push((self.page.borrow().stylus, quiet));
         Ok(String::new())
     }
 }
 
 /// Orion, 2026-11-05: the arrows move the stylus over the Pokémon, a step a press, and touch
-/// mode chooses it as it goes, to tap or drag there.
+/// mode chooses it as it goes, to rub there; a poll keeps it on its part, quietly.
 #[test]
 fn test_the_arrows_move_the_stylus_saying_a_part_as_it_comes_onto_one() {
-    let found = Rc::new(RefCell::new(amie_running(
-        &[(8, (100, 60, 220, 120))],
-        true,
-    )));
+    let now = Rc::new(Cell::new(100.0));
+    let _thawed = frozen(&now);
+    let (found, memory) = running(&[(8, HEAD)], true);
+    let found = Rc::new(RefCell::new(found));
     let mut chosen = Chosen {
         page: found.clone(),
         chosen: Vec::new(),
@@ -365,12 +410,25 @@ fn test_the_arrows_move_the_stylus_saying_a_part_as_it_comes_onto_one() {
     assert_eq!(
         chosen.chosen,
         [
-            (amie::STYLUS_TARGET, (160, 120)),
-            (amie::STYLUS_TARGET, (160, 114)),
-            (amie::STYLUS_TARGET, (160, 108)),
-            (amie::STYLUS_TARGET, (166, 108))
+            ((160, 120), false),
+            ((160, 114), false),
+            ((160, 108), false),
+            ((166, 108), false)
         ]
     );
+    assert!(
+        keys.poll(Some(amie::AMIE), &mut chosen).unwrap().is_empty() && chosen.chosen.len() == 4
+    );
+    pokemon(&memory, &[(8, (180, 60, 300, 120))]); // the head moved off the stylus, 80 right
+    now.set(now.get() + 1.0);
+    // Amie not running
+    assert!(keys.poll(Some(FIELD), &mut chosen).unwrap().is_empty() && chosen.chosen.len() == 4);
+    assert!(
+        keys.poll(Some(amie::AMIE), &mut chosen).unwrap().is_empty()
+            && chosen.chosen.last() == Some(&((189, 108), true))
+    );
+    let mut press =
+        |action: &str, chosen: &mut Chosen| keys.press(action, Some(amie::AMIE), chosen).unwrap();
     found.borrow_mut().stylus = (2, 0);
     assert_eq!(press("stylus left", &mut chosen), "off");
     assert_eq!(press("stylus left", &mut chosen), "! edge");

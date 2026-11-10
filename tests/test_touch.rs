@@ -306,6 +306,83 @@ fn test_a_slide_walks_its_path_evenly_and_lets_go_at_its_end() {
     assert_eq!(touch::along(&[(5, 6)], 0.0, 1.0, 0.5), Some((5, 6)));
 }
 
+#[test]
+fn test_a_rub_goes_back_and_forth_between_its_ends() {
+    let ends = ((100, 50), (120, 50));
+    assert_eq!(
+        [0.0, 10.0, 20.0, 30.0, 40.0, 45.0]
+            .iter()
+            .map(|&travelled| touch::rubbed(ends, travelled))
+            .collect::<Vec<_>>(),
+        [
+            (100, 50),
+            (110, 50),
+            (120, 50),
+            (110, 50),
+            (100, 50),
+            (105, 50)
+        ]
+    );
+    assert_eq!(touch::rubbed(((7, 7), (7, 7)), 99.0), (7, 7));
+}
+
+/// Pokémon-Amie counts a pet afresh at every press (spike A): a tap's rub lasts its second,
+/// another before it ends carries it on between the new ends, still down, and a rub held until
+/// let go is let go by `release`.
+#[test]
+fn test_a_rub_asked_for_while_one_lasts_carries_it_on_never_lifting() {
+    let server = touch::TouchServer::new(Arc::new(|_line: &str| {}), 0).unwrap();
+    let port = server.port().unwrap();
+    let client = UdpSocket::bind((touch::HOST, 0)).unwrap();
+    client
+        .set_read_timeout(Some(Duration::from_secs(1)))
+        .unwrap();
+    let touches = |seconds: f64| -> Vec<(u8, u8, i64, i64)> {
+        let mut out: Vec<(u8, u8, i64, i64)> = Vec::new();
+        let deadline = time::monotonic() + seconds;
+        let mut buffer = [0u8; 100];
+        while time::monotonic() < deadline {
+            let size = client.recv(&mut buffer).unwrap();
+            let data = &buffer[20..size];
+            out.push((data[36], data[37], u16_at(data, 38), u16_at(data, 40)));
+        }
+        out
+    };
+    let mut ask = b"DSUC".to_vec();
+    ask.extend_from_slice(&1001u16.to_le_bytes());
+    ask.extend_from_slice(&12u16.to_le_bytes());
+    ask.extend_from_slice(&0u32.to_le_bytes());
+    ask.extend_from_slice(&1u32.to_le_bytes());
+    ask.extend_from_slice(&(touch::PAD_DATA as u32).to_le_bytes());
+    ask.extend_from_slice(&[0; 8]);
+    client.send_to(&ask, (touch::HOST, port as u16)).unwrap();
+    time::sleep(0.05);
+    assert_eq!(server.rub(((100, 50), (130, 50)), Some(0.3), 0.0), None);
+    let first = touches(0.2);
+    server.rub(((200, 80), (230, 80)), Some(0.3), 0.0);
+    let second = touches(0.4);
+    let both: Vec<(u8, u8, i64, i64)> = first.iter().chain(&second).copied().collect();
+    let pressed: Vec<&(u8, u8, i64, i64)> = both.iter().filter(|state| state.0 != 0).collect();
+    let downs: std::collections::HashSet<i64> = pressed.iter().map(|state| state.3).collect();
+    assert_eq!(downs, std::collections::HashSet::from([50, 80]));
+    let across: std::collections::HashSet<i64> = pressed
+        .iter()
+        .filter(|state| state.3 == 50)
+        .map(|state| state.2)
+        .collect();
+    assert!(across.len() > 3);
+    // Down from the first press on to the end of the second, and up after it.
+    let down: Vec<u8> = both.iter().map(|state| state.0).collect();
+    let from = down.iter().position(|&state| state == 1).unwrap();
+    assert!(*down.last().unwrap() == 0 && !down[from..first.len() + second.len() / 2].contains(&0));
+    server.rub(((10, 10), (40, 10)), None, 0.1);
+    assert_eq!(touches(0.05).last().unwrap().0, 0); // not yet down
+    assert_eq!(touches(0.3).last().unwrap().0, 1);
+    server.release();
+    assert_eq!(touches(0.1).last().unwrap().0, 0);
+    server.close();
+}
+
 /// `pa3ds.core.tones`: a tone at the top left is in the left ear alone and higher than one at
 /// the bottom right, in the right ear alone.
 #[test]

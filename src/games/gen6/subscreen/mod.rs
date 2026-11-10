@@ -111,9 +111,14 @@ pub trait Pictured {
     fn offer(&self, running: Option<&str>) -> Result<IndexMap<i64, String>>;
 }
 
-/// A reader saying what it has as its screen changes.
+/// A reader saying what it has as its screen changes. Touch mode, which the navigator owns, is
+/// handed to `poll` for a reader that moves a target of its own: Amie's stylus.
 pub trait Polled {
-    fn poll(&self, running: Option<&str>) -> Result<Vec<(String, String, Option<Category>)>>;
+    fn poll(
+        &self,
+        running: Option<&str>,
+        touch: &mut dyn Touching,
+    ) -> Result<Vec<(String, String, Option<Category>)>>;
 }
 
 /// A reader describing a picture the game shows without words.
@@ -282,20 +287,42 @@ fn said(lines: Vec<(String, String, Category)>) -> Vec<(String, String, Option<C
 }
 
 impl Polled for RefCell<Round> {
-    fn poll(&self, running: Option<&str>) -> Result<Vec<(String, String, Option<Category>)>> {
+    fn poll(
+        &self,
+        running: Option<&str>,
+        _touch: &mut dyn Touching,
+    ) -> Result<Vec<(String, String, Option<Category>)>> {
         Ok(said(self.borrow_mut().poll(running)?))
     }
 }
 
 impl Polled for RefCell<BerryPicker> {
-    fn poll(&self, running: Option<&str>) -> Result<Vec<(String, String, Option<Category>)>> {
+    fn poll(
+        &self,
+        running: Option<&str>,
+        _touch: &mut dyn Touching,
+    ) -> Result<Vec<(String, String, Option<Category>)>> {
         Ok(said(self.borrow_mut().poll(running)?))
     }
 }
 
 impl Polled for RefCell<HeadIt> {
-    fn poll(&self, running: Option<&str>) -> Result<Vec<(String, String, Option<Category>)>> {
+    fn poll(
+        &self,
+        running: Option<&str>,
+        _touch: &mut dyn Touching,
+    ) -> Result<Vec<(String, String, Option<Category>)>> {
         self.borrow_mut().poll(running)
+    }
+}
+
+impl Polled for RefCell<StylusKeys> {
+    fn poll(
+        &self,
+        running: Option<&str>,
+        touch: &mut dyn Touching,
+    ) -> Result<Vec<(String, String, Option<Category>)>> {
+        self.borrow().poll(running, touch)
     }
 }
 
@@ -360,9 +387,9 @@ impl Subscreens {
         file_of: FileOf,
         on_screen: OnScreen,
     ) -> Subscreens {
-        // The Pokémon-Amie page draws its Pokémon's icon, and says nothing of whose; Amie itself is
-        // stroked by a slide over it, aimed by a picture the GPU draws, where the emulator lets
-        // that be read (`Rpc.reads_beside_gpu`).
+        // The Pokémon-Amie page draws its Pokémon's icon, and says nothing of whose; Amie itself
+        // has its Pokémon beckoned, and petted with a stylus over a picture of its parts the GPU
+        // draws, where the emulator lets that be read (`Rpc.reads_beside_gpu`).
         let page = Rc::new(RefCell::new(AmiePage::with_aim(
             memory.clone(),
             names.clone(),
@@ -370,8 +397,8 @@ impl Subscreens {
             game.amie,
             reads_beside_gpu,
         )));
-        // Its own keys, the arrows, move a stylus over the Pokémon by the same picture, saying
-        // the part it comes onto, for touch mode to tap or drag there.
+        // Its own keys, the arrows, move the stylus, saying the part it comes onto, and keep it
+        // there as the Pokémon moves, for touch mode to rub there.
         let stylus_keys = Rc::new(RefCell::new(StylusKeys::new(page.clone(), wrong.clone())));
         // Amie's decorate screen draws its Poké Puffs, and says nothing of which.
         let puffs = Rc::new(RefCell::new(Puffs::new(
@@ -491,7 +518,12 @@ impl Subscreens {
             named: vec![page.clone(), training, puffs, goods, puzzle.clone()],
             offering: vec![page, goals, berry_picker.clone(), head_it.clone()],
             pictured: vec![waiting, bags],
-            polled: vec![sparring, berry_picker.clone(), head_it.clone()],
+            polled: vec![
+                sparring,
+                berry_picker.clone(),
+                head_it.clone(),
+                stylus_keys.clone(),
+            ],
             described: vec![puzzle.clone()],
             keyed: vec![berry_keys, head_keys, stylus_keys],
             ticked: vec![head_it.clone()],
@@ -578,10 +610,14 @@ impl Subscreens {
 
     /// What each screen says now, as (what the log calls it, the line, its category), one
     /// of None only logged.
-    pub fn poll(&self, running: Option<&str>) -> Result<Vec<(String, String, Option<Category>)>> {
+    pub fn poll(
+        &self,
+        running: Option<&str>,
+        touch: &mut dyn Touching,
+    ) -> Result<Vec<(String, String, Option<Category>)>> {
         let mut said = Vec::new();
         for reader in &self.polled {
-            said.extend(reader.poll(running)?);
+            said.extend(reader.poll(running, touch)?);
         }
         Ok(said)
     }

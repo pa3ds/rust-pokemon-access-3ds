@@ -59,8 +59,8 @@ fn subscreens() -> Subscreens {
 }
 
 #[test]
-fn test_the_amie_pages_pokemon_is_named_on_the_field_and_offered_to_stroke_in_amie() {
-    // The Amie page names its Pokémon on the field, and Amie itself offers it to stroke: each
+fn test_the_amie_pages_pokemon_is_named_on_the_field_and_offered_to_beckon_in_amie() {
+    // The Amie page names its Pokémon on the field, and Amie itself offers it to beckon: each
     // reader says what it has for the app running and nothing in another.
     let found = subscreens();
     assert_eq!(
@@ -75,8 +75,8 @@ fn test_the_amie_pages_pokemon_is_named_on_the_field_and_offered_to_stroke_in_am
         .into_iter()
         .map(|target| target.name)
         .collect();
-    assert_eq!(names, ["stroke Sceptile", "stylus"]);
-    assert!(found.poll(Some(FIELD)).unwrap().is_empty());
+    assert_eq!(names, ["beckon Sceptile", "stylus"]);
+    assert!(found.poll(Some(FIELD), &mut Untouched).unwrap().is_empty());
     // Keys of its own only while the screen that has them runs.
     assert_eq!(found.context(Some(berry_picker::APP)), Some(BERRY_PICKER));
     assert_eq!(found.context(Some(FIELD)), None);

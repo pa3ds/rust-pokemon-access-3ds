@@ -84,6 +84,10 @@ pub const MOVE: f64 = 0.2;
 /// A server keeps its own (`State.held_for`), which a test shortens where Python's sets the
 /// module's `HELD`.
 pub const HELD: f64 = 30.0;
+/// How fast a rub goes back and forth, in the screen's pixels a second: Pokémon-Amie counts a
+/// stroke only while the hand has moved at least 4 pixels since its script's last tick, and a swipe
+/// of 30 a tick is something else (spike A). 300 is 10 a tick at 30 ticks a second, 5 at 60.
+pub const RUB_SPEED: f64 = 300.0;
 
 /// Said for a tap Azahar is not listening for: its touch device is not pa3ds's.
 pub const NOT_LISTENING: &str = "touch-not-listening";
@@ -176,9 +180,31 @@ pub fn along(path: &[(i64, i64)], start: f64, until: f64, now: f64) -> Option<(i
     Some((x, y))
 }
 
+/// Where a rub between two ends is once it has gone `travelled` pixels: from the first to the
+/// second and back, over and over.
+pub fn rubbed(ends: ((i64, i64), (i64, i64)), travelled: f64) -> (i64, i64) {
+    let ((x0, y0), (x1, y1)) = ends;
+    let length = (((x1 - x0).pow(2) + (y1 - y0).pow(2)) as f64).powf(0.5);
+    if length == 0.0 {
+        return (x0, y0);
+    }
+    let along = py::modulo_f(travelled, 2.0 * length);
+    let share = if along <= length {
+        along
+    } else {
+        2.0 * length - along
+    } / length;
+    (
+        py::round(x0 as f64 + (x1 - x0) as f64 * share).expect("finite"),
+        py::round(y0 as f64 + (y1 - y0) as f64 * share).expect("finite"),
+    )
+}
+
 /// The emulated touch screen, which touch mode presses on the player's keys (`TouchServer`):
 /// a tap, a slide along a path, and a press the player holds between keys. Each says why not
 /// where it cannot, as `TouchServer.tap` does.
+///
+/// A test's stand-in that never rubs has no `rub`, as Python duck-types it: here it rubs nothing.
 pub trait TouchScreen {
     /// Press at (x, y) and let go.
     fn tap(&self, x: i64, y: i64) -> Option<String>;
@@ -194,6 +220,18 @@ pub trait TouchScreen {
 
     /// Let a held press go where it is.
     fn release(&self);
+
+    /// Press and rub back and forth between two points, for `seconds`, or until `release`
+    /// where None, going down `delay` seconds from now. A rub asked for while one lasts carries
+    /// it on between the new ends, for as long as the new one asks, never lifted.
+    fn rub(
+        &self,
+        _ends: ((i64, i64), (i64, i64)),
+        _seconds: Option<f64>,
+        _delay: f64,
+    ) -> Option<String> {
+        None
+    }
 }
 
 /// A point kept to the touch screen's pixels.
@@ -246,6 +284,8 @@ struct State {
     held: f64,
     /// When the last press let go.
     up: f64,
+    /// The ends a press rubs between, while one does (`rub`).
+    rub: Option<((i64, i64), (i64, i64))>,
     /// `HELD`, as this server keeps it.
     held_for: f64,
     counter: i64,
@@ -321,6 +361,7 @@ impl TouchServer {
                 until: 0.0,
                 held: 0.0,
                 up: 0.0,
+                rub: None,
                 held_for: HELD,
                 counter: 0,
                 clients: IndexMap::new(),
@@ -371,7 +412,7 @@ impl TouchServer {
         let mut state = self.inner.locked();
         (state.path, state.start) = (points, state.new_press());
         state.until = state.start + seconds;
-        state.held = 0.0;
+        (state.held, state.rub) = (0.0, None);
         None
     }
 
@@ -385,7 +426,43 @@ impl TouchServer {
         let mut state = self.inner.locked();
         (state.path, state.start) = (vec![point], state.new_press());
         state.until = state.start;
-        state.held = state.start + state.held_for;
+        (state.held, state.rub) = (state.start + state.held_for, None);
+        None
+    }
+
+    /// Press and rub back and forth between two points at `RUB_SPEED`, for `seconds`, or
+    /// until `release` where None (and `HELD` at most), going down `delay` seconds from now.
+    /// Asked for while a rub lasts, it carries that one on between the new ends for as long as
+    /// this one asks, never lifting: Pokémon-Amie starts counting a pet afresh at every press
+    /// (spike A). Says why not as `tap` does.
+    pub fn rub(
+        &self,
+        ends: ((i64, i64), (i64, i64)),
+        seconds: Option<f64>,
+        delay: f64,
+    ) -> Option<String> {
+        if !self.listened() {
+            return Some(own(NOT_LISTENING, &[]));
+        }
+        let (a, b) = (on_screen(ends.0.0, ends.0.1), on_screen(ends.1.0, ends.1.1));
+        let now = time::monotonic();
+        let mut state = self.inner.locked();
+        if state.rub.is_none() || state.path.is_empty() {
+            // Python's `max(new_press, now + delay)`: the first unless the second is greater.
+            let pressed = state.new_press();
+            state.start = if now + delay > pressed {
+                now + delay
+            } else {
+                pressed
+            };
+        }
+        (state.rub, state.path) = (Some((a, b)), vec![a]);
+        state.until = match seconds {
+            None => state.start + state.held_for,
+            // Python's `max(now, start)`: the first unless the second is greater.
+            Some(seconds) => (if state.start > now { state.start } else { now }) + seconds,
+        };
+        state.held = 0.0;
         None
     }
 
@@ -409,7 +486,7 @@ impl TouchServer {
         if state.touch.is_some() {
             state.up = time::monotonic();
         }
-        (state.touch, state.path, state.held) = (None, Vec::new(), 0.0);
+        (state.touch, state.path, state.held, state.rub) = (None, Vec::new(), 0.0, None);
     }
 
     /// `touch.HELD = seconds` for this server, as a test shortens it.
@@ -420,7 +497,7 @@ impl TouchServer {
     pub fn close(&self) {
         {
             let mut state = self.inner.locked();
-            (state.touch, state.path, state.held) = (None, Vec::new(), 0.0);
+            (state.touch, state.path, state.held, state.rub) = (None, Vec::new(), 0.0, None);
         }
         self.inner.send();
         self.inner.stop.store(true, Ordering::SeqCst);
@@ -463,6 +540,15 @@ impl TouchScreen for TouchServer {
     fn release(&self) {
         TouchServer::release(self);
     }
+
+    fn rub(
+        &self,
+        ends: ((i64, i64), (i64, i64)),
+        seconds: Option<f64>,
+        delay: f64,
+    ) -> Option<String> {
+        TouchServer::rub(self, ends, seconds, delay)
+    }
 }
 
 impl Inner {
@@ -501,6 +587,13 @@ impl Inner {
                 let now = time::monotonic();
                 let touch = if now < state.start {
                     None // lifted before the next press (`LIFT`)
+                } else if let Some(ends) = state.rub {
+                    let touch =
+                        (now < state.until).then(|| rubbed(ends, (now - state.start) * RUB_SPEED));
+                    if touch.is_none() {
+                        (state.rub, state.path) = (None, Vec::new());
+                    }
+                    touch
                 } else {
                     let mut touch = along(&state.path, state.start, state.until, now);
                     if touch.is_none() && !state.path.is_empty() && now < state.held {

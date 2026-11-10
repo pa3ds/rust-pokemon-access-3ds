@@ -12,7 +12,7 @@ use indexmap::IndexMap;
 
 use super::fake_layouts::FakeLayouts;
 use super::fake_memory::{CODE, FakeClasses, FakeMemory};
-use crate::core::config::Touch;
+use crate::core::config::{DRAG_HOLD, Touch};
 use crate::core::rtti::ClassNames;
 use crate::games::common::layout::Layouts;
 use crate::games::common::lyt;
@@ -42,9 +42,18 @@ struct Pressed {
     slid: RefCell<Vec<Vec<(i64, i64)>>>,
     seconds: RefCell<Vec<f64>>,
     touches: RefCell<Vec<(&'static str, i64, i64)>>,
+    rubs: RefCell<Vec<(Ends, Option<f64>, f64)>>,
 }
 
+/// The two ends a rub goes between.
+type Ends = ((i64, i64), (i64, i64));
+
 impl crate::core::touch::TouchScreen for Pressed {
+    fn rub(&self, ends: Ends, seconds: Option<f64>, delay: f64) -> Option<String> {
+        self.rubs.borrow_mut().push((ends, seconds, delay));
+        None
+    }
+
     fn tap(&self, x: i64, y: i64) -> Option<String> {
         self.tapped.borrow_mut().push((x, y));
         None
@@ -97,10 +106,15 @@ impl Screen {
         delayed: bool,
         pace: Option<Rc<dyn Fn() -> f64>>,
     ) -> Self {
-        Screen::walk(found, wrap, next_row, delayed, pace, None)
+        Screen::walk(found, wrap, next_row, delayed, pace, None, DRAG_HOLD)
     }
 
-    /// `walk(found, wrap, next_row, delayed, pace, sound)`.
+    /// `walk(found, drag=drag)`.
+    fn dragging(found: Vec<Target>, drag: &str) -> Self {
+        Screen::walk(found, true, true, false, None, None, drag)
+    }
+
+    /// `walk(found, wrap, next_row, delayed, pace, sound, drag)`.
     fn walk(
         found: Vec<Target>,
         wrap: bool,
@@ -108,6 +122,7 @@ impl Screen {
         delayed: bool,
         pace: Option<Rc<dyn Fn() -> f64>>,
         sound: Option<Rc<dyn Fn(bool)>>,
+        drag: &str,
     ) -> Self {
         let pressed = Rc::new(Pressed::default());
         let found = Rc::new(RefCell::new(found));
@@ -127,7 +142,7 @@ impl Screen {
                 settings: Touch {
                     wrap,
                     next_row,
-                    ..Touch::default()
+                    drag: drag.to_string(),
                 },
                 delayed: Some(Rc::new(move || delayed)),
                 pace,
@@ -1297,21 +1312,20 @@ fn test_a_drag_holds_the_target_named_carries_it_with_the_keys_and_lets_go() {
     assert_eq!(screen.tapped(), []);
 }
 
-/// Pokémon-Amie's stylus, which the arrows move over the Pokémon (Orion, 2026-11-05): touch
-/// mode's drag picks it up where it is, and each move carries the press on, a stroke.
+/// A target a screen's own key moves is chosen there, and a drag picked up goes with it.
 #[test]
 fn test_a_target_a_screens_key_moves_carries_a_drag_wherever_it_goes() {
     let mut screen = Screen::new(vec![Target::new(2, "stylus, head", 160, 120, 0.0, 240.0)]);
-    assert_eq!(screen.targets.choose(2).unwrap(), "stylus, head");
+    assert_eq!(screen.targets.choose(2, false).unwrap(), "stylus, head");
     assert_eq!(screen.press(touch::DRAG), "holding stylus, head");
     screen.found.borrow_mut()[0] = Target::new(2, "stylus, head", 166, 120, 0.0, 240.0);
-    assert_eq!(screen.targets.choose(2).unwrap(), "stylus, head");
+    assert_eq!(screen.targets.choose(2, false).unwrap(), "stylus, head");
     screen.found.borrow_mut()[0] = Target::new(2, "stylus, body", 166, 126, 0.0, 240.0);
     assert!(
-        screen.targets.choose(2).unwrap() == "stylus, body"
-            && screen.targets.choose(2).unwrap() == "stylus, body"
+        screen.targets.choose(2, false).unwrap() == "stylus, body"
+            && screen.targets.choose(2, true).unwrap().is_empty()
     );
-    assert_eq!(screen.targets.choose(3).unwrap(), ""); // nothing there to choose
+    assert_eq!(screen.targets.choose(3, false).unwrap(), ""); // nothing there to choose
     assert_eq!(screen.targets.drop(), "let go on stylus, body");
     assert_eq!(
         *screen.pressed.touches.borrow(),
@@ -1324,9 +1338,73 @@ fn test_a_target_a_screens_key_moves_carries_a_drag_wherever_it_goes() {
     );
     // Moved with nothing picked up, it is only chosen: a tap taps where it is now.
     screen.found.borrow_mut()[0] = Target::new(2, "stylus, head", 100, 90, 0.0, 240.0);
-    screen.targets.choose(2).unwrap();
+    screen.targets.choose(2, false).unwrap();
     screen.press(touch::TAP);
     assert!(screen.tapped() == [(100, 90)] && screen.pressed.touches.borrow().len() == 4);
+}
+
+const CHIN: Ends = ((150, 120), (170, 120));
+
+fn stylus(x: i64, ends: Ends) -> Target {
+    Target {
+        rub: Some(ends),
+        ..Target::new(2, "stylus, chin", x, 120, 0.0, 240.0)
+    }
+}
+
+/// Pokémon-Amie's stylus (Orion, 2026-11-05): a tap rubs it about a second, and another tap
+/// or a move of the stylus before the second is out carries the rub on, never lifting, as Amie
+/// counts a pet afresh at every press (spike A).
+#[test]
+fn test_a_tap_on_a_target_rubbed_rubs_a_second_and_a_move_carries_it_on() {
+    let mut screen = Screen::new(vec![stylus(160, CHIN)]);
+    assert!(
+        screen.targets.choose(2, false).unwrap() == "stylus, chin"
+            && screen.pressed.rubs.borrow().is_empty()
+    );
+    assert_eq!(screen.press(touch::TAP), "");
+    assert_eq!(
+        *screen.pressed.rubs.borrow(),
+        [(CHIN, Some(touch::RUB_SECONDS), 0.0)]
+    );
+    screen.found.borrow_mut()[0] = stylus(166, ((156, 120), (176, 120)));
+    screen.targets.choose(2, true).unwrap();
+    let (ends, seconds, _) = *screen.pressed.rubs.borrow().last().unwrap();
+    assert!(
+        ends == ((156, 120), (176, 120))
+            && seconds.is_some_and(|seconds| 0.0 < seconds && seconds < 1.0)
+    );
+    assert!(screen.tapped().is_empty() && screen.pressed.touches.borrow().is_empty());
+}
+
+/// Held, the drag rubs once the key has been down a moment, Shift alone being a screen
+/// reader's key as well (ADR-0009); toggled, at once. Moved, the rub goes with the stylus; let
+/// go, it lifts.
+#[test]
+fn test_a_drag_on_a_target_rubbed_rubs_until_let_go() {
+    let mut screen = Screen::new(vec![stylus(160, CHIN)]);
+    screen.targets.choose(2, false).unwrap();
+    assert_eq!(screen.press(touch::DRAG), "holding stylus, chin");
+    assert_eq!(
+        *screen.pressed.rubs.borrow(),
+        [(CHIN, None, touch::RUB_DELAY)]
+    );
+    screen.found.borrow_mut()[0] = stylus(166, ((156, 120), (176, 120)));
+    screen.targets.choose(2, false).unwrap();
+    assert_eq!(
+        *screen.pressed.rubs.borrow().last().unwrap(),
+        (((156, 120), (176, 120)), None, 0.0)
+    );
+    assert_eq!(screen.press(touch::TAP), ""); // a tap while the drag rubs touches nothing more
+    assert_eq!(screen.targets.drop(), "let go on stylus, chin");
+    assert!(
+        *screen.pressed.touches.borrow() == [("release", 0, 0)]
+            && screen.pressed.rubs.borrow().len() == 2
+    );
+    let mut toggled = Screen::dragging(vec![stylus(160, CHIN)], "toggle");
+    toggled.targets.choose(2, false).unwrap();
+    toggled.press(touch::DRAG);
+    assert_eq!(*toggled.pressed.rubs.borrow(), [(CHIN, None, 0.0)]);
 }
 
 /// ADR-0009 as amended 2026-10-28: Shift alone picks up, and Shift pressed and let go to pause a
@@ -1358,6 +1436,7 @@ fn test_with_feedback_sounds_a_drag_is_heard_not_said() {
         false,
         None,
         Some(Rc::new(move |up| kept.borrow_mut().push(up))),
+        DRAG_HOLD,
     );
     screen.start();
     assert!(screen.press(touch::DRAG).is_empty() && screen.targets.holding());

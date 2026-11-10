@@ -1660,7 +1660,14 @@ impl Gen6Profile {
                 Some(reader) => reader.borrow_mut().poll(self.layouts.roots())?,
             };
             let running = self.apps.borrow().running.clone();
-            let played = self.subscreens.poll(running.as_deref())?;
+            let played = {
+                let mut navigator = self.navigator.borrow_mut();
+                let touch = navigator
+                    .touch
+                    .as_mut()
+                    .expect("the gen 6 navigator is given touch targets");
+                self.subscreens.poll(running.as_deref(), touch)?
+            };
             let found = self.cursors.borrow_mut().poll(on_screen)?;
             let cursors;
             (carried, cursors) = self.bag_sort.borrow_mut().poll(found, on_screen);
