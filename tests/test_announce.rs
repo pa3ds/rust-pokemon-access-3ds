@@ -2999,6 +2999,41 @@ fn test_an_entry_of_one_column_is_read_top_to_bottom() {
     );
 }
 
+/// Head It's results draw "TOTAL:" and the total right of the score and bonuses, all in one
+/// group, and read down as one column the total came between "SCORE:" and its points
+/// (or_amie_head_it_hard): build order, which puts the total first, is kept.
+#[test]
+fn test_a_word_standing_apart_from_its_panel_is_a_column_of_its_own() {
+    let mut screen = Screen::new();
+    let at = |r#box: i64, text: &str, x: f64, y: f64| {
+        piece_kw(
+            r#box,
+            text,
+            x,
+            y,
+            ENTRY,
+            Kw {
+                parent: 7,
+                panel: 10,
+                ..PLAIN
+            },
+        )
+    };
+    let shown = vec![
+        at(1, "TOTAL: 112", 110.0, 40.0),
+        at(2, "SCORE:", -175.0, 50.0),
+        at(3, "Heading Points", -164.0, 30.0),
+        at(4, "053", 16.0, 30.0),
+        at(5, "BONUS:", -175.0, 4.0),
+        at(6, "Big Yarn Bonus", -164.0, -37.0),
+        at(7, "050", 16.0, -37.0),
+    ];
+    assert_eq!(
+        screen.say(args(&shown, vec![], &shown)),
+        ["TOTAL: 112 SCORE: Heading Points 053 BONUS: Big Yarn Bonus 050"]
+    );
+}
+
 #[test]
 fn test_an_entry_rewritten_says_its_first_row_then_the_rest_as_one_line() {
     // Up and down in the Pokédex said the entry a row a line, "007 Mudkip", "????? Pokémon",

@@ -1008,6 +1008,79 @@ fn test_digits_drawn_side_by_side_are_one_number() {
     assert_eq!(texts, ["11"]);
 }
 
+/// `ScreenText(box, text, False, left, right, row, glyph, parent=7)`, a picture where asked.
+fn grouped(
+    r#box: i64,
+    text: &str,
+    (left, right, row, glyph): (f64, f64, f64, f64),
+    parent: i64,
+    picture: bool,
+) -> ScreenText {
+    ScreenText {
+        parent,
+        picture,
+        ..ScreenText::placed(r#box, text, false, left, right, row, glyph)
+    }
+}
+
+/// Head It's results draw the total in digit pictures under "TOTAL:", right of the score and
+/// bonuses (or_amie_head_it_hard): built first, "TOTAL:" was said before them and the total after,
+/// and each count-up of the total with "BONUS:" on its row.
+#[test]
+fn test_a_count_drawn_under_its_word_is_read_after_it() {
+    let total = grouped(0x30, "TOTAL:", (110.2, 147.8, 40.0, 12.5), 7, false);
+    let score = grouped(0x40, "SCORE:", (-175.0, -137.5, 50.0, 12.5), 7, false);
+    let bonus = grouped(0x50, "BONUS:", (-175.0, -137.5, 4.0, 12.5), 7, false);
+    let count = grouped(0x90, "112", (92.0, 167.0, 0.0, 44.0), 7, true);
+    let found = screen::counts_under_their_words(
+        &[&total, &score, &bonus, &count]
+            .into_iter()
+            .map(|piece| (piece.r#box, piece.clone()))
+            .collect(),
+    );
+    let mut found: Vec<ScreenText> = found.into_values().collect();
+    found.sort_by_key(screen::reading_order);
+    assert_eq!(
+        found,
+        [
+            ScreenText {
+                text: "TOTAL: 112".to_string(),
+                ..total
+            },
+            score,
+            bonus
+        ]
+    );
+}
+
+/// Berry Picker's results draw the berries picked in digit pictures under "Berries", built
+/// before it, and they were said apart, "Berries" then "8" (or_amie_berry_picker_easy).
+#[test]
+fn test_a_count_drawn_under_a_word_without_a_colon_is_its_value_too() {
+    let count = grouped(0x10, "8", (-22.0, 22.0, 0.0, 44.0), 7, true);
+    let berries = grouped(0x20, "Berries", (-21.9, 21.9, 38.0, 12.5), 7, false);
+    let found =
+        screen::counts_under_their_words(&IndexMap::from([(0x10, count), (0x20, berries.clone())]));
+    let found: Vec<ScreenText> = found.into_values().collect();
+    assert_eq!(
+        found,
+        [ScreenText {
+            text: "Berries 8".to_string(),
+            ..berries
+        }]
+    );
+}
+
+/// A word beside the count, or another group's over it, is not its word.
+#[test]
+fn test_a_count_with_no_word_over_it_stays_where_it_is() {
+    let count = grouped(0x10, "8", (-22.0, 22.0, 0.0, 44.0), 7, true);
+    let beside = grouped(0x20, "Berries", (60.0, 100.0, 0.0, 12.5), 7, false);
+    let over = grouped(0x30, "TOTAL:", (-21.9, 21.9, 38.0, 12.5), 9, false);
+    let found = IndexMap::from([(0x10, count), (0x20, beside), (0x30, over)]);
+    assert_eq!(screen::counts_under_their_words(&found), found);
+}
+
 /// A summary hangs Appeal's hearts and Jamming's in one window (movie33).
 #[test]
 fn test_hearts_on_two_rows_of_one_group_are_counted_apart() {

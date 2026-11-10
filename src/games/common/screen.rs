@@ -688,6 +688,7 @@ impl ScreenTextReader {
         // such picture: "First Move: egg move, Helping Hand" (spike 195).
         found = by_their_labels(&found, &self.labels);
         found = places_last(&found);
+        found = counts_under_their_words(&found);
         if let Some(reworded) = &self.reworded {
             found = reworded(found)?;
         }
@@ -1511,6 +1512,65 @@ pub(crate) fn places_last(found: &IndexMap<i64, ScreenText>) -> IndexMap<i64, Sc
                 left: after.right + PLACE_AFTER * after.glyph,
                 right: after.right + (PLACE_AFTER + 1.0) * after.glyph,
                 ..piece.clone()
+            },
+        );
+    }
+    out
+}
+
+/// Glyphs of its word at most between a word and the count drawn under it (`_counts_under_their
+/// words`): Head It's total is 0.9 below "TOTAL:", Berry Picker's 0.8 below "Berries".
+pub const COUNT_BELOW: f64 = 1.5;
+
+/// A count drawn a digit a picture right under a word of its group is that word's value, one
+/// piece with it, "TOTAL: 112". Head It's results draw the total under "TOTAL:", right of the
+/// score and bonuses, and as built, "TOTAL:" was said first and the total last, and each count-up
+/// of it with "BONUS:", the word on its row (or_amie_head_it_hard); Berry Picker's draw the
+/// berries under "Berries", and the two were said apart (or_amie_berry_picker_easy). One piece,
+/// the word is held while its count counts up, as any words being rewritten are.
+pub(crate) fn counts_under_their_words(
+    found: &IndexMap<i64, ScreenText>,
+) -> IndexMap<i64, ScreenText> {
+    let mut out = found.clone();
+    for (&r#box, count) in found {
+        if !count.picture || !py::isdigit(&count.text) {
+            continue;
+        }
+        let top = count.row + count.glyph / 2.0;
+        let words: Vec<&ScreenText> = found
+            .values()
+            .filter(|piece| {
+                let (middle, gap) = (
+                    (piece.left + piece.right) / 2.0,
+                    piece.row - piece.glyph / 2.0 - top,
+                );
+                !piece.picture
+                    && piece.glyph > 0.0
+                    && piece.root == count.root
+                    && piece.parent == count.parent
+                    && piece.text.chars().any(py::is_alpha)
+                    && count.left <= middle
+                    && middle <= count.right
+                    && 0.0 <= gap
+                    && gap <= COUNT_BELOW * piece.glyph
+            })
+            .collect();
+        // `min(words, key=row)`: the first of equals.
+        let Some(&first) = words.first() else {
+            continue;
+        };
+        let mut word = first;
+        for &piece in &words[1..] {
+            if piece.row < word.row {
+                word = piece;
+            }
+        }
+        out.shift_remove(&r#box);
+        out.insert(
+            word.r#box,
+            ScreenText {
+                text: format!("{} {}", word.text, count.text),
+                ..word.clone()
             },
         );
     }

@@ -1724,6 +1724,16 @@ fn one_column(layout: &[&ScreenText], panel: i64) -> bool {
     }) {
         return false;
     }
+    // A word no other word of the panel reaches over or under is a column of its own: Head It's
+    // results draw "TOTAL:" and the total right of the score and bonuses, and read down as one
+    // column they came between "SCORE:" and its points (or_amie_head_it_hard).
+    if mine.iter().any(|piece| {
+        !mine.iter().any(|other| {
+            !std::ptr::eq(*other, *piece) && other.left < piece.right && piece.left < other.right
+        })
+    }) {
+        return false;
+    }
     !mine.iter().any(|piece| {
         mine.iter()
             .any(|other| side_by_side(piece, other) && (piece.row - other.row).abs() > ONE_LINE)
