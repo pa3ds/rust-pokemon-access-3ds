@@ -315,9 +315,15 @@ impl Table for Touch {
     }
 }
 
-/// `[pa3ds.amie]`: how Pokémon-Amie's games are said (Orion, 2026-10-29).
+/// `[pa3ds.amie]`: how Pokémon-Amie and its games are said (Orion, 2026-10-29).
 #[derive(Debug, Clone, PartialEq)]
 pub struct Amie {
+    /// Amie says what the Pokémon is seen doing, as a sentence of its own: off as it ships, as
+    /// `[pa3ds.ui] descriptions` is (Orion, 2026-11-06).
+    pub descriptions: bool,
+    /// Amie's stylus moves over a still picture of the Pokémon, a touch going to the part chosen
+    /// wherever it has moved; `false` moves it over the Pokémon as it moves (Orion, 2026-11-06).
+    pub still_picture: bool,
     /// Berry Picker says the berry before the Pokémon, "Pinap Berry for Pikachu", in the order a
     /// berry is given, its key and then the Pokémon's; or the Pokémon first, "Pikachu wants Pinap
     /// Berry".
@@ -348,6 +354,8 @@ pub struct Amie {
 impl Default for Amie {
     fn default() -> Self {
         Amie {
+            descriptions: false,
+            still_picture: true,
             berry_first: true,
             one_at_a_time: true,
             berry_picker_style: "name".to_string(),
@@ -362,6 +370,8 @@ impl Default for Amie {
 impl Table for Amie {
     fn fields(&self) -> Vec<(&'static str, Value)> {
         vec![
+            ("descriptions", Value::Bool(self.descriptions)),
+            ("still_picture", Value::Bool(self.still_picture)),
             ("berry_first", Value::Bool(self.berry_first)),
             ("one_at_a_time", Value::Bool(self.one_at_a_time)),
             (
@@ -377,6 +387,8 @@ impl Table for Amie {
 
     fn set(&mut self, setting: &str, value: Value) {
         match (setting, value) {
+            ("descriptions", Value::Bool(value)) => self.descriptions = value,
+            ("still_picture", Value::Bool(value)) => self.still_picture = value,
             ("berry_first", Value::Bool(value)) => self.berry_first = value,
             ("one_at_a_time", Value::Bool(value)) => self.one_at_a_time = value,
             ("berry_picker_style", Value::Str(value)) => self.berry_picker_style = value,

@@ -400,14 +400,16 @@ impl Subscreens {
         // The Pokémon-Amie page draws its Pokémon's icon, and says nothing of whose; Amie itself
         // has its Pokémon beckoned, and petted with a stylus over a picture of its parts the GPU
         // draws, where the emulator lets that be read (`Rpc.reads_beside_gpu`).
-        let page = Rc::new(RefCell::new(AmiePage::with_aim(
+        let page = AmiePage::with_aim(
             memory.clone(),
             names.clone(),
             text.species.clone(),
             game.amie,
             reads_beside_gpu,
+            settings.still_picture,
             game.amie_player,
-        )));
+        )
+        .shared();
         // Its own keys, the arrows, move the stylus, saying the part it comes onto, and keep it
         // there as the Pokémon moves, for touch mode to rub there.
         let stylus_keys = Rc::new(RefCell::new(StylusKeys::new(page.clone(), wrong.clone())));
@@ -523,19 +525,22 @@ impl Subscreens {
             .iter()
             .flat_map(|reader| reader.classes().iter().copied())
             .collect();
+        let mut polled: Vec<Rc<dyn Polled>> = vec![
+            sparring,
+            berry_picker.clone(),
+            head_it.clone(),
+            stylus_keys.clone(),
+        ];
+        if settings.descriptions {
+            polled.push(Rc::new(RefCell::new(Moods::new(page.clone()))));
+        }
         Subscreens {
             classes: classes.into_iter().collect(),
             tracked,
             named: vec![page.clone(), training, puffs, goods, puzzle.clone()],
-            offering: vec![page.clone(), goals, berry_picker.clone(), head_it.clone()],
+            offering: vec![page, goals, berry_picker.clone(), head_it.clone()],
             pictured: vec![waiting, bags],
-            polled: vec![
-                sparring,
-                berry_picker.clone(),
-                head_it.clone(),
-                stylus_keys.clone(),
-                Rc::new(RefCell::new(Moods::new(page))),
-            ],
+            polled,
             described: vec![puzzle.clone()],
             keyed: vec![berry_keys, head_keys, stylus_keys],
             ticked: vec![head_it.clone()],

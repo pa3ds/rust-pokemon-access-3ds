@@ -143,6 +143,31 @@ pub struct Target {
     /// The two ends a touch on it rubs between, for a target touched by rubbing, Amie's stylus:
     /// a tap rubs `RUB_SECONDS`, a drag until it is let go; none for a tap.
     pub rub: Option<((i64, i64), (i64, i64))>,
+    /// Told once a slide along `path` has begun, for a target that moves what the screen shows:
+    /// Amie's beckon and its Pokémon brought between the screens, whose still picture is taken anew
+    /// (`amie.AmiePage.look_again`).
+    pub after: After,
+}
+
+/// `Callable[[], None] | None`, left out of a target's comparison as Python's
+/// `field(compare=False)` leaves it.
+#[derive(Clone, Default)]
+pub struct After(pub Option<Rc<dyn Fn()>>);
+
+impl PartialEq for After {
+    fn eq(&self, _other: &Self) -> bool {
+        true
+    }
+}
+
+impl std::fmt::Debug for After {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(if self.0.is_some() {
+            "After(..)"
+        } else {
+            "None"
+        })
+    }
 }
 
 impl Target {
@@ -161,6 +186,7 @@ impl Target {
             seconds: 0.0,
             drop: None,
             rub: None,
+            after: After::default(),
         }
     }
 }
@@ -411,9 +437,13 @@ impl TouchMode {
                     target.name,
                     path.join(", ")
                 ));
-                return Ok(screen
-                    .slide(&target.path, target.seconds)
-                    .unwrap_or_default());
+                let why = screen.slide(&target.path, target.seconds);
+                if why.as_deref().is_none_or(str::is_empty)
+                    && let Some(after) = &target.after.0
+                {
+                    after();
+                }
+                return Ok(why.unwrap_or_default());
             }
             return Ok(self.tap(target));
         }
@@ -1118,6 +1148,7 @@ impl TouchTargets {
                     seconds: 0.0,
                     drop: None,
                     rub: None,
+                    after: After::default(),
                 });
             }
             // A touch area hanging straight from the root is the screen's, and the buttons inside
@@ -1235,6 +1266,7 @@ impl TouchTargets {
                     seconds: 0.0,
                     drop: None,
                     rub: None,
+                    after: After::default(),
                 });
             }
         }

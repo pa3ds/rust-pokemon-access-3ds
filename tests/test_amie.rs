@@ -6,20 +6,21 @@ use std::rc::Rc;
 use indexmap::IndexMap;
 
 use super::fake_memory::{CODE, FakeClasses, FakeMemory};
+use super::test_memories::record;
 use crate::core::keyfile::data_path;
 use crate::core::rtti::ClassNames;
 use crate::core::speech::Category;
 use crate::core::words::{self, ENGLISH, Words};
 use crate::games::common::field::keys::STYLUS;
-use crate::games::common::lyt;
 use crate::games::common::pictures::named;
 use crate::games::common::touch::Target;
+use crate::games::common::{lyt, pokemon};
 use crate::games::gen6::apps::FIELD;
 use crate::games::gen6::screens::distribution as d;
 use crate::games::gen6::subscreen::amie;
 use crate::games::gen6::subscreen::berry_picker::Touching;
 use crate::games::xy;
-use crate::py::{Result, time};
+use crate::py::{self, Result, time};
 
 pub(crate) const PAGE: i64 = 0x08A00000;
 const HOLDER: i64 = 0x08A01000;
@@ -38,11 +39,16 @@ pub(crate) fn species() -> Vec<String> {
 }
 
 pub(crate) fn page(number: i64) -> (amie::AmiePage, Rc<FakeMemory>) {
-    page_aimed(number, false, 0)
+    page_aimed(number, false, false, 0)
 }
 
-/// `page(number, aimed, later)`.
-fn page_aimed(number: i64, aimed: bool, later: i64) -> (amie::AmiePage, Rc<FakeMemory>) {
+/// `page(number, aimed, still_picture, later)`.
+fn page_aimed(
+    number: i64,
+    aimed: bool,
+    still_picture: bool,
+    later: i64,
+) -> (amie::AmiePage, Rc<FakeMemory>) {
     let memory = FakeMemory::new();
     let classes = FakeClasses::new(memory.clone());
     memory.u32(PAGE, &[classes.add(amie::CLASS)]);
@@ -66,6 +72,7 @@ fn page_aimed(number: i64, aimed: bool, later: i64) -> (amie::AmiePage, Rc<FakeM
         species(),
         number,
         aimed,
+        still_picture,
         later,
     );
     found
@@ -190,7 +197,7 @@ const BUFFER: i64 = 0x14100000;
 
 /// A picture of the Pokémon's parts in the current buffer: a grey a rectangle, (left, top,
 /// right, bottom), the later over the earlier.
-fn pokemon(memory: &FakeMemory, parts: &[(u8, (i64, i64, i64, i64))]) {
+fn drawn(memory: &FakeMemory, parts: &[(u8, (i64, i64, i64, i64))]) {
     let mut raw = vec![0u8; (320 * amie::COLUMN) as usize];
     for &(grey, (left, top, right, bottom)) in parts {
         for x in left..right {
@@ -207,18 +214,19 @@ fn amie_running(parts: &[(u8, (i64, i64, i64, i64))], aimed: bool) -> amie::Amie
     running(parts, aimed).0
 }
 
-/// Amie running, its picture of parts drawn as `pokemon` draws it: the page and the memory.
+/// Amie running, its picture of parts as `drawn` draws it: the page and the memory.
 fn running(parts: &[(u8, (i64, i64, i64, i64))], aimed: bool) -> (amie::AmiePage, Rc<FakeMemory>) {
-    running_later(parts, aimed, 0)
+    running_with(parts, aimed, false, 0)
 }
 
-/// `running(parts, aimed, later)`.
-fn running_later(
+/// `running(parts, aimed, still_picture, later)`.
+fn running_with(
     parts: &[(u8, (i64, i64, i64, i64))],
     aimed: bool,
+    still_picture: bool,
     later: i64,
 ) -> (amie::AmiePage, Rc<FakeMemory>) {
-    let (mut found, memory) = page_aimed(amie::NUMBER, aimed, later);
+    let (mut found, memory) = page_aimed(amie::NUMBER, aimed, still_picture, later);
     let classes = FakeClasses::starting(memory.clone(), CODE.0 + 0x8000);
     let player = classes.add(amie::PLAYER);
     memory.u32(PLAYER, &[player]);
@@ -228,7 +236,7 @@ fn running_later(
     // A copy of a Player's first words in the module's code, which a sweep finds too (spike 279).
     memory.u32(COPY, &[player]);
     memory.u32(COPY + amie::HOLDS_PICTURE, &[0xE3550000]);
-    pokemon(&memory, parts);
+    drawn(&memory, parts);
     found
         .track(
             &IndexMap::from([
@@ -313,8 +321,8 @@ fn test_the_stylus_moves_with_its_part_as_far_as_the_part_moves() {
     let _thawed = frozen(&now);
     let (mut found, memory) = running(&[(9, BODY), (8, HEAD), (17, (180, 100, 190, 110))], true);
     // The head and body moved by (dx, dy), and the cheek where given.
-    let drawn = |dx: i64, dy: i64, cheek: (i64, i64, i64, i64)| {
-        pokemon(
+    let shifted = |dx: i64, dy: i64, cheek: (i64, i64, i64, i64)| {
+        drawn(
             &memory,
             &[
                 (9, (100 + dx, 120 + dy, 220 + dx, 230 + dy)),
@@ -327,18 +335,18 @@ fn test_the_stylus_moves_with_its_part_as_far_as_the_part_moves() {
     found.stylus = (185, 105);
     found.keep(None).unwrap();
     assert!(!found.follow().unwrap());
-    drawn(3, -2, (183, 98, 193, 108)); // all of it 3 right and 2 up
+    shifted(3, -2, (183, 98, 193, 108)); // all of it 3 right and 2 up
     assert!(found.follow().unwrap() && found.stylus == (188, 103));
     assert!(!found.follow().unwrap());
-    drawn(3, -2, (173, 102, 183, 112)); // the cheek alone 10 left and 4 down
+    shifted(3, -2, (173, 102, 183, 112)); // the cheek alone 10 left and 4 down
     assert!(found.follow().unwrap() && found.stylus == (178, 107));
-    drawn(3, -2, (100, 200, 110, 210)); // the cheek gone far off
+    shifted(3, -2, (100, 200, 110, 210)); // the cheek gone far off
     assert!(!found.follow().unwrap() && found.stylus == (178, 107));
     found.stylus = (20, 20);
     found.keep(None).unwrap(); // off the Pokémon, and far from it: kept on nothing, and where it is
-    drawn(0, 0, (180, 100, 190, 110));
+    shifted(0, 0, (180, 100, 190, 110));
     assert!(!found.follow().unwrap());
-    drawn(5, 0, (185, 100, 195, 110));
+    shifted(5, 0, (185, 100, 195, 110));
     assert!(!found.follow().unwrap() && found.stylus == (20, 20));
 }
 
@@ -376,7 +384,7 @@ fn test_the_stylus_is_offered_by_the_kind_of_part_it_is_on() {
     assert_eq!(stylus(150, 200), "stylus, body");
     assert_eq!(stylus(125, 205), "stylus, arm leaves");
     let (away, grey_0) = (stylus(10, 10), stylus(205, 205));
-    assert!(away == grey_0 && grey_0 == "stylus, off");
+    assert!(away == grey_0 && grey_0 == "stylus, off Sceptile");
 }
 
 /// Furfrou's trims are drawn by models named `pm0701_12_poodle` and on, past the 12 bytes
@@ -462,10 +470,15 @@ impl Keyed {
 }
 
 fn keyed(parts: &[(u8, (i64, i64, i64, i64))]) -> Keyed {
+    keyed_still(parts, false)
+}
+
+/// `keyed(parts, still_picture)`.
+fn keyed_still(parts: &[(u8, (i64, i64, i64, i64))], still_picture: bool) -> Keyed {
     let now = Rc::new(Cell::new(100.0));
     let thawed = frozen(&now);
-    let (found, memory) = running(parts, true);
-    let found = Rc::new(RefCell::new(found));
+    let (found, memory) = running_with(parts, true, still_picture, 0);
+    let found = found.shared();
     let chosen = Chosen {
         page: found.clone(),
         chosen: Vec::new(),
@@ -492,7 +505,7 @@ fn test_the_arrows_move_the_stylus_saying_a_part_as_it_comes_onto_one() {
         k.keys.context(Some(amie::AMIE)) == Some(STYLUS) && k.keys.context(Some(FIELD)).is_none()
     );
     k.found.borrow_mut().stylus = (160, 126);
-    assert_eq!(k.press("stylus up"), "off");
+    assert_eq!(k.press("stylus up"), "off Sceptile");
     assert_eq!(k.press("stylus up"), "head");
     assert_eq!(k.press("stylus up"), ""); // still the head
     assert_eq!(k.press("stylus right"), "");
@@ -501,13 +514,13 @@ fn test_the_arrows_move_the_stylus_saying_a_part_as_it_comes_onto_one() {
         [(160, 120), (160, 114), (160, 108), (166, 108)]
     );
     assert!(k.poll(amie::AMIE).is_empty() && k.chosen.carried == [(166, 108)]);
-    pokemon(&k.memory, &[(8, (180, 60, 300, 120))]); // the head moved off the stylus, 80 right
+    drawn(&k.memory, &[(8, (180, 60, 300, 120))]); // the head moved off the stylus, 80 right
     k.now.set(k.now.get() + 1.0);
     assert!(k.poll(FIELD).is_empty() && k.chosen.carried.len() == 1); // Amie not running
     assert!(k.poll(amie::AMIE).is_empty() && k.chosen.carried.last() == Some(&(189, 108)));
     assert_eq!(k.chosen.chosen.len(), 4); // the poll chose nothing
     k.found.borrow_mut().stylus = (180, 60); // the head's top left corner
-    assert_eq!(k.press("stylus left"), "off");
+    assert_eq!(k.press("stylus left"), "off Sceptile");
     assert_eq!(k.press("stylus left"), "! edge"); // a step off the Pokémon at most
     assert_eq!(k.press("stylus up"), "");
     assert!(k.press("stylus up") == "! edge" && k.found.borrow().stylus == (174, 54));
@@ -535,6 +548,7 @@ fn test_ctrl_and_an_arrow_jump_the_stylus_to_the_next_part_that_way() {
 }
 
 const COMMAND: i64 = 0x08A0F000;
+const PARAM: i64 = 0x08A10000;
 
 /// Amie's love command as `number`, or none running.
 fn mood(memory: &FakeMemory, number: Option<i64>) {
@@ -569,19 +583,28 @@ fn test_what_the_pokemon_is_seen_doing_is_said_as_it_starts_and_stops() {
         }
         lines
     };
-    assert_eq!(said(&[Some(7), Some(7)]), ["back turned"]);
-    assert_eq!(said(&[Some(0)]), ["turned round"]);
+    assert_eq!(said(&[Some(7), Some(7)]), ["Sceptile has its back turned"]);
+    assert_eq!(said(&[Some(0)]), ["Sceptile turned round"]);
     assert!(said(&[Some(13), None, Some(0)]).is_empty()); // a pet is the player's own doing
     assert_eq!(
         said(&[Some(22), Some(24), None, Some(24)]),
-        ["watching the stylus", "hand raised", "hand raised"]
+        [
+            "Sceptile is watching your hand",
+            "Sceptile is holding up its hand",
+            "Sceptile is holding up its hand"
+        ]
     );
-    assert_eq!(said(&[Some(23)]), ["looking around"]);
+    assert_eq!(said(&[Some(23)]), ["Sceptile is looking around"]);
     assert_eq!(
         said(&[15, 17, 18, 19, 15, 17, 18, 19, 0].map(Some)),
-        ["eating", "eating", "eaten"]
+        [
+            "Sceptile is eyeing the puff",
+            "Sceptile is eating",
+            "Sceptile is eating",
+            "Sceptile finished the puff"
+        ]
     );
-    assert_eq!(said(&[Some(22)]), ["watching the stylus"]);
+    assert_eq!(said(&[Some(22)]), ["Sceptile is watching your hand"]);
     assert!(moods.poll(Some(FIELD)).unwrap().is_empty());
     let mut said = |number: i64| -> Vec<String> {
         mood(&memory, Some(number));
@@ -592,7 +615,49 @@ fn test_what_the_pokemon_is_seen_doing_is_said_as_it_starts_and_stops() {
             .map(|(_log, line, _category)| line)
             .collect()
     };
-    assert_eq!(said(22), ["watching the stylus"]); // Amie opened again
+    assert_eq!(said(22), ["Sceptile is watching your hand"]); // Amie opened again
+}
+
+/// Orion, 2026-10-16: a Pokémon of the player's by the nickname they gave it. Nothing says
+/// which of the party Amie shows, so the party's records are matched by its species.
+#[test]
+fn test_the_pokemon_is_called_by_its_nickname_unless_two_of_the_party_share_its_species() {
+    let (mut found, memory) = running(&[(8, HEAD)], false);
+    let classes = FakeClasses::starting(memory.clone(), CODE.0 + 0x9000);
+    let vtable = classes.add(pokemon::PARAM_CLASS);
+    for (param, blob) in [
+        (PARAM, record(0x101, 254, "Blaze", true)),
+        (PARAM + 0x400, record(0x202, 25, "Pikachu", false)),
+        (PARAM + 0x800, record(0x101, 254, "Blaze", true)), // a copy of the first
+    ] {
+        memory.u32(param, &[vtable]);
+        memory.u32(
+            param + pokemon::PARAM_RECORD,
+            &[param + pokemon::RECORD_IN_PARAM],
+        );
+        memory.write(param + pokemon::RECORD_IN_PARAM, &blob);
+    }
+    found
+        .track(
+            &IndexMap::from([
+                (PARAM, pokemon::PARAM_CLASS.to_string()),
+                (PARAM + 0x400, pokemon::PARAM_CLASS.to_string()),
+                (PARAM + 0x800, pokemon::PARAM_CLASS.to_string()),
+            ]),
+            true,
+        )
+        .unwrap();
+    assert_eq!(found.called().unwrap(), "Blaze");
+    assert_eq!(
+        found.targets(Some(amie::AMIE)).unwrap()[0].name,
+        "beckon Blaze"
+    );
+    memory.write(
+        PARAM + 0x800 + pokemon::RECORD_IN_PARAM,
+        &record(0x303, 254, "Treecko", false),
+    );
+    found.track(&IndexMap::new(), true).unwrap();
+    assert_eq!(found.called().unwrap(), "Sceptile");
 }
 
 /// Read where ORAS keeps them, X's stylus said no parts and its Pokémon no moods
@@ -600,11 +665,40 @@ fn test_what_the_pokemon_is_seen_doing_is_said_as_it_starts_and_stops() {
 #[test]
 fn test_xs_player_keeps_its_love_command_and_picture_four_bytes_later() {
     let later = xy::game().amie_player;
-    let (mut found, memory) = running_later(&[(8, HEAD)], true, later);
+    let (mut found, memory) = running_with(&[(8, HEAD)], true, false, later);
     memory.u32(PLAYER + amie::LOVE + later, &[COMMAND]);
     memory.write(COMMAND + amie::LOVE_NUMBER, &23u16.to_le_bytes());
     assert_eq!(found.mood().unwrap(), Some(23));
     assert_eq!(found.outline().unwrap(), Some((100, 60, 219, 119)));
+}
+
+/// Orion, 2026-11-06: "describe the other moods too, even if nothing reaches them yet"; seen
+/// started at will on the research rig (spike A's `look`).
+#[test]
+fn test_the_moods_no_movie_reached_are_said_too() {
+    let (found, memory) = running(&[(8, HEAD)], false);
+    let mut moods = amie::Moods::new(Rc::new(RefCell::new(found)));
+    let mut said = |number: i64| -> Vec<String> {
+        mood(&memory, Some(number));
+        moods
+            .poll(Some(amie::AMIE))
+            .unwrap()
+            .into_iter()
+            .map(|(_log, line, _category)| line)
+            .collect()
+    };
+    assert_eq!(said(3), ["Sceptile comes up to you"]);
+    assert_eq!(said(9), ["Sceptile is asleep"]);
+    assert_eq!(said(0), ["Sceptile woke up"]);
+    assert_eq!(said(8), ["Sceptile is dozing off"]);
+    assert_eq!(
+        said(14),
+        ["Sceptile woke up", "Sceptile is too full to eat"]
+    );
+    assert_eq!(said(16), ["Sceptile is reaching for the puff"]);
+    assert_eq!(said(20), ["the puff fell"]);
+    assert_eq!(said(21), ["Sceptile frowns and turns away"]);
+    assert_eq!(said(27), ["Sceptile leans in to your face"]);
 }
 
 /// ADR-0009: the hand is up about 2 s and a player cannot see where, so a jump goes straight
@@ -619,12 +713,228 @@ fn test_while_its_hand_is_raised_a_jump_goes_to_the_hand_whichever_way() {
     mood(&k.memory, Some(amie::HAND_RAISED));
     assert_eq!(k.press("stylus jump left"), "hand");
     assert!(k.found.borrow().stylus == (124, 140) && k.chosen.chosen.last() == Some(&(124, 140)));
-    pokemon(&k.memory, &[(9, BODY), (8, HEAD), (10, (150, 70, 160, 80))]); // it rose, within WHOLE
+    drawn(&k.memory, &[(9, BODY), (8, HEAD), (10, (150, 70, 160, 80))]); // it rose, within WHOLE
     assert!(k.press("stylus jump up") == "hand" && k.found.borrow().stylus == (154, 79));
-    pokemon(&k.memory, &[(9, BODY), (8, HEAD)]);
+    drawn(&k.memory, &[(9, BODY), (8, HEAD)]);
     k.now.set(k.now.get() + 1.0);
     k.found.borrow_mut().stylus = (120, 105);
     assert_eq!(k.press("stylus jump up"), "! edge");
+}
+
+/// Amie running with the stylus over a still picture, taken of `parts`.
+fn still(parts: &[(u8, (i64, i64, i64, i64))]) -> Keyed {
+    let mut k = keyed_still(parts, true);
+    k.poll(amie::AMIE);
+    k
+}
+
+/// Where a touch on the stylus rubs now.
+fn rubbed(found: &Rc<RefCell<amie::AmiePage>>) -> ((i64, i64), (i64, i64)) {
+    found.borrow_mut().targets(Some(amie::AMIE)).unwrap()[1]
+        .rub
+        .expect("a rub")
+}
+
+/// Orion, 2026-11-06: the stylus moves over a picture taken as the Pokémon appears, however it
+/// moves, and a tap or drag goes to the part chosen wherever it has gone. Touch mode's tone stays
+/// where the player put it.
+#[test]
+fn test_over_a_still_picture_a_part_stays_where_it_was_found_and_a_touch_finds_it() {
+    let mut k = still(&[(9, BODY), (8, HEAD)]);
+    k.found.borrow_mut().stylus = (160, 120);
+    assert_eq!(k.press("stylus up"), "head");
+    drawn(
+        &k.memory,
+        &[(9, (160, 180, 280, 230)), (8, (160, 120, 280, 180))],
+    ); // 60 right, 60 down
+    k.now.set(k.now.get() + 1.0);
+    k.poll(amie::AMIE);
+    assert_eq!(k.found.borrow().stylus, (160, 114));
+    assert_eq!(k.press("stylus up"), ""); // still the head, where it was
+    let stylus = k.found.borrow_mut().targets(Some(amie::AMIE)).unwrap()[1].clone();
+    assert_eq!(
+        (stylus.name.as_str(), stylus.x, stylus.y),
+        ("stylus, head", 160, 108)
+    );
+    let ((left, y), (right, same_y)) = rubbed(&k.found);
+    assert!(y == same_y && (120..180).contains(&y) && 160 <= left && left < right && right < 280);
+}
+
+/// A part the picture no longer draws, an eye shut, is rubbed where it would be on the
+/// Pokémon: as far across and down it as it was.
+#[test]
+fn test_a_touch_on_a_part_gone_from_view_goes_where_it_would_be() {
+    let mut k = still(&[(9, BODY), (8, HEAD), (4, (150, 80, 170, 100))]);
+    k.found.borrow_mut().stylus = (160, 90);
+    k.press("stylus left");
+    drawn(
+        &k.memory,
+        &[(9, (160, 120, 280, 230)), (8, (160, 60, 280, 120))],
+    );
+    k.now.set(k.now.get() + 1.0);
+    let ((left, y), (right, _y)) = rubbed(&k.found);
+    assert!((195..=235).contains(&py::floordiv(left + right, 2)) && (70..=100).contains(&y));
+}
+
+/// A press held off the Pokémon raises its hand, and one touching it never does: the still
+/// picture's "off" may be on the Pokémon now (spike A).
+#[test]
+fn test_a_press_off_the_pokemon_keeps_clear_of_it_wherever_it_has_gone() {
+    let mut k = still(&[(9, BODY), (8, HEAD)]);
+    k.found.borrow_mut().stylus = (98, 100);
+    k.press("stylus left"); // off it, by the still picture
+    assert_eq!(rubbed(&k.found), ((82, 100), (82, 100))); // a step off it is not clear
+    drawn(
+        &k.memory,
+        &[(9, (60, 120, 180, 230)), (8, (60, 60, 180, 120))],
+    ); // now under the stylus
+    k.now.set(k.now.get() + 1.0);
+    assert_eq!(rubbed(&k.found), ((42, 100), (42, 100)));
+}
+
+/// Its first frames may catch the Pokémon looking away; after `RICHER` it stays, and it is
+/// taken again only once the Pokémon comes anew.
+#[test]
+fn test_the_still_picture_takes_in_more_parts_at_first_and_then_stays() {
+    let mut k = still(&[(8, HEAD)]);
+    k.found.borrow_mut().stylus = (160, 90);
+    let part = |k: &Keyed| k.found.borrow_mut().part(None).unwrap();
+    assert_eq!(part(&k).as_deref(), Some("head"));
+    drawn(&k.memory, &[(8, HEAD), (4, (150, 80, 170, 100))]);
+    k.now.set(k.now.get() + 1.0);
+    k.poll(amie::AMIE);
+    assert_eq!(part(&k).as_deref(), Some("right eye"));
+    drawn(
+        &k.memory,
+        &[(8, HEAD), (4, (150, 80, 170, 100)), (6, (155, 85, 165, 95))],
+    );
+    k.now.set(k.now.get() + amie::RICHER + 1.0);
+    k.poll(amie::AMIE);
+    assert_eq!(part(&k).as_deref(), Some("right eye")); // settled
+    mood(&k.memory, Some(7));
+    k.now.set(k.now.get() + 1.0);
+    k.poll(amie::AMIE);
+    assert_eq!(part(&k), None); // back turned, no picture
+    mood(&k.memory, Some(0));
+    drawn(&k.memory, &[(8, HEAD)]);
+    k.now.set(k.now.get() + 1.0);
+    k.poll(amie::AMIE);
+    assert_eq!(part(&k).as_deref(), Some("head"));
+}
+
+/// It comes closer to a beckon, and a far picture has parts narrower than a step. The stylus
+/// stays on its part.
+#[test]
+fn test_a_beckon_takes_the_still_picture_again_once_the_pokemon_has_come_close() {
+    let mut k = still(&[(8, (150, 100, 170, 120))]);
+    k.found.borrow_mut().stylus = (160, 110);
+    k.press("stylus up");
+    let beckon = k.found.borrow_mut().targets(Some(amie::AMIE)).unwrap()[0].clone();
+    let after = beckon.after.0.expect("told after");
+    after();
+    drawn(&k.memory, &[(8, (100, 60, 220, 180))]);
+    k.now.set(k.now.get() + 0.5);
+    k.poll(amie::AMIE);
+    assert_eq!(
+        k.found.borrow_mut().outline().unwrap(),
+        Some((150, 100, 169, 119))
+    ); // not stopped yet
+    k.now.set(k.now.get() + amie::BECKON_SECONDS + amie::SETTLE);
+    k.poll(amie::AMIE);
+    assert_eq!(
+        k.found.borrow_mut().outline().unwrap(),
+        Some((100, 60, 219, 179))
+    );
+    let part = k.found.borrow_mut().part(None).unwrap();
+    let x = k.found.borrow().stylus.0;
+    assert!(part.as_deref() == Some("head") && (100..220).contains(&x));
+}
+
+#[test]
+fn test_amie_closing_leaves_the_still_picture_behind() {
+    let mut k = still(&[(8, HEAD)]);
+    k.poll(FIELD);
+    assert_eq!(k.found.borrow_mut().outline().unwrap(), None);
+    drawn(&k.memory, &[(9, BODY)]);
+    k.now.set(k.now.get() + 1.0);
+    k.poll(amie::AMIE);
+    assert_eq!(
+        k.found.borrow_mut().outline().unwrap(),
+        Some((100, 120, 219, 229))
+    );
+}
+
+/// Wailord stays on the top screen, a strip of belly on the bottom one, until a press held at
+/// the top edge brings it down, and one at the bottom edge sends it back (spike A's `watch`).
+/// Once it has moved the still picture is taken anew, and that is said.
+#[test]
+fn test_a_pokemon_too_big_for_the_bottom_screen_is_offered_to_bring_down_and_send_back() {
+    let mut k = still(&[(9, (40, 0, 160, 6))]);
+    let view = k.found.borrow_mut().targets(Some(amie::AMIE)).unwrap()[2].clone();
+    assert_eq!(
+        (view.name.as_str(), view.path.clone(), view.seconds),
+        (
+            "bring Sceptile down",
+            vec![amie::VIEW_TOP],
+            amie::VIEW_SECONDS
+        )
+    );
+    let after = view.after.0.expect("told after");
+    after();
+    drawn(
+        &k.memory,
+        &[
+            (9, (0, 0, 320, 240)),
+            (8, (60, 20, 260, 120)),
+            (4, (90, 50, 110, 70)),
+        ],
+    );
+    assert!(k.poll(amie::AMIE).is_empty());
+    k.now.set(k.now.get() + amie::VIEW_SECONDS + amie::SETTLE);
+    let said: Vec<String> = k
+        .poll(amie::AMIE)
+        .into_iter()
+        .map(|(_log, line, _category)| line)
+        .collect();
+    assert_eq!(said, ["Sceptile came down"]);
+    assert!(k.poll(amie::AMIE).is_empty());
+    let view = k.found.borrow_mut().targets(Some(amie::AMIE)).unwrap()[2].clone();
+    assert_eq!(
+        (view.name.as_str(), view.path),
+        ("send Sceptile back up", vec![amie::VIEW_BOTTOM])
+    );
+}
+
+/// Up close, Butterfree reaches the top of the screen, and shows its eyes (the census).
+#[test]
+fn test_a_pokemon_the_screen_shows_whole_is_offered_no_way_between_the_screens() {
+    let targets = |k: Keyed| {
+        k.found
+            .borrow_mut()
+            .targets(Some(amie::AMIE))
+            .unwrap()
+            .len()
+    };
+    assert_eq!(targets(still(&[(9, BODY), (8, HEAD)])), 2);
+    assert_eq!(
+        targets(still(&[(8, (100, 0, 220, 100)), (4, (120, 20, 130, 30))])),
+        2
+    );
+}
+
+/// The stylus goes to the hand in the still picture, and the touch to the hand as it waves.
+#[test]
+fn test_while_its_hand_is_raised_a_jump_over_a_still_picture_touches_the_hand_as_it_is_now() {
+    let mut k = still(&[(9, BODY), (8, HEAD), (10, (120, 140, 130, 150))]);
+    k.found.borrow_mut().stylus = (40, 100);
+    mood(&k.memory, Some(amie::HAND_RAISED));
+    drawn(&k.memory, &[(9, BODY), (8, HEAD), (10, (180, 60, 200, 80))]);
+    k.now.set(k.now.get() + 1.0);
+    assert_eq!(k.press("stylus jump left"), "hand");
+    let (x, y) = k.found.borrow().stylus;
+    assert!((120..130).contains(&x) && (140..150).contains(&y));
+    let ((left, y), (right, _y)) = rubbed(&k.found);
+    assert!((180..200).contains(&py::floordiv(left + right, 2)) && (60..80).contains(&y));
 }
 
 /// Amie's decorate screen draws its puffs with the images of a system holding a texture for

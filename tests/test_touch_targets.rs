@@ -1538,3 +1538,22 @@ fn test_a_stroke_slides_along_its_path_where_a_tap_would_press() {
     );
     assert!(*screen.pressed.seconds.borrow() == [3.0] && screen.tapped().is_empty());
 }
+
+/// Amie's beckon and its Pokémon brought between the screens: its still picture is taken
+/// anew, and only for the press itself, not as touch mode comes to the target.
+#[test]
+fn test_a_target_that_moves_what_the_screen_shows_is_told_it_has_been_pressed() {
+    let told: Rc<RefCell<Vec<i64>>> = Rc::new(RefCell::new(Vec::new()));
+    let kept = told.clone();
+    let beckon = Target {
+        path: vec![(160, 130)],
+        seconds: 0.4,
+        after: touch::After(Some(Rc::new(move || kept.borrow_mut().push(1)))),
+        ..Target::new(1, "beckon Sceptile", 160, 120, 0.0, 240.0)
+    };
+    let mut screen = Screen::new(vec![beckon]);
+    screen.press(touch::TAP);
+    assert!(told.borrow().is_empty());
+    screen.press(touch::TAP);
+    assert_eq!(*told.borrow(), [1]);
+}
