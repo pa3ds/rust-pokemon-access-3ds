@@ -950,6 +950,47 @@ fn test_the_score_its_combo_and_a_miss_are_the_rounds_score_and_a_key_says_them(
     assert_eq!(found.borrow().score(Some(OTHER)).unwrap(), "");
 }
 
+/// A screen reader said "053" as "zero five three" (Orion, 2026-11-08): the score, the clock
+/// and the results' points are unpadded, and words of other layouts, a trainer's "ID No. 01234",
+/// are left as they are.
+#[test]
+fn test_the_rounds_numbers_are_said_without_the_zeros_they_are_padded_with() {
+    let Game { found, memory, .. } = game_given(Given {
+        file_of: Rc::new(files),
+        ..Given::default()
+    });
+    let at = |r#box: i64, name: &str, text: &str, root: i64| {
+        words(&memory, r#box, name, text, root, 0, "", 0.0)
+    };
+    let score = at(SCORE_ROOT + 0x100, "2", "000", SCORE_ROOT);
+    let points = at(STATUS_ROOT + 0x100, "6c", "053", STATUS_ROOT);
+    let clock = at(STATUS_ROOT + 0x200, "4", "Time Left: 01", STATUS_ROOT);
+    let high = at(STATUS_ROOT + 0x300, "3h", "HIGH SCORE:0", STATUS_ROOT);
+    let total = at(STATUS_ROOT + 0x400, "6t", "TOTAL: 100", STATUS_ROOT);
+    let other = ScreenText {
+        root: 0x14F00000,
+        ..ScreenText::new(0x500, "ID No. 01234", false)
+    };
+    let reworded = found.reworded(
+        [score, points, clock, high, total, other]
+            .into_iter()
+            .map(|p| (p.r#box, p))
+            .collect(),
+    );
+    let texts: Vec<String> = reworded.into_values().map(|p| p.text).collect();
+    assert_eq!(
+        texts,
+        [
+            "0",
+            "53",
+            "Time Left: 1",
+            "HIGH SCORE:0",
+            "TOTAL: 100",
+            "ID No. 01234"
+        ]
+    );
+}
+
 /// Orion, 2026-11-01: learnt while playing, but never used in the round, as a lead changed
 /// mid-round throws off the player's own sense of it; said at the results as pa3ds's, for the
 /// setting. A key answers its column's last cue within `ANSWER`: one later, or a second press,

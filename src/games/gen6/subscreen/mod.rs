@@ -711,9 +711,11 @@ impl Subscreens {
         self.head_it.borrow().scored(piece, running)
     }
 
-    /// The words on the screen as they are said: the Switch screen's labels with their rows.
+    /// The words on the screen as they are said: the Switch screen's labels with their rows,
+    /// and Head It's numbers without the zeros it pads them with.
     pub fn reworded(&self, found: IndexMap<i64, ScreenText>) -> Result<IndexMap<i64, ScreenText>> {
-        self.switch.borrow_mut().reworded(found)
+        let found = self.switch.borrow_mut().reworded(found)?;
+        Ok(self.head_it.borrow().reworded(found))
     }
 
     /// Whether a screen's round holds the heap's whole sweep off: a second of nothing else

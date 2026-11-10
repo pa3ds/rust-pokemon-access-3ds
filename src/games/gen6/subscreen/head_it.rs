@@ -47,9 +47,12 @@
 //!   named.
 
 use std::cell::RefCell;
+use std::collections::HashSet;
 use std::rc::Rc;
+use std::sync::LazyLock;
 
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
+use regex::Regex;
 
 use crate::core::binary::{f32, u32};
 
@@ -180,6 +183,11 @@ pub const MISSED: &str = "missed";
 /// Unlimited's chances, "Chances:" and "2", in group `5j` (`GROUPS`, `LEFT`); and its high score,
 /// and the results.
 pub const STATUS: &str = "win_heading.bclim";
+/// The zeros the round pads its numbers with, "053" for 53: a screen reader said "zero five
+/// three" (Orion, 2026-11-08), and they are left out of the score, the clock and the results.
+/// Python's `\b0+(?=\d)` ends in a look-ahead, which the `regex` crate lacks: the digit after the
+/// zeros is matched here and written back (`HeadIt::reworded`).
+pub static LEADING_ZEROS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\b0+(\d)").unwrap());
 pub const GROUPS: [&str; 2] = ["5m", "5j"];
 pub const LEFT: &str = "left";
 pub const COMING: &str = "head-it-ball";
@@ -596,6 +604,37 @@ impl HeadIt {
             said.push(join(&in_rows(left.clone()), false));
         }
         Ok(said.join(", "))
+    }
+
+    /// The words on the screen with the numbers of the round's layouts, its score's and its
+    /// clock's and results', unpadded (`LEADING_ZEROS`): "Heading Points 53", not "053".
+    pub fn reworded(&self, found: IndexMap<i64, ScreenText>) -> IndexMap<i64, ScreenText> {
+        let padded: IndexSet<i64> = found
+            .values()
+            .filter(|piece| LEADING_ZEROS.is_match(&piece.text))
+            .map(|piece| piece.root)
+            .collect();
+        let mine: HashSet<i64> = padded
+            .into_iter()
+            .filter(|&root| {
+                (self.file_of)(root)
+                    .is_some_and(|file| draws(&file, SCORE_WINDOW) || draws(&file, STATUS))
+            })
+            .collect();
+        if mine.is_empty() {
+            return found;
+        }
+        found
+            .into_iter()
+            .map(|(r#box, piece)| {
+                if mine.contains(&piece.root) {
+                    let text = LEADING_ZEROS.replace_all(&piece.text, "${1}").into_owned();
+                    (r#box, ScreenText { text, ..piece })
+                } else {
+                    (r#box, piece)
+                }
+            })
+            .collect()
     }
 
     /// The round's words on the screen by what they are (`_part`).
