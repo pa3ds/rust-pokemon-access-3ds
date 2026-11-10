@@ -90,7 +90,7 @@ use crate::games::gen6::screens::mapcursor::MapCursor;
 use crate::games::gen6::screens::partners::Partners;
 use crate::games::gen6::screens::partyicons::PartyIcons;
 use crate::games::gen6::screens::{
-    boxes, buttons, distribution, partners, partyicons, registered, summary, townmap,
+    bag_sort, boxes, buttons, distribution, partners, partyicons, registered, summary, townmap,
 };
 use crate::games::gen6::subscreen::amie;
 use crate::games::gen6::subscreen::head_it::Cue;
@@ -309,6 +309,7 @@ pub struct Gen6Profile {
     pub partners: Rc<RefCell<Partners>>,
     box_mode: Option<RefCell<boxes::Mode>>,
     registered: Option<RefCell<registered::Registered>>,
+    bag_sort: RefCell<bag_sort::BagSort>,
     pub occupants: Rc<RefCell<boxes::Occupants>>,
     pub standings: Option<Rc<RefCell<dyn StandingsReader>>>,
     pub map_cursor: RefCell<MapCursor>,
@@ -690,6 +691,10 @@ impl Gen6Profile {
                 file_of.clone(),
             ))
         });
+        let bag_sort = RefCell::new(bag_sort::BagSort::new({
+            let apps = apps.clone();
+            Rc::new(move || apps.borrow().running.as_deref() == Some(partyicons::BAG))
+        }));
         // Carrying a Pokémon in the PC Box, the slot it is over says who is in it, from the save.
         // Made before the block the cursors are made in, where Python makes it inside, just before
         // them; making it reads nothing.
@@ -1202,6 +1207,7 @@ impl Gen6Profile {
             partners,
             box_mode,
             registered,
+            bag_sort,
             occupants,
             standings,
             map_cursor: RefCell::new(map_cursor),
@@ -1605,6 +1611,7 @@ impl Gen6Profile {
         // Set inside the phase, as Python's locals are.
         let mut box_mode: Option<String> = None;
         let mut slots: Option<String> = None;
+        let mut carried: Option<String> = None;
         let polled = phase(&*self.memory, "screen", || {
             // The field's layouts come back where they were when a menu screen closes, and a
             // layout found before it was built is taken in once it is.
@@ -1654,7 +1661,9 @@ impl Gen6Profile {
             };
             let running = self.apps.borrow().running.clone();
             let played = self.subscreens.poll(running.as_deref())?;
-            let cursors = self.cursors.borrow_mut().poll(on_screen)?;
+            let found = self.cursors.borrow_mut().poll(on_screen)?;
+            let cursors;
+            (carried, cursors) = self.bag_sort.borrow_mut().poll(found, on_screen);
             Ok((screen, sides, party, listed, cursors, played))
         })?;
         let (screen, sides, party, listed, cursors, played) = polled;
@@ -1667,6 +1676,10 @@ impl Gen6Profile {
         if let Some(box_mode) = &box_mode {
             (self.log)(&format!("box mode: {box_mode}"));
             self.speech.say(box_mode, Category::Menu);
+        }
+        if let Some(carried) = &carried {
+            (self.log)(&format!("bag sort: {carried}"));
+            self.speech.say(carried, Category::Menu);
         }
         if let Some(slots) = &slots {
             (self.log)(&format!("registered items: {slots}"));
