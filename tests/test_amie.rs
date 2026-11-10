@@ -59,15 +59,16 @@ impl Memory for Paged {
 }
 
 pub(crate) fn page(number: i64) -> (amie::AmiePage, Rc<FakeMemory>) {
-    page_aimed(number, false, 0, false)
+    page_aimed(number, false, 0, false, amie::SHOWN)
 }
 
-/// `page(number, aimed, later, paged)`.
+/// `page(number, aimed, later, paged, shown)`.
 fn page_aimed(
     number: i64,
     aimed: bool,
     later: i64,
     paged: bool,
+    shown: i64,
 ) -> (amie::AmiePage, Rc<FakeMemory>) {
     let memory = FakeMemory::new();
     let classes = FakeClasses::new(memory.clone());
@@ -97,6 +98,7 @@ fn page_aimed(
         number,
         aimed.then(|| memory.clone() as Rc<dyn Memory>),
         later,
+        shown,
     );
     found
         .track(&IndexMap::from([(PAGE, amie::CLASS.to_string())]), false)
@@ -284,7 +286,7 @@ fn running_paged(
     later: i64,
     paged: bool,
 ) -> (amie::AmiePage, Rc<FakeMemory>) {
-    let (mut found, memory) = page_aimed(amie::NUMBER, aimed, later, paged);
+    let (mut found, memory) = page_aimed(amie::NUMBER, aimed, later, paged, amie::SHOWN);
     let classes = FakeClasses::starting(memory.clone(), CODE.0 + 0x8000);
     let player = classes.add(amie::PLAYER);
     memory.u32(PLAYER, &[player]);
@@ -437,44 +439,38 @@ fn test_the_stylus_is_offered_by_the_kind_of_part_it_is_on() {
     assert!(away == grey_0 && grey_0 == "stylus, off Sceptile");
 }
 
-/// Furfrou's trims are drawn by models named `pm0701_12_poodle` and on, past the 12 bytes
-/// read; and the sweep finds a copy of the Player's words in the module's code first, which leads
-/// to no model (spike A's census).
+/// Burmy's cloaks share a model's name, so that told them from nothing, and the sweep finds a
+/// copy of the Player's words in the module's code first, which says nothing (spike A).
 #[test]
-fn test_a_form_is_told_by_its_models_name_though_the_name_runs_on() {
-    let (mut found, memory) = running(&[(8, HEAD)], true);
-    let (model, resource, records, name) = (0x08A0B000, 0x08A0C000, 0x08A0D000, 0x08A0E000);
-    memory.u32(PLAYER + amie::MODEL, &[model]);
-    memory.u32(model + amie::MODEL_RESOURCE, &[resource]);
-    memory.u32(resource + amie::RECORDS, &[records]);
-    memory.u32(records + amie::RECORD_NAME, &[name]);
-    memory.write(name, b"pm0701_12_poodle\0");
-    found.stylus = (150, 90);
-    assert!(
-        found.part(None).unwrap().as_deref() == Some("head")
-            && found.form().unwrap().as_deref() == Some("12")
-    );
+fn test_a_form_and_a_female_are_told_by_what_player_says_it_draws() {
+    let (found, memory) = running(&[(8, HEAD)], true);
+    assert_eq!(found.form().unwrap(), None);
+    memory.u32(PLAYER + amie::SHOWN, &[412, 2, 0, 0]);
+    assert_eq!(found.form().unwrap().as_deref(), Some("2"));
+    // Pikachu Rock Star, every one female
+    memory.u32(PLAYER + amie::SHOWN, &[25, 1, amie::FEMALE, 0]);
+    assert_eq!(found.form().unwrap().as_deref(), Some("1"));
+    memory.u32(PLAYER + amie::SHOWN, &[592, 0, amie::FEMALE, 0]);
+    assert_eq!(found.form().unwrap().as_deref(), Some(amie::FEMALE_FORM));
 }
 
-/// One Player's address serves one Pokémon after another: Pikachu Rock Star, after a
-/// Metagross, took its model, had no names of its own, and said its ears, a danger zone, as the
-/// head (or_amie_interactions). And its model is not there yet as Amie opens.
 #[test]
-fn test_a_form_is_read_anew_as_amie_opens_on_another_pokemon() {
-    let mut k = keyed(&[(8, HEAD)]);
-    let (model, resource, records, name) = (0x08A0B000, 0x08A0C000, 0x08A0D000, 0x08A0E000);
-    assert_eq!(k.found.borrow_mut().form().unwrap(), None); // not loaded
-    k.memory.u32(PLAYER + amie::MODEL, &[model]);
-    k.memory.u32(model + amie::MODEL_RESOURCE, &[resource]);
-    k.memory.u32(resource + amie::RECORDS, &[records]);
-    k.memory.u32(records + amie::RECORD_NAME, &[name]);
-    k.memory.write(name, b"pm0376_00\0");
-    assert_eq!(k.found.borrow_mut().form().unwrap().as_deref(), Some("00"));
-    k.poll(FIELD);
-    k.memory.write(name, b"pm0025_12\0");
-    k.now.set(k.now.get() + 1.0);
-    k.poll(amie::AMIE);
-    assert_eq!(k.found.borrow_mut().form().unwrap().as_deref(), Some("12"));
+fn test_x_keeps_what_it_draws_where_it_does() {
+    let game = xy::game();
+    let (mut found, memory) =
+        page_aimed(amie::NUMBER, true, game.amie_player, false, game.amie_shown);
+    let classes = FakeClasses::starting(memory.clone(), CODE.0 + 0x8000);
+    memory.u32(PLAYER, &[classes.add(amie::PLAYER)]);
+    memory.u32(
+        PLAYER + amie::HOLDS_PICTURE + game.amie_player,
+        &[ALLOCATOR],
+    );
+    memory.u32(ALLOCATOR, &[classes.add(amie::PICTURE_HOLDER)]);
+    memory.u32(PLAYER + game.amie_shown, &[656, 1, 0, 0]);
+    found
+        .track(&IndexMap::from([(PLAYER, amie::PLAYER.to_string())]), true)
+        .unwrap();
+    assert_eq!(found.form().unwrap().as_deref(), Some("1"));
 }
 
 /// Every pixel is 255 before the Pokémon is first drawn. Taken for a part, Amie opened on a
@@ -801,10 +797,11 @@ fn test_what_the_pokemon_is_seen_doing_is_said_as_it_starts_and_stops() {
     assert_eq!(said(22), ["Sceptile is watching your hand"]); // Amie opened again
 }
 
-/// Orion, 2026-10-16: a Pokémon of the player's by the nickname they gave it. Nothing says
-/// which of the party Amie shows, so the party's records are matched by its species.
+/// Orion, 2026-10-16: a Pokémon of the player's by the nickname they gave it. `Player` says
+/// which of the party Amie shows by its record's constant; before it says, the party's records
+/// are matched by species, and two of one species are said as that.
 #[test]
-fn test_the_pokemon_is_called_by_its_nickname_unless_two_of_the_party_share_its_species() {
+fn test_the_pokemon_is_called_by_the_nickname_on_the_record_player_says_it_draws() {
     let (mut found, memory) = running(&[(8, HEAD)], false);
     let classes = FakeClasses::starting(memory.clone(), CODE.0 + 0x9000);
     let vtable = classes.add(pokemon::PARAM_CLASS);
@@ -837,9 +834,16 @@ fn test_the_pokemon_is_called_by_its_nickname_unless_two_of_the_party_share_its_
     );
     memory.write(
         PARAM + 0x800 + pokemon::RECORD_IN_PARAM,
-        &record(0x303, 254, "Treecko", false),
+        &record(0x303, 254, "Leafy", true),
     );
     found.track(&IndexMap::new(), true).unwrap();
+    assert_eq!(found.called().unwrap(), "Sceptile");
+    memory.u32(PLAYER + amie::SHOWN, &[254, 0, 0, 0x303]);
+    assert_eq!(found.called().unwrap(), "Leafy");
+    memory.u32(PLAYER + amie::SHOWN, &[254, 0, 0, 0x101]);
+    assert_eq!(found.called().unwrap(), "Blaze");
+    // a Pikachu's, Khai's save's two sharing one
+    memory.u32(PLAYER + amie::SHOWN, &[254, 0, 0, 0x202]);
     assert_eq!(found.called().unwrap(), "Sceptile");
 }
 
@@ -1316,7 +1320,7 @@ amie-motion-254-drowse = { $pokemon } nods off
 amie-motion-254-happyB = { $pokemon } leaps
 amie-motion-254-eat = { $pokemon } chews with its leaves shaking
 amie-motion-254-moveC = { $pokemon } flicks its tail
-amie-motion-254-12-happyB = { $pokemon } leaps in its costume
+amie-motion-254-1-happyB = { $pokemon } leaps in its costume
 ",
     )
     .unwrap();
@@ -1367,7 +1371,7 @@ amie-motion-254-12-happyB = { $pokemon } leaps in its costume
     assert!(said(&[18, 2], 0, &mut moods).is_empty()); // by itself, unasked for
     let mut fidgeting = amie::Moods::new(found.clone(), true);
     assert_eq!(said(&[18], 0, &mut fidgeting), ["Sceptile flicks its tail"]);
-    found.borrow_mut().form = Some("12".to_string());
+    memory.u32(PLAYER + amie::SHOWN, &[254, 1, 0, 0]);
     assert_eq!(
         said(&[2, 14], 0, &mut moods),
         ["Sceptile leaps in its costume"]
@@ -1393,7 +1397,7 @@ fn test_an_animation_is_read_where_x_keeps_it_four_bytes_later() {
 #[test]
 fn test_every_species_has_sentences_each_naming_it_and_an_animation_pa3ds_reads() {
     let line =
-        regex::Regex::new(r"^amie-motion-(\d+)(?:-\d\d)?-(\w+) = \{ \$pokemon \} \S").unwrap();
+        regex::Regex::new(r"^amie-motion-(\d+)(?:-(?:\d+|f))?-(\w+) = \{ \$pokemon \} \S").unwrap();
     let mut species: std::collections::BTreeSet<i64> = std::collections::BTreeSet::new();
     let folder = data_path().unwrap().join("common").join("en");
     for entry in std::fs::read_dir(&folder).unwrap() {

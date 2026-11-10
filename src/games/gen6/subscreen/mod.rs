@@ -417,6 +417,7 @@ impl Subscreens {
             game.amie,
             drawn,
             game.amie_player,
+            game.amie_shown,
         )
         .shared();
         // Its own keys, the arrows, move the stylus, saying the part it comes onto, and keep it

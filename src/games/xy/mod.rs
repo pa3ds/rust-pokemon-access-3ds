@@ -805,6 +805,9 @@ pub const AMIE: i64 = 0x124;
 /// How much later than ORAS's X's `kawaigari::Player` keeps its fields: its love command at +0x1BC
 /// and its picture's holder at +0x230 (spike A, x_amie_head_it_hard).
 pub const AMIE_PLAYER: i64 = 4;
+/// Where X's `kawaigari::Player` keeps the Pokémon it draws: Froakie's 656, form, sex and its
+/// record's constant (spike A, x_amie_interactions).
+pub const AMIE_SHOWN: i64 = 0x5F8;
 /// Where X's Super Training page, `FM_Training`, keeps its party's PokeIcon: 0x28 before ORAS's,
 /// and its records with it, Frogadier's at +0x124 (spike 228).
 pub const TRAINING: i64 = 0xC8;
@@ -980,6 +983,7 @@ pub fn game() -> &'static Game {
         training: TRAINING,
         amie: AMIE,
         amie_player: AMIE_PLAYER,
+        amie_shown: AMIE_SHOWN,
         field_menu: FIELD_MENU,
         worded: WORDED.iter().map(|texture| texture.to_string()).collect(),
         box_mode: Some((0x24, 0x21)),

@@ -185,29 +185,15 @@ pub type Run = (i64, i64, i64);
 pub type Box4 = (i64, i64, i64, i64);
 /// The two ends a rub goes back and forth between.
 type Ends = ((i64, i64), (i64, i64));
-pub const MODEL: i64 = 0x84;
-pub const MODEL_RESOURCE: i64 = 0x28;
-pub const RECORDS: i64 = 0x70;
-/// `Player` +0x84 -> the Pokémon's shader model, +0x28 -> its resource, +0x70 -> its records,
-/// the first's +0x5C -> the model's name (spike 279).
-pub const RECORD_NAME: i64 = 0x5C;
-/// A Pokémon's model by name, `pm0025_12`: its species' own number, then its number among that
-/// species' models, which tells a form drawn unlike the rest, Pikachu Rock Star's 12. Some names run
-/// on past the 12 bytes read, `pm0701_12_poodle`, Furfrou Heart Trim's. Forms drawn alike but for
-/// colour share a name, Arceus's every type, and so do a few drawn unlike, Burmy's cloaks and East
-/// Shellos: those are named by their species alone (spike A's census). Python's `MODEL_NAME`,
-/// `pm\d{4}_(\d{2})` matched at the start: the model's number, or None.
-pub fn model_name(text: &str) -> Option<String> {
-    let chars: Vec<char> = text.chars().collect();
-    let digits = |from: usize, to: usize| chars[from..to].iter().all(|&c| py::is_decimal(c));
-    (chars.len() >= 9
-        && chars[0] == 'p'
-        && chars[1] == 'm'
-        && digits(2, 6)
-        && chars[6] == '_'
-        && digits(7, 9))
-    .then(|| chars[7..9].iter().collect())
-}
+/// Where `Player` keeps the Pokémon it draws, a word each: its species, its form, its sex and the
+/// encryption constant its record starts with, which says whose it is. X's is 0x5F8
+/// (`Game.amie_shown`). Found with the lead rewritten as Burmy's three cloaks on the research rig,
+/// and checked against Metagross's, Rock Star Pikachu's and Froakie's records (spike A).
+pub const SHOWN: i64 = 0x5FC;
+/// A female, in `SHOWN`'s third word.
+pub const FEMALE: i64 = 1;
+/// A female moving unlike her male in a message's key, `amie-motion-592-f-happyB`.
+pub const FEMALE_FORM: &str = "f";
 /// How long the picture is taken as read while a touch goes on, and as the arrows move the stylus,
 /// which held repeat some thirty times a second; a whole picture is 20 ms to read (spike A).
 pub const FRESH: f64 = 0.1;
@@ -391,7 +377,8 @@ pub const PLAYING: i64 = 0x146;
 /// The animations a sentence describes, by `PLAYING`: the models' own `kw10_respond` to
 /// `kw60_touch`, the three of eating, the three of nodding off and the two of sleep one action each.
 /// A Pokémon's sentence is `amie-motion-<number>-<this>` in `amie-motions-*.ftl`, one a form moving
-/// unlike its species adding its model, `amie-motion-25-12-happyB`, as `amie.ftl`'s names do.
+/// unlike its species adding its form (`AmiePage.form`), `amie-motion-25-1-happyB`, as `amie.ftl`'s
+/// names do.
 pub const MOTIONS: [(i64, &str); 25] = [
     (3, "respond"),
     (4, "turnA"),
@@ -833,6 +820,8 @@ pub struct AmiePage {
     memory: Rc<dyn Memory>,
     /// How much later than ORAS's `Player` keeps its fields (`Game.amie_player`).
     later: i64,
+    /// Where `Player` keeps the Pokémon it draws (`Game.amie_shown`).
+    shown_at: i64,
     /// What the picture of parts is read through, none where it is not read: the GPU draws it,
     /// and Azahar before 2126.2 can crash when that memory is read (`Rpc.reads_beside_gpu`).
     /// Reading it flushes it from the GPU's copy, right only from its own first byte on: from the
@@ -866,18 +855,13 @@ pub struct AmiePage {
     players: IndexMap<i64, i64>,
     /// The party's records, which say the Pokémon's nickname (`called`).
     params: PySet,
-    /// The number `called` last looked up, and what it found.
-    called: Option<(i64, String)>,
+    /// The number and record `called` last looked up, and what it found.
+    called: Option<(i64, Option<i64>, String)>,
     /// Where the stylus is on the still picture, as the arrows have moved it (`StylusKeys`).
     pub stylus: (i64, i64),
     /// The grey of the part a touch goes to, `OFF_PICTURE` for none, None before the stylus
     /// has been on any.
     kept: Option<i64>,
-    /// The number of the Pokémon's model, once read (`form`).
-    pub(crate) form: Option<String>,
-    /// The Player the picture was last read through (`_buffer`): the sweep finds a copy of
-    /// its words in the module's code as well, which leads to no model.
-    live: Option<i64>,
     /// When the picture was last read, and the picture as it was.
     whole: (f64, Option<Rc<Picture>>),
     /// `motion_line` as a test replaces it, where Python's test sets the method on the page.
@@ -903,7 +887,7 @@ impl AmiePage {
         species: Vec<String>,
         number: i64,
     ) -> Self {
-        AmiePage::with_aim(memory, names, species, number, None, 0)
+        AmiePage::with_aim(memory, names, species, number, None, 0, SHOWN)
     }
 
     /// `AmiePage(...)` with every argument.
@@ -914,10 +898,12 @@ impl AmiePage {
         number: i64,
         drawn: Option<Rc<dyn Memory>>,
         later: i64,
+        shown: i64,
     ) -> Self {
         AmiePage {
             memory,
             later,
+            shown_at: shown,
             drawn,
             still: None,
             anew: false,
@@ -936,8 +922,6 @@ impl AmiePage {
             called: None,
             stylus: STYLUS_START,
             kept: None,
-            form: None,
-            live: None,
             whole: (f64::NEG_INFINITY, None),
             motion_line_of: None,
             this: Weak::new(),
@@ -989,27 +973,48 @@ impl AmiePage {
     }
 
     /// The Pokémon by the nickname its player gave it, or else its species (Orion,
-    /// 2026-10-16). Neither the page nor `Player` leads to its record, so it is looked for among
-    /// the party's by its species, and a species two of them share is said as that.
+    /// 2026-10-16): the party's record `Player` says it draws (`SHOWN`), of its species as well,
+    /// as a save edited by hand can have two Pokémon sharing a constant. With no `Player` yet it
+    /// is looked for by its species, and a species two of the party share is said as that.
     pub fn called(&mut self) -> Result<String> {
         let species = self.species()?.unwrap_or_default();
+        let shown = self.shown()?;
+        let key = shown.map(|shown| shown.3);
         if self
             .called
             .as_ref()
-            .is_none_or(|called| called.0 != self.number)
+            .is_none_or(|called| (called.0, called.1) != (self.number, key))
         {
             let mut found = Vec::new();
             for param in self.params.iter() {
-                match pokemon::read(&*self.memory, &self.names, param, pokemon::SPECIES_MAX) {
-                    Ok(one) => found.push(one),
+                let read = || -> Result<(i64, Option<pokemon::Pokemon>)> {
+                    Ok((
+                        u32(&self.memory.read(param + pokemon::RECORD_IN_PARAM, 4)?, 0)?,
+                        pokemon::read(&*self.memory, &self.names, param, pokemon::SPECIES_MAX)?,
+                    ))
+                };
+                match read() {
+                    Ok(pair) => found.push(pair),
                     Err(error) if error.is(Kind::RpcError) => return Ok(species),
                     Err(error) => return Err(error),
                 }
             }
+            let ours: Vec<(i64, pokemon::Pokemon)> = found
+                .into_iter()
+                .filter_map(|(opens, one)| one.map(|one| (opens, one)))
+                .filter(|(_, one)| one.species == self.number)
+                .collect();
+            let mine: Vec<&(i64, pokemon::Pokemon)> =
+                ours.iter().filter(|pair| Some(pair.0) == key).collect();
+            let chosen: Vec<&(i64, pokemon::Pokemon)> = if mine.is_empty() {
+                ours.iter().collect()
+            } else {
+                mine
+            };
             let mut names: Vec<(String, bool)> = Vec::new();
-            for one in found.into_iter().flatten() {
-                let name = (one.nickname, one.nicknamed);
-                if one.species == self.number && !names.contains(&name) {
+            for (_opens, one) in chosen {
+                let name = (one.nickname.clone(), one.nicknamed);
+                if !names.contains(&name) {
                     names.push(name);
                 }
             }
@@ -1018,9 +1023,33 @@ impl AmiePage {
             } else {
                 (String::new(), false)
             };
-            self.called = Some((self.number, if nicknamed { nickname } else { species }));
+            self.called = Some((self.number, key, if nicknamed { nickname } else { species }));
         }
-        Ok(self.called.as_ref().expect("looked up above").1.clone())
+        Ok(self.called.as_ref().expect("looked up above").2.clone())
+    }
+
+    /// The species, form, sex and record of the Pokémon `Player` draws, or None where no
+    /// Player runs.
+    fn shown(&self) -> Result<Option<(i64, i64, i64, i64)>> {
+        let read = || -> Result<Option<(i64, i64, i64, i64)>> {
+            for (&player, &vtable) in &self.players {
+                if self.holder(player, vtable)?.is_none() {
+                    continue;
+                }
+                let head = self.memory.read(player + self.shown_at, 16)?;
+                return Ok(Some((
+                    u32(&head, 0)?,
+                    u32(&head, 4)?,
+                    u32(&head, 8)?,
+                    u32(&head, 12)?,
+                )));
+            }
+            Ok(None)
+        };
+        match read() {
+            Err(error) if error.is(Kind::RpcError) => Ok(None),
+            found => found,
+        }
     }
 
     /// The species a picture draws the Amie page's Pokémon as, in the game's words, or None.
@@ -1237,56 +1266,20 @@ impl AmiePage {
         ))
     }
 
-    /// The model Amie draws the Pokémon with, by its number among its species' own,
-    /// `"12"` for Pikachu Rock Star's `pm0025_12`: `Player` +0x84 leads to its shader model,
-    /// whose resource's +0x70 lists its records, the first named for the model (spike 279).
-    /// None until it can be read: Amie loads the model as it opens, and one Player's address
-    /// serves one Pokémon after another, so it is kept only till Amie closes (`forget`). Kept
-    /// across them, Pikachu Rock Star took the model of the Metagross before it, and had none of
-    /// its own names: its ears, its danger zone, said "head" (or_amie_interactions).
-    pub fn form(&mut self) -> Result<Option<String>> {
-        let player = self.live;
-        if self.form.is_none()
-            && let Some(player) = player
-        {
-            let memory = &self.memory;
-            let read = || -> Result<Vec<u8>> {
-                let model = u32(&memory.read(player + MODEL + self.later, 4)?, 0)?;
-                let resource = if model != 0 {
-                    u32(&memory.read(model + MODEL_RESOURCE, 4)?, 0)?
-                } else {
-                    0
-                };
-                let records = if resource != 0 {
-                    u32(&memory.read(resource + RECORDS, 4)?, 0)?
-                } else {
-                    0
-                };
-                let named = if records != 0 {
-                    u32(&memory.read(records + RECORD_NAME, 4)?, 0)?
-                } else {
-                    0
-                };
-                Ok(if named != 0 {
-                    let raw = memory.read(named, 12)?;
-                    raw.split(|&byte| byte == 0)
-                        .next()
-                        .unwrap_or_default()
-                        .to_vec()
-                } else {
-                    Vec::new()
-                })
-            };
-            let text = match read() {
-                Ok(text) => text,
-                Err(error) if error.is(Kind::RpcError) => return Ok(None),
-                Err(error) => return Err(error),
-            };
-            if let Some(found) = model_name(&py::decode_latin1(&text)) {
-                self.form = Some(found);
-            }
-        }
-        Ok(self.form.clone())
+    /// How the messages name the form Amie draws the Pokémon in (`SHOWN`): its number, `"1"`
+    /// for Pikachu Rock Star, `FEMALE_FORM` for a first form's female, and None for a first
+    /// form's male or where no Player runs, which take the species' own.
+    pub fn form(&self) -> Result<Option<String>> {
+        let Some((_species, form, sex, _record)) = self.shown()? else {
+            return Ok(None);
+        };
+        Ok(if form != 0 {
+            Some(form.to_string())
+        } else if sex == FEMALE {
+            Some(FEMALE_FORM.to_string())
+        } else {
+            None
+        })
     }
 
     /// Send a touch to a grey, or to the part the stylus is on now, as the arrows leave it; to
@@ -1369,7 +1362,7 @@ impl AmiePage {
     /// Leave what is known of the Pokémon behind as Amie closes, or one of its games opens.
     pub fn forget(&mut self) {
         (self.still, self.anew, self.richer_until) = (None, false, f64::INFINITY);
-        (self.moving, self.big, self.form, self.live) = (None, false, None, None);
+        (self.moving, self.big) = (None, false);
     }
 
     /// Where a press off the Pokémon goes: the screen's side nearer the stylus, or the other
@@ -1623,7 +1616,6 @@ impl AmiePage {
                 0
             };
             if within(LINEAR_SPAN, buffer) {
-                self.live = Some(player);
                 return Ok(Some(buffer));
             }
         }
