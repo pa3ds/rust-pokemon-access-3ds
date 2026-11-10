@@ -7,7 +7,7 @@
 //! what draws it was not found (spike 196, movie33). The numbers are the Pokémon's record's, so
 //! they are said from it, more exact than the star, and only for a player who asks: "Conditions
 //! Coolness 116 Beauty 70 Cuteness 70 Cleverness 70 Toughness 70". Sheen is left out: the game's
-//! text never names it, and in ORAS it changes nothing (Orion, 2026-10-09).
+//! text never names it, and in ORAS it changes nothing.
 //!
 //! Whose star it is: the summary points at the Pokémon it shows; the Pokéblock Case at the party,
 //! and draws the star of the one under its cursor, named there.

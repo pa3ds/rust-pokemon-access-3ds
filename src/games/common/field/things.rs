@@ -154,38 +154,37 @@ pub type Naming = (&'static str, i64, i64);
 
 pub const POKEMON: &str = "pokémon";
 
-/// The soil berries are planted in, a category of its own (the user, 2026-09-29).
+/// The soil berries are planted in, a category of its own.
 pub const BERRIES: &str = "berries";
 
-/// Route 113's ash piles, a category of its own (the user, 2026-10-02).
+/// Route 113's ash piles, a category of its own.
 pub const ASH: &str = "ash";
 
 /// The ground only a bike gets up or across, the Mach Bike's slopes and the Acro Bike's rails and
 /// bumpy slopes, a category of its own: the game names none of them, and the player could not find
-/// them to record them (the user, 2026-10-03).
+/// them to record them.
 pub const BIKE: &str = "bike";
 
 /// What stands in the way until a move clears it, a category of its own: big boulders, bushes,
 /// cracked boulders, the holes Strength's boulders drop into, and Mauville Gym's barriers. Under
-/// signs they outnumbered the signs in Seafloor Cavern's rooms (Orion, 2026-10-13).
+/// signs they outnumbered the signs in Seafloor Cavern's rooms.
 pub const OBSTACLES: &str = "obstacles";
 
 /// The sea's currents, a category of their own, each by where it lets the player go, as a
-/// teleporter is by where it comes out (Orion, 2026-10-13).
+/// teleporter is by where it comes out.
 pub const CURRENTS_CATEGORY: &str = "currents";
 
 /// The arrow tiles that push the player, a category of their own, each by the way it pushes and
 /// where its push sets the player down, as a current is by where it lets them go: Lysandre Labs'
-/// floor is full of them (Khai, 2026-10-30, spike 265).
+/// floor is full of them (spike 265).
 pub const ARROWS: &str = "arrows";
 
 /// The flat ground a ridden Pokémon is got on and off on, a category of its own: "not sure when you
-/// can get off rhyhorn so that prob need its own category" (Khai, 2026-10-22).
+/// can get off rhyhorn so that prob need its own category".
 pub const RIDING: &str = "riding";
 
 /// The blue spots climbing walls are got on at and the ledges they are got off onto, and the ends
-/// of vines, a category of its own: "mark its entry point and exit point maybe? in a category"
-/// (Khai, 2026-10-24).
+/// of vines, a category of its own: "mark its entry point and exit point maybe? in a category".
 pub const CLIMBING: &str = "climbing";
 
 /// What a teleporter that moves the player within its zone is listed as, under signs, and the
@@ -393,7 +392,7 @@ impl Interactable {
 
     /// The name of this one alone, ahead of its sprite's, as `naming` says one: a slot on its
     /// record's map. None for anything but a move model with a record. Youngster Calvin is one of
-    /// eleven drawn as a Youngster, and one big boulder of eight in a room (Orion, 2026-10-11).
+    /// eleven drawn as a Youngster, and one big boulder of eight in a room.
     pub fn own(&self) -> Result<Option<Naming>> {
         self.record
             .map(|(zone, index)| own_name(zone, index))
@@ -491,7 +490,7 @@ pub struct Field {
     /// is not read: on a rail, and in Sun.
     pub place: Option<(f64, f64)>,
     /// Whether the player can walk now: not while another screen runs over a map still loaded,
-    /// where the list is still read but P finds no way (Orion, 2026-10-12).
+    /// where the list is still read but P finds no way.
     pub walkable: bool,
     /// How high the player stands in the world, as `Interactable.height` says a thing does: 18 to
     /// a cell's width in gen 6. None where it is not read: in Sun.

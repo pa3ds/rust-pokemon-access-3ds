@@ -39,7 +39,7 @@
 //! The round's score, its combo and each "MISS!" come at every ball, faster than a screen reader
 //! says them behind the balls (players, 2026-11-04), and are left unsaid as they come unless the
 //! player asks (`[pa3ds.amie] head_it_score`); a key says them, with the clock or the chances left
-//! (`score`, Orion, 2026-11-04). The game's words, as the screen draws them, each known by the
+//! (`score`). The game's words, as the screen draws them, each known by the
 //! layout it is drawn in and that layout's pane (`SCORE_WINDOW`, `HIT`, `STATUS`).
 //!
 //! Bound by:
@@ -141,7 +141,7 @@ pub const SWEET: f64 = -13.0;
 /// the frame it comes in, so the sweet spot runs from the frame at 125 to the one at 82, and 104
 /// starts its middle: a frame to spare either side. Aimed at 115, half a frame early, a tap 0.4 s
 /// after the cue was read at 145 once in two. Cued for `SWEET`, its "!" came late, and a tap the
-/// lead after it missed (Orion, or_amie_head_it_normal).
+/// lead after it missed (or_amie_head_it_normal).
 pub const GIANT_SWEET: f64 = 104.0;
 /// Seconds before the ball reaches `SWEET` the cue sounds, as it ships (`[pa3ds.amie]
 /// head_it_lead`): about how long a player takes from the cue to the tap, the sound's way out to
@@ -184,7 +184,7 @@ pub const MISSED: &str = "missed";
 /// and the results.
 pub const STATUS: &str = "win_heading.bclim";
 /// The zeros the round pads its numbers with, "053" for 53: a screen reader said "zero five
-/// three" (Orion, 2026-11-08), and they are left out of the score, the clock and the results.
+/// three", and they are left out of the score, the clock and the results.
 /// Python's `\b0+(?=\d)` ends in a look-ahead, which the `regex` crate lacks: the digit after the
 /// zeros is matched here and written back (`HeadIt::reworded`).
 pub static LEADING_ZEROS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\b0+(\d)").unwrap());
@@ -1071,7 +1071,7 @@ fn median(values: &[f64]) -> f64 {
     (data[n / 2 - 1] + data[n / 2]) / 2.0
 }
 
-/// Head It's own keys (Orion, 2026-10-31): a key a Pokémon, by where it stands, left, in the
+/// Head It's own keys: a key a Pokémon, by where it stands, left, in the
 /// middle and right, which taps it, as touch mode's tap does the Pokémon it has just said. Touch
 /// mode's own keys still tap there as ever.
 ///

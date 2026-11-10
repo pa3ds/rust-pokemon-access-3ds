@@ -269,7 +269,7 @@ fn test_a_thing_of_another_part_is_said_with_its_part() {
 }
 
 /// ADR-0041: what P says of each thing listed is logged where a tape replay asks for it, read
-/// inside what it gives; a recording and a player's run log none (Orion, 2026-10-29).
+/// inside what it gives; a recording and a player's run log none.
 #[test]
 fn test_a_tape_replay_logs_ps_ways_at_each_listing_and_any_other_run_never() {
     let town = Town::new();
@@ -313,9 +313,9 @@ fn test_a_tape_replay_logs_ps_ways_at_each_listing_and_any_other_run_never() {
     assert_eq!(made(None), Vec::<String>::new());
 }
 
-/// `[pa3ds.navigation] guide_to_hidden`, on by default (Orion, movie26): a find, not every
+/// `[pa3ds.navigation] guide_to_hidden`, on by default (movie26): a find, not every
 /// poll it stays up; a faint, then the next search's find, is a find again; and what the
-/// detector turns up is no search's, "not a random Poochyena!" (Orion, movie27), but for the
+/// detector turns up is no search's, "not a random Poochyena!" (movie27), but for the
 /// DexNav's in touch mode.
 #[test]
 fn test_a_hidden_pokemon_is_guided_to_as_a_search_finds_it_and_once() {
@@ -346,7 +346,7 @@ fn test_a_hidden_pokemon_is_guided_to_as_a_search_finds_it_and_once() {
         made.poll_field().unwrap();
     }
     assert_eq!(finds(), 2);
-    // In touch mode, at the DexNav, the DexNav's (Orion, 2026-10-07); still not the AreaNav's.
+    // In touch mode, at the DexNav, the DexNav's; still not the AreaNav's.
     made.navigator.borrow_mut().press(MODE_TOGGLE).unwrap();
     made.navigator.borrow_mut().press(MODE_TOGGLE).unwrap();
     for (cell, found_by) in [((95, 175), 2), ((96, 175), 1)] {
@@ -359,7 +359,7 @@ fn test_a_hidden_pokemon_is_guided_to_as_a_search_finds_it_and_once() {
 }
 
 /// A battle or a scene unloads the map and runs with the field's models still in memory: after
-/// Groudon's capture the keys listed it in the cave left behind (Orion, 2026-10-12). While the map
+/// Groudon's capture the keys listed it in the cave left behind. While the map
 /// is still loaded under another screen the list is read, and P finds no way; and the item chosen
 /// is kept for when the field comes back.
 #[test]

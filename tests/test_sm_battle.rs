@@ -228,7 +228,7 @@ fn test_the_players_hp_is_said_once_the_count_has_held_for_a_poll() {
     assert_eq!(battle.heard(&hurt), strings(&["Rowlet♀ L5 18/22"]));
 }
 
-/// Screen text said "Rowlet 5 22 22" and each step of the count (the user's log).
+/// Screen text said "Rowlet 5 22 22" and each step of the count.
 #[test]
 fn test_the_box_is_the_battle_readers_while_a_gauge_shows_its_panel() {
     let mut battle = Battle::new();

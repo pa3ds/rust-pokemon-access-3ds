@@ -855,7 +855,7 @@ fn test_doors_the_rom_names_and_the_ones_it_does_not() {
 
 /// Dewford's Gym and Dewford Hall, as the real ROM has it: two doors left for one facility.
 /// The Gym's room is a Gym's by its kind, and the Gym the first facility only its town lists;
-/// which the other door is, is not the ROM's to say, so it is not guessed (Orion, 2026-10-13).
+/// which the other door is, is not the ROM's to say, so it is not guessed.
 #[test]
 fn test_two_doors_left_for_one_facility_name_only_the_gyms() {
     let tmp_path = TmpDir::new();

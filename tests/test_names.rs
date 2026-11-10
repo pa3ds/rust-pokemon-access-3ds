@@ -276,7 +276,7 @@ fn test_the_shipped_table_names_a_slot_behind_the_player_and_the_game() {
     assert_eq!(names.place(BED.0, BED.1).as_deref(), Some("Maxie's bed"));
 }
 
-/// Each game's tables name the same things in every language (Orion, 2026-10-14): a word
+/// Each game's tables name the same things in every language: a word
 /// the ROM has none for in one language is pa3ds's own there, as "Nurse" is in English.
 #[test]
 fn test_every_language_names_what_english_does() {

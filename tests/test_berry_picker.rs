@@ -248,7 +248,7 @@ fn crying() -> (Rc<RefCell<Vec<(i64, f64)>>>, Crier) {
     (cried, cry)
 }
 
-/// A player's request (Orion, 2026-11-02): the Pokémon's own cry where its name is said;
+/// A player's request: the Pokémon's own cry where its name is said;
 /// instead of it, the berry alone. Touch mode's target keeps the name. The cry is heard from its
 /// key's side, not from where it pops up: Treecko pops up on the left, and is the second of the
 /// game's own order, the lineup's and the keys', so it is heard in both ears. By where they
@@ -298,7 +298,7 @@ fn test_a_bubble_is_said_as_it_comes_and_again_once_it_has_gone_and_come_back() 
 }
 
 /// The opening shows three Pokémon wanting berries before READY: the game demonstrating,
-/// silent (Orion, 2026-10-28).
+/// silent.
 #[test]
 fn test_the_openings_demonstration_is_said_nothing_of_and_the_round_is() {
     let app = Some(berry_picker::APP);
@@ -436,7 +436,7 @@ fn keys(sounds: bool) -> Keys {
     }
 }
 
-/// ADR-0009 as amended 2026-10-29 (Orion): a key a berry, in the game's own order of their
+/// ADR-0009 as amended 2026-10-29: a key a berry, in the game's own order of their
 /// pictures, and a key a Pokémon, in the game's own order of the round's three; the second makes
 /// the drag, from the tree straight to the Pokémon.
 #[test]
@@ -464,7 +464,7 @@ fn test_a_berrys_key_then_a_pokemons_gives_it_the_berry() {
     assert_eq!(keys.touched.given.len(), 1);
 }
 
-/// Pressed 1, then 2, the player means to give the second (Orion, 2026-10-29).
+/// Pressed 1, then 2, the player means to give the second.
 #[test]
 fn test_another_berrys_key_picks_that_one_up_instead() {
     let mut keys = keys(false);
@@ -482,7 +482,7 @@ fn test_another_berrys_key_picks_that_one_up_instead() {
 
 /// A berry the round has not, as 7 on Easy, a Pokémon not to be read, or one not up with a berry
 /// picked up, which stays picked up: the game's own beep, `SEQ_SE_BEEP`,
-/// with `feedback_sounds` on (Orion, 2026-10-29).
+/// with `feedback_sounds` on.
 #[test]
 fn test_a_key_with_nothing_to_do_plays_the_games_error_sound_or_says_why() {
     let mut keys = keys(false);

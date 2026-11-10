@@ -52,7 +52,7 @@ fn describe(text: &str) {
 }
 
 /// The command line: a flag is only what a developer passes for one run; settings are the
-/// file's (Orion, 2026-09-30).
+/// file's.
 #[derive(Default)]
 struct Args {
     silent: bool,
@@ -455,7 +455,7 @@ fn ask_for_azahar(settings: config::Config, notes: &mut Vec<String>) -> py::Resu
 }
 
 /// `<pa3ds>/user/logs/pa3ds.log`, among everything else the player owns (ADR-0032), in a folder
-/// of its own so ten runs of it do not bury the keys file and the names (the user, 2026-09-24).
+/// of its own so ten runs of it do not bury the keys file and the names.
 pub fn default_log_path() -> py::Result<PathBuf> {
     Ok(keyfile::home_path()?.join(LOG_FOLDER).join(LOG_NAME))
 }

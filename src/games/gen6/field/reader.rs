@@ -192,7 +192,7 @@ fn base_tile(kind: i64) -> Option<&'static str> {
 }
 
 /// What the decorating cursor is on where nothing stands and nothing is in the way: the game says
-/// nothing as it moves from one such cell to the next (the user's word, 2026-10-02).
+/// nothing as it moves from one such cell to the next.
 pub const BLANK: &str = "blank";
 
 /// What the decorating cursor is on where the cell table has the cell blocked and no decoration,
@@ -1603,11 +1603,11 @@ impl FieldReader {
     }
 
     /// The decorations set down in a Secret Base, among the signs by the game's names for them,
-    /// each one thing over its cells: set down, the Stairs and the desks were not listed at all
-    /// (the user, 2026-10-10). The Invisible Doll is not, as the game hides it.
+    /// each one thing over its cells: set down, the Stairs and the desks were not listed at all.
+    ///The Invisible Doll is not, as the game hides it.
     ///
     /// Those of one name that touch are one thing: every base's five Welcome Mats in a line were
-    /// listed five times (the user, 2026-10-10). Apart, they stay apart, so the way to one does not
+    /// listed five times. Apart, they stay apart, so the way to one does not
     /// end on the floor between them.
     fn placed(&self, zone: i64) -> Result<Vec<Interactable>> {
         let Some(bases) = &self.secret_bases else {
@@ -1669,8 +1669,8 @@ impl FieldReader {
 
     /// What makes furniture records that touch one thing (`_joined`): their script, which the
     /// game runs whichever of them the player faces, as round Seafloor Cavern's submarine, four
-    /// records saying "“Submarine Explorer 1” is painted on the hull" and listed as four signs
-    /// (Orion, 2026-10-13). The ROM has 33 such pairs in 12 zones. An elevator's door is two
+    /// records saying "“Submarine Explorer 1” is painted on the hull" and listed as four signs.
+    ///The ROM has 33 such pairs in 12 zones. An elevator's door is two
     /// records with a shared script each (`Game.elevators`), both of which run the elevator.
     ///
     /// Python's key is the script or `ELEVATOR`, an int or a str; here both are text, which no
@@ -3348,7 +3348,7 @@ pub(crate) fn rail_teleporters(
 /// one script, an elevator's door two side by side, and three stand-ins in a row in front of
 /// Groudon (spike 209). An item is never split: a warp across a diagonal street covers cells
 /// touching only at their corners, and grouped by its cells it was listed once a cell, under one
-/// key, and round Prism Tower `L` went back and forth between two exits (Khai, 2026-10-27).
+/// key, and round Prism Tower `L` went back and forth between two exits.
 fn joined(
     items: Vec<Interactable>,
     key: &dyn Fn(&Interactable) -> Option<String>,

@@ -598,7 +598,7 @@ pub fn lay_out(
 /// is then six parts, joined by its teleporters alone (`Teleport`). Laid where the screen
 /// shows each, 126 cells would be two parts' (spike 264). A street's dead end a cell from
 /// another's point at its height is no way onto it: joined so, P said "1 west, 14 south" off
-/// the first teleporter's landing, and the keys met a wall (Khai, 2026-10-30).
+/// the first teleporter's landing, and the keys met a wall.
 ///
 /// A track's walls run from its joint, as the game measures places on it (`Line.direction`),
 /// and are turned round to run from its start as a line's do. Read from their starts, each of

@@ -69,7 +69,7 @@ pub const WAY: i64 = 0x0D;
 /// by (`habitat.WAYS`): the DexNav draws a Pokémon met walking on the land of its picture of the
 /// area, one met surfing in a row along the top of the water and one fished for in a row below it
 /// (movie27 on Route 102: Marill, Azumarill, Surskit and Masquerain 1, Magikarp, Goldeen and
-/// Corphish 2). Walking says none (Orion, 2026-10-20): "grass" was wrong on a cave's floor, Meteor
+/// Corphish 2). Walking says none: "grass" was wrong on a cave's floor, Meteor
 /// Falls' Zubat and Bagon 0 (spike 232), and a Pokémon met in seaweed under water, which the game
 /// shows as met in the grass, says none either. 3, met only by the DexNav's search, has no word: no
 /// such Pokémon seen has been drawn yet.
@@ -166,7 +166,7 @@ impl Distribution {
     /// each way's line led by its word, "caught" after a species caught: "Swablu, Seedot caught",
     /// "water: Marill", "fishing: Magikarp caught", with spaces for the commas and colons but under
     /// `[pa3ds.ui] pauses`. One line, the last of a way ran on into the next way's word, "Seedot
-    /// caught, water" (Orion, 2026-10-20).
+    /// caught, water".
     ///
     /// Python's `pauses` defaults to False.
     pub fn listed(

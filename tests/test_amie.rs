@@ -193,7 +193,7 @@ fn test_a_picture_drawing_another_image_is_not_named() {
 }
 
 /// Leos's Sceptile stood beside Pikachu in the ring, said by a stale name of the party's until
-/// it was tapped (Orion, 2026-11-06, or_amie_affection_increase): the player's Pokémon is first
+/// it was tapped (or_amie_affection_increase): the player's Pokémon is first
 /// in the page's list, and a visitor has a picture of its own after it.
 #[test]
 fn test_a_pokemon_visiting_the_page_is_named_by_the_pages_list_of_who_walks_there() {
@@ -349,7 +349,7 @@ const BODY: (i64, i64, i64, i64) = (100, 120, 220, 230);
 
 /// Read through `PageCache`, X's picture came back wrapped half a column round, "head", "body"
 /// and "head" again down Froakie, and Omega Ruby's with nearly half of it gone, Pikachu's paw
-/// among it (Orion, 2026-11-07, x_amie_interactions).
+/// among it (x_amie_interactions).
 #[test]
 fn test_the_picture_is_read_as_the_gpu_drew_it_and_not_through_the_pages_round_it() {
     assert_eq!(
@@ -441,7 +441,7 @@ fn test_a_rub_goes_across_the_part_the_stylus_is_on_the_way_it_is_longer() {
 /// A grey is a kind of part, the same on every Pokémon (spike 287): 17 Pikachu's cheek, which
 /// shocks the hand. A sweet spot (27, 28) or a danger zone (25, 26) is said by the Pokémon's own
 /// name for it in `amie.ftl`, Sceptile's 28 its arm leaves; one it has none for, as
-/// the head or the body, the side of the pair each is (Orion, 2026-11-05).
+/// the head or the body, the side of the pair each is.
 #[test]
 fn test_the_stylus_is_offered_by_the_kind_of_part_it_is_on() {
     let (mut found, _memory) = running(
@@ -679,7 +679,7 @@ fn test_ctrl_and_an_arrow_jump_the_stylus_to_the_next_part_that_way() {
 }
 
 /// A sweet spot with no name of its own is said as the head, and a jump went from the head to
-/// the head (Orion, 2026-11-06).
+/// the head.
 #[test]
 fn test_a_jump_goes_past_a_part_said_as_the_one_it_left() {
     let mut k = keyed(&[(9, BODY), (8, HEAD), (27, (140, 80, 180, 100))]);
@@ -1027,7 +1027,7 @@ fn test_a_press_off_the_pokemon_goes_to_the_side_of_the_screen_clear_of_it() {
     assert_eq!(rub(&stylus, &at_the_left), ((295, 100), (295, 100)));
 }
 
-/// Across the whole screen it was too many presses (Orion, 2026-11-05).
+/// Across the whole screen it was too many presses.
 #[test]
 fn test_the_arrows_keep_the_stylus_within_a_step_of_the_pokemon() {
     let mut stylus = still(&[(8, HEAD)]);
@@ -1133,7 +1133,7 @@ fn test_amie_closing_leaves_the_still_picture_behind() {
 /// Wailord stays on the top screen, a strip of belly on the bottom one, until a press held at
 /// the top edge brings it down, and one at the bottom edge sends it back (spike 287's `watch`).
 /// Once it has moved the still picture is taken anew, and that is said. Regigigas and Zygarde
-/// have no eyes to show it has come down: what was last pressed says (Orion, 2026-11-07).
+/// have no eyes to show it has come down: what was last pressed says.
 #[test]
 fn test_a_pokemon_too_big_for_the_bottom_screen_is_offered_to_bring_down_and_send_back() {
     let mut k = keyed(&[(9, (40, 0, 160, 6))]);
@@ -1513,7 +1513,7 @@ fn placed(memory: &FakeMemory, fake: &FakeLayouts, across: f32) {
     }
 }
 
-/// They said "button pokémon", the icon they draw saying nothing of whose (Orion, 2026-11-06).
+/// They said "button pokémon", the icon they draw saying nothing of whose.
 /// Nothing but the Switch screen's own pictures, and only the party's row, has a name here.
 #[test]
 fn test_the_switch_screens_buttons_are_named_by_the_party_member_their_place_holds() {

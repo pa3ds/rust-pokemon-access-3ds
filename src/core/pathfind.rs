@@ -427,7 +427,7 @@ impl Ord for Entry<'_> {
 /// `diagonal` says a step can be diagonal (`slants`), closing one cell each way for a step's
 /// price, so the estimate counts the further of the two alone: counting both, it overstated, and
 /// a way across Santalune Gym's web or along Lumiose's slanted streets might not have been the
-/// cheapest (Orion, 2026-10-30).
+/// cheapest.
 ///
 /// `part` says which zone a cell is in, where the map has several: of the cheapest ways, `_chosen`
 /// keeps the ones crossing into another fewest times (ADR-0042).
@@ -722,7 +722,7 @@ fn relax<'a>(
 /// straight furthest, the first of `STEPS` and `DIAGONALS` where two go as far. So of ways that
 /// cost the same P says the one whose legs run longest first, "5 east, 2 north", by a rule of
 /// its own rather than the order the search went in: any search that finds every cheapest way
-/// into each place says the same way (Orion, 2026-10-30).
+/// into each place says the same way.
 fn chosen<'a>(
     came: &HashMap<Node<'a>, Vec<Node<'a>>>,
     first: &Node<'a>,

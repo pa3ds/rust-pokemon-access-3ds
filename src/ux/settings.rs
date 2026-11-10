@@ -23,7 +23,7 @@
 //!   applying wrote `true`, which the file cannot take)
 //! - the folder of a portable Azahar: a box to type it into, and Browse, the folder picker
 //!
-//! **OK, Cancel and Apply**, as Windows' own settings dialogs have (Orion): applying writes each
+//! **OK, Cancel and Apply**, as Windows' own settings dialogs have: applying writes each
 //! setting changed on its own line of the file (`config.change`), then asks whether to start pa3ds
 //! again now, for them to take; the new pa3ds takes this one's place (`instance.again`). Otherwise
 //! they take at the next start. Nothing the poll loop does asks after the settings (Orion: rather a

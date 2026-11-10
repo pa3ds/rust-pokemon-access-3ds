@@ -41,11 +41,11 @@
 //! A battle leaves the species, level and place in the record (the user, 2026-09-22: the entries
 //! did not clean up after a battle), and so does walking to another zone; the byte at +0xae is what
 //! says the tail is up, in the nine captures over four movies it was read in. A Pokémon that faints
-//! leaves it 0xd, not 0xff, and was listed "here" until the next search (Orion, movie26).
+//! leaves it 0xd, not 0xff, and was listed "here" until the next search (movie26).
 //!
 //! The species is said in the log and not aloud: the game shows a tail, and the DexNav names the
 //! Pokémon only once the species is registered, so a name would be an Extra (ADR-0017), and the
-//! names are in the ROM's text in any case (names later, the user, 2026-09-21).
+//! names are in the ROM's text in any case (names later).
 //!
 //! Bound by:
 //! - ADR-0037: a hidden Pokémon is up while its state is below 0xd, and +0xc9 says a search's find
@@ -89,7 +89,7 @@ pub const NONE: i64 = 0xFF;
 pub const GONE: i64 = 0x0D;
 pub const FOUND_BY: i64 = 0xC9;
 /// `FOUND_BY` for a Pokémon the DexNav's search found: the one the player asked for, where its
-/// detector finds any (Orion, movie27: a Surskit came up while he searched for Zigzagoon).
+/// detector finds any (movie27: a Surskit came up while he searched for Zigzagoon).
 pub const SEARCH: i64 = 3;
 /// `FOUND_BY` for one its detector found with the DexNav open, as against 2 with the AreaNav
 /// open, the player walking about with the map up rather than looking for Pokémon.
@@ -128,7 +128,7 @@ pub fn find(found: &Found, memory: &dyn Memory) -> Result<Option<i64>> {
 }
 
 /// The record's words as they are, before any check, for the log: what the game held when a
-/// rustle went unlisted (the user, 2026-09-22).
+/// rustle went unlisted.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Words {
     pub species: i64,

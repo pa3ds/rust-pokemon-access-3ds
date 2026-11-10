@@ -40,7 +40,7 @@ pub const MODE_WORDS: [&str; 3] = ["mode01", "mode02", "mode03"];
 
 /// Says the PC Box's mode as Start and Select change it, and on opening where it is not
 /// normal: its three tabs only pulse as one is chosen and draw nothing to tell them apart
-/// (Orion, or_pc_mode_buttons; spike 288).
+/// (or_pc_mode_buttons, spike 288).
 pub struct Mode {
     memory: Rc<dyn Memory>,
     r#where: (i64, i64),

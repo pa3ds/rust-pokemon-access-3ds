@@ -104,8 +104,8 @@ pub fn sprite_key(character: i64) -> String {
 }
 
 /// What each kind of slot is written as in a names file, by its tag (`things.SOURCE_KIND`): a
-/// warp's slot 3 is `warp:3`. A word, so a person editing the file can tell a door from a sign
-/// (Orion, 2026-10-11); a kind renamed in code keeps its word here, or its names stop matching.
+/// warp's slot 3 is `warp:3`. A word, so a person editing the file can tell a door from a sign;
+///a kind renamed in code keeps its word here, or its names stop matching.
 pub const KINDS: [&str; 22] = [
     "furniture",
     "warp",
@@ -289,7 +289,7 @@ impl Names {
 
     /// What the shipped table says each of a kind of thing is, by its number: in `TILES` a
     /// kind of use tile, `0xdd` a trash can wherever it stands; in `FURNITURE` the shared script
-    /// a record runs, every vending machine one of five (Orion, 2026-10-14; spike 210). So each is
+    /// a record runs, every vending machine one of five (spike 210). So each is
     /// said as what it is before anyone has named it. A word for what a thing is rather than a
     /// name, so a name the player gives one slot still comes first, and the game's own word for
     /// a kind, the PC's, ahead of it (`FieldReader`). A key that is not a number is a typo, and

@@ -912,7 +912,7 @@ fn crossings(
 /// 239). A run of legs a current, a grind rail or a belt carries the player along is said as one,
 /// by where it leaves them (`CARRIED`). A leg into another place says it (`_crossings`). The way
 /// is said as far as its first vine, then how many more it rides: up Coumarine Gym, every
-/// press said all 17 vines and the legs between, again at each step (Khai, 2026-10-26). So is
+/// press said all 17 vines and the legs between, again at each step. So is
 /// a way through Laverre Gym's teleporters, "6 north, teleporter, then 3 more teleporters".
 fn spoken(legs: &[Leg], r#where: &Field, crossings: &IndexMap<i64, String>) -> Result<String> {
     if let Some(heading) = r#where.heading {
@@ -1449,8 +1449,7 @@ impl Guide {
     /// along it; or say why there is nothing to follow. `hm` finds it over water too.
     ///
     /// Where nothing leads there, the way goes as near as the player can get, said with ", then
-    /// can't continue", and "no path" only where nowhere is nearer than where they stand (the
-    /// user, 2026-10-03).
+    /// can't continue", and "no path" only where nowhere is nearer than where they stand.
     ///
     /// `heading` is the way a player who has left the path was walking. A new path that starts
     /// that way is taken quietly, and its next turn said when they reach it: a player who took
@@ -1467,7 +1466,7 @@ impl Guide {
     ///
     /// A big boulder is gone to on a side it is pushed from, the way `push` says where it can be
     /// pushed so and the nearest otherwise, and the way is said with the push: "to push east:
-    /// 3 west, 2 north" (Orion, 2026-10-11).
+    /// 3 west, 2 north".
     ///
     #[allow(clippy::too_many_arguments)]
     pub fn to(
@@ -1731,7 +1730,7 @@ impl Guide {
         let first = first.ok_or_else(|| Error::index("list index out of range"))?;
         if first != heading {
             // Short of the thing, the way goes as near as it can, which the player hears the
-            // end of: they asked for that over "no path" (the user, 2026-10-03).
+            // end of: they asked for that over "no path".
             let mut text = if named {
                 format!("{}, ", (self.label)(item, r#where.zone)?)
             } else {

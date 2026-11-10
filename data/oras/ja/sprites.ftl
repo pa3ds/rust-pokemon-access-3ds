@@ -5,7 +5,7 @@
 ### player has called them, what the game calls them out of the player's own ROM, and only
 ### then this file. So it is heard only when pa3ds cannot read the ROM.
 ###
-### Each table names what the English one does (Orion, 2026-10-14). Most words are the ROM's
+### Each table names what the English one does. Most words are the ROM's
 ### own in this language, out of the line the English word's comment names. Where the ROM has
 ### none, as for the Nurse and the people the English table calls by what their sprite's id
 ### says, the word is pa3ds's own, as the English one is.

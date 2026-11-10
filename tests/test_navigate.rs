@@ -913,7 +913,7 @@ fn test_items_are_said_with_their_place_nearest_first_and_wrap() {
 }
 
 /// ADR-0042: a thing of another part of the player's place says which, after the way to it,
-/// so its compass word is not taken for the way (Orion, 2026-10-31): the door here stands in
+/// so its compass word is not taken for the way: the door here stands in
 /// "the next part", and the edge says nothing more.
 #[test]
 fn test_a_thing_in_another_part_says_the_part_after_its_bearing() {
@@ -1021,7 +1021,7 @@ fn test_shift_c_says_where_the_chosen_thing_is_by_the_cells_it_spans() {
 
 /// `[pa3ds.navigation] show_y`: y after x and z, in the game's own units, rounded, for the
 /// player and for a thing whose height is read; none where it is not, as for a sign. Last,
-/// as length, width and height go (Orion, 2026-10-15).
+/// as length, width and height go.
 #[test]
 fn test_show_y_says_how_high_the_player_and_the_thing_stand_where_known() {
     let door = Interactable {
@@ -1063,7 +1063,7 @@ fn test_show_y_says_how_high_the_player_and_the_thing_stand_where_known() {
 
 /// A thing further above or below the player than it is walked up to from says how far, in
 /// the game's units, whatever `show_y` says: an item ball under a cliff was "1 north" alone to a
-/// player on top, who could not pick it up (Orion, 2026-10-24). Nearer, or with no height, it
+/// player on top, who could not pick it up. Nearer, or with no height, it
 /// says nothing more.
 #[test]
 fn test_a_thing_more_than_two_cells_above_or_below_says_how_far() {
@@ -1124,7 +1124,7 @@ fn test_a_key_answer_interrupts() {
     assert!(default_interrupts().contains(&Category::Key));
 }
 
-/// K tracked one person and then, a few steps on, another (the user, 2026-09-21).
+/// K tracked one person and then, a few steps on, another.
 #[test]
 fn test_the_chosen_person_stays_chosen_as_walking_reorders_the_list() {
     let mut rig = navigator(Want::default());
@@ -1374,7 +1374,7 @@ fn test_a_direction_cycles_its_side_nearest_first_and_wraps() {
     );
 }
 
-/// The edge 13 north and the person 12 north are beyond it (the user, 2026-09-21: 10).
+/// The edge 13 north and the person 12 north are beyond it (2026-09-21: 10).
 #[test]
 fn test_a_direction_looks_ten_cells_each_way_and_no_further() {
     let mut rig = navigator(Want {
@@ -1762,7 +1762,7 @@ fn sea_band() -> Vec<Cell> {
 }
 
 /// Route 109: P walked the player into the sea, where the blocked bit is clear
-/// (omega_ruby_surf.ctm, the user, 2026-09-28). P goes round the water; Shift and P crosses it,
+/// (omega_ruby_surf.ctm). P goes round the water; Shift and P crosses it,
 /// and says the move as the leg on the water begins.
 #[test]
 fn test_p_keeps_to_land_and_shift_p_says_the_leg_to_surf_when_the_player_reaches_it() {
@@ -1790,7 +1790,7 @@ fn test_p_keeps_to_land_and_shift_p_says_the_leg_to_surf_when_the_player_reaches
 }
 
 /// The Cave of Origin: P to Steven, across the water, went to where the cave came nearest him as
-/// the crow flies, the other way (Orion, 2026-10-30). Where Shift and P reaches the thing, P says
+/// the crow flies, the other way. Where Shift and P reaches the thing, P says
 /// its way as far as the first step that needs the move, and the move.
 #[test]
 fn test_where_only_shift_p_reaches_a_thing_p_goes_to_where_the_hm_is_needed() {
@@ -1837,8 +1837,8 @@ fn one_chunk(rig: &Rig) {
 }
 
 /// The Safari Zone: P said the Acro Bike alone where Surf was needed further on, and a player
-/// who went for the bike would have passed it before learning they needed Surf too (Orion,
-/// 2026-11-01). P names every move or bike the way needs, in the order it needs them.
+/// who went for the bike would have passed it before learning they needed Surf too.
+/// P names every move or bike the way needs, in the order it needs them.
 #[test]
 fn test_p_says_every_move_shift_p_s_whole_way_needs_before_the_player_sets_out() {
     let mut rig = navigator(Want {
@@ -2022,7 +2022,7 @@ fn test_p_hops_across_a_mud_pit_from_stone_to_stone() {
     assert_eq!(last(&rig.backend), "person, 1 east");
 }
 
-/// X's Victory Road (x_victory_road_stones, Khai, 2026-11-07): its stones stand in a pit whose
+/// X's Victory Road (x_victory_road_stones): its stones stand in a pit whose
 /// floor is open, and a stone is blocked to a player walking there. P walked the player into one,
 /// "7 east" from (21, 49) with a stone at (22, 49).
 #[test]
@@ -2046,7 +2046,7 @@ fn test_p_walks_round_a_stone_standing_in_open_floor() {
 
 /// Victory Road's launches stand on the pit's rim, over the floor between them and the
 /// stones: the player at (44, 59), between the stone at (44, 58) and the launch at (44, 60),
-/// pressed south onto the launch and did not move (Khai, 2026-11-07).
+/// pressed south onto the launch and did not move.
 #[test]
 fn test_p_never_steps_onto_a_launch_from_the_floor_hopped_over() {
     let across = Field {
@@ -3299,7 +3299,7 @@ fn test_p_stopped_past_a_walls_ledge_by_somebody_says_who_is_in_the_way() {
 /// Ever Grande City: the waterfall is a row of blocked water, and Waterfall carries the player up
 /// over it, from (51, 52) to (51, 50); they came back down over it with no question
 /// (omega_ruby_waterfall.ctm, spike 170). Shift and P climbs it, saying the move, and goes down it
-/// without; P from the water stops at it either way (the user, 2026-10-05).
+/// without; P from the water stops at it either way.
 #[test]
 fn test_shift_p_climbs_a_waterfall_and_goes_down_it_and_p_keeps_off_it() {
     let falls: HashSet<Cell> = (80..120).map(|x| (x, 178)).collect();
@@ -3887,7 +3887,7 @@ fn pass() -> Field {
     }
 }
 
-/// Jagged Pass: P to the Hiker up the sandy slope (the user, 2026-10-03). On foot P goes round
+/// Jagged Pass: P to the Hiker up the sandy slope. On foot P goes round
 /// it; on the bike it rides straight up; Shift and P on foot says the leg up it with the bike, as
 /// the player reaches the slope.
 #[test]
@@ -3912,8 +3912,8 @@ fn test_p_rides_up_a_slope_only_on_the_bike_and_shift_p_says_the_bike_on_foot() 
     assert_eq!(last(&rig.backend), "14 north");
 }
 
-/// The Safari Zone: on the Acro Bike P said to go north up a slope only the Mach Bike climbs
-/// (Orion, 2026-11-01). The model says which bike is ridden (or_which_bike, spike 271), and P
+/// The Safari Zone: on the Acro Bike P said to go north up a slope only the Mach Bike climbs.
+///The model says which bike is ridden (or_which_bike, spike 271), and P
 /// takes only that bike's ground; both where it is not known.
 #[test]
 fn test_p_on_the_acro_bike_rides_up_no_slope_and_on_the_mach_bike_along_no_rail() {
@@ -3950,7 +3950,7 @@ fn test_p_on_the_acro_bike_rides_up_no_slope_and_on_the_mach_bike_along_no_rail(
 }
 
 /// Jagged Pass: the player hopped north up the bumpy slope at (49, 30) on the Acro Bike, from
-/// (49, 31) to (49, 29) (the user, 2026-10-03). On foot P goes round it; Shift and P hops it,
+/// (49, 31) to (49, 29). On foot P goes round it; Shift and P hops it,
 /// said as the bunny hop it takes (or_safari_zone, spike 267).
 #[test]
 fn test_shift_p_hops_up_a_bumpy_slope_and_says_a_bunny_hop() {
@@ -4194,7 +4194,7 @@ fn test_p_says_to_line_up_first_where_a_corner_would_catch_a_player_off_the_line
 }
 
 /// Stopped off the line before the gap: "a little west", once, then "lined up" as soon as
-/// the player is on it, sneaking or not (Orion, 2026-10-11).
+/// the player is on it, sneaking or not.
 #[test]
 fn test_guiding_says_which_way_to_line_up_once_stopped_and_lined_up_once_there() {
     let now = Rc::new(Slot::new(0.0));
@@ -4477,7 +4477,7 @@ fn test_p_goes_round_a_big_boulder_and_shift_p_pushes_through_all_of_it() {
 }
 
 /// Team Magma's Hideout listed every teleporter of the place, most in rooms the player was not
-/// in (Orion, 2026-10-11). Walled into the pen, the item ball and the person are hidden, and the
+/// in. Walled into the pen, the item ball and the person are hidden, and the
 /// boulder in its wall is not; pressed again, all are listed, as they are when pa3ds starts.
 #[test]
 fn test_ctrl_p_hides_what_shift_p_finds_no_way_to_and_shows_it_again() {
@@ -4525,7 +4525,7 @@ fn test_ctrl_p_hides_a_big_boulder_whose_push_sides_shift_p_finds_no_way_to() {
 }
 
 /// Seafloor Cavern (movie36): a boulder pushed the wrong way can shut the way it was pushed to
-/// open, so Shift and P goes round one however far that is (Orion, 2026-10-11).
+/// open, so Shift and P goes round one however far that is.
 #[test]
 fn test_shift_p_goes_round_a_big_boulder_wherever_a_way_round_lies() {
     let mut rig = navigator(Want {
@@ -5008,7 +5008,7 @@ fn test_a_ladder_climbs_from_one_floor_onto_another() {
     assert_eq!(last(&rig.backend), "7 east");
 }
 
-/// movie47 (Orion, 2026-10-15): in Victory Road, a stacked ground, Ctrl and P hid none of the
+/// movie47: in Victory Road, a stacked ground, Ctrl and P hid none of the
 /// 8 things Shift and P fell short of, its walk taking a step onto any floor of a cell. Outside
 /// Sky Pillar Zinnia's terrace stands 108 over the player's, and is hidden until the stair up to
 /// it is there (spike 193).
@@ -5103,7 +5103,7 @@ fn pond_under_a_bridge(rig: &Rig) {
     }
 }
 
-/// or_route-120 (Khai, 2026-10-28): Route 120's bridges are decks at 0 over a pond at -63, and a
+/// or_route-120: Route 120's bridges are decks at 0 over a pond at -63, and a
 /// stacked ground read each cell's water off its ground, the pond: P on foot towards Fortree City
 /// stopped at a bridge, "then can't continue", and Shift and P crossed with Surf.
 #[test]
@@ -5129,7 +5129,7 @@ fn test_a_bridge_over_water_is_walked_on_foot_and_never_surfed() {
     assert_eq!(said(&rig.backend), ["12 east", "12 east", "6 east"]);
 }
 
-/// or_acro_bike_pathfinding (Orion, 2026-10-31): on Route 119 Shift and P's way crossed a
+/// or_acro_bike_pathfinding: on Route 119 Shift and P's way crossed a
 /// bridge's deck and later surfed back under it, and the deck's cell it crossed again on the
 /// river said "8 east, Surf 1 east, 15 east": water was looked for by cell, not by the floor.
 #[test]
@@ -5615,7 +5615,7 @@ fn bound(mode: &str, key: &str) -> &'static str {
     keys[key].as_str()
 }
 
-/// ADR-0022 as amended 2026-10-29 (Orion): a screen's own keys are taken from Azahar only while
+/// ADR-0022 as amended 2026-10-29: a screen's own keys are taken from Azahar only while
 /// it runs, so a number that is a button elsewhere stays one there.
 #[test]
 fn test_berry_pickers_number_row_is_taken_only_while_it_runs() {
@@ -6009,7 +6009,7 @@ fn holding_navigator(
     (nav, held, backend)
 }
 
-/// ADR-0009 as amended 2026-10-28 (Orion): in touch mode on a screen that drags, Pokémon-Amie's,
+/// ADR-0009 as amended 2026-10-28: in touch mode on a screen that drags, Pokémon-Amie's,
 /// Shift alone picks up and lets go as it comes up, or with `drag` "toggle" one press picks up and
 /// the next lets go; elsewhere Shift alone drags nothing, and touch mode keeps its keys with
 /// Shift.
@@ -6050,7 +6050,7 @@ fn test_shift_alone_drags_on_the_screens_that_drag_held_or_tapped() {
     }
 }
 
-/// ADR-0009 as amended 2026-10-29 and 2026-11-01 (Orion): drag is bound as any action is,
+/// ADR-0009 as amended 2026-10-29 and 2026-11-01: drag is bound as any action is,
 /// Shift alone as it ships; bound to a key of the player's, held or tapped as `drag` says, with
 /// Shift or without, Shift alone drags nothing. Where nothing drags the key says so, a key the
 /// player chose that would otherwise be heard doing nothing.

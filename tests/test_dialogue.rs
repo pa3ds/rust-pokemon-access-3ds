@@ -365,7 +365,7 @@ fn test_talking_to_the_same_person_again_is_heard_again() {
 }
 
 /// Typing that starts over is the game saying the message again, box left the screen or not
-/// (the user, 2026-09-16, reversing their own rule of 2026-09-14).
+/// (reversing their own rule of 2026-09-14).
 ///
 /// That rule was added for the options screen, which retypes the text speed description as a
 /// demonstration in a box that never leaves. It cost more than it saved: reading a signpost twice

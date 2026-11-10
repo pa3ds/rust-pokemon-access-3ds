@@ -107,7 +107,7 @@ pub const DROPPED: &str = "touch-dropped";
 /// third is a game frame and a half.
 pub const DROP_SECONDS: f64 = 0.15;
 /// How long a tap on a target touched by rubbing rubs; another tap before it ends carries the rub
-/// on, never lifting (Orion, 2026-11-05).
+/// on, never lifting.
 pub const RUB_SECONDS: f64 = 1.0;
 /// How long a drag held on such a target waits before it rubs: Shift pressed and let go alone,
 /// as to quiet a screen reader, touches nothing (ADR-0009).
@@ -507,8 +507,8 @@ impl TouchMode {
 
     /// Carry on to where a target is now what goes on with it, choosing nothing and saying
     /// nothing, for a target the screen moves itself: the stylus kept on its part as the
-    /// Pokémon moves, which had chosen the stylus again and taken the player's choice from them
-    /// (Orion, 2026-11-05). What goes on is a drag over it, or, while it is chosen, a tap's rub
+    /// Pokémon moves, which had chosen the stylus again and taken the player's choice from them.
+    ///What goes on is a drag over it, or, while it is chosen, a tap's rub
     /// the screen says lasts; the targets are listed only then, as a moving part's ends are a
     /// read of the picture.
     pub fn carry(&mut self, pane: i64) -> Result<()> {
@@ -986,7 +986,7 @@ impl TouchTargets {
                         // Pokémon lying within it for its name, not "close". And only where none
                         // of its own pictures lies in it: the big slot's own, the row's icon 53
                         // off its middle, still fell in its group, and the slot took its name over
-                        // the Pokémon drawn big in it every second or so (Orion, 2026-11-10); the
+                        // the Pokémon drawn big in it every second or so; the
                         // DexNav's icons each lie in their own, and naming every picture of its
                         // panel cost 180 reads a poll. The picture nearest its middle, its own or
                         // not.
@@ -1346,7 +1346,7 @@ impl TouchTargets {
     /// (movie18); an image several buttons draw, as the X menu's backing `menu_rgb` is, names none.
     /// The table that came before paired the bar's icons with the layout's groups of words by
     /// count, and the count changed with the X menu open: the bar was said "menu icon1" to "menu
-    /// icon6" from then on (Orion, 2026-10-02).
+    /// icon6" from then on.
     fn by_picture(
         &mut self,
         root: i64,
@@ -1497,7 +1497,7 @@ impl TouchTargets {
 
     /// Does the pane's middle lie within the touch area, whatever either's scale? Super
     /// Training's resting Pokémon is drawn swinging its scale through 0 to mirrored and back,
-    /// its touch area with it, and in that half it lay in no slot (Orion, 2026-11-10).
+    /// its touch area with it, and in that half it lay in no slot.
     fn lies_in(&self, pane: i64, touch: i64) -> Result<bool> {
         let shape = self.layouts.shape;
         let head = self.layouts.pane(touch)?;

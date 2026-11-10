@@ -3,7 +3,7 @@
 //! Y on the field opens four slots, each an item's icon, one used by each way of the circle pad or
 //! D-pad, and in Omega Ruby writes one line, "SELECT/START Switch Buttons", where X writes no words
 //! at all: the icons are textures filled in as the game runs, and the menu names none of them
-//! (Orion, or_registered_items_menu, x_registered_items_menu). The save's Bag holds what they
+//! (or_registered_items_menu, x_registered_items_menu). The save's Bag holds what they
 //! draw, in both:
 //!
 //! ```text

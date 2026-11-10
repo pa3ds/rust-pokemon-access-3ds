@@ -40,7 +40,7 @@
 //! **Nothing is said until the gauge has counted to its target and the reading has held still for a
 //! poll.** That is not caution, it is correctness: the bar drains as an animation and the HP box
 //! counts with it, so a poll lands on whatever frame it happens to catch. The 48, 30, 27, 0 above
-//! is one Ember, and speaking it would say 62% and then 0% a moment later (the user, 2026-09-16).
+//! is one Ember, and speaking it would say 62% and then 0% a moment later.
 //! Holding for a poll was not enough on its own: a Potion's count from 3 to 19 was said at 9
 //! (battles2.ctm). The gauge keeps the HP it shows and the HP it is counting towards side by side
 //! (spike 67).
@@ -106,7 +106,7 @@ pub const GAUGE_HEAD: i64 = 0x44;
 
 /// Screen polls, 2 s, an enemy's first reading of a battle waits for the player's side to be said.
 /// Its panel comes on a poll or two ahead of the player's, and the enemy was said first in one
-/// battle and second in the next, which heard as a race (Orion, 2026-09-29). Waited out, since a
+/// battle and second in the next, which heard as a race. Waited out, since a
 /// battle whose player's side is never read must still say the enemy.
 pub const OURS_FIRST: i64 = 10;
 
@@ -335,7 +335,7 @@ impl Battlers {
         }
         let text = py::decode_utf16le(&raw);
         // The Chinese fan Omega Ruby writes a plate's sign as the font's private-use glyph, where
-        // the official games write the real one, and no plate of its was found (Orion, 2026-10-18).
+        // the official games write the real one, and no plate of its was found.
         Ok(Some(
             text.split('\0')
                 .next()
@@ -396,7 +396,7 @@ impl BattleReader {
     /// Is this piece part of an HP box, and so this reader's to say rather than screen text's?
     ///
     /// The box's pieces said as screen text came out as "5 18/ 20 3" as it slid in, on top of
-    /// this reader's "Torchic ♀ L5 18/20" (the user, 2026-09-16). Only during a battle: out of
+    /// this reader's "Torchic ♀ L5 18/20". Only during a battle: out of
     /// one, a layout built where a box used to be is somebody else's.
     pub fn owns(&self, piece: &ScreenText) -> Result<bool> {
         if !self.in_battle {
@@ -702,7 +702,7 @@ pub fn opponents_party(layouts: &Layouts, image_of: &ImageOf) -> Result<Option<i
 }
 
 /// How many Pokémon a trainer has, told once a battle after the battle's first page, which in
-/// a trainer battle is "You are challenged by ..." (Khai, 2026-11-05).
+/// a trainer battle is "You are challenged by ..."
 pub struct OpponentsParty {
     layouts: Rc<Layouts>,
     image_of: ImageOf,

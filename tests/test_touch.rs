@@ -300,7 +300,7 @@ fn tone(across: f64, down: f64) -> Vec<u8> {
         .unwrap()
 }
 
-/// `[pa3ds.audio] tones` above 1 is louder (Orion, 2026-10-18); far above, the wave stops at
+/// `[pa3ds.audio] tones` above 1 is louder; far above, the wave stops at
 /// full scale instead of wrapping into noise.
 #[test]
 fn test_a_tone_is_as_loud_as_asked_and_never_wraps_round() {
@@ -478,7 +478,7 @@ fn test_a_glide_slides_from_its_start_to_its_end() {
 
 /// The map's cursor glides on while the circle pad is held, and a slide comes every screen poll,
 /// a little over a fifth of a second (spike 175): the tone never drops out between them, and
-/// fades once the slides stop (Orion, 2026-10-02).
+/// fades once the slides stop.
 #[test]
 fn test_slides_a_poll_apart_sound_without_a_break() {
     let mut voice = tones::Voice::new();

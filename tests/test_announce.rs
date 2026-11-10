@@ -328,7 +328,7 @@ fn test_a_menu_opening_says_only_the_item_under_its_cursor() {
 
 #[test]
 fn test_a_menu_coming_back_without_its_cursor_says_nothing() {
-    // Backing out of a menu read "POKÉMON BAG wee SAVE OPTIONS" (the user, 2026-09-14).
+    // Backing out of a menu read "POKÉMON BAG wee SAVE OPTIONS".
     let mut screen = Screen::new();
     let menu = x_menu();
     screen.say(args(
@@ -403,7 +403,7 @@ fn test_a_screen_with_no_cursor_is_said_at_once() {
 fn test_a_panel_revealed_over_several_polls_is_said_whole_once_its_words_stop_arriving() {
     // The level up reveals its rows over half a second and writes each value a poll after its
     // label, and was heard as "HP", "+ 2 ATTACK + 0 DEFENSE SP. ATK SP. DEF", "+ 1 + 1 SPEED + 1"
-    // (battles2.ctm, the user, 2026-09-17). Each row is a group of label and value (spike 68).
+    // (battles2.ctm). Each row is a group of label and value (spike 68).
     let mut screen = Screen::new();
     let (hp, hp_value) = (
         piece(1, "HP", 59.0, 1074.0, PANEL),
@@ -476,7 +476,7 @@ fn test_what_arrived_is_said_as_it_came_before_the_change_that_moves_it_on() {
 
 #[test]
 fn test_a_letter_deleted_from_a_name_says_the_letters_left() {
-    // opening.ctm: deleting the q from "Raiq" said nothing at all (the user, 2026-09-18).
+    // opening.ctm: deleting the q from "Raiq" said nothing at all.
     let mut screen = Screen::new();
     let name = 0x30;
     let letters: Vec<ScreenText> = "Raiq"
@@ -1217,7 +1217,7 @@ fn test_words_coming_to_a_panel_no_words_left_are_said() {
 #[test]
 fn test_a_place_revealed_after_its_entrant_is_said_with_it() {
     // The contest's results reveal each place a while after the entrants' names, and said alone
-    // it was "third place", nobody's (movie30, Orion, 2026-10-09).
+    // it was "third place", nobody's (movie30).
     let mut screen = Screen::new();
     let names = piece_kw(
         1,
@@ -1470,7 +1470,7 @@ fn test_a_mark_is_said_once_as_a_second_won_back_bounces_the_clock_round_it() {
 fn test_numbers_are_the_plays_while_the_player_plays() {
     // At each piece put home Unlimited said its total and the gain it popped up, "Puzzle No. 2,
     // 102 Points", "+2 Points" (or_amie_tile_puzzle_unlimited): nothing is said of a swap, the
-    // total only as a puzzle starts and once it is solved (Orion, 2026-10-28). Words are said.
+    // total only as a puzzle starts and once it is solved. Words are said.
     let playing = Rc::new(Cell::new(false));
     let asked = playing.clone();
     let mut screen = Screen::with_clock(false, None, true, Some(Rc::new(move || Ok(asked.get()))));
@@ -1675,7 +1675,7 @@ fn test_details_that_change_with_the_cursor_are_said_whole_once_settled() {
 }
 
 /// With menus set to interrupt, a move's power cut off the move it belonged to, and the Mart's
-/// description its count in the bag (Khai, 2026-10-04): the item interrupts, its details queue.
+/// description its count in the bag: the item interrupts, its details queue.
 #[test]
 fn test_details_are_one_line_that_never_cuts_off_the_item() {
     let mut screen = Screen::new();
@@ -1710,7 +1710,7 @@ fn test_details_are_one_line_that_never_cuts_off_the_item() {
 fn test_a_count_alone_under_a_cursor_is_said_after_what_names_it() {
     // The Berry Blender's cursor sits on a berry's picture and its count, and the top screen
     // names the berry: "16", then "Cheri Berry Red" and its description, was all numbers and
-    // colours (movie30, Orion, 2026-10-08).
+    // colours (movie30).
     let mut screen = Screen::new();
     let grouped = Kw {
         parent: 0x200,
@@ -1773,7 +1773,7 @@ fn test_a_cursor_on_its_way_elsewhere_drops_its_details_unsaid() {
 #[test]
 fn test_a_quiet_items_details_are_taken_in_unsaid() {
     // An empty slot of the PC Box, over which the summary keeps showing the Pokémon carried:
-    // "where, then empty" (the user, 2026-09-27).
+    // "where, then empty".
     let mut screen = Screen::new();
     let slot = vec![piece(1, "Party 3, empty", -120.0, 70.0, MENU)];
     let panel = move_panel("40");
@@ -1815,7 +1815,7 @@ fn description(text: &str) -> ScreenText {
 #[test]
 fn test_details_are_said_in_the_order_the_screen_built_them_however_they_changed() {
     // The description came a poll after the panel, and was read after it where every other move
-    // read it first (the user, 2026-09-14).
+    // read it first.
     let mut screen = Screen::new();
     let growl = vec![piece(1, "Growl", -120.0, 70.0, MENU)];
     let panel = move_panel("—");
@@ -1909,7 +1909,7 @@ fn bag_move(
 #[test]
 fn test_an_items_details_leave_out_the_item_and_a_title_said_already() {
     // The Bag hangs its pocket's name, the item's and its description from one root, and every
-    // item's details began with both, "MEDICINE Full Heal" (or_tm-hm, Khai, 2026-10-18). The
+    // item's details began with both, "MEDICINE Full Heal" (or_tm-hm). The
     // pocket is said again where the move changes it.
     let mut screen = Screen::new();
     let potion = vec![piece(1, "Potion", 8.0, 90.0, MENU)];
@@ -1940,7 +1940,7 @@ fn test_an_items_details_leave_out_the_item_and_a_title_said_already() {
 }
 
 /// TM29 Psychic's type is "Psychic", the cursor's item, and its details said "TYPE POWER 90"
-/// (or_movie54, Orion, 2026-10-19, #13). A value beside its label is never the item's name.
+/// (or_movie54, #13). A value beside its label is never the item's name.
 #[test]
 fn test_a_labels_value_in_the_items_words_is_said() {
     let mut screen = Screen::new();
@@ -2285,7 +2285,7 @@ fn test_moving_on_drops_the_last_items_details_unsaid() {
 }
 
 /// The fitting room's tabs change the card beside them, and each move between Change and Back,
-/// a list of their own, read the card again (Khai, 2026-10-24, x_cyllage_boutique_fitting_room).
+/// a list of their own, read the card again (x_cyllage_boutique_fitting_room).
 #[test]
 fn test_an_item_of_another_list_keeps_no_details_from_this_ones_moves() {
     let mut screen = Screen::new();
@@ -2622,7 +2622,7 @@ const SIGN: i64 = 0x082E57F4;
 #[test]
 fn test_words_another_layout_has_just_said_are_not_said_again() {
     // Walking onto Route 101 said it twice: AreaNav's words changed, and the location sign came up
-    // with the same words a poll later (the user, 2026-09-14).
+    // with the same words a poll later.
     let mut screen = Screen::new();
     let area = changed(&piece(1, "Route 101", 0.0, 100.0, AREA_NAV));
     assert_eq!(
@@ -2987,7 +2987,7 @@ fn torchic_entry() -> Vec<ScreenText> {
 #[test]
 fn test_an_entry_of_one_column_is_read_top_to_bottom() {
     // It read "Chick Pokémon Female TYPE HEIGHT WEIGHT 1'04" 5.5 lbs. Times encountered: 1 004
-    // Torchic" (pokedex2.ctm, the user, 2026-09-24).
+    // Torchic" (pokedex2.ctm).
     let mut screen = Screen::new();
     let shown = torchic_entry();
     assert_eq!(
@@ -3366,7 +3366,7 @@ fn subject_of(name: &'static str) -> Option<Box<dyn Fn() -> Result<Option<String
 #[test]
 fn test_a_screen_rewritten_is_led_by_what_names_it() {
     // The summary's stats are on the top screen and built first, its Pokémon's name and level on
-    // the bottom: the name leads (Orion, 2026-10-10).
+    // the bottom: the name leads.
     let mut screen = Screen::new();
     let stats = vec![
         piece(1, "HP", -100.0, 85.0, SUMMARY),
@@ -3604,7 +3604,7 @@ fn test_a_number_with_a_leading_zero_is_no_count() {
 fn test_what_a_cursor_said_a_moment_ago_is_known_to_have_been_said() {
     // The Mart's Buy, Sell and No thanks are read by the cursor beside them the poll the box is
     // shown, and by the choice reader only once a sweep has found its box: "Buy" was heard from
-    // both (movie5, the user, 2026-09-25; spike 98).
+    // both (movie5, spike 98).
     let mut screen = Screen::new();
     let buy = piece(1, "Buy", 130.0, 10.0, MENU);
     screen.say(args(

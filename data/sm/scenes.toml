@@ -7,14 +7,14 @@
 # (`games.common.scenes`). Its beats are said one after another, each `at` seconds after the demo
 # started or the player arrived in the `zone` a beat last waited for.
 #
-# Described by Khai from screenshots of sun_1.ctm at real speed (2026-09-30), and carried over from
-# his branch's demos.toml.
+# Described from screenshots of sun_1.ctm at real speed (2026-09-30), and carried over from a
+# branch's demos.toml.
 
 # The chase after Kukui's call, demo 6, unskippable. Before it the camera leaves the monitor for
 # the desk; the game says "Three months later..." itself at 71 s, and the field takes over at about
 # 89 s with the arrival, which plays without the player until Mom speaks at about 114 s. The
 # arrival's beats wait for the field, Route 1's zone 0x0, which came 91 s after the demo started in
-# Orion's movie1_opening.ctm (2026-10-13).
+# movie1_opening.ctm (2026-10-13).
 [[scene]]
 demo = 6
 

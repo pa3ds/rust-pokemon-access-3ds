@@ -7,8 +7,8 @@
 #
 # Written by agents from the animations census (spike 287's `motions`): each model's every
 # animation played at will on the research rig and pictured eight moments across, a sentence
-# from the pictures alone (Orion, 2026-11-06), rewritten as whole sentences from the pictures
-# cropped close (2026-11-08) after the style Orion took for Rock Star Pikachu's and Ralts's.
+# from the pictures alone, rewritten as whole sentences from the pictures
+# cropped close (2026-11-08) after the style chosen for Rock Star Pikachu's and Ralts's.
 # The other languages' are a machine's translation of these (2026-11-08), to be corrected.
 #
 # Generation 3: Treecko to Deoxys.

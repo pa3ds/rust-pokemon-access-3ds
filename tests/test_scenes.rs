@@ -503,8 +503,8 @@ id = "off-1"
     Ok(())
 }
 
-/// The Cave of Origin's deepest room, `0x76`: nothing shows the way on but the room itself
-/// (Orion, 2026-10-12), so it is described each time the player comes down into it.
+/// The Cave of Origin's deepest room, `0x76`: nothing shows the way on but the room itself,
+///so it is described each time the player comes down into it.
 #[test]
 fn test_a_scene_with_no_line_is_said_on_arriving_in_its_zone() -> Result<()> {
     let tmp_path = TmpDir::new();
@@ -575,7 +575,7 @@ id = "truck-2"
 }
 
 /// The Pokémon League's corridors play their scenes as the player walks across the trigger
-/// halfway along each, with no line before or after (movie49, Orion 2026-10-16): said once since
+/// halfway along each, with no line before or after (movie49): said once since
 /// arriving, and the room beyond after it, as the player arrives there.
 #[test]
 fn test_a_scene_of_a_trigger_is_said_as_the_player_first_steps_onto_it() -> Result<()> {
@@ -681,7 +681,7 @@ credits-5 = { SPRITE(179) } walks in.
     Ok(())
 }
 
-/// `YOURS(N)` is the nickname the player gave a moment's Pokémon (Orion, 2026-10-16), or, where
+/// `YOURS(N)` is the nickname the player gave a moment's Pokémon, or, where
 /// they gave it none, `scene-yours` around its name; the rival's stays `MEMORY(N)`.
 #[test]
 fn test_the_players_own_pokemon_are_called_by_their_nicknames_or_the_files_yours() -> Result<()> {

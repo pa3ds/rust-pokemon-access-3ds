@@ -654,7 +654,7 @@ fn test_the_app_started_is_named_through_the_record_the_manager_points_at() {
 }
 
 /// Every cutscene is an `AppDemoProc`, and its +0x24 says which: 6 the chase after Kukui's call
-/// (Khai, sun_1.ctm, 2026-09-30). None before it is named, or once another app runs.
+/// (sun_1.ctm). None before it is named, or once another app runs.
 #[test]
 fn test_a_demo_says_which_it_plays_once_it_is_named() {
     let memory = FakeMemory::new();

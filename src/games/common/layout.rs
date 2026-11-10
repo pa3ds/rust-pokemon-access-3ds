@@ -271,7 +271,7 @@ impl Layouts {
     ///
     /// A screen opened from the X menu frees the field's layouts, and closing it builds them again
     /// at the same works and roots: without this, AreaNav's "Littleroot Town" waited for the next
-    /// sweep, up to 4 s after the field was back (the user, 2026-09-14). A different layout built
+    /// sweep, up to 4 s after the field was back. A different layout built
     /// at a work freed before waits for the sweep, which finds it with whatever else came with
     /// it: the save prompt's list layout, taken back at an old work, had its "YES NO" read before
     /// the sweep found the list that owns them. Cheap enough for every poll: a read or two for

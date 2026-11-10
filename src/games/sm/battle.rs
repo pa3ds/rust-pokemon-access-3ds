@@ -137,7 +137,7 @@ impl SunBattleReader {
 
     /// Is this piece in a panel a gauge shows? Then it is this reader's to say, whole and once
     /// it holds still, not screen text's: "Rowlet 5 22 22" and then "21 22", "20 22" as the
-    /// count went, the maximum in fullwidth digits (the user's log, sun_9.ctm).
+    /// count went, the maximum in fullwidth digits (sun_9.ctm).
     pub fn owns(&self, piece: &ScreenText) -> bool {
         self.panels.contains_key(&piece.panel)
     }

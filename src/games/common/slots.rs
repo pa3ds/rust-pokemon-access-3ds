@@ -19,10 +19,10 @@
 //! A slot holding a Pokémon has its icon (`poke_icon.bclim`) exactly on its place; the one the
 //! player carries rides 10 units above it, so an empty slot is one no icon sits exactly on. The
 //! top screen's summary of what is under the pointer changes as it moves, and is read after the
-//! slot as its details (the user, 2026-09-27: where, then the summary; where, then "empty").
+//! slot as its details (2026-09-27: where, then the summary, where, then "empty").
 //! While a Pokémon is carried the summary is the carried one's, whatever slot the pointer is on,
 //! so a slot is said alone, with the name of the Pokémon in it where the game's own reader knows
-//! it: "BOX 1, row 1, column 2, erza" (Orion, or_organize_boxes).
+//! it: "BOX 1, row 1, column 2, erza" (or_organize_boxes).
 
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::rc::Rc;

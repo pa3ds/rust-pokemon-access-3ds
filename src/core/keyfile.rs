@@ -1444,7 +1444,7 @@ pub fn tidy(text: &str, defaults: &Bindings, contexts: Option<&Bindings>) -> (St
 ///
 /// A key bound with a modifier takes its button only while the modifier is held, and is not said
 /// to sit on it: shift and T, touch mode for a day, was chosen so T stays this machine's D-pad
-/// up (Orion, 2026-10-01). Nor is Shift alone, touch mode's drag as it ships, which the hook hears
+/// up. Nor is Shift alone, touch mode's drag as it ships, which the hook hears
 /// and passes on (`core.keys`): a stick's modifier on Shift still walks. Sorted by the control,
 /// so the same overlap is reported the same way every run.
 pub fn taken(

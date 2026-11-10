@@ -1462,7 +1462,7 @@ fn stylus(x: i64, ends: Ends) -> Target {
     }
 }
 
-/// Pokémon-Amie's stylus (Orion, 2026-11-05): a tap rubs it about a second, and another tap
+/// Pokémon-Amie's stylus: a tap rubs it about a second, and another tap
 /// or a move of the stylus before the second is out carries the rub on, never lifting, as Amie
 /// counts a pet afresh at every press (spike 287).
 #[test]

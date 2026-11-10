@@ -31,11 +31,11 @@ pub const BUTTON: &str = "button";
 pub const ICON: &str = "icon";
 /// Words a texture name starts with to say what its picture is or belongs to, left unsaid: an
 /// icon, a move's ("waza", Japanese for move) or a contest's. The name entry's confirm key is
-/// `icon_return`, and reads "return" (opening.ctm, the user, 2026-09-18); the move-forget screen's
-/// `waza_con_change` reads "change" (Orion, 2026-10-01), not "waza con change".
+/// `icon_return`, and reads "return" (opening.ctm); the move-forget screen's
+/// `waza_con_change` reads "change", not "waza con change".
 pub const KINDS: [&str; 3] = [ICON, "waza", "con"];
 /// Words a texture name ends in to say which size of a picture it is, after its kind: the
-/// contest photo's `camera_btn_mini` is "camera" (Orion, 2026-10-09, movie34). Left unsaid.
+/// contest photo's `camera_btn_mini` is "camera" (movie34). Left unsaid.
 pub const SIZES: [&str; 1] = ["mini"];
 /// The word a designer starts a button's pane name with, as the battle's `Btn_Fight` (spike 124):
 /// what the button is, not what it says.
@@ -65,9 +65,9 @@ pub const NEXT: &str = "top-bar-next";
 
 /// Words a texture name spells otherwise, for a picture no file names. A file name is ASCII, so
 /// `pokemon_button.bclim` loses the accent the game itself writes everywhere else ("Choose a
-/// Pokémon."), and a screen reader says the two differently (the user, 2026-09-16);
+/// Pokémon."), and a screen reader says the two differently;
 /// `intro_famale.bclim`, which names the girl on the opening's choice of boy or girl, is Game Freak's
-/// own misspelling, and a screen reader reads it aloud as written (the user, 2026-09-21); Super
+/// own misspelling, and a screen reader reads it aloud as written; Super
 /// Training's `gameover_c.bclim` runs two words together and is said "game over".
 pub fn spellings() -> &'static IndexMap<&'static str, &'static str> {
     static SPELLINGS: OnceLock<IndexMap<&'static str, &'static str>> = OnceLock::new();
@@ -143,7 +143,7 @@ pub const DRAWN: [(&str, &str); 14] = [
     ("star_infiniteh", HALF_STAR),
 ];
 /// A contest's places, which its results draw as pictures beside each entrant, `one` to `four`
-/// (spike 196), said after the entrant: "Raiden & Metagross third place" (Orion, 2026-10-09).
+/// (spike 196), said after the entrant: "Raiden & Metagross third place".
 pub const PLACES: [(&str, &str); 4] = [
     ("one", "contest-place-one"),
     ("two", "contest-place-two"),
@@ -156,7 +156,7 @@ pub const EGG_MOVE: &str = "dexnav-egg-move";
 /// and the hidden ability, as the guides read it (docs/plans/dexnav.md); the game says none of it.
 pub const HIDDEN_ABILITY: &str = "dexnav-hidden-ability";
 /// Said after a Pokémon the DexNav shows in colour, caught, where the rest are its silhouettes:
-/// only the caught are said so (Orion, 2026-10-06).
+/// only the caught are said so.
 pub const CAUGHT: &str = "dexnav-caught";
 
 /// `DRAWN.get(texture)`.
@@ -222,7 +222,7 @@ pub fn words(texture: &str) -> String {
 ///
 /// A trailing "button", or a leading or trailing "icon" (`KINDS`), is the designer saying what
 /// the picture is, not part of the item's name. The battle's command menu reads "fight bag
-/// pokémon run" as any menu would (the user, 2026-09-16), the name entry's confirm key
+/// pokémon run" as any menu would, the name entry's confirm key
 /// `icon_return.bclim` reads "return", and so does the AreaNav's `return_icon.bclim` (movie17).
 /// A texture called only `button` or `icon` keeps the word: dropping it leaves nothing.
 pub fn made(stem: &str) -> String {

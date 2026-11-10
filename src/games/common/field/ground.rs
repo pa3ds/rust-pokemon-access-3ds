@@ -53,7 +53,7 @@ pub const ROCK_SMASH: i64 = 249;
 
 /// What a step through a big boulder costs on top of its steps, where a bush or a rock costs
 /// `BOARD`: five hundred steps' worth, so Shift and P goes round a boulder wherever a way round
-/// lies, and through one only where none does (Orion, 2026-10-11, in Seafloor Cavern). Where a
+/// lies, and through one only where none does (in Seafloor Cavern). Where a
 /// push leaves the boulder is not modelled, and one pushed the wrong way can shut the way it was
 /// pushed to open.
 pub const SHOVE: i64 = 1000;
@@ -328,7 +328,7 @@ pub struct Ground {
     pub bike: bool,
     /// Whether the player is riding the Acro Bike, which rides along a rail and hops a bumpy
     /// slope: P's ground takes them only then (spike 267). On the Acro Bike in the Safari Zone P
-    /// said to go north up a slope only the Mach Bike climbs (or_which_bike, Orion, 2026-11-01).
+    /// said to go north up a slope only the Mach Bike climbs (or_which_bike).
     pub acro: bool,
     /// Cells side by side, each way, that can both be stood in and are not walked between: a
     /// platform in Fortree City's trees and the ground beside it, 108 below, but for its ladder
@@ -1201,8 +1201,8 @@ impl Ground {
     /// floor a hop goes over (`_mud`). Victory Road's stones stand in a pit whose floor is open,
     /// and P walked the player into one from it (x_victory_road_stones, 2026-11-07); its
     /// launches stand on the pit's rim, and the player at (44, 59), between the stone at
-    /// (44, 58) and the launch at (44, 60), pressed south onto the launch and did not move
-    /// (Khai, 2026-11-07). Its ground is stacked, with no height a cell, so the rim is told by
+    /// (44, 58) and the launch at (44, 60), pressed south onto the launch and did not move.
+    ///Its ground is stacked, with no height a cell, so the rim is told by
     /// the hops alone. Khai hopped the way P then found, from the launch at (44, 54) over the
     /// stones to the launch at (44, 60) (2026-11-07). The cells of a hop, the floor hopped over
     /// and the stone, are `joined`, as a way found is checked a cell at a time.
@@ -1688,7 +1688,7 @@ impl Ground {
     /// of a building; but one `faced`, a hidden item, is walked up to. A thing that is solid all
     /// over — a door, a sign, a person, a PC — is
     /// walked up to, to an open cell beside it, facing it, since that is where the player
-    /// presses A or walks in from (the user, 2026-09-24); or across a counter from it, as the
+    /// presses A or walks in from; or across a counter from it, as the
     /// Nurse and a Poké Mart's clerk are talked to (`COUNTER`). A warp walked into one way is
     /// walked up to on that side alone (`Interactable.way_in`). On a stacked ground each is on
     /// the thing's own floor, which a search must reach it on (`floor`).

@@ -4,7 +4,7 @@
 //! in the zone it is said in: a line is a file and a number in the ROM, the same in every language,
 //! and the zone tells one scene from another where both say the same words, as "Gotcha! Groudon was
 //! caught!" says what every capture does (spike 203); a scene may follow any one of several, as
-//! Kyogre caught or knocked out plays the same one (Orion, 2026-10-20). What follows the line is
+//! Kyogre caught or knocked out plays the same one. What follows the line is
 //! said a **beat** at a time, each when what it waits for comes: at once, a scene of the game's own
 //! starting (`app::field_demo::Proc`, which keeps nothing saying which), or the player arriving in
 //! a zone, or in any one of several, as the player's own room is a boy's or a girl's; then `at`
@@ -14,7 +14,7 @@
 //! with no zone is said before the player has arrived anywhere: the opening's. A scene of one of a
 //! zone's triggers is said as the player first steps onto the trigger's cells after arriving: each
 //! of the Pokémon League's corridors plays its scene as the player walks across the trigger halfway
-//! along it, with no line before or after (Orion, 2026-10-16). A scene of an app is said as the
+//! along it, with no line before or after. A scene of an app is said as the
 //! app starts, Omega Ruby's intro before the title screen as `app::field_demo::Proc` and then
 //! `movie::MovieProc`, and let go as any other app starts: A skips the intro straight to the title
 //! screen, and what it skipped is left unsaid (spike 236).
@@ -27,7 +27,7 @@
 //! layout (Seafloor Cavern's 0x6f and 0x6e), but some lines are said in a zone both share, as
 //! Steven's on Route 128: a scene said there names the version it was described in by its title id.
 //!
-//! Sun's demos keep their number (`App::AppDemo::AppDemoProc` +0x24, Khai, 2026-09-30), so a scene
+//! Sun's demos keep their number (`App::AppDemo::AppDemoProc` +0x24), so a scene
 //! of Sun's is found by it, `demo = 6` for the chase after Kukui's call, in no zone and after no
 //! line.
 //!
@@ -41,7 +41,7 @@
 //! Pokémon, which the save records as the story goes: `{ MEMORY(24) }` is the one it keeps for the
 //! 24th moment, in the form it keeps, read from the save as the beat is said (spike 222), and
 //! `{ YOURS(24) }` the same Pokémon as the player's: the nickname they gave it, where they still
-//! have it, or else `scene-yours` with its name in, "your Mega Latios" (Orion, 2026-10-16).
+//! have it, or else `scene-yours` with its name in, "your Mega Latios".
 //! Someone the game never names is `{ SPRITE(179) }`, called what a speaker drawn as sprite 179 is
 //! (`pa3ds.core.names`): the player's own name for them first, so a rename is heard in the next
 //! beat (`Described`).

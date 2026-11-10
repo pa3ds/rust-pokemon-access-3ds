@@ -6,7 +6,7 @@
 ### player has called them, what the game calls them out of the player's own ROM, and only
 ### then this file. So it is heard only when pa3ds cannot read the ROM.
 ###
-### Each table names what the English one does (Orion, 2026-10-14). Most words are the ROM's
+### Each table names what the English one does. Most words are the ROM's
 ### own in this language, out of the line the English word's comment names. Where the ROM has
 ### none, as for the Nurse, the people and looks the English table calls by what their sprite's
 ### id says, and the sparkles and cones, the word is pa3ds's own, as the English one is.
@@ -648,7 +648,7 @@ place-0x37-furniture-6 = foto
 place-0x37-furniture-7 = foto
 # Lysandre Café: story 313:4, Lumiose City, zone 0x43: the plate of script 22, which no record shows, so no door is paired with it
 place-0x43-warp-1 = Caffè Elisio
-# Lumiose's exits no plate, facility or street mark names (Khai, 2026-11-09):
+# Lumiose's exits no plate, facility or street mark names:
 # Looker Bureau: story 313:7, zone 0x43, a plate no record shows; the ROM's own word. Before Looker moves in, the plate says the unit is for rent
 place-0x43-warp-5 = Agenzia Bellocchio
 # Restaurant Le Wow: story 313:11, zone 0x43, its plate on the next line (spike 107); the ROM's own word

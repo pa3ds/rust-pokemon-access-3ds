@@ -62,7 +62,7 @@ pub struct Announcements {
     /// rather than before every line.
     said_speaker: Option<String>,
     /// Screen lines spoken by then (`Speech.spoken`): a screen's words coming between two of a
-    /// speaker's lines name them again (Orion, 2026-10-27).
+    /// speaker's lines name them again.
     screens: i64,
     /// First pages with no name yet, each with the polls it has waited (`SPEAKER_POLLS`).
     unnamed: Vec<(i64, PageShown)>,
@@ -209,7 +209,7 @@ impl Announcements {
     /// Say the option under a list's or a choice box's cursor, as it opens or moves. An
     /// opening already `heard` from a cursor over the same words is logged and not said again.
     ///
-    /// Its place in the list is logged and never said (Orion, 2026-09-30): the settings that said
+    /// Its place in the list is logged and never said: the settings that said
     /// it reached only the lists that know their length, and a cursor's menu would have needed
     /// the length and the layout of every menu in every game.
     pub fn focus(&mut self, focus: &Focus, kind: &str, heard: bool) {

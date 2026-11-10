@@ -124,7 +124,7 @@ fn test_normals_thirty_tiles_lie_under_touch_areas_numbered_from_955() {
 #[test]
 fn test_hards_forty_eight_tiles_are_named_at_either_end_of_a_row() {
     // as_amie_tile_puzzle_hard: eight across and six down, under `ii` to `jt`; placed by their
-    // middles, the first and last columns were "frame" (Orion, 2026-10-27).
+    // middles, the first and last columns were "frame".
     let mut slots: Vec<i64> = (0..48).collect();
     (slots[0], slots[47]) = (47, 0);
     let (reader, frames, _) = board(&slots, Some(47), 666);

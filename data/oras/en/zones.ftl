@@ -1,6 +1,6 @@
 # The parts of a place the game splits into zones on one map, by zone, each a name of pa3ds's own
 # with the game's name for the place in it, `$place`, so a way out of the Weather Institute says
-# "way out to Northern Route 119" (ADR-0042; Orion chose them on 2026-10-31). A zone of a place in
+# "way out to Northern Route 119" (ADR-0042). A zone of a place in
 # parts with no other name of its own says the place alone, as Route 120's main stretch does.
 #
 # Route 119: the strips north and south of the bridge's west end.

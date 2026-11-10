@@ -298,7 +298,7 @@ impl Terrain {
     /// Read on the floor nearest the player's height, Route 119's north bridge, a deck at 189
     /// over a bank at 126, was the bank to a player at 137 on the route below, and a drop from
     /// the ground at 189 at both its ends: the river beyond it, and every thing past it, out of
-    /// Shift and P's reach (or_no_path, Orion, 2026-11-01).
+    /// Shift and P's reach (or_no_path).
     pub fn cliffs(
         &self,
         ladders: &IndexMap<(Cell, Cell), (f64, f64)>,

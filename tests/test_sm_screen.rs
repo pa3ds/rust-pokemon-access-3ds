@@ -312,7 +312,7 @@ fn test_a_button_of_pictures_alone_is_said_by_its_panes_name() {
 }
 
 /// The passport's photo choice: `Hero_00` to `Hero_07`, each a Parts pane of one picture, were
-/// said "hero" (Khai, sun_1.ctm, 2026-09-30). Sun's English data file describes each photo.
+/// said "hero" (sun_1.ctm). Sun's English data file describes each photo.
 #[test]
 fn test_a_button_of_pictures_alone_is_said_by_pa3ds_own_words_where_it_has_some() {
     let mut title = Title::new();

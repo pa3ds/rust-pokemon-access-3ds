@@ -33,7 +33,7 @@ pub const RECORD_PROCESS: i64 = 0x0C;
 /// may be read only once the heaps' watch has handed them over, a look after: named as the pointer
 /// moved, three of five went unnamed over sun_3.ctm.
 pub const NAME_POLLS: i64 = 300;
-/// Every cutscene of Sun's, Kukui's call among them (Khai, sun_1.ctm, 2026-09-30).
+/// Every cutscene of Sun's, Kukui's call among them (sun_1.ctm).
 pub const DEMO: &str = "N3App7AppDemo11AppDemoProcE";
 /// Which demo the process plays, a u32 the same all through it: 55 Kukui's call, 6 the chase
 /// after it. The rest of the process read the same in both.

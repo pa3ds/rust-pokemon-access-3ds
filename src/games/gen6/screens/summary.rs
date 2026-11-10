@@ -2,7 +2,7 @@
 //!
 //! The summary's stats are on the top screen and built first, the Pokémon's name and level on the
 //! bottom; a screen rewritten is led by the layout naming its Pokémon, said first where the game's
-//! order put it in the middle (Orion, 2026-10-10; `ScreenAnnouncer.say`'s `subject`).
+//! order put it in the middle (`ScreenAnnouncer.say`'s `subject`).
 
 use crate::core::binary::u32;
 use crate::core::memory::Memory;

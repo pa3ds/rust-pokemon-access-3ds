@@ -466,7 +466,7 @@ impl Backend for Interrupts {
 /// ADR-0010 and ADR-0022: a key's answer interrupts, because the key never reached Azahar's
 /// window for the screen reader to cut speech on. `main` built its speech with an empty set of
 /// interrupting categories until 2026-09-24, so the policy the tests checked was never the one
-/// the player heard: cycling the list read every item out whole (the user, 2026-09-24).
+/// the player heard: cycling the list read every item out whole.
 /// `interrupt` adds menus to the key, never replaces it.
 #[test]
 fn test_the_runtime_cuts_speech_off_for_a_key_and_for_nothing_else() {

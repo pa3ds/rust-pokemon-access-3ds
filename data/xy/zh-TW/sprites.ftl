@@ -6,7 +6,7 @@
 ### player has called them, what the game calls them out of the player's own ROM, and only
 ### then this file.
 ###
-### Each table names what the English one does (Orion, 2026-10-14). X and Y have no Chinese
+### Each table names what the English one does. X and Y have no Chinese
 ### text, so no ROM can supply these words. Each one is the official Traditional Chinese name
 ### from a later game (Sun and Moon onward, as wiki.52poke.com lists its Traditional names) where
 ### one exists, and pa3ds's own word in Taiwan's usage otherwise, as the English one is for the
@@ -649,7 +649,7 @@ place-0x37-furniture-6 = 照片
 place-0x37-furniture-7 = 照片
 # Lysandre Café: story 313:4, Lumiose City, zone 0x43; the official Traditional name (wiki.52poke.com/wiki/弗拉达利咖啡店)
 place-0x43-warp-1 = 弗拉達利咖啡店
-# Lumiose's exits no plate, facility or street mark names (Khai, 2026-11-09):
+# Lumiose's exits no plate, facility or street mark names:
 # Looker Bureau: story 313:7, zone 0x43, a plate no record shows; wiki.52poke.com/wiki/密阿雷市. Before Looker moves in, the plate says the unit is for rent
 place-0x43-warp-5 = 帥哥偵探事務所
 # Restaurant Le Wow: story 313:11, zone 0x43, its plate on the next line (spike 107); wiki.52poke.com/wiki/密阿雷市

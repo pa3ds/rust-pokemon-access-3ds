@@ -363,8 +363,8 @@ fn test_a_plate_of_more_than_one_line_is_named_by_what_its_towns_list_calls_it()
 }
 
 /// Slateport's list is full at six and leaves out the Oceanic Museum, whose plate says its
-/// slogan first and its name on the next page: the list's text still names it (Orion,
-/// 2026-10-13). Only a whole line, or two run together as the Japanese break a name: a plate
+/// slogan first and its name on the next page: the list's text still names it.
+/// Only a whole line, or two run together as the Japanese break a name: a plate
 /// of one line keeps its own words where a facility is within them, "Poké Ball Boutique".
 #[test]
 fn test_a_plate_is_named_by_a_line_that_is_a_facility_of_the_lists_text() -> Result<()> {
@@ -541,8 +541,8 @@ fn test_a_plate_showing_one_of_several_notices_is_named_by_the_facility_all_of_t
     Ok(())
 }
 
-/// Mauville Hills' "Apt. 13 / Wattson's Home" says nothing its door is not called (Orion,
-/// 2026-10-13); a plate that says more than the name is not one.
+/// Mauville Hills' "Apt. 13 / Wattson's Home" says nothing its door is not called;
+/// a plate that says more than the name is not one.
 #[test]
 fn test_a_plate_saying_only_its_doors_name_is_a_door_sign() -> Result<()> {
     let zones = town(
@@ -667,7 +667,7 @@ fn test_a_warp_between_two_of_lumioses_zones_is_named_for_the_street_it_comes_ou
     Ok(())
 }
 
-/// Lumiose's five gates are all "Lumiose Gate" (Khai, 2026-10-28): each side's warp in is
+/// Lumiose's five gates are all "Lumiose Gate": each side's warp in is
 /// the gate's place and the place its other warp leads to. A warp into a zone of another kind
 /// is not a gate's.
 #[test]

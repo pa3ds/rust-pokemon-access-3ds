@@ -198,7 +198,7 @@ pub const STATE: i64 = 0x174;
 /// two fifths of a second a hit, and 0 between them (spike 290).
 pub const HITTING: i64 = 0x38;
 /// Seconds after a tap of touch mode's within which a hit is the player's own, heard: the
-/// Pokémon's own come a minute apart, and were heard while the player walked (Orion, 2026-11-10).
+/// Pokémon's own come a minute apart, and were heard while the player walked.
 /// Not measured: a hit lands as soon as the tap does on the movies, well inside it.
 pub const TAPPED_HIT: f64 = 1.0;
 /// Which of the record's effort values (`pokemon.EFFORT`) each of the game's six labels is, in the
@@ -211,13 +211,13 @@ pub const TOTAL_FULL: i64 = 510;
 /// What the texture's name of the kind of shot's picture starts with.
 pub const SHOT_ICON: &str = "shot_icon0";
 /// The page's pane drawing the kind of shot, the one R reads: R said "orange shot, green shot"
-/// for one Pokémon (Orion, 2026-11-10). The PlayNav's archive, its five shot icons in it, is loaded
+/// for one Pokémon. The PlayNav's archive, its five shot icons in it, is loaded
 /// at a new place each time the page comes back, and `LayoutFiles` keeps every texture's name by
 /// its address for good, so another picture drawn where one of them was is named by it.
 pub const SHOT_PANE: &[u8] = b"3v";
 /// That state, from when the Pokémon has finished its bag until it is tapped: the "!" over it.
 pub const FINISHED: i64 = 4;
-/// That state, while the Pokémon rests: said as it is, as a finished bag is (Orion, 2026-11-10).
+/// That state, while the Pokémon rests: said as it is, as a finished bag is.
 pub const RESTING: i64 = 3;
 /// That state, while the Pokémon swings at its bag. Swings a tap apart run together in it and in
 /// `HITTING`, at pa3ds's fifth of a second, but less often in both: of 47 taps 0.42 s apart on a
@@ -313,7 +313,7 @@ pub const STARTS_AT: (f64, f64) = (-2.4, 228.5);
 /// in the air counted in: where `FLIGHT` and `SHOT_SPEED` put it.
 pub const LANDS_AT: f64 = STARTS_AT.1 - FLIGHT * SHOT_SPEED;
 /// How far a step of C's is, across or from the Bot, so that about 8 up is as near as the
-/// Pokémon comes, and its bobbing where it stands, 3 either way, is no step (Orion, 2026-11-10).
+/// Pokémon comes, and its bobbing where it stands, 3 either way, is no step.
 pub const PLACE_STEP: f64 = 10.0;
 /// How many of the round's frames a ball has flown.
 pub const BALL_FRAMES: i64 = 0x10C;
@@ -862,12 +862,11 @@ pub struct CoreTraining {
     page: Rc<RefCell<TrainingPage>>,
     layouts: Rc<Layouts>,
     called: Rc<dyn Fn(&pokemon::Pokemon) -> Option<String>>,
-    /// Played as a hit of the player's lands on the bag: nothing else says one has (Orion,
-    /// 2026-11-09).
+    /// Played as a hit of the player's lands on the bag: nothing else says one has.
     hit: Rc<dyn Fn()>,
     /// When touch mode last tapped, on `time.monotonic`'s clock (`TAPPED_HIT`).
     tapped: Rc<dyn Fn() -> f64>,
-    /// Played as the "!" comes up, easily missed among the taps (Orion, 2026-11-09).
+    /// Played as the "!" comes up, easily missed among the taps.
     finished: Rc<dyn Fn()>,
     /// Whether this "!" has been said.
     said: bool,
@@ -1031,7 +1030,7 @@ impl CoreTraining {
 }
 
 /// What R says on Super Training's page and in its rounds, the numbers a screen draws and does
-/// not say, as it does Head It's score and a contest's places (Orion, 2026-11-09). The page's
+/// not say, as it does Head It's score and a contest's places. The page's
 /// chart is said by each stat's rough share, or with the Extra on by its points (ADR-0017).
 pub struct TrainingKeys {
     core: Rc<RefCell<CoreTraining>>,
@@ -1152,7 +1151,7 @@ impl TrainingKeys {
 }
 
 /// How many fifths of a stat's chart its points fill, what the chart shows at a glance: "HP 2
-/// of 5" (Orion, 2026-11-09, over words such as "a lot"). 0 only with none, 5 only when full.
+/// of 5" (over words such as "a lot"). 0 only with none, 5 only when full.
 fn fifths(points: i64, full: i64) -> Result<i64> {
     if points <= 0 {
         return Ok(0);
@@ -1950,7 +1949,7 @@ impl Round {
             if u32(&head, BOT_BALL)? != 0 {
                 // A ball that misses stays in flight where it stopped, and is fired again
                 // with its frames counted from the start: two of as_st_graveler_barrier's
-                // hit uncued, fired again so at 170 s (Orion, 2026-11-10).
+                // hit uncued, fired again so at 170 s.
                 if state == FLYING
                     && (before.is_some_and(|before| before != FLYING) || frames < flown)
                 {

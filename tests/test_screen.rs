@@ -649,7 +649,7 @@ fn test_a_sign_is_joined_to_the_number_after_it() {
 }
 
 /// The summary's HP hangs every piece from its root, each a panel of its own, and its "/",
-/// the layout file's and never written, was left out: "HP 30 30" (spike 148, Orion 2026-09-30).
+/// the layout file's and never written, was left out: "HP 30 30" (spike 148).
 #[test]
 fn test_the_designer_s_slash_joins_numbers_hanging_straight_from_the_root() {
     let mut game = Game::new();
@@ -811,8 +811,8 @@ fn test_the_games_own_labels_are_labels_wherever_they_are_drawn() {
     assert_eq!(join(&[page[1].clone(), touching], false), "Search Level 5");
 }
 
-/// "Potential: 2 stars", "First move: tackle, egg move" under pauses, and spaces otherwise
-/// (Orion, 2026-10-06): the stars are three pictures, filled or not, and the red mark is drawn
+/// "Potential: 2 stars", "First move: tackle, egg move" under pauses, and spaces otherwise:
+///the stars are three pictures, filled or not, and the red mark is drawn
 /// beside First Move's label, built before it (spike 195).
 #[test]
 fn test_the_dexnav_s_stars_are_counted_and_its_mark_said_after_what_it_marks() {
@@ -1111,7 +1111,7 @@ fn test_hearts_on_two_rows_of_one_group_are_counted_apart() {
 }
 
 /// The results draw each entrant's place as a picture left of "Raiden & Metagross" (spike
-/// 196): "Raiden & Metagross: third place" under pauses (Orion, 2026-10-09).
+/// 196): "Raiden & Metagross: third place" under pauses.
 #[test]
 fn test_a_contests_place_is_read_after_its_entrant() {
     let names = ScreenText {
@@ -1443,7 +1443,7 @@ fn test_words_placed_outside_their_screen_are_silent_until_they_come_onto_it() {
     assert_eq!(game.heard_now(), words(&[("POKÉMON", false)]));
 }
 
-/// A letter deleted from a name only takes a word off the screen (the user, 2026-09-18).
+/// A letter deleted from a name only takes a word off the screen.
 #[test]
 fn test_words_that_leave_the_screen_are_reported_as_they_last_read() {
     let (mut game, _work, _group, value) = settled();
@@ -1465,7 +1465,7 @@ fn test_words_that_leave_the_screen_are_reported_as_they_last_read() {
 
 /// The language screen's list moves its rows rather than rewriting them: moving the cursor to
 /// Spanish brought "Japanese" up onto the top screen, and it was said as newly shown beside the
-/// cursor's "Spanish" (opening.ctm, the user, 2026-09-17; spike 68).
+/// cursor's "Spanish" (opening.ctm, spike 68).
 #[test]
 fn test_words_moving_onto_their_screen_unchanged_have_scrolled_in() {
     let mut game = Game::new();
@@ -1766,8 +1766,8 @@ fn test_a_picture_the_game_names_by_its_image_is_heard_where_it_is() {
     assert_eq!(game.heard(), words(&[("TYPE", false), ("Fire", false)]));
 }
 
-/// Surskit's entry read "Type BugWater", its two type icons joined as drawn (Orion,
-/// 2026-09-29): "Bug/Water".
+/// Surskit's entry read "Type BugWater", its two type icons joined as drawn:
+/// "Bug/Water".
 #[test]
 fn test_two_icons_side_by_side_are_said_with_a_slash_between() {
     let mut game = Game::new();
@@ -1949,7 +1949,7 @@ fn test_the_dexnav_s_mark_is_read_after_the_move_it_marks() {
 }
 
 /// The battle's move list draws the type icon left of the PP in its left column and right of
-/// it in its right one (movie5); both read the type after the name (Orion, 2026-09-29). The
+/// it in its right one (movie5); both read the type after the name. The
 /// Pokédex's TYPE, one row of three in its group, stays where it is drawn.
 #[test]
 fn test_a_moves_type_is_read_after_its_name_on_either_side_of_the_move_list() {

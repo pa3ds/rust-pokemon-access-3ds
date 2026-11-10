@@ -285,8 +285,8 @@ fn test_a_key_pa3ds_takes_is_named_with_the_button_it_costs() {
     )));
 }
 
-/// The hook swallows shift and T, not T: touch mode is shift and T so that T stays the D-pad
-/// (Orion, 2026-10-01), and saying at every start that it sits on the D-pad would be untrue
+/// The hook swallows shift and T, not T: touch mode is shift and T so that T stays the D-pad,
+///and saying at every start that it sits on the D-pad would be untrue
 /// whenever shift is up. Until then `shift+k` was said to take the C-stick's K.
 #[test]
 fn test_a_key_with_a_modifier_takes_its_button_only_while_the_modifier_is_held() {
@@ -569,7 +569,7 @@ fn prepare_contexts(home: &Path, config: &Path) -> keyfile::Keys {
     .unwrap()
 }
 
-/// ADR-0022 as amended 2026-10-29 (Orion): Berry Picker's number row is its own,
+/// ADR-0022 as amended 2026-10-29: Berry Picker's number row is its own,
 /// `[pa3ds.amie.berry_picker]`, written with the file, filled into one written before it as any
 /// key gained is, and a key of it on one of Azahar's buttons is only logged: pa3ds takes it only
 /// while Berry Picker runs.
@@ -878,7 +878,7 @@ fn test_a_file_that_will_not_parse_costs_the_edit_not_the_keys() {
             .any(|note| note.contains("could not be read"))
     );
     // Said, interrupting, with where it breaks: a player who edited it would otherwise wonder why
-    // nothing they did took (Orion, 2026-10-17). And left alone, for them to fix.
+    // nothing they did took. And left alone, for them to fix.
     assert!(keys.warning);
     assert!(keys.said.starts_with("keys.toml could not be read: "));
     assert!(keys.said.contains("line 2"), "{}", keys.said);
@@ -1053,7 +1053,7 @@ fn test_shift_falls_back_to_the_key_on_its_own() {
     assert_eq!(bound("shift+k", ["shift+k", "k"], false), "shift+k");
 }
 
-/// Amie's jump, Ctrl and an arrow, was dead while Shift held the press (Orion, 2026-11-06).
+/// Amie's jump, Ctrl and an arrow, was dead while Shift held the press.
 #[test]
 fn test_shift_falls_back_beside_ctrl_as_it_holds_a_press() {
     assert_eq!(bound("ctrl+shift+left", ["ctrl+left"], false), "ctrl+left");
@@ -1061,7 +1061,7 @@ fn test_shift_falls_back_beside_ctrl_as_it_holds_a_press() {
 }
 
 /// Super Training's charge holds Shift, and R said the battle's enemy side, `shift+r`, where
-/// the round's numbers were wanted (Orion, 2026-11-10).
+/// the round's numbers were wanted.
 #[test]
 fn test_a_screens_own_key_answers_with_shift_held_ahead_of_the_shifted_one_elsewhere() {
     let table = |pairs: &[(&str, &str)]| -> IndexMap<String, String> {
@@ -1092,8 +1092,7 @@ fn test_ctrl_and_alt_never_fall_back() {
     assert_eq!(bound("ctrl+k", ["ctrl+k"], false), "ctrl+k");
 }
 
-/// Insert and R is NVDA's OCR, and pa3ds took it for R and said the battle's side (Orion,
-/// 2026-09-29).
+/// Insert and R is NVDA's OCR, and pa3ds took it for R and said the battle's side.
 #[test]
 fn test_nothing_is_pa3ds_s_while_the_screen_reader_s_key_is_held() {
     assert_eq!(bound("r", ["r"], true), "");
@@ -1284,7 +1283,7 @@ fn test_a_modes_own_key_wins_over_the_one_above_it() {
 }
 
 /// NVDA swallows insert in its own hook, so Windows never says it is held, and insert and R,
-/// NVDA's OCR, reached pa3ds as R (Orion, 2026-09-29). pa3ds's hook is called first and sees
+/// NVDA's OCR, reached pa3ds as R. pa3ds's hook is called first and sees
 /// insert go down and up.
 #[test]
 fn test_nvdas_modifier_is_held_from_the_hooks_own_events() {

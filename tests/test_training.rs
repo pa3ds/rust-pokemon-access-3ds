@@ -415,8 +415,7 @@ fn test_each_hit_of_a_tap_landing_on_the_bag_is_heard_and_logged_once() {
     );
 }
 
-/// Once a minute, with no tap, even on an empty bag while the player walks (Orion,
-/// 2026-11-10).
+/// Once a minute, with no tap, even on an empty bag while the player walks.
 #[test]
 fn test_the_pokemons_own_hit_is_logged_and_not_heard() {
     let (mut reader, memory, played) = played_core(
@@ -583,7 +582,7 @@ fn test_r_says_each_stats_rough_share_of_the_chart_the_total_and_the_shot() {
 }
 
 /// Another picture named a shot icon, drawn where one of the PlayNav's archive had been, was
-/// said beside it: "orange shot, green shot" (Orion, 2026-11-10).
+/// said beside it: "orange shot, green shot".
 #[test]
 fn test_r_says_the_shot_of_the_pages_own_pane_alone() {
     let (reader, _wrong) = keys(
@@ -870,7 +869,7 @@ fn test_a_regimens_gain_is_said_beside_its_own_layouts_stat_alone() {
 }
 
 /// Until the game first draws a layout just built, its panes read at (0, 0): every stat was on
-/// the gain's row, and a second stat took the "+4" again and threw (Orion, 2026-11-10).
+/// the gain's row, and a second stat took the "+4" again and threw.
 #[test]
 fn test_a_regimens_gain_is_taken_once_before_its_layout_is_first_drawn() {
     let unplaced: IndexMap<i64, ScreenText> = gains_screen(Some(70.0))
@@ -939,7 +938,7 @@ fn test_a_finished_bag_is_said_once_while_the_pokemon_waits_for_a_tap() {
 }
 
 /// Treecko, chosen, rested at once, and the game said so only once a regimen was tried; a tap
-/// woke it, to state 2 (Orion, as_st_graveler_barrier).
+/// woke it, to state 2 (as_st_graveler_barrier).
 #[test]
 fn test_a_resting_pokemon_is_said_as_the_page_shows_it_and_again_on_coming_back() {
     let resting = || {

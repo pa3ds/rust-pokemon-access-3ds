@@ -118,7 +118,7 @@ fn test_only_a_species_caught_is_said_so() {
 
 /// ADR-0037: 1 water, 2 fishing, in the habitat page's words, before "caught", which would join it
 /// as "caught fishing" (movie27 on Route 102); 0, walking in the grass or on a cave's floor, says
-/// none (Orion, 2026-10-20), as the test above has it, and 3, the DexNav's search alone, none. A
+/// none, as the test above has it, and 3, the DexNav's search alone, none. A
 /// comma between each under `pauses`.
 #[test]
 fn test_each_species_says_how_it_is_met_before_caught() {

@@ -8,8 +8,8 @@ use crate::ux::window::{
     IDC_UPDATES, INSTALLER, PORTABLE, WS_EX_APPWINDOW, download, menus, template,
 };
 
-/// A window left in sight for OBS takes as little of the screen as a window can (Orion,
-/// 2026-10-25): what were its buttons are the items of its menus, the first menu the mod's.
+/// A window left in sight for OBS takes as little of the screen as a window can:
+/// what were its buttons are the items of its menus, the first menu the mod's.
 #[test]
 fn test_the_window_is_pa3dss_by_its_title_and_holds_nothing_but_its_menu_bar() {
     let (title, items) = read_template(&template().unwrap());

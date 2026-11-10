@@ -236,7 +236,7 @@ pub fn emulator_pid(_emulator: &str) -> i64 {
 /// Azahar titles its main window and both render windows with the game's name after a
 /// separator; its dialogs are "Configure", "Cheats" and the like. A key typed into one of those
 /// is the player's, for a text field or a list's first letter: pa3ds took I and O out of
-/// Azahar's settings until 2026-10-01 (Orion).
+/// Azahar's settings until 2026-10-01.
 pub fn shows_game(title: &str) -> bool {
     title.contains(SEPARATOR)
 }

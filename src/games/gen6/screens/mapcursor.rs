@@ -3,7 +3,7 @@
 //! The map is `map_lower`, drawn by the AreaNav, the Pokédex's habitat and the Fly map: a picture of
 //! Hoenn (`poke_navi_map.bclim`) and a cursor (`cursol.bclim`) in a pane of its own (spikes 152 and
 //! 173). Between places the cursor says nothing, so a player cannot tell moving through sea from
-//! standing at an edge (Orion, 2026-10-01). Each poll the cursor's place is taken as a share of the
+//! standing at an edge. Each poll the cursor's place is taken as a share of the
 //! map, across from its left and down from its top, allowing for the map's zoom and slide (the
 //! AreaNav draws it at scales up to 2, moved so the place in view stays put), and a tone is played
 //! when that changes while the cursor is shown: a move, never the map coming on screen. The tone

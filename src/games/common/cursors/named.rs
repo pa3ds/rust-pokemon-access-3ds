@@ -547,7 +547,7 @@ impl ListCursors {
     /// X's Poké Mart draws `shop_cursor.bclim` as a window in its list's window, beside every
     /// row's words, where ORAS's is a pane holding two pictures, and taken for a frame it made a
     /// menu of the whole layout: the description and the count to buy went unsaid
-    /// (x_poke-mart, Khai, 2026-10-18). It walks its list as a picture does. The main menu's
+    /// (x_poke-mart). It walks its list as a picture does. The main menu's
     /// frame hangs from its root, its rows in panes of their own.
     fn among_rows(&self, root: i64, window: i64, tree: &IndexMap<i64, String>) -> Result<bool> {
         let parent = u32(&self.layouts.pane(window)?, lyt::PARENT)?;

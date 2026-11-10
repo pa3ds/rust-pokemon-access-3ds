@@ -1,7 +1,7 @@
 //! The Bag's party slots, named by the species whose icon each draws (spike 184).
 //!
 //! The Bag lists the party beside its items, each slot an icon, a level and an HP bar, and no name:
-//! touch mode said "L 14" (Orion, movie21). The icons come from a `common::resource::PokeIcon`, as
+//! touch mode said "L 14" (movie21). The icons come from a `common::resource::PokeIcon`, as
 //! the AreaNav's Pokémon Distribution's do (`gen6.screens.distribution`): its `LytTexReplaceSystem` holds a
 //! texture a party member, in the party's order, and each slot's picture draws its member's. The
 //! party is a list of six `pml::pokepara::PokemonParam` pointers and then how many are in it, with

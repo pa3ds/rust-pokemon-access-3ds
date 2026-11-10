@@ -143,11 +143,11 @@ pub const COLUMN: i64 = 0x400;
 /// Where a drag carries a Poké Puff to on the Pokémon, its mouth: held there, Pikachu leaned in,
 /// ate it in about 2.5 s and showed a heart; held at the screen's middle, over its eyes, it frowned
 /// and turned away, and 17 above its mouth it ate nothing in 3.5 s (or_amie_dragging_puffs, spike
-/// 257). Blaziken and Metagross ate there too, a little slower (Orion, 2026-10-28).
+/// 257). Blaziken and Metagross ate there too, a little slower.
 pub const MOUTH: (i64, i64) = (160, 157);
 /// The pane the Pokémon stands in for in touch mode, which no pane is at.
 pub const BECKON_TARGET: i64 = 1;
-/// The Pokémon as touch mode offers it, "beckon Sceptile" (Orion, 2026-11-05).
+/// The Pokémon as touch mode offers it, "beckon Sceptile".
 pub const BECKON_WORD: &str = "amie-beckon";
 pub const BECKON: (i64, i64) = (160, 130);
 /// Where a beckon presses, and for how long: Ralts, its back turned, turned round in 3.5 s to
@@ -200,7 +200,7 @@ pub const LOOK: f64 = 0.5;
 /// measured alike.
 pub const LONGEST_RUN: i64 = 32;
 /// How far either side of the stylus a rub goes at most, on its part: at 20, rubbing Pikachu's
-/// chin reached its cheeks (Orion, or_amie_moods).
+/// chin reached its cheeks (or_amie_moods).
 pub const RUB_REACH: i64 = 12;
 /// How far a rub keeps in from its part's edges, as the Pokémon sways under it.
 pub const RUB_INSET: i64 = 3;
@@ -221,7 +221,7 @@ pub const SETTLE: f64 = 1.0;
 pub const SPECK: i64 = 8;
 /// How far inside its part a touch looks to be from every edge, `RUB_REACH` along it: a part is
 /// only its grey to the game, so where on it is touched matters only for staying on it as the
-/// Pokémon moves (Orion, 2026-11-06: petting the head, he kept reaching the cheeks).
+/// Pokémon moves (2026-11-06: petting the head, he kept reaching the cheeks).
 pub const DEEP: i64 = 12;
 pub const OFF_SIDES: (i64, i64) = (24, 295);
 /// Where a press off the Pokémon goes, at the screen's side nearer the stylus and between the
@@ -364,7 +364,7 @@ pub const MOODS_OVER: [(i64, &str); 4] = [
 ];
 /// The moods saying the puff by its kind, as the game's text has no one word for a puff in every
 /// language: its label is the plural in English and German. Left unsaid where nothing says which puff
-/// it is, one not picked up by touch mode (Orion, 2026-11-06: "use words from the ROM"). A
+/// it is, one not picked up by touch mode (2026-11-06: "use words from the ROM"). A
 /// `frozenset` in Python, only ever tested for membership.
 pub const OF_THE_PUFF: [&str; 4] = [
     "amie-mood-puff-seen",
@@ -413,7 +413,7 @@ pub const FIDGETS: [&str; 7] = [
     "question", "moveA", "moveB", "moveC", "moveD", "turnA", "turnB",
 ];
 /// The moods left unsaid where the Pokémon has a sentence for the animation under them, which says
-/// more (Orion, 2026-11-07: "just have the animations instead"). A hand held up has a cry of its own
+/// more (2026-11-07: "just have the animations instead"). A hand held up has a cry of its own
 /// as well, and a press held is what brought it.
 pub const SHOWN_BY: [(&str, &str); 4] = [
     ("amie-mood-eating", "eat"),
@@ -1065,7 +1065,7 @@ impl Stylus {
 
     /// The box the Pokémon is drawn in on the still picture, (left, top, right, bottom), or
     /// None. The arrows keep the stylus within a step of it: across the whole screen it was too
-    /// many presses (Orion, 2026-11-05).
+    /// many presses.
     pub fn outline(&self) -> Option<Box4> {
         self.still.as_ref().and_then(|still| still.outline())
     }
@@ -1117,7 +1117,7 @@ impl Stylus {
     /// each grey's words), and any gap, to the middle of the next part's run that way, as Ctrl
     /// and an arrow move it; False where no other part lies that way, or no picture is taken.
     /// Sweet spots and danger zones with no name of their own are said as the head or the body,
-    /// which a jump went from and to, saying "head" twice (Orion, 2026-11-06).
+    /// which a jump went from and to, saying "head" twice.
     pub fn jump(
         &mut self,
         across: i64,
@@ -1489,8 +1489,8 @@ impl AmiePage {
         })
     }
 
-    /// The Pokémon by the nickname its player gave it, or else its species (Orion,
-    /// 2026-10-16): the party's record `Player` says it draws (`PlayerFields.shown`), of its
+    /// The Pokémon by the nickname its player gave it, or else its species:
+    /// the party's record `Player` says it draws (`PlayerFields.shown`), of its
     /// species as well, as a save edited by hand can have two Pokémon sharing a constant. With no
     /// `Player` yet it is looked for by its species, and a species two of the party share is said
     /// as that.
@@ -1677,7 +1677,7 @@ impl AmiePage {
     /// The Pokémon too big for the bottom screen (`BOTH_SCREENS`), offered to bring down from
     /// the top screen by a press held at the touch screen's top edge, or send back up by one at
     /// its bottom edge. Nothing read says which screen it is on, and Regigigas and Zygarde have
-    /// no eyes to tell by, so `_down` remembers the edge last pressed (Orion, 2026-11-07), Amie
+    /// no eyes to tell by, so `_down` remembers the edge last pressed, Amie
     /// opening with it on the top screen.
     fn view(&mut self, name: &str) -> Result<Vec<Target>> {
         let shown = self.player().shown()?;
@@ -2322,7 +2322,7 @@ impl Moods {
 /// words where that is off.
 pub const EDGE: &str = "amie-stylus-edge";
 
-/// Amie's own keys, the arrows (Orion, 2026-11-05): each moves the stylus `STEP` pixels over
+/// Amie's own keys, the arrows: each moves the stylus `STEP` pixels over
 /// its still picture (`Stylus`), saying the kind of part it comes onto (`AmiePage.part`), and
 /// nothing more while it stays on that kind, touch mode's tone sounding where it is. Touch mode
 /// chooses the stylus as it moves, so touch mode's tap rubs that part a second and its drag rubs

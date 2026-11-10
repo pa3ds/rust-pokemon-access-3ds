@@ -57,7 +57,7 @@ pub const BUMPY_SLOPE: &str = "bumpy slope";
 pub const BIKE_RAIL: &str = "rail";
 
 /// What a hole a big boulder drops into is called, listed under obstacles with the boulders until
-/// one fills it (Orion, 2026-10-11; spike 202): its cells are of a kind of their own
+/// one fills it (spike 202): its cells are of a kind of their own
 /// (`chunk.HOLE`). A hole in a Secret Base's floor is one too: the game names it only in the Solid
 /// Board's description, "You can place this over holes to cross over them", never where it is.
 pub const HOLE: &str = "hole";

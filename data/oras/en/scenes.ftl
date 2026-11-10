@@ -344,8 +344,8 @@ drake-beaten-1 = { TRAINER(556) } steps aside, and the Poké Ball door behind hi
 # The Champion's corridor, zone 0x16a, from movie53_battle_with_steven: no trigger; the player
 # walks up it to the light. Then the Champion's room, zone 0x166, whose own script starts as the
 # player arrives: it walks them 12 rows up a staircase, whatever they hold, and keeps them there
-# while the view goes to Steven, his first line 22.2 s after arriving in both of Orion's movies.
-# So the room is described as the player arrives, a beat as each shot comes (Orion, 2026-10-16).
+# while the view goes to Steven, his first line 22.2 s after arriving in both movies.
+# So the room is described as the player arrives, a beat as each shot comes.
 champion-corridor-1 = A long, narrow corridor of grey stone runs north to a doorway pouring white light.
 champion-corridor-2 = You climb a wide staircase into a vast hall of pale stone.
 champion-corridor-3 = At its far end { TRAINER(557) } stands on the steps below a dark archway, his back to you.
@@ -525,7 +525,7 @@ or-credits-brendan-38 = The light fades, and the room grows dim.
 or-credits-brendan-39 = A dark emblem fades in over the desk, and blazes with green light.
 
 # Brendan's credits in Alpha Sapphire: his Omega Ruby credits above with Alpha Sapphire's five
-# pictures, composed before any replay showed them (ADR-0038, Orion, 2026-10-16), then seen so in
+# pictures, composed before any replay showed them (ADR-0038), then seen so in
 # movie4_hall_of_fame_as_a_girl.
 as-credits-brendan-1 = You walk down the steps to { TRAINER(1) }. Light floods in through the high windows until all is white.
 as-credits-brendan-2 = Sunlight through tall trees. You ride your bike along a forest path.

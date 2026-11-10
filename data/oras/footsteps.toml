@@ -21,9 +21,9 @@ silent = ["SEQ_SE_FT_03"]
 [run]
 silent = ["SEQ_SE_RU_03"]
 
-# Off for now (Orion, 2026-10-18): the game plays sounds of its own on Sharpedo on the water,
-# FLD_167 about once a second, and in the seaweed, DV_01, which these doubled. As Orion chose
-# them by ear: surfing, the game's sound of something stirring in the sea; diving, the sound it
+# Off for now: the game plays sounds of its own on Sharpedo on the water,
+# FLD_167 about once a second, and in the seaweed, DV_01, which these doubled. As chosen by
+# ear: surfing, the game's sound of something stirring in the sea; diving, the sound it
 # plays once as the player arrives under the sea; the seaweed, its own with the grass's step.
 # [surf]
 # every = 4.5

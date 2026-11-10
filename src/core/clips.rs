@@ -9,7 +9,7 @@
 //! each cuts off only its own Pokémon's, and the three can be heard over each other as the game's
 //! sounds are (Orion, 2026-11-02: waiting their turn, a cry would come too late, and cut off, the
 //! Pokémon before went unheard). The feedback sounds, cues and a key's, each have a voice of their
-//! own the same way, and cut off only themselves (Orion, 2026-11-10). How loud is what the game
+//! own the same way, and cut off only themselves. How loud is what the game
 //! would make it: the sound's own volume and its sequence's random one; times how loud Azahar
 //! plays the game (`loudness`); times `[pa3ds.audio] footsteps`, above 1 louder than the game
 //! would. A clip plays in both ears, as the game plays it, but where it is asked toward one side:
@@ -66,7 +66,7 @@ pub struct Clips {
     level: f64,
     /// Whether each sound has a voice of its own, as the feedback sounds do: one cue sounded
     /// cut off in a regimen, where the Bot's alert, its "!" and a hit's sound can come close
-    /// together (Orion, 2026-11-10).
+    /// together.
     apart: bool,
     outs: RefCell<IndexMap<On, Box<dyn Output>>>,
     open: Opener,

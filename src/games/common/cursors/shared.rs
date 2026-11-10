@@ -411,7 +411,7 @@ impl Said {
     ///
     /// The place matters as much as the words. A party screen with five empty slots gives every
     /// one of them the same name, so comparing words alone said it once and then nothing however
-    /// far the player arrowed, until they landed on a Pokemon and came back (the user, 2026-09-16).
+    /// far the player arrowed, until they landed on a Pokemon and came back.
     /// A cursor that has moved to another item has news even when the item reads the same.
     pub fn report(
         &self,
@@ -540,7 +540,7 @@ pub fn beside(pieces: &[ScreenText], rect: &Rect, root: i64, panel: i64) -> Vec<
 ///
 /// A screen can keep the panel it is leaving on screen for a poll: confirming a language, the list
 /// was still there behind the confirmation, and the cursor over "Begin game" said "Spanish French
-/// Begin game" (opening.ctm, the user, 2026-09-18). An item can still span rows, as a party slot's
+/// Begin game" (opening.ctm). An item can still span rows, as a party slot's
 /// name and level do, because a panel is kept whole. Of pieces on one row, the nearest across wins:
 /// the Pokédex's More list put CANCEL over the page's Habitat button, the cursor centred on CANCEL
 /// and Habitat at its edge, and the cursor said "Habitat" (or/movie7_menus, 2026-09-27).

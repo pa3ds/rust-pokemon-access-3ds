@@ -8,7 +8,7 @@
 //! every Windows 11 player's console, the console's own window is a stand-in that `ShowWindow`
 //! ignores; the terminal's window owns it, and is the one hidden (measured 2026-10-17). A console a
 //! shell shares is never hidden: the shell, and every tab beside it, would go with it, and a player
-//! who opened a shell to start pa3ds wants to see it (Orion).
+//! who opened a shell to start pa3ds wants to see it.
 //!
 //! **The one before it.** A pa3ds started while another runs ends that one, which may be hung,
 //! and takes its place (`replace`): the log carries on in the same file, and the first "pa3ds
@@ -211,7 +211,7 @@ pub fn replace(home: &Path) -> Result<bool> {
 }
 
 /// Start pa3ds again as this one was started, to take its place (`replace`): for settings
-/// applied in the settings dialog (Orion, 2026-10-25). In a console of its own, where it is
+/// applied in the settings dialog. In a console of its own, where it is
 /// alone and opens its window, as a double-clicked pa3ds does; this one is ended by it.
 ///
 /// The port's is `pa3ds.exe` itself, where the Python's is its interpreter running `-m pa3ds`.

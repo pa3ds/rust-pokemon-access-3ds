@@ -22,8 +22,8 @@
 //!
 //! Python's `Leap`, a leg a traversal carries the player across in one move, a vine's or a
 //! teleporter's, a way said as far as its first and then how many more, as up Coumarine Gym,
-//! where every press said all 17 vines and the legs between, again at each step (Khai,
-//! 2026-10-26), is a `Leg` whose `more` is some (`pathfind::Leg::more`).
+//! where every press said all 17 vines and the legs between, again at each step,
+//! is a `Leg` whose `more` is some (`pathfind::Leg::more`).
 
 use std::collections::HashSet;
 

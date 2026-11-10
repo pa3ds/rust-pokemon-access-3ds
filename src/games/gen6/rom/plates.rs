@@ -732,7 +732,7 @@ fn casefold(text: &str) -> String {
 
 /// (zone, furniture index) of every plate outdoors that says nothing but the name of a door
 /// of its zone, `doors` being every door's name: in Mauville Hills "Apt. 13 / Wattson's Home"
-/// stands by the door it names, and listed both said it twice (Orion, 2026-10-13). A plate
+/// stands by the door it names, and listed both said it twice. A plate
 /// that says more is kept, a Gym's with its leader, the Oceanic Museum's with its slogan.
 pub fn door_signs(
     zones: &IndexMap<i64, Zone>,

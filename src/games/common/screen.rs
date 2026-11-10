@@ -331,8 +331,8 @@ pub fn distinct(pieces: impl IntoIterator<Item = ScreenText>) -> Vec<ScreenText>
 /// The pieces as one line to speak, in their order.
 ///
 /// Pieces drawn side by side on one row are joined as drawn ("L5", "19/19"). Others are separated
-/// by a space, or when asked for (the user, 2026-09-14) by a comma, or a colon after a label
-/// (`labels_value`): "OT: Raiden, ID No.: 16285" (Orion, 2026-09-30). A label with a colon of its
+/// by a space, or when asked for by a comma, or a colon after a label
+/// (`labels_value`): "OT: Raiden, ID No.: 16285". A label with a colon of its
 /// own is followed by a space: "Badges: 0", not "Badges:, 0". A value is no label of what
 /// follows it: "ITEM: Potion, Sand Attack", "Name: Raiden, ID No.: 16285".
 ///
@@ -907,7 +907,7 @@ impl ScreenTextReader {
 
     /// Picture -> what the game calls what it draws, as a piece where the picture is, for the
     /// pictures shown in layouts with words on screen: the Pokédex entry's type, drawn as an icon
-    /// beside the word TYPE (spike 147; Orion, 2026-09-29), "Male TYPE Fire".
+    /// beside the word TYPE (spike 147), "Male TYPE Fire".
     fn named_pictures(&mut self, roots: &[i64]) -> Result<IndexMap<i64, ScreenText>> {
         let Some(pictures) = &self.pictures else {
             return Ok(IndexMap::new());
@@ -1110,7 +1110,7 @@ impl ScreenTextReader {
     /// A TextBox's words whether or not it is on screen, where code wrote them: the X menu keeps
     /// its words hidden under the shortcut bar's icons (`games.common.touch`). A designer's words,
     /// a placeholder of full-width digits left as the layout file has it, are "": the AreaNav's
-    /// tabs were named with them (movie17, Orion, 2026-10-01).
+    /// tabs were named with them (movie17).
     pub fn text_of(&self, r#box: i64) -> Result<String> {
         let head = self.layouts.textbox(r#box)?;
         if u32(&head, self.layouts.shape.tag_processor)? != 0 {
@@ -1260,14 +1260,13 @@ fn names_its_picture(name: &ScreenText, icon: &ScreenText, words: &[&ScreenText]
 /// A group's one picture read straight after the one piece above it, as a move's type after
 /// its name. The battle's move list mirrors its two columns, the type icon left of the PP on one
 /// and right of it on the other, and read as drawn the right one's was "Growl PP 40/40 Normal";
-/// where the mirroring cannot be seen it only sounds lopsided (Orion, 2026-09-29), so it is
+/// where the mirroring cannot be seen it only sounds lopsided, so it is
 /// "Growl Normal PP 40/40". Only a group of two rows with one piece on the upper is shaped so:
 /// the Pokédex entry's TYPE is one of three rows, and stays "TYPE Fire".
 ///
 /// A picture built before the word just right of it is that word's too, and said after it: the
 /// Move Reminder's rows said "Flying Sky Attack" (or_move_reminder) and the Bag's select bar
-/// "Skarmory erza" (or_nickname_reading_regression), where every other screen has the name first
-/// (Orion, 2026-11-08).
+/// "Skarmory erza" (or_nickname_reading_regression), where every other screen has the name first.
 pub fn after_the_name(found: &IndexMap<i64, ScreenText>) -> IndexMap<i64, ScreenText> {
     let mut groups: IndexMap<i64, Vec<&ScreenText>> = IndexMap::new();
     for piece in found.values() {
@@ -1325,7 +1324,7 @@ pub(crate) fn shadow(colours: &[u8]) -> bool {
 }
 
 /// Each group's stars as one piece, how many are filled: the DexNav's Potential draws three,
-/// filled or not, "Potential 2 stars" (Orion, 2026-10-06; spike 195). Side by side, three stars
+/// filled or not, "Potential 2 stars" (spike 195). Side by side, three stars
 /// alike were one picture drawn three times. A contest move's hearts likewise, as many as are
 /// drawn: "Appeal 4 hearts" (spike 196). Pokémon-Amie's results rate out of five in halves, a
 /// half star where the whole ones end, under the fifth when all five are earned (or_amie_stars):
@@ -1474,11 +1473,11 @@ pub(crate) fn by_their_labels(
 }
 
 /// Pictures drawn side by side as one piece, their words between slashes: a Pokémon of two
-/// types is "Bug/Water" (Orion, 2026-09-29), where joined as drawn they read "BugWater". A
+/// types is "Bug/Water", where joined as drawn they read "BugWater". A
 /// picture saying what the one beside it says is one thing drawn twice, as each Pokédex language
 /// tab is.
 /// A contest's place, drawn left of its entrant, read after the entrant's words: "Raiden &
-/// Metagross third place" (Orion, 2026-10-09; spike 196). The results reveal the places one at
+/// Metagross third place" (spike 196). The results reveal the places one at
 /// a time after the names, so a place stands far enough past its entrant's words to be said
 /// with them as a value is with its label (`LABEL_GAP`).
 pub(crate) fn places_last(found: &IndexMap<i64, ScreenText>) -> IndexMap<i64, ScreenText> {

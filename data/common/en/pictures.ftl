@@ -11,7 +11,7 @@
 
 ## Pictures whose name says what they do, in English or close to it: each is its name's words,
 ## less the designer's "button", "btn" and "icon", a move's "waza", a contest's "con", and the
-## size "mini" (the user, 2026-09-16 to 2026-10-09).
+## size "mini".
 
 texture-bag_button = bag
 texture-button = button
@@ -35,24 +35,22 @@ texture-waza_con_change = change
 # Super Training's `gameover_c.bclim` runs two words together.
 texture-gameover = game over
 
-## Pictures whose name says what they look like, or says it in Japanese, by what they do
-## (Orion, 2026-10-01).
+## Pictures whose name says what they look like, or says it in Japanese, by what they do.
 
 # The AreaNav's map draws `map_big` on the button that makes the map bigger, and `map_small` on
 # the one that takes it back (movie17).
 texture-map_big = zoom in
 texture-map_small = zoom out
-# The Bag's `rireki_icon` ("rireki", history) lists the last items used (Orion, 2026-10-02,
-# movie21).
+# The Bag's `rireki_icon` ("rireki", history) lists the last items used (movie21).
 texture-rireki_icon = history
 # The PC Box's three modes, its red tab (a Poké Ball), its blue (two balls and an arrow both ways)
 # and its green (a grid and an arrow): pick a Pokémon up as usual, move one with a press, and
-# select a group (Orion, 2026-10-02, movie22).
+# select a group (movie22).
 texture-mode01 = normal mode
 texture-mode02 = swap mode
 texture-mode03 = multi-select mode
 # The DexNav's crown for an area's Pokémon all caught, by its colour, decoded from the ROM:
-# brown, grey, yellow and a paler grey (Orion, movie28).
+# brown, grey, yellow and a paler grey (movie28).
 texture-complete0 = bronze crown
 texture-complete1 = silver crown
 texture-complete2 = gold crown
@@ -70,10 +68,10 @@ texture-menu_bg_button = start
 # area, and a tap on it closes the menu (omega_ruby_bottom-screen2).
 texture-msg_win_c = close
 # Super Training's button in the lower right of its PlayNav page, which opens the list of training
-# bags; the game names it only in a sentence (Khai, 2026-10-09, omega_ruby_bottom-screen5).
+# bags; the game names it only in a sentence (omega_ruby_bottom-screen5).
 texture-list_button = training bags
 # The button that starts a regimen of Super Training once it is cleared, `stage_icon00_rock` and
-# every `stage_icon` after it: before then the game titles each (Khai's session of 2026-10-09).
+# every `stage_icon` after it: before then the game titles each (a session of 2026-10-09).
 texture-stage_icon = start
 # The battle's move info screen, opened from its move list, draws each move's button as a
 # `waza_pos` picture with no words: no name of its own, said by its place (`picture-move`)
@@ -108,7 +106,7 @@ top-bar-next = next
 # holding no Pokémon.
 picture-empty = empty
 # A battle's button drawn with no words, by its place among those like it in reading order: the
-# move info's four bars, in the move list's order (Khai, 2026-10-18).
+# move info's four bars, in the move list's order.
 picture-move = move { $number }
 # A Box mark set or not, which the game says only by drawing it solid: "●, on". The mark is its
 # sign, which the screen reader names.
@@ -125,7 +123,7 @@ slot-titled-list = { $title } { $number }
 slot-empty = { $slot }, empty
 slot-held = { $slot }, { $name }
 # A contest's places, drawn as pictures beside each entrant, said after the entrant: "Raiden &
-# Metagross third place" (Orion, 2026-10-09).
+# Metagross third place".
 contest-place-one = first place
 contest-place-two = second place
 contest-place-three = third place
@@ -136,7 +134,7 @@ dexnav-higher-level = higher level
 dexnav-egg-move = egg move
 dexnav-hidden-ability = hidden ability
 # Said after a Pokémon the DexNav shows in colour, caught, where the rest are its silhouettes:
-# only the caught are said so (Orion, 2026-10-06).
+# only the caught are said so.
 dexnav-caught = caught
 # Potential's stars as words, three in a row filled or not; and the stars Pokémon-Amie's games rate
 # a result with, out of five.

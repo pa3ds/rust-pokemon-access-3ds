@@ -117,7 +117,7 @@ either = { $these } or { $last }
 # The way a big boulder is pushed, chosen with comma and period: "push east, 2 of 2".
 key-push = push { $way }
 boulder-into-hole = { $way } into a hole
-# What a big boulder can do, after where it is (Orion, 2026-10-11): "moveable north or east".
+# What a big boulder can do, after where it is: "moveable north or east".
 boulder-moveable = moveable { $ways }
 boulder-immoveable = immoveable
 # How far a big boulder has moved from where its room starts it, under `track_boulders`.
@@ -133,7 +133,7 @@ rename-speaker-label = The last speaker. { $name }
 rename-called = Called: { $name }
 rename-not-named = Not named yet
 # The box's checkbox, for somebody or something that can be named alone, apart from everyone
-# drawn as it (Orion, 2026-10-11).
+# drawn as it.
 rename-only-this-one = Only this one
 # Said back once the box closes: what was renamed, as it was called when the box opened.
 rename-now = { $thing } is now { $name }
@@ -165,7 +165,7 @@ how-bunny-hop = bunny hop
 # A step into one of Fortree Gym's rotating doors, which turns it: "push 1 west" (spike 161).
 how-push = push
 # A leg a current carries the player along (spike 208), and a run of them, by where it leaves
-# them: "Surf 3 south, ride the current 28 west 4 north" (Orion, 2026-10-13).
+# them: "Surf 3 south, ride the current 28 west 4 north".
 how-ride-the-current = ride the current
 p-current = ride the current { $bearing }
 # The step off a ridden Pokémon, from flat ground onto plain ground, and the rest of its leg: "get
@@ -231,13 +231,11 @@ p-then-cant-continue = then can't continue
 p-cant-continue = can't continue
 p-in-the-way = { $thing } in the way
 # Where P's way falls short and Shift and P's goes on, every move or bike its steps need, as
-# a list: "10 south, then can't continue, requires Acro Bike and Surf" (Orion, 2026-10-30 and
-# 2026-11-01).
+# a list: "10 south, then can't continue, requires Acro Bike and Surf".
 p-requires = requires { $move }
 # Under the sea, where the way goes on from another dive spot (spike 165).
 p-surface = surface and go to the dive spot { $bearing }
-# A leg that crosses into another place, said with it: "10 east into Route 117" (Orion,
-# 2026-10-24).
+# A leg that crosses into another place, said with it: "10 east into Route 117".
 p-into = { $leg } into { $place }
 # A way over a room of thin ice, which cracks every tile on the way (spike 167).
 p-and-ice-cleared = and the ice is cleared
@@ -282,7 +280,7 @@ decorating-not-placeable = not placeable
 ## The Pokédex's habitat map (spike 152)
 
 # A place drawn as the Pokémon's, then how it is found there, by the icons the top screen draws
-# in colour (Orion's words, 2026-10-01). The DexNav's icons say how they are met in the same
+# in colour. The DexNav's icons say how they are met in the same
 # words: "Marill water" (2026-10-20).
 habitat-found = Found in { $place }
 habitat-grass = grass
@@ -728,7 +726,7 @@ battle-party = { $count } Pokémon
 ## Scenes
 
 # Who a scene's description is said as, named as a speaker is when it takes over from whoever
-# spoke last: "Narration: Groudon rises." (Orion, 2026-10-12).
+# spoke last: "Narration: Groudon rises."
 narration = Narration
 
 # The Y button's menu: a way of the circle pad or D-pad and the key item it uses, "up Mach Bike".

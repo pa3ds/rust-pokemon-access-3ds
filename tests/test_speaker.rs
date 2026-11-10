@@ -106,7 +106,7 @@ fn test_a_work_object_speaks_as_whoever_it_was_filled_with() {
 }
 
 /// A Youngster named "Calvin" with the box ticked is Calvin in what he says too, where every
-/// other Youngster speaks as the sprite's name (Orion, 2026-10-11).
+/// other Youngster speaks as the sprite's name.
 #[test]
 fn test_somebody_named_alone_speaks_as_that_name() {
     let memory = FakeMemory::new();
@@ -338,7 +338,7 @@ fn sprites_in(folder: &Path, language: &str) -> IndexMap<String, String> {
 
 /// The user, 2026-09-23: a fallback in every language the game carries, each the ROM's own
 /// words in that language (spikes 90 and 91). Since 2026-10-14 each names the same sprites as
-/// the English (Orion): where the ROM has no word, as for the Nurse, it is pa3ds's own.
+/// the English: where the ROM has no word, as for the Nurse, it is pa3ds's own.
 #[test]
 fn test_every_language_ships_a_table_of_the_same_people() {
     let english = keys(&sprites(oras::game(), ENGLISH));

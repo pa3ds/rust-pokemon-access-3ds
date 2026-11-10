@@ -4,7 +4,7 @@
 //! after its View Details, the Pokémon Distribution, the trainers' details. Its layout work, its
 //! panes' flags and alpha, Game Freak's layout helper (`app::util::G2DUtil`) and its button manager
 //! all read as drawn (spikes 174, 179 and 180), and a tap on a berry row moved the map's cursor
-//! (Orion, movie20).
+//! (movie20).
 //! The game stops walking the layout altogether (spike 181, a read watchpoint on its root): each
 //! screen is a view of the AreaNav's module, `app::townmap::NutsView` for the berry list, whose
 //! update and draw return at once while a byte of its own is 0, and which otherwise draws the

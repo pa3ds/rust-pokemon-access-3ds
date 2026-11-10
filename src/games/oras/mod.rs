@@ -271,7 +271,7 @@ pub fn training_bags() -> &'static (i64, IndexMap<&'static str, i64>) {
 /// Multiple Mega Evolutions!' at 37. The tutorials drew `stage_poke01` and `stage_poke02`,
 /// Scatterbug and Spewpa; Level 1's page drew `stage_poke03` to `stage_poke08` at (64, 105), (160,
 /// 105), (256, 105), (64, 178), (160, 178) and (256, 178), which are Magnemite's Sp. Atk, Wailmer's
-/// HP, Axew's Attack, Tentacool's Sp. Def, Noibat's Speed and Geodude's Defense (Khai, 2026-10-10).
+/// HP, Axew's Attack, Tentacool's Sp. Def, Noibat's Speed and Geodude's Defense.
 pub fn training_regimens() -> &'static (i64, IndexMap<&'static str, i64>) {
     static TRAINING_REGIMENS: OnceLock<(i64, IndexMap<&'static str, i64>)> = OnceLock::new();
     TRAINING_REGIMENS.get_or_init(|| {
@@ -604,7 +604,7 @@ pub const SOOTOPOLIS_GYM: i64 = 0x1BC;
 /// The Safari Zone's four quarters, the one place in parts listed whole (`Game.whole`): the Mega
 /// Stone's only ways in start in another quarter, and P to it said it gone in the next
 /// (or_safari_zone_multizone_pathfinding). Routes 119, 120 and 123 are listed a part at a time, the
-/// whole place's listing slowing every key (Orion, 2026-11-01).
+/// whole place's listing slowing every key.
 pub const SAFARI_ZONE: [i64; 4] = [0xDB, 0xDC, 0xDD, 0xDE];
 pub const SWITCH: (&str, &str) = ("signs", "switch");
 pub const PASSAGE: (&str, &str) = ("exits", "passage");
@@ -915,7 +915,7 @@ pub const BLOCKERS: [i64; 2] = [STOPPER, STOPPER3];
 /// The shared scripts of the elevators' doors, a furniture record a cell, two side by side: two
 /// doors on each of Mauville City's floors, `0x1bd` and `0x1be`, Mauville Hills' among them, and one
 /// on each of the Lilycove Department Store's five, `0x143` to `0x147`, its first at (8, 9) and
-/// (9, 9). Facing either cell runs the elevator (Orion, 2026-10-13); each was listed as two signs.
+/// (9, 9). Facing either cell runs the elevator; each was listed as two signs.
 ///
 /// Python's is a frozenset of the range; a `Range` here, collected where a set is wanted.
 pub const ELEVATORS: std::ops::Range<i64> = 0x27DA..0x27EC;

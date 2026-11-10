@@ -69,7 +69,7 @@ pub const FULL: i64 = 60 * CLOCK_RATE;
 pub const PACE_SECONDS: f64 = 0.5;
 pub const MODEL: &str = "N3app5nuts25ModelE";
 /// The game's opening, "Pick Berries for your Pokémon!", READY and START!, which shows three
-/// Pokémon wanting berries before the round: a demonstration, said nothing of (Orion, 2026-10-28).
+/// Pokémon wanting berries before the round: a demonstration, said nothing of.
 pub const DEMO: &str = "N3app5nuts24DemoE";
 /// Where `DEMO` says whether it is over: 0 while it plays, 1 from just after START!, through the
 /// round and its results (spike 260).
@@ -141,7 +141,7 @@ pub struct Want {
     pub who: Option<pokemon::Pokemon>,
     /// Its Pokémon's place in the game's own order, its key's and the lineup's, 0 to 2: where its
     /// cry is heard, the first on the left. Not where it pops up, which changes all round: cries
-    /// heard there came from every side for one Pokémon (Orion, 2026-11-02).
+    /// heard there came from every side for one Pokémon.
     pub key: i64,
 }
 
@@ -353,7 +353,7 @@ impl BerryPicker {
             }
             return Ok(lineup);
         }
-        // One at a time (Orion, 2026-10-29): three said together took 1.5 s, the first of them
+        // One at a time: three said together took 1.5 s, the first of them
         // all a player can act on. The next waits until a berry is given or the one said goes.
         let mut waiting: Vec<(i64, String)> = self
             .waiting
@@ -404,7 +404,7 @@ impl BerryPicker {
 
     /// The round's three Pokémon in the game's own order, Berry Picker's own keys' order, said
     /// once while its clock stands full before START! and again before each Play Again's: the
-    /// keys are learnt too late by pressing them as the round begins (Orion, 2026-10-29).
+    /// keys are learnt too late by pressing them as the round begins.
     fn lineup(&mut self, running: Option<&str>) -> Result<Vec<String>> {
         let frames = if running == Some(APP) {
             self.frames()?
@@ -683,7 +683,7 @@ impl Touching for TouchMode {
     }
 }
 
-/// Berry Picker's own keys (Orion, 2026-10-29): a berry's picks it up off the tree, and a
+/// Berry Picker's own keys: a berry's picks it up off the tree, and a
 /// Pokémon's gives it the berry picked up, the drag made then as touch mode's is on letting go; a
 /// Pokémon's with none picked up says what it wants. Another berry's key picks that one up instead.
 /// Touch mode's own keys still drag as ever, for a player who wants the challenge.

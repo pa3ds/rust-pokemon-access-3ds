@@ -158,7 +158,7 @@ pub const REQUIRED: [&str; 2] = msgwin::CLASSES;
 /// Pokémon-Amie's and Super Training's pages; the subscreens' tutorials; the AreaNav; and the
 /// subscreens' own apps (`subscreen.TOUCHED`), Pokémon-Amie's and Super Training's. Every other
 /// screen, the Bag, the PC, a battle, is worked with the game's buttons, which do all its touches
-/// do and faster, and touch mode says there is nothing to touch (Orion, 2026-10-29). A
+/// do and faster, and touch mode says there is nothing to touch. A
 /// `frozenset` in Python, only ever tested for membership.
 pub const TOUCHED: [&str; 10] = [
     FIELD,
@@ -175,11 +175,11 @@ pub const TOUCHED: [&str; 10] = [
 pub const PICK_SOUND: &str = "SEQ_SE_CATCH";
 /// The PC Box's sounds for picking up a Pokémon and putting it down, the game's own for moving
 /// something somewhere, played as touch mode picks up a drag and lets go of it in place of
-/// "holding" and "let go on" (Orion, 2026-10-29): a tenth and an eighth of a second, the same in
+/// "holding" and "let go on": a tenth and an eighth of a second, the same in
 /// Omega Ruby and X. Amie's touch sounds, `SEQ_SE_KW_TOUCH` and `SEQ_SE_KW_TOUCH2`, until then.
 pub const DROP_SOUND: &str = "SEQ_SE_RELEASE";
 /// The game's own sound for a press that does nothing, played for a key of pa3ds's with nothing to
-/// do in place of saying why (Orion, 2026-10-29): the beep of Omega Ruby's menus, its
+/// do in place of saying why: the beep of Omega Ruby's menus, its
 /// `SEQ_SE_SYS_015` too, the same wave 271 samples longer; X's `SEQ_SE_BEEP` is that same wave at
 /// the same volume, where X's `SEQ_SE_SYS_015` is another sound, 0.93 s long.
 pub const WRONG_SOUND: &str = "SEQ_SE_BEEP";
@@ -187,11 +187,11 @@ pub const WRONG_SOUND: &str = "SEQ_SE_BEEP";
 /// place of a tone): 0.3 s, the same wave and volume in Omega Ruby and X, where `SEQ_SE_FLD_277` is
 /// that wave too (spike 274).
 pub const CUE_SOUND: &str = "SEQ_SE_FLD_036";
-/// Played as a Balloon Bot fires (Orion, 2026-11-10): 0.23 s, the same wave and volume in Omega
+/// Played as a Balloon Bot fires: 0.23 s, the same wave and volume in Omega
 /// Ruby, Alpha Sapphire and X.
 pub const ALERT_SOUND: &str = "SEQ_SE_KW_ALERT";
-/// Played as a hit lands on Super Training's bag, of which the game gives no sound (Orion,
-/// 2026-11-09): 0.34 s, the same wave and volume in Omega Ruby, Alpha Sapphire and X.
+/// Played as a hit lands on Super Training's bag, of which the game gives no sound:
+/// 0.34 s, the same wave and volume in Omega Ruby, Alpha Sapphire and X.
 pub const HIT_SOUND: &str = "SEQ_SE_SP_017";
 /// Where the tone of each quarter up walks sounds, across and down as `Tones.play` has them,
 /// north first and clockwise: north high, south low, east in the right ear and west in the left, as
@@ -619,7 +619,7 @@ impl Gen6Profile {
             game.field_menu,
         )));
         // ORAS's contests' appeals draw who stands where as portraits, said on the keys that say
-        // a battle's sides (Orion, 2026-10-09).
+        // a battle's sides.
         let standings: Option<Rc<RefCell<dyn StandingsReader>>> = game.standings.map(|make| {
             make(memory.clone(), layouts.clone(), files.clone(), &text, {
                 let apps = apps.clone();
@@ -1873,7 +1873,7 @@ impl Gen6Profile {
     /// Answer a navigation key, by name: the screen's own first, while one with keys of its own
     /// runs (`context`), in every mode, Shift falling back there before anywhere else
     /// (`keys.bound`): Super Training's charge holds Shift, and R under it was the battle's
-    /// `shift+r`, the enemy's side, where the round's numbers were wanted (Orion, 2026-11-10).
+    /// `shift+r`, the enemy's side, where the round's numbers were wanted.
     pub fn press(&self, key: &str) -> Result<()> {
         phase(&*self.memory, "keys", || {
             let context = self.context()?;
@@ -2048,7 +2048,7 @@ impl Gen6Profile {
             }
             // Found by a search, or by the detector with the DexNav open: never one it turns up
             // while the AreaNav is, "I'm looking for the youngster there, not a random Poochyena!"
-            // (Orion, 2026-10-06 and 07). The navigator knows whether touch mode is on.
+            // (2026-10-06 and 07). The navigator knows whether touch mode is on.
             let found = field.hiding();
             let appeared = hiding.is_some()
                 && self.hiding.get().is_none()
@@ -2339,7 +2339,7 @@ fn own_running(
 /// runs (`OwnApp.listed`), and the field's while the field runs or its map is still loaded under
 /// another screen, where the player cannot walk (`Field.walkable`). A battle or a scene unloads
 /// the map and runs with the field's models still in memory as they were: after Groudon's
-/// capture the keys listed it in the cave left behind (Orion, 2026-10-12). A map loaded is not
+/// capture the keys listed it in the cave left behind. A map loaded is not
 /// enough alone: arriving in a new place, the field runs a second or so before a sweep finds its
 /// chunks (movie41, 751.7 s in Littleroot).
 struct OwnApps {
@@ -2492,8 +2492,8 @@ fn game_word(text: &GameText, character: i64) -> Option<String> {
 /// What the game calls a slot on a map: the building behind a door in from outdoors,
 /// where the ROM's own tables pair the two (spike 86). Only a warp's slot is a door's: a sign
 /// is numbered in a table of its own. A warp into one of X's gates is the gate and the place
-/// beyond it, "Lumiose Gate to Route 4": Lumiose's five gates are all "Lumiose Gate" (Khai,
-/// 2026-10-28). A thing the player takes an item at is that item, by its record
+/// beyond it, "Lumiose Gate to Route 4": Lumiose's five gates are all "Lumiose Gate".
+/// A thing the player takes an item at is that item, by its record
 /// (`Game.items_at`): Route 111's Root Fossil and Claw Fossil.
 pub(crate) fn game_place(
     text: &GameText,
@@ -2534,12 +2534,12 @@ fn door_sign_of(text: Rc<GameText>) -> DoorSign {
 ///
 /// A place, not a zone, for the reason `arrive` gives: Littleroot and every house in it are
 /// one place, so the door of a house leads nowhere new and says nothing more, while the gap
-/// at the top of the town leads onto Route 101 and says so (the user, 2026-09-24). Both
+/// at the top of the town leads onto Route 101 and says so. Both
 /// indices are the zone table's in RAM and the words the ROM's, as for arriving.
 ///
 /// The other zone of the player's own matrix is said all the same: Route 119 is two zones
 /// the game calls by one name, and the edge between them was the only exit said bare, "edge"
-/// (the user, 2026-10-03, spike 159). And an exit into a part of a place in parts says the
+/// (spike 159). And an exit into a part of a place in parts says the
 /// part, from anywhere: the way out of the Weather Institute, "way out to Northern Route 119"
 /// (ADR-0042).
 fn leads_to_of(text: Rc<GameText>, field: Rc<RefCell<Rc<FieldReader>>>) -> LeadsTo {

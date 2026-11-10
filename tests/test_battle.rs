@@ -331,7 +331,7 @@ fn strings(texts: &[&str]) -> Vec<String> {
 }
 
 /// battles2.ctm: with Emrys and Blaze in the party, the wild Poochyena was said as "Blaze♀ L3
-/// 100%", the second name in the heap being the party's second Pokémon (the user, 2026-09-17).
+/// 100%", the second name in the heap being the party's second Pokémon.
 #[test]
 fn test_the_enemy_is_named_by_its_gauge_whatever_the_party_holds() {
     let mut battle = Battle::with(
@@ -346,7 +346,7 @@ fn test_the_enemy_is_named_by_its_gauge_whatever_the_party_holds() {
 }
 
 /// The Chinese fan Omega Ruby writes a plate's ♂ as the font's U+E08E, and its battles said
-/// nothing, either side, nor on a key (movie2_route103 on it, Orion, 2026-10-18).
+/// nothing, either side, nor on a key (movie2_route103 on it).
 #[test]
 fn test_a_plate_signed_with_the_fonts_own_glyph_is_said_with_the_sign() {
     let mut battle = Battle::with(
@@ -466,7 +466,7 @@ fn test_a_gauge_whose_memory_another_object_has_taken_is_dropped() {
 }
 
 /// The enemy's panel comes on a poll or two ahead of the player's, and the enemy was said
-/// first in one battle and second in the next, which heard as a race (Orion, 2026-09-29).
+/// first in one battle and second in the next, which heard as a race.
 #[test]
 fn test_our_side_is_said_before_the_enemys_as_a_battle_opens() {
     let mut battle = Battle::new();
@@ -630,7 +630,7 @@ fn test_the_player_is_said_again_when_its_hp_changes() {
 }
 
 /// The player's panel leaves the screen while the player's Pokémon attacks and the enemy's
-/// stays, draining: the reading waited for both sides' turns (Orion, 2026-09-29; spike 144).
+/// stays, draining: the reading waited for both sides' turns (spike 144).
 #[test]
 fn test_the_enemy_is_said_as_the_hit_lands_while_the_players_panel_is_away() {
     let mut battle = Battle::new();
@@ -656,7 +656,7 @@ fn test_the_players_panel_with_its_level_alone_is_not_an_enemy() {
 }
 
 /// The Wurmple's gauge read 0 for 2.5 s before its panel left (movie2), and shift and R said
-/// it at 29% on the victory screen, the last reading said (Orion, 2026-09-29).
+/// it at 29% on the victory screen, the last reading said.
 #[test]
 fn test_the_enemys_drop_to_nothing_is_said_before_its_panel_goes() {
     let mut battle = Battle::new();
@@ -672,7 +672,7 @@ fn test_the_enemys_drop_to_nothing_is_said_before_its_panel_goes() {
 }
 
 /// The enemy's bar read 48, 30, 27 twenty milliseconds later, then 0, for one Ember (spike 54).
-/// Speaking those would say 62% and then 0% a moment later (the user, 2026-09-16).
+/// Speaking those would say 62% and then 0% a moment later.
 #[test]
 fn test_a_draining_bar_is_only_said_where_it_stops() {
     let mut battle = Battle::new();
@@ -740,8 +740,8 @@ fn test_a_panel_outside_the_hp_box_is_not_an_enemy() {
     );
 }
 
-/// Screen text said the box as it slid in, "5 18/ 20 3", on top of this reader's own line (the
-/// user, 2026-09-16). A level arriving alone later, as the second battle's "6" did, is still the
+/// Screen text said the box as it slid in, "5 18/ 20 3", on top of this reader's own line.
+/// A level arriving alone later, as the second battle's "6" did, is still the
 /// box's.
 #[test]
 fn test_the_hp_box_is_left_to_this_reader_once_found() {

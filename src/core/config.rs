@@ -3,9 +3,9 @@
 //! The file is written with the defaults, each explained in a comment, and afterwards only
 //! **filled in**: a setting pa3ds gains is added at its default, and nothing the player has is
 //! changed. A line commented out counts as there (`toml.offered`), so a line of `[azahar]` the
-//! player wants Azahar to keep its own value for is commented out, not deleted (Orion,
-//! 2026-10-17). The keys file is filled in the same way (`pa3ds.core.keyfile`), and stays a file of
-//! its own. And it is **tidied** (`tidy`, Orion, 2026-11-04): a setting pa3ds no longer has, one
+//! player wants Azahar to keep its own value for is commented out, not deleted.
+//! The keys file is filled in the same way (`pa3ds.core.keyfile`), and stays a file of
+//! its own. And it is **tidied** (`tidy`): a setting pa3ds no longer has, one
 //! moved among them, is taken out with its comment, as is one of `[azahar]` that neither pa3ds
 //! ships nor Azahar has, and the tables are put in this order, `[azahar]` last. Its tables:
 //!
@@ -24,14 +24,14 @@
 //!   (ADR-0028): `cpu_clock_percentage`, `is_new_3ds` and `lle_applets` are the player's own
 //!   business and not here.
 //!
-//! Settings are a file and not flags (Orion, 2026-09-30): only what a developer passes for one
+//! Settings are a file and not flags: only what a developer passes for one
 //! run is a flag. Each table is a dataclass here, so its defaults, the file's lines and what a
 //! reader is handed are one thing.
 //!
 //! Nothing here raises at a player. A file that is missing reads as the defaults, and a setting of
 //! the wrong kind or an unknown name is logged and left at its default. A file that will not parse
 //! is left alone and read as the defaults too, and said, interrupting: a player who edited it would
-//! otherwise wonder why nothing they did took (Orion, 2026-10-17).
+//! otherwise wonder why nothing they did took.
 //!
 //! Bound by:
 //! - ADR-0017: an Extra, anything the game does not show, is a toggle of its own under
@@ -116,7 +116,7 @@ impl Table for General {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Ui {
     /// Off unless asked for, since a screen reader reads "Torchic, ♂, L, 5" more clumsily than
-    /// "Torchic ♂ L 5" (the user, 2026-09-14).
+    /// "Torchic ♂ L 5".
     pub pauses: bool,
     pub interrupt: bool,
     pub unfocused: bool,
@@ -125,7 +125,7 @@ pub struct Ui {
     pub descriptions: bool,
     pub language: String,
     /// How many Pokémon a trainer has, as its battle opens: said, "2 Pokémon", after "You are
-    /// challenged by ...", a beep a Pokémon, or nothing (Khai, 2026-11-05).
+    /// challenged by ...", a beep a Pokémon, or nothing.
     pub trainer_party: String,
 }
 
@@ -167,19 +167,18 @@ impl Table for Ui {
     }
 }
 
-/// `[pa3ds.audio]`: how loud pa3ds's own sounds are beside the game's, 1 as loud as the game
-/// (Orion, 2026-10-18).
+/// `[pa3ds.audio]`: how loud pa3ds's own sounds are beside the game's, 1 as loud as the game.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Audio {
     pub tones: f64,
     pub footsteps: f64,
     /// A tone at each tick of a game's clock, which is said only at its marks
-    /// (`screen_announce`, `tones.ticking`); off until a player asks (Orion, 2026-10-26).
+    /// (`screen_announce`, `tones.ticking`); off until a player asks.
     pub ticks: f64,
     /// The game's own sounds for what a key has done: its touch sounds as a drag is picked up and
-    /// let go of, in place of "holding" and "let go on", which slowed a timed game (Orion,
-    /// 2026-10-28), and its error sound for a key with nothing to do, in place of saying why; 0
-    /// says them all. `drag_sounds` until 2026-10-29, when the error sound joined them (Orion).
+    /// let go of, in place of "holding" and "let go on", which slowed a timed game,
+    /// and its error sound for a key with nothing to do, in place of saying why; 0
+    /// says them all. `drag_sounds` until 2026-10-29, when the error sound joined them.
     pub feedback_sounds: f64,
 }
 
@@ -278,7 +277,7 @@ impl Table for Navigation {
 }
 
 /// `[pa3ds.touch]`: how touch mode walks the bottom screen's buttons and drags, out of
-/// `[pa3ds.navigation]` since touch mode gained settings of its own (Orion, 2026-10-29).
+/// `[pa3ds.navigation]` since touch mode gained settings of its own.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Touch {
     pub wrap: bool,
@@ -315,11 +314,11 @@ impl Table for Touch {
     }
 }
 
-/// `[pa3ds.amie]`: how Pokémon-Amie and its games are said (Orion, 2026-10-29).
+/// `[pa3ds.amie]`: how Pokémon-Amie and its games are said.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Amie {
     /// Amie says what the Pokémon is seen doing, as a sentence of its own: off as it ships, as
-    /// `[pa3ds.ui] descriptions` is (Orion, 2026-11-06).
+    /// `[pa3ds.ui] descriptions` is.
     pub descriptions: bool,
     /// With `descriptions`, the small movements a Pokémon makes by itself every few seconds are
     /// said too, beside what it does in reaction to the player.
@@ -329,14 +328,14 @@ pub struct Amie {
     /// Berry".
     pub berry_first: bool,
     /// Berry Picker says one Pokémon wanting a berry at a time, the next once a berry has been
-    /// given or the one said has gone: three said together took 1.5 s (Orion).
+    /// given or the one said has gone: three said together took 1.5 s.
     pub one_at_a_time: bool,
     /// How Berry Picker says a Pokémon: by its name, by its own cry toward its side, or both (a
     /// player's request; Orion named it and its words, 2026-11-02, `feedback_style` for both games
     /// until players asked for cries in one and not the other, 2026-11-04).
     pub berry_picker_style: String,
     /// Head It plays the game's "!" as the moment to tap a ball comes: an aid, off as it ships
-    /// (Orion, 2026-10-31; the game's sound in place of a tone, 2026-11-01).
+    /// (the game's sound in place of a tone).
     pub head_it_cue: bool,
     /// How many seconds before a ball reaches its Pokémon the cue sounds: how long the player
     /// takes from hearing it to the tap landing, which is theirs and their machine's
@@ -347,7 +346,7 @@ pub struct Amie {
     pub head_it_style: String,
     /// Head It says its score, its combo and each "MISS!" as they come, the score and combo once
     /// while they keep going up: off as it ships, as they came at every ball, faster than they can
-    /// be said, and its key says them (Orion, 2026-11-04).
+    /// be said, and its key says them.
     pub head_it_score: bool,
 }
 
@@ -401,7 +400,7 @@ impl Table for Amie {
     }
 }
 
-/// `[pa3ds.training]`: how a round of Super Training is heard (Orion, 2026-11-10).
+/// `[pa3ds.training]`: how a round of Super Training is heard.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Training {
     /// A Balloon Bot's shot as it is fired: the game's alert sound, "shot coming" in words, or
@@ -517,10 +516,9 @@ pub const CUE_AS_SPEECH: &str = "speech";
 pub const CUE_OFF: &str = "off";
 /// Each setting that is one of a few words, by its name in the file: its words, the default
 /// first. `[pa3ds.extras] hidden_items` lists none, those under the sea, where the Dowsing Machine
-/// cannot be used and a sighted player is taken to see them, or all (Orion, 2026-10-26); a word it
+/// cannot be used and a sighted player is taken to see them, or all; a word it
 /// does not have lists none. `[pa3ds.touch] drag` holds a touch mode drag while its key is held,
-/// or picks up with one press and lets go with the next, for a player who cannot hold a key
-/// (Orion, 2026-10-28).
+/// or picks up with one press and lets go with the next, for a player who cannot hold a key.
 pub const CHOICES: [(&str, &[&str]); 7] = [
     (
         "pa3ds.ui.trainer_party",
@@ -1248,7 +1246,7 @@ pub fn prepare(
         let emulated = keyfile::read_config(&config, &mut notes);
         if !emulated.is_empty() {
             // Of `[azahar]`, what neither pa3ds ships nor Azahar has goes, as `tidy` takes out a
-            // setting of pa3ds's own it no longer has (Orion, 2026-11-04).
+            // setting of pa3ds's own it no longer has.
             let shipped = azahar();
             let lacking: Vec<String> = keyfile::lacks(&emulated, wanted.keys().map(String::as_str))
                 .into_iter()

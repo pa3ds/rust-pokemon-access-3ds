@@ -10,12 +10,12 @@
 //! game has one, and otherwise its clip for silent ground where the game plays none. The game
 //! plays the first three steps of a walk at full volume, the next three at 0.7 and every one
 //! after at 0.49 (`0x007e6430`); pa3ds plays every step at full volume, so its footsteps never
-//! fade under the game's sound (Orion, 2026-10-18).
+//! fade under the game's sound.
 //!
 //! On a Pokémon on the sea, or under it, the game plays nothing at all. pa3ds plays the table's
 //! clip every so many cells the player is carried, its `every`, by default 4.5 surfing and 3
 //! diving: on the usual ride, 7.5 cells a second on the water, a sound every 0.6 s, and on
-//! Sharpedo, 15 a second, every 0.3 s (Orion, 2026-10-18). Ground with a clip unlike the last's
+//! Sharpedo, 15 a second, every 0.3 s. Ground with a clip unlike the last's
 //! plays at once, so the seaweed is heard as the player swims into it. The player rides a Pokémon
 //! while the model says so (`mmodel.surfing`), whichever Pokémon it is, and is under the sea while
 //! the zone is (spike 227).
@@ -80,8 +80,7 @@ pub fn falls(movement: &str) -> &'static [i64] {
 }
 pub const SURF: &str = "surf";
 pub const DIVE: &str = "dive";
-/// Cells carried between one sound and the next, where the table says no `every` (Orion,
-/// 2026-10-18).
+/// Cells carried between one sound and the next, where the table says no `every`.
 pub const EVERY: [(&str, f64); 2] = [(SURF, 4.5), (DIVE, 3.0)];
 /// Cells moved in one tick that are no swim but a warp: diving or surfacing, into a new zone.
 pub const JUMP: f64 = 3.0;

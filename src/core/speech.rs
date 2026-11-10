@@ -4,14 +4,13 @@
 //! speech to finish. NVDA queues on its own when `interrupt` is false; all pa3ds decides is the
 //! interrupt flag, per speech category. Nothing interrupts by default: a screen reader already cuts
 //! speech when a key is pressed in the game's window, and pa3ds interrupting itself cut an item under
-//! the cursor off with the description the same move brought up (the user, 2026-09-14). Categories
+//! the cursor off with the description the same move brought up. Categories
 //! can be made to interrupt, as `[pa3ds.ui] interrupt` does for menus.
 //!
 //! Everything a reader reports is said, identical or not. Readers report changes, not states, so
 //! polling the same state again says nothing; and when the game shows the same words again — a second
 //! conversation with the same person — a sighted player sees them again, so they are heard again.
-//! This reverses an earlier "identical text is never repeated" rule, which silenced exactly that
-//! (the user, 2026-09-13).
+//! This reverses an earlier "identical text is never repeated" rule, which silenced exactly that.
 //!
 //! Bound by:
 //! - ADR-0010: nothing interrupts by default: a key's answer and a warning do, and menus under
@@ -41,7 +40,7 @@ pub enum Category {
     System,
     /// Something the player must do before pa3ds can work, said as it starts: close Azahar so its
     /// settings can be written. It interrupts and is said whatever window is in front, so it is not
-    /// left queued behind the console being read out (Orion, 2026-10-05).
+    /// left queued behind the console being read out.
     Warning,
     /// The answer to a key the player pressed. It interrupts: the player asked for it now, and
     /// the key never reaches the game's window, so the screen reader has not cut speech for it.
@@ -95,7 +94,7 @@ pub fn default_interrupts() -> HashSet<Category> {
 pub const HEARD_ANYWHERE: [Category; 3] = [Category::System, Category::Warning, Category::Key];
 
 /// The game font's private-use gender glyphs, as the Unicode signs they draw. A screen reader skips
-/// a private-use character but says ♂ and ♀ in the player's own words (the user, 2026-09-14). U+E08E
+/// a private-use character but says ♂ and ♀ in the player's own words. U+E08E
 /// was read beside Torchic's ♂ on the party screen (spike 32); U+E08F, the ♀ beside it in the font,
 /// has not been seen in a replay yet.
 pub fn symbol(c: char) -> char {

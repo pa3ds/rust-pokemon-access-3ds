@@ -389,10 +389,10 @@ fn test_a_texture_called_an_icon_is_said_without_the_word() {
         (words("map_big.bclim"), words("map_small.bclim")),
         ("zoom in".to_string(), "zoom out".to_string())
     );
-    // The DexNav's crowns, "complete2" by its file's name (Orion, movie28).
+    // The DexNav's crowns, "complete2" by its file's name (movie28).
     assert_eq!(words("complete2.bclim"), "gold crown");
     assert_eq!(words("icon.bclim"), "icon");
-    // A move's and a contest's: the move-forget screen's (Orion, 2026-10-01).
+    // A move's and a contest's: the move-forget screen's.
     assert_eq!(words("waza_con_change.bclim"), "change");
 }
 

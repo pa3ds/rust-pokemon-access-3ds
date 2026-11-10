@@ -20,7 +20,7 @@
 //! What a chain finds is handed to the readers as a partial find, as the heaps' watch hands over
 //! what it sweeps in new blocks (ADR-0034): a reader adds it to what it has. Only classes whose
 //! readers take a partial find so are chained. The sweep goes on looking for every class chained
-//! too (Orion, 2026-11-03): a chain is offsets into the game's own objects, measured in Omega Ruby
+//! too: a chain is offsets into the game's own objects, measured in Omega Ruby
 //! and X, and one that lands elsewhere in a version or a moment not measured hands nothing over,
 //! where the sweep finds the object as it did, a second or two later. A chain is only as good as
 //! the object it lands on being the one in use: Head It's process leads to a `Model` of the class

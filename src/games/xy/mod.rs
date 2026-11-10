@@ -244,8 +244,7 @@ pub const SOUND_ARCHIVE: &str = "sound/xy_sound.bcsar";
 pub const CRIES: &str = "a/1/0/1";
 /// The archives holding textures with names, as `games.oras.TEXTURE_ARCHIVES` are Omega Ruby's:
 /// 112 of X's 271, 3.9 s to read, the whole ROM 251 (spike 284). Listing none, X had no index, and
-/// said no picture the game fills in as it runs, Pokémon-Amie's stars among them (Orion,
-/// 2026-11-04).
+/// said no picture the game fills in as it runs, Pokémon-Amie's stars among them.
 pub const TEXTURE_ARCHIVES: [&str; 112] = [
     "a/0/0/0", "a/0/0/2", "a/0/0/4", "a/0/0/5", "a/0/0/8", "a/0/1/0", "a/0/1/1", "a/0/1/4",
     "a/0/1/5", "a/0/1/6", "a/0/1/7", "a/0/1/8", "a/0/2/6", "a/0/2/7", "a/0/2/8", "a/0/2/9",

@@ -8,14 +8,14 @@
 //! (a half-box: north is everything with a smaller z, so a thing north-east is heard under north
 //! and under east both), nearest first. A
 //! press of another direction starts again from the nearest that way. The apostrophe toggles the
-//! mode (the user, 2026-09-21; moved off M on 2026-09-22, which is the emulator's Start). The
+//! mode (moved off M on 2026-09-22, which is the emulator's Start). The
 //! category is one setting under both modes, and "all" is a category of its own, the one both
 //! start on.
 //!
 //! Each press reads the map afresh, so the bearing is from where the player stands now and a
 //! person is where they have walked to. The chosen item is kept by what it is, not by its place in
 //! the list: walking re-sorts the list, and keeping a place meant K tracked one person and then, a
-//! few steps on, another (the user, 2026-09-21). An item that has gone — a ball picked up — gives
+//! few steps on, another. An item that has gone — a ball picked up — gives
 //! way to the nearest.
 //!
 //! Spoken as "exits, 3" on reaching a category and "door, 1 of 3, 1 north" on an item (the user,
@@ -23,7 +23,7 @@
 //! direction in direction mode. A category with nothing in it is skipped over, "nothing here"
 //! when the map is empty, "nothing north" or "no exits north" when a direction is, and "no map"
 //! off the field. An exit into another place says it, in the game's own words out of the ROM:
-//! "edge to Route 101, 2 of 3, 5 north" (the user, 2026-09-24). A door into a town's own house
+//! "edge to Route 101, 2 of 3, 5 north". A door into a town's own house
 //! leads nowhere new, as the game has it, and says nothing more; zone numbers stay in the log.
 //!
 //! Each thing is said by the name it has been given, and by what it is when it has none: "the
@@ -36,7 +36,7 @@
 //! thing in list mode and another in direction mode: O steps the category in one and looks north
 //! in the other. A key bound in either mode is kept from the emulator in both.
 //!
-//! **P finds the way to whatever is chosen**, in either mode (the user, 2026-09-24), and says it
+//! **P finds the way to whatever is chosen**, in either mode, and says it
 //! as its legs: "5 east, 2 north". Then it **guides**: as the player walks the path, the next leg
 //! is said the moment they reach each turn ("2 north"), and the thing itself when they get there
 //! ("door, 1 north"). A player who steps off the path is given a new one from where they stand,
@@ -109,7 +109,7 @@ pub const SPEAKING: &str = "speaker";
 
 /// The rename box's checkbox, for somebody or something that can be named alone, apart from
 /// everyone drawn as it: ticked as it opens, since the shipped names already call everybody what
-/// they look like (Orion, 2026-10-11).
+/// they look like.
 pub const ONLY: &str = "rename-only-this-one";
 
 /// How far direction mode looks, in cells each way: a box, so a thing 10 north and 10 east is
@@ -458,7 +458,7 @@ impl Navigator {
     /// a key with Shift means what it means without: Shift and J walks back as J does, where
     /// Shift and J would rename the speaker (ADR-0009). Shift alone drags where it is bound to
     /// drag, as it ships; another key bound to drag does as Shift alone did, and comes up as `UP`
-    /// after its name (Orion, 2026-11-01).
+    /// after its name.
     pub fn press_key(&mut self, key: &str) -> Result<()> {
         let holding = self.touch.as_ref().is_some_and(TouchMode::holding);
         let toggle = self.toggle;
@@ -847,7 +847,7 @@ impl Navigator {
         let item = &items[at as usize];
         let mut way = item.bearing(r#where.cell, r#where.heading)?;
         // After the bearing, so the part's compass word is not taken for the way: "item ball, 12
-        // west 30 north, Safari Zone Northwest" (ADR-0042; Orion, 2026-10-31).
+        // west 30 north, Safari Zone Northwest" (ADR-0042).
         if let Some(part) = (self.part)(item, r#where.zone)? {
             way += &format!(", {part}");
         }
@@ -989,7 +989,7 @@ impl Navigator {
     /// A hidden Pokémon the DexNav has just found, `item` of the list `where` holds: by its
     /// search, the game asked for it by the player, or by its detector with the DexNav open,
     /// which is taken only while the player is in touch mode, at the DexNav, and not at an
-    /// AreaNav they forgot to bring back (Orion, 2026-10-07); what the detector turns up with
+    /// AreaNav they forgot to bring back; what the detector turns up with
     /// the AreaNav open never comes here (`gen6.profile`). With
     /// `[pa3ds.navigation] guide_to_hidden`, P is on it from now, in the category of all where
     /// the one chosen does not hold it, and the way to it is found as P finds it, said after what
@@ -1153,7 +1153,7 @@ impl Navigator {
 }
 
 /// The ways a big boulder can be pushed, as a reading says them: "moveable north into a hole
-/// or east", or "immoveable" (Orion's words, 2026-10-11: what it can do, not what it is doing).
+/// or east", or "immoveable" (2026-10-11: what it can do, not what it is doing).
 fn moveable(ways: &[(&str, bool)]) -> String {
     if ways.is_empty() {
         return own("boulder-immoveable", &[]);
@@ -1196,7 +1196,7 @@ fn named(called: Option<&str>) -> String {
 /// How far above or below the player `height` is, "104 below", in the game's units, where
 /// both heights are known and further apart than a thing is walked up to from (`Ground.open`):
 /// an item ball on a path under a cliff, said "1 north" alone, left a player on the cliff top
-/// against it and unable to pick it up (Orion, 2026-10-24). A thing's own height, and where a
+/// against it and unable to pick it up. A thing's own height, and where a
 /// teleporter puts the player (`Interactable.landing`).
 fn rise(r#where: &Field, height: Option<f64>) -> Result<Option<String>> {
     let (Some(here), Some(height)) = (r#where.height, height) else {
@@ -1214,7 +1214,7 @@ fn rise(r#where: &Field, height: Option<f64>) -> Result<Option<String>> {
 
 /// Where `cells` are, "x 94, z 171", an axis they span by its first and last, "x 80 to 119";
 /// with `show_y`, how high too, last, "x 94, z 171, y 36", where it is known: the flat
-/// axes, then the height, as length, width and height go (Orion, 2026-10-15).
+/// axes, then the height, as length, width and height go.
 fn coordinates(cells: &[Cell], height: Option<f64>, show_y: bool) -> Result<String> {
     fn span(values: &[i64]) -> String {
         let (low, high) = (values.iter().min().unwrap(), values.iter().max().unwrap());

@@ -298,7 +298,7 @@ fn test_a_label_drawn_twice_in_one_place_is_one_piece() {
 
 /// battles2.ctm: with the Pokédex in the X menu, OPTIONS sits over AreaNav's "Littleroot Town",
 /// whose middle is under the cursor and whose start is well outside it, and the item was said as
-/// "Littleroot Town OPTIONS" (the user, 2026-09-17). The cursor was 1 to 159 across, OPTIONS 46 to
+/// "Littleroot Town OPTIONS". The cursor was 1 to 159 across, OPTIONS 46 to
 /// 90 and the town -24 to 74 (spike 68).
 #[test]
 fn test_words_of_another_layout_reaching_out_from_under_the_menu_are_not_its_item() {
@@ -986,7 +986,7 @@ fn move_info() -> Battle {
 }
 
 /// The move info's four buttons, drawn as `waza_pos_00` alike, said "pos 00" each; they are
-/// the move list's four in its order (Khai, 2026-10-18).
+/// the move list's four in its order.
 #[test]
 fn test_a_battle_button_of_no_words_is_said_by_its_place_among_those_like_it() {
     let mut info = move_info();
@@ -1032,7 +1032,7 @@ fn test_a_button_with_words_says_its_words_rather_than_its_picture() {
 }
 
 /// The battle's Bag draws an empty slot dimmed with its times sign still in it, and the cursor
-/// on it said "Times" (movie29, Orion, 2026-10-08).
+/// on it said "Times" (movie29).
 #[test]
 fn test_a_button_whose_words_have_no_letter_or_digit_is_empty() {
     let mut battle = Battle::new();
@@ -1058,7 +1058,7 @@ fn test_an_empty_plate_like_those_words_are_written_on_is_said_as_empty() {
 
 /// A party screen with five empty slots names every one of them the same, and comparing words
 /// alone said it once and then nothing however far the player arrowed, until they landed on a
-/// Pokemon and came back (the user, 2026-09-16). Both plates here carry `waza_plate_00`.
+/// Pokemon and came back. Both plates here carry `waza_plate_00`.
 #[test]
 fn test_moving_between_two_items_that_read_alike_is_still_said() {
     let mut battle = Battle::new();
@@ -1314,7 +1314,7 @@ fn test_a_keyboards_other_cursor_picture_is_left_to_its_key_cursor() {
 }
 
 /// The name entry's keys were read a row at a time as the keyboard opened, and the key under
-/// the cursor never (opening.ctm, the user, 2026-09-17).
+/// the cursor never (opening.ctm).
 #[test]
 fn test_a_keyboard_says_the_key_its_cursor_is_in() {
     assert_eq!(Keyboard::new().heard(), said(&[(&["!"], true)]));
@@ -1358,8 +1358,8 @@ fn test_a_picture_in_a_touch_area_of_a_plain_pane_is_not_a_keys_cursor() {
     );
 }
 
-/// The key that confirms a name is a picture with no words in it, and said nothing (the user,
-/// 2026-09-18). Its texture names it, as a battle button's does.
+/// The key that confirms a name is a picture with no words in it, and said nothing.
+/// Its texture names it, as a battle button's does.
 #[test]
 fn test_a_key_drawn_without_words_is_said_by_its_picture() {
     let mut keyboard = Keyboard::with(lyt::PICTURE_CLASS, false, true, false);
@@ -1549,7 +1549,7 @@ fn test_a_frame_in_the_menus_own_layout_is_a_cursor_once_it_has_moved() {
 }
 
 /// The main menu was read whole as it opened, CONTINUE's panel and every row below it, and
-/// only its moves one at a time (pokedex2.ctm, the user, 2026-09-24). Its frame is drawn with
+/// only its moves one at a time (pokedex2.ctm). Its frame is drawn with
 /// `cursor_lt.bclim`, so it is a cursor from the first poll (spike 96).
 #[test]
 fn test_a_frame_drawn_as_a_cursor_says_its_item_as_the_menu_opens() {
@@ -1798,7 +1798,7 @@ fn no_games_words() {
     )));
 }
 
-/// The choice of boy or girl said nothing (opening.ctm, the user, 2026-09-19). Each choice is
+/// The choice of boy or girl said nothing (opening.ctm). Each choice is
 /// a portrait on a white backing; the backing is the same on both, the portrait is not. Said
 /// by words made from its texture where no file describes it, as Omega Ruby's does.
 #[test]
@@ -2339,7 +2339,7 @@ impl Contest {
 }
 
 /// A contest's moves read as "Hold Back: Meteor Mash, Zen Headbutt: Iron Defense", and the
-/// cursor between them said nothing (movie30, Orion, 2026-10-08): it sits on an empty pane at
+/// cursor between them said nothing (movie30): it sits on an empty pane at
 /// the top of the chosen move's button, its name below it. Its list is all four buttons.
 #[test]
 fn test_a_cursor_picture_on_an_empty_pane_says_its_buttons_words() {
@@ -2354,7 +2354,7 @@ fn test_a_cursor_picture_on_an_empty_pane_says_its_buttons_words() {
 }
 
 /// The Mart read its whole list, and at each move only the count in the bag and the
-/// description (shop.ctm, the user, 2026-09-24). Its cursor is `shop_cursor.bclim`.
+/// description (shop.ctm). Its cursor is `shop_cursor.bclim`.
 #[test]
 fn test_a_picture_textured_as_a_cursor_says_the_row_it_is_on() {
     assert_eq!(
@@ -2398,7 +2398,7 @@ fn test_a_window_textured_as_a_cursor_beside_its_rows_knows_its_list() {
 }
 
 /// The PC's Box draws its cursor with `cursol01.bclim`, and its menu for a chosen Pokémon
-/// was said whole and its cursor never followed (or/movie6_pc, the user, 2026-09-27).
+/// was said whole and its cursor never followed (or/movie6_pc).
 #[test]
 fn test_a_picture_textured_as_the_designers_spelt_cursor_is_one_too() {
     assert_eq!(
@@ -3437,7 +3437,7 @@ impl Confirm {
 }
 
 /// Read as an app menu's cursor, the Mart's box of Yes and No said "Yes No" as it opened and
-/// nothing as the player moved (movie5, the user, 2026-09-25). A cursor's corners hold nothing.
+/// nothing as the player moved (movie5). A cursor's corners hold nothing.
 #[test]
 fn test_a_window_holding_panes_of_its_own_is_a_box_and_no_cursor() {
     let mut menu = Menu::new();
@@ -3582,7 +3582,7 @@ impl Tutorial {
 }
 
 /// Wally's catching tutorial read his four moves out whole, and never the one he chose
-/// (wally_again.ctm, the user, 2026-09-24): the tutorial has no battle cursor, only his pointer.
+/// (wally_again.ctm): the tutorial has no battle cursor, only his pointer.
 #[test]
 fn test_a_pointer_says_the_button_it_is_about_to_tap() {
     let mut tutorial = Tutorial::new();

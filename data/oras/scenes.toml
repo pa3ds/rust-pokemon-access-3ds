@@ -367,7 +367,7 @@ id = "brendan-beautifly-3"
 # work 0x407a holds 0, which meeting Steven makes 1 in both versions) and a demo of 22 s pans over
 # the painted wall, before Steven's first line. No line comes before it, so it is said on arriving
 # and waits for the demo: a later visit, with no demo, says nothing. Trigger 1 on the same cells
-# wants 2, which no save of Orion's holds, through the Delta Episode's opening. Each version paints
+# wants 2, which no save of ours holds, through the Delta Episode's opening. Each version paints
 # a wall of its own: Omega Ruby's was seen by replaying the same movie in Omega Ruby from its save
 # made Omega Ruby's (spike 212's `ruby`), and the demo and the lines after it came as in Alpha
 # Sapphire, to the second.
@@ -1000,8 +1000,8 @@ id = "drake-beaten-1"
 # The Champion's corridor, zone 0x16a, from movie53_battle_with_steven: no trigger; the player
 # walks up it to the light. Then the Champion's room, zone 0x166, whose own script starts as the
 # player arrives: it walks them 12 rows up a staircase, whatever they hold, and keeps them there
-# while the view goes to Steven, his first line 22.2 s after arriving in both of Orion's movies.
-# So the room is described as the player arrives, a beat as each shot comes (Orion, 2026-10-16).
+# while the view goes to Steven, his first line 22.2 s after arriving in both movies.
+# So the room is described as the player arrives, a beat as each shot comes.
 [[scene]]
 zone = 0x16a
 
@@ -1628,7 +1628,7 @@ at = 112
 id = "or-credits-brendan-39"
 
 # Brendan's credits in Alpha Sapphire: his Omega Ruby credits above with Alpha Sapphire's five
-# pictures, composed before any replay showed them (ADR-0038, Orion, 2026-10-16), then seen so in
+# pictures, composed before any replay showed them (ADR-0038), then seen so in
 # movie4_hall_of_fame_as_a_girl.
 [[scene]]
 after = "story:470:44"

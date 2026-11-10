@@ -22,13 +22,13 @@
 //! So a tile's own touch area names its slot, wherever it is drawn: placed by their middles,
 //! Hard's tiles, 38 pixels apart and not the 40 its rows would have sharing the screen as Easy's
 //! and Normal's do, were "frame" at either end of a row, and a picked one fell out of touch mode,
-//! taking its cursor back to the first tile (Orion, 2026-10-27).
+//! taking its cursor back to the first tile.
 //!
 //! Each tile is said as a spreadsheet names a cell, its column a letter and its row a number, and
 //! where its piece belongs: "B1, in place", "B1, goes to D3" (Orion, 2026-10-28, shorter than "row
 //! 1, column 2, goes to row 3, column 4", and than the row or column alone that a move said
 //! before). Saying where a piece belongs is more than a sighted player is told, who sees the picture whole and matches each piece by
-//! what is on it; it is on for now (Orion, 2026-10-26), until movies of more puzzles show how the
+//! what is on it; it is on for now, until movies of more puzzles show how the
 //! game chooses its pictures and cuts them, and the tiles can be said as they look. Then where a
 //! piece belongs becomes an Extra, an easy mode a player turns on.
 //!
@@ -176,7 +176,7 @@ impl Board {
     }
 
     /// A slot as a spreadsheet names a cell, its column a letter from A and its row a number
-    /// from 1: "B3" the second column of the third row (Orion, 2026-10-28).
+    /// from 1: "B3" the second column of the third row.
     pub fn place(&self, slot: i64) -> String {
         let column = char::from_u32('A' as u32 + (slot % self.across) as u32)
             .expect("a column is a letter")

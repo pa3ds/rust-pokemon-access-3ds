@@ -486,7 +486,7 @@ pub struct Subscreens {
 }
 
 /// `yours`: a Pokémon of the player's by the nickname they gave it, or else as the game calls its
-/// species and form (Orion, 2026-10-16).
+/// species and form.
 fn yours(text: &GameText, found: &pokemon::Pokemon) -> Option<String> {
     if found.nicknamed && !found.nickname.is_empty() {
         return Some(found.nickname.clone());
@@ -496,7 +496,7 @@ fn yours(text: &GameText, found: &pokemon::Pokemon) -> Option<String> {
 
 /// `short`: a Pokémon of the player's by its nickname, or else its species alone, with no form:
 /// Berry Picker's, where "Pikachu Rock Star wants Pinap Berry" took half a second against a
-/// Pokémon's two (Orion, 2026-10-29), and Head It's, against a ball's fall.
+/// Pokémon's two, and Head It's, against a ball's fall.
 fn short(text: &GameText, found: &pokemon::Pokemon) -> Option<String> {
     if found.nicknamed && !found.nickname.is_empty() {
         return Some(found.nickname.clone());
@@ -876,7 +876,7 @@ impl Subscreens {
     }
 
     /// Whether one of Amie's games is mid-play, its numbers the play's and left unsaid
-    /// (`screen_announce`): a Tile Puzzle with a piece away from home (Orion, 2026-10-28).
+    /// (`screen_announce`): a Tile Puzzle with a piece away from home.
     pub fn playing(&self, running: Option<&str>) -> Result<bool> {
         Ok(running == Some(puzzle::APP) && self.puzzle.borrow().playing()?)
     }

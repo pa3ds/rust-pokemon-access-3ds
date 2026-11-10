@@ -591,7 +591,7 @@ fn folded(top: (f64, f64)) -> Network {
 /// along every street of x_gym_7, laid along its own way and a track against it; two points at one
 /// spot and height are one, as the lobby's street and the landing's track are; and a street joined
 /// to none is laid apart, with a part of its own, even a cell on from a dead end at its height: so
-/// joined off the first teleporter's landing, P's way south met a wall (Khai, 2026-10-30). The
+/// joined off the first teleporter's landing, P's way south met a wall. The
 /// climb's two ends at one spot are no join: they are 90 apart in height.
 #[test]
 fn test_a_folded_maps_streets_are_laid_by_the_keys() -> Result<()> {

@@ -359,8 +359,7 @@ fn test_the_box_says_what_is_being_renamed_and_where_it_is() {
     );
 }
 
-/// And what it is said as afterwards keeps the place after the new name (the user,
-/// 2026-09-24).
+/// And what it is said as afterwards keeps the place after the new name.
 #[test]
 fn test_the_box_for_an_exit_into_another_place_says_the_place() {
     let (mut nav, backend, dialog, _) = navigator(Wanted {

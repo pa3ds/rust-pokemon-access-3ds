@@ -2,19 +2,18 @@
 //!
 //! The Hoenn map's cursor says a place's name only over a place, and between places it says
 //! nothing, so a player cannot tell moving through sea from standing at the map's edge; touch
-//! mode's targets are spread over a screen the player cannot see (Orion, 2026-10-01). A short tone
+//! mode's targets are spread over a screen the player cannot see. A short tone
 //! at each move says where the cursor now is: its pitch from 880 Hz at the top to 220 Hz at the
 //! bottom, an octave a half of the height, and its balance from the left ear to the right. They
 //! follow how loud Azahar plays the game (`loudness`), times `[pa3ds.audio] tones`: 1 as loud as
-//! they always were beside the game at Azahar's full volume, above 1 louder, 0 none (Orion,
-//! 2026-10-18).
+//! they always were beside the game at Azahar's full volume, above 1 louder, 0 none.
 //!
 //! Touch mode's targets jump, and each is a tone (`play`). The map's cursor glides on every frame
 //! for as long as the circle pad is held, and is read every screen poll, a fifth of a second
 //! (spike 175): each poll it moved, the tone slides from where it is to where the cursor is
 //! (`glide`), and keeps sounding a little past the slide, so the next poll's slide carries on from
 //! it without a break. A sound file a slide, played one after another, left a gap between each
-//! two, heard as beeps rather than a slide (Orion, 2026-10-02).
+//! two, heard as beeps rather than a slide.
 //!
 //! pa3ds's own sounds, beside the game's (ADR-0025), and nothing like them is said: a tone is
 //! never the only way something is told, only where it is. One `Voice`, written a fiftieth of a
@@ -218,7 +217,7 @@ fn locked(voice: &Mutex<Voice>) -> MutexGuard<'_, Voice> {
 }
 
 /// A game's clock's tick as a tone in the middle, 440 Hz (`ScreenAnnouncer`): the lowest,
-/// an octave under it, was hard to hear even at 1.5 (Orion, 2026-10-26).
+/// an octave under it, was hard to hear even at 1.5.
 pub fn ticking(tones: Option<Rc<Tones>>) -> Option<Rc<dyn Fn()>> {
     let tones = tones?;
     Some(Rc::new(move || {

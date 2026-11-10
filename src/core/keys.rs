@@ -71,7 +71,7 @@ pub const VK_CONTROL: i64 = 0x11;
 pub const VK_MENU: i64 = 0x12;
 /// Insert and caps lock, which NVDA takes as its own modifier, and the two Windows keys: a key
 /// pressed while one is held is the screen reader's or Windows's. Insert and R is NVDA's OCR, and
-/// pa3ds took it for R and said the battle's side (Orion, 2026-09-29). Whether one is held is asked
+/// pa3ds took it for R and said the battle's side. Whether one is held is asked
 /// of Windows and of pa3ds's own hook (`track`): NVDA swallows its modifier in its own hook, so
 /// Windows never marks it held, but pa3ds's hook, installed after NVDA's, is called first and sees it
 /// go down and up. Asking Windows alone kept the Windows keys only, and insert and R still reached
@@ -352,7 +352,7 @@ struct State {
     released: Mutex<Released>,
     /// The keys of the screen running now that has its own (`keyfile`'s contexts), taken besides
     /// `keys` until the runtime says another screen runs: a key that is one of Azahar's buttons
-    /// stays that button everywhere else (Orion, 2026-10-29).
+    /// stays that button everywhere else.
     contextual: Mutex<HashSet<String>>,
     pressed: Mutex<VecDeque<String>>,
     elsewhere: Mutex<HashSet<i64>>,
@@ -360,7 +360,7 @@ struct State {
     /// the hook saw. Keys typed into NVDA's own windows never reach the hook: NVDA runs at a
     /// higher integrity than pa3ds, and Windows calls a hook for no window above its own. So the
     /// change of window is heard too, or a modifier whose release went to an NVDA dialog stays
-    /// held after it closes, until Alt+Tab (Khai, 2026-10-31).
+    /// held after it closes, until Alt+Tab.
     front: AtomicBool,
     /// Whether a key of pa3ds's has been taken with Shift since Shift last came up, or Shift went
     /// down alone in front of the emulator.

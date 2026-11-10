@@ -260,7 +260,7 @@ pub struct Game {
     pub lurkers: HashSet<i64>,
     /// The sprites, other than an item ball's, of the things the player finds an item at, listed
     /// under items: ORAS's Mega Stones, `KIRAKIRA`, an "object" among the signs in Petalburg Woods
-    /// (Orion, or_mossy_rock, 2026-10-25), and X's, `KIRAKIRA2`.
+    /// (or_mossy_rock), and X's, `KIRAKIRA2`.
     pub pickups: HashSet<i64>,
     /// The sprites of its invisible blockers, move models drawn as nothing that stand in the way:
     /// listed as nobody, and solid but where they stand in for a rotating door's arm. Not where a

@@ -1604,7 +1604,7 @@ fn test_a_record_whose_pokemon_has_gone_lists_none() -> Result<()> {
 }
 
 /// The byte is the DexNav's state: 0xd its page with none hiding, as after a faint, and 0xe a
-/// search; 8 a search's find and 0xa near enough for its details (Orion, movie26).
+/// search; 8 a search's find and 0xa near enough for its details (movie26).
 #[test]
 fn test_a_pokemon_that_fainted_or_a_search_under_way_lists_none() -> Result<()> {
     let town = Town::new();
@@ -1616,7 +1616,7 @@ fn test_a_pokemon_that_fainted_or_a_search_under_way_lists_none() -> Result<()> 
     Ok(())
 }
 
-/// A Zigzagoon read at level 50331650, 0x03000002, went unlisted (Orion, movie27); and +0xc9
+/// A Zigzagoon read at level 50331650, 0x03000002, went unlisted (movie27); and +0xc9
 /// is 3 for a search's find, 1 for the detector's with the DexNav open, 2 with the AreaNav
 /// (spike 194).
 #[test]
@@ -1687,7 +1687,7 @@ fn edges(town: &Town) -> Result<Vec<((i64, i64), (i64, i64), i64)>> {
         .collect())
 }
 
-/// Littleroot's north side is 40 cells of trees but for three (the user, 2026-09-22).
+/// Littleroot's north side is 40 cells of trees but for three.
 #[test]
 fn test_an_edge_is_the_gap_in_the_border() -> Result<()> {
     assert_eq!(
@@ -1869,7 +1869,7 @@ fn test_a_place_in_parts_not_listed_whole_lists_a_part_at_a_time() -> Result<()>
     Ok(())
 }
 
-/// or_no_path (Orion, 2026-11-01): in Southern Route 119 the list held a Kecleon out of the
+/// or_no_path: in Southern Route 119 the list held a Kecleon out of the
 /// northern strip's records, whom the game had built no model for there: its zone's script keeps
 /// some of its records unbuilt, by works no record says, and P said "Kecleon in the way" of ways
 /// past it. A part the player has been in lists only the records the game built in it when they
@@ -3648,7 +3648,7 @@ fn bridge_chunks() -> (Floor, Floor) {
     )
 }
 
-/// or_no_path (Orion, 2026-11-01): Route 119's north bridge is a deck at 189 over a bank at
+/// or_no_path: Route 119's north bridge is a deck at 189 over a bank at
 /// 126, the ground at 189 at both its ends. Read on the floor nearest a player at 137 on the
 /// route below, the bank was a drop of 63 from the ground at both ends, and nothing past the
 /// bridge was reached. A drop is one on every floor of its cells now, and which floor a step goes
@@ -4095,7 +4095,7 @@ fn test_a_model_drawn_as_nothing_on_a_piece_of_furniture_is_nobody() -> Result<(
 
 /// Seafloor Cavern's submarine is four furniture records with one script, two 4 by 4 and an
 /// end of 1 by 2 at each side, and was listed as four signs; an elevator's door is two records
-/// side by side with a shared script each, and was two (Orion, movie44). Each is one thing over
+/// side by side with a shared script each, and was two (movie44). Each is one thing over
 /// the box round it, by its first record; one script's records apart stay apart.
 #[test]
 fn test_furniture_of_one_script_that_touches_is_one_thing() -> Result<()> {
@@ -4441,7 +4441,7 @@ pub(crate) const CABINET_TILE: i64 = 0xDA0E0001;
 pub(crate) const DOLL: i64 = 0x204A;
 
 /// The Azurill Doll is a doll drawn, a furniture record in front of it saying "It's an
-/// Azurill Doll!", and the cabinet under it: three signs in one cell (Orion, 2026-10-14). A
+/// Azurill Doll!", and the cabinet under it: three signs in one cell. A
 /// record over a cell is the record; a shelf longer than what stands on it stays.
 #[test]
 fn test_one_spot_is_one_sign_the_thing_drawn_first_then_its_record_then_the_cell() -> Result<()> {
@@ -6162,7 +6162,7 @@ fn test_a_diagonal_street_is_one_leg_said_by_the_key_that_walks_it() -> Result<(
     Ok(())
 }
 
-/// Round Prism Tower `L` went back and forth between two exits (Khai, 2026-10-27): a warp
+/// Round Prism Tower `L` went back and forth between two exits: a warp
 /// across a diagonal street covers cells touching only at their corners, and joining warps by
 /// their cells listed it once a cell, each under its one key, which the list walks by.
 #[test]
@@ -7238,7 +7238,7 @@ fn test_a_held_item_says_first_whether_it_can_be_placed_under_the_cursor() -> Re
 }
 
 /// Set down, the Stairs and the desks were not in the list at all, and once listed, every
-/// base's five Welcome Mats in a line were five things (the user, 2026-10-10). Those of a name
+/// base's five Welcome Mats in a line were five things. Those of a name
 /// that touch are one; one apart is another.
 #[test]
 fn test_a_bases_decorations_are_signs_by_the_games_names_one_over_its_cells() -> Result<()> {

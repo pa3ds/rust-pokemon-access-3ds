@@ -450,7 +450,7 @@ impl DialogueReader {
             progress.seen = progress.said >= 0;
         }
         // Typing that starts over is the game saying the message again, whether or not the box left
-        // the screen in between (the user, 2026-09-16, reversing their own rule of 2026-09-14).
+        // the screen in between (reversing their own rule of 2026-09-14).
         // That rule was added for the options screen, which retypes the text speed description as a
         // demonstration in a box that never leaves; the cost of it was that reading a signpost
         // twice was sometimes silent, because a box that closes and reopens inside a poll is never

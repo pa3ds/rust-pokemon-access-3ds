@@ -13,35 +13,34 @@
 //!   gathered until it has settled, then every panel that cursor's moves have changed is read, row
 //!   by row, in the order the screen built them: "The user growls… Category Power — Accuracy 100".
 //!   Saying each change as a poll caught it put a move's description before its panel or after it,
-//!   and left the panel out when two moves shared their power and accuracy (the user, 2026-09-14).
+//! and left the panel out when two moves shared their power and accuracy.
 //!   A value that changes with no move is said with its row in its own group: "Play time: 0:14".
 //!   Words coming on screen while the details gather are part of them: the Mart's count and
 //!   description coming back as the cursor leaves Quit, a contest's move panel shown afresh for
 //!   each move.
-//! - **A screen rewritten is said as an item and its details** (Orion, 2026-10-10). Several rows
+//! - **A screen rewritten is said as an item and its details**. Several rows
 //!   changing at once with no cursor moving, as the summary turns to another Pokémon or the
 //!   Pokédex to another entry, are a rewrite: its first row is said at once, the one naming what
 //!   the screen shows where that is known (`subject`), and the rest is gathered as details are
 //!   and said whole as one line once settled: "Umbra", then "Lv.5, HP 19/19, Attack 9...". A row
 //!   a line, they were heard in pieces, some mixed with their neighbours', and under `interrupt`
 //!   each cut off the one before.
-//! - **A screen coming back is read like a screen opening** (the user, 2026-09-14): in full,
+//! - **A screen coming back is read like a screen opening**: in full,
 //!   unless it is a menu. Words coming back to a layout that kept its other words on screen bring
 //!   those with them.
-//! - **A letter deleted from a name is heard as the name that is left** (the user, 2026-09-18).
+//! - **A letter deleted from a name is heard as the name that is left**.
 //!   Each letter typed is a TextBox of its own, so deleting one takes a word off the screen and
 //!   says nothing at all; what remains is said instead, "R a i" for a name that read "Raiq".
 //! - **A screen revealed over several polls is said once it has arrived**, whole: what comes on
 //!   screen in a layout's first second waits while more of its words are still being written, up
 //!   to a second, and is said as it came the moment any of it changes or leaves, ahead of the
 //!   change.
-//! - **A clock is said at its marks** (Orion, 2026-10-26): while a game that times the player
+//! - **A clock is said at its marks**: while a game that times the player
 //!   runs, Pokémon-Amie's three, a number going one up or down a second after it last changed is
 //!   its clock ticking, said each half minute and, counting down, at 10 and each of the last 5,
 //!   once while it bounces round one. They said "Time Left" every second for a minute. Every tick
 //!   can sound a tone, `[pa3ds.audio] ticks`. While the player plays, a Tile Puzzle with a piece
-//!   away from home, its numbers are the play's, unsaid but for the clock's marks (Orion,
-//!   2026-10-28).
+//! away from home, its numbers are the play's, unsaid but for the clock's marks.
 //! - **A game's score is the player's to ask for** (players and Orion, 2026-11-04): Head It's
 //!   score, combo and "MISS!", which come at every ball, faster than they can be said, are left
 //!   unsaid and never taken for a clock, its combo one up a second apart; where the player asks to
@@ -623,8 +622,8 @@ impl ScreenAnnouncer {
         // signs beside them: at each piece put home Unlimited said its total and the gain it
         // popped up, "Puzzle No. 2, 102 Points", "+2 Points", its "+" a TextBox of its own, and
         // the second it gave back, "Time Remaining: 00:30" (or_amie_tile_puzzle_unlimited).
-        // Nothing is said of a swap, the total as a puzzle starts and once it is solved (Orion,
-        // 2026-10-28). The last swap's are said: the board lies solved 0.4 s before its total
+        // Nothing is said of a swap, the total as a puzzle starts and once it is solved.
+        // The last swap's are said: the board lies solved 0.4 s before its total
         // changes, and the results come a second after that.
         let played: HashSet<i64> = heard
             .iter()
@@ -874,7 +873,7 @@ impl ScreenAnnouncer {
     /// Say the letters left in a name a letter has just been deleted from.
     ///
     /// A name is typed a letter to a TextBox, so deleting one only takes words off the screen,
-    /// which says nothing at all. What is left is said instead (the user, 2026-09-18). A group of
+    /// which says nothing at all. What is left is said instead. A group of
     /// one-character words on one row is a name being spelled out; words leaving anywhere else are
     /// not news of their own.
     fn say_what_is_left(
@@ -1036,7 +1035,7 @@ impl ScreenAnnouncer {
     /// Is this not what another layout said a moment ago? Remembers it when it is not.
     ///
     /// Walking onto Route 101 said it twice: AreaNav's words changed on the bottom screen, and the
-    /// location sign came up on the top with the same words a poll later (the user, 2026-09-14).
+    /// location sign came up on the top with the same words a poll later.
     /// The same layout saying the same words again, as a description does when the cursor comes
     /// back to a move, is heard again.
     fn fresh(&mut self, text: &str, root: i64) -> bool {
@@ -1142,7 +1141,7 @@ impl ScreenAnnouncer {
             }
             // Nor the item the cursor said, nor a title still saying what was last said of it:
             // the Bag's pocket and item were the first words of every item's details,
-            // "MEDICINE Full Heal", then the count and the description (Khai, 2026-10-18). A
+            // "MEDICINE Full Heal", then the count and the description. A
             // name's letter is never the item, though its key was the cursor's (`letter`), nor
             // a label's value (`valued`).
             let pieces: Vec<ScreenText> = on_screen
@@ -1370,7 +1369,7 @@ impl ScreenAnnouncer {
     ///
     /// Returning from the move list brought back only the summary's panel that had faded, "OT wee
     /// ID No. …", where opening the summary read its stats and name as well: the move list keeps
-    /// those on screen. A screen coming back is read as it opened (the user, 2026-09-14), so words
+    /// those on screen. A screen coming back is read as it opened, so words
     /// coming back to a layout bring what stayed in it. A menu's layout is left to its cursor, and
     /// words new to a layout come alone, as a question does. So do words that came back where
     /// words of their panel were leaving, `left`, and what comes with them: the screen changed
@@ -1490,7 +1489,7 @@ fn under_their_labels(pieces: Vec<ScreenText>) -> Vec<ScreenText> {
 /// a screen opening reads it (`_speaking_order`). A move's panel builds its labels and then its
 /// values, "Category Power 40"; the PC Box's summary builds its stats and then its moves, between
 /// their rows, and read row by row they came interleaved, "SP. ATK: 68, MOVES LEARNED, SP. DEF:
-/// 58, Bubble Beam", where opening it read each down (Orion, or_organize_boxes, 2026-10-24).
+/// 58, Bubble Beam", where opening it read each down (or_organize_boxes).
 fn columns(pieces: &[ScreenText]) -> Vec<ScreenText> {
     let mut columns: Vec<Vec<ScreenText>> = Vec::new();
     for piece in pieces.iter().filter(|p| p.glyph > 0.0) {
@@ -1615,7 +1614,7 @@ fn with_row_mates(
 /// (spike 46), and reading rows across a whole layout interleaved the summary's columns (spike
 /// 47).
 ///
-/// A panel, not a whole layout (the user, 2026-09-16). The battle draws both Pokemon's HP boxes in
+/// A panel, not a whole layout. The battle draws both Pokemon's HP boxes in
 /// one layout, and reading the layout whole said "6 22/ 22 2" — Torchic at level 6 with 22/22 HP,
 /// and the wild Pokemon's level 2 on the end as though it were part of the same row. The game
 /// itself keeps the two apart, one pane under the root each, and so does this.
@@ -1659,7 +1658,7 @@ fn panels(pieces: &[ScreenText], on_screen: &[ScreenText]) -> Vec<Vec<ScreenText
 /// TYPE, HEIGHT and WEIGHT built as a column of labels and a column of values, then the times
 /// encountered, and the number and name at the top built last. In build order it read "Chick
 /// Pokémon Female TYPE HEIGHT WEIGHT 1'04" 5.5 lbs. Times encountered: 1 004 Torchic"
-/// (pokedex2.ctm, the user, 2026-09-24). A panel with no words from two groups side by side on
+/// (pokedex2.ctm). A panel with no words from two groups side by side on
 /// a row is one column, and read down it is "004 Torchic Chick Pokémon Female TYPE HEIGHT 1'04"
 /// WEIGHT 5.5 lbs. Times encountered: 1". A panel whose groups stand side by side, as the
 /// summary's two columns of stats do (spike 47), or whose words sit beside another panel's, as
@@ -1761,7 +1760,7 @@ fn side_by_side(one: &ScreenText, other: &ScreenText) -> bool {
 
 /// Is this a label's value, written after the label on its row? Never the cursor's item,
 /// whatever its words: TM29 Psychic's type is "Psychic", and its details said "TYPE POWER 90"
-/// (or_movie54, Orion, 2026-10-19, #13).
+/// (or_movie54, #13).
 fn valued(piece: &ScreenText, on_screen: &[ScreenText]) -> bool {
     on_screen.iter().any(|other| {
         other.root == piece.root
@@ -1860,8 +1859,7 @@ fn seconds(text: &str) -> Result<Option<i64>> {
     Ok(Some(total))
 }
 
-/// Is a clock's tick said? Each half minute, and counting down, at 10 and each of the last 5
-/// (Orion, 2026-10-26).
+/// Is a clock's tick said? Each half minute, and counting down, at 10 and each of the last 5.
 fn marked(seconds: i64, down: bool) -> bool {
     (seconds > 0 && py::modulo(seconds, 30) == 0)
         || (down && (seconds == 10 || (0 < seconds && seconds <= 5)))

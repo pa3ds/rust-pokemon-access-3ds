@@ -106,7 +106,7 @@ pub struct Settings {
     pub captures: Option<PathBuf>,
     /// Whether this run replaced a pa3ds that was running (`instance.replace`): its first "pa3ds
     /// ready" is "pa3ds restarted", interrupting, so a player who restarted a pa3ds that had hung
-    /// hears that it took, in whatever window they are in (Orion, 2026-10-17).
+    /// hears that it took, in whatever window they are in.
     pub restarted: bool,
     /// Azahar's `qt-config.ini`, where it lists the ROMs it has opened (`config.Config.emulator`).
     /// None is the one in AppData.
@@ -118,7 +118,7 @@ pub struct Settings {
     /// Log what P and Shift and P say of the way to each thing listed, at each listing, read
     /// inside this: a tape replay's, which answers from what the tape holds and takes nothing from
     /// the replay's own answers. None logs none: a player's run, and a recording, where the
-    /// searches would only make the replays drift (ADR-0041, Orion, 2026-10-29).
+    /// searches would only make the replays drift (ADR-0041).
     pub ways: Option<Ways>,
 }
 

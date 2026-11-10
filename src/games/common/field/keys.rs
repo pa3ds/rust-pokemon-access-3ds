@@ -24,7 +24,7 @@ pub const DIRECTION: &str = "direction";
 /// said (`games.common.touch`, ADR-0009).
 pub const TOUCH: &str = "touch";
 
-/// What the mode key steps through, in turn (Orion, 2026-10-02: one key for all three).
+/// What the mode key steps through, in turn (2026-10-02: one key for all three).
 pub const MODES: [&str; 3] = [LIST, DIRECTION, TOUCH];
 
 pub const CATEGORY_PREVIOUS: &str = "category previous";
@@ -64,21 +64,21 @@ pub const PATHFIND: &str = "pathfind";
 /// The same, over water and through bushes, rocks and boulders too, each leg on the water or
 /// through one said with the move that crosses it: "Surf 12 south", "Cut 1 east", "Rock Smash 1
 /// east", "Strength 2 west". P alone keeps to land and goes round a bush, a rock or a boulder,
-/// since a way across water is no way to a player who cannot surf yet (the user, 2026-09-28).
+/// since a way across water is no way to a player who cannot surf yet.
 /// Up a sandy slope too, said with the bike that rides up it, "Mach Bike 6 north", where the
-/// player is not riding it already; P goes up one only on the bike (the user, 2026-10-03). Up a
+/// player is not riding it already; P goes up one only on the bike. Up a
 /// bumpy slope as well, the Acro Bike's, said with it, "Acro Bike 2 north", by P too on the bike,
 /// since the player's model is the same on either (spike 159). Up a waterfall, said with the move,
-/// "Waterfall 2 north", and down one; P keeps off it either way (the user, 2026-10-05, spike 170).
+/// "Waterfall 2 north", and down one; P keeps off it either way (spike 170).
 pub const PATHFIND_HM: &str = "pathfind with HMs";
 
 /// Stop guiding: the way P or Shift and P found is dropped and nothing more of it is said, "path
-/// off", or "no path" when there was none (the user, 2026-10-10).
+/// off", or "no path" when there was none.
 pub const PATHFIND_OFF: &str = "pathfind off";
 
 /// Leave out of the list, in either mode, everything Shift and P finds no way to from where the
 /// player stands, or put it back: "unreachable hidden", "unreachable shown". Off whenever pa3ds
-/// starts, as the mode is list mode (Orion, 2026-10-11): sometimes the player wants to know what is
+/// starts, as the mode is list mode: sometimes the player wants to know what is
 /// there and out of reach, and sometimes, in Team Magma's Hideout with every teleporter of the place
 /// listed, not.
 pub const HIDE_UNREACHABLE: &str = "hide unreachable";
@@ -88,7 +88,7 @@ pub const PATH_PREVIOUS: &str = "path previous";
 /// Choose which way P goes to the chosen thing, where there is more than one: for a big boulder,
 /// the side it is pushed from, among the ways it can be pushed, "push east, 2 of 2"; P then says
 /// "to push east: 3 west, 2 north". With none chosen P takes the nearest. Comma and period in every
-/// mode (Orion, 2026-10-11): direction mode has the compass where list mode has I and O, and the
+/// mode: direction mode has the compass where list mode has I and O, and the
 /// brackets stay the category everywhere.
 pub const PATH_NEXT: &str = "path next";
 
@@ -100,16 +100,15 @@ pub const OUR_SIDE: &str = "our side";
 pub const ENEMY_SIDE: &str = "enemy side";
 
 /// Say the cell the player stands in, "x 381, z 117", as the zone's cells count it: for finding a
-/// place again, and for telling a spike where something is (the user, 2026-10-10).
+/// place again, and for telling a spike where something is.
 pub const COORDINATES: &str = "coordinates";
 
 /// Say the cells of the thing the navigation keys are on, as `COORDINATES` says the player's,
 /// "x 62, z 29", and an axis a thing spans by its first and last, "x 80 to 119, z 159": for
-/// picturing the map (Orion, 2026-10-15). `[pa3ds.navigation] show_y` adds how high, to both.
+/// picturing the map. `[pa3ds.navigation] show_y` adds how high, to both.
 pub const ITEM_COORDINATES: &str = "item coordinates";
 
-/// Say again the line pa3ds spoke last, whatever said it: for a line missed or cut off (Khai,
-/// 2026-11-08).
+/// Say again the line pa3ds spoke last, whatever said it: for a line missed or cut off.
 pub const REPEAT: &str = "repeat";
 
 /// What the keys file says above an action's key, where its name does not say it all. The
@@ -131,23 +130,23 @@ pub const BERRIES: [&str; 7] = [
 /// its place all round wherever it pops up (spike 262): given the berry picked up.
 pub const POKEMON: [&str; 3] = ["first pokemon", "second pokemon", "third pokemon"];
 /// Head It's three Pokémon, a key each, by where each stands all round: tapped, to head the ball
-/// falling at it (Orion, 2026-10-31; `head_it.HeadItKeys`).
+/// falling at it (`head_it.HeadItKeys`).
 pub const HEADERS: [&str; 3] = ["left pokemon", "middle pokemon", "right pokemon"];
 /// Say Head It's score, its combo and its clock or chances left, which are left unsaid as they
-/// come unless the player asks (Orion, 2026-11-04; `head_it.HeadIt.score`).
+/// come unless the player asks (`head_it.HeadIt.score`).
 pub const SCORE_KEY: &str = "score";
-/// Says Amie's Pokémon's three numbers, as the Switch screen shows them (Orion, 2026-11-06).
+/// Says Amie's Pokémon's three numbers, as the Switch screen shows them.
 pub const STYLUS_NUMBERS: &str = "stylus numbers";
 /// Says what Super Training's page draws as a chart and an icon: each stat's points, the total and
-/// the kind of shot (Orion, 2026-11-09; `super_training.TrainingKeys`).
+/// the kind of shot (`super_training.TrainingKeys`).
 pub const BASE_STATS: &str = "base stats";
-/// Says a Super Training round's score and clock (Orion, 2026-11-09).
+/// Says a Super Training round's score and clock.
 pub const ROUND_NUMBERS: &str = "round numbers";
 /// Says where a Super Training round's Pokémon stands, in steps up and across from where it
-/// started, as the map's list says a thing's bearing (Orion, 2026-11-10; `super_training.Round`).
+/// started, as the map's list says a thing's bearing (`super_training.Round`).
 pub const ROUND_PLACE: &str = "round place";
 /// Amie's stylus moved a step over the Pokémon, which way across and down the screen each goes
-/// (Orion, 2026-11-05; `amie.StylusKeys`).
+/// (`amie.StylusKeys`).
 pub const STYLUS_MOVES: [(&str, (i64, i64)); 4] = [
     ("stylus up", (0, -1)),
     ("stylus down", (0, 1)),
@@ -256,14 +255,14 @@ fn keys(pairs: &[(&str, &str)]) -> IndexMap<String, String> {
 /// Shift and K renames what K reads, as Pokemon Access does it, and shift and J renames whoever
 /// last spoke. Shift and P is the way there with HMs (2026-09-28). R says the player's side of a
 /// battle again and shift and R the enemy's (2026-09-29). The apostrophe steps on to touch mode
-/// after direction mode (Orion, 2026-10-02; it was shift and T for a day), where J and L walk the
+/// after direction mode (it was shift and T for a day), where J and L walk the
 /// bottom screen's buttons, I and O a row at a time, K says the one chosen again and U taps it.
 /// Shift alone drags it, in Pokémon-Amie: Shift and U did from 2026-10-26 to 2026-10-29, when Shift
-/// alone took its place (Orion, ADR-0009), and from 2026-11-01 Shift alone is drag's key as any
+/// alone took its place (ADR-0009), and from 2026-11-01 Shift alone is drag's key as any
 /// other key is an action's, so a player who binds drag elsewhere has Shift drag nothing (Orion:
 /// players who never read of a key added beside it were left with Shift).
 /// C says the player's cell and alt and P stops guiding (2026-10-10), and shift and C the cells of
-/// the thing chosen (Orion, 2026-10-15). Y says the last line again (Khai, 2026-11-08). All of
+/// the thing chosen. Y says the last line again. All of
 /// these are the player's to change in `<pa3ds>\user\keys.toml`.
 pub static DEFAULT_BINDINGS: LazyLock<Bindings> = LazyLock::new(|| {
     IndexMap::from([
@@ -382,20 +381,19 @@ pub const TRAINING_ROUND: &str = "training.round";
 
 /// Context -> key -> action: keys that mean something only while one screen runs, in every mode,
 /// and are taken from the emulator only then, so a key that is a button of Azahar's elsewhere stays
-/// one there (Orion, 2026-10-29).
+/// one there.
 pub type Contexts = IndexMap<String, IndexMap<String, String>>;
 
 /// The number row in Berry Picker: 1 to 7 the berries, which no difficulty has more of, and 8, 9
-/// and 0 the Pokémon (Orion, 2026-10-29), for a player who would rather not walk to each with touch
-/// mode's keys, which still drag there as ever. In Head It 8, 9 and 0 the Pokémon too, left to right
-/// (Orion, 2026-10-31), none of them a button of Azahar's as it ships; and R the score (Orion,
-/// 2026-11-04), pa3ds's key everywhere else, a battle's side: S and T, which he offered beside it,
+/// and 0 the Pokémon, for a player who would rather not walk to each with touch
+/// mode's keys, which still drag there as ever. In Head It 8, 9 and 0 the Pokémon too, left to
+///right, none of them a button of Azahar's as it ships; and R the score,
+/// pa3ds's key everywhere else, a battle's side: S and T, which he offered beside it,
 /// are his B and his D-pad's up, which the list after a round may want. In Amie itself the arrows
-/// move the stylus over the Pokémon (Orion, 2026-11-05): they are the circle pad as Orion binds it,
+/// move the stylus over the Pokémon: they are the circle pad as Orion binds it,
 /// and Amie's script reads no stick, only that some button is pressed. R says what a screen draws
-/// and does not say, on down that line: Super Training's chart on its page, and a round's numbers
-/// (Orion, 2026-11-09). C, the map's coordinates elsewhere, says where a round's Pokémon stands
-/// (Orion, 2026-11-10).
+/// and does not say, on down that line: Super Training's chart on its page, and a round's numbers.
+///C, the map's coordinates elsewhere, says where a round's Pokémon stands.
 pub static DEFAULT_CONTEXTS: LazyLock<Contexts> = LazyLock::new(|| {
     let mut keys: IndexMap<String, String> = BERRIES
         .iter()

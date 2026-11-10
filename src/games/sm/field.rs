@@ -566,7 +566,7 @@ impl SunFieldReader {
         }
         // Only an outdoor area is one ground. The player's house is an area too, its rooms four
         // zones laid out far apart, and from the porch the other rooms' mats were listed 150 to
-        // 330 cells away (the user, 2026-09-27): indoors, the player's own zone is the map.
+        // 330 cells away: indoors, the player's own zone is the map.
         let outdoors = match &self.zones {
             Some(zones) => zones.outdoors(zone)?,
             None => false,

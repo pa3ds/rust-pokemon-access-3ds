@@ -8,10 +8,10 @@
 //! Route 102, Route 103", and again only when up and down turn to another Pokémon.
 //!
 //! The place under the map's cursor is said once the map is open, not while the bar is still on
-//! Habitat, where it named a place the player had not moved to (Orion, 2026-10-01). The map is open
+//! Habitat, where it named a place the player had not moved to. The map is open
 //! when the top screen's three icons, grass, water and a fishing rod, have slid onto the screen, which
 //! they do only then (spike 153). A move says the place alone, and on one of the Pokémon's places
-//! how it is found, by the icons drawn in colour: "Found in Route 101 grass" (Orion's words). An
+//! how it is found, by the icons drawn in colour: "Found in Route 101 grass". An
 //! icon in colour draws the image its layout file gives it, `map_ico_00.bclim`; one in grey, the
 //! game's other image, `map_ico_00_1.bclim`.
 //!
@@ -39,7 +39,7 @@ use crate::py::{self, Error, Log, Result};
 pub const POINT: &str = "poke_point.bclim";
 /// The top screen's icons for how a Pokémon is found, by the image each draws in colour, and
 /// pa3ds's word for each (Orion's, 2026-10-01): the game draws them and never names them. Grass
-/// was seen in colour first (spike 153), fishing on Route 111 (Orion, 2026-10-20); a Pokémon met
+/// was seen in colour first (spike 153), fishing on Route 111; a Pokémon met
 /// in seaweed under water lights grass, as the game shows it.
 ///
 /// Python's `dict`, as (image, word) pairs: it is only ever looked up.

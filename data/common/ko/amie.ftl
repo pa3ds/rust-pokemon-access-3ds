@@ -10,7 +10,7 @@
 # has no name for here is said by its kind; the head and the body always are, and the eyes but
 # where a model paints them the other way round (Lombre), or one grey on every eye (Claydol).
 #
-# Each is a body part, two words at most (Orion, 2026-11-05), named from the census of every
+# Each is a body part, two words at most, named from the census of every
 # species and form in Amie (spike 287): its screen beside its picture of greys, a part named only
 # where the picture shows it, the sweet spots and danger zones a player's petting guide named
 # checked against them; then checked again by other agents, each sheet with what pa3ds says

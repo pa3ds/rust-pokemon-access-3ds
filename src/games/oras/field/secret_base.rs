@@ -194,7 +194,7 @@ pub const BALLOONS: &str = "N5field10secretBase26SecretBaseGoodsModelFuusenE";
 /// themselves are never hit.
 pub const DOOR: i64 = 0x96;
 /// The Invisible Doll's class: the game hides the doll until it is examined, so it is never
-/// listed (the user, 2026-10-10).
+/// listed.
 pub const UNSEEN: &str = "N5field10secretBase37SecretBaseGoodsModelSuperKakureonDollE";
 
 /// The mapper's layers, said in this order: what stands on a desk, the floor, the mats under it.

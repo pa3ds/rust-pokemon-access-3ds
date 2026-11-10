@@ -35,7 +35,7 @@ fn texts(backend: &Recorder) -> Vec<String> {
         .collect()
 }
 
-/// The screen reader cuts speech on a key press already (the user, 2026-09-14).
+/// The screen reader cuts speech on a key press already.
 #[test]
 fn test_nothing_interrupts_by_default() {
     let backend = Rc::new(Recorder::default());
@@ -57,7 +57,7 @@ fn test_the_answer_to_a_key_interrupts() {
     assert_eq!(spoken(&backend), [("door, 1 north".to_string(), true)]);
 }
 
-/// "Close Azahar" must not wait behind the console being read out (Orion, 2026-10-05).
+/// "Close Azahar" must not wait behind the console being read out.
 #[test]
 fn test_a_warning_interrupts_from_any_window() {
     let backend = Rc::new(Recorder::default());

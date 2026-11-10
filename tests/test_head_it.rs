@@ -240,7 +240,7 @@ fn test_a_ball_missing_from_one_poll_is_the_same_ball_and_from_two_is_gone() {
     }
 }
 
-/// A player's request (Orion, 2026-11-02): the Pokémon's own cry where its name is said.
+/// A player's request: the Pokémon's own cry where its name is said.
 #[test]
 fn test_a_ball_plays_its_pokemons_cry_toward_its_column_with_its_name_or_in_its_place() {
     let cried: Rc<RefCell<Vec<(i64, f64)>>> = Rc::new(RefCell::new(Vec::new()));
@@ -353,7 +353,7 @@ fn test_no_ball_is_said_nor_pokemon_offered_before_balls_fall_or_once_they_have(
     }
 }
 
-/// As Berry Picker's are (Orion, 2026-11-01: "the same precedent as berry picker"): its keys'
+/// As Berry Picker's are (2026-11-01: "the same precedent as berry picker"): its keys'
 /// order, 8, 9 and 0, the one not yet up among them, said once in the opening and again in each
 /// Play Again's.
 #[test]
@@ -950,7 +950,7 @@ fn test_the_score_its_combo_and_a_miss_are_the_rounds_score_and_a_key_says_them(
     assert_eq!(found.borrow().score(Some(OTHER)).unwrap(), "");
 }
 
-/// A screen reader said "053" as "zero five three" (Orion, 2026-11-08): the score, the clock
+/// A screen reader said "053" as "zero five three": the score, the clock
 /// and the results' points are unpadded, and words of other layouts, a trainer's "ID No. 01234",
 /// are left as they are.
 #[test]

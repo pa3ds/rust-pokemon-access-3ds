@@ -2,7 +2,7 @@
 //!
 //! **Why it exists.** OBS records a program's sound by one of its windows, and pa3ds had none: its
 //! console is Windows Terminal's or conhost's, another process, so a streamer picking it recorded that
-//! process instead of pa3ds's tones and footsteps (Orion, 2026-10-24; ADR-0039).
+//! process instead of pa3ds's tones and footsteps (ADR-0039).
 //! This window is pa3ds's own process's. A player who double-clicked pa3ds also gets somewhere to
 //! end it and to reach its pages from, and in time its settings.
 //!
@@ -14,11 +14,11 @@
 //!
 //! **What it is.** A modeless dialog, the system's `#32770` as the rename box is, so a screen reader
 //! reads it as a dialog: its title and a menu bar, and no more, so a window left in sight for OBS
-//! takes as little of the screen as a window can (Orion, 2026-10-25). Alt opens the menus, as any
+//! takes as little of the screen as a window can. Alt opens the menus, as any
 //! program's: **Mod**, whose Settings... opens the settings dialog (`ux.settings`), whose Check
 //! for updates offers the latest release (the port's own, `update::check`) and whose Exit
-//! ends pa3ds as Azahar closing does; **Azahar**, to download its latest zip or its installer
-//! (Orion), the browser straight at the file; and **Help**, the browser at a page of the manual or
+//! ends pa3ds as Azahar closing does; **Azahar**, to download its latest zip or its installer,
+//!the browser straight at the file; and **Help**, the browser at a page of the manual or
 //! at the port's issues. Closing the window ends pa3ds too;
 //! Escape does nothing, so a stray press never ends it. It runs on a thread of its own with its own
 //! message loop, as long as pa3ds does, and the poll loop never waits on it.
@@ -66,7 +66,7 @@ pub const IDC_SETTINGS_GUIDE: i64 = 212;
 pub const IDC_AMIE: i64 = 213;
 /// Where the manual is read: the port's, which is what players run and which ships it, on
 /// GitHub, which shows it as a page a screen reader walks by its headings; beside pa3ds.exe it is
-/// Markdown, which nothing on a player's machine may open (Orion, 2026-10-25).
+/// Markdown, which nothing on a player's machine may open.
 pub const DOCS: &str = "https://github.com/pa3ds/rust-pokemon-access-3ds/blob/main/";
 /// Each of the Help menu's pages of the manual, by where it is under `DOCS`.
 pub const DOCUMENTS: [(i64, &str); 7] = [

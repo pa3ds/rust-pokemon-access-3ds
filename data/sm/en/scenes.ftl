@@ -6,7 +6,7 @@
 # the desk; the game says "Three months later..." itself at 71 s, and the field takes over at about
 # 89 s with the arrival, which plays without the player until Mom speaks at about 114 s. The
 # arrival's beats wait for the field, Route 1's zone 0x0, which came 91 s after the demo started in
-# Orion's movie1_opening.ctm (2026-10-13).
+# movie1_opening.ctm (2026-10-13).
 chase-1 = After the call, the camera turned to your desk: a travel magazine open on pictures of tropical islands, and a plane ticket.
 chase-2 = Somewhere else, a girl in a white sun hat and white dress runs through a gleaming white building, a big bag over her shoulder.
 chase-3 = She stops at a railing and looks back, holding the bag close.

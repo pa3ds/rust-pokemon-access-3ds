@@ -209,7 +209,7 @@ impl PictureCursors {
         };
         if said.is_empty() {
             // A button drawn with no words: the move info's four, which only their places tell
-            // apart, in the move list's order (Khai, 2026-10-18, or_move-learning).
+            // apart, in the move list's order (or_move-learning).
             said = own(MOVE, &[("number", &self.number(spot.root, group)?)]);
         }
         Ok(vec![ScreenText {
