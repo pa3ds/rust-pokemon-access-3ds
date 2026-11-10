@@ -674,14 +674,21 @@ fn mood(memory: &FakeMemory, number: Option<i64>) {
     );
 }
 
+/// `AmiePage.motion_line` for a Pokémon with none for that animation.
+fn no_sentence(_motion: &str) -> Option<String> {
+    None
+}
+
 /// Orion, 2026-11-05: the moods a sighted player sees, read off the love command, which needs
 /// no picture and so reads on any Azahar; a press held off the Pokémon and a puff eaten in two
-/// bites, as the script has it, with a moment of no love command between two.
+/// bites, as the script has it, with a moment of no love command between two. Said where the
+/// Pokémon has no sentence of its own for them, as most have none for a hand held up.
 #[test]
 fn test_what_the_pokemon_is_seen_doing_is_said_as_it_starts_and_stops() {
-    let (found, memory) = running(&[(8, HEAD)], false);
+    let (mut found, memory) = running(&[(8, HEAD)], false);
+    found.motion_line_of = Some(no_sentence);
     let mut held = Held(None);
-    let mut moods = amie::Moods::new(Rc::new(RefCell::new(found)));
+    let mut moods = amie::Moods::new(Rc::new(RefCell::new(found)), false);
     let mut said = |numbers: &[Option<i64>], held: &mut Held| -> Vec<String> {
         let mut lines = Vec::new();
         for &number in numbers {
@@ -806,7 +813,7 @@ fn test_xs_player_keeps_its_love_command_and_picture_four_bytes_later() {
 #[test]
 fn test_the_moods_no_movie_reached_are_said_too() {
     let (found, memory) = running(&[(8, HEAD)], false);
-    let mut moods = amie::Moods::new(Rc::new(RefCell::new(found)));
+    let mut moods = amie::Moods::new(Rc::new(RefCell::new(found)), false);
     let mut held = Held(Some("Sweet Poké Puff".to_string()));
     let mut said = |number: i64| -> Vec<String> {
         mood(&memory, Some(number));
@@ -1129,7 +1136,7 @@ fn test_a_key_says_the_numbers_as_the_switch_screen_would_show_them() {
 #[test]
 fn test_what_a_pet_or_a_high_five_shows_is_said_as_the_numbers_move() {
     let k = keyed(&[(8, HEAD)]);
-    let mut moods = amie::Moods::new(k.found.clone());
+    let mut moods = amie::Moods::new(k.found.clone(), false);
     let mut held = Held(None);
     let mut said = |affection: i64, enjoyment: i64, love: Option<i64>| -> Vec<String> {
         numbers(&k.memory, affection, 0, enjoyment);
@@ -1146,24 +1153,21 @@ fn test_what_a_pet_or_a_high_five_shows_is_said_as_the_numbers_move() {
     assert_eq!(said(63, 205, Some(0)), ["3 hearts"]);
     assert_eq!(said(64, 185, Some(0)), ["1 heart"]);
     assert_eq!(said(64, 165, Some(0)), ["Sceptile didn't like that..."]);
-    // a puff, whose dance shows no hearts
-    assert_eq!(said(66, 165, Some(0)), ["Sceptile dances happily"]);
+    // a puff, whose dance `Moods._moving` says, and no hearts
+    assert!(said(66, 165, Some(0)).is_empty());
     assert!(said(66, 175, Some(0)).is_empty()); // Enjoyment rising by itself, no hand up
     said(66, 175, Some(amie::HAND_RAISED));
     assert_eq!(said(66, 185, Some(0)), ["High five!"]);
     k.now.set(k.now.get() + amie::HIGH_FIVE_SECONDS);
     assert!(said(66, 195, Some(0)).is_empty());
-    assert_eq!(said(99, 195, Some(0)), ["Sceptile dances happily"]);
+    assert!(said(99, 195, Some(0)).is_empty());
     assert_eq!(
         said(102, 145, Some(0)),
         ["3 hearts", "Sceptile is overjoyed, and hearts pour out"]
     );
     assert_eq!(
         said(254, 145, Some(0)),
-        [
-            "Sceptile dances happily",
-            "Sceptile is overjoyed, and hearts pour out"
-        ]
+        ["Sceptile is overjoyed, and hearts pour out"]
     );
     assert_eq!(
         said(255, 95, Some(0)),
@@ -1207,6 +1211,159 @@ fn drawn_rows(
         .into_iter()
         .map(|(image, up)| (0, 0, image.to_string(), 54.0, up))
         .collect())
+}
+
+/// pytest's `tmp_path`: a folder of this test's own, gone when the test is.
+struct TmpPath(std::path::PathBuf);
+
+impl TmpPath {
+    fn new() -> Self {
+        static MADE: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+        let path = std::env::temp_dir().join(format!(
+            "pa3ds-test-amie-{}-{}",
+            std::process::id(),
+            MADE.fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+        ));
+        std::fs::create_dir_all(&path).unwrap();
+        TmpPath(path)
+    }
+}
+
+impl Drop for TmpPath {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+/// Puts English back as the words in place as a test that put its own ends: Python's
+/// `finally: use(None)`.
+struct Unused;
+
+impl Drop for Unused {
+    fn drop(&mut self) {
+        words::r#use(None);
+    }
+}
+
+/// Orion, 2026-11-06: every Pokémon's animations described, as a pet, a dislike or a finished
+/// puff show them. Back to standing, 2, the same one is seen again; the three of eating are one
+/// action, or_amie_interactions' 25 then 26 and a dance of 14; eating's sentence says what the
+/// mood would, and a form moving unlike its species has its own.
+#[test]
+fn test_each_animation_is_said_as_it_begins_by_the_pokemons_own_sentence() {
+    let tmp_path = TmpPath::new();
+    let folder = tmp_path.0.join("common").join("en");
+    std::fs::create_dir_all(&folder).unwrap();
+    std::fs::write(
+        folder.join("amie.ftl"),
+        "
+amie-mood-eating = { $pokemon } is eating
+amie-mood-hand-raised = { $pokemon } is holding up its hand
+amie-mood-looking-around = { $pokemon } is looking around
+amie-motion-254-touch = { $pokemon } leans to one side
+amie-motion-254-happyB = { $pokemon } leaps
+amie-motion-254-eat = { $pokemon } chews with its leaves shaking
+amie-motion-254-moveC = { $pokemon } flicks its tail
+amie-motion-254-12-happyB = { $pokemon } leaps in its costume
+",
+    )
+    .unwrap();
+    words::r#use(Some(Rc::new(
+        Words::new(
+            ENGLISH,
+            Some(&tmp_path.0.join("oras")),
+            IndexMap::new(),
+            Rc::new(|_line: &str| {}),
+        )
+        .unwrap(),
+    )));
+    let _unused = Unused;
+    let (found, memory) = running(&[(8, HEAD)], false);
+    let found = Rc::new(RefCell::new(found));
+    let mut moods = amie::Moods::new(found.clone(), false);
+    let said = |animations: &[u16], love: i64, polled: &mut amie::Moods| -> Vec<String> {
+        let mut lines = Vec::new();
+        for &animation in animations {
+            memory.write(PLAYER + amie::PLAYING, &animation.to_le_bytes());
+            mood(&memory, Some(love));
+            lines.extend(
+                polled
+                    .poll(Some(amie::AMIE), &mut Held(None))
+                    .unwrap()
+                    .into_iter()
+                    .map(|(_log, line, _category)| line),
+            );
+        }
+        lines
+    };
+    assert!(said(&[2, 2], 0, &mut moods).is_empty());
+    assert_eq!(said(&[14, 14], 0, &mut moods), ["Sceptile leaps"]);
+    assert_eq!(said(&[2, 14], 0, &mut moods), ["Sceptile leaps"]);
+    assert!(said(&[23], 0, &mut moods).is_empty()); // one it has no sentence for
+    assert_eq!(
+        said(&[24, 25, 26], 17, &mut moods),
+        ["Sceptile chews with its leaves shaking"]
+    );
+    assert!(said(&[2], 0, &mut moods).is_empty());
+    // A high five's only cue, whatever its sentence says (or_amie_interactions).
+    assert_eq!(
+        said(&[27], 24, &mut moods),
+        [
+            "Sceptile is holding up its hand",
+            "Sceptile leans to one side"
+        ]
+    );
+    assert!(said(&[2], 0, &mut moods).is_empty());
+    assert!(said(&[18, 2], 0, &mut moods).is_empty()); // by itself, unasked for
+    let mut fidgeting = amie::Moods::new(found.clone(), true);
+    assert_eq!(said(&[18], 0, &mut fidgeting), ["Sceptile flicks its tail"]);
+    found.borrow_mut().form = Some("12".to_string());
+    assert_eq!(
+        said(&[2, 14], 0, &mut moods),
+        ["Sceptile leaps in its costume"]
+    );
+    assert!(moods.poll(Some(FIELD), &mut Held(None)).unwrap().is_empty());
+    // Amie opened again
+    assert_eq!(
+        said(&[14], 0, &mut moods),
+        ["Sceptile leaps in its costume"]
+    );
+}
+
+#[test]
+fn test_an_animation_is_read_where_x_keeps_it_four_bytes_later() {
+    let later = xy::game().amie_player;
+    let (found, memory) = running_later(&[(8, HEAD)], true, later);
+    memory.write(PLAYER + amie::PLAYING + later, &13u16.to_le_bytes());
+    assert_eq!(found.motion().unwrap(), Some("happyA"));
+}
+
+/// The census's sentences are written by a script from thousands of lines: one here that
+/// no key can reach is never heard, and nothing else would say so.
+#[test]
+fn test_every_species_has_sentences_each_naming_it_and_an_animation_pa3ds_reads() {
+    let line =
+        regex::Regex::new(r"^amie-motion-(\d+)(?:-\d\d)?-(\w+) = \{ \$pokemon \} \S").unwrap();
+    let mut species: std::collections::BTreeSet<i64> = std::collections::BTreeSet::new();
+    let folder = data_path().unwrap().join("common").join("en");
+    for entry in std::fs::read_dir(&folder).unwrap() {
+        let path = entry.unwrap().path();
+        let name = path.file_name().unwrap().to_string_lossy().to_string();
+        if !(name.starts_with("amie-motions-") && name.ends_with(".ftl")) {
+            continue;
+        }
+        for text in py::splitlines(&std::fs::read_to_string(&path).unwrap()) {
+            if !text.is_empty() && !text.starts_with('#') {
+                let found = line.captures(text).unwrap_or_else(|| panic!("{text}"));
+                assert!(
+                    amie::MOTIONS.iter().any(|(_, word)| *word == &found[2]),
+                    "{text}"
+                );
+                species.insert(py::int_base10(&found[1]).unwrap());
+            }
+        }
+    }
+    assert_eq!(species, (1..722).collect());
 }
 
 /// Panes of the Switch screen by their places: three of the party's buttons and the chosen

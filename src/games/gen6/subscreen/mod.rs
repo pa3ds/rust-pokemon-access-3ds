@@ -559,7 +559,10 @@ impl Subscreens {
             stylus_keys.clone(),
         ];
         if settings.descriptions {
-            polled.push(Rc::new(RefCell::new(Moods::new(page.clone()))));
+            polled.push(Rc::new(RefCell::new(Moods::new(
+                page.clone(),
+                settings.fidgets,
+            ))));
         }
         Subscreens {
             classes: classes.into_iter().collect(),

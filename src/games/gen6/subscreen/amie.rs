@@ -385,6 +385,51 @@ pub const OF_THE_PUFF: [&str; 4] = [
 ];
 /// What the log calls a line of `Moods`.
 pub const MOOD_LOG: &str = "amie mood";
+/// `Player` +0x146: the animation its model plays, its number in the model's list plus 2, and 2
+/// while it stands, which it goes back to as each ends (spike A).
+pub const PLAYING: i64 = 0x146;
+/// The animations a sentence describes, by `PLAYING`: the models' own `kw10_respond` to
+/// `kw60_touch`, the three of eating, the three of nodding off and the two of sleep one action each.
+/// A Pokémon's sentence is `amie-motion-<number>-<this>` in `amie-motions-*.ftl`, one a form moving
+/// unlike its species adding its model, `amie-motion-25-12-happyB`, as `amie.ftl`'s names do.
+pub const MOTIONS: [(i64, &str); 25] = [
+    (3, "respond"),
+    (4, "turnA"),
+    (5, "turnB"),
+    (6, "drowse"),
+    (7, "drowse"),
+    (8, "drowse"),
+    (9, "sleep"),
+    (10, "sleep"),
+    (11, "hate"),
+    (12, "question"),
+    (13, "happyA"),
+    (14, "happyB"),
+    (15, "happyC"),
+    (16, "moveA"),
+    (17, "moveB"),
+    (18, "moveC"),
+    (19, "moveD"),
+    (20, "lonely"),
+    (21, "playA"),
+    (22, "playB"),
+    (23, "mad"),
+    (24, "eat"),
+    (25, "eat"),
+    (26, "eat"),
+    (27, "touch"),
+];
+/// The animations a Pokémon plays by itself every few seconds, said only where the player asks
+/// (`[pa3ds.amie] fidgets`): all but the reactions run under love command 0 (`moods --words`), so they
+/// are told by name. A `frozenset` in Python, only ever tested for membership.
+pub const FIDGETS: [&str; 7] = [
+    "question", "moveA", "moveB", "moveC", "moveD", "turnA", "turnB",
+];
+/// The one mood left unsaid where the Pokémon has a sentence for the animation under it, `eat`,
+/// which says the same. Dozing, asleep and a hand held up stay said before theirs: they are states a
+/// player acts on, and a sentence need not name them. Rock Star Pikachu's `touch` is "leans slightly
+/// to one side", and the hand it holds up is a high five's only cue (or_amie_interactions).
+pub const SAID_BY_EATING: &str = "amie-mood-eating";
 pub const TASK: i64 = 0x1BC;
 pub const TASK_SCRIPT: i64 = 0x04;
 pub const SCRIPT_MAGIC: i64 = 0xF1E0;
@@ -822,12 +867,14 @@ pub struct AmiePage {
     /// has been on any.
     kept: Option<i64>,
     /// The number of the Pokémon's model, once read (`form`).
-    form: Option<String>,
+    pub(crate) form: Option<String>,
     /// The Player the picture was last read through (`_buffer`): the sweep finds a copy of
     /// its words in the module's code as well, which leads to no model.
     live: Option<i64>,
     /// When the picture was last read, and the picture as it was.
     whole: (f64, Option<Rc<Picture>>),
+    /// `motion_line` as a test replaces it, where Python's test sets the method on the page.
+    pub(crate) motion_line_of: Option<fn(&str) -> Option<String>>,
     /// The page itself, as it is shared (`shared`), for a target's `after` to reach it, where
     /// Python's closes over `self`; nothing where it is not shared.
     this: Weak<RefCell<AmiePage>>,
@@ -885,6 +932,7 @@ impl AmiePage {
             form: None,
             live: None,
             whole: (f64::NEG_INFINITY, None),
+            motion_line_of: None,
             this: Weak::new(),
         }
     }
@@ -1390,6 +1438,42 @@ impl AmiePage {
         Ok(None)
     }
 
+    /// The animation its model plays, by `MOTIONS`' word; None while it stands, or where no
+    /// Player runs.
+    pub fn motion(&self) -> Result<Option<&'static str>> {
+        for (&player, &vtable) in &self.players {
+            if self.holder(player, vtable)?.is_none() {
+                continue;
+            }
+            let playing = u16(&self.memory.read(player + PLAYING + self.later, 2)?, 0)?;
+            return Ok(MOTIONS
+                .iter()
+                .find(|(number, _)| *number == playing)
+                .map(|(_, word)| *word));
+        }
+        Ok(None)
+    }
+
+    /// The sentence for an animation of this Pokémon, its form's first, or None.
+    pub fn motion_line(&mut self, motion: &str) -> Result<Option<String>> {
+        if let Some(replaced) = self.motion_line_of {
+            return Ok(replaced(motion));
+        }
+        let (words, form, name) = (current(), self.form()?, self.called()?);
+        let named = form.and_then(|form| {
+            words.get(
+                &format!("amie-motion-{}-{form}-{motion}", self.number),
+                &[("pokemon", &name)],
+            )
+        });
+        Ok(named.filter(|named| !named.is_empty()).or_else(|| {
+            words.get(
+                &format!("amie-motion-{}-{motion}", self.number),
+                &[("pokemon", &name)],
+            )
+        }))
+    }
+
     /// The Pokémon's affection, fullness and enjoyment as they stand, or None where no Player
     /// runs.
     pub fn numbers(&self) -> Result<Option<(i64, i64, i64)>> {
@@ -1852,6 +1936,10 @@ impl Goods {
 /// amended 2026-11-06): a whole sentence, not Narration's, as it is said over play.
 pub struct Moods {
     page: Rc<RefCell<AmiePage>>,
+    /// Whether `FIDGETS` are said.
+    fidgets: bool,
+    /// The animation at the last poll.
+    playing: Option<&'static str>,
     /// The puff last carried to the Pokémon. Python's keeps touch mode, which says the puff
     /// carried by its kind; here touch mode is handed to `poll`.
     puff: String,
@@ -1864,9 +1952,12 @@ pub struct Moods {
 }
 
 impl Moods {
-    pub fn new(page: Rc<RefCell<AmiePage>>) -> Self {
+    /// `Moods(page, touch, fidgets)`.
+    pub fn new(page: Rc<RefCell<AmiePage>>, fidgets: bool) -> Self {
         Moods {
             page,
+            fidgets,
+            playing: None,
             puff: String::new(),
             mood: None,
             numbers: None,
@@ -1874,8 +1965,8 @@ impl Moods {
         }
     }
 
-    /// What the Pokémon is seen doing, where its love command changed since the last poll, and
-    /// what a pet or a high five showed.
+    /// What the Pokémon is seen doing, where its love command or its animation changed since
+    /// the last poll, and what a pet or a high five showed.
     pub fn poll(
         &mut self,
         running: Option<&str>,
@@ -1888,7 +1979,7 @@ impl Moods {
             None
         };
         if running != Some(AMIE) {
-            self.numbers = None;
+            (self.numbers, self.playing) = (None, None);
             return Ok(Vec::new());
         }
         if self.mood == Some(HAND_RAISED) {
@@ -1897,44 +1988,68 @@ impl Moods {
         if let Some(picked) = touch.picked().filter(|picked| !picked.is_empty()) {
             self.puff = picked;
         }
-        if self.mood == before || (before == Some(LAST_BITE) && self.mood == Some(NEXT_BITE)) {
-            return self.shown();
-        }
-        let word = |table: &[(i64, &'static str)], number: i64| {
-            table
-                .iter()
-                .find(|(key, _)| *key == number)
-                .map(|(_, word)| *word)
-        };
-        let mut said = Vec::new();
-        for word in [
-            word(&MOODS_OVER, before.unwrap_or(0)),
-            word(&MOODS, self.mood.unwrap_or(0)),
-        ]
-        .into_iter()
-        .flatten()
-        {
-            if self.puff.is_empty() && OF_THE_PUFF.contains(&word) {
-                continue;
+        let mut moods: Vec<String> = Vec::new();
+        if self.mood != before && !(before == Some(LAST_BITE) && self.mood == Some(NEXT_BITE)) {
+            let word = |table: &[(i64, &'static str)], number: i64| {
+                table
+                    .iter()
+                    .find(|(key, _)| *key == number)
+                    .map(|(_, word)| *word)
+            };
+            for word in [
+                word(&MOODS_OVER, before.unwrap_or(0)),
+                word(&MOODS, self.mood.unwrap_or(0)),
+            ]
+            .into_iter()
+            .flatten()
+            {
+                if self.puff.is_empty() && OF_THE_PUFF.contains(&word) {
+                    continue;
+                }
+                if word == SAID_BY_EATING
+                    && self
+                        .page
+                        .borrow_mut()
+                        .motion_line("eat")?
+                        .is_some_and(|line| !line.is_empty())
+                {
+                    continue;
+                }
+                let called = self.page.borrow_mut().called()?;
+                moods.push(own(word, &[("pokemon", &called), ("puff", &self.puff)]));
             }
-            let called = self.page.borrow_mut().called()?;
-            said.push((
-                MOOD_LOG.to_string(),
-                own(word, &[("pokemon", &called), ("puff", &self.puff)]),
-                Some(Category::Screen),
-            ));
         }
+        moods.extend(self.moving()?);
+        let mut said: Vec<(String, String, Option<Category>)> = moods
+            .into_iter()
+            .map(|line| (MOOD_LOG.to_string(), line, Some(Category::Screen)))
+            .collect();
         said.extend(self.shown()?);
         Ok(said)
     }
 
+    /// The sentence for the animation just begun, if any: seen after a puff, a pleased pet, a
+    /// dislike and Affection rising, and every few seconds by itself (`FIDGETS`).
+    fn moving(&mut self) -> Result<Vec<String>> {
+        let before = self.playing;
+        self.playing = self.page.borrow().motion()?;
+        let Some(playing) = self.playing else {
+            return Ok(Vec::new());
+        };
+        if Some(playing) == before || (FIDGETS.contains(&playing) && !self.fidgets) {
+            return Ok(Vec::new());
+        }
+        let line = self.page.borrow_mut().motion_line(playing)?;
+        Ok(line.filter(|line| !line.is_empty()).into_iter().collect())
+    }
+
     /// What the Pokémon's numbers moving shows: a pet takes from Enjoyment and gives the hearts
     /// seen to Affection, and one it dislikes takes and gives none, Pikachu's ears 20 on
-    /// or_amie_interactions, where a puff eaten gave Affection 2, took nothing, and brought a
-    /// happy dance and no hearts on either screen. At full Affection a pet looks like a dislike,
-    /// so says nothing. Affection filling another of its row's icons brings an animation of its
-    /// own and a fountain of hearts, and the last of them a longer one, the Pokémon tumbling
-    /// round the screen for 8 s (or_amie_affection_increase, or_amie_affection_max).
+    /// or_amie_interactions, where a puff eaten gave Affection 2, took nothing, and brought no
+    /// hearts on either screen, its dance said by `_moving`. At full Affection a pet looks like a
+    /// dislike, so says nothing. Affection filling another of its row's icons brings an animation
+    /// of its own and a fountain of hearts, and the last of them a longer one, the Pokémon
+    /// tumbling round the screen for 8 s (or_amie_affection_increase, or_amie_affection_max).
     fn shown(&mut self) -> Result<Vec<(String, String, Option<Category>)>> {
         let before = self.numbers;
         self.numbers = self.page.borrow().numbers()?;
@@ -1947,8 +2062,6 @@ impl Moods {
         let mut lines: Vec<String> = Vec::new();
         if enjoyed < 0 && gained > 0 {
             lines.push(own("amie-hearts", &[("count", &gained)]));
-        } else if gained > 0 {
-            lines.push(own("amie-mood-delighted", &[("pokemon", &name)]));
         } else if enjoyed < 0 && numbers.0 < METER_FULL {
             lines.push(own("amie-mood-disliked", &[("pokemon", &name)]));
         } else if enjoyed == HIGH_FIVE && py::time::monotonic() - self.raised < HIGH_FIVE_SECONDS {

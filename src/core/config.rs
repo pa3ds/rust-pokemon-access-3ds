@@ -321,6 +321,9 @@ pub struct Amie {
     /// Amie says what the Pokémon is seen doing, as a sentence of its own: off as it ships, as
     /// `[pa3ds.ui] descriptions` is (Orion, 2026-11-06).
     pub descriptions: bool,
+    /// With `descriptions`, the small movements a Pokémon makes by itself every few seconds are
+    /// said too, beside what it does in reaction to the player.
+    pub fidgets: bool,
     /// Berry Picker says the berry before the Pokémon, "Pinap Berry for Pikachu", in the order a
     /// berry is given, its key and then the Pokémon's; or the Pokémon first, "Pikachu wants Pinap
     /// Berry".
@@ -352,6 +355,7 @@ impl Default for Amie {
     fn default() -> Self {
         Amie {
             descriptions: false,
+            fidgets: false,
             berry_first: true,
             one_at_a_time: true,
             berry_picker_style: "name".to_string(),
@@ -367,6 +371,7 @@ impl Table for Amie {
     fn fields(&self) -> Vec<(&'static str, Value)> {
         vec![
             ("descriptions", Value::Bool(self.descriptions)),
+            ("fidgets", Value::Bool(self.fidgets)),
             ("berry_first", Value::Bool(self.berry_first)),
             ("one_at_a_time", Value::Bool(self.one_at_a_time)),
             (
@@ -383,6 +388,7 @@ impl Table for Amie {
     fn set(&mut self, setting: &str, value: Value) {
         match (setting, value) {
             ("descriptions", Value::Bool(value)) => self.descriptions = value,
+            ("fidgets", Value::Bool(value)) => self.fidgets = value,
             ("berry_first", Value::Bool(value)) => self.berry_first = value,
             ("one_at_a_time", Value::Bool(value)) => self.one_at_a_time = value,
             ("berry_picker_style", Value::Str(value)) => self.berry_picker_style = value,
