@@ -12,7 +12,9 @@ use super::test_battle::record_of;
 use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
 use crate::core::speech::Category;
-use crate::games::common::field::keys::{BASE_STATS, TRAINING_ROUND};
+use crate::games::common::field::keys::{
+    BASE_STATS, DEFAULT_CONTEXTS, ROUND_PLACE, TRAINING_ROUND,
+};
 use crate::games::common::screen::ScreenText;
 use crate::games::common::touch::{ImageOf, Target};
 use crate::games::common::{lyt, pokemon};
@@ -385,6 +387,22 @@ fn test_the_pokemons_own_hit_is_logged_and_not_heard() {
         [("training".to_string(), "hit".to_string(), None)]
     );
     assert!(played.borrow().is_empty());
+}
+
+/// Taps 0.42 s apart kept the flag up from one swing to the next
+/// (as_super_training_large_training_bag).
+#[test]
+fn test_a_swing_is_heard_as_the_pokemon_starts_it_with_the_hit_flag_still_up() {
+    let (mut reader, memory, played) = played_core(1, true, crate::py::time::monotonic());
+    memory.u32(PAGE + super_training::ICONS + super_training::HITTING, &[1]);
+    for state in [6, 1, 6, 6, 1, 6] {
+        memory.u32(
+            PAGE + super_training::ICONS + super_training::STATE,
+            &[state],
+        );
+        reader.poll(Some(FIELD)).unwrap();
+    }
+    assert_eq!(*played.borrow(), ["hit"; 3]);
 }
 
 #[test]
@@ -1111,6 +1129,23 @@ fn cueing(player_z: Option<f32>, lead: f64) -> (super_training::Round, Rc<FakeMe
     }
     sparring.track(&found, false).unwrap();
     (sparring, memory, heard)
+}
+
+/// In steps of 10, as the map's list says a bearing, up nearer the Bot; its bobbing where it
+/// started is no step (Orion, 2026-11-10; the places as_super_training_l1_regimen_again's census
+/// read).
+#[test]
+fn test_c_says_how_far_up_and_across_the_pokemon_stands_from_where_it_started() {
+    let (sparring, memory, _heard) = cueing(Some(228.5), 0.6);
+    let mut said: Vec<String> = Vec::new();
+    for (x, z) in [(-2.4, 232.2), (-24.9, 159.6), (31.4, 227.2), (-2.4, 240.0)] {
+        memory.write(PLAYER_AT + super_training::PLACE_X, &floats(&[x]));
+        memory.write(PLAYER_AT + super_training::PLACE_Z, &floats(&[z]));
+        said.push(sparring.place().unwrap());
+    }
+    assert_eq!(said, ["at the start", "7 up 2 left", "3 right", "1 down"]);
+    assert_eq!(cueing(None, 0.6).0.place().unwrap(), "");
+    assert_eq!(DEFAULT_CONTEXTS[TRAINING_ROUND]["c"], ROUND_PLACE);
 }
 
 fn fly(memory: &FakeMemory, z: f32, frames: i64, state: i64) {

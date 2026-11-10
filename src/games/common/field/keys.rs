@@ -143,6 +143,9 @@ pub const STYLUS_NUMBERS: &str = "stylus numbers";
 pub const BASE_STATS: &str = "base stats";
 /// Says a Super Training round's score and clock (Orion, 2026-11-09).
 pub const ROUND_NUMBERS: &str = "round numbers";
+/// Says where a Super Training round's Pokémon stands, in steps up and across from where it
+/// started, as the map's list says a thing's bearing (Orion, 2026-11-10; `super_training.Round`).
+pub const ROUND_PLACE: &str = "round place";
 /// Amie's stylus moved a step over the Pokémon, which way across and down the screen each goes
 /// (Orion, 2026-11-05; `amie.StylusKeys`).
 pub const STYLUS_MOVES: [(&str, (i64, i64)); 4] = [
@@ -160,7 +163,7 @@ pub const STYLUS_JUMPS: [(&str, (i64, i64)); 4] = [
     ("stylus jump right", (1, 0)),
 ];
 
-pub const EXPLAINED: [(&str, &str); 14] = [
+pub const EXPLAINED: [(&str, &str); 15] = [
     (
         ENEMY_SIDE,
         "The enemy's Pokémon are said in the order the battle places them. In a horde of five that \
@@ -209,7 +212,12 @@ pub const EXPLAINED: [(&str, &str); 14] = [
     ),
     (
         ROUND_NUMBERS,
-        "In a round of Super Training, says the score and the time left.",
+        "In a round of Super Training, says the score, the time left and the energy meter.",
+    ),
+    (
+        ROUND_PLACE,
+        "In a round of Super Training, says how far up and across the Circle Pad has moved your \
+         Pokémon from where it started; up is nearer the Balloon Bot.",
     ),
     (
         "stylus up",
@@ -386,7 +394,8 @@ pub type Contexts = IndexMap<String, IndexMap<String, String>>;
 /// move the stylus over the Pokémon (Orion, 2026-11-05): they are the circle pad as Orion binds it,
 /// and Amie's script reads no stick, only that some button is pressed. R says what a screen draws
 /// and does not say, on down that line: Super Training's chart on its page, and a round's numbers
-/// (Orion, 2026-11-09).
+/// (Orion, 2026-11-09). C, the map's coordinates elsewhere, says where a round's Pokémon stands
+/// (Orion, 2026-11-10).
 pub static DEFAULT_CONTEXTS: LazyLock<Contexts> = LazyLock::new(|| {
     let mut keys: IndexMap<String, String> = BERRIES
         .iter()
@@ -427,7 +436,10 @@ pub static DEFAULT_CONTEXTS: LazyLock<Contexts> = LazyLock::new(|| {
         ),
         (
             TRAINING_ROUND.to_string(),
-            IndexMap::from([("r".to_string(), ROUND_NUMBERS.to_string())]),
+            IndexMap::from([
+                ("r".to_string(), ROUND_NUMBERS.to_string()),
+                ("c".to_string(), ROUND_PLACE.to_string()),
+            ]),
         ),
     ])
 });

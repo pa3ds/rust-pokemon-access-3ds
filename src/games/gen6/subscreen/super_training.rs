@@ -113,7 +113,9 @@ use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
 use crate::core::speech::Category;
 use crate::core::words::own;
-use crate::games::common::field::keys::{ROUND_NUMBERS, TRAINING_PAGE, TRAINING_ROUND};
+use crate::games::common::field::keys::{
+    ROUND_NUMBERS, ROUND_PLACE, TRAINING_PAGE, TRAINING_ROUND,
+};
 use crate::games::common::layout::Layouts;
 use crate::games::common::pictures::words as picture_words;
 use crate::games::common::screen::ScreenText;
@@ -185,10 +187,17 @@ pub const TOTAL_FULL: i64 = 510;
 pub const SHOT_ICON: &str = "shot_icon0";
 /// That state, from when the Pokémon has finished its bag until it is tapped: the "!" over it.
 pub const FINISHED: i64 = 4;
-/// The states measured: idle, finished, hitting, and showing what a special bag (7) or a stat's
-/// (8) has given. Any other is logged, to learn what it is.
+/// That state, while the Pokémon swings at its bag. Swings a tap apart run together in it and in
+/// `HITTING`, at pa3ds's fifth of a second, but less often in both: of 47 taps 0.42 s apart on a
+/// Sp. Atk Bag L, its coming caught 33, `HITTING` rising 25 (as_super_training_large_training_bag).
+/// The Pokémon's own hit raises `HITTING` alone (as_super_training_bags, spike 290).
+pub const SWINGING: i64 = 6;
+/// The states measured: idle, finished, hitting, and showing what a bag has given (7 and 8: a
+/// special bag's and a stat's, it seemed, until a Sp. Atk Bag L gave 7). Any other is logged, to
+/// learn what it is.
 pub const STATES_SEEN: [i64; 5] = [1, 4, 6, 7, 8];
 pub const BAG_FINISHED: &str = "training-bag-finished";
+pub const AT_START: &str = "training-at-start";
 pub const STAT: &str = "training-stat";
 pub const TOTAL: &str = "training-total";
 pub const TOTAL_POINTS: &str = "training-total-points";
@@ -257,8 +266,18 @@ pub const BLOCKED: &str = "training-blocked";
 pub const BLOCK_NOW: &str = "training-block-now";
 /// The round's Pokémon: its +0x18 how far it stands from the Bot, as a ball's own is (spike 290).
 pub const PLAYER: &str = "N5actor19SparringPlayerActorE";
+/// Where a ball or the Pokémon keeps its place across, less as the Circle Pad takes it left, its
+/// height after it at +0x14 (a census of as_super_training_l1_regimen_again's round, 2026-11-10).
+pub const PLACE_X: i64 = 0x10;
 /// Where a ball or the Pokémon keeps how far it is from the Bot.
 pub const PLACE_Z: i64 = 0x18;
+/// Where the Pokémon starts a round, across and from the Bot (as_super_training_l1_regimen and
+/// _again). Up, the Circle Pad brings it to about 149 from the Bot, and across it went from -75 to
+/// 63 on as_super_training_l1_regimen.
+pub const STARTS_AT: (f64, f64) = (-2.4, 228.5);
+/// How far a step of C's is, across or from the Bot, so that about 8 up is as near as the
+/// Pokémon comes, and its bobbing where it stands, 3 either way, is no step (Orion, 2026-11-10).
+pub const PLACE_STEP: f64 = 10.0;
 /// How many of the round's frames a ball has flown.
 pub const BALL_FRAMES: i64 = 0x10C;
 /// A round's frames a second: 45 in 1.46 s of Spewpa's ball.
@@ -591,15 +610,6 @@ impl Goals {
     }
 }
 
-/// Python's `max` of floats: the first of the largest, a NaN kept only where it came first.
-fn largest(values: &[f64]) -> Option<f64> {
-    let (&first, rest) = values.split_first()?;
-    Some(rest.iter().fold(
-        first,
-        |best, &value| if value > best { value } else { best },
-    ))
-}
-
 /// Goals told apart where several are up, counted from the left: "goal 1", "goal 2", as Orion
 /// did not know there could be more than one (2026-11-10). A goal alone is "goal".
 fn numbered(goals: Vec<Target>) -> Vec<Target> {
@@ -689,6 +699,8 @@ pub struct CoreTraining {
     waiting: bool,
     /// Whether a hit was landing at the last poll.
     hitting: bool,
+    /// What the Pokémon was doing at the last poll.
+    state: Option<i64>,
     /// The last state logged as not measured.
     logged: Option<i64>,
 }
@@ -728,6 +740,7 @@ impl CoreTraining {
             said: false,
             waiting: false,
             hitting: false,
+            state: None,
             logged: None,
         }
     }
@@ -778,10 +791,12 @@ impl CoreTraining {
         let Some(now) = now else {
             self.hitting = false;
             self.waiting = false;
+            self.state = None;
             return Ok(Vec::new());
         };
         let mut lines = Vec::new();
-        if now.hitting && !self.hitting {
+        let swung = now.state == SWINGING && self.state.is_some_and(|state| state != SWINGING);
+        if (now.hitting && !self.hitting) || swung {
             // The clock read only after a tap: a replay's clock is its tape's, and presses none.
             let tapped = tapped();
             if tapped > f64::NEG_INFINITY && py::time::monotonic() - tapped <= TAPPED_HIT {
@@ -789,7 +804,7 @@ impl CoreTraining {
             }
             lines.push((PAGE_LOG.to_string(), "hit".to_string(), None));
         }
-        self.hitting = now.hitting;
+        (self.hitting, self.state) = (now.hitting, Some(now.state));
         if !STATES_SEEN.contains(&now.state) && Some(now.state) != self.logged {
             lines.push((PAGE_LOG.to_string(), format!("state {}", now.state), None));
         }
@@ -867,6 +882,8 @@ impl TrainingKeys {
     pub fn press(&self, action: &str, _running: Option<&str>) -> Result<String> {
         let said = if action == ROUND_NUMBERS {
             self.round.borrow().numbers()?
+        } else if action == ROUND_PLACE {
+            self.round.borrow().place()?
         } else {
             self.numbers()?
         };
@@ -1413,17 +1430,57 @@ impl Round {
     }
 
     /// How far from the Bot the Pokémon stands, where a ball reaches it: the Circle Pad moves
-    /// it from 228 to 162 or so.
+    /// it from 228 to 149 or so.
     fn arrival(&self) -> Result<f64> {
-        let mut places = Vec::new();
+        let spot = self.spot()?;
+        Ok(match spot {
+            None => ARRIVES_AT,
+            Some(spot) => spot.1,
+        })
+    }
+
+    /// Where the Pokémon stands, across and from the Bot, or None before it is found.
+    fn spot(&self) -> Result<Option<(f64, f64)>> {
+        let mut spots = Vec::new();
         for (&player, &vtable) in &self.players {
             let head = self.memory.read(player, PLACE_Z + 4)?;
             if u32(&head, 0)? == vtable {
-                places.push(f32(&head, PLACE_Z)?);
+                spots.push((f32(&head, PLACE_X)?, f32(&head, PLACE_Z)?));
             }
         }
         // A round holds more than one object of the class, and only the Pokémon stands far off.
-        Ok(largest(&places).unwrap_or(ARRIVES_AT))
+        // Python's `max(..., key=...)`: the first of the farthest, a NaN kept only where first.
+        let mut farthest: Option<(f64, f64)> = None;
+        for spot in spots {
+            if farthest.is_none_or(|best| spot.1 > best.1) {
+                farthest = Some(spot);
+            }
+        }
+        Ok(farthest)
+    }
+
+    /// Where the Pokémon stands, in steps up and across from where it started, "7 up 2 left",
+    /// as the map's list says a bearing; "at the start" within half a step of it, and "" before
+    /// it is found. Up is nearer the Bot, the way the Circle Pad takes it.
+    pub fn place(&self) -> Result<String> {
+        let Some(spot) = self.spot()? else {
+            return Ok(String::new());
+        };
+        let up = py::round((STARTS_AT.1 - spot.1) / PLACE_STEP)?;
+        let across = py::round((spot.0 - STARTS_AT.0) / PLACE_STEP)?;
+        let said: Vec<String> = [
+            (up, if up > 0 { "way-up" } else { "way-down" }),
+            (across, if across > 0 { "way-right" } else { "way-left" }),
+        ]
+        .into_iter()
+        .filter(|(steps, _way)| *steps != 0)
+        .map(|(steps, way)| own("steps", &[("count", &steps.abs()), ("way", &own(way, &[]))]))
+        .collect();
+        Ok(if said.is_empty() {
+            own(AT_START, &[])
+        } else {
+            said.join(" ")
+        })
     }
 
     /// What to say now, with what the log calls it and its category, while a round runs:
