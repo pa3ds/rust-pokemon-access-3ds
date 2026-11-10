@@ -159,6 +159,25 @@ pub static GOAL_FRAME: LazyLock<Regex> = LazyLock::new(|| {
 pub const BARRIER_IMAGE: &str = "barrier_target.bclim";
 /// pa3ds's word for it: the game's coach speaks of "a barrier" and names no picture.
 pub const BARRIER: &str = "training-barrier";
+/// Seconds from a tap to its shot landing, from where the Pokémon starts: the barrier went 1.27 s
+/// after Poochyena's tap that broke it (spike 200, live on Graveler's round, 2026-11-10).
+pub const FLIGHT: f64 = 1.27;
+/// How far from the Bot Poochyena's shot flies a second: 206 to 71 in 1.06 s, the same live run.
+/// Each Pokémon's is read from its own shots (`SHOT_STEP`).
+pub const SHOT_SPEED: f64 = 127.0;
+/// Where a shot of the player's keeps how far it comes nearer the Bot each of the round's frames,
+/// less than 0: Poochyena's -4.31 (spike 200, live), Ralts's about -6.2 (live on Wailmer). A shot
+/// that has landed stays in flight where it stopped, and its object is used again for the next, so
+/// timing one from where it was first seen does not do.
+pub const SHOT_STEP: i64 = 0x48;
+/// How long before its last place the barrier's two earlier places are taken from, to tell how it
+/// moves (`ahead`).
+pub const LEAD_SPAN: [f64; 2] = [0.4, 0.8];
+/// Seconds after which the barrier's last place is too old to aim ahead from.
+pub const LEAD_STALE: f64 = 0.5;
+/// How little three places may turn, in twice the area between them in square pixels, to be taken
+/// for a straight line: the barrier's, 0.4 s apart on its circle, make about 30.
+pub const LEAD_STRAIGHT: f64 = 1.0;
 /// What the texture's name of a training bag's picture starts with, in the list and beside the
 /// Pokémon alike.
 pub const BAG_IMAGE: &str = "sand_bag";
@@ -286,6 +305,9 @@ pub const PLACE_Z: i64 = 0x18;
 /// _again). Up, the Circle Pad brings it to about 149 from the Bot, and across it went from -75 to
 /// 63 on as_super_training_l1_regimen.
 pub const STARTS_AT: (f64, f64) = (-2.4, 228.5);
+/// How far from the Bot a shot would have to start to land at once, the time from a tap to a shot
+/// in the air counted in: where `FLIGHT` and `SHOT_SPEED` put it.
+pub const LANDS_AT: f64 = STARTS_AT.1 - FLIGHT * SHOT_SPEED;
 /// How far a step of C's is, across or from the Bot, so that about 8 up is as near as the
 /// Pokémon comes, and its bobbing where it stands, 3 either way, is no step (Orion, 2026-11-10).
 pub const PLACE_STEP: f64 = 10.0;
@@ -553,18 +575,115 @@ pub fn pictures(
     Ok(out)
 }
 
+/// Where a thing seen at these (when, across, up) will be `seconds` from `now`, by its speed
+/// and its turn over `LEAD_SPAN`; None where too little is seen, or too long ago.
+///
+/// The barrier's target runs round a circle 41 pixels out from its middle every 12 s, a tenth of
+/// the way round in the time a shot flies, so a shot at where it is lands 28 pixels behind it: 50
+/// plain shots and 3 Charged Shots so aimed never broke it, and the first led one broke it, twice
+/// (spike 200, live on Graveler's round, 2026-11-10). Its speed and turn put a shot within a few
+/// pixels.
+pub fn ahead(seen: &[(f64, f64, f64)], now: f64, seconds: f64) -> Option<(f64, f64)> {
+    let &last = seen.last()?;
+    if now - last.0 > LEAD_STALE {
+        return None;
+    }
+    // Python's `min(seen, key=...)`: the first of the nearest in time.
+    let nearest = |span: f64| {
+        let mut best = seen[0];
+        for &s in &seen[1..] {
+            if (s.0 - (last.0 - span)).abs() < (best.0 - (last.0 - span)).abs() {
+                best = s;
+            }
+        }
+        best
+    };
+    let (middle, first) = (nearest(LEAD_SPAN[0]), nearest(LEAD_SPAN[1]));
+    if !(first.0 < middle.0 && middle.0 < last.0) {
+        return None;
+    }
+    let left = now + seconds - last.0;
+    let ((_, ax, ay), (_, bx, by), (_, cx, cy)) = (first, middle, last);
+    let turning = 2.0 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by));
+    if turning.abs() < LEAD_STRAIGHT {
+        let rate = left / (last.0 - middle.0);
+        return Some((cx + (cx - bx) * rate, cy + (cy - by) * rate));
+    }
+    // The circle through the three places, and the way round it at the speed it has come.
+    let (a, b, c) = (ax * ax + ay * ay, bx * bx + by * by, cx * cx + cy * cy);
+    let ux = (a * (by - cy) + b * (cy - ay) + c * (ay - by)) / turning;
+    let uy = (a * (cx - bx) + b * (ax - cx) + c * (bx - ax)) / turning;
+    let mut angle = (cy - uy).atan2(cx - ux);
+    let swept = remainder(angle - (by - uy).atan2(bx - ux), std::f64::consts::TAU);
+    angle += swept / (last.0 - middle.0) * left;
+    let radius = py::hypot(cx - ux, cy - uy);
+    Some((ux + radius * angle.cos(), uy + radius * angle.sin()))
+}
+
+/// Python's `math.remainder`, as CPython's `m_remainder` makes it: `x` less the multiple of `y`
+/// nearest it, halves to even. Here `y` is a full turn, so the domain errors Python raises for an
+/// infinite `x` or a `y` of 0 come only of a NaN, which goes through.
+///
+/// `py` has no `remainder`; a private helper meanwhile, as `docs/porting.md` says.
+fn remainder(x: f64, y: f64) -> f64 {
+    if !(x.is_finite() && y.is_finite()) {
+        return if x.is_nan() {
+            x
+        } else if y.is_nan() {
+            y
+        } else if x.is_infinite() {
+            f64::NAN
+        } else {
+            x
+        };
+    }
+    if y == 0.0 {
+        return f64::NAN;
+    }
+    let (absx, absy) = (x.abs(), y.abs());
+    let m = absx % absy;
+    let c = absy - m;
+    let r = if m < c {
+        m
+    } else if m > c {
+        -c
+    } else {
+        // Half way: the one that leaves an even multiple of y.
+        m - 2.0 * ((0.5 * (absx - m)) % absy)
+    };
+    1.0f64.copysign(x) * r
+}
+
 /// The goals a round of Super Training shows, as touch targets on the bottom screen.
 pub struct Goals {
     layouts: Rc<Layouts>,
     image_of: ImageOf,
+    /// How long a shot takes to land, from where the Pokémon stands (`Round.flight`).
+    flight: Rc<dyn Fn() -> Result<f64>>,
+    /// (when, across, up) of a Bot's barrier at each screen poll lately, to aim ahead of.
+    barrier: RefCell<Vec<(f64, f64, f64)>>,
 }
 
 impl Goals {
+    /// `flight` is `FLIGHT`, as Python's defaults.
     pub fn new(layouts: Rc<Layouts>, image_of: ImageOf) -> Self {
-        Goals { layouts, image_of }
+        Goals::with_flight(layouts, image_of, Rc::new(|| Ok(FLIGHT)))
     }
 
-    /// Keep a press held on a goal on it as it drifts: nothing to say.
+    pub fn with_flight(
+        layouts: Rc<Layouts>,
+        image_of: ImageOf,
+        flight: Rc<dyn Fn() -> Result<f64>>,
+    ) -> Self {
+        Goals {
+            layouts,
+            image_of,
+            flight,
+            barrier: RefCell::new(Vec::new()),
+        }
+    }
+
+    /// Keep a press held on a goal on it as it drifts, and follow a barrier: nothing to say.
     ///
     /// Touch mode, which the navigator owns, is handed here, where Python's `Goals` keeps a
     /// callable returning it; None is Python's without one.
@@ -579,11 +698,29 @@ impl Goals {
         {
             touch.follow()?;
         }
+        let seen: Vec<(f64, f64)> = if running != Some(SPARRING) {
+            Vec::new()
+        } else {
+            pictures(&self.layouts, &self.image_of, true, &|image| {
+                image == BARRIER_IMAGE
+            })?
+            .into_iter()
+            .map(|(_pane, _root, _image, across, up)| (across, up))
+            .collect()
+        };
+        let mut barrier = self.barrier.borrow_mut();
+        let Some(&(across, up)) = seen.first() else {
+            barrier.clear();
+            return Ok(Vec::new());
+        };
+        barrier.push((py::time::monotonic(), across, up));
+        let excess = barrier.len().saturating_sub(10);
+        barrier.drain(..excess);
         Ok(Vec::new())
     }
 
-    /// The goals up on the top screen while a round runs, and a Bot's barrier, each at the
-    /// pixel that shoots it.
+    /// The goals up on the top screen while a round runs, each at the pixel that shoots it, and
+    /// a Bot's barrier at the pixel that shoots where it will be as the shot lands (`ahead`).
     pub fn targets(&self, running: Option<&str>) -> Result<Vec<Target>> {
         if running != Some(SPARRING) {
             return Ok(Vec::new());
@@ -591,9 +728,18 @@ impl Goals {
         let layouts = &self.layouts;
         let mut found: Vec<Target> = Vec::new();
         let mut barriers: Vec<Target> = Vec::new();
-        for (pane, _root, image, across, up) in pictures(layouts, &self.image_of, true, &|image| {
-            GOAL_FRAME.is_match(image) || image == BARRIER_IMAGE
-        })? {
+        for (pane, _root, image, mut across, mut up) in
+            pictures(layouts, &self.image_of, true, &|image| {
+                GOAL_FRAME.is_match(image) || image == BARRIER_IMAGE
+            })?
+        {
+            if image == BARRIER_IMAGE {
+                let now = py::time::monotonic();
+                let seconds = (self.flight)()?;
+                if let Some(led) = ahead(&self.barrier.borrow(), now, seconds) {
+                    (across, up) = led;
+                }
+            }
             if let Some((x, y)) = aim(
                 TOP_WIDTH as f64 / 2.0 + across,
                 TOP_HEIGHT as f64 / 2.0 - up,
@@ -1299,6 +1445,9 @@ pub struct Round {
     aura_missing: i64,
     /// The Bot's balls in the air, followed every tick for the moment to block.
     flying: IndexMap<i64, Flight>,
+    /// How far from the Bot the round's shots fly a second, the last one's: each Pokémon's own
+    /// (`flight`). Poochyena's until one has flown.
+    shot_speed: f64,
     /// Told as a Bot's ball leaves, with its words, to be heard as `[pa3ds.training]` asks.
     shot_fired: Rc<dyn Fn(&str)>,
     /// Told `lead` seconds before a ball arrives, as `[pa3ds.training]` asks.
@@ -1391,6 +1540,7 @@ impl Round {
             charged: false,
             aura_missing: 0,
             flying: IndexMap::new(),
+            shot_speed: SHOT_SPEED,
         };
         round.forget();
         round
@@ -1408,6 +1558,7 @@ impl Round {
         self.charged = false;
         self.aura_missing = 0;
         self.flying = IndexMap::new();
+        self.shot_speed = SHOT_SPEED;
     }
 
     /// The balls and the Pokémon a sweep found, by class: all of them, or with `adding` the
@@ -1502,6 +1653,17 @@ impl Round {
             }
         }
         Ok(farthest)
+    }
+
+    /// Seconds a shot takes from a tap to landing, from where the Pokémon stands and at the
+    /// speed its own shots fly: Ralts's flew half again as fast as Poochyena's.
+    pub fn flight(&self) -> Result<f64> {
+        let spot = self.spot()?;
+        let from = match spot {
+            None => STARTS_AT.1,
+            Some(spot) => spot.1,
+        };
+        Ok((from - LANDS_AT) / self.shot_speed)
     }
 
     /// Where the Pokémon stands, in steps up and across from where it started, "7 up 2 left",
@@ -1756,6 +1918,12 @@ impl Round {
                     );
                 }
                 blocked |= state == STOPPED && before == Some(FLYING);
+            } else if state == FLYING {
+                let step = f32(&head, SHOT_STEP)?;
+                if step < 0.0 {
+                    // A shot of the player's: how fast it flies, for where to aim at a barrier.
+                    self.shot_speed = -step * ROUND_FRAMES as f64;
+                }
             }
         }
         Ok((launched, blocked))

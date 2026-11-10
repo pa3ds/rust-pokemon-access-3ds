@@ -264,6 +264,36 @@ fn test_goals_are_numbered_from_the_left_only_when_several_are_up() {
     );
 }
 
+/// Its target circles 41 pixels out every 11.9 s: aimed where it was, 50 shots missed it, and
+/// led by its speed and turn the first broke it (spike 200, live on Graveler's round).
+#[test]
+fn test_a_barrier_is_shot_where_it_will_be_as_the_shot_lands() {
+    let turn = 2.0 * std::f64::consts::PI / 11.9;
+    let at = |when: f64| (41.0 * (turn * when).cos(), 41.0 * (turn * when).sin());
+    let dist = |a: (f64, f64), b: (f64, f64)| crate::py::hypot(a.0 - b.0, a.1 - b.1);
+    let seen: Vec<(f64, f64, f64)> = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
+        .into_iter()
+        .map(|when| (when, at(when).0, at(when).1))
+        .collect();
+    let led = super_training::ahead(&seen, 1.1, 1.27).unwrap_or((f64::INFINITY, f64::INFINITY));
+    assert!(dist(led, at(2.37)) < 0.1);
+    assert!(dist(at(1.0), at(2.37)) > 25.0);
+    assert_eq!(
+        super_training::ahead(&seen, 1.0 + super_training::LEAD_STALE + 0.1, 1.0),
+        None
+    );
+    assert_eq!(
+        super_training::ahead(&seen[seen.len() - 2..], 1.0, 1.0),
+        None
+    );
+    // Going straight, it is led along its line.
+    let line: Vec<(f64, f64, f64)> = [0.0, 0.4, 0.8]
+        .into_iter()
+        .map(|when| (when, 10.0 * when, 5.0))
+        .collect();
+    assert_eq!(super_training::ahead(&line, 0.8, 1.0), Some((18.0, 5.0)));
+}
+
 /// A bottom-screen layout drawing a picture of each image, with what each draws, and the
 /// pictures in order.
 fn drawing(images: &[&'static str]) -> (FakeLayouts, ImageOf, Vec<i64>) {

@@ -619,7 +619,6 @@ impl Subscreens {
             Rc::new(|| f64::NEG_INFINITY),
         )));
         let medals = Rc::new(Medals::new(running.clone()));
-        let goals = Rc::new(Goals::new(layouts.clone(), image_of.clone()));
         // A message on the bottom screen waits for a tap on no button: Super Training's welcome.
         let waiting = Rc::new(Waiting::new(layouts.clone(), image_of.clone()));
         // And the training bags in its page's list, pictures with no touch area of their own.
@@ -694,6 +693,11 @@ impl Subscreens {
                 ..RoundOptions::default()
             },
         )));
+        // A barrier is offered where a shot will meet it, by how far the round's Pokémon stands.
+        let goals = Rc::new(Goals::with_flight(layouts.clone(), image_of.clone(), {
+            let sparring = sparring.clone();
+            Rc::new(move || sparring.borrow().flight())
+        }));
         // And R says what the page and a round draw and do not say.
         let training_keys = Rc::new(TrainingKeys::new(
             core.clone(),
