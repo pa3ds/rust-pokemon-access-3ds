@@ -4321,6 +4321,74 @@ fn test_p_goes_to_a_side_a_boulder_is_pushed_from_and_comma_and_period_choose_wh
     );
 }
 
+/// A big boulder filling a path two cells wide, the player against its east side.
+fn filled_path(pushes: &[&'static str]) -> Field {
+    Field {
+        interactables: vec![Interactable {
+            size: (2, 2),
+            code: BIG_BOULDER,
+            source: 0x08D1F458,
+            move_model: true,
+            pushes: Some(pushes.iter().map(|&way| (way, false)).collect()),
+            ..Interactable::new("obstacles", "object", (95, 177))
+        }],
+        ..Field::new(street().zone, (97, 178))
+    }
+}
+
+/// `PATH_WALLS`.
+fn path_walls() -> Vec<Cell> {
+    let mut walls: Vec<Cell> = (80..120).flat_map(|x| [176, 179].map(|z| (x, z))).collect();
+    walls.extend(
+        [80, 119]
+            .into_iter()
+            .flat_map(|x| [177, 178].map(|z| (x, z))),
+    );
+    walls
+}
+
+/// Fiery Path (or_boulder_pathfinding_glitch): from its east side, "moveable east or west",
+/// and P had no way to push it east. Only the sides the player can get to count.
+#[test]
+fn test_a_boulder_filling_a_path_moves_only_the_way_it_can_be_got_behind() {
+    let mut rig = navigator(Want {
+        blocked: path_walls(),
+        ..on(filled_path(&["east", "west"]))
+    });
+    rig.press(ITEM_READ);
+    rig.press(PATH_NEXT);
+    rig.press(PATHFIND);
+    assert_eq!(
+        said(&rig.backend),
+        [
+            "object, 1 of 1, 1 west, moveable west",
+            "push west, 1 of 1",
+            "to push west: object, 1 west"
+        ]
+    );
+}
+
+/// Shift and P said "to push east: Strength 2 west, 1 west" from a boulder's east side: a way
+/// through it to where it is pushed from. Every way it moves is still said, none being open.
+#[test]
+fn test_no_way_to_a_boulders_far_side_goes_through_the_boulder() {
+    let mut rig = navigator(Want {
+        blocked: path_walls(),
+        ..on(filled_path(&["east"]))
+    });
+    rig.press(ITEM_READ);
+    rig.press_key("shift+p");
+    rig.press(PATHFIND);
+    assert_eq!(
+        said(&rig.backend),
+        [
+            "object, 1 of 1, 1 west, moveable east",
+            "no path to object, object in the way",
+            "no path to object"
+        ]
+    );
+}
+
 /// Off the way to push it north, the way found again still ends south of it, though its west
 /// side, pushed east from, is nearer.
 #[test]

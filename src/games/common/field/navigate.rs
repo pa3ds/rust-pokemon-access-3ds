@@ -787,6 +787,7 @@ impl Navigator {
             self.say(&own("boulder-immoveable", &[]));
             return Ok(());
         }
+        let pushes = self.guide.pushes(r#where, &item)?;
         let ways: Vec<&'static str> = pushes.iter().map(|&(way, _)| way).collect();
         let count = ways.len() as i64;
         let at = match self
@@ -883,8 +884,8 @@ impl Navigator {
                 )
             );
         }
-        if let Some(pushes) = &item.pushes {
-            way += &format!(", {}", moveable(pushes));
+        if item.pushes.is_some() {
+            way += &format!(", {}", moveable(&self.guide.pushes(r#where, item)?));
         }
         let mut parts = vec![self.label(item, r#where.zone)?, way];
         if self.wording.positions {

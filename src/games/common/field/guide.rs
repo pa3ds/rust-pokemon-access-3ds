@@ -812,6 +812,22 @@ fn reached(
     ground.ends_at(item, end, walked[0])
 }
 
+/// `ground` for a way to `item`: to a big boulder, a way round it. Where Strength walks
+/// through a boulder on the way to something past it, a way through this one to its far side
+/// leaves the boulder pushed ahead of the player, and no side to push it from: Shift and P said
+/// "to push east: Strength 2 west, 1 west" from a boulder's east side, on a path it fills
+/// (or_boulder_pathfinding_glitch).
+fn round_it(ground: Ground, item: &Interactable) -> Ground {
+    if item.pushes.is_none() {
+        return ground;
+    }
+    let mut shoves = ground.shoves.clone();
+    for cell in item.cells() {
+        shoves.insert(cell, HashSet::new());
+    }
+    Ground { shoves, ..ground }
+}
+
 /// The way P finds to a thing, before it is said (`Guide._way`).
 struct Way {
     /// The ground it was found on.
@@ -1111,6 +1127,43 @@ impl Guide {
         found
     }
 
+    /// The ways a big boulder can be pushed that the player can get to the side of, without
+    /// going through it: from the east side of a boulder filling a path, "moveable west", though
+    /// it would move east too for someone west of it (or_boulder_pathfinding_glitch). Every way
+    /// it moves where they can get to no side of it, or no way can be found here.
+    pub fn pushes(
+        &self,
+        r#where: &Field,
+        item: &Interactable,
+    ) -> Result<Vec<(&'static str, bool)>> {
+        let ways = item.pushes.clone().unwrap_or_default();
+        if ways.is_empty() || !self.routes || r#where.on_rail || r#where.steer.is_some() {
+            return Ok(ways);
+        }
+        let ground = round_it(self.ground(r#where, true)?, item);
+        let sides = aimed(
+            ground.goals(item)?,
+            &ways.iter().map(|&(way, _)| way).collect(),
+        );
+        let cells: Vec<Cell> = sides.keys().copied().collect();
+        let reached = ground.reached(r#where.cell, &cells)?;
+        let mut open_ways: HashSet<Option<&'static str>> = HashSet::new();
+        for (&cell, &way) in &sides {
+            for &floor in reached.get(&cell).into_iter().flatten() {
+                if ground.ends_at(item, cell, floor)? {
+                    open_ways.insert(way);
+                    break;
+                }
+            }
+        }
+        let open: Vec<(&'static str, bool)> = ways
+            .iter()
+            .copied()
+            .filter(|push| open_ways.contains(&Some(push.0)))
+            .collect();
+        Ok(if open.is_empty() { ways } else { open })
+    }
+
     /// `ways`' walk over the things listed, inside its `try`.
     fn census(
         &mut self,
@@ -1366,7 +1419,7 @@ impl Guide {
         heading: &str,
         push: Option<&str>,
     ) -> Result<Option<Way>> {
-        let ground = self.ground(r#where, hm)?;
+        let ground = round_it(self.ground(r#where, hm)?, item);
         if r#where.on_rail && ground.corridor.is_none() {
             return Ok(None);
         }
@@ -2060,7 +2113,7 @@ impl Guide {
         if ground.hm {
             return Ok(None);
         }
-        let hm = self.ground(r#where, true)?;
+        let hm = round_it(self.ground(r#where, true)?, item);
         let mut goals = aimed(hm.goals(item)?, sides);
         let mut way = hm.find(r#where.cell, &goals, heading, Some(item), false, None)?;
         let mut stop: Option<usize> = None;
@@ -2077,6 +2130,10 @@ impl Guide {
         }
         let way = way.unwrap_or_default();
         let cells = pathfind::cells(&way);
+        if item.pushes.is_some() && item.cells().iter().any(|cell| cells.contains(cell)) {
+            // In its own way, a big boulder needs no move: none gets the player past it.
+            return Ok(None);
+        }
         let mut moves: Vec<String> = Vec::new();
         for i in 1..cells.len() {
             if walks(ground, cells[i - 1], cells[i])? {
