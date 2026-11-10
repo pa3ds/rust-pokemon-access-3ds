@@ -25,7 +25,7 @@
 //! descriptions, which some records of a route hold, and they name no door. In turn:
 //!
 //! 1. A **marked** facility is the door into a building of its town nearest its mark, where that
-//!    door is within `AT` cells (a Pokémon Center's mark is its door's place to the unit, 13 of 16)
+//!    door is within `AT` cells (a Pokémon Center's mark is its door's place to the unit, 12 of 16)
 //!    or within `MARKED` cells with no other nearly as near (`APART`): the Hau'oli shops' marks are
 //!    1.2 to 3.9 cells from their doors.
 //! 2. A **kind** of building, its zone's music (`ROW_MUSIC`), behind doors in two towns or more, is
@@ -39,6 +39,10 @@
 //!
 //! The words are the ROM's, in the player's language, and the pairing never reads a word, so it
 //! pairs the same doors in every language.
+//!
+//! Bound by:
+//! - ADR-0008: the game's words come out of the player's own ROM, in their language.
+//! - ADR-0023: the game's own word comes behind the player's names and ahead of the shipped.
 
 use std::collections::{HashMap, HashSet};
 
