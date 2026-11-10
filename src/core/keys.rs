@@ -24,6 +24,8 @@
 
 use std::collections::{HashMap, HashSet};
 
+use indexmap::IndexMap;
+
 #[cfg(windows)]
 use std::cell::RefCell;
 #[cfg(windows)]
@@ -241,6 +243,15 @@ pub fn bound<S: AsRef<str>>(
     }
     let bare = name.replace(&format!("{SHIFT}+"), "");
     if has(&bare) { bare } else { String::new() }
+}
+
+/// A screen's own action for a press, Shift falling back as `bound` has it, or None.
+pub fn shifted(table: &IndexMap<String, String>, name: &str) -> Option<String> {
+    let name = name.to_lowercase();
+    table
+        .get(&name)
+        .or_else(|| table.get(&name.replace(&format!("{SHIFT}+"), "")))
+        .cloned()
 }
 
 /// Whether a modifier is down *now*. `GetAsyncKeyState` reads the physical keyboard, so

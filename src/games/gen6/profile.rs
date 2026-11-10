@@ -26,6 +26,7 @@ use crate::core::binary::u32;
 use crate::core::clips::Clips;
 use crate::core::config::{CUE_AS_SOUND, CUE_OFF, DRAG_TOGGLE, PARTY_BEEPS, PARTY_OFF, Tables};
 use crate::core::discovery::{Discovery, Found, HEAP_SPAN, LINEAR_SPAN, within};
+use crate::core::keys::shifted;
 use crate::core::memory::{Cache, Memory, phase};
 use crate::core::names::{FURNITURE, GamePlace, GameSprite, Names, TILES};
 use crate::core::pathfind::{COMPASS, walked};
@@ -1870,15 +1871,16 @@ impl Gen6Profile {
     }
 
     /// Answer a navigation key, by name: the screen's own first, while one with keys of its own
-    /// runs (`context`), in every mode.
+    /// runs (`context`), in every mode, Shift falling back there before anywhere else
+    /// (`keys.bound`): Super Training's charge holds Shift, and R under it was the battle's
+    /// `shift+r`, the enemy's side, where the round's numbers were wanted (Orion, 2026-11-10).
     pub fn press(&self, key: &str) -> Result<()> {
         phase(&*self.memory, "keys", || {
             let context = self.context()?;
             let action = context.and_then(|context| {
                 self.contexts
                     .get(context)
-                    .and_then(|keys| keys.get(&key.to_lowercase()))
-                    .cloned()
+                    .and_then(|keys| shifted(keys, key))
             });
             let Some(action) = action else {
                 return self.navigator.borrow_mut().press_key(key);

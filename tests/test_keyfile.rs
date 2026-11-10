@@ -13,7 +13,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use indexmap::IndexMap;
 
 use crate::core::keyfile::{self, Asked, Bindings, Wanted};
-use crate::core::keys::{Released, WM_KEYDOWN, WM_KEYUP, WM_SYSKEYDOWN, bound, modified, track};
+use crate::core::keys::{
+    Released, WM_KEYDOWN, WM_KEYUP, WM_SYSKEYDOWN, bound, modified, shifted, track,
+};
 
 const LIST: &str = "list";
 const DIRECTION: &str = "direction";
@@ -1056,6 +1058,29 @@ fn test_shift_falls_back_to_the_key_on_its_own() {
 fn test_shift_falls_back_beside_ctrl_as_it_holds_a_press() {
     assert_eq!(bound("ctrl+shift+left", ["ctrl+left"], false), "ctrl+left");
     assert_eq!(bound("ctrl+shift+left", ["left"], false), "");
+}
+
+/// Super Training's charge holds Shift, and R said the battle's enemy side, `shift+r`, where
+/// the round's numbers were wanted (Orion, 2026-11-10).
+#[test]
+fn test_a_screens_own_key_answers_with_shift_held_ahead_of_the_shifted_one_elsewhere() {
+    let table = |pairs: &[(&str, &str)]| -> IndexMap<String, String> {
+        pairs
+            .iter()
+            .map(|(key, action)| (key.to_string(), action.to_string()))
+            .collect()
+    };
+    let round_keys = table(&[("r", "round numbers")]);
+    assert_eq!(
+        shifted(&round_keys, "shift+r").as_deref(),
+        Some("round numbers")
+    );
+    assert_eq!(shifted(&round_keys, "R").as_deref(), Some("round numbers"));
+    assert_eq!(
+        shifted(&table(&[("r", "a"), ("shift+r", "b")]), "shift+r").as_deref(),
+        Some("b")
+    );
+    assert_eq!(shifted(&round_keys, "ctrl+r"), None);
 }
 
 /// Ctrl and a letter belongs to whatever is in front: ctrl+c must reach the emulator even
