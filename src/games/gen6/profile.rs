@@ -24,7 +24,7 @@ use indexmap::{IndexMap, IndexSet};
 use crate::app::most_common;
 use crate::core::binary::u32;
 use crate::core::clips::Clips;
-use crate::core::config::{DRAG_TOGGLE, PARTY_BEEPS, PARTY_OFF, Tables};
+use crate::core::config::{CUE_AS_SOUND, CUE_OFF, DRAG_TOGGLE, PARTY_BEEPS, PARTY_OFF, Tables};
 use crate::core::discovery::{Discovery, Found, HEAP_SPAN, LINEAR_SPAN, within};
 use crate::core::memory::{Cache, Memory, phase};
 use crate::core::names::{FURNITURE, GamePlace, GameSprite, Names, TILES};
@@ -186,6 +186,9 @@ pub const WRONG_SOUND: &str = "SEQ_SE_BEEP";
 /// place of a tone): 0.3 s, the same wave and volume in Omega Ruby and X, where `SEQ_SE_FLD_277` is
 /// that wave too (spike 274).
 pub const CUE_SOUND: &str = "SEQ_SE_FLD_036";
+/// Played as a Balloon Bot fires (Orion, 2026-11-10): 0.23 s, the same wave and volume in Omega
+/// Ruby, Alpha Sapphire and X.
+pub const ALERT_SOUND: &str = "SEQ_SE_KW_ALERT";
 /// Played as a hit lands on Super Training's bag, of which the game gives no sound (Orion,
 /// 2026-11-09): 0.34 s, the same wave and volume in Omega Ruby, Alpha Sapphire and X.
 pub const HIT_SOUND: &str = "SEQ_SE_SP_017";
@@ -807,19 +810,26 @@ impl Gen6Profile {
                 }
             })
         };
-        // The game's "!" in place of words, or the words where it cannot be played.
-        let cued = {
-            let feedback_sounds = feedback_sounds.clone();
-            Rc::new(move |said: &str| -> String {
-                let Some(sounds) = feedback_sounds
-                    .as_ref()
-                    .filter(|sounds| sounds.names().contains(CUE_SOUND))
-                else {
-                    return said.to_string();
-                };
-                // The sound thread not starting, raised to the poll in Python.
-                let _ = sounds.play(CUE_SOUND);
-                String::new()
+        // A cue of a Super Training round, as `[pa3ds.training]` asks: the game's sound, or the
+        // words where it asks for them or the sound cannot be played; logged either way.
+        let round_cue = {
+            let (feedback_sounds, log, speech) =
+                (feedback_sounds.clone(), log.clone(), speech.clone());
+            Rc::new(move |mode: &str, sound: &str, said: &str| {
+                if mode == CUE_OFF {
+                    return;
+                }
+                if mode == CUE_AS_SOUND
+                    && let Some(sounds) = &feedback_sounds
+                    && sounds.names().contains(sound)
+                {
+                    log(&format!("round: {said}, heard as {sound}"));
+                    // The sound thread not starting, raised to the poll in Python.
+                    let _ = sounds.play(sound);
+                    return;
+                }
+                log(&format!("round: {said}"));
+                speech.say(said, Category::Warning);
             })
         };
         // Head It's cue, in the ear of the Pokémon's side, the middle's in both (Orion,
@@ -885,7 +895,15 @@ impl Gen6Profile {
                 Rc::new(move || played(HIT_SOUND))
             },
             Rc::new(move || played(CUE_SOUND)),
-            cued,
+            {
+                let (round_cue, mode) = (round_cue.clone(), tables.training.shot_cue.clone());
+                Rc::new(move |said: &str| round_cue(&mode, ALERT_SOUND, said))
+            },
+            {
+                let mode = tables.training.block_cue.clone();
+                Rc::new(move |said: &str| round_cue(&mode, CUE_SOUND, said))
+            },
+            tables.training.block_lead,
             tables.extras.base_stats,
         ));
         screen.borrow_mut().set_reworded({

@@ -246,6 +246,17 @@ pub const FLYING: i64 = 1;
 /// points lost, where one that hit went to 2 and took 8 (as_super_training_tutorial and 2).
 pub const STOPPED: i64 = 3;
 pub const BLOCKED: &str = "training-blocked";
+pub const BLOCK_NOW: &str = "training-block-now";
+/// The round's Pokémon: its +0x18 how far it stands from the Bot, as a ball's own is (spike A).
+pub const PLAYER: &str = "N5actor19SparringPlayerActorE";
+/// Where a ball or the Pokémon keeps how far it is from the Bot.
+pub const PLACE_Z: i64 = 0x18;
+/// How many of the round's frames a ball has flown.
+pub const BALL_FRAMES: i64 = 0x10C;
+/// A round's frames a second: 45 in 1.46 s of Spewpa's ball.
+pub const ROUND_FRAMES: i64 = 30;
+/// How far from the Bot a ball arrives with the Pokémon where it starts (spike 200).
+pub const ARRIVES_AT: f64 = 227.5;
 /// A pointer, set on the Bot's balls and 0 on the pool of the player's.
 pub const BOT_BALL: i64 = 0x110;
 /// How much of a ball is read: through `BOT_BALL`.
@@ -266,6 +277,14 @@ pub fn aim(x: f64, y: f64) -> Result<Option<(i64, i64)>> {
         return Ok(None);
     }
     Ok(Some((py::round(x * AIM)?, py::round(y * AIM)?)))
+}
+
+/// A ball of a Bot's as it was first seen in the air, to tell how fast it comes.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Flight {
+    pub z: f64,
+    pub frame: i64,
+    pub cued: bool,
 }
 
 /// What Super Training's page says of its selected Pokémon.
@@ -1059,7 +1078,8 @@ pub fn banner(image: &str) -> Option<String> {
 }
 
 /// What a round of Super Training says as it goes: the score as it changes, the clock every
-/// half minute, its banners, and a warning as a Balloon Bot's ball leaves.
+/// half minute, its banners, a cue as a Balloon Bot's ball leaves and another as it is time to
+/// block or dodge it.
 pub struct Round {
     layouts: Rc<Layouts>,
     image_of: ImageOf,
@@ -1067,6 +1087,8 @@ pub struct Round {
     now: Rc<dyn Fn() -> f64>,
     /// Ball -> the vtable it was found with.
     missiles: IndexMap<i64, i64>,
+    /// The round's Pokémon -> the vtable it was found with.
+    players: IndexMap<i64, i64>,
     /// The score last said, or first seen.
     score: Option<(i64, i64)>,
     /// When a score was last said.
@@ -1085,27 +1107,47 @@ pub struct Round {
     charged: bool,
     /// How many polls running the aura has not been drawn while `charged`.
     aura_missing: i64,
-    /// What is said of a Bot's shot, "" where it was heard as a sound instead.
-    warned: Rc<dyn Fn(&str) -> String>,
+    /// The Bot's balls in the air, followed every tick for the moment to block.
+    flying: IndexMap<i64, Flight>,
+    /// Told as a Bot's ball leaves, with its words, to be heard as `[pa3ds.training]` asks.
+    shot_fired: Rc<dyn Fn(&str)>,
+    /// Told `lead` seconds before a ball arrives, as `[pa3ds.training]` asks.
+    block_now: Rc<dyn Fn(&str)>,
+    lead: f64,
     /// Whether the player's press is still down on a goal (`TouchMode.holding`).
     holding: Rc<dyn Fn() -> bool>,
 }
 
 /// `Round.__init__`'s keyword arguments after `memory`, each as the Python defaults it: set what
 /// differs with `..RoundOptions::default()`.
-#[derive(Default)]
 pub struct RoundOptions {
     /// None is `time.monotonic`.
     pub now: Option<Rc<dyn Fn() -> f64>>,
-    /// None says each shot as it is.
-    pub warned: Option<Rc<dyn Fn(&str) -> String>>,
+    /// None tells nothing.
+    pub shot_fired: Option<Rc<dyn Fn(&str)>>,
+    /// None tells nothing.
+    pub block_now: Option<Rc<dyn Fn(&str)>>,
+    pub lead: f64,
     /// None is never.
     pub holding: Option<Rc<dyn Fn() -> bool>>,
 }
 
+impl Default for RoundOptions {
+    fn default() -> Self {
+        RoundOptions {
+            now: None,
+            shot_fired: None,
+            block_now: None,
+            lead: 0.6,
+            holding: None,
+        }
+    }
+}
+
 impl Round {
-    /// What the heap is swept for: the Balloon Bots' balls, which say when a shot is coming.
-    pub const CLASSES: [&'static str; 1] = [MISSILE];
+    /// What the heap is swept for: the Balloon Bots' balls, which say when a shot is coming, and
+    /// the Pokémon, whose distance says when it will arrive.
+    pub const CLASSES: [&'static str; 2] = [MISSILE, PLAYER];
 
     /// `now` None is `time.monotonic`.
     pub fn new(
@@ -1133,7 +1175,9 @@ impl Round {
     ) -> Self {
         let RoundOptions {
             now,
-            warned,
+            shot_fired,
+            block_now,
+            lead,
             holding,
         } = options;
         let mut round = Round {
@@ -1141,9 +1185,12 @@ impl Round {
             image_of,
             memory,
             now: now.unwrap_or_else(|| Rc::new(py::time::monotonic)),
-            warned: warned.unwrap_or_else(|| Rc::new(|said: &str| said.to_string())),
+            shot_fired: shot_fired.unwrap_or_else(|| Rc::new(|_said: &str| {})),
+            block_now: block_now.unwrap_or_else(|| Rc::new(|_said: &str| {})),
+            lead,
             holding: holding.unwrap_or_else(|| Rc::new(|| false)),
             missiles: IndexMap::new(),
+            players: IndexMap::new(),
             score: None,
             score_at: None,
             reading: None,
@@ -1153,6 +1200,7 @@ impl Round {
             energy: None,
             charged: false,
             aura_missing: 0,
+            flying: IndexMap::new(),
         };
         round.forget();
         round
@@ -1169,22 +1217,83 @@ impl Round {
         self.energy = None;
         self.charged = false;
         self.aura_missing = 0;
+        self.flying = IndexMap::new();
     }
 
-    /// The balls a sweep found, by class: all of them, or with `adding` the new ones.
+    /// The balls and the Pokémon a sweep found, by class: all of them, or with `adding` the
+    /// new ones.
     pub fn track(&mut self, found: &IndexMap<i64, String>, adding: bool) -> Result<()> {
         let mut missiles = if adding {
             self.missiles.clone()
         } else {
             IndexMap::new()
         };
-        for (&ball, name) in found {
+        let mut players = if adding {
+            self.players.clone()
+        } else {
+            IndexMap::new()
+        };
+        for (&thing, name) in found {
             if name == MISSILE {
-                missiles.insert(ball, u32(&self.memory.read(ball, 4)?, 0)?);
+                missiles.insert(thing, u32(&self.memory.read(thing, 4)?, 0)?);
+            } else if name == PLAYER {
+                players.insert(thing, u32(&self.memory.read(thing, 4)?, 0)?);
             }
         }
         self.missiles = missiles;
+        self.players = players;
         Ok(())
+    }
+
+    /// Whether `tick` has a ball to follow.
+    pub fn ticking(&self, running: Option<&str>) -> bool {
+        running == Some(SPARRING) && !self.flying.is_empty()
+    }
+
+    /// Whether the heap's whole sweep waits: while a ball flies, so its cue is not late.
+    pub fn holding(&self, running: Option<&str>) -> bool {
+        self.ticking(running)
+    }
+
+    /// Follow each ball in flight, every tick, and cue the moment to block or dodge: `lead`
+    /// seconds before it reaches the Pokémon, by how fast it has come so far. Bots' balls fly at
+    /// different speeds, 1.1 to 2.1 s from the Bot, so a count from the launch would not do.
+    pub fn tick(&mut self) -> Result<()> {
+        let arrives = self.arrival()?;
+        let flying: Vec<i64> = self.flying.keys().copied().collect();
+        for ball in flying {
+            let head = self.memory.read(ball, MISSILE_HEAD)?;
+            if Some(u32(&head, 0)?) != self.missiles.get(&ball).copied()
+                || u32(&head, MISSILE_STATE)? != FLYING
+            {
+                self.flying.shift_remove(&ball);
+                continue;
+            }
+            let flight = &self.flying[&ball];
+            let frames = u32(&head, BALL_FRAMES)? - flight.frame;
+            if flight.cued || frames <= 0 {
+                continue;
+            }
+            let z = f32(&head, PLACE_Z)?;
+            let speed = (z - flight.z) / frames as f64;
+            if speed > 0.0 && (arrives - z) / speed / ROUND_FRAMES as f64 <= self.lead {
+                self.flying[&ball].cued = true;
+                (self.block_now)(&own(BLOCK_NOW, &[]));
+            }
+        }
+        Ok(())
+    }
+
+    /// How far from the Bot the Pokémon stands, where a ball reaches it: the Circle Pad moves
+    /// it from 228 to 162 or so.
+    fn arrival(&self) -> Result<f64> {
+        for (&player, &vtable) in &self.players {
+            let head = self.memory.read(player, PLACE_Z + 4)?;
+            if u32(&head, 0)? == vtable {
+                return f32(&head, PLACE_Z);
+            }
+        }
+        Ok(ARRIVES_AT)
     }
 
     /// What to say now, with what the log calls it and its category, while a round runs:
@@ -1232,17 +1341,10 @@ impl Round {
                 ));
             }
         }
-        // The warning first: it interrupts, and the lines after it queue behind it. With the
-        // game's "!" played in its place it is left to the log (Orion, 2026-11-09).
         let mut said: Vec<(String, String, Option<Category>)> = Vec::new();
         let (launched, blocked) = self.balls()?;
         if launched {
-            let category = if (self.warned)(&own(SHOT, &[])).is_empty() {
-                None
-            } else {
-                Some(Category::Warning)
-            };
-            said.push((ROUND_LOG.to_string(), own(SHOT, &[]), category));
+            (self.shot_fired)(&own(SHOT, &[]));
         }
         if blocked {
             said.push((
@@ -1410,7 +1512,17 @@ impl Round {
             let (state, before) = (u32(&head, MISSILE_STATE)?, self.states.get(&ball).copied());
             self.states.insert(ball, state);
             if u32(&head, BOT_BALL)? != 0 {
-                launched |= state == FLYING && before.is_some_and(|before| before != FLYING);
+                if state == FLYING && before.is_some_and(|before| before != FLYING) {
+                    launched = true;
+                    self.flying.insert(
+                        ball,
+                        Flight {
+                            z: f32(&head, PLACE_Z)?,
+                            frame: u32(&head, BALL_FRAMES)?,
+                            cued: false,
+                        },
+                    );
+                }
                 blocked |= state == STOPPED && before == Some(FLYING);
             }
         }

@@ -949,119 +949,131 @@ fn test_the_banners_are_said_by_their_textures_words() {
     );
 }
 
-#[test]
-fn test_a_ball_of_the_bots_going_into_flight_warns_once() {
-    let (mut sparring, memory, classes) = rounds(Rc::new(Cell::new(0.0)));
-    let vtable = classes.add(super_training::MISSILE);
-    memory.u32(0x08C00000, &[vtable]);
-    sparring
-        .track(
-            &IndexMap::from([(0x08C00000, super_training::MISSILE.to_string())]),
-            false,
-        )
-        .unwrap();
-    let mut said = Vec::new();
-    for state in [0u32, 1, 1, 2] {
-        memory.write(0x08C00004, &state.to_le_bytes());
-        memory.u32(0x08C00000 + super_training::BOT_BALL, &[0x08D00000]);
-        said.extend(sparring.poll(Some(super_training::SPARRING)).unwrap());
-    }
-    assert_eq!(
-        said,
-        [(
-            super_training::ROUND_LOG.to_string(),
-            "shot coming".to_string(),
-            Some(Category::Warning)
-        )]
-    );
-}
+const BALL: i64 = 0x08C00000;
+const PLAYER_AT: i64 = 0x08C20000;
 
-/// The ball at 0x08C00000 the round tracks, written as the Bot's.
-fn bot_ball(sparring: &mut super_training::Round, memory: &FakeMemory, classes: &FakeClasses) {
-    memory.u32(0x08C00000, &[classes.add(super_training::MISSILE)]);
-    memory.u32(0x08C00000 + super_training::BOT_BALL, &[0x08D00000]);
-    sparring
-        .track(
-            &IndexMap::from([(0x08C00000, super_training::MISSILE.to_string())]),
-            false,
-        )
-        .unwrap();
-}
+/// What a round's cues told, in order.
+type Heard = Rc<RefCell<Vec<String>>>;
 
-/// L held as it arrived, no points lost, and the ball's state 3 where a hit's is 2
-/// (as_super_training_tutorial2 against as_super_training_tutorial).
-#[test]
-fn test_a_ball_stopped_by_the_barrier_is_said_blocked() {
-    let (mut sparring, memory, classes) = rounds(Rc::new(Cell::new(0.0)));
-    bot_ball(&mut sparring, &memory, &classes);
-    let mut said = Vec::new();
-    for state in [0, 1, 3, 3] {
-        memory.u32(0x08C00004, &[state]);
-        said.extend(sparring.poll(Some(super_training::SPARRING)).unwrap());
-    }
-    assert_eq!(
-        said,
-        [
-            (
-                super_training::ROUND_LOG.to_string(),
-                "shot coming".to_string(),
-                Some(Category::Warning)
-            ),
-            (
-                super_training::ROUND_LOG.to_string(),
-                "blocked".to_string(),
-                Some(Category::Screen)
-            )
-        ]
-    );
-}
-
-/// With feedback sounds on, the "!" stands in for "shot coming" (Orion, 2026-11-09).
-#[test]
-fn test_a_ball_heard_as_the_games_exclamation_is_only_logged() {
+/// A round with a ball of the Bot's, its cues written down as they come.
+fn cueing(player_z: Option<f32>, lead: f64) -> (super_training::Round, Rc<FakeMemory>, Heard) {
     let memory = FakeMemory::new();
     let classes = FakeClasses::new(memory.clone());
     let fake = FakeLayouts::new(&memory, &classes);
+    let heard: Heard = Rc::new(RefCell::new(Vec::new()));
+    let (fired, now) = (heard.clone(), heard.clone());
     let mut sparring = super_training::Round::with(
         fake.layouts.clone(),
         Rc::new(|_pane| Ok(None)),
         memory.clone(),
         super_training::RoundOptions {
             now: Some(Rc::new(|| 0.0)),
-            warned: Some(Rc::new(|_said: &str| String::new())),
+            shot_fired: Some(Rc::new(move |said: &str| {
+                fired.borrow_mut().push(said.to_string())
+            })),
+            block_now: Some(Rc::new(move |said: &str| {
+                now.borrow_mut().push(said.to_string())
+            })),
+            lead,
             ..super_training::RoundOptions::default()
         },
     );
-    bot_ball(&mut sparring, &memory, &classes);
+    memory.u32(BALL, &[classes.add(super_training::MISSILE)]);
+    memory.u32(BALL + super_training::BOT_BALL, &[0x08D00000]);
+    let mut found = IndexMap::from([(BALL, super_training::MISSILE.to_string())]);
+    if let Some(player_z) = player_z {
+        memory.u32(PLAYER_AT, &[classes.add(super_training::PLAYER)]);
+        memory.write(PLAYER_AT + super_training::PLACE_Z, &floats(&[player_z]));
+        found.insert(PLAYER_AT, super_training::PLAYER.to_string());
+    }
+    sparring.track(&found, false).unwrap();
+    (sparring, memory, heard)
+}
+
+fn fly(memory: &FakeMemory, z: f32, frames: i64, state: i64) {
+    memory.u32(BALL + super_training::MISSILE_STATE, &[state]);
+    memory.write(BALL + super_training::PLACE_Z, &floats(&[z]));
+    memory.u32(BALL + super_training::BALL_FRAMES, &[frames]);
+}
+
+#[test]
+fn test_a_ball_of_the_bots_going_into_flight_is_cued_once_as_it_leaves() {
+    let (mut sparring, memory, heard) = cueing(None, 0.6);
+    for state in [0, 1, 1, 2] {
+        fly(&memory, 20.0, 3, state);
+        assert!(
+            sparring
+                .poll(Some(super_training::SPARRING))
+                .unwrap()
+                .is_empty()
+        );
+    }
+    assert_eq!(*heard.borrow(), ["shot coming"]);
+}
+
+/// A ball here comes 4.5 a frame at 30 a second: 0.6 s out it is 81 from the Pokémon.
+#[test]
+fn test_the_moment_to_block_comes_the_lead_before_the_ball_arrives() {
+    let (mut sparring, memory, heard) = cueing(Some(200.0), 0.6);
+    fly(&memory, 0.0, 0, 0);
+    sparring.poll(Some(super_training::SPARRING)).unwrap();
+    fly(&memory, 45.0, 10, 1);
+    sparring.poll(Some(super_training::SPARRING)).unwrap();
+    assert!(sparring.ticking(Some(super_training::SPARRING)));
+    heard.borrow_mut().clear();
+    for frames in [20, 26] {
+        fly(&memory, 45.0 + 4.5 * (frames - 10) as f32, frames, 1);
+        sparring.tick().unwrap();
+    }
+    assert!(heard.borrow().is_empty());
+    fly(&memory, 45.0 + 4.5 * (27 - 10) as f32, 27, 1);
+    sparring.tick().unwrap();
+    assert_eq!(*heard.borrow(), ["now"]);
+    fly(&memory, 45.0 + 4.5 * (30 - 10) as f32, 30, 1);
+    sparring.tick().unwrap();
+    assert_eq!(*heard.borrow(), ["now"]);
+}
+
+#[test]
+fn test_nothing_is_followed_once_the_ball_has_landed() {
+    let (mut sparring, memory, _heard) = cueing(None, 0.6);
+    fly(&memory, 0.0, 0, 0);
+    sparring.poll(Some(super_training::SPARRING)).unwrap();
+    fly(&memory, 45.0, 10, 1);
+    sparring.poll(Some(super_training::SPARRING)).unwrap();
+    fly(&memory, 45.0, 10, 2);
+    sparring.tick().unwrap();
+    assert!(!sparring.ticking(Some(super_training::SPARRING)));
+    assert!(!sparring.holding(Some(super_training::SPARRING)));
+}
+
+/// L held as it arrived, no points lost, and the ball's state 3 where a hit's is 2
+/// (as_super_training_tutorial2 against as_super_training_tutorial).
+#[test]
+fn test_a_ball_stopped_by_the_barrier_is_said_blocked() {
+    let (mut sparring, memory, _heard) = cueing(None, 0.6);
     let mut said = Vec::new();
-    for state in [0, 1] {
-        memory.u32(0x08C00004, &[state]);
+    for state in [0, 1, 3, 3] {
+        memory.u32(BALL + super_training::MISSILE_STATE, &[state]);
         said.extend(sparring.poll(Some(super_training::SPARRING)).unwrap());
     }
     assert_eq!(
         said,
         [(
             super_training::ROUND_LOG.to_string(),
-            "shot coming".to_string(),
-            None
+            "blocked".to_string(),
+            Some(Category::Screen)
         )]
     );
 }
 
 #[test]
-fn test_a_ball_with_no_pointer_going_into_flight_does_not_warn() {
-    let (mut sparring, memory, classes) = rounds(Rc::new(Cell::new(0.0)));
-    memory.u32(0x08C00000, &[classes.add(super_training::MISSILE)]);
-    sparring
-        .track(
-            &IndexMap::from([(0x08C00000, super_training::MISSILE.to_string())]),
-            false,
-        )
-        .unwrap();
-    let mut said = Vec::new();
+fn test_a_ball_with_no_pointer_going_into_flight_is_not_cued() {
+    let (mut sparring, memory, heard) = cueing(None, 0.6);
+    memory.u32(BALL + super_training::BOT_BALL, &[0]);
     for state in [2, 1] {
-        memory.u32(0x08C00004, &[state]);
-        said.extend(sparring.poll(Some(super_training::SPARRING)).unwrap());
+        memory.u32(BALL + super_training::MISSILE_STATE, &[state]);
+        sparring.poll(Some(super_training::SPARRING)).unwrap();
     }
-    assert!(said.is_empty());
+    assert!(heard.borrow().is_empty());
 }

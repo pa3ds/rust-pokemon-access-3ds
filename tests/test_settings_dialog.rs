@@ -59,6 +59,9 @@ fn test_every_setting_is_one_control_on_its_tables_page() {
             ("pa3ds.amie.head_it_lead", SECONDS),
             ("pa3ds.amie.head_it_style", "choice"),
             ("pa3ds.extras.hidden_items", "choice"),
+            ("pa3ds.training.shot_cue", "choice"),
+            ("pa3ds.training.block_cue", "choice"),
+            ("pa3ds.training.block_lead", SECONDS),
         ])
     );
 }

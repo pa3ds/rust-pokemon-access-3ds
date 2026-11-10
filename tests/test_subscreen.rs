@@ -55,7 +55,9 @@ fn subscreens() -> Subscreens {
         Rc::new(|| None),
         Rc::new(|| {}),
         Rc::new(|| {}),
-        Rc::new(|said: &str| said.to_string()),
+        Rc::new(|_said: &str| {}),
+        Rc::new(|_said: &str| {}),
+        0.6,
         false,
     );
     found

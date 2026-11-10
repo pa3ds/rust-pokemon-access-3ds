@@ -48,17 +48,18 @@ use crate::ux::dialog::{
 };
 
 /// Each page's message and the table of the file it shows, in the tabs' order.
-pub const PAGES: [(&str, &str); 7] = [
+pub const PAGES: [(&str, &str); 8] = [
     ("settings-page-general", "pa3ds"),
     ("settings-page-speech", "pa3ds.ui"),
     ("settings-page-audio", "pa3ds.audio"),
     ("settings-page-navigation", "pa3ds.navigation"),
     ("settings-page-touch", "pa3ds.touch"),
     ("settings-page-amie", "pa3ds.amie"),
+    ("settings-page-training", "pa3ds.training"),
     ("settings-page-extras", "pa3ds.extras"),
 ];
 /// Where `config.Tables` keeps each table.
-pub const ON_CONFIG: [(&str, &str); 7] = [
+pub const ON_CONFIG: [(&str, &str); 8] = [
     ("pa3ds", "general"),
     ("pa3ds.ui", "ui"),
     ("pa3ds.audio", "audio"),
@@ -66,6 +67,7 @@ pub const ON_CONFIG: [(&str, &str); 7] = [
     ("pa3ds.touch", "touch"),
     ("pa3ds.amie", "amie"),
     ("pa3ds.extras", "extras"),
+    ("pa3ds.training", "training"),
 ];
 
 pub const CHECK: &str = "check";
@@ -76,7 +78,7 @@ pub const SECONDS: &str = "seconds";
 pub const FOLDER: &str = "folder";
 /// Each setting that is not on or off, by its control: one left out is a checkbox. The last ones
 /// are Python's `**dict.fromkeys(config.CHOICES, CHOICE)`, a const array having no spread.
-pub const KINDS: [(&str, &str); 13] = [
+pub const KINDS: [(&str, &str); 16] = [
     ("pa3ds.ui.language", CHOICE),
     ("pa3ds.azahar_folder", FOLDER),
     ("pa3ds.poll_rate", NUMBER),
@@ -85,11 +87,14 @@ pub const KINDS: [(&str, &str); 13] = [
     ("pa3ds.audio.ticks", PERCENT),
     ("pa3ds.audio.feedback_sounds", PERCENT),
     ("pa3ds.amie.head_it_lead", SECONDS),
+    ("pa3ds.training.block_lead", SECONDS),
     (config::CHOICES[0].0, CHOICE),
     (config::CHOICES[1].0, CHOICE),
     (config::CHOICES[2].0, CHOICE),
     (config::CHOICES[3].0, CHOICE),
     (config::CHOICES[4].0, CHOICE),
+    (config::CHOICES[5].0, CHOICE),
+    (config::CHOICES[6].0, CHOICE),
 ];
 /// What a number's arrows step between: reads a second, and a loudness in percent, ten times as
 /// loud as the game the most anyone will want.
@@ -211,6 +216,7 @@ pub fn values(settings: &Config) -> IndexMap<String, Value> {
                 "navigation" => settings.tables.navigation.fields(),
                 "touch" => settings.tables.touch.fields(),
                 "amie" => settings.tables.amie.fields(),
+                "training" => settings.tables.training.fields(),
                 _ => settings.tables.extras.fields(),
             };
             (*table, held)

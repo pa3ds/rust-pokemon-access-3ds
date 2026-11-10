@@ -401,6 +401,49 @@ impl Table for Amie {
     }
 }
 
+/// `[pa3ds.training]`: how a round of Super Training is heard (Orion, 2026-11-10).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Training {
+    /// A Balloon Bot's shot as it is fired: the game's alert sound, "shot coming" in words, or
+    /// nothing. As words too where the game's sounds cannot be played.
+    pub shot_cue: String,
+    /// The moment to raise a barrier or dodge, `block_lead` before the shot arrives: the game's
+    /// "!", "now" in words, or nothing.
+    pub block_cue: String,
+    /// How many seconds before a shot arrives `block_cue` comes: the barrier lasts 0.7 to 0.9 s
+    /// from its press, and this less the player's time to react is how early they raise it.
+    pub block_lead: f64,
+}
+
+impl Default for Training {
+    fn default() -> Self {
+        Training {
+            shot_cue: "sound".to_string(),
+            block_cue: "sound".to_string(),
+            block_lead: 0.6,
+        }
+    }
+}
+
+impl Table for Training {
+    fn fields(&self) -> Vec<(&'static str, Value)> {
+        vec![
+            ("shot_cue", Value::Str(self.shot_cue.clone())),
+            ("block_cue", Value::Str(self.block_cue.clone())),
+            ("block_lead", Value::Float(self.block_lead)),
+        ]
+    }
+
+    fn set(&mut self, setting: &str, value: Value) {
+        match (setting, value) {
+            ("shot_cue", Value::Str(value)) => self.shot_cue = value,
+            ("block_cue", Value::Str(value)) => self.block_cue = value,
+            ("block_lead", Value::Float(value)) => self.block_lead = value,
+            _ => {}
+        }
+    }
+}
+
 /// `[pa3ds.extras]`: what the game shows in a way pa3ds cannot read, said from the game's own
 /// numbers, each off unless asked for (ADR-0017).
 #[derive(Debug, Clone, PartialEq)]
@@ -451,6 +494,7 @@ pub struct Tables {
     pub touch: Touch,
     pub amie: Amie,
     pub extras: Extras,
+    pub training: Training,
 }
 
 pub const HIDDEN_OFF: &str = "off";
@@ -468,16 +512,27 @@ pub const CRYING: [&str; 2] = [STYLE_CRY, STYLE_BOTH];
 pub const PARTY_TEXT: &str = "text";
 pub const PARTY_BEEPS: &str = "beeps";
 pub const PARTY_OFF: &str = "off";
+pub const CUE_AS_SOUND: &str = "sound";
+pub const CUE_AS_SPEECH: &str = "speech";
+pub const CUE_OFF: &str = "off";
 /// Each setting that is one of a few words, by its name in the file: its words, the default
 /// first. `[pa3ds.extras] hidden_items` lists none, those under the sea, where the Dowsing Machine
 /// cannot be used and a sighted player is taken to see them, or all (Orion, 2026-10-26); a word it
 /// does not have lists none. `[pa3ds.touch] drag` holds a touch mode drag while its key is held,
 /// or picks up with one press and lets go with the next, for a player who cannot hold a key
 /// (Orion, 2026-10-28).
-pub const CHOICES: [(&str, &[&str]); 5] = [
+pub const CHOICES: [(&str, &[&str]); 7] = [
     (
         "pa3ds.ui.trainer_party",
         &[PARTY_TEXT, PARTY_BEEPS, PARTY_OFF],
+    ),
+    (
+        "pa3ds.training.shot_cue",
+        &[CUE_AS_SOUND, CUE_AS_SPEECH, CUE_OFF],
+    ),
+    (
+        "pa3ds.training.block_cue",
+        &[CUE_AS_SOUND, CUE_AS_SPEECH, CUE_OFF],
     ),
     (
         "pa3ds.extras.hidden_items",
@@ -496,13 +551,14 @@ pub const CHOICES: [(&str, &[&str]); 5] = [
 
 /// The tables of the file, in the order it writes them: each is a settings dataclass, and
 /// `defaults` is what `kind()` holds.
-pub const TABLES: [&str; 7] = [
+pub const TABLES: [&str; 8] = [
     "pa3ds",
     "pa3ds.ui",
     "pa3ds.audio",
     "pa3ds.navigation",
     "pa3ds.touch",
     "pa3ds.amie",
+    "pa3ds.training",
     "pa3ds.extras",
 ];
 /// Settings that moved, (new table, setting) -> (old table, setting): to `[pa3ds.audio]`
@@ -542,6 +598,7 @@ pub(crate) fn defaults(name: &str) -> Vec<(&'static str, Value)> {
         "pa3ds.navigation" => Navigation::default().fields(),
         "pa3ds.touch" => Touch::default().fields(),
         "pa3ds.amie" => Amie::default().fields(),
+        "pa3ds.training" => Training::default().fields(),
         "pa3ds.extras" => Extras::default().fields(),
         _ => Vec::new(),
     }
@@ -1150,6 +1207,12 @@ pub fn prepare(
         &path,
         &mut notes,
     );
+    let training: Training = table(
+        &toml::table(ours.get("training")),
+        "pa3ds.training",
+        &path,
+        &mut notes,
+    );
 
     let mut wanted: IndexMap<String, Value> = IndexMap::new();
     for (name, value) in toml::table(loaded.get(EMULATOR_SECTION)) {
@@ -1232,6 +1295,7 @@ pub fn prepare(
             touch,
             amie,
             extras,
+            training,
         },
         notes,
         said,

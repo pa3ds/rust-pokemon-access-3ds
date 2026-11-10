@@ -143,6 +143,37 @@ pub trait Described {
     fn describe(&self, running: Option<&str>) -> Result<Vec<(String, String, Option<Category>)>>;
 }
 
+/// A reader following something every tick rather than every screen poll: Head It's balls and
+/// a Balloon Bot's.
+pub trait Ticked {
+    fn ticking(&self, running: Option<&str>) -> bool;
+    fn tick(&self) -> Result<()>;
+}
+
+/// A reader whose round holds the heap's whole sweep off while it plays.
+pub trait Holding {
+    fn holding(&self, running: Option<&str>) -> bool;
+}
+
+macro_rules! ticked {
+    ($($reader:ty),*) => {$(
+        impl Ticked for RefCell<$reader> {
+            fn ticking(&self, running: Option<&str>) -> bool {
+                self.borrow().ticking(running)
+            }
+            fn tick(&self) -> Result<()> {
+                self.borrow_mut().tick()
+            }
+        }
+        impl Holding for RefCell<$reader> {
+            fn holding(&self, running: Option<&str>) -> bool {
+                self.borrow().holding(running)
+            }
+        }
+    )*};
+}
+ticked!(HeadIt, Round);
+
 /// A reader rewording the screen's words as they are said, only what it knows for its own.
 pub trait Rewording {
     fn reworded(&self, found: IndexMap<i64, ScreenText>) -> Result<IndexMap<i64, ScreenText>>;
@@ -440,12 +471,11 @@ pub struct Subscreens {
     polled: Vec<Rc<dyn Polled>>,
     described: Vec<Rc<dyn Described>>,
     keyed: Vec<Rc<dyn Keyed>>,
-    /// Head It alone follows something every tick, so its readers are kept as they are, not
-    /// as a trait of one: a test reaches its cue through them, as Python's does.
-    pub(crate) ticked: Vec<Rc<RefCell<HeadIt>>>,
-    holding: Vec<Rc<RefCell<HeadIt>>>,
+    ticked: Vec<Rc<dyn Ticked>>,
+    holding: Vec<Rc<dyn Holding>>,
     rewording: Vec<Rc<dyn Rewording>>,
-    head_it: Rc<RefCell<HeadIt>>,
+    /// Head It, which a test reaches its cue through, as Python's does through `_ticked[0]`.
+    pub(crate) head_it: Rc<RefCell<HeadIt>>,
 }
 
 /// `yours`: a Pokémon of the player's by the nickname they gave it, or else as the game calls its
@@ -492,7 +522,9 @@ impl Subscreens {
         running: Rc<dyn Fn() -> Option<String>>,
         bag_hit: Rc<dyn Fn()>,
         bag_finished: Rc<dyn Fn()>,
-        shot_coming: Rc<dyn Fn(&str) -> String>,
+        shot_fired: Rc<dyn Fn(&str)>,
+        block_now: Rc<dyn Fn(&str)>,
+        block_lead: f64,
         exact_stats: bool,
     ) -> Subscreens {
         let short: berry_picker::Name = {
@@ -647,7 +679,9 @@ impl Subscreens {
             image_of.clone(),
             memory,
             RoundOptions {
-                warned: Some(shot_coming),
+                shot_fired: Some(shot_fired),
+                block_now: Some(block_now),
+                lead: block_lead,
                 ..RoundOptions::default()
             },
         )));
@@ -681,7 +715,7 @@ impl Subscreens {
             page.clone(),
             core,
             goals.clone(),
-            sparring,
+            sparring.clone(),
             berry_picker.clone(),
             head_it.clone(),
             stylus_keys.clone(),
@@ -708,8 +742,8 @@ impl Subscreens {
             polled,
             described: vec![puzzle.clone()],
             keyed: vec![berry_keys, head_keys, stylus_keys, training_keys],
-            ticked: vec![head_it.clone()],
-            holding: vec![head_it.clone()],
+            ticked: vec![head_it.clone(), sparring.clone()],
+            holding: vec![head_it.clone(), sparring.clone()],
             rewording: vec![switch, head_it.clone(), medals],
             head_it,
             puzzle,
@@ -810,17 +844,14 @@ impl Subscreens {
 
     /// Whether a screen follows something every tick now (`tick`).
     pub fn ticking(&self, running: Option<&str>) -> bool {
-        self.ticked
-            .iter()
-            .any(|reader| reader.borrow().ticking(running))
+        self.ticked.iter().any(|reader| reader.ticking(running))
     }
 
     /// Follow what each screen follows every tick: Head It's balls, for its cue.
     pub fn tick(&self, running: Option<&str>) -> Result<()> {
         for reader in &self.ticked {
-            let ticking = reader.borrow().ticking(running);
-            if ticking {
-                reader.borrow_mut().tick()?;
+            if reader.ticking(running) {
+                reader.tick()?;
             }
         }
         Ok(())
@@ -858,9 +889,7 @@ impl Subscreens {
     /// read, every 30 s, left a ball of Head It's without its cue and a key pressed for one
     /// tapping late (spike 273, live).
     pub fn holding(&self, running: Option<&str>) -> bool {
-        self.holding
-            .iter()
-            .any(|reader| reader.borrow().holding(running))
+        self.holding.iter().any(|reader| reader.holding(running))
     }
 
     /// Whether touch mode's drag is made only as it is let go, straight from where it was

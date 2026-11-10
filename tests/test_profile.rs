@@ -748,7 +748,7 @@ fn test_head_its_cue_is_the_games_exclamation_once_the_setting_is_on() {
                 ..Options::default()
             },
         );
-        let head_it = made.subscreens.ticked[0].clone();
+        let head_it = made.subscreens.head_it.clone();
         assert_eq!(head_it.borrow().cue.is_some(), on, "on {on}");
     }
 }
