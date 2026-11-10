@@ -24,7 +24,8 @@ use crate::games::common::field::keys::{
     BERRIES, BERRY_PICKER, CATEGORY_NEXT, CATEGORY_PREVIOUS, COORDINATES, DEFAULT_BINDINGS,
     DEFAULT_CONTEXTS, DIRECTION, EAST, ENEMY_SIDE, ITEM_COORDINATES, ITEM_NEXT, ITEM_PREVIOUS,
     ITEM_READ, LIST, MODE_TOGGLE, NORTH, OUR_SIDE, PATH_NEXT, PATH_PREVIOUS, PATHFIND, PATHFIND_HM,
-    PATHFIND_OFF, POKEMON, RENAME, RENAME_SPEAKER, SOUTH, TOUCH, WEST, bound_keys, context_keys,
+    PATHFIND_OFF, POKEMON, RENAME, RENAME_SPEAKER, REPEAT, SOUTH, TOUCH, WEST, bound_keys,
+    context_keys,
 };
 use crate::games::common::field::navigate::{
     DoorSign, LeadsTo, Navigator, Options, Part, Sides, Street,
@@ -5595,7 +5596,7 @@ fn test_the_users_keys_map_to_the_actions() {
             "{mode}"
         );
     }
-    let mut expected: HashSet<String> = "iojlk[];'prc,.u"
+    let mut expected: HashSet<String> = "iojlk[];'prc,.uy"
         .chars()
         .map(|key| key.to_string())
         .collect();
@@ -5639,6 +5640,7 @@ fn test_the_users_keys_map_to_the_actions() {
         assert_eq!(bound(mode, "c"), COORDINATES, "{mode}");
         assert_eq!(bound(mode, "shift+c"), ITEM_COORDINATES, "{mode}");
         assert_eq!(bound(mode, "alt+p"), PATHFIND_OFF, "{mode}");
+        assert_eq!(bound(mode, "y"), REPEAT, "{mode}");
     }
 }
 
@@ -6088,6 +6090,30 @@ fn test_r_says_our_side_again_and_shift_r_the_enemys() {
         [
             ("Blaze♂ L10 20/30".to_string(), true),
             ("Zigzagoon♂ L2 50%".to_string(), true)
+        ]
+    );
+}
+
+/// In any mode, off the map too; before anything is said, it says so.
+#[test]
+fn test_y_says_the_last_line_again_whatever_said_it() {
+    let backend = Rc::new(Recorder::default());
+    let speech = Rc::new(Speech::plain(backend.clone()));
+    let mut nav = Navigator::new(
+        Rc::new(FakeField::new(None, &[], &[], &[], &[])),
+        speech.clone(),
+        Rc::new(|_line: &str| {}),
+        Options::default(),
+    );
+    nav.press(REPEAT).unwrap();
+    speech.say("Will you\ntrade?", Category::Dialogue);
+    nav.press(REPEAT).unwrap();
+    assert_eq!(
+        heard(&backend),
+        [
+            ("nothing said yet".to_string(), true),
+            ("Will you trade?".to_string(), false),
+            ("Will you trade?".to_string(), true)
         ]
     );
 }

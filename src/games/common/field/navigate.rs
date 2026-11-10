@@ -71,7 +71,7 @@ use crate::games::common::field::keys::{
     Bindings, CATEGORY_NEXT, CATEGORY_PREVIOUS, COORDINATES, DEFAULT_BINDINGS, DIRECTIONS, EAST,
     ENEMY_SIDE, HIDE_UNREACHABLE, ITEM_COORDINATES, ITEM_NEXT, ITEM_PREVIOUS, LIST, MODE_TOGGLE,
     MODES, NORTH, OUR_SIDE, PATH_NEXT, PATH_PREVIOUS, PATHFIND, PATHFIND_HM, PATHFIND_OFF, RENAME,
-    RENAME_SPEAKER, SOUTH, TOUCH, WEST,
+    RENAME_SPEAKER, REPEAT, SOUTH, TOUCH, WEST,
 };
 use crate::games::common::field::things::Naming as Named;
 use crate::games::common::field::things::{
@@ -525,6 +525,15 @@ impl Navigator {
     }
 
     pub fn press(&mut self, action: &str) -> Result<()> {
+        if action == REPEAT {
+            let last = self.speech.last();
+            self.say(&if last.is_empty() {
+                own("key-nothing-said", &[])
+            } else {
+                last
+            });
+            return Ok(());
+        }
         // Naming a speaker asks the field nothing: they may have walked off, or the conversation
         // may be over, and the player still knows who they were talking to.
         if action == RENAME_SPEAKER {

@@ -108,6 +108,10 @@ pub const COORDINATES: &str = "coordinates";
 /// picturing the map (Orion, 2026-10-15). `[pa3ds.navigation] show_y` adds how high, to both.
 pub const ITEM_COORDINATES: &str = "item coordinates";
 
+/// Say again the line pa3ds spoke last, whatever said it: for a line missed or cut off (Khai,
+/// 2026-11-08).
+pub const REPEAT: &str = "repeat";
+
 /// What the keys file says above an action's key, where its name does not say it all. The
 /// horde's order is Orion's, heard by fainting the bottom left Zigzagoon and the fifth going to 0%
 /// (movie16, 2026-10-01): the enemy side is said by battle position (`gen6.screens.battle`).
@@ -133,7 +137,7 @@ pub const HEADERS: [&str; 3] = ["left pokemon", "middle pokemon", "right pokemon
 /// come unless the player asks (Orion, 2026-11-04; `head_it.HeadIt.score`).
 pub const SCORE_KEY: &str = "score";
 
-pub const EXPLAINED: [(&str, &str); 8] = [
+pub const EXPLAINED: [(&str, &str); 9] = [
     (
         ENEMY_SIDE,
         "The enemy's Pokémon are said in the order the battle places them. In a horde of five that \
@@ -175,6 +179,7 @@ pub const EXPLAINED: [(&str, &str); 8] = [
         SCORE_KEY,
         "In Head It, says the score, the combo and the time or the chances left.",
     ),
+    (REPEAT, "Says again the last thing pa3ds said."),
 ];
 
 /// Mode -> key -> action. Keys are single characters, as `pa3ds.core.keys.key_name` gives them.
@@ -204,8 +209,8 @@ fn keys(pairs: &[(&str, &str)]) -> IndexMap<String, String> {
 /// other key is an action's, so a player who binds drag elsewhere has Shift drag nothing (Orion:
 /// players who never read of a key added beside it were left with Shift).
 /// C says the player's cell and alt and P stops guiding (2026-10-10), and shift and C the cells of
-/// the thing chosen (Orion, 2026-10-15). All of these are the player's to change in
-/// `<pa3ds>\user\keys.toml`.
+/// the thing chosen (Orion, 2026-10-15). Y says the last line again (Khai, 2026-11-08). All of
+/// these are the player's to change in `<pa3ds>\user\keys.toml`.
 pub static DEFAULT_BINDINGS: LazyLock<Bindings> = LazyLock::new(|| {
     IndexMap::from([
         (
@@ -231,6 +236,7 @@ pub static DEFAULT_BINDINGS: LazyLock<Bindings> = LazyLock::new(|| {
                 ("shift+r", ENEMY_SIDE),
                 ("c", COORDINATES),
                 ("shift+c", ITEM_COORDINATES),
+                ("y", REPEAT),
             ]),
         ),
         (
@@ -255,6 +261,7 @@ pub static DEFAULT_BINDINGS: LazyLock<Bindings> = LazyLock::new(|| {
                 ("shift+r", ENEMY_SIDE),
                 ("c", COORDINATES),
                 ("shift+c", ITEM_COORDINATES),
+                ("y", REPEAT),
             ]),
         ),
         (
@@ -282,6 +289,7 @@ pub static DEFAULT_BINDINGS: LazyLock<Bindings> = LazyLock::new(|| {
                 ("shift+r", ENEMY_SIDE),
                 ("c", COORDINATES),
                 ("shift+c", ITEM_COORDINATES),
+                ("y", REPEAT),
             ]),
         ),
     ])

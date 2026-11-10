@@ -123,6 +123,8 @@ pub struct Speech {
     /// Lines spoken so far of each category, so a speaker can be named again after a screen's
     /// words come between their lines.
     spoken: RefCell<HashMap<Category, i64>>,
+    /// The line spoken last, as it was spoken, for the key that says it again.
+    last: RefCell<String>,
 }
 
 impl Speech {
@@ -139,7 +141,13 @@ impl Speech {
             interrupts,
             listening,
             spoken: RefCell::new(HashMap::new()),
+            last: RefCell::new(String::new()),
         }
+    }
+
+    /// `last`: the line spoken last, "" before any.
+    pub fn last(&self) -> String {
+        self.last.borrow().clone()
     }
 
     /// `spoken[category]`: the lines of a category spoken so far.
@@ -173,6 +181,7 @@ impl Speech {
             .speak(&spoken, self.interrupts.contains(&category));
         self.backend.braille(&spoken);
         *self.spoken.borrow_mut().entry(category).or_insert(0) += 1;
+        *self.last.borrow_mut() = spoken;
         true
     }
 }
