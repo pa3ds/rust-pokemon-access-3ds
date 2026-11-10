@@ -239,7 +239,8 @@ pub const STEPS: Steps = Steps {
 };
 /// Every sound the game plays, named, its footsteps by Omega Ruby's names (spike 231).
 pub const SOUND_ARCHIVE: &str = "sound/xy_sound.bcsar";
-/// The Pokémon's cries, 3,751 sequences and then 797 waves (spike 275; X's, Y's not yet seen).
+/// The Pokémon's cries, 3,751 sequences and then 797 waves (spike 275), every file the same in X
+/// and Y, and so is the table saying which is whose.
 pub const CRIES: &str = "a/1/0/1";
 /// The archives holding textures with names, as `games.oras.TEXTURE_ARCHIVES` are Omega Ruby's:
 /// 112 of X's 271, 3.9 s to read, the whole ROM 251 (spike 284). Listing none, X had no index, and
