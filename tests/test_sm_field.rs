@@ -17,11 +17,12 @@ use crate::core::memory::{self, Cache, ExactCache, Memory, RpcMemory};
 use crate::core::rpc::{MAX_READ, Process, Rpc, UdpRpc};
 use crate::core::rtti::ClassNames;
 use crate::core::speech::Speech;
-use crate::games::common::field::things::Field;
+use crate::games::common::field::things::{FURNITURE_SOURCE, Field, WARP_SOURCE};
 use crate::games::common::scenes::{Beat, Scene};
 use crate::games::common::session::Profile;
 use crate::games::sm::camera;
 use crate::games::sm::field::{self, SunFieldReader, Walls};
+use crate::games::sm::gametext::SunGameText;
 use crate::games::sm::heaps::{self, Blocks, Heaps};
 use crate::games::sm::profile::{Options, SunProfile};
 use crate::games::sm::text::SunText;
@@ -382,6 +383,8 @@ impl Bedroom {
         keys: &[&str],
         walls: Option<Rc<dyn Walls>>,
         found: Option<&Found>,
+        zones_rom: Option<SunZones>,
+        game_text: Option<SunGameText>,
     ) -> Vec<String> {
         let emu = FakeEmulator::new(served(&self.memory));
         let memory: Rc<dyn Memory> = Rc::new(RpcMemory::new(connect(&emu)));
@@ -391,8 +394,9 @@ impl Bedroom {
             Rc::new(Speech::plain(self.recorder.clone())),
             silent(),
             Options {
-                zones: Some(Rc::new(rom())),
+                zones: Some(Rc::new(zones_rom.unwrap_or_else(rom))),
                 walls,
+                game_text: game_text.map(Rc::new),
                 ..Options::default()
             },
         );
@@ -607,7 +611,7 @@ fn test_the_field_is_not_up_until_the_player_has_a_model_on_it() {
 #[test]
 fn test_the_keys_walk_the_list_nearest_first_and_p_says_there_is_no_route() {
     assert_eq!(
-        Bedroom::new().keys(&["k", "l", "l", "p"], None, None),
+        Bedroom::new().keys(&["k", "l", "l", "p"], None, None, None, None),
         [
             "Route 1",
             "door to Iki Town, 1 of 3, 2 east",
@@ -788,6 +792,58 @@ fn test_a_zone_is_the_field_s_low_half_word() {
     assert_eq!(at.zone, BEDROOM);
 }
 
+/// A model standing on a trainer's record of its own model is that trainer; a thing is what it
+/// says, and a door the building behind it (spike A).
+#[test]
+fn test_the_keys_say_the_game_s_own_words_for_a_trainer_a_thing_and_a_door() {
+    let bedroom = rom();
+    let trainer = Record {
+        x: 46.5 * C,
+        z: 60.5 * C,
+        shape: None,
+        zone: Some(BEDROOM),
+        kind: 25,
+        code: 0x77,
+        number: 0x66,
+        ..Default::default()
+    };
+    let mut areas = bedroom.areas.clone();
+    areas[&AREA] = Area {
+        trainers: vec![vec![trainer]],
+        ..bedroom.areas[&AREA].clone()
+    };
+    let zones_rom = SunZones { areas, ..bedroom };
+    let words = SunGameText {
+        trainers: IndexMap::from([((BEDROOM, 0x66), "Youngster Jimmy".to_string())]),
+        places: IndexMap::from([
+            (
+                (
+                    BEDROOM,
+                    field::place_of(WARP_SOURCE, 53.5 * C, 60.5 * C).unwrap(),
+                ),
+                "Pokémon Center".to_string(),
+            ),
+            (
+                (
+                    BEDROOM,
+                    field::place_of(FURNITURE_SOURCE, 50.5 * C, 57.5 * C).unwrap(),
+                ),
+                "It's a Ditto pillow".to_string(),
+            ),
+        ]),
+        ..SunGameText::default()
+    };
+    assert_eq!(
+        Bedroom::new().keys(&["k", "l", "l"], None, None, Some(zones_rom), Some(words)),
+        [
+            "Route 1",
+            "Pokémon Center to Iki Town, 1 of 3, 2 east",
+            "It's a Ditto pillow, 2 of 3, 3 north",
+            "Youngster Jimmy, 3 of 3, 4 west",
+        ]
+    );
+}
+
 /// An item actor is a ball still on the ground; a thing of a signpost's kind is a sign; Iki
 /// Town built five of its things twice, once for each of two scripts (spike 115).
 #[test]
@@ -889,7 +945,7 @@ impl Walls for TestWalls {
 /// between the player and Meowth rather than saying there is no route.
 #[test]
 fn test_p_finds_the_way_round_the_walls_out_of_the_rom() {
-    let spoken = Bedroom::new().keys(&["l", "l", "p"], Some(TestWalls::walls()), None);
+    let spoken = Bedroom::new().keys(&["l", "l", "p"], Some(TestWalls::walls()), None, None, None);
     assert_eq!(spoken[2], "person, 3 of 3, 4 west");
     assert_eq!(spoken[3..], ["3 north, 4 west, 2 south"]);
 }
@@ -1027,7 +1083,13 @@ fn test_a_path_to_a_thing_ends_where_the_player_can_stand_outside_its_prop() {
             (TALK, field::PROP),
         ],
     );
-    let spoken = bedroom.keys(&["l", "p"], Some(TestWalls::walls()), Some(&found));
+    let spoken = bedroom.keys(
+        &["l", "p"],
+        Some(TestWalls::walls()),
+        Some(&found),
+        None,
+        None,
+    );
     assert_eq!(spoken[1], "object, 2 of 3, 3 north");
     assert_eq!(spoken.last().unwrap(), "1 north");
 }
@@ -1048,7 +1110,13 @@ fn test_no_prop_is_solid_until_a_drawn_person_shows_the_bodies_group() {
         ],
     );
     let found = with_heap(&bedroom, &[(PROP, field::PROP)]);
-    let spoken = bedroom.keys(&["l", "p"], Some(TestWalls::walls()), Some(&found));
+    let spoken = bedroom.keys(
+        &["l", "p"],
+        Some(TestWalls::walls()),
+        Some(&found),
+        None,
+        None,
+    );
     assert_eq!(spoken.last().unwrap(), "3 north");
 }
 
@@ -1074,7 +1142,13 @@ fn test_a_prop_round_the_player_s_own_cell_does_not_wall_them_in() {
         &[120.0, 150.0],
     );
     let found = with_heap(&bedroom, &[(BODY, field::PROP), (HERE, field::PROP)]);
-    let spoken = bedroom.keys(&["l", "p"], Some(TestWalls::walls()), Some(&found));
+    let spoken = bedroom.keys(
+        &["l", "p"],
+        Some(TestWalls::walls()),
+        Some(&found),
+        None,
+        None,
+    );
     assert_eq!(spoken.last().unwrap(), "3 north");
 }
 
@@ -1098,6 +1172,8 @@ fn test_facing_west_north_is_the_way_up_walks_and_the_way_is_said_so() {
         &["k", "l", "l", "p"],
         Some(TestWalls::walls()),
         Some(&found),
+        None,
+        None,
     );
     assert_eq!(
         spoken,

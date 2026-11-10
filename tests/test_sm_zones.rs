@@ -176,7 +176,7 @@ fn route_1() -> SunZones {
         15793.0,
         0x18,
         &[
-            (zones::PERSON_SCRIPT, "<I", 0x2AA),
+            (zones::PERSON_TALK, "<I", 0x2AA),
             (zones::PERSON_MODEL, "<I", 0x43),
         ],
     );

@@ -72,6 +72,7 @@ mod test_sm;
 mod test_sm_battle;
 mod test_sm_camera;
 mod test_sm_field;
+mod test_sm_gametext;
 mod test_sm_screen;
 mod test_sm_walls;
 mod test_sm_zones;

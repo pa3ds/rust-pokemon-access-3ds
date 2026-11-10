@@ -163,6 +163,9 @@ pub const REACH: i64 = 3;
 /// An item ball's source: `ITEM_SOURCE | x << 16 | z` of its cell, as a thing's is its cell under
 /// `FURNITURE_SOURCE`.
 pub const ITEM_SOURCE: i64 = 4 << 32;
+/// World units a model may stand from a trainer's record and be them: a trainer turns where they
+/// stand and does not walk, and a cell is the width of the player.
+pub const TRAINER_REACH: f64 = 50.0;
 /// More zones than Sun has (295): a zone past it is not a zone, and the field is not up.
 pub const ZONES: i64 = 0x400;
 pub const AREAS: i64 = 0x400;
@@ -523,7 +526,7 @@ impl SunFieldReader {
         let Some((_zone, area, player, _at)) = self.r#where()? else {
             return Ok(r#where.clone());
         };
-        let mut items = self.people(player)?;
+        let mut items = self.people(player, area)?;
         items.extend(self.things(area, r#where.zone)?);
         Ok(Field {
             interactables: items,
@@ -720,14 +723,28 @@ impl SunFieldReader {
         Ok(None)
     }
 
-    /// Every model standing on the field but the player's: its model code names it.
-    fn people(&self, player: i64) -> Result<Vec<Interactable>> {
+    /// Every model standing on the field but the player's: its model code names it, and a
+    /// trainer is the trainer record of the area it stands on, drawn as the same model, which
+    /// names that one alone (`Interactable.own`).
+    fn people(&self, player: i64, area: i64) -> Result<Vec<Interactable>> {
+        let found = self.zones.as_ref().and_then(|zones| zones.areas.get(&area));
+        let trainers: Vec<&Record> = match found {
+            None => Vec::new(),
+            Some(found) => found.trainers.iter().flatten().collect(),
+        };
         let mut out: Vec<Interactable> = Vec::new();
         for (model, head, (x, z)) in self.drawn(player)? {
+            let code = u32(&head, MODEL_CODE)?;
+            let record = trainers.iter().find(|record| {
+                record.code == code
+                    && record.zone.is_some()
+                    && py::hypot(record.x - x, record.z - z) <= TRAINER_REACH
+            });
             out.push(Interactable {
-                code: u32(&head, MODEL_CODE)?,
+                code,
                 source: model,
                 move_model: true,
+                record: record.and_then(|record| record.zone.map(|zone| (zone, record.number))),
                 ..Interactable::new("people", "person", turned(cell(x, z)?, self.turn.get()))
             });
         }
@@ -956,7 +973,6 @@ fn made(
     zone: i64,
 ) -> Result<Option<Interactable>> {
     let at = cell(x, z)?;
-    let key = (at.0 & 0xFFFF) << 16 | at.1 & 0xFFFF;
     let (first, size) = reach(at, record)?;
     // A thing's zone is its record's, not the player's: Route 1's two zones are one area, and
     // walking from one to the other made the thing P led to "gone", and would have lost the name
@@ -972,7 +988,7 @@ fn made(
             size,
             zone: record.and_then(|record| record.leads_to),
             code: record.map_or(0, |record| record.kind),
-            source: place_source(WARP_SOURCE, key)?,
+            source: place_of(WARP_SOURCE, x, z)?,
             home: Some(home),
             ..Interactable::new("exits", exit(record), first)
         }));
@@ -989,7 +1005,7 @@ fn made(
         return Ok(Some(Interactable {
             size,
             code: record.map_or(0, |record| record.code),
-            source: place_source(ITEM_SOURCE, key)?,
+            source: place_of(ITEM_SOURCE, x, z)?,
             home: Some(home),
             ..Interactable::new("items", "item ball", first)
         }));
@@ -997,7 +1013,7 @@ fn made(
     Ok(Some(Interactable {
         size,
         code: record.map_or(0, |record| record.script),
-        source: place_source(FURNITURE_SOURCE, key)?,
+        source: place_of(FURNITURE_SOURCE, x, z)?,
         home: Some(home),
         ..Interactable::new("signs", thing(record), first)
     }))
@@ -1113,6 +1129,14 @@ fn reach(at: (i64, i64), record: Option<&Record>) -> Result<((i64, i64), (i64, i
     let (west, north) = cell(shape.west, shape.north)?;
     let (east, south) = cell(shape.east, shape.south)?;
     Ok(((west, north), (east - west + 1, south - north + 1)))
+}
+
+/// The source a place at (x, z) is keyed by, a name given it among them: its kind's tag over
+/// its cell, `x << 16 | z`. A record's place and its actor's are the same floats, so the ROM's
+/// records key what the field lists.
+pub fn place_of(kind: i64, x: f64, z: f64) -> Result<i64> {
+    let cell = cell(x, z)?;
+    place_source(kind, (cell.0 & 0xFFFF) << 16 | cell.1 & 0xFFFF)
 }
 
 fn cell(x: f64, z: f64) -> Result<(i64, i64)> {

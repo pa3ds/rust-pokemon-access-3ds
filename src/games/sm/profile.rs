@@ -44,6 +44,7 @@ use crate::games::common::session::Profile;
 use crate::games::sm::apps::{self, RunningApp};
 use crate::games::sm::battle::{self, SunBattleReader};
 use crate::games::sm::field::{self, SunFieldReader, Walls};
+use crate::games::sm::gametext::SunGameText;
 use crate::games::sm::heaps::{Blocks, InBlocks};
 use crate::games::sm::langselect::{self, LangSelectReader};
 use crate::games::sm::talk::{self, Speakers};
@@ -102,6 +103,7 @@ pub struct Options {
     pub scenes: Vec<Scene>,
     /// Each beat's words by its id (`Described.said`); None words none.
     pub said: Option<Rc<dyn Fn(&str) -> Option<String>>>,
+    pub game_text: Option<Rc<SunGameText>>,
 }
 
 /// Sun's readers, and what each sweep and poll does with them.
@@ -203,6 +205,7 @@ impl SunProfile {
             read_each,
             scenes,
             said,
+            game_text,
         } = options;
         // The layout readers follow pointers down each layout's tree to its words, and read only
         // inside the blocks the last walk found, as the field's do (ADR-0035).
@@ -268,13 +271,28 @@ impl SunProfile {
             walls,
             read_each,
         ));
+        // The game's own words for its people, signs, things and doors, behind the player's names
+        // and ahead of the shipped (spike A, ADR-0023).
+        let named = named.unwrap_or_else(|| Rc::new(Names::default()));
+        if let Some(game_text) = &game_text {
+            named.use_game(
+                Some({
+                    let game_text = game_text.clone();
+                    Rc::new(move |model| game_text.sprite(model))
+                }),
+                Some({
+                    let game_text = game_text.clone();
+                    Rc::new(move |zone, slot| game_text.place(zone, slot))
+                }),
+            );
+        }
         let navigator = Navigator::new(
             reader.clone(),
             speech.clone(),
             log.clone(),
             navigate::Options {
                 bindings: keys,
-                names: named,
+                names: Some(named),
                 navigation,
                 leads_to: Some({
                     let zones = zones.clone();
@@ -285,6 +303,9 @@ impl SunProfile {
                 sides: Some({
                     let announcements = announcements.clone();
                     Rc::new(move |player| Ok(announcements.borrow().sides(player)))
+                }),
+                door_sign: game_text.map(|game_text| -> navigate::DoorSign {
+                    Rc::new(move |zone, slot| game_text.door_sign(zone, slot))
                 }),
                 ..navigate::Options::default()
             },

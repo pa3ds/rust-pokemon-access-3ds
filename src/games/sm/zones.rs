@@ -25,16 +25,19 @@
 //! a part is: a warp's +0x34 does, so a zone with no warp (33 of 295) is in no area here.
 //!
 //! ```text
-//! 1  people   0x78 a record: +0x24 u32 script, +0x34 u32 the model it is drawn as (0x77, 0x04,
-//!             0x21 in the bedroom, as RAM has them), +0x70 and +0x74 offsets to more of its
-//!             own
+//! 1  people   0x78 a record: +0x24 u32 the flag that hides it, which the new game's script
+//!             sets (spike A; spike 115 took it for a script), +0x34 u32 the model it is
+//!             drawn as (0x77, 0x04, 0x21 in the bedroom, as RAM has them), +0x38 u32 what it
+//!             runs when talked to, a case of the zone's script below 0x100
+//!             (`script.TALK_CASES`), +0x70 and +0x74 offsets to more of its own
 //! 2  warps    0x58: +0x30 u32 the number of the warp it comes out at, +0x34 u16 its zone,
 //!             +0x36 u16 the zone it comes out in, +0x38 u32 its type (`WARP_*`), +0x3c f32 x,
 //!             y, z where a player coming in through it is put, +0x54 u32 its shape
 //! 3  things   0x3c, read by facing them: +0x24 u32 script, +0x28 u32 1 on 95 of them (as many
-//!             as Sun has Zygarde Cells), +0x30 u32, +0x34 u32 its kind where the script is 0
-//!             (`SIGNS`), +0x38 u32 its shape
-//! 7  trainers 0x54: +0x30 u32 a model code, by its range, +0x34 u32 script, +0x3c to +0x48
+//!             as Sun has Zygarde Cells), +0x30 u32 the case of the zone's script it runs,
+//!             +0x34 u32 its kind where the script is 0 (`SIGNS`), +0x38 u32 its shape
+//! 7  trainers 0x54: +0x30 u32 the model it is drawn as, +0x34 u32 `TRAINER_FLAGS` plus its
+//!             number in the trainer table (Route 1's Lass Madison is 1001), +0x3c to +0x48
 //!             four offsets, two of them to boxes of 80 and 40 by 150 around it
 //! 10 items    0x40: +0x24 u32 one number apart for each item of an area, +0x30 u32 the item
 //!             (system text file 36), +0x34 u16 how many, +0x38 u32 how it lies (`ITEM_BALL`,
@@ -87,8 +90,9 @@ pub const THING_RECORD: i64 = 0x3C;
 pub const TRAINER_RECORD: i64 = 0x54;
 pub const ITEM_RECORD: i64 = 0x40;
 pub const NUMBER: i64 = 0x2C;
-pub const PERSON_SCRIPT: i64 = 0x24;
+pub const PERSON_FLAG: i64 = 0x24;
 pub const PERSON_MODEL: i64 = 0x34;
+pub const PERSON_TALK: i64 = 0x38;
 pub const WARP_ZONE: i64 = 0x34;
 pub const WARP_TO: i64 = 0x36;
 pub const WARP_TYPE: i64 = 0x38;
@@ -98,7 +102,10 @@ pub const THING_CODE: i64 = 0x30;
 pub const THING_KIND: i64 = 0x34;
 pub const THING_SHAPE: i64 = 0x38;
 pub const TRAINER_MODEL: i64 = 0x30;
-pub const TRAINER_SCRIPT: i64 = 0x34;
+pub const TRAINER_FLAG: i64 = 0x34;
+/// A trainer's flag less its number in the trainer table (`a/1/0/5`): every one of the game's 180
+/// trainer records is a trainer, and the 47 models they stand as are each one class (spike A).
+pub const TRAINER_FLAGS: i64 = 1000;
 pub const ITEM_ITEM: i64 = 0x30;
 pub const ITEM_LIES: i64 = 0x38;
 pub const ITEM_SHAPE: i64 = 0x3C;
@@ -161,10 +168,11 @@ pub struct Record {
     pub zone: Option<i64>,
     /// For a warp, the zone it comes out in.
     pub leads_to: Option<i64>,
-    /// For a thing, a person or a trainer, the script it runs.
+    /// For a thing the script it runs, and for a person the case of the zone's script it runs
+    /// when talked to (`PERSON_TALK`).
     pub script: i64,
     /// For a warp its type (`WARP_*`), for a thing its kind (`SIGNS`), for an item how it lies
-    /// (`ITEM_BALL`).
+    /// (`ITEM_BALL`), for a trainer their number in the trainer table.
     pub kind: i64,
     /// For a person or a trainer the model it is drawn as, for an item the item, for a thing its
     /// +0x30.
@@ -182,6 +190,7 @@ pub struct Area {
     pub things: Vec<Vec<Record>>,
     pub people: Vec<Vec<Record>>,
     pub items: Vec<Vec<Record>>,
+    pub trainers: Vec<Vec<Record>>,
 }
 
 /// Sun's zones as its ROM has them: their place names, and every area's records.
@@ -275,8 +284,8 @@ impl SunZones {
         Ok(self.zone_kind(zone)? == Some(OUTDOORS))
     }
 
-    /// The record of `section` (`WARPS`, `THINGS`, `PEOPLE` or `ITEMS`) this area places at
-    /// (x, z), or None: a person who has walked is not.
+    /// The record of `section` (`WARPS`, `THINGS`, `PEOPLE`, `ITEMS` or `TRAINERS`) this area
+    /// places at (x, z), or None: a person who has walked is not.
     pub fn record(&self, area: i64, section: i64, x: f64, z: f64) -> Result<Option<Record>> {
         let lists: &[Vec<Record>] = match self.areas.get(&area) {
             None => &[],
@@ -285,6 +294,7 @@ impl SunZones {
                 THINGS => &found.things,
                 PEOPLE => &found.people,
                 ITEMS => &found.items,
+                TRAINERS => &found.trainers,
                 _ => return Err(Error::key(section.to_string())),
             },
         };
@@ -338,6 +348,7 @@ pub(crate) fn area(data: &[u8]) -> Result<Area> {
         things: section(THINGS, THING_RECORD, thing)?,
         people: section(PEOPLE, PERSON_RECORD, person)?,
         items: section(ITEMS, ITEM_RECORD, item)?,
+        trainers: section(TRAINERS, TRAINER_RECORD, trainer)?,
     })
 }
 
@@ -506,8 +517,22 @@ fn person(part: &[u8], at: i64, zone: Option<i64>) -> Result<Record> {
         z,
         shape: None,
         zone,
-        script: u32(part, at + PERSON_SCRIPT)?,
+        script: u32(part, at + PERSON_TALK)?,
         code: u32(part, at + PERSON_MODEL)?,
+        number: u32(part, at + NUMBER)?,
+        ..Default::default()
+    })
+}
+
+fn trainer(part: &[u8], at: i64, zone: Option<i64>) -> Result<Record> {
+    let (x, z) = place(part, at)?;
+    Ok(Record {
+        x,
+        z,
+        shape: None,
+        zone,
+        kind: u32(part, at + TRAINER_FLAG)? - TRAINER_FLAGS,
+        code: u32(part, at + TRAINER_MODEL)?,
         number: u32(part, at + NUMBER)?,
         ..Default::default()
     })

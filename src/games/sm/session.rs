@@ -18,6 +18,7 @@ use crate::core::window;
 use crate::core::words::{self, Words};
 use crate::games::common::scenes;
 use crate::games::common::session::{Profile, Session, Setup};
+use crate::games::sm::gametext::SunGameText;
 use crate::games::sm::heaps::Blocks;
 use crate::games::sm::profile::{Options, REQUIRED, SunProfile, heap_classes};
 use crate::games::sm::text::SunText;
@@ -74,6 +75,15 @@ pub fn start(rpc: Rc<dyn Rpc>, speech: Rc<Speech>, setup: Setup) -> Result<Sessi
             "places go unsaid and exits lead nowhere named",
         )?
         .map(Rc::new);
+    let game_text = match &zones {
+        None => None,
+        Some(zones) => setup
+            .words(
+                |image, language| SunGameText::load(image, language, zones),
+                "people, signs, things and doors go unnamed",
+            )?
+            .map(Rc::new),
+    };
     let walls = setup
         .words(
             |image, _language| SunWalls::from_rom(image, field::CELL),
@@ -180,6 +190,7 @@ pub fn start(rpc: Rc<dyn Rpc>, speech: Rc<Speech>, setup: Setup) -> Result<Sessi
             }),
             scenes: loaded,
             said: Some(Rc::new(move |message: &str| described.said(message))),
+            game_text,
         },
     ));
 
