@@ -205,8 +205,8 @@ pub fn rubbed(ends: ((i64, i64), (i64, i64)), travelled: f64) -> (i64, i64) {
 /// a tap, a slide along a path, and a press the player holds between keys. Each says why not
 /// where it cannot, as `TouchServer.tap` does.
 ///
-/// A test's stand-in that never rubs has no `rub` or `rub_on`, as Python duck-types it: here it
-/// rubs nothing.
+/// A test's stand-in that never rubs has no `rub`, `rub_on` or `rubbing`, as Python duck-types
+/// it: here it rubs nothing, and no rub lasts.
 pub trait TouchScreen {
     /// Press at (x, y) and let go.
     fn tap(&self, x: i64, y: i64) -> Option<String>;
@@ -236,8 +236,16 @@ pub trait TouchScreen {
     }
 
     /// Carry a rub that lasts on between new ends, for the time it has left, never lifted;
-    /// nothing where none lasts.
-    fn rub_on(&self, _ends: ((i64, i64), (i64, i64))) {}
+    /// nothing where none lasts. Whether it went on between new ends.
+    fn rub_on(&self, _ends: ((i64, i64), (i64, i64))) -> bool {
+        false
+    }
+
+    /// Whether a rub lasts, which only the screen knows: its time, a tap, a slide or a
+    /// release ends it.
+    fn rubbing(&self) -> bool {
+        false
+    }
 }
 
 /// A point kept to the touch screen's pixels.
@@ -312,6 +320,11 @@ impl State {
         } else {
             now
         }
+    }
+
+    /// Whether a rub lasts, under the lock.
+    fn lasts(&self) -> bool {
+        self.rub.is_some() && !self.path.is_empty() && time::monotonic() < self.until
     }
 }
 
@@ -473,15 +486,24 @@ impl TouchServer {
     }
 
     /// Carry a rub that lasts on between new ends, for the time it has left, never lifting:
-    /// Amie's stylus moved by an arrow in a tap's second. Where none lasts, ended by its time,
-    /// a tap, a slide or a release, nothing: only the player's tap or drag starts a press
-    /// (ADR-0009), and an arrow after a beckon, or after Shift let go, had pressed again.
-    pub fn rub_on(&self, ends: ((i64, i64), (i64, i64))) {
-        let a = on_screen(ends.0.0, ends.0.1);
+    /// Amie's stylus moved by an arrow in a tap's second, or as its part moves. Where none
+    /// lasts, ended by its time, a tap, a slide or a release, nothing: only the player's tap or
+    /// drag starts a press (ADR-0009), and an arrow after a beckon, or after Shift let go, had
+    /// pressed again. Whether it went on between new ends.
+    pub fn rub_on(&self, ends: ((i64, i64), (i64, i64))) -> bool {
+        let new = (on_screen(ends.0.0, ends.0.1), on_screen(ends.1.0, ends.1.1));
         let mut state = self.inner.locked();
-        if state.rub.is_some() && !state.path.is_empty() && time::monotonic() < state.until {
-            (state.rub, state.path) = (Some((a, on_screen(ends.1.0, ends.1.1))), vec![a]);
+        if !state.lasts() || Some(new) == state.rub {
+            return false;
         }
+        (state.rub, state.path) = (Some(new), vec![new.0]);
+        true
+    }
+
+    /// Whether a rub lasts: touch mode carries one on as its target moves only while it
+    /// does, and keeps no clock of its own, as its own had outlived a rub this ended.
+    pub fn rubbing(&self) -> bool {
+        self.inner.locked().lasts()
     }
 
     /// Slide a held press from where it is on to (x, y) over `MOVE` seconds, still down.
@@ -575,8 +597,12 @@ impl TouchScreen for TouchServer {
         TouchServer::rub(self, ends, seconds, delay)
     }
 
-    fn rub_on(&self, ends: ((i64, i64), (i64, i64))) {
-        TouchServer::rub_on(self, ends);
+    fn rub_on(&self, ends: ((i64, i64), (i64, i64))) -> bool {
+        TouchServer::rub_on(self, ends)
+    }
+
+    fn rubbing(&self) -> bool {
+        TouchServer::rubbing(self)
     }
 }
 

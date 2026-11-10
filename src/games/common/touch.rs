@@ -303,15 +303,9 @@ pub struct TouchMode {
     /// The target the keys have chosen to drag it to, while one is picked up.
     over: Option<Target>,
     /// Whether the press is down: from the first move away from the target picked up, where the
-    /// screen does not drag only on letting go.
+    /// screen does not drag only on letting go. Whether a rub goes on, and between which ends,
+    /// only the screen knows (`TouchScreen.rubbing`).
     pressed: bool,
-    /// Whether the drag picked up a target touched by rubbing, and rubs it until let go.
-    rubbing: bool,
-    /// When the rub a tap began ends, which another tap or a move of the target carries on.
-    rubbed_until: f64,
-    /// The ends the rub going on was last given, which a move gives again only where they
-    /// have changed.
-    ends: Option<((i64, i64), (i64, i64))>,
     chosen: Option<i64>,
 }
 
@@ -337,9 +331,6 @@ impl TouchMode {
             picked: None,
             over: None,
             pressed: false,
-            rubbing: false,
-            rubbed_until: 0.0,
-            ends: None,
             chosen: None,
         }
     }
@@ -400,8 +391,7 @@ impl TouchMode {
                 {
                     return Ok(why);
                 }
-                (self.pressed, self.rubbing) = (true, true);
-                self.ends = Some(ends);
+                self.pressed = true;
             }
             self.picked = Some(target.clone());
             self.over = Some(target.clone());
@@ -488,34 +478,51 @@ impl TouchMode {
         Ok(self.said(&found[at]))
     }
 
-    /// Choose a target a screen's own key has moved, carrying a drag picked up, or a tap's
-    /// rub, on to where it is now, with its name to say: Pokémon-Amie's stylus
+    /// Choose a target a screen's own key has moved, with its name to say, carrying on to
+    /// where it is now what goes on with it (`carry`): Pokémon-Amie's stylus
     /// (`amie.StylusKeys`).
     pub fn choose(&mut self, pane: i64) -> Result<String> {
         let Some(target) = (self.targets)()?.into_iter().find(|t| t.pane == pane) else {
             return Ok(String::new());
         };
         self.chosen = Some(pane);
-        self.carry_to(&target);
-        self.rub_on(&target);
+        self.carry_on(&target);
         Ok(self.said(&target))
     }
 
-    /// Carry a drag or a tap's rub on a target on to where it is now, choosing nothing and
-    /// saying nothing, for a target the screen moves itself: the stylus kept on its part as the
-    /// Pokémon moves, which re-chose the stylus and took the player's choice from them
-    /// (Orion, 2026-11-05).
+    /// Carry on to where a target is now what goes on with it, choosing nothing and saying
+    /// nothing, for a target the screen moves itself: the stylus kept on its part as the
+    /// Pokémon moves, which had chosen the stylus again and taken the player's choice from them
+    /// (Orion, 2026-11-05). What goes on is a drag over it, or, while it is chosen, a tap's rub
+    /// the screen says lasts; the targets are listed only then, as a moving part's ends are a
+    /// read of the picture.
     pub fn carry(&mut self, pane: i64) -> Result<()> {
         let dragged = self.over.as_ref().is_some_and(|over| over.pane == pane);
-        let rubbed = self.chosen == Some(pane) && self.rubbed_until > py::time::monotonic();
+        let rubbed = self.chosen == Some(pane)
+            && self.screen.as_ref().is_some_and(|screen| screen.rubbing());
         if !(dragged || rubbed) {
             return Ok(());
         }
         if let Some(target) = (self.targets)()?.into_iter().find(|t| t.pane == pane) {
-            self.carry_to(&target);
-            self.rub_on(&target);
+            self.carry_on(&target);
         }
         Ok(())
+    }
+
+    /// Carry a drag picked up (`_carry`), or a tap's rub, on to a target as it is now: the
+    /// rub between its ends, where the screen's lasts and they have moved.
+    fn carry_on(&mut self, target: &Target) {
+        self.carry_to(target);
+        if self.picked.is_none()
+            && let Some(ends) = target.rub
+            && let Some(screen) = &self.screen
+            && screen.rub_on(ends)
+        {
+            (self.log)(&format!(
+                "touch: rub on {} between [{:?}, {:?}]",
+                target.name, ends.0, ends.1
+            ));
+        }
     }
 
     /// Rub a target touched by rubbing for `RUB_SECONDS`, with the line to say: a tap's, which
@@ -528,27 +535,7 @@ impl TouchMode {
             "touch: rub {} between [{:?}, {:?}]",
             target.name, ends.0, ends.1
         ));
-        if let Some(why) = screen.rub(ends, Some(RUB_SECONDS), 0.0)
-            && !why.is_empty()
-        {
-            return why;
-        }
-        (self.rubbed_until, self.ends) = (py::time::monotonic() + RUB_SECONDS, Some(ends));
-        String::new()
-    }
-
-    /// Carry a tap's rub on between a target's ends as they are now, where they have moved,
-    /// if the screen's still lasts: a beckon tapped, or Shift let go, in its second ended it.
-    fn rub_on(&mut self, target: &Target) {
-        if self.picked.is_none()
-            && let Some(ends) = target.rub
-            && Some(ends) != self.ends
-            && self.rubbed_until > py::time::monotonic()
-            && let Some(screen) = &self.screen
-        {
-            screen.rub_on(ends);
-            self.ends = Some(ends);
-        }
+        screen.rub(ends, Some(RUB_SECONDS), 0.0).unwrap_or_default()
     }
 
     /// The name of what is picked up to drag, while something is.
@@ -566,7 +553,7 @@ impl TouchMode {
     /// from the target picked up straight to the one chosen, or not at all on the same one.
     pub fn drop(&mut self) -> String {
         let (picked, over, pressed) = (self.picked.take(), self.over.take(), self.pressed);
-        (self.pressed, self.rubbing) = (false, false);
+        self.pressed = false;
         let (Some(picked), Some(over)) = (picked, over) else {
             return String::new();
         };
@@ -637,14 +624,12 @@ impl TouchMode {
             return;
         };
         let (picked, screen) = (picked.clone(), screen.clone());
-        if self.rubbing {
-            // Rubbed between its ends as they are now, wherever they have gone.
+        if picked.rub.is_some() {
+            // Rubbed between its ends as they are now, wherever they have gone, while it lasts.
             let point = point(target);
             let ends = target.rub.unwrap_or((point, point));
             self.over = Some(target.clone());
-            if Some(ends) != self.ends {
-                screen.rub(ends, None, 0.0);
-                self.ends = Some(ends);
+            if screen.rub_on(ends) {
                 (self.log)(&format!(
                     "touch: rub on {} between [{:?}, {:?}]",
                     target.name, ends.0, ends.1

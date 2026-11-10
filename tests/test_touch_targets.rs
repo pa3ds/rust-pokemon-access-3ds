@@ -35,7 +35,8 @@ fn bar() -> Vec<Target> {
         .collect()
 }
 
-/// The touch screen, each tap, slide and held press kept (`core.touch.TouchScreen`).
+/// The touch screen, each tap, slide and held press kept (`core.touch.TouchScreen`), and a
+/// rub lasting until a tap, a slide or a release ends it, as the screen's own does.
 #[derive(Default)]
 struct Pressed {
     tapped: RefCell<Vec<(i64, i64)>>,
@@ -44,6 +45,7 @@ struct Pressed {
     touches: RefCell<Vec<(&'static str, i64, i64)>>,
     rubs: RefCell<Vec<(Ends, Option<f64>, f64)>>,
     rubbed_on: RefCell<Vec<Ends>>,
+    lasting: RefCell<Option<Ends>>,
 }
 
 /// The two ends a rub goes between.
@@ -52,21 +54,33 @@ type Ends = ((i64, i64), (i64, i64));
 impl crate::core::touch::TouchScreen for Pressed {
     fn rub(&self, ends: Ends, seconds: Option<f64>, delay: f64) -> Option<String> {
         self.rubs.borrow_mut().push((ends, seconds, delay));
+        *self.lasting.borrow_mut() = Some(ends);
         None
     }
 
-    fn rub_on(&self, ends: Ends) {
+    fn rub_on(&self, ends: Ends) -> bool {
+        if self.lasting.borrow().is_none_or(|lasting| ends == lasting) {
+            return false;
+        }
         self.rubbed_on.borrow_mut().push(ends);
+        *self.lasting.borrow_mut() = Some(ends);
+        true
+    }
+
+    fn rubbing(&self) -> bool {
+        self.lasting.borrow().is_some()
     }
 
     fn tap(&self, x: i64, y: i64) -> Option<String> {
         self.tapped.borrow_mut().push((x, y));
+        *self.lasting.borrow_mut() = None;
         None
     }
 
     fn slide(&self, path: &[(i64, i64)], seconds: f64) -> Option<String> {
         self.slid.borrow_mut().push(path.to_vec());
         self.seconds.borrow_mut().push(seconds);
+        *self.lasting.borrow_mut() = None;
         None
     }
 
@@ -81,6 +95,7 @@ impl crate::core::touch::TouchScreen for Pressed {
 
     fn release(&self) {
         self.touches.borrow_mut().push(("release", 0, 0));
+        *self.lasting.borrow_mut() = None;
     }
 }
 
@@ -1409,6 +1424,29 @@ fn test_a_target_the_screen_moves_takes_nothing_from_the_target_chosen() {
     assert_eq!(screen.tapped(), [(285, 223)]);
 }
 
+/// ADR-0009: a touch only on the player's tap or drag. A beckon tapped in a tap's second
+/// ended its rub, and the next arrow, choosing the stylus where it had moved, pressed again
+/// (a review of feat/amie-greys, 2026-11-08): whether a rub lasts is the screen's to say.
+#[test]
+fn test_a_rub_another_touch_ended_is_not_carried_on() {
+    let beckon = Target {
+        path: vec![(160, 130)],
+        seconds: 0.4,
+        ..Target::new(1, "beckon", 160, 120, 0.0, 240.0)
+    };
+    let mut screen = Screen::new(vec![beckon, stylus(160, CHIN)]);
+    screen.targets.choose(2).unwrap();
+    screen.press(touch::TAP);
+    screen.press(touch::ITEM_PREVIOUS);
+    screen.press(touch::TAP);
+    screen.found.borrow_mut()[1] = stylus(166, ((156, 120), (176, 120)));
+    screen.targets.choose(2).unwrap();
+    screen.targets.carry(2).unwrap();
+    assert!(
+        screen.pressed.rubs.borrow().len() == 1 && screen.pressed.rubbed_on.borrow().is_empty()
+    );
+}
+
 /// Held, the drag rubs once the key has been down a moment, Shift alone being a screen
 /// reader's key as well (ADR-0009); toggled, at once. Moved, the rub goes with the stylus; let
 /// go, it lifts.
@@ -1424,14 +1462,14 @@ fn test_a_drag_on_a_target_rubbed_rubs_until_let_go() {
     screen.found.borrow_mut()[0] = stylus(166, ((156, 120), (176, 120)));
     screen.targets.choose(2).unwrap();
     assert_eq!(
-        *screen.pressed.rubs.borrow().last().unwrap(),
-        (((156, 120), (176, 120)), None, 0.0)
+        *screen.pressed.rubbed_on.borrow(),
+        [((156, 120), (176, 120))]
     );
     assert_eq!(screen.press(touch::TAP), ""); // a tap while the drag rubs touches nothing more
     assert_eq!(screen.targets.drop(), "let go on stylus, chin");
     assert!(
         *screen.pressed.touches.borrow() == [("release", 0, 0)]
-            && screen.pressed.rubs.borrow().len() == 2
+            && screen.pressed.rubs.borrow().len() == 1
     );
     let mut toggled = Screen::dragging(vec![stylus(160, CHIN)], "toggle");
     toggled.targets.choose(2).unwrap();

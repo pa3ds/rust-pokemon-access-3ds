@@ -536,13 +536,17 @@ fn test_an_arrow_never_starts_again_a_rub_something_else_ended() {
 fn test_a_rub_that_lasts_is_carried_on_between_new_ends() {
     let server = touch::TouchServer::new(Arc::new(|_line: &str| {}), 0).unwrap();
     let client = listened(&server);
-    server.rub_on(((10, 10), (30, 10)));
-    assert_eq!(server.rub_until().0, None);
+    assert!(!server.rub_on(((10, 10), (30, 10))));
+    assert!(!server.rubbing());
     server.rub(((10, 10), (30, 10)), Some(1.0), 0.0);
+    assert!(server.rubbing());
     let until = server.rub_until().1;
-    server.rub_on(((20, 10), (40, 10)));
+    assert!(server.rub_on(((20, 10), (40, 10))));
+    assert!(!server.rub_on(((20, 10), (40, 10)))); // the same ends: nothing new
     assert_eq!(server.rub_until().0, Some(((20, 10), (40, 10))));
     assert_eq!(server.rub_until().1, until);
+    server.release();
+    assert!(!server.rubbing());
     server.close();
     drop(client);
 }
