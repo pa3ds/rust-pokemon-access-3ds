@@ -257,7 +257,10 @@ impl ListCursors {
             } else {
                 framed(on_screen, &rect)
             };
-            let button = if walks && inside.is_empty() {
+            // Asked even with words framed: a contest's small cursor stands on its button's empty
+            // pane with the words' middle under it, and taken as framed alone its two columns of
+            // moves were one, the other column read as new (or_toughness_contest).
+            let button = if walks && own.is_empty() {
                 self.on_empty_pane(holder, root, on_screen)?
             } else {
                 Vec::new()

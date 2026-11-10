@@ -61,7 +61,7 @@ use crate::games::common::layout::Layouts;
 use crate::games::common::layout_file::LayoutFile;
 use crate::games::common::screen::{ScreenText, distinct, in_rows, join};
 use crate::games::common::{lyt, pictures, slots};
-use crate::py::{self, Error, Log, Result};
+use crate::py::{self, Log, Result};
 
 pub const WIDTH: i64 = 320;
 /// The touch screen in pixels; a layout places its panes from its middle, y up.
@@ -116,8 +116,6 @@ pub const RUB_DELAY: f64 = 0.25;
 pub fn default_touch() -> Touch {
     Touch::default()
 }
-/// How far across its width a pane's place is, by its anchor: left, centre, right.
-pub const ANCHOR: [f64; 3] = [0.0, 0.5, 1.0];
 
 /// A touch area on the bottom screen, by name, and the pixel a tap on it presses.
 #[derive(Debug, Clone, PartialEq)]
@@ -1563,7 +1561,6 @@ fn drawn(head: &[u8], shape: &lyt::PaneShape, root_x: f64, root_y: f64) -> Resul
     ))
 }
 
-/// Where a pane's middle is across and up its screen, from its place and its anchor.
 /// Each touch area's button less the buttons of the touch areas inside it, whose pictures are
 /// their own: the Pokémon-Amie page's menu lies within the touch area behind it, which took
 /// PLAY's word and tapped the menu shut, and PLAY, adding no word, was left out as part of it
@@ -1597,14 +1594,11 @@ fn own_parts(groups: &IndexMap<i64, Vec<i64>>) -> IndexMap<i64, Vec<i64>> {
         .collect()
 }
 
+/// Where a pane's middle is across and up its screen, from its place and its anchor.
 fn middle(head: &[u8], shape: &lyt::PaneShape) -> Result<(f64, f64)> {
     let width = f32(head, shape.width)? * f32(head, shape.scale_x)?;
-    let anchor = usize::try_from(shape.anchored(head)?)
-        .ok()
-        .and_then(|at| ANCHOR.get(at))
-        .ok_or_else(|| Error::index("tuple index out of range"))?;
     Ok((
-        f32(head, shape.x)? + (0.5 - anchor) * width,
+        f32(head, shape.x)? + (0.5 - shape.origin(head)?.0) * width,
         f32(head, shape.y)?,
     ))
 }

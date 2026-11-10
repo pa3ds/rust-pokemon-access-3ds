@@ -13,7 +13,7 @@
 //!           +0x48 f32 width    +0x4c f32 height
 //!           +0x80 f32 global scale x    +0x8c f32 global x    +0x94 f32 global scale y
 //!           +0x9c f32 global y
-//!           +0xb5 u8 global alpha    +0xb6 u8 anchor, bits 2-3: 0 left, 1 centre, 2 right
+//!           +0xb5 u8 global alpha    +0xb6 u8 anchor, low 4 bits: across + 3 * down
 //!           +0xb7 u8 flags, bit 0 visible    +0xb8 char[16] name
 //! TextBox   +0xd4 -> text    +0xe4 f32 glyph width    +0xe8 f32 glyph height
 //!           +0xf4 -> tag processor, 0 for a designer's placeholder
@@ -129,33 +129,16 @@ pub struct PaneShape {
     /// How much of a TextBox one read takes: through its text position, within the object.
     pub textbox_head: i64,
     /// Alignment codes in NintendoWare's order, centre, left, right, in the low two bits, as Sun
-    /// keeps both a pane's anchor and a TextBox's text position; ORAS keeps its anchor in bits 2
-    /// and 3 and its text position modulo 3, left, centre, right.
+    /// keeps both a pane's anchor and a TextBox's text position; ORAS keeps its text position
+    /// modulo 3, left, centre, right, and its anchor as `origin` reads it.
     pub centre_first: bool,
 }
 
 impl PaneShape {
-    /// The pane's horizontal anchor: 0 left, 1 centre, 2 right.
-    ///
-    /// Raises `IndexError` where `head` stops short of the anchor, as Python's indexing does.
-    pub fn anchored(&self, head: &[u8]) -> Result<i64> {
-        if self.centre_first {
-            let byte = head
-                .get(self.anchor as usize)
-                .ok_or_else(|| Error::index("index out of range"))?;
-            return Ok(LEFT_FIRST[(byte & 3) as usize]);
-        }
-        let byte = head
-            .get(self.anchor as usize)
-            .ok_or_else(|| Error::index("index out of range"))?;
-        Ok(i64::from((byte >> 2) & 3).min(2))
-    }
-
     /// How far across and down a pane its place lies, each 0, 0.5 or 1. ORAS keeps a pane's
     /// base position in the low four bits, across + 3 * down: 0x14 its middle, 0x11 the middle
     /// of its top (Super Training's hanging bag), 0x16 its lower left corner (its button), each
-    /// checked against where the picture is drawn (spike 290). `anchored`, older, reads the same
-    /// byte and is right only where across and down agree. Sun's down is not measured.
+    /// checked against where the picture is drawn (spike 290). Sun's down is not measured.
     ///
     /// Raises `IndexError` where `head` stops short of the anchor, as Python's indexing does.
     pub fn origin(&self, head: &[u8]) -> Result<(f64, f64)> {

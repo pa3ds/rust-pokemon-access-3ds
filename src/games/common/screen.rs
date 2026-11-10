@@ -1645,7 +1645,7 @@ fn placed(r#box: i64, text: &str, head: &[u8], shape: &lyt::PaneShape) -> Result
     }
     let width = f32(head, shape.width)? * scale;
     let glyph = f32(head, shape.glyph_width)? * scale;
-    let box_left = f32(head, shape.x)? - FRACTION[shape.anchored(head)? as usize] * width;
+    let box_left = f32(head, shape.x)? - shape.origin(head)?.0 * width;
     let words = min_of(width, text.chars().count() as f64 * glyph * GLYPH_ADVANCE);
     let left = box_left + (width - words) * FRACTION[shape.aligned(head)? as usize];
     Ok(ScreenText::placed(
