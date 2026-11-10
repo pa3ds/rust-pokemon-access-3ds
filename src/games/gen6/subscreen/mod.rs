@@ -77,7 +77,7 @@ use amie_switch::SwitchScreen;
 use berry_picker::{BerryKeys, BerryPicker, Process, Touching};
 use head_it::{Cue, Frames, HeadIt, HeadItKeys};
 use puzzle::TilePuzzle;
-use super_training::{Bags, Goals, Round, TrainingPage, Waiting};
+use super_training::{Bags, CoreTraining, Goals, Medals, Round, TrainingPage, Waiting};
 
 /// The subscreens' apps touch mode offers targets in (ADR-0009 as amended 2026-10-29), beside the
 /// field whose bottom screen they are: Pokémon-Amie, its decorate screen and its games, and Super
@@ -145,6 +145,12 @@ impl Rewording for RefCell<SwitchScreen> {
 impl Rewording for RefCell<HeadIt> {
     fn reworded(&self, found: IndexMap<i64, ScreenText>) -> Result<IndexMap<i64, ScreenText>> {
         Ok(self.borrow().reworded(found))
+    }
+}
+
+impl Rewording for Medals {
+    fn reworded(&self, found: IndexMap<i64, ScreenText>) -> Result<IndexMap<i64, ScreenText>> {
+        Medals::reworded(self, found)
     }
 }
 
@@ -318,6 +324,16 @@ impl Polled for RefCell<Round> {
     }
 }
 
+impl Polled for RefCell<CoreTraining> {
+    fn poll(
+        &self,
+        running: Option<&str>,
+        _touch: &mut dyn Touching,
+    ) -> Result<Vec<(String, String, Option<Category>)>> {
+        self.borrow_mut().poll(running)
+    }
+}
+
 impl Polled for RefCell<BerryPicker> {
     fn poll(
         &self,
@@ -436,6 +452,7 @@ impl Subscreens {
         file_of: FileOf,
         on_screen: OnScreen,
         party: Rc<dyn Fn() -> Option<i64>>,
+        running: Rc<dyn Fn() -> Option<String>>,
     ) -> Subscreens {
         let short: berry_picker::Name = {
             let text = text.clone();
@@ -507,6 +524,17 @@ impl Subscreens {
             text.species.clone(),
             game.training,
         )));
+        // It draws a "!" over its Pokémon when a bag is finished, and says nothing of it; and its
+        // regimen menu writes the Pokémon's medals "x 0" beside a picture of one.
+        let core = Rc::new(RefCell::new(CoreTraining::new(
+            training.clone(),
+            layouts.clone(),
+            {
+                let text = text.clone();
+                Rc::new(move |found: &pokemon::Pokemon| yours(&text, found))
+            },
+        )));
+        let medals = Rc::new(Medals::new(running));
         let goals = Rc::new(Goals::new(layouts.clone(), image_of.clone()));
         // A message on the bottom screen waits for a tap on no button: Super Training's welcome.
         let waiting = Rc::new(Waiting::new(layouts.clone(), image_of.clone()));
@@ -588,6 +616,7 @@ impl Subscreens {
         // The page first: Amie's `Player` is read afresh for each poll as the others ask.
         let mut polled: Vec<Rc<dyn Polled>> = vec![
             page.clone(),
+            core,
             sparring,
             berry_picker.clone(),
             head_it.clone(),
@@ -617,7 +646,7 @@ impl Subscreens {
             keyed: vec![berry_keys, head_keys, stylus_keys],
             ticked: vec![head_it.clone()],
             holding: vec![head_it.clone()],
-            rewording: vec![switch, head_it.clone()],
+            rewording: vec![switch, head_it.clone(), medals],
             head_it,
             puzzle,
             berry_picker,

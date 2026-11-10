@@ -48,8 +48,16 @@
 //! edge while the list is closed. They have no touch area, and touch mode offered nothing, though
 //! the game says "Pick a training bag from the list on the left, and tap on it!". A Strength Bag was
 //! at its own less its root's (20, 44) on the touch screen, and a tap there opened its panel with
-//! Use and Back. The bag hanging beside the Pokémon, `sand_bag00.bclim`, 40 by 100, has no line in
-//! the game's text, and is never offered.
+//! Use and Back. With no bag in use the one hanging beside the Pokémon draws `sand_bag00.bclim`, 40
+//! by 100, which has no line in the game's text: offered as "empty bag", as tapping it can find a
+//! bag.
+//!
+//! Core Training (as_super_training_bags, spike A): a bag hangs from its top, so its place is the
+//! top of it, and a tap there does nothing; a tap on the bag or on the Pokémon makes it hit the bag.
+//! A hit takes one from the Pokémon's record's +0x16 of the bags' hits left (2 for a Strength Bag),
+//! and with none left the page's +0x264 goes from 1, idle (6 while it hits), to 4 and the game draws
+//! `surprise_icon.bclim`, a "!" over the Pokémon, until a tap on the Pokémon gives the bag's effect
+//! and says so. Left alone the Pokémon hits the bag once a minute. The page says nothing else of it.
 //!
 //! What a round shows besides its goals (measured live in the Magnemite regimen, 2026-10-10, in the
 //! top screen's layout, places as for a goal): the score is digit pictures, `score_nom0.bclim` to
@@ -86,6 +94,7 @@
 //! lands on no button (`Waiting`): any message of the field's bottom screen that draws one, the
 //! welcome the only one met so far.
 
+use std::cell::RefCell;
 use std::collections::BTreeSet;
 use std::rc::Rc;
 use std::sync::LazyLock;
@@ -100,6 +109,7 @@ use crate::core::speech::Category;
 use crate::core::words::own;
 use crate::games::common::layout::Layouts;
 use crate::games::common::pictures::words as picture_words;
+use crate::games::common::screen::ScreenText;
 use crate::games::common::touch::{ImageOf, Target};
 use crate::games::common::{lyt, pokemon};
 use crate::games::gen6::apps::FIELD;
@@ -134,8 +144,31 @@ pub static GOAL_FRAME: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(&format!(r"^(?:{GOAL_IMAGE}|{BIG_GOAL_IMAGE})_\d\.")).expect("a fixed pattern")
 });
 /// What the texture's name of a training bag's picture starts with, in the list and beside the
-/// Pokémon alike; the one beside it has no word in the game's text and is not offered.
+/// Pokémon alike.
 pub const BAG_IMAGE: &str = "sand_bag";
+/// The bag beside the Pokémon when none is in use, which the game's text never names.
+pub const EMPTY_BAG: &str = "sand_bag00.bclim";
+pub const EMPTY_BAG_WORD: &str = "training-empty-bag";
+/// How far above the screen's middle a second empty bag waits, out of sight behind the top bar, to
+/// drop in: at (90, 0), where the one hanging is at (50, 56).
+pub const WAITING_BAG: f64 = 110.0;
+/// Panes of the Super Training page's layout, by which it is told, its file being none pa3ds
+/// finds: its two buttons' touch areas, the shot's icon, the mark over the Pokémon, the bag waiting.
+///
+/// A `frozenset` in Python, only ever tested against.
+pub const PAGE_PANES: [&str; 5] = ["2o", "2p", "3v", "4b", "4e"];
+/// Where after its PokeIcon the page keeps what its Pokémon is doing, +0x264 in ORAS (spike A).
+pub const STATE: i64 = 0x174;
+/// That state, from when the Pokémon has finished its bag until it is tapped: the "!" over it.
+pub const FINISHED: i64 = 4;
+/// The states measured: idle, finished, hitting. Any other is logged, to learn what it is.
+pub const STATES_SEEN: [i64; 3] = [1, 4, 6];
+pub const BAG_FINISHED: &str = "training-bag-finished";
+/// The regimen menu's count of the Pokémon's medals, written beside a picture of one.
+///
+/// Python's `$` also matches before a newline at the end, so `\n?` before it here.
+pub static MEDAL_COUNT: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^x (\d+)\n?$").expect("a fixed pattern"));
 /// The ▼ a bottom-screen message draws while it waits for a tap (`Waiting`).
 pub const ARROW: &str = "f_msg_win_c01.bclim";
 pub const CONTINUE: &str = "touch-continue";
@@ -152,6 +185,9 @@ pub static CLOCK_DIGIT: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^(?:num(\d)_c|(timer)_c)\.").expect("a fixed pattern"));
 /// How far apart down the screen two pictures of one row of digits may be, in pixels.
 pub const SAME_ROW: f64 = 4.0;
+/// How far apart across two digits of the score may be, or its last and the slash, in pixels: 20
+/// and 15 as measured.
+pub const DIGIT_GAP: f64 = 30.0;
 /// The least seconds between two scores said: a score that moves faster is said once, newest, when
 /// they have passed.
 pub const SCORE_EVERY: f64 = 2.0;
@@ -164,6 +200,8 @@ pub const BANNERS: [&str; 4] = ["start", "clear", "cleared", "gameover"];
 pub const SHOT: &str = "training-shot-coming";
 /// What the log calls what a round says.
 pub const ROUND_LOG: &str = "round";
+/// What the log calls what the Super Training page says.
+pub const PAGE_LOG: &str = "training";
 pub const MISSILE: &str = "N5actor20SparringMissileActorE";
 pub const MISSILE_STATE: i64 = 0x04;
 /// A ball's state in flight; 2 once landed, 0 unused.
@@ -293,6 +331,32 @@ impl TrainingPage {
             } else {
                 Some(name.clone())
             });
+        }
+        Ok(None)
+    }
+
+    /// What the page's Pokémon is doing (`STATE`) and who it is, or None with no page.
+    pub fn selected(&self) -> Result<Option<(i64, Option<pokemon::Pokemon>)>> {
+        let params = self.icons + PARAMS;
+        for (&page, &vtable) in &self.pages {
+            let head = self.memory.read(page, self.icons + STATE + 4)?;
+            // Of the objects of this class only the page's holds a PokeIcon.
+            let (icons, param) = (u32(&head, self.icons)?, u32(&head, params)?);
+            if u32(&head, 0)? == vtable
+                && icons != 0
+                && param != 0
+                && self.names.of_object(icons)?.as_deref() == Some(d::ICON_CLASS)
+            {
+                return Ok(Some((
+                    u32(&head, self.icons + STATE)?,
+                    pokemon::read(
+                        self.memory.as_ref(),
+                        &self.names,
+                        param,
+                        pokemon::SPECIES_MAX,
+                    )?,
+                )));
+            }
         }
         Ok(None)
     }
@@ -438,14 +502,138 @@ impl Bags {
             return Ok(IndexMap::new());
         }
         let mut out: IndexMap<i64, String> = IndexMap::new();
-        for (pane, _root, image, _across, _up) in
+        for (pane, _root, image, _across, up) in
             pictures(&self.layouts, &self.image_of, false, &|image| {
                 image.starts_with(BAG_IMAGE)
             })?
         {
-            if let Some(word) = self.words.get(&image).filter(|word| !word.is_empty()) {
-                out.insert(pane, word.clone());
+            if let Some(word) = self.word(&image, up).filter(|word| !word.is_empty()) {
+                out.insert(pane, word);
             }
+        }
+        Ok(out)
+    }
+
+    fn word(&self, image: &str, up: f64) -> Option<String> {
+        if image == EMPTY_BAG {
+            return (up < WAITING_BAG).then(|| own(EMPTY_BAG_WORD, &[]));
+        }
+        self.words.get(image).cloned()
+    }
+}
+
+/// Says when the Pokémon on the Super Training page has finished its bag, which the game shows
+/// only as a "!" over it, and a tap on it answers. Read only while the page is drawn.
+pub struct CoreTraining {
+    page: Rc<RefCell<TrainingPage>>,
+    layouts: Rc<Layouts>,
+    called: Rc<dyn Fn(&pokemon::Pokemon) -> Option<String>>,
+    /// Whether this "!" has been said.
+    said: bool,
+    /// The last state logged as not measured.
+    logged: Option<i64>,
+}
+
+impl CoreTraining {
+    pub fn new(
+        page: Rc<RefCell<TrainingPage>>,
+        layouts: Rc<Layouts>,
+        called: Rc<dyn Fn(&pokemon::Pokemon) -> Option<String>>,
+    ) -> Self {
+        CoreTraining {
+            page,
+            layouts,
+            called,
+            said: false,
+            logged: None,
+        }
+    }
+
+    /// Is the page's layout drawn on the bottom screen?
+    fn drawn(&self) -> Result<bool> {
+        for root in self.layouts.roots() {
+            let names = self.layouts.pane_names(root);
+            if PAGE_PANES
+                .iter()
+                .all(|pane| names.iter().any(|name| name == pane))
+            {
+                let placement = self.layouts.placement(root)?;
+                if placement.is_some_and(|placement| placement.shown && !placement.top) {
+                    return Ok(true);
+                }
+            }
+        }
+        Ok(false)
+    }
+
+    /// The line for a bag just finished, and any state not measured, to the log alone.
+    pub fn poll(
+        &mut self,
+        running: Option<&str>,
+    ) -> Result<Vec<(String, String, Option<Category>)>> {
+        let found = if running == Some(FIELD) && self.drawn()? {
+            self.page.borrow().selected()?
+        } else {
+            None
+        };
+        if found.as_ref().is_none_or(|found| found.0 != FINISHED) {
+            self.said = false;
+        }
+        let Some((state, who)) = found else {
+            return Ok(Vec::new());
+        };
+        let mut lines = Vec::new();
+        if !STATES_SEEN.contains(&state) && Some(state) != self.logged {
+            lines.push((PAGE_LOG.to_string(), format!("state {state}"), None));
+        }
+        self.logged = Some(state);
+        if state == FINISHED && !self.said {
+            self.said = true;
+            let name = who.as_ref().and_then(|who| (self.called)(who));
+            if let Some(name) = name.filter(|name| !name.is_empty()) {
+                lines.push((
+                    PAGE_LOG.to_string(),
+                    own(BAG_FINISHED, &[("pokemon", &name)]),
+                    Some(Category::Screen),
+                ));
+            }
+        }
+        Ok(lines)
+    }
+}
+
+/// The regimen menu's count of the Pokémon's medals, which the game writes "x 0" beside a
+/// picture of a medal, in words.
+pub struct Medals {
+    running: Rc<dyn Fn() -> Option<String>>,
+}
+
+impl Medals {
+    pub fn new(running: Rc<dyn Fn() -> Option<String>>) -> Self {
+        Medals { running }
+    }
+
+    /// The words on the screen, the medal count's said as one.
+    pub fn reworded(&self, found: IndexMap<i64, ScreenText>) -> Result<IndexMap<i64, ScreenText>> {
+        if (self.running)().as_deref() != Some(MENU) {
+            return Ok(found);
+        }
+        let mut out = IndexMap::new();
+        for (r#box, piece) in found {
+            let count = match MEDAL_COUNT.captures(&piece.text) {
+                Some(m) => Some(py::int_base10(&m[1])?),
+                None => None,
+            };
+            out.insert(
+                r#box,
+                match count {
+                    Some(count) => ScreenText {
+                        text: own("training-medals", &[("count", &count)]),
+                        ..piece
+                    },
+                    None => piece,
+                },
+            );
         }
         Ok(out)
     }
@@ -510,11 +698,13 @@ pub fn read_score(seen: &[Seen]) -> Result<Option<(i64, i64)>> {
             .map(|(what, x, _)| (*x, what.clone()))
             .collect(),
     );
-    let score: String = row
-        .iter()
-        .filter(|(x, _)| *x < slash.0)
-        .map(|(_, what)| what.as_str())
-        .collect();
+    let score = running_up_to(
+        slash.0,
+        &row.iter()
+            .filter(|d| d.0 < slash.0)
+            .cloned()
+            .collect::<Vec<_>>(),
+    );
     let target: String = row
         .iter()
         .filter(|(x, _)| *x > slash.0)
@@ -524,6 +714,22 @@ pub fn read_score(seen: &[Seen]) -> Result<Option<(i64, i64)>> {
         return Ok(None);
     }
     Ok(Some((py::int_base10(&score)?, py::int_base10(&target)?)))
+}
+
+/// The digits running unbroken up to the slash, the score's right-aligned against it, left to
+/// right. A shot taking 8 points pops "-8" up at y 200, level with the row at y 203 but 100 pixels
+/// from it, and read "80 of 50" for a score of 0 (as_super_training_tutorial).
+fn running_up_to(slash: f64, digits: &[(f64, String)]) -> String {
+    let mut run: Vec<&str> = Vec::new();
+    let mut at = slash;
+    for (x, what) in digits.iter().rev() {
+        if at - x > DIGIT_GAP {
+            break;
+        }
+        run.push(what);
+        at = *x;
+    }
+    run.into_iter().rev().collect()
 }
 
 /// The seconds left on the clock, or None: the digits on the screen within `SAME_ROW` of the

@@ -849,6 +849,10 @@ impl Gen6Profile {
                 let party_icons = party_icons.clone();
                 Rc::new(move || party_icons.borrow().party)
             },
+            {
+                let apps = apps.clone();
+                Rc::new(move || apps.borrow().running.clone())
+            },
         ));
         screen.borrow_mut().set_reworded({
             let subscreens = subscreens.clone();

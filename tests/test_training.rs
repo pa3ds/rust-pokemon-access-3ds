@@ -1,7 +1,7 @@
 //! Super Training: the party's slots are named by species, a round's goals are tapped at the pixel
 //! that shoots them, and the training bags in the page's list are offered by the game's names.
 
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 use indexmap::IndexMap;
@@ -11,6 +11,7 @@ use super::fake_memory::{CODE, FakeClasses, FakeMemory};
 use super::test_battle::record_of;
 use crate::core::rtti::ClassNames;
 use crate::core::speech::Category;
+use crate::games::common::screen::ScreenText;
 use crate::games::common::touch::{ImageOf, Target};
 use crate::games::common::{lyt, pokemon};
 use crate::games::gen6::apps::FIELD;
@@ -42,6 +43,10 @@ fn floats(values: &[f32]) -> Vec<u8> {
 }
 
 fn page(icons: i64) -> super_training::TrainingPage {
+    paged(icons).0
+}
+
+fn paged(icons: i64) -> (super_training::TrainingPage, Rc<FakeMemory>, FakeClasses) {
     let memory = FakeMemory::new();
     let classes = FakeClasses::new(memory.clone());
     memory.u32(PAGE, &[classes.add(super_training::CLASS)]);
@@ -86,7 +91,7 @@ fn page(icons: i64) -> super_training::TrainingPage {
             false,
         )
         .unwrap();
-    found
+    (found, memory, classes)
 }
 
 #[test]
@@ -205,15 +210,10 @@ fn drawing(images: &[&'static str]) -> (FakeLayouts, ImageOf, Vec<i64>) {
     (fake, drawn, panes)
 }
 
-/// Touch mode places each and leaves it out as it does a touch area (`test_touch_targets`);
-/// the bag beside the Pokémon has no word in the game's text.
+/// Touch mode places each and leaves it out as it does a touch area (`test_touch_targets`).
 #[test]
 fn test_training_bags_are_offered_by_the_games_names_on_the_field() {
-    let (fake, drawn, panes) = drawing(&[
-        "sand_bag19.bclim",
-        "sand_bag00.bclim",
-        "f_msg_win_c01.bclim",
-    ]);
+    let (fake, drawn, panes) = drawing(&["sand_bag19.bclim", "f_msg_win_c01.bclim"]);
     let bags = super_training::Bags::new(
         fake.layouts.clone(),
         drawn,
@@ -227,6 +227,158 @@ fn test_training_bags_are_offered_by_the_games_names_on_the_field() {
         bags.offer(Some(super_training::SPARRING))
             .unwrap()
             .is_empty()
+    );
+}
+
+/// The game's text has no name for it, and tapping it can find a bag (spike A).
+#[test]
+fn test_the_empty_bag_is_offered_but_not_the_one_waiting_behind_the_top_bar() {
+    let (fake, drawn, panes) = drawing(&["sand_bag00.bclim", "sand_bag00.bclim"]);
+    fake.memory.write(panes[0] + lyt::Y, &floats(&[64.0]));
+    fake.memory.write(panes[1] + lyt::Y, &floats(&[120.0]));
+    let bags = super_training::Bags::new(fake.layouts.clone(), drawn, IndexMap::new());
+    assert_eq!(
+        bags.offer(Some(FIELD)).unwrap(),
+        IndexMap::from([(panes[0], "empty bag".to_string())])
+    );
+}
+
+/// A page in a state, its layout drawn or not, whose Pokémon is called "Ralts".
+fn core(state: i64, shown: bool) -> (super_training::CoreTraining, Rc<FakeMemory>) {
+    let (found, memory, classes) = paged(super_training::ICONS);
+    memory.u32(
+        PAGE + super_training::ICONS + super_training::STATE,
+        &[state],
+    );
+    let fake = FakeLayouts::new(&memory, &classes);
+    let (_work, group) = fake.screen(0x14B00000);
+    let picture = classes.add(lyt::PICTURE_CLASS);
+    memory.u32(
+        group + lyt::CHILD_COUNT,
+        &[super_training::PAGE_PANES.len() as i64],
+    );
+    let mut names = super_training::PAGE_PANES.to_vec();
+    names.sort();
+    for (i, name) in names.into_iter().enumerate() {
+        let pane = group + 0x100 * (i as i64 + 1);
+        fake.pane_with_vtable(pane, group, Some(picture));
+        memory.write(pane + lyt::NAME, name.as_bytes());
+    }
+    fake.visible(group - 0x200, shown);
+    fake.track().unwrap();
+    (
+        super_training::CoreTraining::new(
+            Rc::new(RefCell::new(found)),
+            fake.layouts.clone(),
+            Rc::new(|_who| Some("Ralts".to_string())),
+        ),
+        memory,
+    )
+}
+
+fn finished() -> (String, String, Option<Category>) {
+    (
+        "training".to_string(),
+        "Ralts finished Core Training".to_string(),
+        Some(Category::Screen),
+    )
+}
+
+#[test]
+fn test_a_finished_bag_is_said_once_while_the_pokemon_waits_for_a_tap() {
+    let (mut reader, memory) = core(super_training::FINISHED, true);
+    assert_eq!(reader.poll(Some(FIELD)).unwrap(), [finished()]);
+    assert!(reader.poll(Some(FIELD)).unwrap().is_empty());
+    memory.u32(PAGE + super_training::ICONS + super_training::STATE, &[1]);
+    assert!(reader.poll(Some(FIELD)).unwrap().is_empty());
+    memory.u32(
+        PAGE + super_training::ICONS + super_training::STATE,
+        &[super_training::FINISHED],
+    );
+    assert_eq!(reader.poll(Some(FIELD)).unwrap(), [finished()]);
+}
+
+/// A sweep finds three objects of the class and one is the page; the others hold noise.
+#[test]
+fn test_the_state_is_read_from_the_object_that_holds_the_pages_icons() {
+    let (mut found, memory, _classes) = paged(super_training::ICONS);
+    let decoy = PAGE + 0x4000;
+    memory.write(
+        decoy,
+        &crate::core::memory::Memory::read(memory.as_ref(), PAGE, 4).unwrap(),
+    );
+    memory.u32(decoy + super_training::ICONS, &[OTHER]);
+    memory.u32(
+        decoy + super_training::ICONS + super_training::PARAMS,
+        &[PARAMS],
+    );
+    memory.u32(decoy + super_training::ICONS + super_training::STATE, &[9]);
+    memory.u32(
+        PAGE + super_training::ICONS + super_training::STATE,
+        &[super_training::FINISHED],
+    );
+    found
+        .track(
+            &IndexMap::from([
+                (decoy, super_training::CLASS.to_string()),
+                (PAGE, super_training::CLASS.to_string()),
+            ]),
+            false,
+        )
+        .unwrap();
+    let state = found.selected().unwrap();
+    assert!(state.is_some_and(|state| state.0 == super_training::FINISHED));
+}
+
+#[test]
+fn test_a_finished_bag_is_not_said_with_the_page_put_away_or_in_another_app() {
+    assert!(
+        core(super_training::FINISHED, false)
+            .0
+            .poll(Some(FIELD))
+            .unwrap()
+            .is_empty()
+    );
+    assert!(
+        core(super_training::FINISHED, true)
+            .0
+            .poll(Some(super_training::MENU))
+            .unwrap()
+            .is_empty()
+    );
+}
+
+#[test]
+fn test_a_state_not_measured_goes_to_the_log_alone() {
+    let (mut reader, _memory) = core(5, true);
+    assert_eq!(
+        reader.poll(Some(FIELD)).unwrap(),
+        [("training".to_string(), "state 5".to_string(), None)]
+    );
+    assert!(reader.poll(Some(FIELD)).unwrap().is_empty());
+}
+
+#[test]
+fn test_the_regimen_menus_medal_count_is_said_as_one() {
+    let menu = IndexMap::from([
+        (1, ScreenText::new(1, "x 0", false)),
+        (2, ScreenText::new(2, "1/1", false)),
+    ]);
+    let medals = super_training::Medals::new(Rc::new(|| Some(super_training::MENU.to_string())));
+    assert_eq!(
+        medals
+            .reworded(menu.clone())
+            .unwrap()
+            .values()
+            .map(|piece| piece.text.as_str())
+            .collect::<Vec<_>>(),
+        ["0 medals", "1/1"]
+    );
+    assert_eq!(
+        super_training::Medals::new(Rc::new(|| Some(FIELD.to_string())))
+            .reworded(menu.clone())
+            .unwrap(),
+        menu
     );
 }
 
@@ -300,6 +452,19 @@ fn test_the_score_and_the_target_are_read_from_the_row_of_the_shown_slash() {
         ("score_nom8.bclim", 300.0, 292.0),
     ]);
     assert_eq!(super_training::read_score(&row).unwrap(), Some((157, 300)));
+}
+
+/// A shot's "-8" pops up at y 200, and read "80 of 50" for 0 (as_super_training_tutorial).
+#[test]
+fn test_a_points_popup_level_with_the_score_is_not_read_as_part_of_it() {
+    let row = seen(&[
+        ("score_nom8.bclim", 159.0, 200.0),
+        ("score_nom0.bclim", 297.0, 203.0),
+        ("score_nomslash.bclim", 312.0, 203.0),
+        ("score_nom5.bclim", 326.0, 203.0),
+        ("score_nom0.bclim", 340.0, 203.0),
+    ]);
+    assert_eq!(super_training::read_score(&row).unwrap(), Some((0, 50)));
 }
 
 fn rounds(times: Rc<Cell<f64>>) -> (super_training::Round, Rc<FakeMemory>, FakeClasses) {
