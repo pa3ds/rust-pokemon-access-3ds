@@ -249,6 +249,19 @@ fn test_goals_are_numbered_from_the_left_only_when_several_are_up() {
             .collect::<Vec<_>>(),
         ["goal"]
     );
+    // A Bot's barrier is shot as a goal is, and never numbered among them.
+    drawn_now.borrow_mut().insert(left, "barrier_target.bclim");
+    fake.visible(left, true);
+    fake.layouts.refresh();
+    assert_eq!(
+        goals
+            .targets(Some(super_training::SPARRING))
+            .unwrap()
+            .into_iter()
+            .map(|t| (t.name, t.held))
+            .collect::<Vec<_>>(),
+        [("goal".to_string(), true), ("barrier".to_string(), true)]
+    );
 }
 
 /// A bottom-screen layout drawing a picture of each image, with what each draws, and the
@@ -455,7 +468,8 @@ fn write_efforts(memory: &FakeMemory, param: i64, points: [i64; 6]) {
 type Wrong = Rc<RefCell<Vec<String>>>;
 
 /// R's reader over a page whose Pokémon has these effort values in the game's order, drawing
-/// this kind of shot; and the lines heard for nothing to say.
+/// this kind of shot in its own pane, and `stray` in another; and the lines heard for nothing to
+/// say.
 ///
 /// Python's patches the page's `efforts`; here they are written into the selected Pokémon's
 /// record, and None is a page the sweep has not found.
@@ -463,6 +477,7 @@ fn keys(
     exact: bool,
     efforts: Option<[i64; 6]>,
     shot: &'static str,
+    stray: Option<&'static str>,
 ) -> (super_training::TrainingKeys, Wrong) {
     let (mut found, page_memory, _classes) = paged(super_training::ICONS);
     match efforts {
@@ -480,7 +495,12 @@ fn keys(
         None => found.track(&IndexMap::new(), false).unwrap(),
     }
     let found = Rc::new(RefCell::new(found));
-    let (fake, drawn, _panes) = drawing(&[shot]);
+    let images: Vec<&'static str> = [stray, Some(shot)].into_iter().flatten().collect();
+    let (fake, drawn, panes) = drawing(&images);
+    fake.memory.write(
+        panes[panes.len() - 1] + fake.layouts.shape.name,
+        super_training::SHOT_PANE,
+    );
     let memory = FakeMemory::new();
     let sparring = Rc::new(RefCell::new(super_training::Round::new(
         fake.layouts.clone(),
@@ -519,7 +539,12 @@ fn keys(
 /// ADR-0017: the points are an Extra, off as it ships; off, the chart is said in fifths.
 #[test]
 fn test_r_says_each_stats_rough_share_of_the_chart_the_total_and_the_shot() {
-    let (reader, _wrong) = keys(false, Some([0, 40, 100, 200, 0, 0]), "shot_icon02.bclim");
+    let (reader, _wrong) = keys(
+        false,
+        Some([0, 40, 100, 200, 0, 0]),
+        "shot_icon02.bclim",
+        None,
+    );
     assert_eq!(
         reader.press(BASE_STATS, Some(FIELD)).unwrap(),
         "HP 0 of 5, Attack 1 of 5, Defense 2 of 5, Sp. Atk 4 of 5, Sp. Def 0 of 5, Speed 0 of 5, \
@@ -527,9 +552,32 @@ fn test_r_says_each_stats_rough_share_of_the_chart_the_total_and_the_shot() {
     );
 }
 
+/// Another picture named a shot icon, drawn where one of the PlayNav's archive had been, was
+/// said beside it: "orange shot, green shot" (Orion, 2026-11-10).
+#[test]
+fn test_r_says_the_shot_of_the_pages_own_pane_alone() {
+    let (reader, _wrong) = keys(
+        false,
+        Some([0, 0, 0, 0, 0, 0]),
+        "shot_icon02.bclim",
+        Some("shot_icon01.bclim"),
+    );
+    assert!(
+        reader
+            .press(BASE_STATS, Some(FIELD))
+            .unwrap()
+            .ends_with("total 0 of 5, blue shot")
+    );
+}
+
 #[test]
 fn test_a_stat_is_0_of_5_only_with_no_points_and_5_of_5_only_when_full() {
-    let (reader, _wrong) = keys(false, Some([252, 251, 1, 0, 6, 0]), "shot_icon02.bclim");
+    let (reader, _wrong) = keys(
+        false,
+        Some([252, 251, 1, 0, 6, 0]),
+        "shot_icon02.bclim",
+        None,
+    );
     assert!(
         reader.press(BASE_STATS, Some(FIELD)).unwrap().starts_with(
             "HP 5 of 5, Attack 4 of 5, Defense 1 of 5, Sp. Atk 0 of 5, Sp. Def 1 of 5"
@@ -540,7 +588,7 @@ fn test_a_stat_is_0_of_5_only_with_no_points_and_5_of_5_only_when_full() {
 /// ADR-0017: the Extra says the numbers the chart is drawn from, in the share's place.
 #[test]
 fn test_r_says_the_points_instead_with_the_extra_on() {
-    let (reader, _wrong) = keys(true, Some([2, 1, 4, 0, 0, 2]), "shot_icon02.bclim");
+    let (reader, _wrong) = keys(true, Some([2, 1, 4, 0, 0, 2]), "shot_icon02.bclim", None);
     assert_eq!(
         reader.press(BASE_STATS, Some(FIELD)).unwrap(),
         "HP 2, Attack 1, Defense 4, Sp. Atk 0, Sp. Def 0, Speed 2, total 9 of 510, blue shot"
@@ -549,14 +597,14 @@ fn test_r_says_the_points_instead_with_the_extra_on() {
 
 #[test]
 fn test_r_with_nothing_to_read_goes_to_wrong() {
-    let (reader, wrong) = keys(false, None, "shot_icon02.bclim");
+    let (reader, wrong) = keys(false, None, "shot_icon02.bclim", None);
     assert_eq!(reader.press(BASE_STATS, Some(FIELD)).unwrap(), "");
     assert_eq!(*wrong.borrow(), ["no numbers yet"]);
 }
 
 #[test]
 fn test_rs_table_follows_the_page_and_a_round() {
-    let reader = keys(false, Some([2, 1, 4, 0, 0, 2]), "shot_icon02.bclim").0;
+    let reader = keys(false, Some([2, 1, 4, 0, 0, 2]), "shot_icon02.bclim", None).0;
     assert_eq!(
         reader.context(Some(super_training::SPARRING)).unwrap(),
         Some(TRAINING_ROUND)
@@ -787,6 +835,33 @@ fn test_a_regimens_gain_is_said_beside_its_own_layouts_stat_alone() {
             "Target Time Remaining:",
             "2:30.0",
             "HP"
+        ]
+    );
+}
+
+/// Until the game first draws a layout just built, its panes read at (0, 0): every stat was on
+/// the gain's row, and a second stat took the "+4" again and threw (Orion, 2026-11-10).
+#[test]
+fn test_a_regimens_gain_is_taken_once_before_its_layout_is_first_drawn() {
+    let unplaced: IndexMap<i64, ScreenText> = gains_screen(Some(70.0))
+        .into_iter()
+        .map(|(r#box, piece)| {
+            (
+                r#box,
+                ScreenText {
+                    glyph: 12.0,
+                    ..ScreenText::new(r#box, piece.text, false)
+                },
+            )
+        })
+        .collect();
+    let gains = gains(super_training::MENU);
+    assert_eq!(
+        texts(&gains.reworded(unplaced).unwrap()),
+        [
+            "Possible base stat increase: HP +4",
+            "Target Time Remaining:",
+            "2:30.0"
         ]
     );
 }

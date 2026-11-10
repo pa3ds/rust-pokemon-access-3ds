@@ -125,7 +125,7 @@ use crate::games::gen6::apps::FIELD;
 use crate::games::gen6::screens::distribution as d;
 use crate::games::gen6::subscreen::amie::{METER, PAGE_APPS};
 use crate::games::gen6::subscreen::berry_picker::Touching;
-use crate::py::{self, Error, Result};
+use crate::py::{self, Error, Kind, Result};
 
 pub const CLASS: &str = "N5field9subscreen8training11FM_TrainingE";
 /// A round of Super Training, the app the goals are offered in.
@@ -153,6 +153,12 @@ pub const BIG_GOAL_IMAGE: &str = "big_target";
 pub static GOAL_FRAME: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(&format!(r"^(?:{GOAL_IMAGE}|{BIG_GOAL_IMAGE})_\d\.")).expect("a fixed pattern")
 });
+/// The barrier a Bot raises, a picture on the top screen as its goals all go, drifting as they do:
+/// Graveler's came for about 20 s, twice, and went with nothing shot at it
+/// (as_super_training_graveler_barrier).
+pub const BARRIER_IMAGE: &str = "barrier_target.bclim";
+/// pa3ds's word for it: the game's coach speaks of "a barrier" and names no picture.
+pub const BARRIER: &str = "training-barrier";
 /// What the texture's name of a training bag's picture starts with, in the list and beside the
 /// Pokémon alike.
 pub const BAG_IMAGE: &str = "sand_bag";
@@ -185,6 +191,11 @@ pub const STAT_FULL: i64 = 252;
 pub const TOTAL_FULL: i64 = 510;
 /// What the texture's name of the kind of shot's picture starts with.
 pub const SHOT_ICON: &str = "shot_icon0";
+/// The page's pane drawing the kind of shot, the one R reads: R said "orange shot, green shot"
+/// for one Pokémon (Orion, 2026-11-10). The PlayNav's archive, its five shot icons in it, is loaded
+/// at a new place each time the page comes back, and `LayoutFiles` keeps every texture's name by
+/// its address for good, so another picture drawn where one of them was is named by it.
+pub const SHOT_PANE: &[u8] = b"3v";
 /// That state, from when the Pokémon has finished its bag until it is tapped: the "!" over it.
 pub const FINISHED: i64 = 4;
 /// That state, while the Pokémon swings at its bag. Swings a tap apart run together in it and in
@@ -571,29 +582,38 @@ impl Goals {
         Ok(Vec::new())
     }
 
-    /// The goals up on the top screen while a round runs, each at the pixel that shoots it.
+    /// The goals up on the top screen while a round runs, and a Bot's barrier, each at the
+    /// pixel that shoots it.
     pub fn targets(&self, running: Option<&str>) -> Result<Vec<Target>> {
         if running != Some(SPARRING) {
             return Ok(Vec::new());
         }
         let layouts = &self.layouts;
         let mut found: Vec<Target> = Vec::new();
+        let mut barriers: Vec<Target> = Vec::new();
         for (pane, _root, image, across, up) in pictures(layouts, &self.image_of, true, &|image| {
-            GOAL_FRAME.is_match(image)
+            GOAL_FRAME.is_match(image) || image == BARRIER_IMAGE
         })? {
             if let Some((x, y)) = aim(
                 TOP_WIDTH as f64 / 2.0 + across,
                 TOP_HEIGHT as f64 / 2.0 - up,
             )? {
                 let word = own(
-                    if image.starts_with(BIG_GOAL_IMAGE) {
+                    if image == BARRIER_IMAGE {
+                        BARRIER
+                    } else if image.starts_with(BIG_GOAL_IMAGE) {
                         RED_GOAL
                     } else {
                         GOAL
                     },
                     &[],
                 );
-                found.push(Target {
+                let into = if image == BARRIER_IMAGE {
+                    &mut barriers
+                } else {
+                    &mut found
+                };
+                into.push(Target {
                     held: true,
                     ..Target::new(
                         pane,
@@ -606,7 +626,9 @@ impl Goals {
                 });
             }
         }
-        Ok(numbered(found))
+        let mut targets = numbered(found);
+        targets.extend(barriers);
+        Ok(targets)
     }
 }
 
@@ -934,12 +956,19 @@ impl TrainingKeys {
                 ],
             )
         });
-        for (_pane, _root, image, _x, _y) in
+        for (pane, _root, image, _x, _y) in
             pictures(&self.layouts, &self.image_of, false, &|image| {
                 image.starts_with(SHOT_ICON)
             })?
         {
-            said.push(picture_words(&image));
+            let name = self.layouts.name(pane)?;
+            let end = name
+                .iter()
+                .position(|&byte| byte == 0)
+                .unwrap_or(name.len());
+            if &name[..end] == SHOT_PANE {
+                said.push(picture_words(&image));
+            }
         }
         Ok(said.join(", "))
     }
@@ -1050,21 +1079,37 @@ impl Gains {
         if stats.len() != self.stats.len() {
             return Ok(found);
         }
-        let gains: Vec<ScreenText> = mine
-            .iter()
-            .filter(|piece| GAIN.is_match(&piece.text))
-            .cloned()
-            .collect();
+        // Each gain is its nearest stat's, and taken once. A layout's panes read at (0, 0) until
+        // the game first draws them, as the hidden "+4"s did in the snapshots of the failure, so
+        // all six stats can be on the gain's row as a regimen's description first shows: a second
+        // stat took the "+4" again and threw, four times in Orion's play after a round
+        // (2026-11-10).
+        let mut beside: IndexMap<i64, ScreenText> = IndexMap::new();
+        for piece in &mine {
+            if GAIN.is_match(&piece.text) {
+                let row = piece.row;
+                // Python's `min(..., key=...)`: the first of the nearest.
+                let mut nearest: Option<&ScreenText> = None;
+                for stat in &stats {
+                    if nearest.is_none_or(|best| (stat.row - row).abs() < (best.row - row).abs()) {
+                        nearest = Some(stat);
+                    }
+                }
+                let stat = nearest.ok_or_else(|| {
+                    Error::new(Kind::ValueError, "min() iterable argument is empty")
+                })?;
+                if (stat.row - row).abs() <= SAME_ROW * 2.0 {
+                    beside.entry(stat.r#box).or_insert_with(|| piece.clone());
+                }
+            }
+        }
         let mut worded = found.clone();
         let mut raised: Vec<String> = Vec::new();
         for stat in &stats {
             worded
                 .shift_remove(&stat.r#box)
                 .ok_or_else(|| Error::key(stat.r#box.to_string()))?;
-            let gain = gains
-                .iter()
-                .find(|gain| (gain.row - stat.row).abs() <= SAME_ROW * 2.0);
-            if let Some(gain) = gain {
+            if let Some(gain) = beside.get(&stat.r#box) {
                 worded
                     .shift_remove(&gain.r#box)
                     .ok_or_else(|| Error::key(gain.r#box.to_string()))?;
