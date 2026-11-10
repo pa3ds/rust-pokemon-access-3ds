@@ -15,7 +15,7 @@
 //! Bound by:
 //! - ADR-0037: pictures counted and said in words of pa3ds's own, by the game's own label.
 
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 use std::rc::Rc;
 
 use indexmap::IndexMap;
@@ -51,13 +51,11 @@ pub const EMPTY: [&str; 3] = [
     "ic_hungry_black.bclim",
     "ic_asobu_black.bclim",
 ];
-/// How far up from the screen's middle the rows reach: the rows stand at 30, 5 and -20, and the
-/// heart marking the Pokémon chosen among the party's buttons at 76.
+/// How far up from the screen's middle the rows reach: the rows stand at 30, 5 and -20, the
+/// party's buttons at 66, and the heart marking the Pokémon chosen among them at 76.
 pub const ROWS_BELOW: f64 = 50.0;
-pub const FIRST_BUTTON: f64 = -125.0;
-/// Where the party's first button stands across the screen, from its middle, and how far apart
-/// they are.
-pub const BUTTONS_APART: f64 = 50.0;
+/// What the party's buttons draw, one a party member, 50 apart from -125 across once they rest.
+pub const BUTTON: &str = "button_pokemon";
 
 /// Gives the Switch screen's row labels their rows, and names its party's buttons.
 pub struct SwitchScreen {
@@ -174,37 +172,63 @@ impl SwitchScreen {
         Ok(found.and_then(|found| (self.called)(&found)))
     }
 
-    /// Which of the party's buttons a picture stands in, by its place, or None.
+    /// Which of the party's buttons a picture stands in, or None: its place among the
+    /// buttons'. They slide in and out as one, a button apart, so by its place alone the first
+    /// button was said as the fourth as it slid in and as the second as it slid out
+    /// (or_amie_affection_max, at 3 and at -61 where it rests at -125).
     fn slot(&self, picture: i64) -> Result<Option<i64>> {
         let layouts = &self.layouts;
         let Some(placement) = layouts.placement(picture)? else {
             return Ok(None);
         };
-        let (shape, root, here) = (
-            layouts.shape,
-            layouts.pane(placement.root)?,
-            layouts.pane(picture)?,
-        );
-        if f32(&here, shape.y)? - f32(&root, shape.y)? < ROWS_BELOW {
-            return Ok(None);
-        }
+        let root = placement.root;
+        let (across, up) = self.place(picture, root)?;
         // Only the screen's own: the page lying under it keeps its pictures, and a visitor there
         // took the name of the button above it, and kept it (or_amie_affection_increase).
-        if !self.draws_rows(placement.root)? {
+        if up < ROWS_BELOW || !self.draws_rows(root)? {
             return Ok(None);
         }
-        Ok(Some(py::round(
-            (f32(&here, shape.x)? - f32(&root, shape.x)? - FIRST_BUTTON) / BUTTONS_APART,
-        )?))
+        // `sorted({...})`: a set of the buttons' places, in order.
+        let mut buttons: BTreeSet<i64> = BTreeSet::new();
+        for (&pane, kind) in &layouts.tree(root) {
+            if kind == lyt::PICTURE_CLASS
+                && (self.image_of)(pane)?
+                    .unwrap_or_default()
+                    .starts_with(BUTTON)
+            {
+                buttons.insert(py::round(self.place(pane, root)?.0)?);
+            }
+        }
+        let across = py::round(across)?;
+        Ok(buttons
+            .iter()
+            .position(|&button| button == across)
+            .map(|at| at as i64))
     }
 
-    /// Whether a layout draws pictures of all three rows, as only the Switch screen does: the
-    /// page under it keeps a plate of hearts alone, off the screen's edge. Asked of the layout as
-    /// touch mode names a picture, it needs no poll of the screen's words before it.
+    /// Where a pane stands, across and up, from its layout's root.
+    fn place(&self, pane: i64, root: i64) -> Result<(f64, f64)> {
+        let (shape, layouts) = (self.layouts.shape, &self.layouts);
+        let (here, head) = (layouts.pane(pane)?, layouts.pane(root)?);
+        Ok((
+            f32(&here, shape.x)? - f32(&head, shape.x)?,
+            f32(&here, shape.y)? - f32(&head, shape.y)?,
+        ))
+    }
+
+    /// Whether a layout shows pictures of all three rows now, as only the Switch screen does
+    /// while it is up: the page under it keeps a plate of hearts alone, off the screen's edge,
+    /// and the screen's own layout stays loaded under the PlayNav with its rows hidden, where
+    /// taken for the screen it named a picture of the page's (or_areanav_distribution's "5w").
+    /// Asked of the layout as touch mode names a picture, it needs no poll of the screen's words
+    /// before it.
     fn draws_rows(&self, root: i64) -> Result<bool> {
+        let layouts = &self.layouts;
         let mut kinds: HashSet<&str> = HashSet::new();
-        for (&pane, kind) in &self.layouts.tree(root) {
-            if kind != lyt::PICTURE_CLASS {
+        for (&pane, kind) in &layouts.tree(root) {
+            if kind != lyt::PICTURE_CLASS
+                || !layouts.placement(pane)?.is_some_and(|shown| shown.shown)
+            {
                 continue;
             }
             if let Some(image) = (self.image_of)(pane)?

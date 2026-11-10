@@ -1456,18 +1456,34 @@ fn test_every_species_has_sentences_each_naming_it_and_an_animation_pa3ds_reads(
     assert_eq!(species, (1..722).collect());
 }
 
-/// Panes of the Switch screen by their places: three of the party's buttons and the chosen
-/// Pokémon's picture; and of the page lying under it; and a picture where a seventh button would be.
-/// Python's are panes 1 to 6 of a fake `Layouts`; here panes of `FakeLayouts` at these addresses,
-/// the fifth under a layout of its own.
-const PLACES: [(i64, (f32, f32)); 6] = [
+/// Panes of the Switch screen by their places as they rest: seven of the party's buttons, the last
+/// where a party of six has none, a picture on the second, and the chosen Pokémon's picture; and of
+/// the page lying under it. Python's are panes of a fake `Layouts` by number, 1, 21, 3, 22, 23, 24,
+/// 6, 2, 4 and 5; here panes of `FakeLayouts` at these addresses, the last under a layout of its
+/// own, and the first seven `BUTTONS`.
+const PLACES: [(i64, (f32, f32)); 10] = [
     (0x08A31000, (-125.0, 66.0)),
-    (0x08A32000, (-75.0, 70.0)),
+    (0x08A35000, (-75.0, 66.0)),
     (0x08A33000, (-25.0, 66.0)),
+    (0x08A3A000, (25.0, 66.0)),
+    (0x08A3B000, (75.0, 66.0)),
+    (0x08A3C000, (125.0, 66.0)),
+    (0x08A36000, (175.0, 66.0)),
+    (0x08A32000, (-75.0, 70.0)),
     (0x08A34000, (-87.0, 15.0)),
     (0x08A41000, (-75.0, 66.0)),
-    (0x08A36000, (175.0, 66.0)),
 ];
+const BUTTONS: usize = 7;
+
+/// Lay the Switch screen's panes at their places, the screen's own slid `across` from where they
+/// rest, as Python's `Panes` gives them.
+fn placed(memory: &FakeMemory, fake: &FakeLayouts, across: f32) {
+    for (pane, (x, y)) in PLACES {
+        let slid = if pane == PLACES[9].0 { 0.0 } else { across };
+        memory.write(pane + fake.shape.x, &(x + slid).to_le_bytes());
+        memory.write(pane + fake.shape.y, &y.to_le_bytes());
+    }
+}
 
 /// They said "button pokémon", the icon they draw saying nothing of whose (Orion, 2026-11-06).
 /// Nothing but the Switch screen's own pictures, and only the party's row, has a name here.
@@ -1497,29 +1513,33 @@ fn test_the_switch_screens_buttons_are_named_by_the_party_member_their_place_hol
     let fake = FakeLayouts::new(&memory, &classes);
     let (_work, root) = fake.screen_with(0x08A30000, false, false);
     let (_work, page_root) = fake.screen_with(0x08A40000, false, false);
-    for (pane, (x, y)) in PLACES {
-        fake.pane(pane, if pane == PLACES[4].0 { page_root } else { root });
-        memory.write(pane + fake.shape.x, &x.to_le_bytes());
-        memory.write(pane + fake.shape.y, &y.to_le_bytes());
+    // The screen draws its three rows and its buttons; the page under it, a plate of hearts
+    // alone.
+    let picture = classes.add(lyt::PICTURE_CLASS);
+    for (pane, _place) in PLACES {
+        let parent = if pane == PLACES[9].0 { page_root } else { root };
+        fake.pane_with_vtable(pane, parent, (pane != PLACES[9].0).then_some(picture));
     }
-    // The screen draws its three rows; the page under it, a plate of hearts alone.
-    let rows = IndexMap::from([
+    placed(&memory, &fake, 0.0);
+    let mut images = IndexMap::from([
         (0x08A37000, "heart_00.bclim"),
         (0x08A38000, "ic_hungry_black.bclim"),
         (0x08A39000, "ic_asobu.bclim"),
         (0x08A42000, "heart_01.bclim"),
     ]);
-    let picture = classes.add(lyt::PICTURE_CLASS);
-    for &pane in rows.keys() {
+    for &pane in images.keys() {
         let parent = if pane == 0x08A42000 { page_root } else { root };
         fake.pane_with_vtable(pane, parent, Some(picture));
+    }
+    for (pane, _place) in &PLACES[..BUTTONS] {
+        images.insert(*pane, "button_pokemon.bclim");
     }
     fake.track().unwrap();
     let screen = amie_switch::SwitchScreen::new(
         memory.clone(),
         Rc::new(ClassNames::new(memory.clone(), CODE)),
         fake.layouts.clone(),
-        Rc::new(move |pane| Ok(rows.get(&pane).map(|image| image.to_string()))),
+        Rc::new(move |pane| Ok(images.get(&pane).map(|image| image.to_string()))),
         ["Affection", "Fullness", "Enjoyment"]
             .map(String::from)
             .to_vec(),
@@ -1532,7 +1552,7 @@ fn test_the_switch_screens_buttons_are_named_by_the_party_member_their_place_hol
             })
         }),
     );
-    let [first, second, third, chosen, under, seventh] = PLACES.map(|(pane, _)| pane);
+    let [first, _, third, _, _, _, seventh, second, chosen, under] = PLACES.map(|(pane, _)| pane);
     // with no poll of the screen's words before it
     assert_eq!(
         screen.name(first, Some(FIELD)).unwrap().as_deref(),
@@ -1548,6 +1568,12 @@ fn test_the_switch_screens_buttons_are_named_by_the_party_member_their_place_hol
     // the chosen Pokémon's own picture, lower down
     assert_eq!(screen.name(chosen, Some(FIELD)).unwrap(), None);
     assert_eq!(screen.name(first, Some(amie::AMIE)).unwrap(), None);
+    // Sliding in, the first button stood where the fourth rests (or_amie_affection_max).
+    placed(&memory, &fake, 128.0);
+    assert!(
+        screen.name(first, Some(FIELD)).unwrap().as_deref() == Some("Blaze")
+            && screen.name(second, Some(FIELD)).unwrap().as_deref() == Some("Pikachu")
+    );
     // A stale list can count past six (`partyicons`), and the party holds six at most.
     memory.write(party + COUNT, &[9]);
     assert_eq!(screen.name(seventh, Some(FIELD)).unwrap(), None);
