@@ -699,8 +699,14 @@ fn test_a_button_switched_off_whose_picture_is_said_all_the_same_is_offered() {
 /// Strength Bag in view and another off the screen's left edge, and a third picture, no touch
 /// area holding any and a screen offering the bags: with those panes in order, and the root.
 /// With `idle` the layout's buttons are locked, with `off` the Strength Bag's is switched off,
-/// and with `over` a layout drawn over it holds a touch area across the screen.
-fn offering(idle: bool, off: bool, over: bool) -> (TouchTargets, Vec<i64>, i64) {
+/// with `over` a layout drawn over it holds a touch area across the screen, and `anchor` is the
+/// Strength Bag's base position, at a scale of 1.
+fn offering(
+    idle: bool,
+    off: bool,
+    over: bool,
+    anchor: Option<u8>,
+) -> (TouchTargets, Vec<i64>, i64) {
     let memory = FakeMemory::new();
     let classes = FakeClasses::new(memory.clone());
     let fake = FakeLayouts::new(&memory, &classes);
@@ -731,6 +737,11 @@ fn offering(idle: bool, off: bool, over: bool) -> (TouchTargets, Vec<i64>, i64) 
             cover + 0x100 + lyt::WIDTH,
             &[320.0f32.to_le_bytes(), 240.0f32.to_le_bytes()].concat(),
         );
+    }
+    if let Some(anchor) = anchor {
+        memory.write(panes[0] + lyt::ANCHOR, &[anchor]);
+        memory.write(panes[0] + lyt::SCALE_X, &1.0f32.to_le_bytes());
+        memory.write(panes[0] + lyt::SCALE_Y, &1.0f32.to_le_bytes());
     }
     fake.track().unwrap();
     let bags: Vec<i64> = panes[..2].to_vec();
@@ -772,7 +783,7 @@ fn offering(idle: bool, off: bool, over: bool) -> (TouchTargets, Vec<i64>, i64) 
 /// less its root's opened its panel (omega_ruby_bottom-screen5).
 #[test]
 fn test_a_picture_a_screen_offers_is_a_target_where_it_is_drawn_if_on_the_screen() {
-    let (mut targets, panes, root) = offering(false, false, false);
+    let (mut targets, panes, root) = offering(false, false, false, None);
     assert_eq!(
         targets.targets().unwrap(),
         [Target {
@@ -783,21 +794,54 @@ fn test_a_picture_a_screen_offers_is_a_target_where_it_is_drawn_if_on_the_screen
     );
 }
 
+/// Super Training's bag hangs from its top, and a tap at its place missed it (spike A).
+#[test]
+fn test_a_picture_offered_is_tapped_in_the_middle_of_what_it_draws() {
+    let mut targets = offering(false, false, false, Some(0x11)).0; // the middle of its top
+    assert_eq!(
+        targets
+            .targets()
+            .unwrap()
+            .iter()
+            .map(|t| (t.x, t.y))
+            .collect::<Vec<_>>(),
+        [(20, 59)]
+    );
+}
+
 #[test]
 fn test_a_picture_offered_is_left_out_while_its_layouts_buttons_are_locked() {
-    assert!(offering(true, false, false).0.targets().unwrap().is_empty());
+    assert!(
+        offering(true, false, false, None)
+            .0
+            .targets()
+            .unwrap()
+            .is_empty()
+    );
 }
 
 /// Under Super Training's Yes and No a tap on a bag did nothing (spike 228).
 #[test]
 fn test_a_picture_offered_is_left_out_while_its_button_is_switched_off() {
-    assert!(offering(false, true, false).0.targets().unwrap().is_empty());
+    assert!(
+        offering(false, true, false, None)
+            .0
+            .targets()
+            .unwrap()
+            .is_empty()
+    );
 }
 
 /// A tap lands on the layout drawn on top, as a touch area's does (`uncovered`).
 #[test]
 fn test_a_picture_offered_under_a_layout_drawn_over_it_is_left_out() {
-    assert!(offering(false, false, true).0.targets().unwrap().is_empty());
+    assert!(
+        offering(false, false, true, None)
+            .0
+            .targets()
+            .unwrap()
+            .is_empty()
+    );
 }
 /// Screen text names pictures as touch mode does: the Bag's party slots were offered as
 /// "Torchic Torchic L14" and the Battle Maison's partners as "May May"

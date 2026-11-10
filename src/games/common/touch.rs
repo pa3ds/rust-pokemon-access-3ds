@@ -1480,7 +1480,7 @@ impl TouchTargets {
             }
             let (head, top) = (layouts.pane(pane)?, layouts.pane(root)?);
             let root_y = f32(&top, shape.y)?;
-            let (x, y) = pixel(&head, &shape, f32(&top, shape.x)?, root_y)?;
+            let (x, y) = drawn(&head, &shape, f32(&top, shape.x)?, root_y)?;
             if (0..WIDTH).contains(&x) && (0..HEIGHT).contains(&y) {
                 found.push(Target {
                     layer: layouts.layer(root)?,
@@ -1511,6 +1511,18 @@ fn pixel(head: &[u8], shape: &lyt::PaneShape, root_x: f64, root_y: f64) -> Resul
     Ok((
         py::round(WIDTH as f64 / 2.0 + f32(head, shape.x)? - root_x)?,
         py::round(HEIGHT as f64 / 2.0 - (f32(head, shape.y)? - root_y))?,
+    ))
+}
+
+/// The touch screen's pixel in the middle of a picture as it is drawn. A pane's place is the
+/// point it hangs from: Super Training's bag hangs from its top, at (50, 56), and over 300 taps
+/// there landed above it and hit nothing, where one at (50, 110) hit it every time (spike A).
+fn drawn(head: &[u8], shape: &lyt::PaneShape, root_x: f64, root_y: f64) -> Result<(i64, i64)> {
+    let (across, down) = shape.origin(head)?;
+    let (x, y) = pixel(head, shape, root_x, root_y)?;
+    Ok((
+        py::round(x as f64 + (0.5 - across) * f32(head, shape.width)? * f32(head, shape.scale_x)?)?,
+        py::round(y as f64 + (0.5 - down) * f32(head, shape.height)? * f32(head, shape.scale_y)?)?,
     ))
 }
 

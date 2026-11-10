@@ -151,6 +151,24 @@ impl PaneShape {
         Ok(i64::from((byte >> 2) & 3).min(2))
     }
 
+    /// How far across and down a pane its place lies, each 0, 0.5 or 1. ORAS keeps a pane's
+    /// base position in the low four bits, across + 3 * down: 0x14 its middle, 0x11 the middle
+    /// of its top (Super Training's hanging bag), 0x16 its lower left corner (its button), each
+    /// checked against where the picture is drawn (spike A). `anchored`, older, reads the same
+    /// byte and is right only where across and down agree. Sun's down is not measured.
+    ///
+    /// Raises `IndexError` where `head` stops short of the anchor, as Python's indexing does.
+    pub fn origin(&self, head: &[u8]) -> Result<(f64, f64)> {
+        let byte = head
+            .get(self.anchor as usize)
+            .ok_or_else(|| Error::index("index out of range"))?;
+        if self.centre_first {
+            return Ok((LEFT_FIRST[(byte & 3) as usize] as f64 / 2.0, 0.5));
+        }
+        let base = i64::from(byte & 0xF);
+        Ok(((base % 3) as f64 / 2.0, (base / 3).min(2) as f64 / 2.0))
+    }
+
     /// Where a TextBox sets its words across its width: 0 left, 1 centre, 2 right.
     ///
     /// Raises `IndexError` where `head` stops short of the text position, as Python's indexing
