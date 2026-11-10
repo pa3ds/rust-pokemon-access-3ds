@@ -520,6 +520,17 @@ pub const WAY_DOWN: i64 = 0x2B;
 /// while work 0x40f3 is 1. A teleport keeps the player's model (spike 258).
 pub const LAVERRE_GYM: i64 = 0xCB;
 
+pub const SNOWBELLE_GYM: i64 = 0xE2;
+/// Snowbelle City Gym's four switches, the scripts of its one-cell triggers at (10, 49), (30, 49),
+/// (14, 37) and (26, 37), each calling native 51 with 0 to 3, and each at the end of a platform of
+/// its colour (x_eighth_gym, the rig's screenshots). The game names none.
+pub const SNOWBELLE_SWITCHES: [(i64, &str); 4] = [
+    (0x1, "pink switch"),
+    (0x2, "blue switch"),
+    (0x3, "yellow switch"),
+    (0x4, "green switch"),
+];
+
 pub const BALL_FACTORY: i64 = 0x136;
 /// The Poké Ball Factory's floor, and the script of its 11 one-cell triggers, each a way onto one of
 /// its conveyor belts: its case calls one native with nothing, which carries the player along the belt
@@ -815,7 +826,7 @@ pub fn game() -> &'static Game {
         warps: warps().clone(),
         landings: HashSet::from(LANDINGS),
         armed_warps: IndexMap::from(ARMED_WARPS),
-        triggers: IndexMap::from([
+        triggers: [
             (
                 (HOUSE, 0x6),
                 ("exits".to_string(), "stairs down".to_string(), None),
@@ -848,6 +859,15 @@ pub fn game() -> &'static Game {
                 (BALL_FACTORY, BELT_ENTRANCE),
                 ("signs".to_string(), "conveyor belt".to_string(), None),
             ),
+        ]
+        .into_iter()
+        .chain(SNOWBELLE_SWITCHES.map(|(script, kind)| {
+            (
+                (SNOWBELLE_GYM, script),
+                ("signs".to_string(), kind.to_string(), None),
+            )
+        }))
+        .chain([
             (
                 (PRISM_LOBBY, LOBBY_LIFT),
                 (
@@ -861,7 +881,6 @@ pub fn game() -> &'static Game {
                 ("exits".to_string(), "elevator".to_string(), None),
             ),
         ])
-        .into_iter()
         .chain(QUIZ_ROOMS.map(|room| {
             (
                 (room, QUIZ_PANEL),
