@@ -222,10 +222,11 @@ pub const FINISHED: i64 = 4;
 /// Sp. Atk Bag L, its coming caught 33, `HITTING` rising 25 (as_super_training_large_training_bag).
 /// The Pokémon's own hit raises `HITTING` alone (as_super_training_bags, spike 290).
 pub const SWINGING: i64 = 6;
-/// The states measured: idle, finished, hitting, and showing what a bag has given (7 and 8: a
-/// special bag's and a stat's, it seemed, until a Sp. Atk Bag L gave 7). Any other is logged, to
-/// learn what it is.
-pub const STATES_SEEN: [i64; 5] = [1, 4, 6, 7, 8];
+/// The states measured: idle, woken, resting, finished, hitting, and showing what a bag has given
+/// (7 and 8: a special bag's and a stat's, it seemed, until a Sp. Atk Bag L gave 7). Resting, 3,
+/// draws `silence_icon` over the Pokémon, which will not do a regimen until a tap wakes it, to 2
+/// (as_st_graveler_barrier_treecko). Any other is logged, to learn what it is.
+pub const STATES_SEEN: [i64; 7] = [1, 2, 3, 4, 6, 7, 8];
 pub const BAG_FINISHED: &str = "training-bag-finished";
 pub const AT_START: &str = "training-at-start";
 pub const STAT: &str = "training-stat";
@@ -315,6 +316,10 @@ pub const PLACE_STEP: f64 = 10.0;
 pub const BALL_FRAMES: i64 = 0x10C;
 /// A round's frames a second: 45 in 1.46 s of Spewpa's ball.
 pub const ROUND_FRAMES: i64 = 30;
+/// Seconds within which balls arriving after the one cued are cued with it, one "now" for them
+/// all: Graveler's Bot fires four at once from one place, which were four "now"s in 0.02 s, where
+/// balls it fired one by one were cued 0.11 s apart and more (as_st_graveler_barrier_treecko).
+pub const TOGETHER: f64 = 0.1;
 /// How far from the Bot a ball arrives with the Pokémon where it starts (spike 200).
 pub const ARRIVES_AT: f64 = 227.5;
 /// A pointer, set on the Bot's balls and 0 on the pool of the player's.
@@ -1435,8 +1440,8 @@ pub struct Round {
     left: Option<i64>,
     /// The banners shown at the last poll.
     banners: BTreeSet<String>,
-    /// Ball -> its state at the last poll.
-    states: IndexMap<i64, i64>,
+    /// Ball -> its state and its frames flown at the last poll.
+    states: IndexMap<i64, (i64, i64)>,
     /// How full the energy meter was at the last poll, 0 to 1; None where none is drawn.
     energy: Option<f64>,
     /// Whether the aura of a press held is up, as far as has been said.
@@ -1601,6 +1606,8 @@ impl Round {
     /// different speeds, 1.1 to 2.1 s from the Bot, so a count from the launch would not do.
     pub fn tick(&mut self) -> Result<()> {
         let arrives = self.arrival()?;
+        // Each ball not cued yet, seconds from arriving.
+        let mut coming: Vec<(i64, f64)> = Vec::new();
         let flying: Vec<i64> = self.flying.keys().copied().collect();
         for ball in flying {
             let head = self.memory.read(ball, MISSILE_HEAD)?;
@@ -1617,10 +1624,15 @@ impl Round {
             }
             let z = f32(&head, PLACE_Z)?;
             let speed = (z - flight.z) / frames as f64;
-            if speed > 0.0 && (arrives - z) / speed / ROUND_FRAMES as f64 <= self.lead {
-                self.flying[&ball].cued = true;
-                (self.block_now)(&own(BLOCK_NOW, &[]));
+            if speed > 0.0 {
+                coming.push((ball, (arrives - z) / speed / ROUND_FRAMES as f64));
             }
+        }
+        if coming.iter().any(|&(_ball, left)| left <= self.lead) {
+            for (ball, left) in coming {
+                self.flying[&ball].cued |= left <= self.lead + TOGETHER;
+            }
+            (self.block_now)(&own(BLOCK_NOW, &[]));
         }
         Ok(())
     }
@@ -1903,16 +1915,25 @@ impl Round {
                 self.states.shift_remove(&ball);
                 continue;
             }
-            let (state, before) = (u32(&head, MISSILE_STATE)?, self.states.get(&ball).copied());
-            self.states.insert(ball, state);
+            let (state, frames) = (u32(&head, MISSILE_STATE)?, u32(&head, BALL_FRAMES)?);
+            let (before, flown) = match self.states.get(&ball) {
+                Some(&(before, flown)) => (Some(before), flown),
+                None => (None, 0),
+            };
+            self.states.insert(ball, (state, frames));
             if u32(&head, BOT_BALL)? != 0 {
-                if state == FLYING && before.is_some_and(|before| before != FLYING) {
+                // A ball that misses stays in flight where it stopped, and is fired again
+                // with its frames counted from the start: two of as_st_graveler_barrier_treecko's
+                // hit uncued, fired again so at 170 s (Orion, 2026-11-10).
+                if state == FLYING
+                    && (before.is_some_and(|before| before != FLYING) || frames < flown)
+                {
                     launched = true;
                     self.flying.insert(
                         ball,
                         Flight {
                             z: f32(&head, PLACE_Z)?,
-                            frame: u32(&head, BALL_FRAMES)?,
+                            frame: frames,
                             cued: false,
                         },
                     );

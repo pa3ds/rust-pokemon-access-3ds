@@ -1254,9 +1254,14 @@ fn test_c_says_how_far_up_and_across_the_pokemon_stands_from_where_it_started() 
 }
 
 fn fly(memory: &FakeMemory, z: f32, frames: i64, state: i64) {
-    memory.u32(BALL + super_training::MISSILE_STATE, &[state]);
-    memory.write(BALL + super_training::PLACE_Z, &floats(&[z]));
-    memory.u32(BALL + super_training::BALL_FRAMES, &[frames]);
+    fly_ball(memory, z, frames, state, BALL);
+}
+
+/// `fly(memory, z, frames, state, ball)`.
+fn fly_ball(memory: &FakeMemory, z: f32, frames: i64, state: i64, ball: i64) {
+    memory.u32(ball + super_training::MISSILE_STATE, &[state]);
+    memory.write(ball + super_training::PLACE_Z, &floats(&[z]));
+    memory.u32(ball + super_training::BALL_FRAMES, &[frames]);
 }
 
 #[test]
@@ -1272,6 +1277,27 @@ fn test_a_ball_of_the_bots_going_into_flight_is_cued_once_as_it_leaves() {
         );
     }
     assert_eq!(*heard.borrow(), ["shot coming"]);
+}
+
+/// A ball that misses stays in flight where it stopped, and the Bot fires it again with its
+/// frames counted from the start: two hit uncued so (as_st_graveler_barrier_treecko's tape).
+#[test]
+fn test_a_ball_fired_again_while_still_in_flight_is_cued_again() {
+    let (mut sparring, memory, heard) = cueing(None, 0.6);
+    fly(&memory, 0.0, 0, 0);
+    sparring.poll(Some(super_training::SPARRING)).unwrap();
+    for (z, frames) in [
+        (20.0, 3),
+        (180.0, 40),
+        (230.0, 90),
+        (230.0, 140),
+        (25.0, 4),
+        (90.0, 20),
+    ] {
+        fly(&memory, z, frames, 1);
+        sparring.poll(Some(super_training::SPARRING)).unwrap();
+    }
+    assert_eq!(*heard.borrow(), ["shot coming", "shot coming"]);
 }
 
 /// A ball here comes 4.5 a frame at 30 a second: 0.6 s out it is 81 from the Pokémon.
@@ -1295,6 +1321,46 @@ fn test_the_moment_to_block_comes_the_lead_before_the_ball_arrives() {
     fly(&memory, 45.0 + 4.5 * (30 - 10) as f32, 30, 1);
     sparring.tick().unwrap();
     assert_eq!(*heard.borrow(), ["now"]);
+}
+
+/// Graveler's Bot fires four at once, which were four "now"s in 0.02 s; one fired 10 frames
+/// behind them, 0.33 s, has its own (as_st_graveler_barrier_treecko).
+#[test]
+fn test_balls_arriving_together_are_cued_with_one_now() {
+    let (mut sparring, memory, heard) = cueing(Some(200.0), 0.6);
+    let (together, behind) = (BALL + 0x400, BALL + 0x800);
+    for ball in [together, behind] {
+        memory.write(ball, &memory.read(BALL, 4).unwrap());
+        memory.u32(ball + super_training::BOT_BALL, &[0x08D00000]);
+    }
+    sparring
+        .track(
+            &IndexMap::from([
+                (together, super_training::MISSILE.to_string()),
+                (behind, super_training::MISSILE.to_string()),
+            ]),
+            true,
+        )
+        .unwrap();
+    for ball in [BALL, together, behind] {
+        fly_ball(&memory, 0.0, 0, 0, ball);
+    }
+    sparring.poll(Some(super_training::SPARRING)).unwrap();
+    for (ball, z) in [(BALL, 45.0), (together, 45.0), (behind, 0.0)] {
+        fly_ball(&memory, z, 10, 1, ball);
+    }
+    sparring.poll(Some(super_training::SPARRING)).unwrap();
+    heard.borrow_mut().clear();
+    for frames in [27, 37] {
+        for (ball, z) in [(BALL, 45.0f32), (together, 45.0), (behind, 0.0)] {
+            fly_ball(&memory, z + 4.5 * (frames - 10) as f32, frames, 1, ball);
+        }
+        sparring.tick().unwrap();
+        assert_eq!(
+            *heard.borrow(),
+            vec!["now"; if frames == 27 { 1 } else { 2 }]
+        );
+    }
 }
 
 #[test]
