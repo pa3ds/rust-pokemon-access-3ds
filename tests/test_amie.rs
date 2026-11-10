@@ -282,7 +282,8 @@ fn test_a_rub_goes_across_the_part_the_stylus_is_on_the_way_it_is_longer() {
     assert_eq!(rub(183, 120), Some(((183, 108), (183, 132)))); // a cheek's strip: down it
     assert_eq!(rub(160, 65), Some(((148, 65), (172, 65)))); // a sweet spot's strip: across it
     assert_eq!(rub(104, 62), Some(((97, 62), (109, 62)))); // an ear tip, 8 across: a little past it
-    assert_eq!(rub(20, 20), Some(((14, 20), (26, 20)))); // off the Pokémon: where it is
+    // Off the Pokémon it holds still: a rub reaching back onto it never raised its hand.
+    assert_eq!(rub(20, 20), Some(((20, 20), (20, 20))));
     // Where the picture cannot be read, before Azahar 2126.2, it rubs where it is all the same.
     assert_eq!(
         amie_running(&[(8, HEAD)], false)
@@ -314,7 +315,7 @@ fn test_the_stylus_moves_with_its_part_as_far_as_the_part_moves() {
         now.set(now.get() + 1.0);
     };
     found.stylus = (185, 105);
-    found.keep().unwrap();
+    found.keep(None).unwrap();
     assert!(!found.follow().unwrap());
     drawn(3, -2, (183, 98, 193, 108)); // all of it 3 right and 2 up
     assert!(found.follow().unwrap() && found.stylus == (188, 103));
@@ -324,7 +325,7 @@ fn test_the_stylus_moves_with_its_part_as_far_as_the_part_moves() {
     drawn(3, -2, (100, 200, 110, 210)); // the cheek gone far off
     assert!(!found.follow().unwrap() && found.stylus == (178, 107));
     found.stylus = (20, 20);
-    found.keep().unwrap(); // off the Pokémon, and far from it: kept on nothing, and where it is
+    found.keep(None).unwrap(); // off the Pokémon, and far from it: kept on nothing, and where it is
     drawn(0, 0, (180, 100, 190, 110));
     assert!(!found.follow().unwrap());
     drawn(5, 0, (185, 100, 195, 110));
@@ -382,7 +383,7 @@ fn test_a_form_is_told_by_its_models_name_though_the_name_runs_on() {
     memory.write(name, b"pm0701_12_poodle\0");
     found.stylus = (150, 90);
     assert!(
-        found.part().unwrap().as_deref() == Some("head")
+        found.part(None).unwrap().as_deref() == Some("head")
             && found.form().unwrap().as_deref() == Some("12")
     );
 }
@@ -521,6 +522,87 @@ fn test_ctrl_and_an_arrow_jump_the_stylus_to_the_next_part_that_way() {
     assert!(k.press("stylus jump up") == "head" && k.found.borrow().stylus == (160, 64));
     k.found.borrow_mut().stylus = (110, 90);
     assert!(k.press("stylus jump left") == "! edge" && k.found.borrow().stylus == (110, 90));
+}
+
+const COMMAND: i64 = 0x08A0F000;
+
+/// Amie's love command as `number`, or none running.
+fn mood(memory: &FakeMemory, number: Option<i64>) {
+    memory.u32(
+        PLAYER + amie::LOVE,
+        &[if number.is_none() { 0 } else { COMMAND }],
+    );
+    memory.write(
+        COMMAND + amie::LOVE_NUMBER,
+        &(number.unwrap_or(0) as u16).to_le_bytes(),
+    );
+}
+
+/// Orion, 2026-11-05: the moods a sighted player sees, read off the love command, which needs
+/// no picture and so reads on any Azahar; a press held off the Pokémon and a puff eaten in two
+/// bites, as the script has it, with a moment of no love command between two.
+#[test]
+fn test_what_the_pokemon_is_seen_doing_is_said_as_it_starts_and_stops() {
+    let (found, memory) = running(&[(8, HEAD)], false);
+    let mut moods = amie::Moods::new(Rc::new(RefCell::new(found)));
+    let mut said = |numbers: &[Option<i64>]| -> Vec<String> {
+        let mut lines = Vec::new();
+        for &number in numbers {
+            mood(&memory, number);
+            lines.extend(
+                moods
+                    .poll(Some(amie::AMIE))
+                    .unwrap()
+                    .into_iter()
+                    .map(|(_log, line, _category)| line),
+            );
+        }
+        lines
+    };
+    assert_eq!(said(&[Some(7), Some(7)]), ["back turned"]);
+    assert_eq!(said(&[Some(0)]), ["turned round"]);
+    assert!(said(&[Some(13), None, Some(0)]).is_empty()); // a pet is the player's own doing
+    assert_eq!(
+        said(&[Some(22), Some(24), None, Some(24)]),
+        ["watching the stylus", "hand raised", "hand raised"]
+    );
+    assert_eq!(said(&[Some(23)]), ["looking around"]);
+    assert_eq!(
+        said(&[15, 17, 18, 19, 15, 17, 18, 19, 0].map(Some)),
+        ["eating", "eating", "eaten"]
+    );
+    assert_eq!(said(&[Some(22)]), ["watching the stylus"]);
+    assert!(moods.poll(Some(FIELD)).unwrap().is_empty());
+    let mut said = |number: i64| -> Vec<String> {
+        mood(&memory, Some(number));
+        moods
+            .poll(Some(amie::AMIE))
+            .unwrap()
+            .into_iter()
+            .map(|(_log, line, _category)| line)
+            .collect()
+    };
+    assert_eq!(said(22), ["watching the stylus"]); // Amie opened again
+}
+
+/// ADR-0009: the hand is up about 2 s and a player cannot see where, so a jump goes straight
+/// to it, in the picture as it is now; before it, a jump is a jump, and so it is for a Pokémon
+/// with no hand drawn.
+#[test]
+fn test_while_its_hand_is_raised_a_jump_goes_to_the_hand_whichever_way() {
+    let mut k = keyed(&[(9, BODY), (8, HEAD), (10, (120, 140, 130, 150))]);
+    k.found.borrow_mut().stylus = (40, 100);
+    assert_eq!(k.press("stylus jump right"), "head");
+    k.found.borrow_mut().stylus = (40, 100);
+    mood(&k.memory, Some(amie::HAND_RAISED));
+    assert_eq!(k.press("stylus jump left"), "hand");
+    assert!(k.found.borrow().stylus == (124, 140) && k.chosen.chosen.last() == Some(&(124, 140)));
+    pokemon(&k.memory, &[(9, BODY), (8, HEAD), (10, (150, 70, 160, 80))]); // it rose, within WHOLE
+    assert!(k.press("stylus jump up") == "hand" && k.found.borrow().stylus == (154, 79));
+    pokemon(&k.memory, &[(9, BODY), (8, HEAD)]);
+    k.now.set(k.now.get() + 1.0);
+    k.found.borrow_mut().stylus = (120, 105);
+    assert_eq!(k.press("stylus jump up"), "! edge");
 }
 
 /// Amie's decorate screen draws its puffs with the images of a system holding a texture for

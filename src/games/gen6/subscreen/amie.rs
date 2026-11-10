@@ -53,9 +53,16 @@
 //! touch mode's tap or drag on it rubs back and forth across the part (`AmiePage.rub`), carried on as
 //! it moves.
 //!
+//! What the Pokémon is doing is the **love command** running, a routine and a class each, which
+//! `Player` points at (spike A). `Moods` says what a sighted player sees of it: its back turned, its
+//! looking at the stylus, its hand raised, its eating. A press held off the Pokémon brings the
+//! raised hand, a high five's, waving about two seconds, so Ctrl and any arrow then jump the stylus
+//! straight to it (`AmiePage.raised_hand`).
+//!
 //! Bound by:
 //! - ADR-0009: the stylus the arrows move, tapped, rubbed or dragged only by touch mode's keys, and
-//!   the beckon a tap on the Pokémon (as amended 2026-11-05).
+//!   the beckon a tap on the Pokémon (as amended 2026-11-05); a jump goes to a hand raised
+//!   (2026-11-06).
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -63,7 +70,7 @@ use std::sync::LazyLock;
 
 use indexmap::IndexMap;
 
-use crate::core::binary::u32;
+use crate::core::binary::{s16, u32};
 use crate::core::discovery::{HEAP_SPAN, LINEAR_SPAN, within};
 use crate::core::heaps;
 use crate::core::memory::Memory;
@@ -248,6 +255,37 @@ pub const PARTS: [(i64, &str); 26] = [
     (28, "amie-part-body"),
 ];
 pub const PART: &str = "amie-part";
+/// The grey a Pokémon high-fives with: a hand or arm on most, a mouth on a few (spike A).
+pub const HAND: i64 = 10;
+pub const LOVE: i64 = 0x1B8;
+/// `Player` +0x1B8 -> the love command running, none for a moment between two, and its number, an
+/// s16 at +0xC (spike A).
+pub const LOVE_NUMBER: i64 = 0xC;
+/// `LoveLookTouch`: a press held off the Pokémon a few seconds raises its hand, longer the lower
+/// its affection (Pikachu Rock Star's 60 took 4.8 s), which it waves about 2 s, about a second a
+/// wave, and raises again 5 s later while the press stays; the stylus on grey 10 meanwhile is the
+/// high five (spike A, live).
+pub const HAND_RAISED: i64 = 24;
+/// `LoveFoodIdle`: a puff held out, and where eating goes to when more of it is left.
+pub const NEXT_BITE: i64 = 15;
+/// What the Pokémon is seen doing as a love command starts, a message each: `LoveAppear`, its back
+/// to the player until beckoned round; `LoveFoodEat`'s first; `LoveLook`, watching a press held;
+/// `LoveLookAround`. Left unsaid: 0 `LoveMotion`, the idle one, 13 `LoveTouch`, a pet, the player's
+/// own doing, and 15, 18 and 19, a puff held out and the rest of eating. 14, 16, 20 and 27 have
+/// not been seen, nor is it known which of `LoveHate`, `LovePicky`, `LoveFoodFall`, `LoveHome`,
+/// `LoveCamera` and `LoveMotionRepeat` each is.
+pub const MOODS: [(i64, &str); 5] = [
+    (7, "amie-mood-back-turned"),
+    (17, "amie-mood-eating"),
+    (22, "amie-mood-watching"),
+    (23, "amie-mood-looking-around"),
+    (HAND_RAISED, "amie-mood-hand-raised"),
+];
+/// What is seen as a love command ends: turned round, and at the end of eating a puff, the last
+/// of `LoveFoodEat`'s, where `NEXT_BITE` does not follow.
+pub const MOODS_OVER: [(i64, &str); 2] = [(7, "amie-mood-turned-round"), (19, "amie-mood-eaten")];
+/// What the log calls a line of `Moods`.
+pub const MOOD_LOG: &str = "amie mood";
 /// Where ORAS's page keeps its Pokémon's number; X's keeps it at 0x124 (`Game.amie`).
 pub const NUMBER: i64 = 0x14C;
 /// How far after the number the holder is, in ORAS and X alike (spike 228).
@@ -586,7 +624,7 @@ impl AmiePage {
             return Ok(Vec::new());
         };
         let (x, y) = self.stylus;
-        let part = self.part()?;
+        let part = self.part(None)?;
         let beckon = Target {
             path: vec![BECKON],
             seconds: BECKON_SECONDS,
@@ -613,11 +651,15 @@ impl AmiePage {
         ])
     }
 
-    /// The part the stylus is on, in pa3ds's words: the Pokémon's own name for it, its
-    /// form's first (`amie.ftl`, `form`), else the kind of part (`PARTS`); "off" where it is
-    /// off the Pokémon, or None where the picture cannot be read.
-    pub fn part(&mut self) -> Result<Option<String>> {
-        let Some(grey) = self.grey()? else {
+    /// A grey's part, or the part the stylus is on, in pa3ds's words: the Pokémon's own name
+    /// for it, its form's first (`amie.ftl`, `form`), else the kind of part (`PARTS`); "off"
+    /// where it is off the Pokémon, or None where the picture cannot be read.
+    pub fn part(&mut self, grey: Option<i64>) -> Result<Option<String>> {
+        let grey = match grey {
+            None => self.grey()?,
+            grey => grey,
+        };
+        let Some(grey) = grey else {
             return Ok(None);
         };
         if grey == 0 || grey == OFF_PICTURE {
@@ -691,10 +733,14 @@ impl AmiePage {
         Ok(self.form.1.clone())
     }
 
-    /// Keep the stylus on the part it is on now, as the arrows leave it (`follow`); on
-    /// nothing where it is off the Pokémon.
-    pub fn keep(&mut self) -> Result<()> {
-        if let Some(grey) = self.grey()? {
+    /// Keep the stylus on a grey (`follow`), or on the part it is on now, as the arrows leave
+    /// it; on nothing where it is off the Pokémon.
+    pub fn keep(&mut self, grey: Option<i64>) -> Result<()> {
+        let grey = match grey {
+            None => self.grey()?,
+            grey => grey,
+        };
+        if let Some(grey) = grey {
             self.kept = Some(if grey == 0 || grey == OFF_PICTURE {
                 OFF_PICTURE
             } else {
@@ -712,7 +758,7 @@ impl AmiePage {
     /// Whether it moved.
     pub fn follow(&mut self) -> Result<bool> {
         if self.kept.is_none() {
-            self.keep()?;
+            self.keep(None)?;
         }
         let (before, band) = (self.tracked.clone(), self.read()?);
         self.tracked = band.clone();
@@ -742,15 +788,20 @@ impl AmiePage {
     }
 
     /// Where a rub with the stylus goes: back and forth across the part it is on, the way the
-    /// part is longer, `RUB_REACH` at most either side of it and `RUB_HALF` at least; off the
-    /// Pokémon, or where the picture cannot be read, `RUB_HALF` either side of where it is.
+    /// part is longer, `RUB_REACH` at most either side of it and `RUB_HALF` at least; where the
+    /// picture cannot be read, `RUB_HALF` either side of where it is. Off the Pokémon it stays
+    /// where it is: a press held there raises its hand, and any rub reaching back onto it was
+    /// taken for a press on it, which never does (spike A, live).
     pub fn rub(&mut self) -> Result<Ends> {
         let band = self.read()?;
         let (x, y) = self.stylus;
         let band = match band {
-            Some(band) if !matches!(band.grey(x, y), None | Some(0 | OFF_PICTURE)) => band,
+            Some(band) if band.grey(x, y).is_some() => band,
             _ => return Ok(((x - RUB_HALF, y), (x + RUB_HALF, y))),
         };
+        if matches!(band.grey(x, y), Some(0 | OFF_PICTURE)) {
+            return Ok(((x, y), (x, y)));
+        }
         let (across, down) = (band.run(x, y, true), band.run(x, y, false));
         let sideways = across.1 - across.0 >= down.1 - down.0;
         let ((low, high), at) = if sideways { (across, x) } else { (down, y) };
@@ -800,6 +851,53 @@ impl AmiePage {
             last,
             *rows.iter().max().expect("a column drawn"),
         )))
+    }
+
+    /// The love command running, by its number; None between two, or where no Player runs.
+    pub fn mood(&self) -> Result<Option<i64>> {
+        for (&player, &vtable) in &self.players {
+            if self.holder(player, vtable)?.is_none() {
+                continue;
+            }
+            let command = u32(&self.memory.read(player + LOVE, 4)?, 0)?;
+            if within(HEAP_SPAN, command) {
+                return Ok(Some(s16(&self.memory.read(command + LOVE_NUMBER, 2)?, 0)?));
+            }
+        }
+        Ok(None)
+    }
+
+    /// Where a jump goes while the Pokémon's hand is raised, whichever way: a player cannot
+    /// see where it is, and it is up about 2 s (`HAND_RAISED`). The middle of the run across of
+    /// the hand's pixel nearest the stylus, in the picture as it is now, as the hand waves;
+    /// None where it is not raised or not drawn, or the picture cannot be read.
+    pub fn raised_hand(&mut self) -> Result<Option<(i64, i64)>> {
+        if self.mood()? != Some(HAND_RAISED) {
+            return Ok(None);
+        }
+        self.whole = (f64::NEG_INFINITY, None);
+        let whole = self.read_whole()?;
+        let Some(whole) = whole.filter(|whole| whole.greys.contains(&(HAND as u8))) else {
+            return Ok(None);
+        };
+        let (x, y) = self.stylus;
+        let mut drawn: Option<(i64, i64, i64)> = None;
+        for px in 0..touch::WIDTH {
+            for py in 0..touch::HEIGHT {
+                let found = ((px - x).pow(2) + (py - y).pow(2), px, py);
+                if i64::from(whole.greys[whole.at(px, py) as usize]) == HAND
+                    && whole.grey(px, py) == Some(HAND)
+                    && drawn.is_none_or(|best| found < best)
+                {
+                    drawn = Some(found);
+                }
+            }
+        }
+        let Some((_distance, x, y)) = drawn else {
+            return Ok(None);
+        };
+        let (left, right) = whole.run(x, y, true);
+        Ok(Some((py::floordiv(left + right, 2), y)))
     }
 
     /// Where the stylus jumps to from where it is, the way given: past the part it is on and
@@ -894,18 +992,12 @@ impl AmiePage {
         if !self.aim {
             return Ok(None);
         }
-        let memory = &self.memory;
-        for (&player, &vtable) in &self.players {
-            let head = memory.read(player, HOLDS_PICTURE + 4)?;
-            let holder = u32(&head, HOLDS_PICTURE)?;
-            // A Player freed, or a copy of its words in the module's code, leads nowhere.
-            if u32(&head, 0)? != vtable
-                || !within(HEAP_SPAN, holder)
-                || self.names.of_object(holder)?.as_deref() != Some(PICTURE_HOLDER)
-            {
+        let players: Vec<(i64, i64)> = self.players.iter().map(|(&p, &v)| (p, v)).collect();
+        for (player, vtable) in players {
+            let Some(holder) = self.holder(player, vtable)? else {
                 continue;
-            }
-            let buffers = memory.read(holder + BUFFERS, 12)?;
+            };
+            let buffers = self.memory.read(holder + BUFFERS, 12)?;
             let which = u32(&buffers, 8)?;
             let buffer = if which == 0 || which == 1 {
                 u32(&buffers, 4 * which)?
@@ -918,6 +1010,19 @@ impl AmiePage {
             }
         }
         Ok(None)
+    }
+
+    /// Each Player running, with its picture's holder. Python's `_holders` is a generator over
+    /// the Players; here each caller walks them and asks this of each in turn, so the reads are
+    /// made as lazily.
+    fn holder(&self, player: i64, vtable: i64) -> Result<Option<i64>> {
+        let head = self.memory.read(player, HOLDS_PICTURE + 4)?;
+        let holder = u32(&head, HOLDS_PICTURE)?;
+        // A Player freed, or a copy of its words in the module's code, leads nowhere.
+        Ok((u32(&head, 0)? == vtable
+            && within(HEAP_SPAN, holder)
+            && self.names.of_object(holder)?.as_deref() == Some(PICTURE_HOLDER))
+        .then_some(holder))
     }
 
     /// The image of texture 0 of a PokeIcon, or None where a link of the chain is not the
@@ -1215,6 +1320,52 @@ impl Goods {
     }
 }
 
+/// Says what Amie's Pokémon is seen doing as it starts and as it stops (`MOODS`,
+/// `MOODS_OVER`), which a sighted player sees and the game's sounds tell only in part.
+pub struct Moods {
+    page: Rc<RefCell<AmiePage>>,
+    /// The love command at the last poll.
+    mood: Option<i64>,
+}
+
+impl Moods {
+    pub fn new(page: Rc<RefCell<AmiePage>>) -> Self {
+        Moods { page, mood: None }
+    }
+
+    /// What the Pokémon is seen doing, where its love command changed since the last poll.
+    pub fn poll(
+        &mut self,
+        running: Option<&str>,
+    ) -> Result<Vec<(String, String, Option<Category>)>> {
+        let before = self.mood;
+        self.mood = if running == Some(AMIE) {
+            self.page.borrow().mood()?
+        } else {
+            None
+        };
+        if running != Some(AMIE) || self.mood == before {
+            return Ok(Vec::new());
+        }
+        let word = |table: &[(i64, &'static str)], number: i64| {
+            table
+                .iter()
+                .find(|(key, _)| *key == number)
+                .map(|(_, word)| *word)
+        };
+        let over = if self.mood == Some(NEXT_BITE) {
+            None
+        } else {
+            word(&MOODS_OVER, before.unwrap_or(0))
+        };
+        Ok([over, word(&MOODS, self.mood.unwrap_or(0))]
+            .into_iter()
+            .flatten()
+            .map(|word| (MOOD_LOG.to_string(), own(word, &[]), Some(Category::Screen)))
+            .collect())
+    }
+}
+
 /// Heard for an arrow that would take the stylus off the screen: the game's error sound, or the
 /// words where that is off.
 pub const EDGE: &str = "amie-stylus-edge";
@@ -1260,10 +1411,22 @@ impl StylusKeys {
     ) -> Result<String> {
         let page = self.page.clone();
         page.borrow_mut().follow()?; // a step from where the part has moved it to since the last poll
-        let moved = if let Some((_, (across, down))) =
-            STYLUS_JUMPS.iter().find(|(name, _)| *name == action)
-        {
-            let Some(moved) = page.borrow_mut().jump(*across, *down)? else {
+        let jump = STYLUS_JUMPS
+            .iter()
+            .find(|(name, _)| *name == action)
+            .map(|(_, way)| *way);
+        let hand = if jump.is_some() {
+            page.borrow_mut().raised_hand()?
+        } else {
+            None
+        };
+        let grey = hand.map(|_| HAND); // what it lands on, gone by the time it is asked
+        let moved = if let Some((across, down)) = jump {
+            let moved = match hand {
+                Some(hand) => Some(hand),
+                None => page.borrow_mut().jump(across, down)?,
+            };
+            let Some(moved) = moved else {
                 return Ok((self.wrong)(&own(EDGE, &[])));
             };
             self.said = None; // a jump always says where it lands
@@ -1296,9 +1459,9 @@ impl StylusKeys {
             moved
         };
         page.borrow_mut().stylus = moved;
-        page.borrow_mut().keep()?;
+        page.borrow_mut().keep(grey)?;
         touch.choose(STYLUS_TARGET)?;
-        let part = page.borrow_mut().part()?;
+        let part = page.borrow_mut().part(grey)?;
         if part == self.said {
             return Ok(String::new());
         }

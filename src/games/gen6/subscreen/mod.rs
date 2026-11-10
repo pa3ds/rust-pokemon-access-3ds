@@ -68,7 +68,7 @@ use crate::games::gen6::game::Game;
 use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::rom::cries::Crier;
 use crate::py::{self, Result};
-use amie::{AmiePage, Goods, Puffs, StylusKeys};
+use amie::{AmiePage, Goods, Moods, Puffs, StylusKeys};
 use berry_picker::{BerryKeys, BerryPicker, Process, Touching};
 use head_it::{Cue, Frames, HeadIt, HeadItKeys};
 use puzzle::TilePuzzle;
@@ -326,6 +326,16 @@ impl Polled for RefCell<StylusKeys> {
     }
 }
 
+impl Polled for RefCell<Moods> {
+    fn poll(
+        &self,
+        running: Option<&str>,
+        _touch: &mut dyn Touching,
+    ) -> Result<Vec<(String, String, Option<Category>)>> {
+        self.borrow_mut().poll(running)
+    }
+}
+
 /// The subscreens' readers, and what each answers for the app running.
 pub struct Subscreens {
     pub puzzle: Rc<RefCell<TilePuzzle>>,
@@ -516,13 +526,14 @@ impl Subscreens {
             classes: classes.into_iter().collect(),
             tracked,
             named: vec![page.clone(), training, puffs, goods, puzzle.clone()],
-            offering: vec![page, goals, berry_picker.clone(), head_it.clone()],
+            offering: vec![page.clone(), goals, berry_picker.clone(), head_it.clone()],
             pictured: vec![waiting, bags],
             polled: vec![
                 sparring,
                 berry_picker.clone(),
                 head_it.clone(),
                 stylus_keys.clone(),
+                Rc::new(RefCell::new(Moods::new(page))),
             ],
             described: vec![puzzle.clone()],
             keyed: vec![berry_keys, head_keys, stylus_keys],
