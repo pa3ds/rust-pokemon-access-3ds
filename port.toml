@@ -6,3 +6,4 @@ upstream = "e4d9fef7ac76198bc00f4cfda4767f892e927e43"
 # Python tests with no Rust counterpart, each with the reason. Key: "<test file>::<test name>".
 [untestable]
 "test_adr_links::test_each_adr_and_the_modules_it_binds_name_each_other" = "It checks upstream's ADRs' Code lines against upstream's Python docstrings, neither of which is in this repository; the port's module docs copy their Bound by lists from those docstrings."
+"test_anonymous::test_nothing_shipped_names_a_developer" = "It holds the developers' names, which this public repository does not; `python tools/sync.py anonymous` runs it on every file here."
