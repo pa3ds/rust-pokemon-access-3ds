@@ -1,18 +1,18 @@
 //! The key items registered to the Y button's menu, each with the way it is chosen (spike B).
 //!
 //! Y on the field opens four slots, each an item's icon, one used by each way of the circle pad or
-//! D-pad, and writes one line, "SELECT/START Switch Buttons": the icons are textures filled in as
-//! the game runs, and the menu names none of them (Orion, or_registered_items_menu). The save's
-//! Bag holds what they draw:
+//! D-pad, and in Omega Ruby writes one line, "SELECT/START Switch Buttons", where X writes no words
+//! at all: the icons are textures filled in as the game runs, and the menu names none of them
+//! (Orion, or_registered_items_menu, x_registered_items_menu). The save's Bag holds what they
+//! draw, in both:
 //!
 //! ```text
 //! savedata::BAG  +0x0E  four u16 item numbers: up, right, down, left
 //! ```
 //!
 //! The layout's four icons stand in that order, `p`, `j`, `l` and `n`, and it is told from every
-//! other by the first of them drawing `item_icon.bclim`.
-//!
-//! Omega Ruby and Alpha Sapphire's: `Game.registered` is unset for X and Y, not measured.
+//! other by the first of them drawing `item_icon.bclim`. It is among the layouts tracked only while
+//! the menu is open: in both games each press of Y brought it and took it away.
 
 use std::rc::Rc;
 
@@ -22,7 +22,6 @@ use crate::core::binary::u16;
 use crate::core::memory::Memory;
 use crate::core::words::own;
 use crate::games::common::layout_file::LayoutFile;
-use crate::games::common::screen::ScreenText;
 use crate::py::Result;
 
 pub const BAG: &str = "N8savedata3BAGE";
@@ -39,6 +38,7 @@ pub struct Registered {
     items: Vec<String>,
     file_of: Rc<dyn Fn(i64) -> Option<Rc<LayoutFile>>>,
     bag: Option<i64>,
+    open: bool,
 }
 
 impl Registered {
@@ -54,6 +54,7 @@ impl Registered {
             items,
             file_of,
             bag: None,
+            open: false,
         }
     }
 
@@ -66,12 +67,15 @@ impl Registered {
         }
     }
 
-    /// Each registered item with its way, when the menu has just come on screen; else None.
-    pub fn poll(&self, texts: &[ScreenText]) -> Result<Option<String>> {
+    /// Each registered item with its way, when the menu has just opened; else None. `roots`
+    /// are the layouts tracked now.
+    pub fn poll(&mut self, roots: impl IntoIterator<Item = i64>) -> Result<Option<String>> {
+        let was = self.open;
+        self.open = roots.into_iter().any(|root| self.menu(root));
         let Some(bag) = self.bag else {
             return Ok(None);
         };
-        if !texts.iter().any(|piece| self.menu(piece.root)) {
+        if was || !self.open {
             return Ok(None);
         }
         let data = self.memory.read(bag + self.slots, 2 * WAYS.len() as i64)?;

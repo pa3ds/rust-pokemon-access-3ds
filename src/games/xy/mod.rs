@@ -975,6 +975,8 @@ pub fn game() -> &'static Game {
         amie: AMIE,
         field_menu: FIELD_MENU,
         worded: WORDED.iter().map(|texture| texture.to_string()).collect(),
+        box_mode: Some((0x24, 0x21)),
+        registered: Some(0x0E),
         camera: camera::X,
         opening: Some(|memory, _language| Box::new(IntroReader::new(memory))),
         zone_record: 0xE4,

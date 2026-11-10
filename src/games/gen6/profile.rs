@@ -1657,7 +1657,7 @@ impl Gen6Profile {
             };
             slots = match &self.registered {
                 None => None,
-                Some(reader) => reader.borrow().poll(&screen.texts)?,
+                Some(reader) => reader.borrow_mut().poll(self.layouts.roots())?,
             };
             let running = self.apps.borrow().running.clone();
             let played = self.subscreens.poll(running.as_deref())?;

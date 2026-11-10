@@ -6,7 +6,6 @@ use indexmap::IndexMap;
 
 use super::fake_memory::FakeMemory;
 use crate::games::common::layout_file::LayoutFile;
-use crate::games::common::screen::ScreenText;
 use crate::games::gen6::screens::registered;
 
 const BAG: i64 = 0x08C6B828;
@@ -27,7 +26,7 @@ fn drawing(pane: &str, texture: &str) -> Rc<LayoutFile> {
     ))
 }
 
-fn reader(slots: &[u16]) -> (registered::Registered, Vec<ScreenText>) {
+fn reader(slots: &[u16]) -> registered::Registered {
     let memory = FakeMemory::new();
     for (i, number) in slots.iter().enumerate() {
         memory.write(BAG + 0x0E + 2 * i as i64, &number.to_le_bytes());
@@ -47,43 +46,36 @@ fn reader(slots: &[u16]) -> (registered::Registered, Vec<ScreenText>) {
         }),
     );
     found.track(&IndexMap::from([(BAG, registered::BAG.to_string())]));
-    (
-        found,
-        vec![ScreenText {
-            root: MENU_ROOT,
-            ..ScreenText::new(1, "SELECT/START Switch Buttons", false)
-        }],
-    )
+    found
 }
 
 #[test]
-fn test_the_menu_says_each_item_with_its_way_as_it_opens() {
-    let (found, shown) = reader(&[1, 2, 3, 4]);
+fn test_the_menu_says_each_item_with_its_way_each_time_it_opens() {
+    let mut found = reader(&[1, 2, 3, 4]);
+    let said = Some("up Mach Bike, right Acro Bike, down Dowsing Machine, left Eon Flute");
     assert_eq!(
-        found.poll(&shown).unwrap().as_deref(),
-        Some("up Mach Bike, right Acro Bike, down Dowsing Machine, left Eon Flute")
+        found.poll([MENU_ROOT, OTHER_ROOT]).unwrap().as_deref(),
+        said
     );
+    assert_eq!(found.poll([MENU_ROOT, OTHER_ROOT]).unwrap(), None);
+    assert_eq!(found.poll([OTHER_ROOT]).unwrap(), None);
+    assert_eq!(found.poll([MENU_ROOT]).unwrap().as_deref(), said);
 }
 
 #[test]
 fn test_a_slot_with_nothing_registered_is_left_out() {
-    let (found, shown) = reader(&[0, 2, 0, 4]);
     assert_eq!(
-        found.poll(&shown).unwrap().as_deref(),
+        reader(&[0, 2, 0, 4]).poll([MENU_ROOT]).unwrap().as_deref(),
         Some("right Acro Bike, left Eon Flute")
     );
 }
 
 #[test]
 fn test_nothing_is_said_of_another_screen_or_before_the_bag_is_found() {
-    let (found, shown) = reader(&[1, 2, 3, 4]);
-    let other = vec![ScreenText {
-        root: OTHER_ROOT,
-        ..ScreenText::new(2, "BOX 1", false)
-    }];
-    assert_eq!(found.poll(&other).unwrap(), None);
-    assert_eq!(found.poll(&[]).unwrap(), None);
-    let empty =
+    let mut found = reader(&[1, 2, 3, 4]);
+    assert_eq!(found.poll([OTHER_ROOT]).unwrap(), None);
+    assert_eq!(found.poll([]).unwrap(), None);
+    let mut empty =
         registered::Registered::new(FakeMemory::new(), 0x0E, items(), Rc::new(|_root| None));
-    assert_eq!(empty.poll(&shown).unwrap(), None);
+    assert_eq!(empty.poll([MENU_ROOT]).unwrap(), None);
 }
