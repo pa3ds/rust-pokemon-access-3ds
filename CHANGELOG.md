@@ -1,6 +1,67 @@
 # Changelog
 
-## [Unreleased]
+## [0.12.0] - 2026-11-11
+
+### Added
+
+- Pokémon-Amie has a page of its own in the manual. The arrow keys move a stylus over your
+  Pokémon, saying the part it comes onto by what it is on that Pokémon, "Pikachu's cheeks", and
+  `Ctrl` and an arrow jump it to the next part. Choose the stylus in touch mode to pet that part:
+  `U` rubs it for about a second, and holding `Shift` rubs for as long as you hold it. Touch mode
+  also offers to beckon your Pokémon, and to bring a Pokémon too big for the bottom screen down.
+- In Pokémon-Amie, high fives: hold `Shift` off your Pokémon until it holds up its hand, then
+  `Ctrl` and an arrow jump the stylus to it. Poké Puffs are said by their kind, a visiting
+  Pokémon by its name, "visiting Sceptile", and the Switch screen's buttons by the Pokémon on
+  them. `R` says your Pokémon's Affection, Fullness and Enjoyment.
+- The `descriptions` setting under `[pa3ds.amie]` says what your Pokémon is seen doing in Amie,
+  and each of its animations as it plays, in a sentence of that Pokémon's own. `fidgets` adds its
+  small movements. Both are off as pa3ds ships.
+- Super Training's page: touch mode offers the training bag beside your Pokémon, and a tap makes
+  it hit the bag, each hit heard. pa3ds says when a bag is finished, "Ralts finished Core
+  Training", and when your Pokémon is resting. `R` says how much of each base stat it has trained
+  and the kind of shot it fires; the `base_stats` Extra says the points.
+- Super Training's regimens: touch mode offers each goal, numbered from the left when several are
+  up, and a Balloon Bot's barrier. `U` shoots at it wherever it has moved, and holding `Shift`
+  charges a shot. The Bot's shots are heard as one is fired and when to block or dodge, set by
+  `shot_cue`, `block_cue` and `block_lead`, and "blocked" is said when you stop one. `C` says
+  where your Pokémon stands, and `R` the score, the time left and the energy meter.
+- As a trainer's battle opens, pa3ds says how many Pokémon they have, "2 Pokémon", in Omega Ruby,
+  Alpha Sapphire, X and Y. `trainer_party` makes it a beep for each, or turns it off.
+- `Y` says again the last thing pa3ds said.
+- The PC Box says its mode as Start and Select change it.
+- The Y button's menu says each registered key item with the way that uses it, "up Mach Bike".
+- Sorting the Bag with Y says the item you carry and the two it would land between.
+- In X and Y, Snowbelle Gym's four switches are listed by colour, and `P` goes round the gaps in
+  its floors as the switches turn them. The way from the Pokémon League's entrance into its hall
+  is listed, and the Radiant Chamber's platform up to the Champion as an elevator.
+- In X and Y, the Elite Four's and the Champion's chambers are described.
+- Lumiose City's exits say where they go where the game puts no sign up: its alleys by their
+  plaza, "Rouge Plaza", and the doors the game never names by what is behind them, "back alley".
+- In Sun and Moon, trainers are named by their class and name, "Youngster Jimmy", signs by their
+  first line, the things you can check by the first thing they say, and many buildings' doors by
+  the building. The story's people and the townspeople are named by pa3ds, by how they look.
+
+### Changed
+
+- Scenes without words are described as pa3ds ships: `descriptions` under `[pa3ds.ui]` is on in a
+  new settings file. If yours says `false`, set it to `true` to hear them.
+- Each feedback sound plays on a voice of its own, so a cue no longer cuts off the sound before it.
+- A screen's own keys answer with `Shift` held, as `R` and `C` do in a regimen while you charge.
+
+### Fixed
+
+- In Victory Road, `P` no longer walks onto the jumping stones or the launches from the pit's
+  floor.
+- A big boulder says only the ways you can push it, from the sides you can get to.
+- `P` walks you across a building's mat going north where that is the way, as in the Elite Four's
+  rooms.
+- A name is said before the picture built left of it: the Move Reminder's "Sky Attack Flying",
+  the Bag's "erza Skarmory".
+- A count the game draws under its word is said with it, as Head It's total and Berry Picker's
+  berries are, and Head It's numbers are said without the zeros the game pads them with.
+- Touch mode taps a picture in the middle of what it draws, so Super Training's hanging bag is
+  hit.
+- In Simplified Chinese, names and trainer classes are the Chinese games' own.
 
 ### Known issues
 
@@ -9,6 +70,11 @@
   parts, and a pet goes where the stylus is rather than to a part.
 - Super Training is still being worked on. So far only the tutorials, Core Training, the six
   Level 1 regimens and one Level 2 regimen, Graveler's for Defense, have been checked working.
+- The names of your Pokémon's parts in Amie, and the descriptions of its animations, have not
+  been checked by a sighted player yet. In every language but English they are a machine's
+  translation.
+- In X and Y, only Snowbelle Gym's pink switch has been tried, and `P` onto the Radiant Chamber's
+  platform has not been tried in the game yet. The manual's Known issues page has the rest.
 
 ## [0.11.0] - 2026-11-05
 
