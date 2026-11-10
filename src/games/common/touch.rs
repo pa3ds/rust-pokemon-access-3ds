@@ -145,7 +145,7 @@ pub struct Target {
     pub rub: Option<((i64, i64), (i64, i64))>,
     /// Told once a slide along `path` has begun, for a target that moves what the screen shows:
     /// Amie's beckon and its Pokémon brought between the screens, whose still picture is taken anew
-    /// (`amie.AmiePage.look_again`).
+    /// (`amie.Stylus.look_again`).
     pub after: After,
 }
 

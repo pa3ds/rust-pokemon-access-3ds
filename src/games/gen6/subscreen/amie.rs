@@ -48,13 +48,13 @@
 //! and the press stays down, a lift starting its count afresh. So the **stylus**, a point the arrow
 //! keys move over the Pokémon while Amie runs (`StylusKeys`), or jump with Ctrl to the next part,
 //! says the part it comes onto by a name of pa3ds's own for that Pokémon's or form's part where it
-//! has one (`amie.ftl`), else by its kind (`PARTS`); it keeps near the Pokémon (`AmiePage.outline`);
-//! and touch mode's tap or drag on it rubs back and forth across the part (`AmiePage.rub`), carried
+//! has one (`amie.ftl`), else by its kind (`PARTS`); it keeps near the Pokémon (`Stylus.outline`);
+//! and touch mode's tap or drag on it rubs back and forth across the part (`Stylus.rub`), carried
 //! on as it moves.
 //!
 //! A Pokémon left alone moves about a good deal: Pikachu's box moved 85 pixels in 40 s, so a part
 //! found with the arrows had gone by the next press. So the stylus moves over a **still picture** of
-//! it, taken as it appears (`AmiePage.settle`), its parts staying where the player found them, and a
+//! it, taken as it appears (`Stylus.settle`), its parts staying where the player found them, and a
 //! tap or drag goes to the part chosen wherever the Pokémon has moved it to (`placed`). A Pokémon too
 //! big for the bottom screen stays on the
 //! top screen, a strip of it showing, until a press held at the touch screen's top edge brings it
@@ -65,7 +65,7 @@
 //! `Player` points at (spike 287). `Moods` says what a sighted player sees of it, where the player asks
 //! (`[pa3ds.amie] descriptions`): its back turned, its watching the hand, its hand raised, its
 //! eating. A press held off the Pokémon brings the raised hand, a high five's, waving about two
-//! seconds, so Ctrl and any arrow then jump the stylus straight to it (`AmiePage.raised_hand`).
+//! seconds, so Ctrl and any arrow then jump the stylus straight to it (`Stylus.to_hand`).
 //!
 //! Bound by:
 //! - ADR-0009: the stylus the arrows move, tapped, rubbed or dragged only by touch mode's keys, and
@@ -76,6 +76,7 @@
 //!   2026-11-06).
 
 use std::cell::{OnceCell, RefCell};
+use std::collections::HashMap;
 use std::fmt::Display;
 use std::rc::{Rc, Weak};
 
@@ -193,7 +194,7 @@ pub const FEMALE_FORM: &str = "f";
 /// How long the picture is taken as read while a touch goes on, and as the arrows move the stylus,
 /// which held repeat some thirty times a second; a whole picture is 20 ms to read (spike 287).
 pub const FRESH: f64 = 0.1;
-/// How long between looks at the picture as the still one is taken (`AmiePage.settle`).
+/// How long between looks at the picture as the still one is taken (`Stylus.settle`).
 pub const LOOK: f64 = 0.5;
 /// How far either way a run through a point is measured, so that a run across and one down are
 /// measured alike.
@@ -1015,6 +1016,300 @@ impl PlayerRead {
     }
 }
 
+/// The stylus over the still picture of Amie's Pokémon (ADR-0009 as amended 2026-11-06):
+/// where it is, the still picture it moves over, and the part a touch on it goes to, wherever
+/// the Pokémon has moved that since (`placed`). It reads nothing: it is handed the time, and the
+/// love command and the picture as it is now as calls it makes only where it needs them, so a
+/// poll reads what it read before it had a module of its own, and a test hands it pictures.
+pub struct Stylus {
+    /// Where it is on the still picture, as the arrows have moved it (`StylusKeys`).
+    pub at: (i64, i64),
+    /// The grey of the part a touch goes to, `OFF_PICTURE` for none, None before the stylus
+    /// has been on any.
+    kept: Option<i64>,
+    /// The still picture it moves over, none before the Pokémon is drawn.
+    still: Option<Rc<Picture>>,
+    /// Whether the next picture taken replaces the still one, whatever it shows.
+    pub anew: bool,
+    /// Until when a picture showing more of the Pokémon replaces the still one; `inf` until
+    /// it has been drawn.
+    richer_until: f64,
+    /// When the still picture is next looked at.
+    next_look: f64,
+}
+
+impl Default for Stylus {
+    fn default() -> Self {
+        Stylus::new()
+    }
+}
+
+impl Stylus {
+    pub fn new() -> Self {
+        Stylus {
+            at: STYLUS_START,
+            kept: None,
+            still: None,
+            anew: false,
+            richer_until: f64::INFINITY,
+            next_look: 0.0,
+        }
+    }
+
+    /// The grey under it, `OFF_PICTURE` off the Pokémon, or None before a picture is taken.
+    pub fn grey(&self) -> Option<i64> {
+        self.still
+            .as_ref()
+            .and_then(|still| still.grey(self.at.0, self.at.1))
+    }
+
+    /// The box the Pokémon is drawn in on the still picture, (left, top, right, bottom), or
+    /// None. The arrows keep the stylus within a step of it: across the whole screen it was too
+    /// many presses (Orion, 2026-11-05).
+    pub fn outline(&self) -> Option<Box4> {
+        self.still.as_ref().and_then(|still| still.outline())
+    }
+
+    /// Put it at a point, a touch going to a grey there, or to the part under it; to nothing
+    /// where it is off the Pokémon. Python's `grey` defaults to None.
+    pub fn place(&mut self, at: (i64, i64), grey: Option<i64>) {
+        self.at = at;
+        let grey = match grey {
+            None => self.grey(),
+            grey => grey,
+        };
+        if let Some(grey) = grey {
+            self.kept = Some(if grey == 0 || grey == OFF_PICTURE {
+                OFF_PICTURE
+            } else {
+                grey
+            });
+        }
+    }
+
+    /// Move it `STEP` pixels that way, kept within a step of the Pokémon (`outline`) and on
+    /// the screen; False where that moves it nowhere.
+    pub fn step(&mut self, across: i64, down: i64) -> bool {
+        let (x, y) = self.at;
+        let (left, top, right, bottom) =
+            self.outline()
+                .unwrap_or((0, 0, touch::WIDTH - 1, touch::HEIGHT - 1));
+        let moved = (
+            (x + across * STEP)
+                .max(left - STEP)
+                .max(0)
+                .min(right + STEP)
+                .min(touch::WIDTH - 1),
+            (y + down * STEP)
+                .max(top - STEP)
+                .max(0)
+                .min(bottom + STEP)
+                .min(touch::HEIGHT - 1),
+        );
+        if moved == (x, y) {
+            return false;
+        }
+        self.place(moved, None);
+        true
+    }
+
+    /// Jump it the way given past the part it is on, any part said as that one is (`said`,
+    /// each grey's words), and any gap, to the middle of the next part's run that way, as Ctrl
+    /// and an arrow move it; False where no other part lies that way, or no picture is taken.
+    /// Sweet spots and danger zones with no name of their own are said as the head or the body,
+    /// which a jump went from and to, saying "head" twice (Orion, 2026-11-06).
+    pub fn jump(
+        &mut self,
+        across: i64,
+        down: i64,
+        said: &mut dyn FnMut(Option<i64>) -> Result<Option<String>>,
+    ) -> Result<bool> {
+        let Some(whole) = self.still.clone() else {
+            return Ok(false);
+        };
+        let mut words: HashMap<Option<i64>, Option<String>> = HashMap::new();
+        let mut part = |grey: Option<i64>| -> Result<Option<String>> {
+            if let Some(found) = words.get(&grey) {
+                return Ok(found.clone());
+            }
+            let found = said(grey)?;
+            words.insert(grey, found.clone());
+            Ok(found)
+        };
+        let (mut x, mut y) = self.at;
+        let here = part(whole.grey(x, y))?;
+        while let Some(grey) = whole.grey(x + across, y + down) {
+            (x, y) = (x + across, y + down);
+            if grey != 0 && grey != OFF_PICTURE && part(Some(grey))? != here {
+                let first = if across != 0 { x } else { y };
+                while whole.grey(x + across, y + down) == Some(grey) {
+                    (x, y) = (x + across, y + down);
+                }
+                let middle = py::floordiv(first + if across != 0 { x } else { y }, 2);
+                self.place(
+                    if across != 0 {
+                        (middle, y)
+                    } else {
+                        (x, middle)
+                    },
+                    None,
+                );
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    /// Jump it to the Pokémon's hand while it is raised, whichever way: a player cannot see
+    /// where it is, and it is up about 2 s (`HAND_RAISED`). The middle of the run across of the
+    /// hand's pixel nearest the stylus, in the picture as it is now, as the hand waves, or on the
+    /// still picture where that shows a hand, the touch going to the hand as it is now
+    /// (`placed`); False where it is not raised or not drawn, or the picture cannot be read.
+    pub fn to_hand(
+        &mut self,
+        mood: impl FnOnce() -> Result<Option<i64>>,
+        live: impl FnOnce() -> Result<Option<Rc<Picture>>>,
+    ) -> Result<bool> {
+        if mood()? != Some(HAND_RAISED) {
+            return Ok(false);
+        }
+        let (x, y) = self.at;
+        let Some((whole, found)) =
+            live()?.and_then(|whole| whole.closest(x, y, HAND).map(|found| (whole, found)))
+        else {
+            return Ok(false);
+        };
+        let (left, right) = whole.run(found.0, found.1, true);
+        let hand = (py::floordiv(left + right, 2), found.1);
+        let at = self
+            .still
+            .as_ref()
+            .and_then(|still| still.closest(x, y, HAND))
+            .unwrap_or(hand);
+        self.place(at, Some(HAND));
+        Ok(true)
+    }
+
+    /// Take the still picture, a `LOOK` apart: the first drawing the Pokémon, then for
+    /// `RICHER` any showing more of its parts, or more of it, as it idles, as its first frames
+    /// may catch it looking away or still walking up. It is left until the Pokémon comes anew,
+    /// with its back turned, or `look_again` asks. Left alone Pikachu's box moved 85 pixels in
+    /// 40 s, so that a part found with the arrows had gone by the next press (Orion, 2026-11-06,
+    /// spike 287's `watch`); this holds them still, and a touch finds its part wherever it has
+    /// gone (`placed`).
+    pub fn settle(
+        &mut self,
+        now: f64,
+        mood: impl FnOnce() -> Result<Option<i64>>,
+        live: impl FnOnce() -> Result<Option<Rc<Picture>>>,
+    ) -> Result<()> {
+        if now < self.next_look {
+            return Ok(());
+        }
+        self.next_look = now + LOOK;
+        let love = mood()?;
+        if love.is_some_and(|love| APPEARING.contains(&love)) {
+            (self.still, self.richer_until) = (None, f64::INFINITY);
+            return Ok(());
+        }
+        let still = self.still.clone();
+        if now > self.richer_until || (still.is_some() && love != Some(0) && !self.anew) {
+            return Ok(());
+        }
+        let Some(whole) = live()? else {
+            return Ok(());
+        };
+        if whole.runs().is_empty() {
+            return Ok(());
+        }
+        if self.anew
+            || still.as_ref().is_none_or(|still| {
+                whole.runs().len() > still.runs().len()
+                    || whole.size() as f64 > still.size() as f64 * BIGGER
+            })
+        {
+            self.take(Rc::new(whole.cleaned()));
+            if self.richer_until == f64::INFINITY {
+                self.richer_until = now + RICHER;
+            }
+        }
+        Ok(())
+    }
+
+    /// Make a picture the still one, the stylus staying on its part.
+    fn take(&mut self, whole: Rc<Picture>) {
+        if let Some(still) = &self.still
+            && let Some(kept) = self.kept
+            && kept != OFF_PICTURE
+        {
+            self.at = placed(still, &whole, self.at.0, self.at.1, kept);
+        }
+        (self.still, self.anew) = (Some(whole), false);
+        self.place(self.at, None);
+    }
+
+    /// Take the still picture anew once a press of `seconds` has moved the Pokémon and it has
+    /// stopped: a beckon brings it close, and a press at an edge brings it between the screens.
+    /// Python's `seconds` defaults to 0.
+    pub fn look_again(&mut self, now: f64, seconds: f64) {
+        (self.anew, self.richer_until) = (true, f64::INFINITY);
+        self.next_look = now + seconds + SETTLE;
+    }
+
+    /// Leave the still picture behind as Amie closes, or one of its games opens.
+    pub fn forget(&mut self) {
+        (self.still, self.anew, self.richer_until) = (None, false, f64::INFINITY);
+    }
+
+    /// Where a rub with it goes: to its part as it is now (`placed`), back and forth across it
+    /// the way it is longer, `RUB_REACH` at most either side and `RUB_HALF` at least; where the
+    /// part cannot be found, `RUB_HALF` either side of where it is. Off the Pokémon it stays
+    /// still: a press held there raises its hand, and any rub reaching back onto it was taken for
+    /// a press on it, which never does (spike 287, live).
+    pub fn rub(&self, live: impl FnOnce() -> Result<Option<Rc<Picture>>>) -> Result<Ends> {
+        let (x, y) = self.at;
+        let seen = if self.still.is_some() { live()? } else { None };
+        let (Some(seen), Some(still), Some(kept)) = (seen, &self.still, self.kept) else {
+            return Ok(((x - RUB_HALF, y), (x + RUB_HALF, y)));
+        };
+        if kept == OFF_PICTURE {
+            let point = self.off(&seen);
+            return Ok((point, point));
+        }
+        let (x, y) = placed(still, &seen, x, y, kept);
+        if matches!(seen.grey(x, y), None | Some(0 | OFF_PICTURE)) {
+            return Ok(((x - RUB_HALF, y), (x + RUB_HALF, y)));
+        }
+        let (across, down) = (seen.run(x, y, true), seen.run(x, y, false));
+        let sideways = across.1 - across.0 >= down.1 - down.0;
+        let ((low, high), at) = if sideways { (across, x) } else { (down, y) };
+        let half = RUB_REACH.min(RUB_HALF.max(py::floordiv(high - low, 2) - RUB_INSET));
+        let middle = if high - low < 2 * half {
+            py::floordiv(low + high, 2)
+        } else {
+            at.max(low + half).min(high - half)
+        };
+        if sideways {
+            return Ok(((middle - half, y), (middle + half, y)));
+        }
+        Ok(((x, middle - half), (x, middle + half)))
+    }
+
+    /// Where a press off the Pokémon goes: the screen's side nearer the stylus, or the other
+    /// where the Pokémon stands, and where the stylus is where it stands at both.
+    fn off(&self, live: &Picture) -> (i64, i64) {
+        let (x, y) = self.at;
+        let row = y.clamp(OFF_ROWS.0, OFF_ROWS.1);
+        let mut sides = [OFF_SIDES.0, OFF_SIDES.1];
+        // Python's `sorted` by an int key, which is stable, as `sort_by_key` is.
+        sides.sort_by_key(|side| (side - x).abs());
+        sides
+            .into_iter()
+            .find(|&side| matches!(live.grey(side, row), Some(0 | OFF_PICTURE)))
+            .map_or((x, y), |side| (side, row))
+    }
+}
+
 /// Names the picture of the Pokémon the Pokémon-Amie page shows by its species, and offers
 /// Amie's Pokémon to beckon and its stylus to rub with.
 pub struct AmiePage {
@@ -1031,15 +1326,8 @@ pub struct AmiePage {
     /// pages round it, `PageCache`'s, it came back wrapped as far round as the buffer lies off a
     /// page, 4 to 8 rows on Omega Ruby and half a column on X, and up to half of it gone.
     drawn: Option<Rc<dyn Memory>>,
-    /// The still picture the stylus moves over, none before the Pokémon is drawn.
-    still: Option<Rc<Picture>>,
-    /// Whether the next picture taken replaces the still one, whatever it shows.
-    anew: bool,
-    /// Until when a picture showing more of the Pokémon replaces the still one; `inf` until
-    /// it has been drawn.
-    richer_until: f64,
-    /// When the still picture is next looked at.
-    next_look: f64,
+    /// The stylus over the still picture (`StylusKeys`).
+    pub stylus: Stylus,
     /// When the Pokémon will have moved between the screens, and what is said then
     /// (`view_said`).
     moving: Option<(f64, String)>,
@@ -1060,13 +1348,9 @@ pub struct AmiePage {
     params: PySet,
     /// The number and record `called` last looked up, and what it found.
     called: Option<(i64, Option<i64>, String)>,
-    /// Where the stylus is on the still picture, as the arrows have moved it (`StylusKeys`).
-    pub stylus: (i64, i64),
-    /// The grey of the part a touch goes to, `OFF_PICTURE` for none, None before the stylus
-    /// has been on any.
-    kept: Option<i64>,
-    /// When the picture was last read, and the picture as it was.
-    whole: (f64, Option<Rc<Picture>>),
+    /// When the picture was last read, and the picture as it was: in a cell, as `picture` is
+    /// asked through a shared page as well (`with_stylus`).
+    whole: RefCell<(f64, Option<Rc<Picture>>)>,
     /// `motion_line` as a test replaces it, where Python's test sets the method on the page.
     pub(crate) motion_line_of: Option<fn(&str) -> Option<String>>,
     /// `BOTH_SCREENS` and `UNBOUND`, as a test replaces them, where Python's monkeypatches the
@@ -1119,10 +1403,7 @@ impl AmiePage {
             fields,
             now: OnceCell::new(),
             drawn,
-            still: None,
-            anew: false,
-            richer_until: f64::INFINITY,
-            next_look: 0.0,
+            stylus: Stylus::new(),
             moving: None,
             down: false,
             names,
@@ -1134,9 +1415,7 @@ impl AmiePage {
             players: IndexMap::new(),
             params: PySet::new(),
             called: None,
-            stylus: STYLUS_START,
-            kept: None,
-            whole: (f64::NEG_INFINITY, None),
+            whole: RefCell::new((f64::NEG_INFINITY, None)),
             motion_line_of: None,
             both_screens: &BOTH_SCREENS,
             unbound: UNBOUND,
@@ -1353,7 +1632,7 @@ impl AmiePage {
         if running != Some(AMIE) || self.species()?.is_none() {
             return Ok(Vec::new());
         }
-        let (x, y) = self.stylus;
+        let (x, y) = self.stylus.at;
         let part = self.part(None)?;
         let name = self.called()?;
         let this = self.this.clone();
@@ -1363,7 +1642,9 @@ impl AmiePage {
             drop: Some(MOUTH),
             after: After(Some(Rc::new(move || {
                 if let Some(page) = this.upgrade() {
-                    page.borrow_mut().look_again(BECKON_SECONDS);
+                    page.borrow_mut()
+                        .stylus
+                        .look_again(py::time::monotonic(), BECKON_SECONDS);
                 }
             }))),
             ..Target::new(
@@ -1382,7 +1663,10 @@ impl AmiePage {
         let mut found = vec![
             beckon,
             Target {
-                rub: Some(self.rub()?),
+                rub: Some(self.with_stylus(|stylus, page| {
+                    let page = &*page;
+                    stylus.rub(|| page.picture(FRESH))
+                })?),
                 ..Target::new(STYLUS_TARGET, &stylus, x, y, 0.0, touch::HEIGHT as f64)
             },
         ];
@@ -1416,7 +1700,7 @@ impl AmiePage {
                     py::time::monotonic() + VIEW_SECONDS + SETTLE,
                     own(moved, &[("pokemon", &called)]),
                 ));
-                page.look_again(VIEW_SECONDS);
+                page.stylus.look_again(py::time::monotonic(), VIEW_SECONDS);
             }
         };
         Ok(vec![Target {
@@ -1437,7 +1721,7 @@ impl AmiePage {
     /// What is said now the Pokémon has moved between the screens, once, or None.
     pub fn view_said(&mut self) -> Option<String> {
         let (when, _) = self.moving.as_ref()?;
-        if py::time::monotonic() < *when || self.anew {
+        if py::time::monotonic() < *when || self.stylus.anew {
             return None;
         }
         self.moving.take().map(|(_, said)| said)
@@ -1448,7 +1732,7 @@ impl AmiePage {
     /// Pokémon where it is off it, or None where the picture cannot be read.
     pub fn part(&mut self, grey: Option<i64>) -> Result<Option<String>> {
         let grey = match grey {
-            None => self.grey(),
+            None => self.stylus.grey(),
             grey => grey,
         };
         let Some(grey) = grey else {
@@ -1503,146 +1787,30 @@ impl AmiePage {
         })
     }
 
-    /// Send a touch to a grey, or to the part the stylus is on now, as the arrows leave it; to
-    /// nothing where it is off the Pokémon.
-    pub fn keep(&mut self, grey: Option<i64>) {
-        let grey = match grey {
-            None => self.grey(),
-            grey => grey,
-        };
-        if let Some(grey) = grey {
-            self.kept = Some(if grey == 0 || grey == OFF_PICTURE {
-                OFF_PICTURE
-            } else {
-                grey
-            });
-        }
-    }
-
-    /// Take the still picture the stylus moves over, a `LOOK` apart: the first drawing the
-    /// Pokémon, then for `RICHER` any showing more of its parts, or more of it, as it idles, as
-    /// its first frames may catch it looking away or still walking up. It is left until the
-    /// Pokémon comes anew, with its back turned, or `look_again` asks. Left alone Pikachu's box
-    /// moved 85 pixels in 40 s, so that a part found with the arrows had gone by the next press
-    /// (Orion, 2026-11-06, spike 287's `watch`); this holds them still, and a touch finds its part
-    /// wherever it has gone (`placed`).
+    /// Take the still picture as the stylus wants it (`Stylus.settle`), from `Player`'s love
+    /// command and the picture as drawn now.
     pub fn settle(&mut self) -> Result<()> {
         let now = py::time::monotonic();
-        if now < self.next_look {
-            return Ok(());
-        }
-        self.next_look = now + LOOK;
-        let mood = self.mood()?;
-        if mood.is_some_and(|mood| APPEARING.contains(&mood)) {
-            (self.still, self.richer_until) = (None, f64::INFINITY);
-            return Ok(());
-        }
-        let still = self.still.clone();
-        if now > self.richer_until || (still.is_some() && mood != Some(0) && !self.anew) {
-            return Ok(());
-        }
-        let Some(whole) = self.read_whole(LOOK)? else {
-            return Ok(());
-        };
-        if whole.runs().is_empty() {
-            return Ok(());
-        }
-        if self.anew
-            || still.as_ref().is_none_or(|still| {
-                whole.runs().len() > still.runs().len()
-                    || whole.size() as f64 > still.size() as f64 * BIGGER
-            })
-        {
-            self.take(Rc::new(whole.cleaned()));
-            if self.richer_until == f64::INFINITY {
-                self.richer_until = now + RICHER;
-            }
-        }
-        Ok(())
+        self.with_stylus(|stylus, page| {
+            let page = &*page;
+            stylus.settle(now, || page.mood(), || page.picture(LOOK))
+        })
     }
 
-    /// Make a picture the still one, the stylus staying on its part.
-    fn take(&mut self, whole: Rc<Picture>) {
-        if let Some(still) = &self.still
-            && let Some(kept) = self.kept
-            && kept != OFF_PICTURE
-        {
-            self.stylus = placed(still, &whole, self.stylus.0, self.stylus.1, kept);
-        }
-        (self.still, self.anew) = (Some(whole), false);
-        self.keep(None);
-    }
-
-    /// Take the still picture anew once a press of `seconds` has moved the Pokémon and it has
-    /// stopped: a beckon brings it close, and a press at an edge brings it between the screens.
-    pub fn look_again(&mut self, seconds: f64) {
-        (self.anew, self.richer_until) = (true, f64::INFINITY);
-        self.next_look = py::time::monotonic() + seconds + SETTLE;
+    /// `self.stylus.<call>(...)` handed calls of the page's own, Python's `self.mood` or
+    /// `self.picture`: the stylus is lent out of the page for the call, which the page's
+    /// borrow would otherwise hold, and put back.
+    pub fn with_stylus<T>(&mut self, call: impl FnOnce(&mut Stylus, &mut AmiePage) -> T) -> T {
+        let mut stylus = std::mem::take(&mut self.stylus);
+        let done = call(&mut stylus, self);
+        self.stylus = stylus;
+        done
     }
 
     /// Leave what is known of the Pokémon behind as Amie closes, or one of its games opens.
     pub fn forget(&mut self) {
-        (self.still, self.anew, self.richer_until) = (None, false, f64::INFINITY);
+        self.stylus.forget();
         (self.moving, self.down) = (None, false);
-    }
-
-    /// Where a press off the Pokémon goes: the screen's side nearer the stylus, or the other
-    /// where the Pokémon stands, and where the stylus is where it stands at both.
-    fn off(&self, live: &Picture) -> (i64, i64) {
-        let (x, y) = self.stylus;
-        let row = y.clamp(OFF_ROWS.0, OFF_ROWS.1);
-        let mut sides = [OFF_SIDES.0, OFF_SIDES.1];
-        // Python's `sorted` by an int key, which is stable, as `sort_by_key` is.
-        sides.sort_by_key(|side| (side - x).abs());
-        sides
-            .into_iter()
-            .find(|&side| matches!(live.grey(side, row), Some(0 | OFF_PICTURE)))
-            .map_or((x, y), |side| (side, row))
-    }
-
-    /// Where a rub with the stylus goes: to its part as it is now (`placed`), back and forth
-    /// across it the way it is longer, `RUB_REACH` at most either side and `RUB_HALF` at least;
-    /// where the part cannot be found, `RUB_HALF` either side of where the stylus is. Off the
-    /// Pokémon it stays still: a press held there raises its hand, and any rub reaching back
-    /// onto it was taken for a press on it, which never does (spike 287, live).
-    pub fn rub(&mut self) -> Result<Ends> {
-        let (x, y) = self.stylus;
-        let live = if self.still.is_some() {
-            self.read_whole(FRESH)?
-        } else {
-            None
-        };
-        let (Some(live), Some(still), Some(kept)) = (live, self.still.clone(), self.kept) else {
-            return Ok(((x - RUB_HALF, y), (x + RUB_HALF, y)));
-        };
-        if kept == OFF_PICTURE {
-            let point = self.off(&live);
-            return Ok((point, point));
-        }
-        let (x, y) = placed(&still, &live, x, y, kept);
-        if matches!(live.grey(x, y), None | Some(0 | OFF_PICTURE)) {
-            return Ok(((x - RUB_HALF, y), (x + RUB_HALF, y)));
-        }
-        let (across, down) = (live.run(x, y, true), live.run(x, y, false));
-        let sideways = across.1 - across.0 >= down.1 - down.0;
-        let ((low, high), at) = if sideways { (across, x) } else { (down, y) };
-        let half = RUB_REACH.min(RUB_HALF.max(py::floordiv(high - low, 2) - RUB_INSET));
-        let middle = if high - low < 2 * half {
-            py::floordiv(low + high, 2)
-        } else {
-            at.max(low + half).min(high - half)
-        };
-        if sideways {
-            return Ok(((middle - half, y), (middle + half, y)));
-        }
-        Ok(((x, middle - half), (x, middle + half)))
-    }
-
-    /// The box the Pokémon is drawn in on the still picture, (left, top, right, bottom), or
-    /// None. The arrows keep the stylus within a step of it: across the whole screen it was too
-    /// many presses (Orion, 2026-11-05).
-    pub fn outline(&self) -> Option<Box4> {
-        self.still.as_ref().and_then(|still| still.outline())
     }
 
     /// The love command running, by its number; None between two, or where no Player runs.
@@ -1671,66 +1839,11 @@ impl AmiePage {
         self.player().numbers()
     }
 
-    /// Where a jump goes while the Pokémon's hand is raised, whichever way: a player cannot
-    /// see where it is, and it is up about 2 s (`HAND_RAISED`). The middle of the run across of
-    /// the hand's pixel nearest the stylus, in the picture as it is now, as the hand waves, or
-    /// on the still picture where that shows a hand, the touch going to it as it is now
-    /// (`placed`); None where it is not raised or not drawn, or the picture cannot be read.
-    pub fn raised_hand(&mut self) -> Result<Option<(i64, i64)>> {
-        if self.mood()? != Some(HAND_RAISED) {
-            return Ok(None);
-        }
-        let (x, y) = self.stylus;
-        let Some((whole, found)) = self
-            .read_whole(0.0)?
-            .and_then(|whole| whole.closest(x, y, HAND).map(|found| (whole, found)))
-        else {
-            return Ok(None);
-        };
-        let (left, right) = whole.run(found.0, found.1, true);
-        let hand = (py::floordiv(left + right, 2), found.1);
-        Ok(Some(
-            self.still
-                .as_ref()
-                .and_then(|still| still.closest(x, y, HAND))
-                .unwrap_or(hand),
-        ))
-    }
-
-    /// Where the stylus jumps to from where it is, the way given: past the part it is on, any
-    /// part said as that one is, and any gap, to the middle of the next part's run that way, as
-    /// Ctrl and an arrow move it; None where no other part lies that way, or the picture cannot
-    /// be read. Sweet spots and danger zones with no name of their own are said as the head or
-    /// the body, which a jump went from and to, saying "head" twice (Orion, 2026-11-06).
-    pub fn jump(&mut self, across: i64, down: i64) -> Result<Option<(i64, i64)>> {
-        let Some(whole) = self.still.clone() else {
-            return Ok(None);
-        };
-        let (mut x, mut y) = self.stylus;
-        let here = self.part(whole.grey(x, y))?;
-        while let Some(grey) = whole.grey(x + across, y + down) {
-            (x, y) = (x + across, y + down);
-            if grey != 0 && grey != OFF_PICTURE && self.part(Some(grey))? != here {
-                let first = if across != 0 { x } else { y };
-                while whole.grey(x + across, y + down) == Some(grey) {
-                    (x, y) = (x + across, y + down);
-                }
-                let middle = py::floordiv(first + if across != 0 { x } else { y }, 2);
-                return Ok(Some(if across != 0 {
-                    (middle, y)
-                } else {
-                    (x, middle)
-                }));
-            }
-        }
-        Ok(None)
-    }
-
-    /// The picture, read again once `fresh` has gone by; None where it cannot be. Python's
-    /// `fresh` defaults to `LOOK`.
-    fn read_whole(&mut self, fresh: f64) -> Result<Option<Rc<Picture>>> {
+    /// The picture of parts as drawn, read again once `fresh` has gone by; None where it
+    /// cannot be. Python's `fresh` defaults to `LOOK`.
+    pub fn picture(&self, fresh: f64) -> Result<Option<Rc<Picture>>> {
         let now = py::time::monotonic();
-        if let (when, Some(whole)) = &self.whole
+        if let (when, Some(whole)) = &*self.whole.borrow()
             && now - when < fresh
         {
             return Ok(Some(whole.clone()));
@@ -1744,20 +1857,13 @@ impl AmiePage {
                 Err(error) => return Err(error),
             };
         }
-        self.whole = (now, whole.clone());
+        *self.whole.borrow_mut() = (now, whole.clone());
         Ok(whole)
-    }
-
-    /// The grey under the stylus, `OFF_PICTURE` off the Pokémon, or None unread.
-    fn grey(&self) -> Option<i64> {
-        self.still
-            .as_ref()
-            .and_then(|still| still.grey(self.stylus.0, self.stylus.1))
     }
 
     /// The buffer of the picture of parts drawn last, or None where no Player leads to one,
     /// or the emulator cannot read it safely (`_drawn`).
-    fn buffer(&mut self) -> Result<Option<i64>> {
+    fn buffer(&self) -> Result<Option<i64>> {
         if self.drawn.is_none() {
             return Ok(None);
         }
@@ -2217,10 +2323,11 @@ impl Moods {
 pub const EDGE: &str = "amie-stylus-edge";
 
 /// Amie's own keys, the arrows (Orion, 2026-11-05): each moves the stylus `STEP` pixels over
-/// its still picture, saying the kind of part it comes onto (`AmiePage.part`), and nothing more
-/// while it stays on that kind, touch mode's tone sounding where it is. Touch mode chooses the
-/// stylus as it moves, so touch mode's tap rubs that part a second and its drag rubs it until let
-/// go, wherever it has gone, carried on with each move (`AmiePage.rub`, `TouchMode.choose`).
+/// its still picture (`Stylus`), saying the kind of part it comes onto (`AmiePage.part`), and
+/// nothing more while it stays on that kind, touch mode's tone sounding where it is. Touch mode
+/// chooses the stylus as it moves, so touch mode's tap rubs that part a second and its drag rubs
+/// it until let go, wherever it has gone, carried on with each move (`Stylus.rub`,
+/// `TouchMode.choose`).
 ///
 /// `wrong` is what is heard for an arrow at the screen's edge: a sound, and "", or the words.
 ///
@@ -2283,55 +2390,31 @@ impl StylusKeys {
                 .join(", "));
         }
         page.borrow_mut().settle()?;
-        let jump = STYLUS_JUMPS
-            .iter()
-            .find(|(name, _)| *name == action)
-            .map(|(_, way)| *way);
-        let hand = if jump.is_some() {
-            page.borrow_mut().raised_hand()?
-        } else {
-            None
-        };
-        let grey = hand.map(|_| HAND); // what it lands on, gone by the time it is asked
-        let moved = if let Some((across, down)) = jump {
-            let moved = match hand {
-                Some(hand) => Some(hand),
-                None => page.borrow_mut().jump(across, down)?,
-            };
-            let Some(moved) = moved else {
+        let mut grey = None;
+        if let Some(&(_, (across, down))) = STYLUS_JUMPS.iter().find(|(name, _)| *name == action) {
+            let landed = page
+                .borrow_mut()
+                .with_stylus(|stylus, page| -> Result<bool> {
+                    let shared = &*page;
+                    if stylus.to_hand(|| shared.mood(), || shared.picture(0.0))? {
+                        grey = Some(HAND); // what it lands on, gone from the still picture as likely as not
+                        return Ok(true);
+                    }
+                    stylus.jump(across, down, &mut |grey| page.part(grey))
+                })?;
+            if !landed {
                 return Ok((self.wrong)(&own(EDGE, &[])));
-            };
+            }
             self.said = None; // a jump always says where it lands
-            moved
         } else {
             let (_, (across, down)) = *STYLUS_MOVES
                 .iter()
                 .find(|(name, _)| *name == action)
                 .ok_or_else(|| Error::key(py::repr(action)))?;
-            let (x, y) = page.borrow().stylus;
-            let (left, top, right, bottom) =
-                page.borrow()
-                    .outline()
-                    .unwrap_or((0, 0, touch::WIDTH - 1, touch::HEIGHT - 1));
-            let moved = (
-                (x + across * STEP)
-                    .max(left - STEP)
-                    .max(0)
-                    .min(right + STEP)
-                    .min(touch::WIDTH - 1),
-                (y + down * STEP)
-                    .max(top - STEP)
-                    .max(0)
-                    .min(bottom + STEP)
-                    .min(touch::HEIGHT - 1),
-            );
-            if moved == (x, y) {
+            if !page.borrow_mut().stylus.step(across, down) {
                 return Ok((self.wrong)(&own(EDGE, &[])));
             }
-            moved
-        };
-        page.borrow_mut().stylus = moved;
-        page.borrow_mut().keep(grey);
+        }
         touch.choose(STYLUS_TARGET)?;
         let part = page.borrow_mut().part(grey)?;
         if part == self.said {
