@@ -170,6 +170,10 @@ pub const STATE: i64 = 0x174;
 /// Where after its PokeIcon the page says a hit is landing on the bag, +0x128 in ORAS: 1 for about
 /// two fifths of a second a hit, and 0 between them (spike 290).
 pub const HITTING: i64 = 0x38;
+/// Seconds after a tap of touch mode's within which a hit is the player's own, heard: the
+/// Pokémon's own come a minute apart, and were heard while the player walked (Orion, 2026-11-10).
+/// Not measured: a hit lands as soon as the tap does on the movies, well inside it.
+pub const TAPPED_HIT: f64 = 1.0;
 /// Which of the record's effort values (`pokemon.EFFORT`) each of the game's six labels is, in the
 /// order it writes them: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed.
 pub const STAT_ORDER: [usize; 6] = [0, 1, 2, 4, 5, 3];
@@ -671,8 +675,11 @@ pub struct CoreTraining {
     page: Rc<RefCell<TrainingPage>>,
     layouts: Rc<Layouts>,
     called: Rc<dyn Fn(&pokemon::Pokemon) -> Option<String>>,
-    /// Played as each hit lands on the bag: nothing else says one has (Orion, 2026-11-09).
+    /// Played as a hit of the player's lands on the bag: nothing else says one has (Orion,
+    /// 2026-11-09).
     hit: Rc<dyn Fn()>,
+    /// When touch mode last tapped, on `time.monotonic`'s clock (`TAPPED_HIT`).
+    tapped: Rc<dyn Fn() -> f64>,
     /// Played as the "!" comes up, easily missed among the taps (Orion, 2026-11-09).
     finished: Rc<dyn Fn()>,
     /// Whether this "!" has been said.
@@ -687,13 +694,20 @@ pub struct CoreTraining {
 }
 
 impl CoreTraining {
-    /// `hit` and `finished` play nothing.
+    /// `hit` and `finished` play nothing, and touch mode never tapped.
     pub fn new(
         page: Rc<RefCell<TrainingPage>>,
         layouts: Rc<Layouts>,
         called: Rc<dyn Fn(&pokemon::Pokemon) -> Option<String>>,
     ) -> Self {
-        CoreTraining::with(page, layouts, called, Rc::new(|| {}), Rc::new(|| {}))
+        CoreTraining::with(
+            page,
+            layouts,
+            called,
+            Rc::new(|| {}),
+            Rc::new(|| {}),
+            Rc::new(|| f64::NEG_INFINITY),
+        )
     }
 
     pub fn with(
@@ -702,12 +716,14 @@ impl CoreTraining {
         called: Rc<dyn Fn(&pokemon::Pokemon) -> Option<String>>,
         hit: Rc<dyn Fn()>,
         finished: Rc<dyn Fn()>,
+        tapped: Rc<dyn Fn() -> f64>,
     ) -> Self {
         CoreTraining {
             page,
             layouts,
             called,
             hit,
+            tapped,
             finished,
             said: false,
             waiting: false,
@@ -740,6 +756,17 @@ impl CoreTraining {
         &mut self,
         running: Option<&str>,
     ) -> Result<Vec<(String, String, Option<Category>)>> {
+        let tapped = self.tapped.clone();
+        self.poll_with(running, &*tapped)
+    }
+
+    /// `poll`, asking `tapped` when touch mode last tapped where Python asks its own: touch mode,
+    /// which the navigator owns, is handed to the subscreens' poll.
+    pub fn poll_with(
+        &mut self,
+        running: Option<&str>,
+        tapped: &dyn Fn() -> f64,
+    ) -> Result<Vec<(String, String, Option<Category>)>> {
         let now = if running == Some(FIELD) && self.drawn()? {
             self.page.borrow().selected()?
         } else {
@@ -755,7 +782,11 @@ impl CoreTraining {
         };
         let mut lines = Vec::new();
         if now.hitting && !self.hitting {
-            (self.hit)();
+            // The clock read only after a tap: a replay's clock is its tape's, and presses none.
+            let tapped = tapped();
+            if tapped > f64::NEG_INFINITY && py::time::monotonic() - tapped <= TAPPED_HIT {
+                (self.hit)();
+            }
             lines.push((PAGE_LOG.to_string(), "hit".to_string(), None));
         }
         self.hitting = now.hitting;
@@ -980,11 +1011,6 @@ impl Gains {
         if (self.running)().as_deref() != Some(MENU) || self.headers.is_empty() {
             return Ok(found);
         }
-        let stats: Vec<ScreenText> = found
-            .values()
-            .filter(|piece| self.stats.contains(&piece.text))
-            .cloned()
-            .collect();
         let header = found
             .values()
             .find(|piece| self.headers.contains(&piece.text))
@@ -992,11 +1018,23 @@ impl Gains {
         let Some(header) = header else {
             return Ok(found);
         };
+        // Its own layout's words alone: the results' "HP", a layout of its own, came up beside a
+        // regimen's labels, and a "+4" was taken twice (as_super_training_more_l1_regimens, live).
+        let mine: Vec<ScreenText> = found
+            .values()
+            .filter(|piece| piece.root == header.root)
+            .cloned()
+            .collect();
+        let stats: Vec<ScreenText> = mine
+            .iter()
+            .filter(|piece| self.stats.contains(&piece.text))
+            .cloned()
+            .collect();
         if stats.len() != self.stats.len() {
             return Ok(found);
         }
-        let gains: Vec<ScreenText> = found
-            .values()
+        let gains: Vec<ScreenText> = mine
+            .iter()
             .filter(|piece| GAIN.is_match(&piece.text))
             .cloned()
             .collect();

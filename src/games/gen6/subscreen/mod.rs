@@ -403,9 +403,9 @@ impl Polled for RefCell<CoreTraining> {
     fn poll(
         &self,
         running: Option<&str>,
-        _touch: &mut dyn Touching,
+        touch: &mut dyn Touching,
     ) -> Result<Vec<(String, String, Option<Category>)>> {
-        self.borrow_mut().poll(running)
+        self.borrow_mut().poll_with(running, &|| touch.tapped())
     }
 }
 
@@ -615,6 +615,8 @@ impl Subscreens {
             },
             bag_hit,
             bag_finished,
+            // When touch mode last tapped is asked of it as the page is polled (`Polled`).
+            Rc::new(|| f64::NEG_INFINITY),
         )));
         let medals = Rc::new(Medals::new(running.clone()));
         let goals = Rc::new(Goals::new(layouts.clone(), image_of.clone()));

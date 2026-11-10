@@ -47,6 +47,7 @@
 //! - ADR-0037: the DexNav's icons are offered and said caught or not, though the game switches off
 //!   those not caught.
 
+use std::cell::Cell;
 use std::collections::HashSet;
 use std::rc::Rc;
 
@@ -311,6 +312,9 @@ pub struct TouchMode {
     /// only the screen knows (`TouchScreen.rubbing`).
     pressed: bool,
     chosen: Option<i64>,
+    /// When the last tap was, on `time.monotonic`'s clock: Super Training hears a hit on its
+    /// bag only after one (`super_training.TAPPED_HIT`). A `Cell`, as a tap takes `&self`.
+    tapped: Cell<f64>,
 }
 
 impl TouchMode {
@@ -336,6 +340,7 @@ impl TouchMode {
             over: None,
             pressed: false,
             chosen: None,
+            tapped: Cell::new(f64::NEG_INFINITY),
         }
     }
 
@@ -600,7 +605,13 @@ impl TouchMode {
             "touch: tap {} at ({}, {})",
             target.name, target.x, target.y
         ));
+        self.tapped.set(py::time::monotonic());
         screen.tap(target.x, target.y).unwrap_or_default()
+    }
+
+    /// When the last tap was, on `time.monotonic`'s clock: Python's `tapped` attribute.
+    pub fn tapped(&self) -> f64 {
+        self.tapped.get()
     }
 
     /// Drag from one target straight to another and let go, with the line to say, as a screen

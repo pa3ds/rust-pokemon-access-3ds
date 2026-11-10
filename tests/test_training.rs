@@ -304,14 +304,19 @@ fn test_the_empty_bag_is_offered_but_not_the_one_waiting_behind_the_top_bar() {
 /// What `core`'s page plays, in order: Python's `PLAYED`.
 type Played = Rc<RefCell<Vec<&'static str>>>;
 
-/// A page in a state, its layout drawn or not, whose Pokémon is called "Ralts", with what it
-/// plays.
+/// A page in a state, its layout drawn or not, whose Pokémon is called "Ralts", touch mode
+/// having last tapped never.
 fn core(state: i64, shown: bool) -> (super_training::CoreTraining, Rc<FakeMemory>) {
-    let (reader, memory, _played) = played_core(state, shown);
+    let (reader, memory, _played) = played_core(state, shown, f64::NEG_INFINITY);
     (reader, memory)
 }
 
-fn played_core(state: i64, shown: bool) -> (super_training::CoreTraining, Rc<FakeMemory>, Played) {
+/// `core`, touch mode having last tapped `tapped`, with what the page plays.
+fn played_core(
+    state: i64,
+    shown: bool,
+    tapped: f64,
+) -> (super_training::CoreTraining, Rc<FakeMemory>, Played) {
     let (found, memory, classes) = paged(super_training::ICONS);
     memory.u32(
         PAGE + super_training::ICONS + super_training::STATE,
@@ -342,6 +347,7 @@ fn played_core(state: i64, shown: bool) -> (super_training::CoreTraining, Rc<Fak
             Rc::new(|_who| Some("Ralts".to_string())),
             Rc::new(move || hit.borrow_mut().push("hit")),
             Rc::new(move || finished.borrow_mut().push("finished")),
+            Rc::new(move || tapped),
         ),
         memory,
         played,
@@ -349,8 +355,8 @@ fn played_core(state: i64, shown: bool) -> (super_training::CoreTraining, Rc<Fak
 }
 
 #[test]
-fn test_each_hit_landing_on_the_bag_is_heard_and_logged_once() {
-    let (mut reader, memory, played) = played_core(1, true);
+fn test_each_hit_of_a_tap_landing_on_the_bag_is_heard_and_logged_once() {
+    let (mut reader, memory, played) = played_core(1, true, crate::py::time::monotonic());
     let hitting = PAGE + super_training::ICONS + super_training::HITTING;
     let mut said = Vec::new();
     for now in [0, 1, 1, 0, 1] {
@@ -364,9 +370,27 @@ fn test_each_hit_landing_on_the_bag_is_heard_and_logged_once() {
     );
 }
 
+/// Once a minute, with no tap, even on an empty bag while the player walks (Orion,
+/// 2026-11-10).
+#[test]
+fn test_the_pokemons_own_hit_is_logged_and_not_heard() {
+    let (mut reader, memory, played) = played_core(
+        1,
+        true,
+        crate::py::time::monotonic() - 2.0 * super_training::TAPPED_HIT,
+    );
+    memory.u32(PAGE + super_training::ICONS + super_training::HITTING, &[1]);
+    assert_eq!(
+        reader.poll(Some(FIELD)).unwrap(),
+        [("training".to_string(), "hit".to_string(), None)]
+    );
+    assert!(played.borrow().is_empty());
+}
+
 #[test]
 fn test_a_finished_bag_is_heard_with_its_words() {
-    let (mut reader, _memory, played) = played_core(super_training::FINISHED, true);
+    let (mut reader, _memory, played) =
+        played_core(super_training::FINISHED, true, f64::NEG_INFINITY);
     for _ in 0..3 {
         reader.poll(Some(FIELD)).unwrap();
     }
@@ -718,6 +742,33 @@ fn test_a_regimens_gain_is_said_beside_its_stat_and_the_others_left_out() {
             "Possible base stat increase: Speed +4",
             "Target Time Remaining:",
             "2:30.0"
+        ]
+    );
+}
+
+/// Another layout's "HP" on the gain's row, with one of the regimen's labels not up yet,
+/// took the "+4" a second time and threw.
+#[test]
+fn test_a_regimens_gain_is_said_beside_its_own_layouts_stat_alone() {
+    let mut screen = gains_screen(Some(70.0));
+    screen.shift_remove(&3);
+    screen.insert(
+        40,
+        ScreenText {
+            root: 1,
+            ..worded(40, "HP", 70.0)
+        },
+    );
+    let gains = gains(super_training::MENU);
+    assert_eq!(gains.reworded(screen.clone()).unwrap(), screen);
+    screen.insert(3, gains_screen(Some(70.0))[&3].clone());
+    assert_eq!(
+        texts(&gains.reworded(screen).unwrap()),
+        [
+            "Possible base stat increase: Speed +4",
+            "Target Time Remaining:",
+            "2:30.0",
+            "HP"
         ]
     );
 }

@@ -640,6 +640,9 @@ pub trait Touching {
     fn follow(&mut self) -> Result<()> {
         Ok(())
     }
+    fn tapped(&self) -> f64 {
+        f64::NEG_INFINITY
+    }
 }
 
 impl Touching for TouchMode {
@@ -665,6 +668,10 @@ impl Touching for TouchMode {
 
     fn follow(&mut self) -> Result<()> {
         TouchMode::follow(self)
+    }
+
+    fn tapped(&self) -> f64 {
+        TouchMode::tapped(self)
     }
 
     fn give(&mut self, picked: &Target, over: &Target) -> String {
