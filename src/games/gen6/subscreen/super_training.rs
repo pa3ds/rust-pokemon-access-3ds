@@ -52,13 +52,13 @@
 //! by 100, which has no line in the game's text: offered as "empty bag", as tapping it can find a
 //! bag.
 //!
-//! Core Training (as_super_training_tutorial2, spike 290): a bag hangs from its top, so its place
-//! is the top of it, and a tap there does nothing; a tap on the bag or on the Pokémon makes it hit
-//! the bag. A hit takes one from the Pokémon's record's +0x16 of the bags' hits left (2 for a
-//! Strength Bag), and with none left the page's +0x264 goes from 1, idle (6 while it hits), to 4 and
-//! the game draws `surprise_icon.bclim`, a "!" over the Pokémon, until a tap on the Pokémon gives
-//! the bag's effect and says so. Left alone the Pokémon hits the bag once a minute. The page says
-//! nothing else of it.
+//! Core Training (as_st_tutorial2, spike 290): a bag hangs from its top, so its place is the top of
+//! it, and a tap there does nothing; a tap on the bag or on the Pokémon makes it hit the bag. A hit
+//! takes one from the Pokémon's record's +0x16 of the bags' hits left (2 for a Strength Bag), and
+//! with none left the page's +0x264 goes from 1, idle (6 while it hits), to 4 and the game draws
+//! `surprise_icon.bclim`, a "!" over the Pokémon, until a tap on the Pokémon gives the bag's effect
+//! and says so. Left alone the Pokémon hits the bag once a minute. The page says nothing else of
+//! it.
 //!
 //! What a round shows besides its goals (measured live in the Magnemite regimen, 2026-10-10, in the
 //! top screen's layout, places as for a goal): the score is digit pictures, `score_nom0.bclim` to
@@ -227,7 +227,7 @@ pub const SWINGING: i64 = 6;
 /// The states measured: idle, woken, resting, finished, hitting, and showing what a bag has given
 /// (7 and 8: a special bag's and a stat's, it seemed, until a Sp. Atk Bag L gave 7). Resting, 3,
 /// draws `silence_icon` over the Pokémon, which will not do a regimen until a tap wakes it, to 2
-/// (as_st_graveler_barrier_treecko). Any other is logged, to learn what it is.
+/// (as_st_graveler_barrier). Any other is logged, to learn what it is.
 pub const STATES_SEEN: [i64; 7] = [1, 2, 3, 4, 6, 7, 8];
 pub const BAG_FINISHED: &str = "training-bag-finished";
 pub const RESTING_WORD: &str = "training-resting";
@@ -237,7 +237,7 @@ pub const TOTAL: &str = "training-total";
 pub const TOTAL_POINTS: &str = "training-total-points";
 pub const NO_NUMBERS: &str = "training-no-numbers";
 /// A round's energy meter, low in the middle of the top screen: its scale is how full it is, 0 to 1
-/// (as_super_training_tutorial2). The first tutorial's round draws none.
+/// (as_st_tutorial2). The first tutorial's round draws none.
 pub const ENERGY_IMAGE: &str = "st_gauge_c.bclim";
 pub const ENERGY: &str = "training-energy";
 /// The aura round the Pokémon while a press held is charged, from about 1.9 s into the press for
@@ -294,20 +294,20 @@ pub const MISSILE_STATE: i64 = 0x04;
 /// A ball's state in flight; 2 once it has hit the player, 0 unused.
 pub const FLYING: i64 = 1;
 /// A ball's state once the player's barrier has stopped it: with L held as it arrived, and no
-/// points lost, where one that hit went to 2 and took 8 (as_super_training_tutorial and 2).
+/// points lost, where one that hit went to 2 and took 8 (as_st_tutorial and 2).
 pub const STOPPED: i64 = 3;
 pub const BLOCKED: &str = "training-blocked";
 pub const BLOCK_NOW: &str = "training-block-now";
 /// The round's Pokémon: its +0x18 how far it stands from the Bot, as a ball's own is (spike 290).
 pub const PLAYER: &str = "N5actor19SparringPlayerActorE";
 /// Where a ball or the Pokémon keeps its place across, less as the Circle Pad takes it left, its
-/// height after it at +0x14 (a census of as_super_training_l1_regimen_again's round, 2026-11-10).
+/// height after it at +0x14 (a census of as_st_l1_regimen_again's round, 2026-11-10).
 pub const PLACE_X: i64 = 0x10;
 /// Where a ball or the Pokémon keeps how far it is from the Bot.
 pub const PLACE_Z: i64 = 0x18;
-/// Where the Pokémon starts a round, across and from the Bot (as_super_training_l1_regimen and
+/// Where the Pokémon starts a round, across and from the Bot (as_st_l1_regimen and
 /// _again). Up, the Circle Pad brings it to about 149 from the Bot, and across it went from -75 to
-/// 63 on as_super_training_l1_regimen.
+/// 63 on as_st_l1_regimen.
 pub const STARTS_AT: (f64, f64) = (-2.4, 228.5);
 /// How far from the Bot a shot would have to start to land at once, the time from a tap to a shot
 /// in the air counted in: where `FLIGHT` and `SHOT_SPEED` put it.
@@ -321,7 +321,7 @@ pub const BALL_FRAMES: i64 = 0x10C;
 pub const ROUND_FRAMES: i64 = 30;
 /// Seconds within which balls arriving after the one cued are cued with it, one "now" for them
 /// all: Graveler's Bot fires four at once from one place, which were four "now"s in 0.02 s, where
-/// balls it fired one by one were cued 0.11 s apart and more (as_st_graveler_barrier_treecko).
+/// balls it fired one by one were cued 0.11 s apart and more (as_st_graveler_barrier).
 pub const TOGETHER: f64 = 0.1;
 /// How far from the Bot a ball arrives with the Pokémon where it starts (spike 200).
 pub const ARRIVES_AT: f64 = 227.5;
@@ -1070,9 +1070,6 @@ impl TrainingKeys {
     }
 
     /// The keys' table in the keys file on the page or in a round, else None.
-    ///
-    /// Python's reads the page's layouts with no exception to catch; a read that fails here is
-    /// no table, as `Keyed.context` cannot raise.
     pub fn context(&self, running: Option<&str>) -> Result<Option<&'static str>> {
         if running == Some(SPARRING) {
             return Ok(Some(TRAINING_ROUND));
@@ -1383,7 +1380,7 @@ pub fn read_score(seen: &[Seen]) -> Result<Option<(i64, i64)>> {
 
 /// The digits running unbroken up to the slash, the score's right-aligned against it, left to
 /// right. A shot taking 8 points pops "-8" up at y 200, level with the row at y 203 but 100 pixels
-/// from it, and read "80 of 50" for a score of 0 (as_super_training_tutorial).
+/// from it, and read "80 of 50" for a score of 0 (as_st_tutorial).
 fn running_up_to(slash: f64, digits: &[(f64, String)]) -> String {
     let mut run: Vec<&str> = Vec::new();
     let mut at = slash;
@@ -1797,7 +1794,7 @@ impl Round {
 
     /// "charged" as the aura comes, for the player to let go in it, and "fizzled" if it goes
     /// with the press still down; let go in it, it is gone as the shot flies, with nothing said.
-    /// The aura's panes flicker, none drawn for a poll now and then (as_super_training_l1_regimen
+    /// The aura's panes flicker, none drawn for a poll now and then (as_st_l1_regimen
     /// heard "charged", "fizzled", "charged" in half a second), so it is gone only once it has
     /// stayed gone for `AURA_GONE` polls.
     fn say_charge(
@@ -1952,7 +1949,7 @@ impl Round {
             self.states.insert(ball, (state, frames));
             if u32(&head, BOT_BALL)? != 0 {
                 // A ball that misses stays in flight where it stopped, and is fired again
-                // with its frames counted from the start: two of as_st_graveler_barrier_treecko's
+                // with its frames counted from the start: two of as_st_graveler_barrier's
                 // hit uncued, fired again so at 170 s (Orion, 2026-11-10).
                 if state == FLYING
                     && (before.is_some_and(|before| before != FLYING) || frames < flown)

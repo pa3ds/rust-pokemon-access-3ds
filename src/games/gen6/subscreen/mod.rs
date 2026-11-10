@@ -723,12 +723,12 @@ impl Subscreens {
             .iter()
             .flat_map(|reader| reader.classes().iter().copied())
             .collect();
-        // The page first: Amie's `Player` is read afresh for each poll as the others ask.
         let gains = Rc::new(Gains::new(
             running,
             &text.training_stats,
             &text.training_gains,
         ));
+        // The page first: Amie's `Player` is read afresh for each poll as the others ask.
         let mut polled: Vec<Rc<dyn Polled>> = vec![
             page.clone(),
             core,

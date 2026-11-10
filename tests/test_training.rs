@@ -459,7 +459,7 @@ fn test_a_finished_bag_is_heard_with_its_words() {
 }
 
 /// A tap that finishes the bag goes on to what it gave: finished for one poll, with no "!" to
-/// tap (as_super_training_tutorial2).
+/// tap (as_st_tutorial2).
 #[test]
 fn test_a_bag_finished_by_a_tap_that_goes_straight_on_is_not_said() {
     let (mut reader, memory) = core(super_training::FINISHED, true);
@@ -655,7 +655,7 @@ fn test_r_says_a_rounds_score_and_clock_as_last_read() {
     assert_eq!(sparring.numbers().unwrap(), "34 of 50, 1:28 left");
 }
 
-/// The first tutorial's round draws none (as_super_training_tutorial2).
+/// The first tutorial's round draws none (as_st_tutorial2).
 #[test]
 fn test_r_says_the_energy_meter_by_its_scale_where_the_round_draws_one() {
     let memory = FakeMemory::new();
@@ -745,7 +745,7 @@ fn test_the_aura_of_a_press_held_is_said_as_it_comes_and_if_it_burns_out_held() 
     );
 }
 
-/// Its panes go undrawn for a poll now and then (as_super_training_l1_regimen).
+/// Its panes go undrawn for a poll now and then (as_st_l1_regimen).
 #[test]
 fn test_the_aura_flickering_is_said_once_and_never_fizzles() {
     let (mut sparring, panes, _memory, _group, fake) = charging(Rc::new(Cell::new(true)));
@@ -939,7 +939,7 @@ fn test_a_finished_bag_is_said_once_while_the_pokemon_waits_for_a_tap() {
 }
 
 /// Treecko, chosen, rested at once, and the game said so only once a regimen was tried; a tap
-/// woke it, to state 2 (Orion, as_st_graveler_barrier_treecko).
+/// woke it, to state 2 (Orion, as_st_graveler_barrier).
 #[test]
 fn test_a_resting_pokemon_is_said_as_the_page_shows_it_and_again_on_coming_back() {
     let resting = || {
@@ -1119,7 +1119,7 @@ fn test_the_score_and_the_target_are_read_from_the_row_of_the_shown_slash() {
     assert_eq!(super_training::read_score(&row).unwrap(), Some((157, 300)));
 }
 
-/// A shot's "-8" pops up at y 200, and read "80 of 50" for 0 (as_super_training_tutorial).
+/// A shot's "-8" pops up at y 200, and read "80 of 50" for 0 (as_st_tutorial).
 #[test]
 fn test_a_points_popup_level_with_the_score_is_not_read_as_part_of_it() {
     let row = seen(&[
@@ -1262,7 +1262,7 @@ fn cueing(player_z: Option<f32>, lead: f64) -> (super_training::Round, Rc<FakeMe
 }
 
 /// In steps of 10, as the map's list says a bearing, up nearer the Bot; its bobbing where it
-/// started is no step (Orion, 2026-11-10; the places as_super_training_l1_regimen_again's census
+/// started is no step (Orion, 2026-11-10; the places as_st_l1_regimen_again's census
 /// read).
 #[test]
 fn test_c_says_how_far_up_and_across_the_pokemon_stands_from_where_it_started() {
@@ -1305,7 +1305,7 @@ fn test_a_ball_of_the_bots_going_into_flight_is_cued_once_as_it_leaves() {
 }
 
 /// A ball that misses stays in flight where it stopped, and the Bot fires it again with its
-/// frames counted from the start: two hit uncued so (as_st_graveler_barrier_treecko's tape).
+/// frames counted from the start: two hit uncued so (as_st_graveler_barrier's tape).
 #[test]
 fn test_a_ball_fired_again_while_still_in_flight_is_cued_again() {
     let (mut sparring, memory, heard) = cueing(None, 0.6);
@@ -1349,7 +1349,7 @@ fn test_the_moment_to_block_comes_the_lead_before_the_ball_arrives() {
 }
 
 /// Graveler's Bot fires four at once, which were four "now"s in 0.02 s; one fired 10 frames
-/// behind them, 0.33 s, has its own (as_st_graveler_barrier_treecko).
+/// behind them, 0.33 s, has its own (as_st_graveler_barrier).
 #[test]
 fn test_balls_arriving_together_are_cued_with_one_now() {
     let (mut sparring, memory, heard) = cueing(Some(200.0), 0.6);
@@ -1402,7 +1402,7 @@ fn test_nothing_is_followed_once_the_ball_has_landed() {
 }
 
 /// L held as it arrived, no points lost, and the ball's state 3 where a hit's is 2
-/// (as_super_training_tutorial2 against as_super_training_tutorial).
+/// (as_st_tutorial2 against as_st_tutorial).
 #[test]
 fn test_a_ball_stopped_by_the_barrier_is_said_blocked() {
     let (mut sparring, memory, _heard) = cueing(None, 0.6);

@@ -1062,7 +1062,7 @@ fn test_a_touch_area_is_named_by_the_picture_now_lying_in_it() {
     );
     // Its own picture 53 off its middle, and the one in its middle drawn mirrored as it rests, its
     // touch area with it, which then holds its own picture: said by the one in its middle
-    // (as_st_graveler_barrier_treecko).
+    // (as_st_graveler_barrier).
     memory.write(places[0] + lyt::X, &floats(&[-27.0]));
     fake.layouts.refresh();
     assert_eq!(named(&mut targets)[&80], "Breloom");
