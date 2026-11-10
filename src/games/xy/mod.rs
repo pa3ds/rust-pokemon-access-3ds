@@ -658,6 +658,14 @@ pub const LEAGUE_HALL: i64 = 0xF6;
 /// here", and two seconds later into the hall at (8, 8), nothing said between
 /// (x_pokemon_league_hall).
 pub const LEAGUE_CLIMB: i64 = 0x1;
+pub const RADIANT_CHAMBER: i64 = 0xFF;
+pub const CHAMPION_ROOM: i64 = 0x100;
+/// The script of the Radiant Chamber's four triggers, round the glass platform at (10..16,
+/// 15..21): stepped onto, the platform rises and the player arrives in the Champion's room. Its
+/// door, the warp at (32, 15) into that room, stands in the wall with no floor beside it, and P to
+/// it said "no path"; Khai walked north onto its south side, row 21, and the lift carried them up
+/// (x_champion.ctm, 2026-11-07).
+pub const CHAMPION_LIFT: i64 = 0x1;
 
 /// Coumarine City Gym's vines (zone 0xbf), a tree climbed from 0 to Ramos at 720, its levels 0,
 /// 145, 290, 432, 576 and 720 platforms round the trunk on the Gym's streets, laid as floors (spike
@@ -904,6 +912,14 @@ pub fn game() -> &'static Game {
             (
                 (LEAGUE_ENTRANCE, LEAGUE_CLIMB),
                 ("exits".to_string(), "warp".to_string(), Some(LEAGUE_HALL)),
+            ),
+            (
+                (RADIANT_CHAMBER, CHAMPION_LIFT),
+                (
+                    "exits".to_string(),
+                    "elevator".to_string(),
+                    Some(CHAMPION_ROOM),
+                ),
             ),
         ])
         .chain(QUIZ_ROOMS.map(|room| {

@@ -268,6 +268,12 @@ pub struct Ground {
     /// The rails' corridor the player is in, whose own walls are the only ones there: a cell
     /// no line of it holds is not somewhere on these streets.
     pub corridor: Option<Rc<dyn Corridor>>,
+    /// The cells of `stepped` that are a mat out, which takes the player out walked onto going
+    /// south: a way to anything else steps onto one only going north, and off one any way but south
+    /// (`joined`). The Elite Four's rooms in X have one across the steps north of where the player
+    /// arrives, and P went round the platform; Khai walked straight north over it and stayed
+    /// (x_elite-fire.ctm, 2026-11-07). A way that ends on one walks round the rest, as before.
+    pub mats: HashSet<Cell>,
     /// How many cells out from a solid thing a path may end, looking out from each side until
     /// one is open. One in ORAS, where a thing is its tiles. Sun's props are wider than the records
     /// their things are read by: the cells beside a flower pot's record were inside the pot, and P
@@ -477,6 +483,7 @@ impl Default for Ground {
             standing: IndexSet::new(),
             stepped: IndexSet::new(),
             corridor: None,
+            mats: HashSet::new(),
             reach: 1,
             belts: IndexMap::new(),
             conveyors: IndexMap::new(),
@@ -1564,11 +1571,15 @@ impl Ground {
     /// Whether a step from `cell` to the cell beside it can be taken: not off a drop but
     /// off a climbing wall's face onto its ledge, which only a climber takes (`Walls.hold`), into
     /// a big boulder only a way it moves (`shoves`), and onto or off a rail only in line with its
-    /// beam, from or onto ground that is no water (`rails`).
+    /// beam, from or onto ground that is no water (`rails`), and onto a mat out only north, off
+    /// one any way but south (`mats`).
     pub fn joined(&self, cell: Cell, step: Cell) -> Result<bool> {
         let ways = self.shoves.get(&step);
+        let way = pathfind::towards(cell, step);
         Ok(
             (!self.cliffs.contains(&(cell, step)) || self.walls.sideways(cell, step))
+                && (!self.mats.contains(&step) || way == pathfind::NORTH)
+                && (!self.mats.contains(&cell) || way != pathfind::SOUTH)
                 && ways.is_none_or(|ways| ways.contains(pathfind::towards(cell, step)))
                 && (self.rails.is_empty() || self.railed(cell, step)?),
         )
@@ -1667,7 +1678,8 @@ impl Ground {
 
     /// Whether a path may go through the cell on its way somewhere else (`open_at`).
     pub fn passable_at(&self, cell: Cell, height: Option<f64>) -> Result<bool> {
-        Ok(!self.stepped.contains(&cell) && self.open_at(cell, height)?)
+        Ok((!self.stepped.contains(&cell) || self.mats.contains(&cell))
+            && self.open_at(cell, height)?)
     }
 
     /// Where a path to `item` ends, each with the way to face there, or None for any way.
@@ -1789,6 +1801,13 @@ impl Ground {
         closest: bool,
         walkable: Option<&dyn Fn(Cell) -> Result<bool>>,
     ) -> Result<Option<Vec<Step>>> {
+        if goals.keys().any(|cell| self.mats.contains(cell)) {
+            return Ground {
+                mats: HashSet::new(),
+                ..self.clone()
+            }
+            .find(start, goals, heading, item, closest, walkable);
+        }
         let passable = |cell: Cell| self.passable(cell);
         let walkable: &dyn Fn(Cell) -> Result<bool> = walkable.unwrap_or(&passable);
         let r#box = self.r#box(start, goals.keys().copied())?;
@@ -1864,6 +1883,14 @@ impl Ground {
     /// an arrow's among `aims` reached as a way to it ends there. Whether one ends at a thing is
     /// `ends_at`.
     pub fn reached(&self, start: Cell, aims: &[Cell]) -> Result<IndexMap<Cell, HashSet<i64>>> {
+        if !self.mats.is_empty() {
+            // A way to a mat out is walked south onto it, which crossing it north never reaches.
+            return Ground {
+                mats: HashSet::new(),
+                ..self.clone()
+            }
+            .reached(start, aims);
+        }
         // ponytail: the rotating doors' turns are left out, every way they stand times every cell
         // being more than a walk can take (`find` through Fortree Gym's seven takes 0.4 to 0.6 s),
         // so what lies past them is taken to be reached; follow them if that keeps too much.

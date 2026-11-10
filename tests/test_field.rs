@@ -4242,6 +4242,35 @@ fn test_a_rotating_door_turns_only_where_its_arms_sweep_open_cells() -> Result<(
     Ok(())
 }
 
+/// x_elite-fire.ctm: the Elite Four's rooms have a mat out across the steps north of where the
+/// player arrives, and walking north over it did not take them out. A way north crosses it, a
+/// way south goes round it, and a way to it ends on it walking south.
+#[test]
+fn test_a_mat_out_is_crossed_north_and_walked_round_south() -> Result<()> {
+    let mat: HashSet<(i64, i64)> = (3..8).map(|x| (x, 5)).collect();
+    let ground = Ground {
+        chunks: vec![Rc::new(Chunk::new(
+            (0, 0),
+            vec![0x20; (CHUNK * CHUNK) as usize],
+        ))],
+        stepped: mat.iter().copied().collect(),
+        mats: mat.clone(),
+        ..Ground::default()
+    };
+    let north = ground.find((5, 7), &goals_of(&[((5, 2), None)]), "", None, false, None)?;
+    assert!(north.is_some_and(|north| pathfind::cells(&north)
+        == (2..8).rev().map(|z| (5, z)).collect::<Vec<(i64, i64)>>()));
+    let south = ground.find((5, 2), &goals_of(&[((5, 8), None)]), "", None, false, None)?;
+    assert!(south.is_some_and(|south| {
+        pathfind::cells(&south)
+            .iter()
+            .all(|cell| !mat.contains(cell))
+    }));
+    let out = ground.find((5, 2), &goals_of(&[((5, 5), None)]), "", None, false, None)?;
+    assert!(out.is_some_and(|out| pathfind::cells(&out) == [(5, 2), (5, 3), (5, 4), (5, 5)]));
+    Ok(())
+}
+
 /// Spike 156: across ORAS's decks, one meets the ground within 14 units where it is walked
 /// onto, and stands 54 or more over the ground beside it. On the deck the ground below its sides
 /// is closed; under it the deck is closed where it leaves the ground, and the ground under it

@@ -984,6 +984,12 @@ impl FieldReader {
             cliffs,
             ladders,
             doors,
+            mats: r#where
+                .interactables
+                .iter()
+                .filter(|item| item.place_kind() == Some(WARP_SOURCE) && item.code == WARP_OUT)
+                .flat_map(|item| item.cells())
+                .collect(),
             level,
             ice,
             ground_height,
@@ -1226,7 +1232,17 @@ impl FieldReader {
                 ..Interactable::new(category, kind, r#box.0)
             });
         }
-        Ok(out)
+        // Exits of one kind into one zone that touch are one, as warps are (`_exits`): the
+        // Radiant Chamber's lift is four triggers round its platform.
+        // Python's key is the tuple (kind, zone, height, home); its parts written out here.
+        Ok(joined(out, &|item| {
+            (item.category == "exits").then(|| {
+                format!(
+                    "{}|{:?}|{:?}|{:?}",
+                    item.kind, item.zone, item.height, item.home
+                )
+            })
+        }))
     }
 
     /// `where` with everything worth walking to in its zone listed.
@@ -1315,6 +1331,11 @@ impl FieldReader {
                     self.warp(i as i64, record, at, home)?,
                     arrives(record, home, &warps)?,
                 );
+                if shape.is_none() && buried(&chunk_at, &warp.cells())? {
+                    // Walled in, where only a script puts the player: the Radiant Chamber's door,
+                    // whose lift is listed in its place (`Game.triggers`).
+                    continue;
+                }
                 // A pad into its own zone is a teleporter P walks through, landing as high as the
                 // warp it comes out at (`Ground.teleports`, spike 265).
                 let landing = match out {
