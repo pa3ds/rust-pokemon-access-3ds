@@ -45,6 +45,12 @@
 //! (battles2.ctm). The gauge keeps the HP it shows and the HP it is counting towards side by side
 //! (spike 67).
 //!
+//! **How many Pokémon a trainer has** is the tray of balls the battle draws as it opens (spike 285,
+//! x_battle-count.ctm): one top-screen layout, a panel a side, each a `ball_win.bclim` picture and
+//! six slots, a ball for each Pokémon in the party and `ball_null.bclim` for each slot without one.
+//! Youngster Jayden's held two balls and four empty slots beside the player's six. The opponent's
+//! panel is the one further right.
+//!
 //! Bound by:
 //! - ADR-0015: HP comes from the battle's own records, never from the bar, and the enemy's is a
 //!   percentage.
@@ -67,6 +73,7 @@ use crate::core::words::own;
 use crate::games::common::battle::{Battler, GAUGE_RECORD, MAX_ASKS, REASK, RECORD_PARAM, SIGNS};
 use crate::games::common::layout::Layouts;
 use crate::games::common::screen::ScreenText;
+use crate::games::common::touch::ImageOf;
 use crate::games::common::{lyt, pokemon, strbuf};
 use crate::py::{self, PySet, Result};
 
@@ -109,6 +116,15 @@ pub static LEVEL: LazyLock<Regex> =
 pub static HP: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"^(\d{1,4})[\s\x1c-\x1f]*/[\s\x1c-\x1f]*(\d{1,4})$").expect("a valid pattern")
 });
+
+/// The picture each side's tray of balls is, as a trainer battle opens (spike 285).
+pub const TRAY: &str = "ball_win.bclim";
+pub const BALL: &str = "ball_";
+/// A slot of the tray with no Pokémon in it.
+pub const EMPTY: &str = "ball_null.bclim";
+/// Screen polls, 2 s, the tray is looked for after the battle's first page: a wild battle has
+/// none, and the layouts are not walked for it the rest of the battle.
+pub const TRAY_POLLS: i64 = 10;
 
 /// `text.endswith(SIGNS)`.
 fn ends_with_sign(text: &str) -> bool {
@@ -641,5 +657,98 @@ fn name(plates: &[String], shown: &pokemon::Pokemon) -> Option<String> {
         matching.into_iter().next().cloned()
     } else {
         None
+    }
+}
+
+/// How many balls the opponent's tray shows, or None while two trays are not on the top
+/// screen: the opponent's is the one further right.
+pub fn opponents_party(layouts: &Layouts, image_of: &ImageOf) -> Result<Option<i64>> {
+    for root in layouts.roots() {
+        let Some(placement) = layouts.placement(root)? else {
+            continue;
+        };
+        if !placement.shown || !placement.top {
+            continue;
+        }
+        let mut trays = PySet::new();
+        let mut balls: IndexMap<i64, i64> = IndexMap::new();
+        for (pane, kind) in layouts.tree(root) {
+            let r#where = layouts.placement(pane)?;
+            let Some(r#where) =
+                r#where.filter(|r#where| kind == lyt::PICTURE_CLASS && r#where.shown)
+            else {
+                continue;
+            };
+            let image = image_of(pane)?.unwrap_or_default();
+            if image == TRAY {
+                trays.add(r#where.panel);
+            } else if image.starts_with(BALL) && image != EMPTY {
+                *balls.entry(r#where.panel).or_insert(0) += 1;
+            }
+        }
+        if trays.len() == 2 {
+            // `max(trays, key=...)`: the first of equal bests, in the set's order.
+            let mut right: Option<(i64, f64)> = None;
+            for panel in trays.iter() {
+                let x = f32(&layouts.pane(panel)?, layouts.shape.x)?;
+                if right.is_none_or(|(_, best)| x > best) {
+                    right = Some((panel, x));
+                }
+            }
+            return Ok(right.and_then(|(panel, _)| balls.get(&panel).copied()));
+        }
+    }
+    Ok(None)
+}
+
+/// How many Pokémon a trainer has, told once a battle after the battle's first page, which in
+/// a trainer battle is "You are challenged by ..." (Khai, 2026-11-05).
+pub struct OpponentsParty {
+    layouts: Rc<Layouts>,
+    image_of: ImageOf,
+    /// Screen polls left to look for the tray, `TRAY_POLLS` from the battle's first page.
+    looks: i64,
+    due: bool,
+    last: Option<i64>,
+}
+
+impl OpponentsParty {
+    pub fn new(layouts: Rc<Layouts>, image_of: ImageOf) -> Self {
+        OpponentsParty {
+            layouts,
+            image_of,
+            looks: 0,
+            due: false,
+            last: None,
+        }
+    }
+
+    /// A battle has started.
+    pub fn begin(&mut self) {
+        (self.due, self.looks, self.last) = (true, 0, None);
+    }
+
+    /// A page was said: in a battle not yet told, the tray is looked for from now.
+    pub fn paged(&mut self) {
+        if self.due && self.looks == 0 {
+            self.looks = TRAY_POLLS;
+        }
+    }
+
+    /// The opponent's count once it has held for a poll, once a battle; else None. Held, as
+    /// the balls come into the tray one after another.
+    pub fn poll(&mut self) -> Result<Option<i64>> {
+        if !self.due || self.looks == 0 {
+            return Ok(None);
+        }
+        self.looks -= 1;
+        let count = opponents_party(&self.layouts, &self.image_of)?;
+        if count.is_none() || count != self.last {
+            self.last = count;
+            self.due = self.looks > 0;
+            return Ok(None);
+        }
+        self.due = false;
+        Ok(count)
     }
 }

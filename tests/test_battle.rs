@@ -4,6 +4,7 @@
 //! name buffers as `gfl::str::StrBuf` holds them with the gender sign inside the string, and the
 //! gauge that says which Pokémon each panel shows, as battles2.ctm built them.
 
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -965,4 +966,82 @@ fn test_a_status_condition_in_a_panel_is_said_after_its_reading() {
         settle(&mut battle, &pieces),
         strings(&["Torchic♀ L5 20/20"])
     );
+}
+
+const TRAY_ROOT: i64 = 0x14CE8000;
+
+/// The tray of balls a trainer battle opens with (spike 285): a top-screen layout, the player's
+/// panel on the left and the opponent's on the right, each a tray picture and six slots.
+fn tray(theirs: i64, mine: i64) -> (FakeLayouts, HashMap<i64, String>) {
+    let memory = FakeMemory::new();
+    let classes = FakeClasses::new(memory.clone());
+    let picture = classes.add(lyt::PICTURE_CLASS);
+    let fake = FakeLayouts::new(&memory, &classes);
+    let (work, root) = fake.screen_with(TRAY_ROOT, true, false);
+    fake.project(work, 400.0);
+    let mut images: HashMap<i64, String> = HashMap::new();
+    for (side, (x, balls)) in [(-120.0f32, mine), (120.0f32, theirs)]
+        .into_iter()
+        .enumerate()
+    {
+        let panel = TRAY_ROOT + 0x1000 + side as i64 * 0x1000;
+        fake.pane(panel, root);
+        memory.write(panel + fake.shape.x, &x.to_le_bytes());
+        for slot in 0..7 {
+            let pane = panel + 0x100 * (slot + 1);
+            fake.pane_with_vtable(pane, panel, Some(picture));
+            let image = if slot == 0 {
+                hp::TRAY
+            } else if slot <= balls {
+                "ball_normal.bclim"
+            } else {
+                hp::EMPTY
+            };
+            images.insert(pane, image.to_string());
+        }
+    }
+    fake.track().unwrap();
+    (fake, images)
+}
+
+/// Spike 285, x_battle-count.ctm: Youngster Jayden's tray held two balls beside the player's
+/// six, told once, after "You are challenged by Youngster Jayden!" and once it has held for a
+/// poll.
+#[test]
+fn test_a_trainers_count_is_the_balls_in_the_right_hand_tray_after_the_first_page() {
+    let (fake, images) = tray(2, 6);
+    let mut party = hp::OpponentsParty::new(
+        fake.layouts.clone(),
+        Rc::new(move |pane| Ok(images.get(&pane).cloned())),
+    );
+    party.begin();
+    assert_eq!(party.poll().unwrap(), None);
+    party.paged();
+    let polled: Vec<Option<i64>> = (0..3).map(|_| party.poll().unwrap()).collect();
+    assert_eq!(polled, [None, Some(2), None]);
+}
+
+/// A wild battle draws no tray: nothing is told, and the layouts are walked for it only
+/// `TRAY_POLLS` screen polls after the first page.
+#[test]
+fn test_a_battle_with_no_tray_is_looked_at_only_for_a_while() {
+    let (fake, _images) = tray(1, 6);
+    let calls: Rc<RefCell<Vec<i64>>> = Rc::new(RefCell::new(Vec::new()));
+    let mut party = hp::OpponentsParty::new(fake.layouts.clone(), {
+        let calls = calls.clone();
+        Rc::new(move |pane| {
+            calls.borrow_mut().push(pane);
+            Ok(None)
+        })
+    });
+    party.begin();
+    party.paged();
+    let polled: Vec<Option<i64>> = (0..hp::TRAY_POLLS + 5)
+        .map(|_| party.poll().unwrap())
+        .collect();
+    assert_eq!(polled, vec![None; (hp::TRAY_POLLS + 5) as usize]);
+    let looked = calls.borrow().len();
+    party.paged();
+    party.poll().unwrap();
+    assert!(looked != 0 && calls.borrow().len() == looked);
 }

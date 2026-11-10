@@ -76,7 +76,7 @@ pub const SECONDS: &str = "seconds";
 pub const FOLDER: &str = "folder";
 /// Each setting that is not on or off, by its control: one left out is a checkbox. The last ones
 /// are Python's `**dict.fromkeys(config.CHOICES, CHOICE)`, a const array having no spread.
-pub const KINDS: [(&str, &str); 12] = [
+pub const KINDS: [(&str, &str); 13] = [
     ("pa3ds.ui.language", CHOICE),
     ("pa3ds.azahar_folder", FOLDER),
     ("pa3ds.poll_rate", NUMBER),
@@ -89,6 +89,7 @@ pub const KINDS: [(&str, &str); 12] = [
     (config::CHOICES[1].0, CHOICE),
     (config::CHOICES[2].0, CHOICE),
     (config::CHOICES[3].0, CHOICE),
+    (config::CHOICES[4].0, CHOICE),
 ];
 /// What a number's arrows step between: reads a second, and a loudness in percent, ten times as
 /// loud as the game the most anyone will want.

@@ -54,8 +54,10 @@ fn found() -> Found {
 #[test]
 fn test_hidden_items_are_an_extra_and_ship_off() {
     assert_eq!(config::Extras::default().hidden_items, config::HIDDEN_OFF);
-    let (name, words) = config::CHOICES[0];
-    assert_eq!(name, "pa3ds.extras.hidden_items");
+    let (_, words) = config::CHOICES
+        .iter()
+        .find(|(name, _)| *name == "pa3ds.extras.hidden_items")
+        .expect("the hidden items' words");
     assert_eq!(words[0], config::HIDDEN_OFF);
 }
 

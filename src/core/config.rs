@@ -113,7 +113,7 @@ impl Table for General {
 }
 
 /// `[pa3ds.ui]`: how menus, lists and screens are said.
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Ui {
     /// Off unless asked for, since a screen reader reads "Torchic, ♂, L, 5" more clumsily than
     /// "Torchic ♂ L 5" (the user, 2026-09-14).
@@ -122,6 +122,22 @@ pub struct Ui {
     pub unfocused: bool,
     pub descriptions: bool,
     pub language: String,
+    /// How many Pokémon a trainer has, as its battle opens: said, "2 Pokémon", after "You are
+    /// challenged by ...", a beep a Pokémon, or nothing (Khai, 2026-11-05).
+    pub trainer_party: String,
+}
+
+impl Default for Ui {
+    fn default() -> Self {
+        Ui {
+            pauses: false,
+            interrupt: false,
+            unfocused: false,
+            descriptions: false,
+            language: String::new(),
+            trainer_party: PARTY_TEXT.to_string(),
+        }
+    }
 }
 
 impl Table for Ui {
@@ -132,6 +148,7 @@ impl Table for Ui {
             ("unfocused", Value::Bool(self.unfocused)),
             ("descriptions", Value::Bool(self.descriptions)),
             ("language", Value::Str(self.language.clone())),
+            ("trainer_party", Value::Str(self.trainer_party.clone())),
         ]
     }
 
@@ -142,6 +159,7 @@ impl Table for Ui {
             ("unfocused", Value::Bool(value)) => self.unfocused = value,
             ("descriptions", Value::Bool(value)) => self.descriptions = value,
             ("language", Value::Str(value)) => self.language = value,
+            ("trainer_party", Value::Str(value)) => self.trainer_party = value,
             _ => {}
         }
     }
@@ -429,13 +447,20 @@ pub const STYLE_NONE: &str = "none";
 /// The styles that play a Pokémon's cry. A `frozenset` in Python, only ever tested for
 /// membership.
 pub const CRYING: [&str; 2] = [STYLE_CRY, STYLE_BOTH];
+pub const PARTY_TEXT: &str = "text";
+pub const PARTY_BEEPS: &str = "beeps";
+pub const PARTY_OFF: &str = "off";
 /// Each setting that is one of a few words, by its name in the file: its words, the default
 /// first. `[pa3ds.extras] hidden_items` lists none, those under the sea, where the Dowsing Machine
 /// cannot be used and a sighted player is taken to see them, or all (Orion, 2026-10-26); a word it
 /// does not have lists none. `[pa3ds.touch] drag` holds a touch mode drag while its key is held,
 /// or picks up with one press and lets go with the next, for a player who cannot hold a key
 /// (Orion, 2026-10-28).
-pub const CHOICES: [(&str, &[&str]); 4] = [
+pub const CHOICES: [(&str, &[&str]); 5] = [
+    (
+        "pa3ds.ui.trainer_party",
+        &[PARTY_TEXT, PARTY_BEEPS, PARTY_OFF],
+    ),
     (
         "pa3ds.extras.hidden_items",
         &[HIDDEN_OFF, HIDDEN_UNDERWATER, HIDDEN_ALL],

@@ -24,14 +24,14 @@ use indexmap::{IndexMap, IndexSet};
 use crate::app::most_common;
 use crate::core::binary::u32;
 use crate::core::clips::Clips;
-use crate::core::config::{DRAG_TOGGLE, Tables};
+use crate::core::config::{DRAG_TOGGLE, PARTY_BEEPS, PARTY_OFF, Tables};
 use crate::core::discovery::{Discovery, Found, HEAP_SPAN, LINEAR_SPAN, within};
 use crate::core::memory::{Cache, Memory, phase};
 use crate::core::names::{FURNITURE, GamePlace, GameSprite, Names, TILES};
 use crate::core::pathfind::{COMPASS, walked};
 use crate::core::rtti::{ClassNames, demangle};
 use crate::core::speech::{Category, Speech};
-use crate::core::tones::{Tones, ticking};
+use crate::core::tones::{Tones, beeps, ticking};
 use crate::core::touch::TouchScreen;
 use crate::core::words::{current, own};
 use crate::games::common::announce::{Announcements, Speaker};
@@ -77,7 +77,9 @@ use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::rom::cries::Crier;
 use crate::games::gen6::rom::textures;
 use crate::games::gen6::rom::textures::Index;
-use crate::games::gen6::screens::battle::{BattleReader, Battlers, GAUGE_CLASSES, Gauges};
+use crate::games::gen6::screens::battle::{
+    BattleReader, Battlers, GAUGE_CLASSES, Gauges, OpponentsParty,
+};
 use crate::games::gen6::screens::choices::{
     BOX_DEVICE_MANAGER, ChoiceReader, DEVICE_MANAGER_CLASS,
 };
@@ -274,6 +276,11 @@ pub struct Gen6Profile {
     pub battlers: Rc<Battlers>,
     pub gauges: Rc<Gauges>,
     pub battle: RefCell<BattleReader>,
+    /// How many Pokémon a trainer has, from the tray of balls its battle opens with (spike 285),
+    /// said or beeped as the player chose.
+    pub opponents: Option<RefCell<OpponentsParty>>,
+    party_beeped: bool,
+    tones: Option<Rc<Tones>>,
     /// The field says which model is showing a message; what to call it is pa3ds's own, since
     /// the game keeps no name for anyone on its maps (spikes 73 to 77).
     pub speaker: Rc<SpeakerReader>,
@@ -422,6 +429,7 @@ impl Gen6Profile {
         let (ui, touch_settings) = (tables.ui.clone(), tables.touch.clone());
         let contexts = contexts.unwrap_or_else(|| DEFAULT_CONTEXTS.clone());
         let tone = tones.clone();
+        let beeping = tones.clone();
         let cache = memory;
         let memory: Rc<dyn Memory> = cache.clone();
         let named = named.unwrap_or_else(|| Rc::new(Names::empty()));
@@ -532,6 +540,11 @@ impl Gen6Profile {
         let battlers = Rc::new(Battlers::new(memory.clone(), names.clone()));
         let gauges = Rc::new(Gauges::new(memory.clone(), names.clone()));
         let battle = BattleReader::new(layouts.clone(), battlers.clone(), gauges.clone());
+        // How many Pokémon a trainer has, from the tray of balls its battle opens with (spike 285),
+        // said or beeped as the player chose.
+        let opponents = (ui.trainer_party != PARTY_OFF)
+            .then(|| RefCell::new(OpponentsParty::new(layouts.clone(), image_of.clone())));
+        let party_beeped = ui.trainer_party == PARTY_BEEPS;
         let speaker = Rc::new(SpeakerReader::new(
             memory.clone(),
             named.clone(),
@@ -1147,6 +1160,9 @@ impl Gen6Profile {
             battlers,
             gauges,
             battle: RefCell::new(battle),
+            opponents,
+            party_beeped,
+            tones: beeping,
             speaker,
             field,
             memories,
@@ -1358,6 +1374,9 @@ impl Gen6Profile {
         self.subscreens.puzzle.borrow().started();
         if started == BATTLE {
             self.battle.borrow_mut().begin();
+            if let Some(opponents) = &self.opponents {
+                opponents.borrow_mut().begin();
+            }
         }
         if let Some(scenes) = &self.scenes {
             scenes.borrow_mut().started(
@@ -1441,6 +1460,9 @@ impl Gen6Profile {
             standings.borrow_mut().heard(&texts);
         }
         let said = self.announcements.borrow_mut().pages(&shown)?;
+        if said && let Some(opponents) = &self.opponents {
+            opponents.borrow_mut().paged();
+        }
         if said && self.apps.borrow().running.as_deref() == Some(FIELD) {
             self.look_for_speakers(&shown)?;
         }
@@ -1549,7 +1571,7 @@ impl Gen6Profile {
     /// `poll_screen(hold, with_choices)`. Named apart from `poll_screen` because the runtime's
     /// `Profile::poll_screen` takes neither.
     pub fn poll_screen_with(&self, hold: bool, with_choices: bool) -> Result<()> {
-        let (screen, sides, listed, cursors, played) = phase(&*self.memory, "screen", || {
+        let polled = phase(&*self.memory, "screen", || {
             // The field's layouts come back where they were when a menu screen closes, and a
             // layout found before it was built is taken in once it is.
             let revived = self.layouts.revive()?;
@@ -1574,6 +1596,10 @@ impl Gen6Profile {
             let on_screen = &screen.on_screen;
             // The HP box is the battle reader's to say, whole and once it holds still.
             let sides = self.battle.borrow_mut().poll(on_screen)?;
+            let party = match &self.opponents {
+                None => None,
+                Some(opponents) => opponents.borrow_mut().poll()?,
+            };
             self.habitat.borrow_mut().poll(on_screen)?;
             let in_townmap = self.apps.borrow().running.as_deref() == Some(townmap::APP);
             let listed = self
@@ -1587,8 +1613,9 @@ impl Gen6Profile {
             let running = self.apps.borrow().running.clone();
             let played = self.subscreens.poll(running.as_deref())?;
             let cursors = self.cursors.borrow_mut().poll(on_screen)?;
-            Ok((screen, sides, listed, cursors, played))
+            Ok((screen, sides, party, listed, cursors, played))
         })?;
+        let (screen, sides, party, listed, cursors, played) = polled;
         for (logged, line, category) in &played {
             (self.log)(&format!("{logged}: {line}"));
             if let Some(category) = category {
@@ -1662,6 +1689,15 @@ impl Gen6Profile {
             conditions
                 .borrow_mut()
                 .poll(&under, &screen.on_screen, &screen.settling, waiting)?;
+        }
+        if let Some(party) = party {
+            (self.log)(&format!("battle party: {party}"));
+            if !self.party_beeped {
+                self.speech
+                    .say(&own("battle-party", &[("count", &party)]), Category::Battle);
+            } else if let Some(tones) = &self.tones {
+                beeps(tones, party);
+            }
         }
         self.announcements.borrow_mut().battlers(&sides);
         self.announcements.borrow_mut().screen_polled();

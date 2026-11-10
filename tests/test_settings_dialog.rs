@@ -49,6 +49,7 @@ fn test_every_setting_is_one_control_on_its_tables_page() {
             ("pa3ds.poll_rate", NUMBER),
             ("pa3ds.azahar_folder", "folder"),
             ("pa3ds.ui.language", "choice"),
+            ("pa3ds.ui.trainer_party", "choice"),
             ("pa3ds.audio.tones", PERCENT),
             ("pa3ds.audio.footsteps", PERCENT),
             ("pa3ds.audio.ticks", PERCENT),

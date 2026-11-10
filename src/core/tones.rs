@@ -22,7 +22,8 @@
 //! stopping.
 //!
 //! Bound by:
-//! - ADR-0025: a tone is said beside a word, never instead of one.
+//! - ADR-0025: a tone is said beside a word, never instead of one, but for a trainer's count of
+//!   Pokémon as beeps, where the player chose them (as amended 2026-11-05).
 
 use std::rc::Rc;
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError};
@@ -225,11 +226,33 @@ pub fn ticking(tones: Option<Rc<Tones>>) -> Option<Rc<dyn Fn()>> {
     }))
 }
 
+/// Seconds from one beep of a count to the next: far enough apart to be counted.
+pub const BEEP_GAP: f64 = 0.25;
+
+/// `count` tones in the middle, one after another: how many Pokémon a trainer has, where a
+/// player asked for beeps in place of the number (`[pa3ds.ui] trainer_party`, Khai,
+/// 2026-11-05).
+pub fn beeps(tones: &Tones, count: i64) {
+    for index in 0..count {
+        // Python's `threading.Timer`: a thread a beep, its wait the real clock's, as this new
+        // thread's `py::time::sleep` is. One that cannot start is dropped, as `play`'s is.
+        let tones = tones.clone();
+        let _ = std::thread::Builder::new().spawn(move || {
+            py::time::sleep(index as f64 * BEEP_GAP);
+            let _ = tones.play(0.5, 0.5);
+        });
+    }
+}
+
 /// Plays the voice on a thread of its own, started at the first tone; silent off Windows and
 /// without a sound device.
+///
+/// A clone is the same voice and thread, for `beeps`' threads to play on: Python's threads share
+/// the one object.
+#[derive(Clone)]
 pub struct Tones {
     shared: Arc<Shared>,
-    thread: Mutex<Option<JoinHandle<()>>>,
+    thread: Arc<Mutex<Option<JoinHandle<()>>>>,
 }
 
 impl Tones {
@@ -242,7 +265,7 @@ impl Tones {
                 loudness,
                 level,
             }),
-            thread: Mutex::new(None),
+            thread: Arc::new(Mutex::new(None)),
         }
     }
 
