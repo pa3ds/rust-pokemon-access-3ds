@@ -2021,6 +2021,56 @@ fn test_p_hops_across_a_mud_pit_from_stone_to_stone() {
     assert_eq!(last(&rig.backend), "person, 1 east");
 }
 
+/// X's Victory Road (x_victory_road_stones, Khai, 2026-11-07): its stones stand in a pit whose
+/// floor is open, and a stone is blocked to a player walking there. P walked the player into one,
+/// "7 east" from (21, 49) with a stone at (22, 49).
+#[test]
+fn test_p_walks_round_a_stone_standing_in_open_floor() {
+    let across = Field {
+        interactables: vec![Interactable {
+            source: 0x08D1E9A8,
+            ..Interactable::new("people", "person", (95, 175))
+        }],
+        ..Field::new(street().zone, (90, 175))
+    };
+    let mut rig = navigator(Want {
+        blocked: vec![(95, 175)],
+        ..on(across)
+    });
+    *rig.field.stones.borrow_mut() = [(92, 175)].into_iter().collect();
+    rig.press(PATHFIND);
+    let way = guidance(&rig);
+    assert!(way.is_some() && !path_of(&way).contains(&(92, 175)));
+}
+
+/// Victory Road's stones stand two apart over open floor, not mud: P hops them from the
+/// launch at the pit's edge, over the floor between, as on Route 8.
+#[test]
+fn test_p_hops_from_stone_to_stone_over_open_floor() {
+    let across = Field {
+        interactables: vec![Interactable {
+            source: 0x08D1E9A8,
+            ..Interactable::new("people", "person", (101, 175))
+        }],
+        ..Field::new(street().zone, (90, 175))
+    };
+    let mut blocked: Vec<Cell> = (92..99)
+        .flat_map(|x| (160..200).filter(|&z| z != 175).map(move |z| (x, z)))
+        .collect();
+    blocked.push((101, 175));
+    let mut rig = navigator(Want {
+        blocked,
+        ..on(across)
+    });
+    let stones: HashSet<Cell> = [(93, 175), (95, 175), (97, 175)].into_iter().collect();
+    *rig.field.stones.borrow_mut() = stones.clone();
+    *rig.field.launches.borrow_mut() = [(91, 175), (99, 175)].into_iter().collect();
+    rig.press(PATHFIND);
+    let way = guidance(&rig);
+    assert_eq!(last(&rig.backend), "10 east");
+    assert!(way.is_some() && stones.iter().all(|stone| path_of(&way).contains(stone)));
+}
+
 /// A band of spiky ground across the chunk.
 fn spikes() -> HashSet<Cell> {
     (92..98)

@@ -892,22 +892,20 @@ fn moves(
         }
     }
     for (direction, (dx, dz)) in STEPS {
-        let mut step = (cell.0 + dx, cell.1 + dz);
-        let mut steps = 1;
-        let unfit = |way: Option<&str>| way.is_some_and(|way| way != direction);
-        if !can_walk(step)? {
-            if !r#box.holds(step) || (down(step)? != Some(direction) && !over(step)?) {
-                continue;
-            }
-            step = (step.0 + dx, step.1 + dz);
-            steps = 2;
-            if !can_walk(step)? {
-                continue;
-            }
-        } else if unfit(down(step)?) || unfit(down(cell)?) || !joined(cell, step)? {
-            continue;
+        let step = (cell.0 + dx, cell.1 + dz);
+        let fits = |way: Option<&str>| way.is_none_or(|way| way == direction);
+        let walked = can_walk(step)?;
+        if walked && fits(down(step)?) && fits(down(cell)?) && joined(cell, step)? {
+            each(direction, step, 1)?;
         }
-        each(direction, step, steps)?;
+        // What `over` says is jumped may be open, as the floor between two of Victory Road's
+        // stones is: hopped over all the same.
+        if r#box.holds(step) && (over(step)? || (!walked && down(step)? == Some(direction))) {
+            let landing = (step.0 + dx, step.1 + dz);
+            if can_walk(landing)? {
+                each(direction, landing, 2)?;
+            }
+        }
     }
     for (direction, (dx, dz)) in DIAGONALS {
         let step = (cell.0 + dx, cell.1 + dz);

@@ -1178,12 +1178,36 @@ impl Ground {
 
     fn mud(&self, cell: Cell) -> Result<bool> {
         let (x, z) = cell;
+        if self.hopped(cell)? {
+            return Ok(false);
+        }
         for (a, b) in [((x - 1, z), (x + 1, z)), ((x, z - 1), (x, z + 1))] {
             if self.hopped(a)? && self.hopped(b)? {
                 return Ok(true);
             }
         }
         Ok(false)
+    }
+
+    /// Whether a search walks the one step from `cell` to `step`: one `joined` takes, onto or
+    /// off no jumping stone, which is only hopped onto and off. Victory Road's stand in a pit
+    /// whose floor is open, and P walked the player into one from it (x_victory_road_stones,
+    /// 2026-11-07). The cells of a hop, the floor hopped over and the stone, are `joined`, as a
+    /// way found is checked a cell at a time.
+    pub fn walks(&self, cell: Cell, step: Cell) -> Result<bool> {
+        Ok(self.joined(cell, step)? && !self.stone(cell)? && !self.stone(step)?)
+    }
+
+    fn stone(&self, cell: Cell) -> Result<bool> {
+        let chunk = if self.corridor.is_some() {
+            None
+        } else {
+            self.chunk(cell)?
+        };
+        match chunk {
+            Some(chunk) => Ok(chunk.kind(cell)? == STONE),
+            None => Ok(false),
+        }
     }
 
     /// Whether a hop over a mud pit starts or ends on the cell: a stone or a launch.
@@ -1771,7 +1795,7 @@ impl Ground {
         let r#box = self.r#box(start, goals.keys().copied())?;
         let ledge = |cell: Cell| self.ledge(cell);
         let toll = |cell: Cell, step: Cell| self.toll(cell, step);
-        let joined = |cell: Cell, step: Cell| self.joined(cell, step);
+        let walks = |cell: Cell, step: Cell| self.walks(cell, step);
         let over = |cell: Cell| self.over(cell);
         let ends: HashSet<Cell> =
             if item.is_some_and(|item| item.landing.is_some() || item.category == ARROWS) {
@@ -1805,7 +1829,7 @@ impl Ground {
                 ledge: Some(&ledge),
                 toll: Some(&toll),
                 closest,
-                joined: Some(&joined),
+                joined: Some(&walks),
                 state: walk.state.clone(),
                 through: if walk.active { Some(&through) } else { None },
                 over: Some(&over),
@@ -1860,7 +1884,7 @@ impl Ground {
             self.r#box(start, aims.iter().copied())?
         };
         let ledge = |cell: Cell| self.ledge(cell);
-        let joined = |cell: Cell, step: Cell| self.joined(cell, step);
+        let walks = |cell: Cell, step: Cell| self.walks(cell, step);
         let over = |cell: Cell| self.over(cell);
         let open = |cell: Cell| self.open(cell);
         // shortcut: an arrow among `aims` is an end for whatever it is an aim of, a thing beside
@@ -1885,7 +1909,7 @@ impl Ground {
             r#box,
             &pathfind::Reach {
                 ledge: Some(&ledge),
-                joined: Some(&joined),
+                joined: Some(&walks),
                 over: Some(&over),
                 ends: Some(&open),
                 carry: Some(&carry),
