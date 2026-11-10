@@ -20,7 +20,7 @@ use crate::games::gen6::anchors::Chain;
 use crate::games::gen6::apps::FIELD;
 use crate::games::gen6::field::footsteps::{RUN, Steps, WALK};
 use crate::games::gen6::field::landform::{
-    ArrowTiles, Climbing, Conveyors, Grinding, Landform, Rides, Strands, Vining, gen6,
+    ArrowTiles, Climbing, Conveyors, Grinding, Landform, Rides, Strands, TurningFloor, Vining, gen6,
 };
 use crate::games::gen6::field::{camera, mapblock, mmodel};
 use crate::games::gen6::game::{Data, FurnitureKind, Game};
@@ -286,6 +286,7 @@ pub fn rom() -> &'static RomLayout {
         }),
         chunks: Some("a/0/4/1".to_string()),
         gym_modules: vec!["DllUSGymEsper.cro".to_string()],
+        turning_floor: Some("DllUSGymIce.cro".to_string()),
         story: owned(story_archives()),
         street_marks: Some("a/2/5/5".to_string()),
         street_names: Some(71),
@@ -530,6 +531,14 @@ pub const SNOWBELLE_SWITCHES: [(i64, &str); 4] = [
     (0x3, "yellow switch"),
     (0x4, "green switch"),
 ];
+/// The Gym's four floor strips, purple, blue, orange and green from the door north, which its
+/// switches turn: the pink switch turned the purple one, and its count, the first u32, went up by
+/// one a turn (x_eighth_gym_switches, spike A). Each other switch is taken to turn the strip its
+/// native 51 is given, the blue the blue one and so on: not seen.
+pub const SNOWBELLE_FLOOR: TurningFloor = TurningFloor {
+    zone: SNOWBELLE_GYM,
+    state: ("N5field25FieldUniqueSequenceGymIceE", 0x14),
+};
 
 pub const BALL_FACTORY: i64 = 0x136;
 /// The Poké Ball Factory's floor, and the script of its 11 one-cell triggers, each a way onto one of
@@ -921,6 +930,7 @@ pub fn game() -> &'static Game {
                 Arc::new(GRINDING),
                 Arc::new(VINING),
                 Arc::new(belts()),
+                Arc::new(SNOWBELLE_FLOOR),
                 Arc::new(Strands { bit: STRAND }),
             ],
         ]

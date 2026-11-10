@@ -718,6 +718,31 @@ fn test_a_gym_modules_teleports_are_the_first_half_of_its_places_and_where_each_
     Ok(())
 }
 
+/// Spike A: DllUSGymIce.cro holds Snowbelle City Gym's four floor strips, x, z, width and
+/// depth as floats, and after them a 64-byte mask of gaps for each strip and each of its four
+/// turns, the strip's cells row by row. Its first mask has the gaps x_eighth_gym walked into.
+#[test]
+fn test_a_gym_modules_floor_strips_have_the_gaps_of_their_masks_for_each_turn() -> Result<()> {
+    use crate::games::gen6::rom::maps;
+    let strips: [f32; 8] = [10.0, 51.0, 3.0, 2.0, 10.0, 45.0, 3.0, 2.0];
+    let mut masks: Vec<Vec<u8>> = vec![vec![0u8; 64]; 8];
+    masks[0][..6].copy_from_slice(&[0, 1, 0, 1, 0, 0]);
+    masks[5][..6].copy_from_slice(&[0, 0, 0, 0, 0, 1]);
+    let mut module: Vec<u8> = b"\xe5\x9f\x10\x7c".repeat(4);
+    for value in strips {
+        module.extend(value.to_le_bytes());
+    }
+    module.extend(7u32.to_le_bytes());
+    module.extend(masks.concat());
+    let found = maps::turning_strips(&module)?;
+    let [first, second] = found.as_slice() else {
+        panic!("two strips, not {}", found.len());
+    };
+    assert!(first.at(0) == &HashSet::from([(11, 51), (10, 52)]) && first.at(4) == first.at(0));
+    assert!(first.at(1).is_empty() && second.at(1) == &HashSet::from([(12, 46)]));
+    Ok(())
+}
+
 /// Khai, 2026-10-30: stepping back onto the landing of Anistar City Gym's first teleporter put the
 /// player on its start, three times, though the module lists it one way. Each teleport is listed
 /// as a teleporter where it starts and another where it lands, sending back.

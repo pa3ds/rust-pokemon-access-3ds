@@ -1,13 +1,19 @@
-//! Whether a zone's conveyor belts are turned round, by the switch the game has for them
-//! (`landform.Conveyors`).
+//! What a zone's switches have turned: its conveyor belts round (`landform.Conveyors`), or its
+//! floor strips about their middles (`landform.TurningFloor`).
 //!
 //! In X's Poké Ball Factory the field's module keeps a `field::FieldUniqueSequenceBallFactory`
 //! while the player is in it, whose +0x14 points at a byte that is 0, or 1 once the switch has turned
 //! the belts round, and back to 0 at the next press: across three presses of the switch, it and one
 //! other byte of memory flipped each time and nothing else did, and a save made after one press
 //! loads with it 1 and the belts turned (spike 259).
+//!
+//! In Snowbelle City Gym a `field::FieldUniqueSequenceGymIce`'s +0x14 points at a u32 a floor
+//! strip, how many times its switch has turned it, from 0 to 3 and round to 0: stepping onto the
+//! pink switch five times made the first 1, 2, 3, 0 and 1, each as its turn ended, and the other
+//! three stayed 0 (x_eighth_gym_switches, spike A).
 
 use std::cell::RefCell;
+use std::collections::HashSet;
 use std::rc::Rc;
 
 use indexmap::{IndexMap, IndexSet};
@@ -15,16 +21,34 @@ use indexmap::{IndexMap, IndexSet};
 use crate::core::binary::u32;
 use crate::core::discovery::{Found, HEAP_SPAN, within};
 use crate::core::memory::Memory;
+use crate::core::pathfind::Cell;
 use crate::games::gen6::field::features::Tracked;
-use crate::py::Result;
+use crate::py::{self, Result};
 
-/// How wide the pointer to the byte is.
+/// How wide the pointer to what the switches have turned is.
 pub const POINTER: i64 = 4;
 
-/// The objects saying whether the belts are turned, found by a sweep as their module loads.
+/// One of Snowbelle City Gym's floor strips, turned about its middle by its switch, with gaps
+/// in it the player cannot step into: which cells are gaps depends on how many times it has been
+/// turned (`maps.turning_strips`).
+#[derive(Debug, Clone, PartialEq)]
+pub struct TurningStrip {
+    /// The gaps after each number of turns, from none.
+    pub gaps: Vec<HashSet<Cell>>,
+}
+
+impl TurningStrip {
+    /// The gaps after `turns` turns.
+    pub fn at(&self, turns: i64) -> &HashSet<Cell> {
+        &self.gaps[py::modulo(turns, self.gaps.len() as i64) as usize]
+    }
+}
+
+/// The objects saying what the switches have turned, found by a sweep as their module
+/// loads.
 pub struct Switches {
     memory: Rc<dyn Memory>,
-    /// Each object's class -> where in it the pointer to the byte is.
+    /// Each object's class -> where in it the pointer to what is turned is.
     states: IndexMap<&'static str, i64>,
     pub classes: Vec<&'static str>,
     /// Each class -> the object found, and its vtable.
@@ -32,8 +56,9 @@ pub struct Switches {
 }
 
 impl Switches {
-    /// Python's `states` is a set of (class, offset) built from the game's `landform.Conveyors`, whose order
-    /// its strings make Python's own; here the `Game`'s order, each once.
+    /// Python's `states` is a set of (class, offset) built from the game's `landform.Conveyors`
+    /// and `landform.TurningFloor`, whose order its strings make Python's own; here the `Game`'s
+    /// order, each once.
     pub fn new(memory: Rc<dyn Memory>, states: IndexSet<(&'static str, i64)>) -> Self {
         let states: IndexMap<&'static str, i64> = states.into_iter().collect();
         let classes = states.keys().copied().collect();
@@ -64,9 +89,9 @@ impl Switches {
         Ok(())
     }
 
-    /// Whether the switch the object of `state` keeps has turned its belts, or None before a
-    /// sweep has found it or while it is not that object any more.
-    pub fn turned(&self, state: (&str, i64)) -> Result<Option<bool>> {
+    /// The `size` bytes the object of `state` points at, saying what its switches have
+    /// turned, or None before a sweep has found it or while it is not that object any more.
+    pub fn turned(&self, state: (&str, i64), size: i64) -> Result<Option<Vec<u8>>> {
         let (name, at) = state;
         let Some(&(one, vtable)) = self.found.borrow().get(name) else {
             return Ok(None);
@@ -77,7 +102,7 @@ impl Switches {
         let Some(to) = self.pointed(one, at)? else {
             return Ok(None);
         };
-        Ok(Some(self.memory.read(to, 1)?[0] != 0))
+        Ok(Some(self.memory.read(to, size)?))
     }
 
     fn pointed(&self, one: i64, at: i64) -> Result<Option<i64>> {

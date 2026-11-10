@@ -37,6 +37,7 @@ use crate::games::common::field::things::{
     TILE_SOURCE, VINE_SOURCE, place_source,
 };
 use crate::games::common::field::vines::{End, Vines, paired};
+use crate::games::gen6::field::conveyors::TurningStrip;
 use crate::games::gen6::field::rail::Rails;
 use crate::games::gen6::field::terrain::Terrain;
 use crate::games::gen6::field::zonedata::{
@@ -165,8 +166,13 @@ pub struct Here<'a> {
     /// (zone, a furniture record's script) -> the native its case hands one constant to, and the
     /// constant (`plates.native_furniture`).
     pub natives: &'a IndexMap<(i64, i64), (i64, i64)>,
-    /// Whether the switch the object of a state keeps has turned its belts (`Switches.turned`).
-    pub turned: Box<dyn Fn((&'static str, i64)) -> Result<bool> + 'a>,
+    /// What the switches the object of a state keeps have turned, so many bytes of it
+    /// (`Switches.turned`).
+    #[allow(clippy::type_complexity)]
+    pub turned: Box<dyn Fn((&'static str, i64), i64) -> Result<Option<Vec<u8>>> + 'a>,
+    /// The floor strips a Gym's module turns (`maps.turning_strips`), in the order of its
+    /// switches' counts.
+    pub strips: &'a [TurningStrip],
     pub terrain: &'a Terrain,
     pub zones: &'a ZoneTable,
 }
@@ -1187,7 +1193,8 @@ impl Landform for Conveyors {
                 .find(|item| item.code == self.switch)
                 .map(|item| item.cell),
         };
-        let (now, other) = if (here.turned)(self.state)? {
+        let turned = (here.turned)(self.state, 1)?;
+        let (now, other) = if turned.is_some_and(|turned| turned.first().is_some_and(|&b| b != 0)) {
             (flipped, self.ways.clone())
         } else {
             (self.ways.clone(), flipped)
@@ -1216,6 +1223,43 @@ impl Landform for Conveyors {
             },
         )
     }
+}
+
+/// One zone's floor strips, each turned about its middle by a switch, whose gaps the player
+/// cannot step into, though the chunk has them open: Snowbelle City Gym's four, where P walked
+/// into them (x_eighth_gym, spike A). The gaps of each strip are its module's (`Here.strips`) for
+/// the times its switch has turned it, none until a sweep finds the Gym's object, as the game
+/// builds them on entering. Laid on the ground floor alone (`Ground.gaps`).
+#[derive(Debug, Clone, PartialEq)]
+pub struct TurningFloor {
+    pub zone: i64,
+    /// The class of the Gym's object, and where in it, that points at a u32 a strip saying how
+    /// many times its switch has turned it (`conveyors`).
+    pub state: (&'static str, i64),
+}
+
+impl Landform for TurningFloor {
+    fn laid(&self, _found: &Found, ground: Ground, here: &Here) -> Result<Ground> {
+        if here.r#where.zone != self.zone || here.strips.is_empty() {
+            return Ok(ground);
+        }
+        let size = 4 * here.strips.len() as i64;
+        // Python's `or`: None, and no bytes, are the counts all 0.
+        let turned = (here.turned)(self.state, size)?
+            .filter(|turned| !turned.is_empty())
+            .unwrap_or_else(|| vec![0; size as usize]);
+        let mut gaps: HashSet<Cell> = HashSet::new();
+        for (i, strip) in here.strips.iter().enumerate() {
+            let i = i as i64;
+            gaps.extend(strip.at(little(py::slice(&turned, 4 * i, 4 * i + 4))));
+        }
+        Ok(Ground { gaps, ..ground })
+    }
+}
+
+/// `int.from_bytes(data, "little")`.
+fn little(data: &[u8]) -> i64 {
+    data.iter().rev().fold(0, |n, &byte| n << 8 | byte as i64)
 }
 
 /// The strands a player walks diagonally between, by a bit of a cell's word, as X's Santalune Gym

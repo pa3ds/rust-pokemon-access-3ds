@@ -52,14 +52,14 @@ use crate::games::common::field::things::{
     TRIGGER_SOURCE, WARP_SOURCE, kind_said, place_source,
 };
 use crate::games::gen6::anchors::follow;
-use crate::games::gen6::field::conveyors::Switches;
+use crate::games::gen6::field::conveyors::{Switches, TurningStrip};
 use crate::games::gen6::field::features::{
     DoorReader, Feature, HiddenReader, Hiding, IceReader, SecretBaseReader, Tracked,
 };
 use crate::games::gen6::field::hidden_items::{HIDDEN_ITEM, HiddenItems, Only};
 use crate::games::gen6::field::landform::{
-    Conveyors, Found as Worked, HOLE, Here, Holes, Landform, Matrix, Rides, as_form, beside,
-    cell_number, dropped, holes_found, runs, spread,
+    Conveyors, Found as Worked, HOLE, Here, Holes, Landform, Matrix, Rides, TurningFloor, as_form,
+    beside, cell_number, dropped, holes_found, runs, spread,
 };
 use crate::games::gen6::field::rail::{self, Rails, keep};
 use crate::games::gen6::field::terrain::{FarCells, FarFloors, FarHeights, FarMatrices, Terrain};
@@ -321,8 +321,10 @@ pub struct FieldReader {
     works: Rc<Works>,
     /// (zone, a warp's slot) -> the work and value it is taken at (`Game.armed_warps`).
     armed_warps: IndexMap<(i64, i64), (i64, i64)>,
-    /// Whether each zone's belts are turned round by its switch (`landform.Conveyors`).
+    /// What each zone's switches have turned (`landform.Conveyors`, `landform.TurningFloor`).
     switches: Option<Switches>,
+    /// The floor strips a Gym's module turns (`maps.turning_strips`).
+    strips: Vec<TurningStrip>,
     /// The hidden items still to be found, where the Extra lists them (spike 249).
     hidden_items: Option<HiddenItems>,
     /// (zone, sprite) of the move models that are a barrier's beam (`Game.barriers`).
@@ -526,8 +528,11 @@ impl FieldReader {
                 let states: IndexSet<(&'static str, i64)> = game
                     .landforms
                     .iter()
-                    .filter_map(as_form::<Conveyors>)
-                    .map(|form| form.state)
+                    .filter_map(|form| {
+                        as_form::<Conveyors>(form)
+                            .map(|form| form.state)
+                            .or_else(|| as_form::<TurningFloor>(form).map(|form| form.state))
+                    })
                     .collect();
                 if states.is_empty() {
                     None
@@ -535,6 +540,7 @@ impl FieldReader {
                     Some(Switches::new(memory.clone(), states))
                 }
             },
+            strips: text.strips.clone(),
             zones: ZoneTable::new(memory.clone(), text.zone_table.clone()),
             warp_words: game.warps.clone(),
             landings: game.landings.clone(),
@@ -2971,10 +2977,11 @@ impl FieldReader {
             rails: &self.rails,
             files: self.terrain.files.borrow().1.clone(),
             natives: &self.natives,
-            turned: Box::new(|state| match &self.switches {
-                None => Ok(false),
-                Some(switches) => Ok(switches.turned(state)? == Some(true)),
+            turned: Box::new(|state, size| match &self.switches {
+                None => Ok(None),
+                Some(switches) => switches.turned(state, size),
             }),
+            strips: &self.strips,
             terrain: &self.terrain,
             zones: &self.zones,
         }

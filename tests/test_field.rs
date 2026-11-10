@@ -3686,6 +3686,62 @@ fn test_a_deck_level_with_the_ground_is_no_drop_wherever_the_player_stands() -> 
     Ok(())
 }
 
+/// Khai, x_eighth_gym: Snowbelle City Gym refused steps into its floor strips' gaps, open in
+/// the chunk, and P walked into them; up the Gym's middle a floor at 160 stands over the strips,
+/// and P stepped up onto it to cross a gap of the ground at 0.
+#[test]
+fn test_a_gap_in_a_turning_floor_strip_is_a_wall_of_the_ground_floor_alone() -> Result<()> {
+    let cells: Vec<(i64, i64)> = (0..CHUNK * CHUNK).map(|i| (i % CHUNK, i / CHUNK)).collect();
+    let row: HashSet<(i64, i64)> = (0..7).map(|x| (x, 8)).collect();
+    let floor = Floor {
+        words: cells
+            .iter()
+            .map(|cell| if row.contains(cell) { 0x20 } else { 0x01000021 })
+            .collect(),
+        heights: cells
+            .iter()
+            .map(|cell| row.contains(cell).then_some(0.0))
+            .collect(),
+        ramp: false,
+    };
+    let high = Floor {
+        words: cells
+            .iter()
+            .map(|&cell| if cell == (3, 8) { 0x20 } else { 0x01000021 })
+            .collect(),
+        heights: cells
+            .iter()
+            .map(|&cell| (cell == (3, 8)).then_some(160.0))
+            .collect(),
+        ramp: false,
+    };
+    let ground = Ground {
+        chunks: vec![Rc::new(Chunk {
+            floors: vec![floor.clone(), high],
+            ..Chunk::new((0, 0), floor.words.clone())
+        })],
+        stacked: true,
+        ..Ground::default()
+    };
+    let goals = goals_of(&[((6, 8), None)]);
+    assert!(
+        ground
+            .find((0, 8), &goals, "", None, false, None)?
+            .is_some()
+    );
+    let gapped = Ground {
+        gaps: HashSet::from([(3, 8)]),
+        ..ground.clone()
+    };
+    assert!(
+        gapped
+            .find((0, 8), &goals, "", None, false, None)?
+            .is_none()
+    );
+    assert!(!gapped.open_at((3, 8), Some(0.0))? && gapped.open_at((3, 8), Some(160.0))?);
+    Ok(())
+}
+
 /// x_tower_of_mastery (spike 248): the Tower of Mastery's ramp winds up round the ring of
 /// floor under it, and is in its chunk's streets alone, each point with its height. Its chunk's
 /// floors are the ground and the landings, so P walked the ground under the ramp and said "then

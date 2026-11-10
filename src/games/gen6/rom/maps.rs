@@ -12,6 +12,7 @@ use crate::core::binary::{f32, u16, u32};
 use crate::core::rom::{Rom, lz11};
 use crate::games::common::field::chunk::Floor;
 use crate::games::common::garc::{garc_files, garc_spans};
+use crate::games::gen6::field::conveyors::TurningStrip;
 use crate::games::gen6::field::zonedata::CELL;
 use crate::games::gen6::field::{mapblock, rail};
 use crate::py::{self, Error, Kind, Result};
@@ -389,4 +390,97 @@ pub fn rail_teleports(module: &[u8]) -> Result<Vec<rail::Teleport>> {
             lands: best[half + i],
         })
         .collect())
+}
+
+/// One floor strip of a Gym's module: f32 x, z, width and depth in cells, each whole.
+pub const STRIP_ENTRY: i64 = 16;
+/// One strip's gaps after some number of turns: a byte a cell, row by row from its north-west
+/// cell, 1 for a gap, the rest of the 64 bytes 0.
+pub const GAP_MASK: i64 = 64;
+/// How many times a strip is turned before it is back as it was: its switch's count goes 0 to 3
+/// and round to 0 (`conveyors`).
+pub const TURNS: i64 = 4;
+
+/// The floor strips a Gym's module turns, with their gaps: the first run of two or more
+/// rectangles of one size (`STRIP_ENTRY`), and after them the first run of `GAP_MASK` bytes
+/// a mask, `TURNS` to a strip, holding only 0 and 1. DllUSGymIce.cro, Snowbelle City Gym's,
+/// holds the four from 0x20e0, x 10 and z 51, 45, 39 and 33, 21 cells by 3, and their masks
+/// from 0x2180; the first strip's first mask has gaps at (12, 52), (13, 52) and (27, 51), where
+/// the game refused steps in x_eighth_gym, and none at (27, 52), stepped on (spike A).
+pub fn turning_strips(module: &[u8]) -> Result<Vec<TurningStrip>> {
+    let rect = |at: i64| -> Result<Option<(i64, i64, i64, i64)>> {
+        let values = [
+            f32(module, at)?,
+            f32(module, at + 4)?,
+            f32(module, at + 8)?,
+            f32(module, at + 12)?,
+        ];
+        if !values
+            .iter()
+            .all(|&v| v.is_finite() && v.fract() == 0.0 && 0.0 <= v && v < (1 << 12) as f64)
+        {
+            return Ok(None);
+        }
+        let (x, z, width, depth) = (
+            py::int(values[0])?,
+            py::int(values[1])?,
+            py::int(values[2])?,
+            py::int(values[3])?,
+        );
+        Ok((0 < width * depth && width * depth <= GAP_MASK).then_some((x, z, width, depth)))
+    };
+
+    let size = module.len() as i64;
+    let mut rects: Vec<(i64, i64, i64, i64)> = Vec::new();
+    let mut at = 0;
+    while at + 2 * STRIP_ENTRY <= size && rects.len() < 2 {
+        rects = Vec::new();
+        while at + STRIP_ENTRY <= size {
+            let Some(one) = rect(at)? else {
+                break;
+            };
+            if !(rects.is_empty() || (one.2, one.3) == (rects[0].2, rects[0].3)) {
+                break;
+            }
+            rects.push(one);
+            at += STRIP_ENTRY;
+        }
+        at += if rects.len() >= 2 { 0 } else { 4 };
+    }
+    if rects.len() < 2 {
+        return Ok(Vec::new());
+    }
+    let masks_size = TURNS * rects.len() as i64 * GAP_MASK;
+    while at + masks_size <= size
+        && !py::slice(module, at, at + masks_size)
+            .iter()
+            .all(|&byte| byte <= 1)
+    {
+        at += 4;
+    }
+    if at + masks_size > size {
+        return Ok(Vec::new());
+    }
+    let mut out: Vec<TurningStrip> = Vec::new();
+    for (i, &(x, z, width, depth)) in rects.iter().enumerate() {
+        let i = i as i64;
+        let masks: Vec<&[u8]> = (0..TURNS)
+            .map(|turn| {
+                let from = at + (i * TURNS + turn) * GAP_MASK;
+                py::slice(module, from, from + GAP_MASK)
+            })
+            .collect();
+        out.push(TurningStrip {
+            gaps: masks
+                .iter()
+                .map(|mask| {
+                    (0..width * depth)
+                        .filter(|&k| mask[k as usize] != 0)
+                        .map(|k| (x + k % width, z + k / width))
+                        .collect()
+                })
+                .collect(),
+        });
+    }
+    Ok(out)
 }

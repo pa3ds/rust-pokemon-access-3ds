@@ -311,6 +311,9 @@ pub struct Ground {
     /// The cells of each hole a big boulder has dropped into: floor, though the chunk still has
     /// them blocked (`HOLE`, spike 202).
     pub filled: HashSet<Cell>,
+    /// The cells of the ground floor a turning floor strip has a gap in now: blocked, though the
+    /// chunk has them open. Snowbelle City Gym refused steps into them (`TurningFloor`, spike A).
+    pub gaps: HashSet<Cell>,
     /// Whether the player is riding the Mach Bike, which rides up a slope as well as down: P's
     /// ground goes up one only then (spike 158).
     pub bike: bool,
@@ -482,6 +485,7 @@ impl Default for Ground {
             shoves: IndexMap::new(),
             hm: false,
             filled: HashSet::new(),
+            gaps: HashSet::new(),
             bike: false,
             acro: false,
             cliffs: IndexSet::new(),
@@ -785,6 +789,7 @@ impl Ground {
             for &(k, _) in &floors {
                 if (aim == ANY_FLOOR || aim == k)
                     && !self.stands(cell, k)?
+                    && !self.gap(cell, k)
                     && (self.surf || !self.water(cell, Some(k))?)
                 {
                     return Ok(true);
@@ -792,7 +797,7 @@ impl Ground {
             }
             return Ok(false);
         }
-        if self.stands(cell, ANY_FLOOR)? {
+        if self.gap(cell, ANY_FLOOR) || self.stands(cell, ANY_FLOOR)? {
             return Ok(false);
         } else if let (Some(height), Some(ground_height)) = (height, &self.ground_height)
             && let Some(here) = ground_height(cell)?
@@ -945,6 +950,12 @@ impl Ground {
         Ok(false)
     }
 
+    /// Whether a turning floor strip has a gap in the cell on `floor`, the ground floor's
+    /// alone (`gaps`).
+    pub fn gap(&self, cell: Cell, floor: i64) -> bool {
+        (floor == ANY_FLOOR || floor == 0) && self.gaps.contains(&cell)
+    }
+
     /// The floor a step from `cell`, walked on `floor`, lands on at `step`: of its open floors
     /// nobody stands on, the nearest the height left, the same floor first; None where there is
     /// none and the step is not taken, and `ANY_FLOOR` where `step` has no floors to choose
@@ -1001,7 +1012,7 @@ impl Ground {
             } else {
                 continue;
             }
-            if (away, k != floor) < off && !self.stands(step, k)? {
+            if (away, k != floor) < off && !self.stands(step, k)? && !self.gap(step, k) {
                 best = Some(k);
                 off = (away, k != floor);
             }

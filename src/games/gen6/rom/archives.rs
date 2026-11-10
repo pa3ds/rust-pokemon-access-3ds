@@ -57,12 +57,13 @@ use crate::core::rom::{Rom, lz11};
 use crate::games::common::field::ground::{CUT, ROCK_SMASH, STRENGTH, SURF, WATERFALL};
 use crate::games::common::garc::{garc_files, message_lines, plain, singular};
 use crate::games::common::text::{Token, tokens};
+use crate::games::gen6::field::conveyors::TurningStrip;
 use crate::games::gen6::field::rail::Teleport;
 use crate::games::gen6::field::zonedata;
 use crate::games::gen6::rom::doors::{door_facilities, town_rows};
 use crate::games::gen6::rom::layout::{RomLayout, TownFacilities, zone_table};
 use crate::games::gen6::rom::maps::{
-    ChunkSource, MapChunks, StreetSource, Streets, rail_teleports,
+    ChunkSource, MapChunks, StreetSource, Streets, rail_teleports, turning_strips,
 };
 use crate::games::gen6::rom::people::{
     pokemon_models, tagged_species, trainer_classes, trainer_sprites,
@@ -374,6 +375,9 @@ pub struct GameText {
     /// The teleports the game's Gym modules place on streets (`RomLayout.gym_modules`):
     /// Anistar City Gym's.
     pub rail_teleports: Vec<Teleport>,
+    /// The floor strips a Gym's module turns (`RomLayout.turning_floor`): Snowbelle City
+    /// Gym's.
+    pub strips: Vec<TurningStrip>,
     /// Zone -> every zone of its place in parts, itself among them (`places_in_parts`).
     pub parts: IndexMap<i64, Vec<i64>>,
     /// A part's zone data file, decompressed: its things are listed from the other parts of its
@@ -479,6 +483,7 @@ impl Default for GameText {
             gates: IndexMap::new(),
             teleports: IndexMap::new(),
             rail_teleports: Vec::new(),
+            strips: Vec::new(),
             parts: IndexMap::new(),
             part_data: IndexMap::new(),
         }
@@ -921,6 +926,7 @@ impl GameText {
             title: rom.title(language)?,
             teleports: plates::teleports(&read, teleporting)?,
             rail_teleports: rail_teleports_of(rom, layout)?,
+            strips: strips_of(rom, layout)?,
             parts,
             part_data,
         };
@@ -1196,6 +1202,19 @@ fn rail_teleports_of(rom: &Rom, layout: &RomLayout) -> Result<Vec<Teleport>> {
         }
     }
     Ok(out)
+}
+
+/// The floor strips of `RomLayout.turning_floor` (`strips`), none where the ROM cannot give
+/// it. (Python's `_strips`.)
+fn strips_of(rom: &Rom, layout: &RomLayout) -> Result<Vec<TurningStrip>> {
+    let Some(module) = &layout.turning_floor else {
+        return Ok(Vec::new());
+    };
+    match rom.read(module).and_then(|blob| turning_strips(&blob)) {
+        Ok(found) => Ok(found),
+        Err(error) if error.is(Kind::RomError) => Ok(Vec::new()),
+        Err(error) => Err(error),
+    }
 }
 
 /// A matrix file's first word where a grid of zones follows its chunk files, a u16 zone a block
