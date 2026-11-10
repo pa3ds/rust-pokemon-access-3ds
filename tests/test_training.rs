@@ -184,11 +184,11 @@ fn test_a_goal_shown_while_a_round_runs_is_offered_at_the_pixel_that_shoots_it()
         [
             Target {
                 held: true,
-                ..Target::new(goal, "goal", 126, 98, -3.0, 32.0)
+                ..Target::new(goal, "goal 1", 126, 98, -3.0, 32.0)
             },
             Target {
                 held: true,
-                ..Target::new(red, "red goal", 126, 98, -3.0, 32.0)
+                ..Target::new(red, "red goal 2", 126, 98, -3.0, 32.0)
             }
         ]
     );
@@ -197,6 +197,55 @@ fn test_a_goal_shown_while_a_round_runs_is_offered_at_the_pixel_that_shoots_it()
             .targets(Some("N5field12FieldmapProcE"))
             .unwrap()
             .is_empty()
+    );
+}
+
+/// Orion did not know there could be more than one (2026-11-10).
+#[test]
+fn test_goals_are_numbered_from_the_left_only_when_several_are_up() {
+    let memory = FakeMemory::new();
+    let classes = FakeClasses::new(memory.clone());
+    let picture = classes.add(lyt::PICTURE_CLASS);
+    let fake = FakeLayouts::new(&memory, &classes);
+    let (_work, group) = fake.screen_with(0x14B00000, true, true);
+    memory.u32(group + lyt::CHILD_COUNT, &[2]);
+    let (right, left) = (group + 0x100, group + 0x200);
+    for (pane, x) in [(right, 60.0), (left, -60.0)] {
+        fake.pane_with_vtable(pane, group, Some(picture));
+        memory.write(pane + lyt::X, &floats(&[x]));
+    }
+    fake.track().unwrap();
+    let drawn_now: Rc<RefCell<IndexMap<i64, &'static str>>> =
+        Rc::new(RefCell::new(IndexMap::from([
+            (right, "target01_8.bclim"),
+            (left, "target01_8.bclim"),
+        ])));
+    let images = drawn_now.clone();
+    let goals = super_training::Goals::new(
+        fake.layouts.clone(),
+        Rc::new(move |pane| Ok(images.borrow().get(&pane).map(|image| image.to_string()))),
+    );
+    let named: IndexMap<i64, String> = goals
+        .targets(Some(super_training::SPARRING))
+        .unwrap()
+        .into_iter()
+        .map(|target| (target.pane, target.name))
+        .collect();
+    assert_eq!(
+        named,
+        IndexMap::from([(left, "goal 1".to_string()), (right, "goal 2".to_string())])
+    );
+    drawn_now.borrow_mut().shift_remove(&left);
+    fake.visible(left, false);
+    fake.layouts.refresh();
+    assert_eq!(
+        goals
+            .targets(Some(super_training::SPARRING))
+            .unwrap()
+            .into_iter()
+            .map(|t| t.name)
+            .collect::<Vec<_>>(),
+        ["goal"]
     );
 }
 
@@ -569,9 +618,24 @@ fn test_the_aura_of_a_press_held_is_said_as_it_comes_and_if_it_burns_out_held() 
     fake.visible(panes[0], false);
     fake.layouts.refresh();
     assert_eq!(
-        sparring.poll(Some(super_training::SPARRING)).unwrap(),
-        [warning("fizzled")]
+        (0..super_training::AURA_GONE)
+            .map(|_| sparring.poll(Some(super_training::SPARRING)).unwrap())
+            .collect::<Vec<_>>(),
+        [vec![], vec![], vec![warning("fizzled")]]
     );
+}
+
+/// Its panes go undrawn for a poll now and then (as_super_training_l1_regimen).
+#[test]
+fn test_the_aura_flickering_is_said_once_and_never_fizzles() {
+    let (mut sparring, panes, _memory, _group, fake) = charging(Rc::new(Cell::new(true)));
+    let mut said = sparring.poll(Some(super_training::SPARRING)).unwrap();
+    for shown in [false, true, false, false, true] {
+        fake.visible(panes[0], shown);
+        fake.layouts.refresh();
+        said.extend(sparring.poll(Some(super_training::SPARRING)).unwrap());
+    }
+    assert_eq!(said, [warning("charged")]);
 }
 
 #[test]
@@ -582,11 +646,11 @@ fn test_the_aura_going_as_the_press_is_let_go_says_nothing() {
     holding.set(false);
     fake.visible(panes[0], false);
     fake.layouts.refresh();
-    assert!(
-        sparring
-            .poll(Some(super_training::SPARRING))
-            .unwrap()
-            .is_empty()
+    assert_eq!(
+        (0..super_training::AURA_GONE + 1)
+            .map(|_| sparring.poll(Some(super_training::SPARRING)).unwrap())
+            .collect::<Vec<_>>(),
+        vec![Vec::new(); 4]
     );
 }
 

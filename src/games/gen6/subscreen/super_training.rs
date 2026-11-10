@@ -52,12 +52,13 @@
 //! by 100, which has no line in the game's text: offered as "empty bag", as tapping it can find a
 //! bag.
 //!
-//! Core Training (as_super_training_bags, spike A): a bag hangs from its top, so its place is the
-//! top of it, and a tap there does nothing; a tap on the bag or on the Pokémon makes it hit the bag.
-//! A hit takes one from the Pokémon's record's +0x16 of the bags' hits left (2 for a Strength Bag),
-//! and with none left the page's +0x264 goes from 1, idle (6 while it hits), to 4 and the game draws
-//! `surprise_icon.bclim`, a "!" over the Pokémon, until a tap on the Pokémon gives the bag's effect
-//! and says so. Left alone the Pokémon hits the bag once a minute. The page says nothing else of it.
+//! Core Training (as_super_training_tutorial2, spike A): a bag hangs from its top, so its place is
+//! the top of it, and a tap there does nothing; a tap on the bag or on the Pokémon makes it hit the
+//! bag. A hit takes one from the Pokémon's record's +0x16 of the bags' hits left (2 for a Strength
+//! Bag), and with none left the page's +0x264 goes from 1, idle (6 while it hits), to 4 and the game
+//! draws `surprise_icon.bclim`, a "!" over the Pokémon, until a tap on the Pokémon gives the bag's
+//! effect and says so. Left alone the Pokémon hits the bag once a minute. The page says nothing else
+//! of it.
 //!
 //! What a round shows besides its goals (measured live in the Magnemite regimen, 2026-10-10, in the
 //! top screen's layout, places as for a goal): the score is digit pictures, `score_nom0.bclim` to
@@ -195,6 +196,8 @@ pub const ENERGY: &str = "training-energy";
 /// The aura round the Pokémon while a press held is charged, from about 1.9 s into the press for
 /// about 1.5 s: let go in it for a shot worth three times the points (spike A: 21, 63 on Wailmer).
 pub const CHARGE_IMAGE: &str = "charge01.bclim";
+/// How many screen polls running, about 0.6 s, the aura must be missing to be gone.
+pub const AURA_GONE: i64 = 3;
 pub const CHARGED: &str = "training-charged";
 pub const FIZZLED: &str = "training-fizzled";
 /// The regimen menu's count of the Pokémon's medals, written beside a picture of one.
@@ -557,8 +560,31 @@ impl Goals {
                 });
             }
         }
-        Ok(found)
+        Ok(numbered(found))
     }
+}
+
+/// Goals told apart where several are up, counted from the left: "goal 1", "goal 2", as Orion
+/// did not know there could be more than one (2026-11-10). A goal alone is "goal".
+fn numbered(goals: Vec<Target>) -> Vec<Target> {
+    if goals.len() < 2 {
+        return goals;
+    }
+    let mut order = goals.clone();
+    order.sort_by_key(|goal| (goal.x, goal.y));
+    goals
+        .iter()
+        .map(|goal| {
+            let at = order
+                .iter()
+                .position(|other| other == goal)
+                .expect("each goal is in its order");
+            Target {
+                name: format!("{} {}", goal.name, at + 1),
+                ..goal.clone()
+            }
+        })
+        .collect()
 }
 
 /// The training bags the page's list shows, pictures with no touch area of their own, offered
@@ -1055,8 +1081,10 @@ pub struct Round {
     states: IndexMap<i64, i64>,
     /// How full the energy meter was at the last poll, 0 to 1; None where none is drawn.
     energy: Option<f64>,
-    /// Whether the aura of a press held was drawn at the last poll.
+    /// Whether the aura of a press held is up, as far as has been said.
     charged: bool,
+    /// How many polls running the aura has not been drawn while `charged`.
+    aura_missing: i64,
     /// What is said of a Bot's shot, "" where it was heard as a sound instead.
     warned: Rc<dyn Fn(&str) -> String>,
     /// Whether the player's press is still down on a goal (`TouchMode.holding`).
@@ -1124,6 +1152,7 @@ impl Round {
             states: IndexMap::new(),
             energy: None,
             charged: false,
+            aura_missing: 0,
         };
         round.forget();
         round
@@ -1139,6 +1168,7 @@ impl Round {
         self.states = IndexMap::new();
         self.energy = None;
         self.charged = false;
+        self.aura_missing = 0;
     }
 
     /// The balls a sweep found, by class: all of them, or with `adding` the new ones.
@@ -1230,28 +1260,43 @@ impl Round {
 
     /// "charged" as the aura comes, for the player to let go in it, and "fizzled" if it goes
     /// with the press still down; let go in it, it is gone as the shot flies, with nothing said.
+    /// The aura's panes flicker, none drawn for a poll now and then (as_super_training_l1_regimen
+    /// heard "charged", "fizzled", "charged" in half a second), so it is gone only once it has
+    /// stayed gone for `AURA_GONE` polls.
     fn say_charge(
         &mut self,
         charged: bool,
         holding: &dyn Fn() -> bool,
     ) -> Vec<(String, String, Option<Category>)> {
-        let was = self.charged;
-        self.charged = charged;
-        if charged && !was {
-            return vec![(
-                ROUND_LOG.to_string(),
-                own(CHARGED, &[]),
-                Some(Category::Warning),
-            )];
+        if charged {
+            self.aura_missing = 0;
+            if !self.charged {
+                self.charged = true;
+                return vec![(
+                    ROUND_LOG.to_string(),
+                    own(CHARGED, &[]),
+                    Some(Category::Warning),
+                )];
+            }
+            return Vec::new();
         }
-        if was && !charged && holding() {
-            return vec![(
+        if !self.charged {
+            return Vec::new();
+        }
+        self.aura_missing += 1;
+        if self.aura_missing < AURA_GONE {
+            return Vec::new();
+        }
+        self.charged = false;
+        if holding() {
+            vec![(
                 ROUND_LOG.to_string(),
                 own(FIZZLED, &[]),
                 Some(Category::Warning),
-            )];
+            )]
+        } else {
+            Vec::new()
         }
-        Vec::new()
     }
 
     /// The lines for the pictures shown now, said as the screen's words.
