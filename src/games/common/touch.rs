@@ -947,23 +947,27 @@ impl TouchTargets {
                     // Sweet Poké Puff of the bar of puffs inside it for its name, each puff a
                     // button of its own, and kept it with the bar hidden (or_amie_pokepuffs).
                     let inner = self.inner(root, touch, &tree)?;
-                    let mut pictured: Option<String> = None;
+                    let mut named: Vec<i64> = Vec::new();
                     for &p in group {
                         if tree.get(&p).map(String::as_str) == Some(lyt::PICTURE_CLASS)
                             && !inner.contains(&p)
-                            && let Some(word) = picture_name(p)?
-                            && !word.is_empty()
+                            && picture_name(p)?.is_some_and(|word| !word.is_empty())
                         {
-                            pictured = Some(word);
-                            break;
+                            named.push(p);
                         }
                     }
                     let parent = u32(&layouts.pane(touch)?, lyt::PARENT)?;
-                    let nothing = pictured.is_none()
-                        && said.is_empty()
-                        && image.as_deref().is_none_or(str::is_empty);
-                    let mut beside = false;
-                    if nothing {
+                    let mut beside = said.is_empty() && image.as_deref().is_none_or(str::is_empty);
+                    if beside {
+                        for &p in &named {
+                            if self.lies_in(p, touch)? {
+                                beside = false;
+                                break;
+                            }
+                        }
+                    }
+                    if beside {
+                        beside = false;
                         for p in layouts.children(root, parent) {
                             if tree.get(&p).map(String::as_str) == Some(lyt::PICTURE_CLASS)
                                 && picture_name(p)?.is_some_and(|word| !word.is_empty())
@@ -978,8 +982,14 @@ impl TouchTargets {
                         // areas that stay put, so a tap selects what is drawn at the place, not
                         // the picture the area's own pane holds (2026-10-10, live from
                         // omega_ruby_bottom-screen5's end). Only an area whose own pane holds such
-                        // a picture beside it, moved away: the Amie menu's backdrop, holding
-                        // none, took the Pokémon lying within it for its name, not "close".
+                        // a picture beside it: the Amie menu's backdrop, holding none, took the
+                        // Pokémon lying within it for its name, not "close". And only where none
+                        // of its own pictures lies in it: the big slot's own, the row's icon 53
+                        // off its middle, still fell in its group, and the slot took its name over
+                        // the Pokémon drawn big in it every second or so (Orion, 2026-11-10); the
+                        // DexNav's icons each lie in their own, and naming every picture of its
+                        // panel cost 180 reads a poll. The picture nearest its middle, its own or
+                        // not.
                         if filled.is_none() {
                             let mut found: IndexMap<i64, String> = IndexMap::new();
                             for (&p, kind) in &tree {
@@ -993,14 +1003,32 @@ impl TouchTargets {
                             }
                             filled = Some(found);
                         }
-                        pictured = None;
-                        for (&p, word) in filled.as_ref().expect("filled above") {
+                        let mut lying: Vec<i64> = Vec::new();
+                        for &p in filled.as_ref().expect("filled above").keys() {
                             if !inner.contains(&p) && self.lies_in(p, touch)? {
-                                pictured = Some(word.clone());
-                                break;
+                                lying.push(p);
                             }
                         }
+                        // `sorted(dict.fromkeys([*named, *lying]), key=...)`: each key found
+                        // once, in order, before the sort.
+                        let mut keyed: Vec<(i64, f64)> = Vec::new();
+                        for p in named
+                            .iter()
+                            .chain(&lying)
+                            .copied()
+                            .collect::<IndexSet<i64>>()
+                        {
+                            keyed.push((p, self.off_middle(p, touch)?));
+                        }
+                        named = py::sorted_by_lt(keyed, |a, b| a.1 < b.1)
+                            .into_iter()
+                            .map(|(p, _key)| p)
+                            .collect();
                     }
+                    let pictured = match named.first() {
+                        Some(&first) => picture_name(first)?,
+                        None => None,
+                    };
                     // Screen text names the picture too where it names pictures: the Bag's party
                     // slots were "Torchic Torchic L14", the AreaNav's Pokémon "Surskit Surskit"
                     // and the Battle Maison's partners "May May" (or_multi_battle_partners).
@@ -1467,19 +1495,26 @@ impl TouchTargets {
         Ok(self.middles[&pane])
     }
 
-    /// Does the pane's middle lie within the touch area, as `group` tests it? A pane not laid
-    /// out lies nowhere.
-    fn lies_in(&mut self, pane: i64, touch: i64) -> Result<bool> {
+    /// Does the pane's middle lie within the touch area, whatever either's scale? Super
+    /// Training's resting Pokémon is drawn swinging its scale through 0 to mirrored and back,
+    /// its touch area with it, and in that half it lay in no slot (Orion, 2026-11-10).
+    fn lies_in(&self, pane: i64, touch: i64) -> Result<bool> {
         let shape = self.layouts.shape;
         let head = self.layouts.pane(touch)?;
         let (across, down) = middle(&head, &shape)?;
-        let width = f32(&head, shape.width)? * f32(&head, shape.scale_x)?;
-        let height = f32(&head, shape.height)? * f32(&head, shape.scale_y)?;
-        let middle = self.middle_of(pane)?;
-        Ok(width > 0.0
-            && middle.is_some_and(|middle| {
-                (middle.0 - across).abs() * 2.0 <= width && (middle.1 - down).abs() * 2.0 <= height
-            }))
+        let middle = middle(&self.layouts.pane(pane)?, &shape)?;
+        Ok(
+            (middle.0 - across).abs() * 2.0 <= size(&head, shape.width, shape.scale_x)?
+                && (middle.1 - down).abs() * 2.0 <= size(&head, shape.height, shape.scale_y)?,
+        )
+    }
+
+    /// How far a pane's middle is from the touch area's, whatever either's scale.
+    fn off_middle(&self, pane: i64, touch: i64) -> Result<f64> {
+        let shape = self.layouts.shape;
+        let here = middle(&self.layouts.pane(pane)?, &shape)?;
+        let (across, up) = middle(&self.layouts.pane(touch)?, &shape)?;
+        Ok(py::hypot(here.0 - across, here.1 - up))
     }
 
     /// The pictures a screen offers (`pictured`), each where it is drawn, as a touch area is
@@ -1559,6 +1594,12 @@ fn drawn(head: &[u8], shape: &lyt::PaneShape, root_x: f64, root_y: f64) -> Resul
         py::round(x as f64 + (0.5 - across) * f32(head, shape.width)? * f32(head, shape.scale_x)?)?,
         py::round(y as f64 + (0.5 - down) * f32(head, shape.height)? * f32(head, shape.scale_y)?)?,
     ))
+}
+
+/// A pane's width or height as drawn, mirrored or not, and as laid out where its scale is 0.
+fn size(head: &[u8], size: i64, scale: i64) -> Result<f64> {
+    let scaled = f32(head, scale)?.abs();
+    Ok(f32(head, size)? * if scaled == 0.0 { 1.0 } else { scaled })
 }
 
 /// Each touch area's button less the buttons of the touch areas inside it, whose pictures are

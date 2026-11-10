@@ -1060,6 +1060,24 @@ fn test_a_touch_area_is_named_by_the_picture_now_lying_in_it() {
         ),
         ("Breloom", "Latios", "Sceptile")
     );
+    // Its own picture 53 off its middle, and the one in its middle drawn mirrored as it rests, its
+    // touch area with it, which then holds its own picture: said by the one in its middle
+    // (as_st_graveler_barrier_treecko).
+    memory.write(places[0] + lyt::X, &floats(&[-27.0]));
+    fake.layouts.refresh();
+    assert_eq!(named(&mut targets)[&80], "Breloom");
+    for pane in [places[2], group + 0x1000 + 0x200] {
+        memory.write(pane + lyt::SCALE_X, &floats(&[-0.3]));
+    }
+    fake.layouts.refresh();
+    assert_eq!(named(&mut targets)[&80], "Breloom");
+    // Its own picture lying in it is its name, as the DexNav's icons are, whatever else lies there.
+    for pane in [places[2], group + 0x1000 + 0x200] {
+        memory.write(pane + lyt::SCALE_X, &floats(&[1.0]));
+    }
+    memory.write(places[0] + lyt::X, &floats(&[-62.0]));
+    fake.layouts.refresh();
+    assert_eq!(named(&mut targets)[&80], "Sceptile");
 }
 
 /// Amie's Interior Items move a page's pictures out from under touch areas that stay put, and
