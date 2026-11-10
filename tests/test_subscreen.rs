@@ -75,7 +75,7 @@ fn test_the_amie_pages_pokemon_is_named_on_the_field_and_offered_to_stroke_in_am
         .into_iter()
         .map(|target| target.name)
         .collect();
-    assert_eq!(names, ["stroke Sceptile"]);
+    assert_eq!(names, ["stroke Sceptile", "stylus"]);
     assert!(found.poll(Some(FIELD)).unwrap().is_empty());
     // Keys of its own only while the screen that has them runs.
     assert_eq!(found.context(Some(berry_picker::APP)), Some(BERRY_PICKER));

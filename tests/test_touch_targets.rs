@@ -1297,6 +1297,38 @@ fn test_a_drag_holds_the_target_named_carries_it_with_the_keys_and_lets_go() {
     assert_eq!(screen.tapped(), []);
 }
 
+/// Pokémon-Amie's stylus, which the arrows move over the Pokémon (Orion, 2026-11-05): touch
+/// mode's drag picks it up where it is, and each move carries the press on, a stroke.
+#[test]
+fn test_a_target_a_screens_key_moves_carries_a_drag_wherever_it_goes() {
+    let mut screen = Screen::new(vec![Target::new(2, "stylus, head", 160, 120, 0.0, 240.0)]);
+    assert_eq!(screen.targets.choose(2).unwrap(), "stylus, head");
+    assert_eq!(screen.press(touch::DRAG), "holding stylus, head");
+    screen.found.borrow_mut()[0] = Target::new(2, "stylus, head", 166, 120, 0.0, 240.0);
+    assert_eq!(screen.targets.choose(2).unwrap(), "stylus, head");
+    screen.found.borrow_mut()[0] = Target::new(2, "stylus, body", 166, 126, 0.0, 240.0);
+    assert!(
+        screen.targets.choose(2).unwrap() == "stylus, body"
+            && screen.targets.choose(2).unwrap() == "stylus, body"
+    );
+    assert_eq!(screen.targets.choose(3).unwrap(), ""); // nothing there to choose
+    assert_eq!(screen.targets.drop(), "let go on stylus, body");
+    assert_eq!(
+        *screen.pressed.touches.borrow(),
+        [
+            ("hold", 160, 120),
+            ("move", 166, 120),
+            ("move", 166, 126),
+            ("release", 0, 0)
+        ]
+    );
+    // Moved with nothing picked up, it is only chosen: a tap taps where it is now.
+    screen.found.borrow_mut()[0] = Target::new(2, "stylus, head", 100, 90, 0.0, 240.0);
+    screen.targets.choose(2).unwrap();
+    screen.press(touch::TAP);
+    assert!(screen.tapped() == [(100, 90)] && screen.pressed.touches.borrow().len() == 4);
+}
+
 /// ADR-0009 as amended 2026-10-28: Shift alone picks up, and Shift pressed and let go to pause a
 /// screen reader would otherwise tap; Berry Picker's tree drops a berry tapped (spike 260).
 #[test]

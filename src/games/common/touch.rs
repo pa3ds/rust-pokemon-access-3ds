@@ -419,6 +419,17 @@ impl TouchMode {
         Ok(self.said(&found[at]))
     }
 
+    /// Choose a target a screen's own key has moved, carrying a drag picked up on to where
+    /// it is now, with its name to say: Pokémon-Amie's stylus (`amie.StylusKeys`).
+    pub fn choose(&mut self, pane: i64) -> Result<String> {
+        let Some(target) = (self.targets)()?.into_iter().find(|t| t.pane == pane) else {
+            return Ok(String::new());
+        };
+        self.chosen = Some(pane);
+        self.carry(&target);
+        Ok(self.said(&target))
+    }
+
     /// Whether a target is picked up to drag (`DRAG`), pressed yet or not.
     pub fn holding(&self) -> bool {
         self.picked.is_some()
@@ -490,13 +501,14 @@ impl TouchMode {
 
     /// Take what was picked up on to the target the keys have just chosen: pressed on the first
     /// such move, and slid from target to target after; or, where the screen drags only on
-    /// letting go (`delayed`), nothing touched until then.
+    /// letting go (`delayed`), nothing touched until then. A target the keys move, as the
+    /// stylus, is carried on to wherever it has gone (`choose`).
     fn carry(&mut self, target: &Target) {
         let (Some(picked), Some(over), Some(screen)) = (&self.picked, &self.over, &self.screen)
         else {
             return;
         };
-        if target.pane == over.pane {
+        if target.pane == over.pane && point(target) == point(over) {
             return;
         }
         let (picked, screen) = (picked.clone(), screen.clone());
@@ -518,7 +530,7 @@ impl TouchMode {
                 picked.name, picked.x, picked.y
             ));
         }
-        let (x, y) = target.drop.unwrap_or((target.x, target.y));
+        let (x, y) = point(target);
         screen.r#move(x, y);
         (self.log)(&format!("touch: carry to {} at ({x}, {y})", target.name));
     }
@@ -1459,6 +1471,11 @@ fn shown(layouts: &Layouts, pane: i64) -> Result<bool> {
     Ok(layouts
         .placement(pane)?
         .is_some_and(|placement| placement.shown))
+}
+
+/// Where a drag carries a press to on a target: its `drop`, or its middle.
+fn point(target: &Target) -> (i64, i64) {
+    target.drop.unwrap_or((target.x, target.y))
 }
 
 /// A step to `at` among `count`: round to the other end past either, or with `wrap` off stay

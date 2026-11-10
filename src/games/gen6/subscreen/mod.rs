@@ -68,7 +68,7 @@ use crate::games::gen6::game::Game;
 use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::rom::cries::Crier;
 use crate::py::{self, Result};
-use amie::{AmiePage, Goods, Puffs};
+use amie::{AmiePage, Goods, Puffs, StylusKeys};
 use berry_picker::{BerryKeys, BerryPicker, Process, Touching};
 use head_it::{Cue, Frames, HeadIt, HeadItKeys};
 use puzzle::TilePuzzle;
@@ -134,6 +134,21 @@ pub trait Keyed {
 }
 
 impl Keyed for RefCell<BerryKeys> {
+    fn context(&self, running: Option<&str>) -> Option<&'static str> {
+        self.borrow().context(running)
+    }
+
+    fn press(
+        &self,
+        action: &str,
+        running: Option<&str>,
+        touch: &mut dyn Touching,
+    ) -> Result<String> {
+        self.borrow_mut().press(action, running, touch)
+    }
+}
+
+impl Keyed for RefCell<StylusKeys> {
     fn context(&self, running: Option<&str>) -> Option<&'static str> {
         self.borrow().context(running)
     }
@@ -355,6 +370,9 @@ impl Subscreens {
             game.amie,
             reads_beside_gpu,
         )));
+        // Its own keys, the arrows, move a stylus over the Pokémon by the same picture, saying
+        // the part it comes onto, for touch mode to tap or drag there.
+        let stylus_keys = Rc::new(RefCell::new(StylusKeys::new(page.clone(), wrong.clone())));
         // Amie's decorate screen draws its Poké Puffs, and says nothing of which.
         let puffs = Rc::new(RefCell::new(Puffs::new(
             memory.clone(),
@@ -475,7 +493,7 @@ impl Subscreens {
             pictured: vec![waiting, bags],
             polled: vec![sparring, berry_picker.clone(), head_it.clone()],
             described: vec![puzzle.clone()],
-            keyed: vec![berry_keys, head_keys],
+            keyed: vec![berry_keys, head_keys, stylus_keys],
             ticked: vec![head_it.clone()],
             holding: vec![head_it.clone()],
             head_it,

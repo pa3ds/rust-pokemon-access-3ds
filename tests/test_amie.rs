@@ -1,5 +1,6 @@
 //! The Pokémon-Amie page's Pokémon is named by its species, through the icon it is drawn with.
 
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use indexmap::IndexMap;
@@ -8,12 +9,16 @@ use super::fake_memory::{CODE, FakeClasses, FakeMemory};
 use crate::core::keyfile::data_path;
 use crate::core::rtti::ClassNames;
 use crate::core::words::{self, ENGLISH, Words};
+use crate::games::common::field::keys::STYLUS;
 use crate::games::common::lyt;
 use crate::games::common::pictures::named;
+use crate::games::common::touch::Target;
 use crate::games::gen6::apps::FIELD;
 use crate::games::gen6::screens::distribution as d;
 use crate::games::gen6::subscreen::amie;
+use crate::games::gen6::subscreen::berry_picker::Touching;
 use crate::games::xy;
+use crate::py::Result;
 
 pub(crate) const PAGE: i64 = 0x08A00000;
 const HOLDER: i64 = 0x08A01000;
@@ -154,8 +159,8 @@ fn test_amie_itself_offers_its_pokemon_to_stroke_by_the_species_the_page_showed(
             .is_empty()
     );
     let strokes = found.targets(Some(amie::AMIE)).unwrap();
-    let [stroke] = strokes.as_slice() else {
-        panic!("one stroke: {strokes:?}");
+    let [stroke, _stylus] = strokes.as_slice() else {
+        panic!("a stroke and the stylus: {strokes:?}");
     };
     assert_eq!(
         (stroke.name.as_str(), stroke.path.clone(), stroke.seconds),
@@ -227,8 +232,8 @@ fn test_the_stroke_goes_along_the_widest_row_of_the_pokemons_head_in_the_games_p
         true,
     );
     let strokes = found.targets(Some(amie::AMIE)).unwrap();
-    let [stroke] = strokes.as_slice() else {
-        panic!("one stroke: {strokes:?}");
+    let [stroke, _stylus] = strokes.as_slice() else {
+        panic!("a stroke and the stylus: {strokes:?}");
     };
     // Rows 80 to 100 are broken by both eyes; above, only the right eye: 140 to 219 is 80 wide.
     // Back and forth as far as the old stroke went, 500 pixels: 9 passes of 55.
@@ -266,6 +271,110 @@ fn test_an_azahar_that_cannot_read_beside_the_gpu_has_its_picture_left_alone() {
         found.targets(Some(amie::AMIE)).unwrap()[0].path,
         amie::STROKE
     );
+}
+
+/// A grey is a kind of part, the same on every Pokémon (spike A): 17 Pikachu's cheek, which
+/// shocks the hand. A sweet spot (27, 28) or a danger zone (25, 26) is said by the Pokémon's own
+/// name for it in `amie.ftl`, Sceptile's 28 the leaves on its arms; one it has none for, as
+/// the head or the body, the side of the pair each is (Orion, 2026-11-05).
+#[test]
+fn test_the_stylus_is_offered_by_the_kind_of_part_it_is_on() {
+    let mut found = amie_running(
+        &[
+            (9, (100, 120, 220, 230)),
+            (8, (100, 60, 220, 120)),
+            (17, (180, 100, 190, 110)),
+            (27, (140, 60, 180, 70)),
+            (25, (100, 60, 110, 70)),
+            (28, (120, 200, 130, 210)),
+            (0, (200, 200, 210, 210)),
+        ],
+        true,
+    );
+    let mut stylus = |x: i64, y: i64| -> String {
+        found.stylus = (x, y);
+        let target = found.targets(Some(amie::AMIE)).unwrap()[1].clone();
+        assert_eq!(
+            (target.pane, target.x, target.y),
+            (amie::STYLUS_TARGET, x, y)
+        );
+        target.name
+    };
+    assert_eq!(stylus(150, 90), "stylus, head");
+    assert_eq!(stylus(185, 105), "stylus, sparks");
+    let (top, corner) = (stylus(150, 65), stylus(105, 65));
+    assert!(top == corner && corner == "stylus, head");
+    assert_eq!(stylus(150, 200), "stylus, body");
+    assert_eq!(stylus(125, 205), "stylus, leaves on its arms");
+    let (away, grey_0) = (stylus(10, 10), stylus(205, 205));
+    assert!(away == grey_0 && grey_0 == "stylus, off");
+}
+
+#[test]
+fn test_where_the_picture_cannot_be_read_the_stylus_is_offered_alone() {
+    let mut found = amie_running(&[(8, (100, 60, 220, 120))], false);
+    assert_eq!(found.targets(Some(amie::AMIE)).unwrap()[1].name, "stylus");
+}
+
+/// Touch mode as the stylus's keys use it: where it was when each move chose it.
+struct Chosen {
+    page: Rc<RefCell<amie::AmiePage>>,
+    chosen: Vec<(i64, (i64, i64))>,
+}
+
+impl Touching for Chosen {
+    fn targets(&mut self) -> Result<Vec<Target>> {
+        Ok(Vec::new())
+    }
+
+    fn give(&mut self, _picked: &Target, _over: &Target) -> String {
+        String::new()
+    }
+
+    fn tap(&mut self, _target: &Target) -> String {
+        String::new()
+    }
+
+    fn choose(&mut self, pane: i64) -> Result<String> {
+        self.chosen.push((pane, self.page.borrow().stylus));
+        Ok(String::new())
+    }
+}
+
+/// Orion, 2026-11-05: the arrows move the stylus over the Pokémon, a step a press, and touch
+/// mode chooses it as it goes, to tap or drag there.
+#[test]
+fn test_the_arrows_move_the_stylus_saying_a_part_as_it_comes_onto_one() {
+    let found = Rc::new(RefCell::new(amie_running(
+        &[(8, (100, 60, 220, 120))],
+        true,
+    )));
+    let mut chosen = Chosen {
+        page: found.clone(),
+        chosen: Vec::new(),
+    };
+    let mut keys = amie::StylusKeys::new(found.clone(), Rc::new(|line: &str| format!("! {line}")));
+    assert!(keys.context(Some(amie::AMIE)) == Some(STYLUS) && keys.context(Some(FIELD)).is_none());
+    found.borrow_mut().stylus = (160, 126);
+    let mut press =
+        |action: &str, chosen: &mut Chosen| keys.press(action, Some(amie::AMIE), chosen).unwrap();
+    assert_eq!(press("stylus up", &mut chosen), "off");
+    assert_eq!(press("stylus up", &mut chosen), "head");
+    assert_eq!(press("stylus up", &mut chosen), ""); // still the head
+    assert_eq!(press("stylus right", &mut chosen), "");
+    assert_eq!(
+        chosen.chosen,
+        [
+            (amie::STYLUS_TARGET, (160, 120)),
+            (amie::STYLUS_TARGET, (160, 114)),
+            (amie::STYLUS_TARGET, (160, 108)),
+            (amie::STYLUS_TARGET, (166, 108))
+        ]
+    );
+    found.borrow_mut().stylus = (2, 0);
+    assert_eq!(press("stylus left", &mut chosen), "off");
+    assert_eq!(press("stylus left", &mut chosen), "! edge");
+    assert!(press("stylus up", &mut chosen) == "! edge" && found.borrow().stylus == (0, 0));
 }
 
 /// Amie's decorate screen draws its puffs with the images of a system holding a texture for

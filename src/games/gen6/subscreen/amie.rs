@@ -43,8 +43,21 @@
 //!
 //! The slide runs along the longest row of the Pokémon's head, 8 on every Pokémon, inset from its
 //! ends, or of its body, 9, where its head shows too little; across the middle as before where there
-//! is no picture. Bound by ADR-0009, as amended 2026-11-02.
+//! is no picture.
+//!
+//! A grey is a kind of part, the same on every Pokémon, in pairs, the odd one on the head and the
+//! even on the body, and Amie's script switches on it for the stroke's sound and pitch, its kind, and
+//! the hand it draws: a burn on 15 and 16, a shock on 17 and 18 (spike A's census of every model in
+//! the ROM, and its listing of the script). So the **stylus**, a point the arrow keys move over the
+//! Pokémon while Amie runs (`StylusKeys`), says the kind of part it is on as it comes onto one
+//! (`PARTS`), and a sweet spot or danger zone by a name of pa3ds's own for that Pokémon's part
+//! (`SPOTS`); touch mode offers it beside the stroke, to tap or drag there.
+//!
+//! Bound by:
+//! - ADR-0009: the stroke aimed by the picture (as amended 2026-11-02), and the stylus the arrows
+//!   move, tapped or dragged only by touch mode's keys (as amended 2026-11-05).
 
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use indexmap::IndexMap;
@@ -54,13 +67,15 @@ use crate::core::discovery::{HEAP_SPAN, LINEAR_SPAN, within};
 use crate::core::heaps;
 use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
-use crate::core::words::own;
+use crate::core::words::{current, own};
+use crate::games::common::field::keys::{STYLUS, STYLUS_MOVES};
 use crate::games::common::touch::Target;
 use crate::games::common::{lyt, touch};
 use crate::games::gen6::apps::FIELD;
 use crate::games::gen6::gflheap;
 use crate::games::gen6::screens::distribution as d;
 use crate::games::gen6::screens::townmap;
+use crate::games::gen6::subscreen::berry_picker::Touching;
 use crate::py::{self, Error, Kind, Result};
 
 pub const CLASS: &str = "N5field9subscreen9kawaigari12FM_KawaigariE";
@@ -140,6 +155,67 @@ pub const STROKE_SECONDS: f64 = 3.0;
 pub const STROKE_TARGET: i64 = 1;
 /// pa3ds's word for the slide, the manual's: "you can stroke your Pokémon".
 pub const STROKE_WORD: &str = "amie-stroke";
+/// The pane the stylus stands in for in touch mode, which no pane is at either.
+pub const STYLUS_TARGET: i64 = 2;
+pub const STYLUS_WORD: &str = "amie-stylus";
+/// The stylus as touch mode offers it, by the part it is on, "stylus, head", or alone where the
+/// picture cannot be read.
+pub const STYLUS_ON: &str = "amie-stylus-on";
+/// The grey `AmiePage` gives a pixel off the Pokémon, where the picture has none.
+pub const OFF_PICTURE: i64 = -1;
+/// The danger zone's greys and the sweet spot's, which each Pokémon has on a part of its own: said
+/// by a name of pa3ds's own for its part, `amie-spot-<national number>-<grey>` in `amie.ftl`,
+/// "metal X" on Metagross's 27 (Orion, 2026-11-05: "our own name a Pokémon"), and where it has none
+/// as the head or the body (`PARTS`). A `frozenset` in Python, only ever tested for membership.
+pub const SPOTS: [i64; 4] = [25, 26, 27, 28];
+/// How long the part under the stylus is taken as read: an arrow press asks for it twice, and
+/// held, an arrow repeats some thirty times a second.
+pub const FRESH: f64 = 0.1;
+/// Where the stylus is before the arrows first move it: the middle of the screen, where the
+/// Pokémon stands.
+pub const STYLUS_START: (i64, i64) = (160, 120);
+/// How far an arrow moves the stylus, in the screen's pixels: Pikachu's cheek, the narrowest part
+/// spike A stroked, was 9 to 11 across, so no step jumps one; the screen is 53 steps across.
+pub const STEP: i64 = 6;
+/// Said as the stylus leaves the Pokémon, or comes onto grey 0, which the script takes for off
+/// it.
+pub const OFF: &str = "amie-part-off";
+/// Each grey by the kind of part it is, a message each (spike A): the same on every Pokémon. 1 lies
+/// on eye and mouth textures and 2 and 3 on furry Pokémon, not yet seen on screen. 25 to 28, the
+/// danger zone and the sweet spot, are each Pokémon's own part, said by its name of pa3ds's own
+/// (`SPOTS`), or where it has none as the head and the body, the side of the pair each is: the
+/// game's own stroke tells them apart, its pitch down on a danger zone and up on a sweet spot
+/// (`SEQ_SE_KW_STROKE` at 108 and 148 against 128). Any other grey is said as a part, `amie-part`.
+pub const PARTS: [(i64, &str); 27] = [
+    (1, "amie-part-face"),
+    (2, "amie-part-fur"),
+    (3, "amie-part-fur"),
+    (4, "amie-part-right-eye"),
+    (5, "amie-part-eye"),
+    (6, "amie-part-left-eye"),
+    (8, "amie-part-head"),
+    (9, "amie-part-body"),
+    (10, "amie-part-hand"),
+    (11, "amie-part-spikes"),
+    (12, "amie-part-spikes"),
+    (13, "amie-part-ghostly"),
+    (14, "amie-part-ghostly"),
+    (15, "amie-part-flame"),
+    (16, "amie-part-flame"),
+    (17, "amie-part-sparks"),
+    (18, "amie-part-sparks"),
+    (19, "amie-part-slime"),
+    (20, "amie-part-slime"),
+    (21, "amie-part-sludge"),
+    (22, "amie-part-sludge"),
+    (23, "amie-part-ice"),
+    (24, "amie-part-ice"),
+    (25, "amie-part-head"),
+    (26, "amie-part-body"),
+    (27, "amie-part-head"),
+    (28, "amie-part-body"),
+];
+pub const PART: &str = "amie-part";
 /// Where ORAS's page keeps its Pokémon's number; X's keeps it at 0x124 (`Game.amie`).
 pub const NUMBER: i64 = 0x14C;
 /// How far after the number the holder is, in ORAS and X alike (spike 228).
@@ -242,16 +318,21 @@ pub struct AmiePage {
     names: Rc<ClassNames>,
     species: Vec<String>,
     /// Where the page keeps its Pokémon's number, its holder `HOLDER` after it.
-    number: i64,
+    at: i64,
     /// Page object -> the vtable it was found with.
     pages: IndexMap<i64, i64>,
-    /// The species the page last showed, which Amie opens on.
     last: Option<String>,
+    /// The species the page last showed, which Amie opens on, and its national number.
+    number: i64,
     /// `Player` object -> the vtable it was found with.
     players: IndexMap<i64, i64>,
     /// When the stroke was last aimed, and where: the picture is 320 KB, and a replay asks
     /// for the targets every poll.
     aimed: (f64, Option<Path>),
+    /// Where the stylus is, as the arrows have moved it (`StylusKeys`).
+    pub stylus: (i64, i64),
+    /// Where the stylus was when its part was last read, when, and the part.
+    parted: ((i64, i64), f64, Option<String>),
 }
 
 impl AmiePage {
@@ -286,11 +367,14 @@ impl AmiePage {
             aim: aimed,
             names,
             species,
-            number,
+            at: number,
             pages: IndexMap::new(),
             last: None,
+            number: 0,
             players: IndexMap::new(),
             aimed: (-REREAD, None),
+            stylus: STYLUS_START,
+            parted: (STYLUS_START, f64::NEG_INFINITY, None),
         }
     }
 
@@ -338,12 +422,12 @@ impl AmiePage {
             return Ok(None);
         }
         for (&page, &vtable) in &self.pages {
-            let head = memory.read(page, self.number + HOLDER + 4)?;
+            let head = memory.read(page, self.at + HOLDER + 4)?;
             // A page freed and its memory taken by something else says nothing.
             if u32(&head, 0)? != vtable {
                 continue;
             }
-            let (number, holder) = (u32(&head, self.number)?, u32(&head, self.number + HOLDER)?);
+            let (number, holder) = (u32(&head, self.at)?, u32(&head, self.at + HOLDER)?);
             if holder == 0 || !(0 < number && number < self.species.len() as i64) {
                 continue;
             }
@@ -363,21 +447,22 @@ impl AmiePage {
     /// while Amie runs.
     pub fn species(&mut self) -> Result<Option<String>> {
         for (&page, &vtable) in &self.pages {
-            let head = self.memory.read(page, self.number + 4)?;
-            let number = u32(&head, self.number)?;
+            let head = self.memory.read(page, self.at + 4)?;
+            let number = u32(&head, self.at)?;
             if u32(&head, 0)? == vtable
                 && 0 < number
                 && number < self.species.len() as i64
                 && !self.species[number as usize].is_empty()
             {
-                self.last = Some(self.species[number as usize].clone());
+                (self.last, self.number) = (Some(self.species[number as usize].clone()), number);
                 break;
             }
         }
         Ok(self.last.clone())
     }
 
-    /// The stroke touch mode offers while Amie runs, by the Pokémon's species.
+    /// The stroke touch mode offers while Amie runs, by the Pokémon's species, and the
+    /// stylus, by the part it is on.
     pub fn targets(&mut self, running: Option<&str>) -> Result<Vec<Target>> {
         let species = if running == Some(AMIE) {
             self.species()?
@@ -387,13 +472,75 @@ impl AmiePage {
         let Some(species) = species else {
             return Ok(Vec::new());
         };
+        let (x, y) = self.stylus;
+        let part = self.part()?;
         let name = own(STROKE_WORD, &[("pokemon", &species)]);
-        Ok(vec![Target {
+        let stroke = Target {
             path: self.stroke()?.unwrap_or_else(|| STROKE.to_vec()),
             seconds: STROKE_SECONDS,
             drop: Some(MOUTH),
             ..Target::new(STROKE_TARGET, &name, 160, 120, 0.0, touch::HEIGHT as f64)
-        }])
+        };
+        let stylus = match part.as_deref() {
+            Some(part) if !part.is_empty() => own(STYLUS_ON, &[("part", &part)]),
+            _ => own(STYLUS_WORD, &[]),
+        };
+        Ok(vec![
+            stroke,
+            Target::new(STYLUS_TARGET, &stylus, x, y, 0.0, touch::HEIGHT as f64),
+        ])
+    }
+
+    /// The kind of part the stylus is on, in pa3ds's words (`PARTS`), "off" where it is off
+    /// the Pokémon, or None where the picture cannot be read; read again where the stylus has
+    /// moved or `FRESH` has gone by, as a press asks touch mode's targets and then this.
+    pub fn part(&mut self) -> Result<Option<String>> {
+        let now = py::time::monotonic();
+        let (where_, when, part) = &self.parted;
+        if *where_ == self.stylus && now - when < FRESH {
+            return Ok(part.clone());
+        }
+        let grey = self.grey_at(self.stylus.0, self.stylus.1)?;
+        let part = match grey {
+            None => None,
+            Some(0 | OFF_PICTURE) => Some(own(OFF, &[])),
+            Some(grey) => {
+                let spot = if SPOTS.contains(&grey) {
+                    current().get(&format!("amie-spot-{}-{grey}", self.number), &[])
+                } else {
+                    None
+                };
+                Some(match spot {
+                    Some(spot) if !spot.is_empty() => spot,
+                    _ => own(
+                        PARTS
+                            .iter()
+                            .find(|(kind, _)| *kind == grey)
+                            .map_or(PART, |(_, word)| word),
+                        &[],
+                    ),
+                })
+            }
+        };
+        self.parted = (self.stylus, now, part.clone());
+        Ok(part)
+    }
+
+    /// The grey of the part drawn at a pixel of the picture, `OFF_PICTURE` off the Pokémon,
+    /// or None where no picture can be read: one pixel read, as Amie's script reads it.
+    fn grey_at(&self, x: i64, y: i64) -> Result<Option<i64>> {
+        let Some(buffer) = self.buffer()? else {
+            return Ok(None);
+        };
+        let found = match self.memory.read(
+            buffer + PICTURE + x * COLUMN + (touch::HEIGHT - 1 - y) * 4,
+            4,
+        ) {
+            Ok(pixel) => grey(&pixel, 0)?,
+            Err(error) if error.is(Kind::RpcError) => return Ok(None),
+            Err(error) => return Err(error),
+        };
+        Ok(Some(found.unwrap_or(OFF_PICTURE)))
     }
 
     /// The stroke aimed by the Pokémon's picture of parts, again at most every `REREAD`
@@ -403,7 +550,26 @@ impl AmiePage {
         if !self.aim || now - self.aimed.0 < REREAD {
             return Ok(self.aimed.1.clone());
         }
-        let (memory, mut path) = (&self.memory, None);
+        let (mut path, buffer) = (None, self.buffer()?);
+        if let Some(buffer) = buffer {
+            path = match self.memory.read(buffer + PICTURE, touch::WIDTH * COLUMN) {
+                Ok(picture) => aim(&picture)?,
+                // A page unanswered: the stroke crosses the middle this time.
+                Err(error) if error.is(Kind::RpcError) => None,
+                Err(error) => return Err(error),
+            };
+        }
+        self.aimed = (now, path.clone());
+        Ok(path)
+    }
+
+    /// The buffer of the picture of parts drawn last, or None where no Player leads to one,
+    /// or the emulator cannot read it safely (`aimed`).
+    fn buffer(&self) -> Result<Option<i64>> {
+        if !self.aim {
+            return Ok(None);
+        }
+        let memory = &self.memory;
         for (&player, &vtable) in &self.players {
             let head = memory.read(player, HOLDS_PICTURE + 4)?;
             let holder = u32(&head, HOLDS_PICTURE)?;
@@ -422,17 +588,10 @@ impl AmiePage {
                 0
             };
             if within(LINEAR_SPAN, buffer) {
-                path = match memory.read(buffer + PICTURE, touch::WIDTH * COLUMN) {
-                    Ok(picture) => aim(&picture)?,
-                    // A page unanswered: the stroke crosses the middle this time.
-                    Err(error) if error.is(Kind::RpcError) => None,
-                    Err(error) => return Err(error),
-                };
-                break;
+                return Ok(Some(buffer));
             }
         }
-        self.aimed = (now, path.clone());
-        Ok(path)
+        Ok(None)
     }
 
     /// The image of texture 0 of a PokeIcon, or None where a link of the chain is not the
@@ -727,5 +886,70 @@ impl Goods {
                 .of_object(u32(&head, PUFFS)?)?
                 .as_deref()
                 == Some(d::REPLACE_CLASS))
+    }
+}
+
+/// Heard for an arrow that would take the stylus off the screen: the game's error sound, or the
+/// words where that is off.
+pub const EDGE: &str = "amie-stylus-edge";
+
+/// Amie's own keys, the arrows (Orion, 2026-11-05): each moves the stylus `STEP` pixels over
+/// the Pokémon, saying the kind of part it comes onto (`AmiePage.part`), and nothing more while
+/// it stays on that kind, touch mode's tone sounding where it is. Touch mode chooses the stylus
+/// as it moves, so touch mode's drag picks it up where it is and carries the press with each
+/// move after, a stroke as slow or as quick as the arrows go, and touch mode's tap taps there.
+///
+/// `wrong` is what is heard for an arrow at the screen's edge: a sound, and "", or the words.
+///
+/// Python's holds touch mode, which is built after the subscreens, as it offers their targets;
+/// here touch mode, which the navigator owns, is handed to `press`.
+pub struct StylusKeys {
+    page: Rc<RefCell<AmiePage>>,
+    wrong: Rc<dyn Fn(&str) -> String>,
+    /// The kind of part said last, which a move staying on it does not say again.
+    said: Option<String>,
+}
+
+impl StylusKeys {
+    pub fn new(page: Rc<RefCell<AmiePage>>, wrong: Rc<dyn Fn(&str) -> String>) -> Self {
+        StylusKeys {
+            page,
+            wrong,
+            said: None,
+        }
+    }
+
+    /// The keys' table in the keys file while Amie runs, `[pa3ds.amie.stylus]`, else None.
+    pub fn context(&self, running: Option<&str>) -> Option<&'static str> {
+        (running == Some(AMIE)).then_some(STYLUS)
+    }
+
+    /// Move the stylus, with the line to say.
+    pub fn press(
+        &mut self,
+        action: &str,
+        _running: Option<&str>, // only ever asked while Amie runs (`context`)
+        touch: &mut dyn Touching,
+    ) -> Result<String> {
+        let (_, (across, down)) = *STYLUS_MOVES
+            .iter()
+            .find(|(name, _)| *name == action)
+            .ok_or_else(|| Error::key(py::repr(action)))?;
+        let (x, y) = self.page.borrow().stylus;
+        let moved = (
+            (x + across * STEP).clamp(0, touch::WIDTH - 1),
+            (y + down * STEP).clamp(0, touch::HEIGHT - 1),
+        );
+        if moved == (x, y) {
+            return Ok((self.wrong)(&own(EDGE, &[])));
+        }
+        self.page.borrow_mut().stylus = moved;
+        touch.choose(STYLUS_TARGET)?;
+        let part = self.page.borrow_mut().part()?;
+        if part == self.said {
+            return Ok(String::new());
+        }
+        self.said = part.clone();
+        Ok(part.unwrap_or_default())
     }
 }

@@ -81,8 +81,15 @@ pub const DOWN: i64 = 0x8000;
 /// The process whose window the keys are answered in front of.
 pub const EMULATOR: &str = window::EMULATOR;
 
-/// Keys named by a word, as the keys file writes them, so Enter can be bound.
-pub const NAMED: [(i64, &str); 1] = [(0x0D, "enter")];
+/// Keys named by a word, as the keys file writes them, so Enter and the arrows can be bound: the
+/// arrows by Pokémon-Amie's stylus (`field.keys.STYLUS`).
+pub const NAMED: [(i64, &str); 5] = [
+    (0x0D, "enter"),
+    (0x25, "left"),
+    (0x26, "up"),
+    (0x27, "right"),
+    (0x28, "down"),
+];
 
 /// The OEM virtual keys by the character each carries on a US layout. Windows numbers these
 /// keys by their place, not their character, so on another layout the key in the semicolon's place

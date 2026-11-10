@@ -136,8 +136,16 @@ pub const HEADERS: [&str; 3] = ["left pokemon", "middle pokemon", "right pokemon
 /// Say Head It's score, its combo and its clock or chances left, which are left unsaid as they
 /// come unless the player asks (Orion, 2026-11-04; `head_it.HeadIt.score`).
 pub const SCORE_KEY: &str = "score";
+/// Amie's stylus moved a step over the Pokémon, which way across and down the screen each goes
+/// (Orion, 2026-11-05; `amie.StylusKeys`).
+pub const STYLUS_MOVES: [(&str, (i64, i64)); 4] = [
+    ("stylus up", (0, -1)),
+    ("stylus down", (0, 1)),
+    ("stylus left", (-1, 0)),
+    ("stylus right", (1, 0)),
+];
 
-pub const EXPLAINED: [(&str, &str); 9] = [
+pub const EXPLAINED: [(&str, &str); 10] = [
     (
         ENEMY_SIDE,
         "The enemy's Pokémon are said in the order the battle places them. In a horde of five that \
@@ -178,6 +186,11 @@ pub const EXPLAINED: [(&str, &str); 9] = [
     (
         SCORE_KEY,
         "In Head It, says the score, the combo and the time or the chances left.",
+    ),
+    (
+        "stylus up",
+        "In Pokémon-Amie, moves the stylus over your Pokémon, saying the part it comes onto; touch \
+         mode's drag key picks it up there, and these keys then stroke.",
     ),
     (REPEAT, "Says again the last thing pa3ds said."),
 ];
@@ -319,6 +332,8 @@ pub fn drag_keys(bindings: &Bindings) -> HashSet<String> {
 pub const BERRY_PICKER: &str = "amie.berry_picker";
 /// Pokémon-Amie's Head It while it runs: `[pa3ds.amie.head_it]` in the keys file.
 pub const HEAD_IT: &str = "amie.head_it";
+/// Pokémon-Amie itself while it runs: `[pa3ds.amie.stylus]` in the keys file.
+pub const STYLUS: &str = "amie.stylus";
 
 /// Context -> key -> action: keys that mean something only while one screen runs, in every mode,
 /// and are taken from the emulator only then, so a key that is a button of Azahar's elsewhere stays
@@ -330,7 +345,9 @@ pub type Contexts = IndexMap<String, IndexMap<String, String>>;
 /// mode's keys, which still drag there as ever. In Head It 8, 9 and 0 the Pokémon too, left to right
 /// (Orion, 2026-10-31), none of them a button of Azahar's as it ships; and R the score (Orion,
 /// 2026-11-04), pa3ds's key everywhere else, a battle's side: S and T, which he offered beside it,
-/// are his B and his D-pad's up, which the list after a round may want.
+/// are his B and his D-pad's up, which the list after a round may want. In Amie itself the arrows
+/// move the stylus over the Pokémon (Orion, 2026-11-05): they are the circle pad as Orion binds it,
+/// and Amie's script reads no stick, only that some button is pressed.
 pub static DEFAULT_CONTEXTS: LazyLock<Contexts> = LazyLock::new(|| {
     let mut keys: IndexMap<String, String> = BERRIES
         .iter()
@@ -349,6 +366,15 @@ pub static DEFAULT_CONTEXTS: LazyLock<Contexts> = LazyLock::new(|| {
                 ("9".to_string(), HEADERS[1].to_string()),
                 ("0".to_string(), HEADERS[2].to_string()),
                 ("r".to_string(), SCORE_KEY.to_string()),
+            ]),
+        ),
+        (
+            STYLUS.to_string(),
+            IndexMap::from([
+                ("up".to_string(), "stylus up".to_string()),
+                ("down".to_string(), "stylus down".to_string()),
+                ("left".to_string(), "stylus left".to_string()),
+                ("right".to_string(), "stylus right".to_string()),
             ]),
         ),
     ])
