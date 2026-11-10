@@ -92,7 +92,7 @@ sprite-0x5d = 宝可梦巡护员
 sprite-0x5f = 研究员
 sprite-0x61 = 工人
 sprite-0x64 = 童话少女
-sprite-0x67 = 园艺师
+sprite-0x67 = 园艺家
 sprite-0x70 = 登山男
 sprite-0xa3 = 泳裤小伙子
 sprite-0xa4 = 比基尼姐姐
@@ -648,7 +648,58 @@ place-0x37-furniture-5 = 照片
 place-0x37-furniture-6 = 照片
 place-0x37-furniture-7 = 照片
 # Lysandre Café: story 313:4, Lumiose City, zone 0x43; pa3ds's own word, Lysandre's name above and café, since no official one was found
-place-0x43-warp-1 = 弗拉达利咖啡馆
+place-0x43-warp-1 = 弗拉达利咖啡店
+# Lumiose's exits no plate, facility or street mark names (Khai, 2026-11-09):
+# Looker Bureau: story 313:7, zone 0x43, a plate no record shows; wiki.52poke.com/wiki/密阿雷市. Before Looker moves in, the plate says the unit is for rent
+place-0x43-warp-5 = 帅哥侦探事务所
+# Restaurant Le Wow: story 313:11, zone 0x43, its plate on the next line (spike 107); wiki.52poke.com/wiki/密阿雷市, in Simplified pa3ds's
+place-0x43-warp-8 = 鼎极餐馆
+# Lumiose Transportation Office: zone 0x56, no plate; as its receptionist says it, story 388:0; pa3ds's own word
+place-0x3f-warp-3 = 密阿雷交通营业所
+# Vert Plaza: a warp out onto a line with no street mark, named for the marked line nearest it on the map's own lines; text 71, wiki.52poke.com/wiki/密阿雷市
+place-0x3f-warp-11 = 绿色广场
+place-0x42-warp-17 = 绿色广场
+place-0x45-warp-38 = 绿色广场
+place-0x45-warp-39 = 绿色广场
+place-0x45-warp-40 = 绿色广场
+# Bleu Plaza: a warp out onto a line with no street mark, named for the marked line nearest it on the map's own lines; text 71, wiki.52poke.com/wiki/密阿雷市
+place-0x40-warp-9 = 蓝色广场
+place-0x45-warp-47 = 蓝色广场
+place-0x45-warp-48 = 蓝色广场
+place-0x45-warp-49 = 蓝色广场
+# Magenta Plaza: a warp out onto a line with no street mark, named for the marked line nearest it on the map's own lines; text 71, wiki.52poke.com/wiki/密阿雷市
+place-0x41-warp-12 = 粉色广场
+# Rouge Plaza: a warp out onto a line with no street mark, named for the marked line nearest it on the map's own lines; text 71, wiki.52poke.com/wiki/密阿雷市
+place-0x41-warp-17 = 红色广场
+place-0x45-warp-21 = 红色广场
+place-0x45-warp-22 = 红色广场
+place-0x45-warp-23 = 红色广场
+# Jaune Plaza: a warp out onto a line with no street mark, named for the marked line nearest it on the map's own lines; text 71, wiki.52poke.com/wiki/密阿雷市
+place-0x42-warp-15 = 黄色广场
+place-0x42-warp-16 = 黄色广场
+place-0x45-warp-32 = 黄色广场
+place-0x45-warp-33 = 黄色广场
+place-0x45-warp-34 = 黄色广场
+place-0x45-warp-35 = 黄色广场
+place-0x45-warp-36 = 黄色广场
+place-0x45-warp-37 = 黄色广场
+# back alley: zones 0x98 to 0x9b, open air on matrix 220 with no text of their own, the alleys of Looker's “Chapter 2 In the Back Alleys” (text 103:1); pa3ds's own word
+place-0x3f-warp-7 = 小巷
+place-0x41-warp-7 = 小巷
+place-0x41-warp-8 = 小巷
+place-0x42-warp-8 = 小巷
+# office building: zone 0x5b, “If you take the elevator, you’ll reach the floor where they study how to catch Pokémon” (story 383:0); pa3ds's own word
+place-0x40-warp-1 = 办公楼
+# skaters’ lobby: zone 0x90, a Roller Skater teaching the parallel swizzle (story 330:6); pa3ds's own word
+place-0x40-warp-5 = 溜冰者大厅
+# Attack challenge lobby: zone 0x72, “Look, my Clauncher’s Attack is 100!” (story 360:2); pa3ds's own word
+place-0x41-warp-4 = 攻击比拼大厅
+# photo shoot: zone 0x95, Mamoswine’s shoot for Mamoswinelline (story 325); pa3ds's own word
+place-0x41-warp-5 = 拍摄现场
+# Ability check lobby: zone 0x6f, a woman who asks to see a Pokémon’s Ability (story 363:2); pa3ds's own word
+place-0x42-warp-3 = 特性大厅
+# researcher’s lobby: zone 0x76, a man studying Eerie Impulse (story 356:0); pa3ds's own word
+place-0x43-warp-2 = 研究者大厅
 # bed: story 374:0, Lysandre Labs, zone 0x64: "The bed looks nice and comfortable."; pa3ds's own word
 place-0x64-furniture-0 = 床
 place-0x64-furniture-1 = 床

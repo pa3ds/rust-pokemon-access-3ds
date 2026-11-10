@@ -24,6 +24,10 @@ way-ahead = ahead
 way-behind = behind
 way-left = left
 way-right = right
+# Up and down the Circle Pad, as C says where a Super Training round's Pokémon stands:
+# "7 up 2 left".
+way-up = up
+way-down = down
 # So many steps one way: a leg of a way, "5 east", and half of a bearing, "3 east 2 north".
 steps = { $count } { $way }
 # A leg walked with a move, "Surf 3 south": the move's name is the game's.
@@ -89,6 +93,8 @@ key-path-off = path off
 key-no-path = no path
 # The battle keys out of a battle.
 key-no-battle = no battle
+# Y, the last line again, before pa3ds has said anything.
+key-nothing-said = nothing said yet
 # Comma and period on something with only one way to it.
 key-one-way = one way to it
 # An exit's arrival somewhere else on the map: "teleporter, 3 east, out at 10 north".
@@ -99,6 +105,8 @@ past-teleporter = past a teleporter
 # What an exit is called, then where it leads, when that is another place, the game's own word
 # for it: "edge to Route 101".
 leads-to = { $thing } to { $place }
+# A sign named by its first line, the game's own words: "Route 1 sign", "Trainer Tips sign".
+sign-saying = { $text } sign
 # A thing's coordinates spanning several cells: "x 80 to 119".
 span = { $low } to { $high }
 # One of two or more: "north, east or west".
@@ -287,13 +295,120 @@ habitat-fishing = fishing
 # and "red goals" and names none.
 training-goal = goal
 training-red-goal = red goal
+# A Balloon Bot's barrier, shot as a goal is: the game's coach speaks of "a barrier"
+# and names no picture.
+training-barrier = barrier
 # A ball of the Balloon Bot's in flight, said interrupting: the game says nothing.
 training-shot-coming = shot coming
 # The clock, every half minute and at ten seconds: "1:30 left".
 training-left = { $time } left
-# Touch mode's one gesture that is not a tap, a slide back and forth over the Pokémon, the
-# manual's word: "stroke Sceptile".
-amie-stroke = stroke { $pokemon }
+# The bag hanging beside the Pokémon when none is in use, as touch mode offers it; the game never
+# names it, and a tap on it can find a training bag.
+training-empty-bag = empty bag
+# Said as the game draws a "!" over the Pokémon: it has finished its training bag, and a tap on it
+# gives the bag's effect. Core Training is the game's name for hitting the bag: use your language's
+# game's own word for it, as its Super Training says it.
+training-bag-finished = { $pokemon } finished Core Training
+# Said as the Pokémon on Super Training's page starts to rest, the game drawing an icon over it:
+# it will not do a regimen until a tap on it wakes it.
+training-resting = { $pokemon } is resting
+# What R says on Super Training's page: each stat by how many fifths of the chart it fills, "HP 2
+# of 5" (`amie-meter`), or with the Extra on its points, "HP 12"; and the total's label.
+training-stat = { $stat } { $points }
+training-total = total
+training-total-points = total { $points } of { $full }
+# A press held on a goal: said as its aura comes, and let go then it is a Charged Shot; and if it
+# burns out with the press still down.
+training-charged = charged
+training-fizzled = fizzled
+# A Balloon Bot's ball stopped by the barrier the L button raises.
+training-blocked = blocked
+# What C says in a round with the Pokémon where it started, within half a step.
+training-at-start = at the start
+# The moment to raise the barrier or dodge, where it is asked for in words.
+training-block-now = now
+# The meter low in the middle of a round's top screen, as R says it: "energy 4 of 5". The game's
+# coach calls it "how much energy your Pokémon has".
+training-energy = energy
+# R with nothing to read yet, where the game's error sound is off.
+training-no-numbers = no numbers yet
+# The regimen menu's count of the Pokémon's medals, which the game writes "x 0" beside a picture
+# of a medal.
+training-medals = { $count ->
+    [one] 1 medal
+   *[other] { $count } medals
+}
+# Pokémon-Amie's Pokémon as touch mode offers it, a press that beckons it to turn round and come
+# up close, and where a Poké Puff is let go: "beckon Sceptile".
+amie-beckon = beckon { $pokemon }
+# A Pokémon of another player's visiting the Pokémon-Amie page, as touch mode offers it.
+amie-visitor = visiting { $pokemon }
+# The stylus the arrows move over the Pokémon in Pokémon-Amie, as touch mode offers it, by the kind
+# of part it is on, "stylus, head", or alone where pa3ds cannot tell; a tap or a drag on it rubs
+# there.
+amie-stylus = stylus
+amie-stylus-on = stylus, { $part }
+# An arrow that would take the stylus off the screen, where the game's error sound is off.
+amie-stylus-edge = edge
+# A Pokémon too big for the bottom screen, as touch mode offers it: the game keeps it on the top
+# screen until a press held at the touch screen's top edge brings it down. What is said once it
+# has moved.
+amie-view-down = bring { $pokemon } down
+amie-view-up = send { $pokemon } back up
+amie-view-came-down = { $pokemon } came down
+amie-view-went-up = { $pokemon } went back up
+# What a Pokémon in Pokémon-Amie is seen doing, as it starts or stops, with the Amie setting
+# descriptions on. Your hand is the one Amie draws where the stylus is.
+amie-mood-coming = { $pokemon } comes up to you
+amie-mood-back-turned = { $pokemon } has its back turned
+amie-mood-turned-round = { $pokemon } turned round
+amie-mood-dozing = { $pokemon } is dozing off
+amie-mood-asleep = { $pokemon } is asleep
+amie-mood-awake = { $pokemon } woke up
+amie-mood-too-full = { $pokemon } is too full to eat
+amie-mood-puff-seen = { $pokemon } is eyeing the { $puff }
+amie-mood-reaching = { $pokemon } is reaching for the { $puff }
+amie-mood-eating = { $pokemon } is eating
+amie-mood-eaten = { $pokemon } finished the { $puff }
+amie-mood-puff-fell = the { $puff } fell
+amie-mood-picky = { $pokemon } frowns and turns away
+amie-mood-watching = { $pokemon } is watching your hand
+amie-mood-looking-around = { $pokemon } is looking around
+amie-mood-hand-raised = { $pokemon } is holding up its hand
+amie-mood-your-face = { $pokemon } leans in to your face
+# What a pet, a puff or a high five shows, with the same setting on: the hearts that float up, and
+# the happy dance a puff brings. A pet that gives no hearts and costs Enjoyment was disliked.
+amie-hearts = { $count ->
+    [one] 1 heart
+   *[other] { $count } hearts
+}
+amie-high-five = High five!
+amie-mood-disliked = { $pokemon } didn't like that...
+amie-mood-closer = { $pokemon } is overjoyed, and hearts pour out
+amie-mood-best-friends = { $pokemon } goes wild with joy in a shower of hearts
+# One of Amie's three numbers, the game's own word for it and how many of its five icons are
+# filled, on the Switch screen and on the key that says them in Amie itself.
+amie-meter = { $label } { $count } of 5
+# The kinds of part the stylus says as it comes onto one. The game names none: Amie paints each
+# kind a grey of its own, the same on every Pokémon, and reacts to each in its own way, a burn on
+# a flame, a shock on sparks. Off is off the Pokémon, and says which.
+amie-part-off = off { $pokemon }
+amie-part-head = head
+amie-part-body = body
+amie-part-right-eye = right eye
+amie-part-left-eye = left eye
+amie-part-eye = eye
+amie-part-right-ear = right ear
+amie-part-left-ear = left ear
+amie-part-hand = hand
+amie-part-spikes = spikes
+amie-part-ghostly = ghostly
+amie-part-flame = flame
+amie-part-sparks = sparks
+amie-part-slime = slime
+amie-part-sludge = sludge
+amie-part-ice = ice
+amie-part = part
 # A tile of Pokémon-Amie's Tile Puzzle, as a spreadsheet names a cell, its column a letter from A
 # and its row a number from 1 (puzzle-cell): "B3" the second column of the third row. Then where
 # the piece of the picture it shows belongs: "B1, in place", "B1, goes to D3". The game says
@@ -369,6 +484,7 @@ window-menu-help = &Help
 # Each opens a page of the manual in the browser.
 window-documentation = &Documentation...
 window-keys = &Key commands...
+window-amie = Pokémon-&Amie...
 window-known-issues = Known &issues...
 window-translating = &Translating...
 window-changelog = &Changelog...
@@ -393,6 +509,11 @@ setting-pa3ds-ui-unfocused = Speak while Azahar is in the background
 setting-pa3ds-ui-unfocused-about = Keep saying what the game shows while another window is in front; otherwise pa3ds is quiet then, but for its own keys and messages.
 setting-pa3ds-ui-descriptions = Scene descriptions
 setting-pa3ds-ui-descriptions-about = Describe the scenes the game shows without words, such as Groudon waking. Each description is said after the line of text the scene follows. Only some scenes are described so far.
+setting-pa3ds-ui-trainer_party = How many Pokémon a trainer has
+setting-pa3ds-ui-trainer_party-about = As a trainer's battle opens, after "You are challenged by", say how many Pokémon the trainer has ("text"), play a beep for each ("beeps"), or neither ("off"). The beeps are as loud as the tones under [pa3ds.audio].
+setting-pa3ds-ui-trainer_party-text = Say it
+setting-pa3ds-ui-trainer_party-beeps = A beep for each
+setting-pa3ds-ui-trainer_party-off = Neither
 setting-pa3ds-ui-language = Language
 setting-pa3ds-ui-language-about = The language pa3ds says its own words in, as the name of a folder of its data: en, fr, de, es, it, ja, ko, zh-CN or zh-TW. Empty follows the game's own language, which pa3ds reads from the save; set it where that is wrong, as for a fan translation over another language, and in Sun and Moon, whose save pa3ds cannot read, where it is the game's language too.
 setting-pa3ds-audio-tones = Relative volume for tones
@@ -427,6 +548,10 @@ setting-pa3ds-touch-drag = How to drag
 setting-pa3ds-touch-drag-about = Drag with Shift held, or a key of your own bound to drag in keys.toml, letting go of the touch as it comes up ("hold"), or tap it to pick up and tap it again to let go ("toggle"). Only Pokémon-Amie drags.
 setting-pa3ds-touch-drag-hold = Hold Shift
 setting-pa3ds-touch-drag-toggle = Tap to pick up, tap to let go
+setting-pa3ds-amie-descriptions = Describe what the Pokémon is doing
+setting-pa3ds-amie-descriptions-about = In Pokémon-Amie, say what your Pokémon is seen doing as it starts and stops: looking around, watching your hand, eating, holding up its hand for a high five. Each of its animations is described as it plays, in a sentence of that Pokémon's own. It also says the hearts a pet brings, and when a high five lands.
+setting-pa3ds-amie-fidgets = Describe the Pokémon's idle movements
+setting-pa3ds-amie-fidgets-about = With Pokémon-Amie's descriptions on, also say the small movements your Pokémon makes by itself every few seconds. Off, only what it does in reaction to you is said.
 setting-pa3ds-amie-berry_first = Berry Picker says the berry first
 setting-pa3ds-amie-berry_first-about = Say each Pokémon wanting a berry in the order you give it, the berry and then the Pokémon, "Pinap Berry for Pikachu"; false says the Pokémon first, "Pikachu wants Pinap Berry".
 setting-pa3ds-amie-one_at_a_time = Berry Picker says one Pokémon at a time
@@ -450,6 +575,20 @@ setting-pa3ds-amie-head_it_score = Head It says the score as it changes
 setting-pa3ds-amie-head_it_score-about = In Head It, say the score, the combo and each miss as they come, the score and the combo once while they keep going up; false leaves them to Head It's score key (R), which says them with the time or the chances left whenever you press it.
 setting-pa3ds-extras-conditions = Contest conditions as numbers
 setting-pa3ds-extras-conditions-about = Say a Pokémon's contest conditions as numbers where the game draws them as a star, on the summary and in the Pokéblock Case: the star is shown to everyone but pa3ds cannot read it, so its numbers are all it can give, and they are more exact than the star.
+setting-pa3ds-training-shot_cue = When a Balloon Bot shoots
+setting-pa3ds-training-shot_cue-about = In a Super Training regimen, how you hear a Balloon Bot's shot being fired: the game's alert sound, the words "shot coming", or nothing. With feedback sounds off, the sound is said in words.
+setting-pa3ds-training-shot_cue-sound = Sound
+setting-pa3ds-training-shot_cue-speech = Speech
+setting-pa3ds-training-shot_cue-off = Off
+setting-pa3ds-training-block_cue = When to block or dodge
+setting-pa3ds-training-block_cue-about = In a Super Training regimen, how you hear that a shot is about to arrive: the game's "!" sound, the word "now", or nothing. With feedback sounds off, the sound is said in words.
+setting-pa3ds-training-block_cue-sound = Sound
+setting-pa3ds-training-block_cue-speech = Speech
+setting-pa3ds-training-block_cue-off = Off
+setting-pa3ds-training-block_lead = Block cue lead
+setting-pa3ds-training-block_lead-about = How many seconds before a shot arrives the block cue comes. A barrier lasts under a second from when you press L.
+setting-pa3ds-extras-base_stats = Super Training's stats as numbers
+setting-pa3ds-extras-base_stats-about = Have R on Super Training's page say each stat's points where the game draws them as a chart, rather than a rough share of each.
 setting-pa3ds-extras-hidden_items = Hidden items
 setting-pa3ds-extras-hidden_items-about = List the hidden items still to be found, as "hidden item", among the items: under the sea alone ("underwater"), where the Dowsing Machine cannot be used and a sighted player may see a glint among the rocks and the weed, or everywhere ("all"), which tells what the game keeps from everyone; "off" lists none.
 # What each of the hidden items setting's words is called in the settings dialog.
@@ -464,6 +603,7 @@ settings-page-audio = Audio
 settings-page-navigation = Navigation
 settings-page-touch = Touch mode
 settings-page-amie = Pokémon-Amie
+settings-page-training = Super Training
 settings-page-extras = Extras
 settings-browse = &Browse...
 # The first of the languages pa3ds can speak in: none chosen.
@@ -513,6 +653,12 @@ kind-way-down = way down
 # Dewford Gym's belts (spike 132), and each way onto one of the Poké Ball Factory's (spike 259).
 kind-conveyor-belt = conveyor belt
 kind-switch = switch
+# Snowbelle City Gym's four switches, each by the colour of the platform it stands at the end
+# of: the game names none of them (x_eighth_gym).
+kind-pink-switch = pink switch
+kind-blue-switch = blue switch
+kind-yellow-switch = yellow switch
+kind-green-switch = green switch
 kind-warp = warp
 kind-path = path
 # An edge, where a zone's ground runs on into the next, is said as a path is: the player
@@ -577,9 +723,23 @@ kind-crumbled-cliff = crumbled cliff
 # "20/20", the enemy's as a share of its bar, since a bar is all the game shows (ADR-0015).
 battle-battler = { $name } L{ $level } { $hp }
 battle-share = { $percent }%
+battle-party = { $count } Pokémon
 
 ## Scenes
 
 # Who a scene's description is said as, named as a speaker is when it takes over from whoever
 # spoke last: "Narration: Groudon rises." (Orion, 2026-10-12).
 narration = Narration
+
+# The Y button's menu: a way of the circle pad or D-pad and the key item it uses, "up Mach Bike".
+registered-slot = { $way } { $item }
+registered-up = up
+registered-right = right
+registered-down = down
+registered-left = left
+
+# An item carried in the Bag's own sort, and where it would land: "moving Pearl, between Macho Brace and Icy Rock".
+bag-moving = moving { $item }
+bag-between = between { $above } and { $below }
+bag-above = above { $below }
+bag-below = below { $above }

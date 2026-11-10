@@ -671,3 +671,232 @@ id = "y-weapon-fires-pit"
 zone = 0x15
 at = 0.5
 id = "y-weapon-fires-arrive"
+
+# The Pokémon League's Elite Four, a movie a chamber from the hall, zone 0xf6 (x_elite-fire,
+# x_elite-water, x_elite-steel and x_elite-dragon, 2026-11-07, each replayed with a picture a
+# second and the player's cell logged at every step). Each chamber is a corridor and a room: the
+# Blazing Chamber 0xf7 and 0xfb, Malva's; the Flood Chamber 0xf8 and 0xfc, Siebold's; the
+# Ironworks Chamber 0xf9 and 0xfd, Wikstrom's; the Dragonmark Chamber 0xfa and 0xfe, Drasna's.
+#
+# The four corridors are one hall of marble, the same to the cell: the player walks north from
+# row 78 and crosses trigger 3 across row 50, and the script stands them on a platform at row 48
+# and lifts them up into the room, 8 s, past windows of the chamber's colour. Each room's trigger
+# 0 is the cell the player arrives on, (19, 23), and the player cannot move there until the room
+# has played its show, 12 to 24 s, of no words: the beats are timed from it. Trigger 1, near the
+# top of the steps (row 9, and in Wikstrom's room all of row 17), starts a close view of the
+# member some 2 s before their first line. Seen in X; Y played each to the same frames (the
+# movies replayed on Y from the save made Y's by spike 212's `y`).
+[[scene]]
+zone = 0xf7
+
+[[scene.beat]]
+id = "league-corridor-fire"
+
+[[scene]]
+zone = 0xf7
+trigger = 3
+
+[[scene.beat]]
+at = 1
+id = "league-lift-fire-1"
+
+[[scene.beat]]
+at = 4
+id = "league-lift-fire-2"
+
+[[scene]]
+zone = 0xfb
+trigger = 0
+
+[[scene.beat]]
+at = 1
+id = "malva-room-1"
+
+[[scene.beat]]
+at = 3
+id = "malva-room-2"
+
+[[scene.beat]]
+at = 8
+id = "malva-room-3"
+
+[[scene]]
+zone = 0xfb
+trigger = 1
+
+[[scene.beat]]
+at = 2
+id = "malva-waits"
+
+[[scene]]
+zone = 0xf8
+
+[[scene.beat]]
+id = "league-corridor-water"
+
+[[scene]]
+zone = 0xf8
+trigger = 3
+
+[[scene.beat]]
+at = 1
+id = "league-lift-water-1"
+
+[[scene.beat]]
+at = 4
+id = "league-lift-water-2"
+
+[[scene]]
+zone = 0xfc
+trigger = 0
+
+[[scene.beat]]
+at = 1
+id = "siebold-room-1"
+
+[[scene.beat]]
+at = 10
+id = "siebold-room-2"
+
+[[scene.beat]]
+at = 13.5
+id = "siebold-room-3"
+
+[[scene.beat]]
+at = 18
+id = "siebold-room-4"
+
+[[scene]]
+zone = 0xfc
+trigger = 1
+
+[[scene.beat]]
+at = 2
+id = "siebold-waits"
+
+[[scene]]
+zone = 0xf9
+
+[[scene.beat]]
+id = "league-corridor-steel"
+
+[[scene]]
+zone = 0xf9
+trigger = 3
+
+[[scene.beat]]
+at = 1
+id = "league-lift-steel-1"
+
+[[scene.beat]]
+at = 4
+id = "league-lift-steel-2"
+
+[[scene]]
+zone = 0xfd
+trigger = 0
+
+[[scene.beat]]
+at = 1
+id = "wikstrom-room-1"
+
+[[scene.beat]]
+at = 3
+id = "wikstrom-room-2"
+
+[[scene.beat]]
+at = 6.5
+id = "wikstrom-room-3"
+
+[[scene.beat]]
+at = 9
+id = "wikstrom-room-4"
+
+[[scene]]
+zone = 0xfd
+trigger = 1
+
+[[scene.beat]]
+at = 3
+id = "wikstrom-waits"
+
+[[scene]]
+zone = 0xfa
+
+[[scene.beat]]
+id = "league-corridor-dragon"
+
+[[scene]]
+zone = 0xfa
+trigger = 3
+
+[[scene.beat]]
+at = 1
+id = "league-lift-dragon-1"
+
+[[scene.beat]]
+at = 4
+id = "league-lift-dragon-2"
+
+[[scene]]
+zone = 0xfe
+trigger = 0
+
+[[scene.beat]]
+at = 1
+id = "drasna-room-1"
+
+[[scene.beat]]
+at = 5
+id = "drasna-room-2"
+
+[[scene.beat]]
+at = 16
+id = "drasna-room-3"
+
+[[scene.beat]]
+at = 21
+id = "drasna-room-4"
+
+[[scene]]
+zone = 0xfe
+trigger = 1
+
+[[scene.beat]]
+at = 2
+id = "drasna-waits"
+
+# The Radiant Chamber, zone 0xff, and the Champion's room, 0x100 (x_champion, 2026-11-07, replayed
+# as the Elite Four's were). The player walks north up a long hall from row 50 and crosses trigger
+# 3 across row 21, x 11 to 16; 4 s later the platform there rises and white light floods the view,
+# and they arrive in her room 9 s after the trigger. Her room plays no show on arriving: its one
+# trigger, all of row 20, starts a close view of the player and the Champion 2 s on, 3 s before
+# her first line. Seen in X alone, and said in both, as the Elite Four's chambers matched in Y.
+[[scene]]
+zone = 0xff
+
+[[scene.beat]]
+id = "champion-hall"
+
+[[scene]]
+zone = 0xff
+trigger = 3
+
+[[scene.beat]]
+at = 2
+id = "champion-lift"
+
+[[scene]]
+zone = 0x100
+
+[[scene.beat]]
+at = 1
+id = "champion-room"
+
+[[scene]]
+zone = 0x100
+trigger = 0
+
+[[scene.beat]]
+at = 2
+id = "diantha-waits"

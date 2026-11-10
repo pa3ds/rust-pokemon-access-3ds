@@ -42,7 +42,7 @@ sprite-0x134 = 邦迪先生
 # DIRECTOR_RS: Lilycove, "I'm the Game Director." (story 530:0)
 sprite-0x139 = 游戏总监
 # EV_POKE35: Lilycove's three; its model names Nidoran♂ too, and draws Wailmer's body
-sprite-0x1030 = 吼鲸王
+sprite-0x1030 = 吼吼鲸
 
 # Shared looks the game never names, called what the ROM's own id for the sprite says they are
 # (file 94, `spikes/85_rom_names.py sprite`), since everyone drawn as one hears the same word:
@@ -147,19 +147,19 @@ sprite-0x10f = 年少搭档
 # Trainers' looks the ROM leaves unnamed, one trainer or none of a class standing as each, or a
 # pair class beside the class (spike 90); called by the class their id and their trainers share.
 # SCHOOL_M_RS
-sprite-0xdd = 学生
+sprite-0xdd = 补习班学生
 # SCHOOL_M_ROOM_RS
-sprite-0x145 = 学生
+sprite-0x145 = 补习班学生
 # SCHOOL_W_ROOM_RS
-sprite-0x146 = 学生
+sprite-0x146 = 补习班学生
 # TANPAN_ROOM_RS
-sprite-0x143 = 少年
+sprite-0x143 = 短裤小子
 # MINI_ROOM_RS
-sprite-0x144 = 少女
+sprite-0x144 = 迷你裙
 # MOUNTMAN_ROOM_RS
 sprite-0x147 = 登山男
 # AROMA_ROOM_RS
-sprite-0x148 = 芳香姐姐
+sprite-0x148 = 香氛姐姐
 # SWIMMER_M_RS
 sprite-0xe5 = 泳裤小伙子
 # UKIWA_W2_RS
@@ -177,13 +177,13 @@ sprite-0x149 = 精英训练家
 # ELITE_F_ROOM_RS
 sprite-0x14a = 精英训练家
 # VETERAN_M_ROOM_RS
-sprite-0x14b = 老手
+sprite-0x14b = 达人
 # VETERAN_F_ROOM_RS
-sprite-0x14c = 老手
+sprite-0x14c = 达人
 # SCARY_M_ROOM_RS
-sprite-0x14d = 不良青年
+sprite-0x14d = 可怕的大叔
 # SCARY_W_ROOM_RS
-sprite-0x14e = 不良少女
+sprite-0x14e = 可怕的姐姐
 
 # Things standing on the map that the game never names.
 # omega_ruby_bush.ctm: "You can't pass because of prickly thorns, but a Pokémon may be able to cut the tree."
@@ -210,13 +210,13 @@ sprite-0x204d = 拉普拉斯玩偶
 # DOLL_KABIGON: text 56:118
 sprite-0x204e = 卡比兽玩偶
 # AIIRONOTAMA: text 114:535, on Mt. Pyre's summit
-sprite-0x204f = 蓝色宝珠
+sprite-0x204f = 靛蓝色宝珠
 # BENIIRONOTAMA: text 114:534, beside it
-sprite-0x2050 = 红色宝珠
+sprite-0x2050 = 朱红色宝珠
 # MAGMASUIT: text 114:741, in the Magma Hideout
-sprite-0x2056 = 熔岩队制服
+sprite-0x2056 = 熔岩装
 # AQUASUIT: text 114:742, in the Aqua Hideout
-sprite-0x2057 = 海洋队制服
+sprite-0x2057 = 海洋装
 # ASASE_SHIO: text 114:70, in Shoal Cave
 sprite-0x2058 = 浅滩海盐
 # ASASE_KAIGARA: text 114:71, in Shoal Cave
@@ -242,7 +242,7 @@ sprite-0xb9 = 波妮
 # BIGFOUR4_RS
 sprite-0xba = 源治
 # LEADER1_RS
-sprite-0xbb = 杜鹃
+sprite-0xbb = 杜娟
 # LEADER2_RS
 sprite-0xbc = 藤树
 # LEADER3_RS
@@ -258,27 +258,27 @@ sprite-0xc3 = 米可利
 # MAGMABOSS_RS
 sprite-0xc4 = 赤焰松
 # MAGMAKANBU_M_RS
-sprite-0xc5 = 篝火
+sprite-0xc5 = 火村
 # MAGMAKANBU_F_RS
-sprite-0xc6 = 泉
+sprite-0xc6 = 火雁
 # AQUABOSS_RS
 sprite-0xc9 = 水梧桐
 # AQUAKANBU_M_RS
-sprite-0xca = 阿泉
+sprite-0xca = 阿潮
 # AQUAKANBU_F_RS
 sprite-0xcb = 阿泉
 # HIMITU_RS
-sprite-0xd3 = 阿睿
+sprite-0xd3 = 基利
 # ZAZAKO_RS: Lorekeeper Zinnia, outside Sky Pillar (spike 193)
-sprite-0xd4 = 兹霓亚
+sprite-0xd4 = 希嘉娜
 # SUPPORT_F_RS, drawn into work object 0x7a (spike 89)
 sprite-0x13a = 小遥
 # SUPPORT_M_RS, likewise
-sprite-0x13b = 祐树
+sprite-0x13b = 小悠
 # SUPPORT_F_BIKE_RS, by the ROM's own id; no replay yet
 sprite-0x13c = 小遥
 # SUPPORT_M_BIKE_RS, likewise
-sprite-0x13d = 祐树
+sprite-0x13d = 小悠
 # LEADER5A_RS: wally.ctm, "thanked as Mr. Norman"
 sprite-0x13f = 千里
 # LEADER2A_RS
@@ -298,13 +298,13 @@ sprite-0xcc = 海洋队手下
 # AQUA_F_RS
 sprite-0xcd = 海洋队手下
 # TANPAN_RS
-sprite-0xda = 少年
+sprite-0xda = 短裤小子
 # MINI_RS
-sprite-0xdb = 少女
+sprite-0xdb = 迷你裙
 # MUSITORI_RS
 sprite-0xdc = 捕虫少年
 # SCHOOL_W_RS
-sprite-0xde = 学生
+sprite-0xde = 补习班学生
 # CAMPBOY_RS
 sprite-0xdf = 露营少年
 # PICNICGIRL_RS
@@ -312,7 +312,7 @@ sprite-0xe0 = 野餐女孩
 # RICHBOY_RS
 sprite-0xe1 = 富家少爷
 # RICHGIRL_RS
-sprite-0xe2 = 富家小姐
+sprite-0xe2 = 千金小姐
 # UKIWA_M_RS
 sprite-0xe3 = 浮潜者
 # UKIWA_W_RS
@@ -326,27 +326,27 @@ sprite-0xe8 = 水手
 # MOUNTMAN_RS
 sprite-0xe9 = 登山男
 # FIGHTER_W_RS
-sprite-0xed = 格斗少女
+sprite-0xed = 对战少女
 # COLLECTOR_RS
-sprite-0xee = 收藏家
+sprite-0xee = 宝可梦收藏家
 # MONSTERMANIA_RS
 sprite-0xf0 = 怪兽狂
 # BUGMANIA_RS
-sprite-0xf1 = 虫狂
+sprite-0xf1 = 昆虫狂
 # RUINMANIA_RS
-sprite-0xf2 = 遗迹狂
+sprite-0xf2 = 遗迹迷
 # OCCULT_RS
-sprite-0xf3 = 超能力少女
+sprite-0xf3 = 灵异迷
 # ESP_M_RS
 sprite-0xf4 = 超能力者
 # NINJA_RS
 sprite-0xf5 = 忍者小子
 # CAMPFIRE_RS
-sprite-0xf6 = 烤火人
+sprite-0xf6 = 营火专家
 # BIRDTAMER_RS
 sprite-0xf7 = 养鸟人
 # DRAGONTAMER_RS
-sprite-0xf8 = 龙使
+sprite-0xf8 = 驯龙师
 # GUITAR_RS
 sprite-0xf9 = 吉他手
 # RANGER_M_RS
@@ -356,9 +356,9 @@ sprite-0xfb = 宝可梦巡护员
 # ADULT_RS
 sprite-0xfc = 大姐姐
 # PARASOL_RS
-sprite-0xfd = 遮阳伞姐姐
+sprite-0xfd = 阳伞姐姐
 # AROMA_RS
-sprite-0xfe = 芳香姐姐
+sprite-0xfe = 香氛姐姐
 # DAISUKI_M_RS
 sprite-0xff = 宝可梦爱好者
 # DAISUKI_W_RS
@@ -376,11 +376,11 @@ sprite-0xec = 空手道王
 # ELITE_F_RS
 sprite-0x105 = 精英训练家
 # VETERAN_M_RS
-sprite-0x106 = 老手
+sprite-0x106 = 达人
 # FAIRYTALE_RS, beside two pairs of Mysterious Sisters (spike 193)
 sprite-0x110 = 童话少女
 # VETERAN_F_RS
-sprite-0x107 = 老手
+sprite-0x107 = 达人
 # NAMINORI_M_RS
 sprite-0x111 = 精英训练家
 # NAMINORI_F_RS
@@ -388,13 +388,13 @@ sprite-0x112 = 精英训练家
 # BACKPACKER_M_RS
 sprite-0x113 = 背包客
 # SCARY_M_RS
-sprite-0x114 = 不良青年
+sprite-0x114 = 可怕的大叔
 # SCARY_W_RS
-sprite-0x115 = 不良少女
+sprite-0x115 = 可怕的姐姐
 # DIVER_M_RS
-sprite-0x116 = 水肺潜水员
+sprite-0x116 = 潜水员
 # DIVER_F_RS
-sprite-0x117 = 自由潜水员
+sprite-0x117 = 海女
 # FISHING2_RS
 sprite-0x158 = 垂钓者
 # SWIMMER_M2_RS
@@ -484,7 +484,7 @@ sprite-0x103f = 豪力
 # the PC's own lines (archives.PC_LINES)
 tile-0xd5 = 电脑
 # text 56:138, the TV among the Secret Base decorations
-tile-0xd7 = 电视
+tile-0xd7 = 电视机
 # text 155:0
 tile-0xd8 = 宝可梦摆件
 # text 155:9
@@ -508,15 +508,15 @@ tile-0xdf = 花瓶
 # 0x28f0 to 0x28f4, and is called what the game calls the one among the Secret Base decorations
 # (text 56:144); the wardrobes say so (story 460:35).
 # text 56:144
-furniture-0x28f0 = 自动售货机
+furniture-0x28f0 = 自动贩卖机
 # text 56:144
-furniture-0x28f1 = 自动售货机
+furniture-0x28f1 = 自动贩卖机
 # text 56:144
-furniture-0x28f2 = 自动售货机
+furniture-0x28f2 = 自动贩卖机
 # text 56:144
-furniture-0x28f3 = 自动售货机
+furniture-0x28f3 = 自动贩卖机
 # text 56:144
-furniture-0x28f4 = 自动售货机
+furniture-0x28f4 = 自动贩卖机
 # story 460:35
 furniture-0x284e = 衣柜
 # The elevators' word is the Mauville Hills computer's, story 264:15; the bedrooms', the lines the

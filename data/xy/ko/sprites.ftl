@@ -648,6 +648,57 @@ place-0x37-furniture-6 = 사진
 place-0x37-furniture-7 = 사진
 # Lysandre Café: story 313:4, Lumiose City, zone 0x43: the plate of script 22, which no record shows, so no door is paired with it
 place-0x43-warp-1 = 플라드리 카페
+# Lumiose's exits no plate, facility or street mark names (Khai, 2026-11-09):
+# Looker Bureau: story 313:7, zone 0x43, a plate no record shows; the ROM's own word. Before Looker moves in, the plate says the unit is for rent
+place-0x43-warp-5 = 핸섬 하우스
+# Restaurant Le Wow: story 313:11, zone 0x43, its plate on the next line (spike 107); the ROM's own word
+place-0x43-warp-8 = 궁극 레스토랑
+# Lumiose Transportation Office: zone 0x56, no plate; as its receptionist says it, story 388:0
+place-0x3f-warp-3 = 미르교통 영업소
+# Vert Plaza: a warp out onto a line with no street mark, named for the marked line nearest it on the map's own lines; text 71
+place-0x3f-warp-11 = 베르 광장
+place-0x42-warp-17 = 베르 광장
+place-0x45-warp-38 = 베르 광장
+place-0x45-warp-39 = 베르 광장
+place-0x45-warp-40 = 베르 광장
+# Bleu Plaza: a warp out onto a line with no street mark, named for the marked line nearest it on the map's own lines; text 71
+place-0x40-warp-9 = 블르 광장
+place-0x45-warp-47 = 블르 광장
+place-0x45-warp-48 = 블르 광장
+place-0x45-warp-49 = 블르 광장
+# Magenta Plaza: a warp out onto a line with no street mark, named for the marked line nearest it on the map's own lines; text 71
+place-0x41-warp-12 = 로즈 광장
+# Rouge Plaza: a warp out onto a line with no street mark, named for the marked line nearest it on the map's own lines; text 71
+place-0x41-warp-17 = 루주 광장
+place-0x45-warp-21 = 루주 광장
+place-0x45-warp-22 = 루주 광장
+place-0x45-warp-23 = 루주 광장
+# Jaune Plaza: a warp out onto a line with no street mark, named for the marked line nearest it on the map's own lines; text 71
+place-0x42-warp-15 = 존느 광장
+place-0x42-warp-16 = 존느 광장
+place-0x45-warp-32 = 존느 광장
+place-0x45-warp-33 = 존느 광장
+place-0x45-warp-34 = 존느 광장
+place-0x45-warp-35 = 존느 광장
+place-0x45-warp-36 = 존느 광장
+place-0x45-warp-37 = 존느 광장
+# back alley: zones 0x98 to 0x9b, open air on matrix 220 with no text of their own, the alleys of Looker's “Chapter 2 In the Back Alleys” (text 103:1); pa3ds's own word
+place-0x3f-warp-7 = 뒷골목
+place-0x41-warp-7 = 뒷골목
+place-0x41-warp-8 = 뒷골목
+place-0x42-warp-8 = 뒷골목
+# office building: zone 0x5b, “If you take the elevator, you’ll reach the floor where they study how to catch Pokémon” (story 383:0); pa3ds's own word
+place-0x40-warp-1 = 오피스 빌딩
+# skaters’ lobby: zone 0x90, a Roller Skater teaching the parallel swizzle (story 330:6); pa3ds's own word
+place-0x40-warp-5 = 스케이터 로비
+# Attack challenge lobby: zone 0x72, “Look, my Clauncher’s Attack is 100!” (story 360:2); pa3ds's own word
+place-0x41-warp-4 = 공격 겨루기 로비
+# photo shoot: zone 0x95, Mamoswine’s shoot for Mamoswinelline (story 325); pa3ds's own word
+place-0x41-warp-5 = 촬영 현장
+# Ability check lobby: zone 0x6f, a woman who asks to see a Pokémon’s Ability (story 363:2); pa3ds's own word
+place-0x42-warp-3 = 특성 로비
+# researcher’s lobby: zone 0x76, a man studying Eerie Impulse (story 356:0); pa3ds's own word
+place-0x43-warp-2 = 연구가 로비
 # bed: story 374:0, Lysandre Labs, zone 0x64: "The bed looks nice and comfortable."
 place-0x64-furniture-0 = 침대
 place-0x64-furniture-1 = 침대

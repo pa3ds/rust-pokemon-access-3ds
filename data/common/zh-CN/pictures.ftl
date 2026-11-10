@@ -87,3 +87,8 @@ stars-and-a-half = { $count ->
 contest-hearts = { $count ->
    *[other] { $count }颗心
 }
+texture-shot_icon00 = 黑色射门
+texture-shot_icon01 = 绿色射门
+texture-shot_icon02 = 蓝色射门
+texture-shot_icon03 = 橙色射门
+texture-shot_icon04 = 黄色射门

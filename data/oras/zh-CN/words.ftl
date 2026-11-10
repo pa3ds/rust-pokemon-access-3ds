@@ -18,7 +18,7 @@ sky-facing = 面向{ $way }
 
 kind-berry-spot = 树果地
 kind-ash-pile = 火山灰堆
-kind-hidden-Pokemon = 隐藏的宝可梦
+kind-hidden-Pokemon = 隐藏着的宝可梦
 kind-secret-base-spot = 秘密基地位置
 kind-ladder-up = 上行梯子
 kind-ladder-down = 下行梯子

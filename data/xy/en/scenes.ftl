@@ -173,3 +173,55 @@ y-weapon-fires-sinks = { weapon-fires-sinks }
 y-weapon-fires-column = { weapon-fires-column }
 y-weapon-fires-pit = { weapon-fires-pit }
 y-weapon-fires-arrive = { weapon-fires-arrive }
+
+# The Elite Four's chambers (x_elite-fire, x_elite-water, x_elite-steel and x_elite-dragon). Each
+# corridor is the same marble hall with a lift at its end, said on arriving and as the player
+# steps up to the lift; the lift rises past windows of the chamber's colour. Each room plays a show
+# of its own as the player arrives, then a close view of the member as the player reaches the top
+# of the steps, before their first line. The chamber's name is the game's, on its banner, and
+# never written here.
+league-corridor-fire = A tall hall of pale marble runs north between great columns, to a round room with a platform in its floor ringed in dark blue, under a tall white statue with long curving arms.
+league-lift-fire-1 = You step onto the platform. A column of blue light rises around you, and the platform lifts you up through it.
+league-lift-fire-2 = Tall windows of pink stained glass slide past as you rise, and the light fades into darkness.
+league-corridor-water = { league-corridor-fire }
+league-lift-water-1 = { league-lift-fire-1 }
+league-lift-water-2 = Tall windows of blue stained glass slide past as you rise, and the light fades into darkness.
+league-corridor-steel = { league-corridor-fire }
+league-lift-steel-1 = { league-lift-fire-1 }
+league-lift-steel-2 = Tall windows of clear glass slide past as you rise, and the light fades into darkness.
+league-corridor-dragon = { league-corridor-fire }
+league-lift-dragon-1 = { league-lift-fire-1 }
+league-lift-dragon-2 = Tall windows of purple stained glass slide past as you rise, and the light fades into darkness.
+
+# Malva's room, zone 0xfb.
+malva-room-1 = You stand on a round platform in a dark room. Its floor is a great round window of red, yellow and green glass. Ahead, a red carpet runs up steep steps to { TRAINER(269) }, before a tall window of red and gold.
+malva-room-2 = Balls of fire burst into flame on either side of you, die away, and burst again.
+malva-room-3 = Two great pillars of fire roar up on either side, and flames run all around the edge of the floor, lighting the room orange.
+malva-waits = Close up, { TRAINER(269) } sits on a throne at the top of the steps, her legs crossed, in red glasses.
+
+# Siebold's room, zone 0xfc.
+siebold-room-1 = You stand on a round platform in a dim blue room. Its floor is a great round window of blue and purple glass. On either side of you a star-shaped basin sits in the floor, with a long chain of blue links hanging into it from above. Ahead, a blue carpet runs up steep steps to { TRAINER(271) }, before two tall windows of blue glass.
+siebold-room-2 = The two basins rise up out of the floor on blue columns.
+siebold-room-3 = Water bursts up out of both in great fountains, and spray fills the room with white.
+siebold-room-4 = It clears. The room shines blue, and water pours down all around the edge of the floor like a waterfall.
+siebold-waits = Close up, { TRAINER(271) } stands beside you at the top of the steps, in a white coat.
+
+# Wikstrom's room, zone 0xfd.
+wikstrom-room-1 = You stand on a round platform in a dark room of steel. Its floor is a round window of blue and purple glass, and a great dark wall rises just ahead of you.
+wikstrom-room-2 = On either side of you a great steel arm swings up out of the floor, a round blue orb set in its head.
+wikstrom-room-3 = Green light flashes down a seam in the middle of the wall.
+wikstrom-room-4 = The wall splits down the seam and its two halves slide away. Behind it, steep steps rise to { TRAINER(187) }, before a tall window of purple glass.
+wikstrom-waits = The view rises over a tall arched window of purple glass, then sinks to { TRAINER(187) } at the top of the steps, in silver armour trimmed with gold.
+
+# Drasna's room, zone 0xfe.
+drasna-room-1 = You stand on a round platform in a room full of purple haze. Its floor is a great round window of blue and purple glass, with a stone urn on either side of you.
+drasna-room-2 = The haze clears. A great dragon of pale stone looms over the top of the far steps, its head above { TRAINER(270) } and its wings spread along the walls on either side.
+drasna-room-3 = The dragon's head glows, and its light floods across the room.
+drasna-room-4 = Purple smoke rises from both urns.
+drasna-waits = Close up, { TRAINER(270) } stands at the top of the steps before a window of purple and teal glass, smiling, her eyes closed and her hands folded.
+
+# The Radiant Chamber, zone 0xff, and the Champion's room, 0x100 (x_champion).
+champion-hall = A long, grand hall of pale stone runs north through a white mist, with balconies along both sides above rows of arches trimmed in gold. Far ahead, a round platform of rainbow glass is set in the floor before a flight of steps.
+champion-lift = You step onto the glass platform. It rises beneath you on a drum of glowing glass, and white light pours down from above until all is white.
+champion-room = You stand in a bright room of cream and gold. Its floor is a great round window of glass in every colour, patterned with flowers. Ahead, beyond a short flight of steps, a tall door is crowned by a round red and white window like a Poké Ball, and { TRAINER(276) } stands before it.
+diantha-waits = The light dims, and the view sinks from the round window over the door to you and { TRAINER(276) }, face to face.

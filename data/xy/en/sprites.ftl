@@ -706,6 +706,57 @@ place-0x37-furniture-6 = photograph
 place-0x37-furniture-7 = photograph
 # story 313:4, Lumiose City, zone 0x43: the plate of script 22, which no record shows, so no door is paired with it
 place-0x43-warp-1 = Lysandre Café
+# Lumiose's exits no plate, facility or street mark names (Khai, 2026-11-09):
+# Looker Bureau: story 313:7, zone 0x43, a plate no record shows; the ROM's own word. Before Looker moves in, the plate says the unit is for rent
+place-0x43-warp-5 = Looker Bureau
+# Restaurant Le Wow: story 313:11, zone 0x43, its plate on the next line (spike 107); the ROM's own word
+place-0x43-warp-8 = Restaurant Le Wow
+# Lumiose Transportation Office: zone 0x56, no plate; as its receptionist says it, story 388:0
+place-0x3f-warp-3 = Lumiose Transportation Office
+# Vert Plaza: a warp out onto a line with no street mark, named for the marked line nearest it on the map's own lines; text 71
+place-0x3f-warp-11 = Vert Plaza
+place-0x42-warp-17 = Vert Plaza
+place-0x45-warp-38 = Vert Plaza
+place-0x45-warp-39 = Vert Plaza
+place-0x45-warp-40 = Vert Plaza
+# Bleu Plaza: a warp out onto a line with no street mark, named for the marked line nearest it on the map's own lines; text 71
+place-0x40-warp-9 = Bleu Plaza
+place-0x45-warp-47 = Bleu Plaza
+place-0x45-warp-48 = Bleu Plaza
+place-0x45-warp-49 = Bleu Plaza
+# Magenta Plaza: a warp out onto a line with no street mark, named for the marked line nearest it on the map's own lines; text 71
+place-0x41-warp-12 = Magenta Plaza
+# Rouge Plaza: a warp out onto a line with no street mark, named for the marked line nearest it on the map's own lines; text 71
+place-0x41-warp-17 = Rouge Plaza
+place-0x45-warp-21 = Rouge Plaza
+place-0x45-warp-22 = Rouge Plaza
+place-0x45-warp-23 = Rouge Plaza
+# Jaune Plaza: a warp out onto a line with no street mark, named for the marked line nearest it on the map's own lines; text 71
+place-0x42-warp-15 = Jaune Plaza
+place-0x42-warp-16 = Jaune Plaza
+place-0x45-warp-32 = Jaune Plaza
+place-0x45-warp-33 = Jaune Plaza
+place-0x45-warp-34 = Jaune Plaza
+place-0x45-warp-35 = Jaune Plaza
+place-0x45-warp-36 = Jaune Plaza
+place-0x45-warp-37 = Jaune Plaza
+# back alley: zones 0x98 to 0x9b, open air on matrix 220 with no text of their own, the alleys of Looker's “Chapter 2 In the Back Alleys” (text 103:1); pa3ds's own word
+place-0x3f-warp-7 = back alley
+place-0x41-warp-7 = back alley
+place-0x41-warp-8 = back alley
+place-0x42-warp-8 = back alley
+# office building: zone 0x5b, “If you take the elevator, you’ll reach the floor where they study how to catch Pokémon” (story 383:0); pa3ds's own word
+place-0x40-warp-1 = office building
+# skaters’ lobby: zone 0x90, a Roller Skater teaching the parallel swizzle (story 330:6); pa3ds's own word
+place-0x40-warp-5 = skaters’ lobby
+# Attack challenge lobby: zone 0x72, “Look, my Clauncher’s Attack is 100!” (story 360:2); pa3ds's own word
+place-0x41-warp-4 = Attack challenge lobby
+# photo shoot: zone 0x95, Mamoswine’s shoot for Mamoswinelline (story 325); pa3ds's own word
+place-0x41-warp-5 = photo shoot
+# Ability check lobby: zone 0x6f, a woman who asks to see a Pokémon’s Ability (story 363:2); pa3ds's own word
+place-0x42-warp-3 = Ability check lobby
+# researcher’s lobby: zone 0x76, a man studying Eerie Impulse (story 356:0); pa3ds's own word
+place-0x43-warp-2 = researcher’s lobby
 # bed: story 374:0, Lysandre Labs, zone 0x64: "The bed looks nice and comfortable."
 place-0x64-furniture-0 = bed
 place-0x64-furniture-1 = bed

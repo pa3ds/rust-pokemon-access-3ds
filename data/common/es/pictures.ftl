@@ -90,3 +90,8 @@ contest-hearts = { $count ->
     [one] { $count } corazón
    *[other] { $count } corazones
 }
+texture-shot_icon00 = tiro negro
+texture-shot_icon01 = tiro verde
+texture-shot_icon02 = tiro azul
+texture-shot_icon03 = tiro naranja
+texture-shot_icon04 = tiro amarillo

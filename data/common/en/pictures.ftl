@@ -57,6 +57,12 @@ texture-complete0 = bronze crown
 texture-complete1 = silver crown
 texture-complete2 = gold crown
 texture-complete3 = platinum crown
+# The kind of shot a Pokémon fires in Super Training, by its ball's colour, decoded from the ROM.
+texture-shot_icon00 = black shot
+texture-shot_icon01 = green shot
+texture-shot_icon02 = blue shot
+texture-shot_icon03 = orange shot
+texture-shot_icon04 = yellow shot
 # The round ▶ under each app's logo on the PlayNav, which starts that app, its tutorial the first
 # time (spike 198).
 texture-menu_bg_button = start

@@ -87,3 +87,8 @@ stars-and-a-half = { $count ->
 contest-hearts = { $count ->
    *[other] ハート{ $count }つ
 }
+texture-shot_icon00 = 黒いシュート
+texture-shot_icon01 = 緑のシュート
+texture-shot_icon02 = 青いシュート
+texture-shot_icon03 = オレンジのシュート
+texture-shot_icon04 = 黄色いシュート

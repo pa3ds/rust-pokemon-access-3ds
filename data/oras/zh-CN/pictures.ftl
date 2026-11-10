@@ -5,4 +5,4 @@ texture-intro_male = 男孩，白皙的皮肤，棕色头发，灰蓝色眼睛�
 texture-intro_famale = 女孩，白皙的皮肤和红润的脸颊，发梢外翘的齐肩浅棕色头发，灰蓝色眼睛，张嘴的笑容，在头顶系成大蝴蝶结的白条纹红色头巾，黑色领口的红色无袖上衣，腰间挂着绿黄相间的小包
 texture-presented_by = 出品方
 texture-gf_logo = Game Freak
-texture-push_start = 请按START键
+texture-push_start = 按START键

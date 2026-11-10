@@ -87,3 +87,8 @@ stars-and-a-half = { $count ->
 contest-hearts = { $count ->
    *[other] 하트 { $count }개
 }
+texture-shot_icon00 = 검은 슛
+texture-shot_icon01 = 초록 슛
+texture-shot_icon02 = 파란 슛
+texture-shot_icon03 = 주황 슛
+texture-shot_icon04 = 노란 슛
