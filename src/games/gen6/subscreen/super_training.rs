@@ -217,6 +217,8 @@ pub const SHOT_ICON: &str = "shot_icon0";
 pub const SHOT_PANE: &[u8] = b"3v";
 /// That state, from when the Pokémon has finished its bag until it is tapped: the "!" over it.
 pub const FINISHED: i64 = 4;
+/// That state, while the Pokémon rests: said as it is, as a finished bag is (Orion, 2026-11-10).
+pub const RESTING: i64 = 3;
 /// That state, while the Pokémon swings at its bag. Swings a tap apart run together in it and in
 /// `HITTING`, at pa3ds's fifth of a second, but less often in both: of 47 taps 0.42 s apart on a
 /// Sp. Atk Bag L, its coming caught 33, `HITTING` rising 25 (as_super_training_large_training_bag).
@@ -228,6 +230,7 @@ pub const SWINGING: i64 = 6;
 /// (as_st_graveler_barrier_treecko). Any other is logged, to learn what it is.
 pub const STATES_SEEN: [i64; 7] = [1, 2, 3, 4, 6, 7, 8];
 pub const BAG_FINISHED: &str = "training-bag-finished";
+pub const RESTING_WORD: &str = "training-resting";
 pub const AT_START: &str = "training-at-start";
 pub const STAT: &str = "training-stat";
 pub const TOTAL: &str = "training-total";
@@ -853,7 +856,8 @@ impl Bags {
 }
 
 /// Says when the Pokémon on the Super Training page has finished its bag, which the game shows
-/// only as a "!" over it, and a tap on it answers. Read only while the page is drawn.
+/// only as a "!" over it, and a tap on it answers; and when it is resting, shown only by an icon
+/// over it, which a tap on it ends. Read only while the page is drawn.
 pub struct CoreTraining {
     page: Rc<RefCell<TrainingPage>>,
     layouts: Rc<Layouts>,
@@ -874,6 +878,8 @@ pub struct CoreTraining {
     hitting: bool,
     /// What the Pokémon was doing at the last poll.
     state: Option<i64>,
+    /// The `PokemonParam` of the Pokémon last said resting, while it still is.
+    rested: Option<i64>,
     /// The last state logged as not measured.
     logged: Option<i64>,
 }
@@ -914,6 +920,7 @@ impl CoreTraining {
             waiting: false,
             hitting: false,
             state: None,
+            rested: None,
             logged: None,
         }
     }
@@ -936,8 +943,9 @@ impl CoreTraining {
         Ok(false)
     }
 
-    /// The line for a bag just finished, with its sound, and each hit's sound; a hit and any
-    /// state not measured to the log alone.
+    /// The line for a bag just finished, with its sound, and each hit's sound; the line for a
+    /// Pokémon resting, as the page shows it so; a hit and any state not measured to the log
+    /// alone.
     pub fn poll(
         &mut self,
         running: Option<&str>,
@@ -960,6 +968,9 @@ impl CoreTraining {
         };
         if now.as_ref().is_none_or(|now| now.state != FINISHED) {
             self.said = false;
+        }
+        if now.as_ref().is_none_or(|now| now.state != RESTING) {
+            self.rested = None;
         }
         let Some(now) = now else {
             self.hitting = false;
@@ -987,9 +998,7 @@ impl CoreTraining {
         if waited && now.state == FINISHED && !self.said {
             self.said = true;
             (self.finished)();
-            let who = self.page.borrow().who(&now)?;
-            let name = who.as_ref().and_then(|who| (self.called)(who));
-            if let Some(name) = name.filter(|name| !name.is_empty()) {
+            if let Some(name) = self.name(&now)? {
                 lines.push((
                     PAGE_LOG.to_string(),
                     own(BAG_FINISHED, &[("pokemon", &name)]),
@@ -997,7 +1006,27 @@ impl CoreTraining {
                 ));
             }
         }
+        if now.state == RESTING && self.rested != Some(now.param) {
+            self.rested = Some(now.param);
+            if let Some(name) = self.name(&now)? {
+                lines.push((
+                    PAGE_LOG.to_string(),
+                    own(RESTING_WORD, &[("pokemon", &name)]),
+                    Some(Category::Screen),
+                ));
+            }
+        }
         Ok(lines)
+    }
+
+    /// What the player calls the Pokémon the page has selected; None for "", as Python's
+    /// callers take it.
+    fn name(&self, now: &PageNow) -> Result<Option<String>> {
+        let who = self.page.borrow().who(now)?;
+        Ok(who
+            .as_ref()
+            .and_then(|who| (self.called)(who))
+            .filter(|name| !name.is_empty()))
     }
 }
 

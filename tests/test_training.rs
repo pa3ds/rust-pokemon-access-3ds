@@ -938,6 +938,31 @@ fn test_a_finished_bag_is_said_once_while_the_pokemon_waits_for_a_tap() {
     assert_eq!(reader.poll(Some(FIELD)).unwrap(), [finished()]);
 }
 
+/// Treecko, chosen, rested at once, and the game said so only once a regimen was tried; a tap
+/// woke it, to state 2 (Orion, as_st_graveler_barrier_treecko).
+#[test]
+fn test_a_resting_pokemon_is_said_as_the_page_shows_it_and_again_on_coming_back() {
+    let resting = || {
+        vec![(
+            "training".to_string(),
+            "Ralts is resting".to_string(),
+            Some(Category::Screen),
+        )]
+    };
+    let (mut reader, memory) = core(super_training::RESTING, true);
+    assert_eq!(reader.poll(Some(FIELD)).unwrap(), resting());
+    assert!(reader.poll(Some(FIELD)).unwrap().is_empty());
+    memory.u32(PAGE + super_training::ICONS + super_training::STATE, &[2]);
+    assert!(reader.poll(Some(FIELD)).unwrap().is_empty());
+    memory.u32(
+        PAGE + super_training::ICONS + super_training::STATE,
+        &[super_training::RESTING],
+    );
+    assert_eq!(reader.poll(Some(FIELD)).unwrap(), resting());
+    assert!(reader.poll(Some(super_training::MENU)).unwrap().is_empty());
+    assert_eq!(reader.poll(Some(FIELD)).unwrap(), resting());
+}
+
 /// A sweep finds three objects of the class and one is the page; the others hold noise.
 #[test]
 fn test_the_state_is_read_from_the_object_that_holds_the_pages_icons() {
