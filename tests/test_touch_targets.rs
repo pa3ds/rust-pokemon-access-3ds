@@ -819,7 +819,7 @@ fn test_a_picture_a_screen_offers_is_a_target_where_it_is_drawn_if_on_the_screen
     );
 }
 
-/// Super Training's bag hangs from its top, and a tap at its place missed it (spike A).
+/// Super Training's bag hangs from its top, and a tap at its place missed it (spike 290).
 #[test]
 fn test_a_picture_offered_is_tapped_in_the_middle_of_what_it_draws() {
     let mut targets = offering(false, false, false, Some(0x11)).0; // the middle of its top

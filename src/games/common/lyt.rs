@@ -154,7 +154,7 @@ impl PaneShape {
     /// How far across and down a pane its place lies, each 0, 0.5 or 1. ORAS keeps a pane's
     /// base position in the low four bits, across + 3 * down: 0x14 its middle, 0x11 the middle
     /// of its top (Super Training's hanging bag), 0x16 its lower left corner (its button), each
-    /// checked against where the picture is drawn (spike A). `anchored`, older, reads the same
+    /// checked against where the picture is drawn (spike 290). `anchored`, older, reads the same
     /// byte and is right only where across and down agree. Sun's down is not measured.
     ///
     /// Raises `IndexError` where `head` stops short of the anchor, as Python's indexing does.

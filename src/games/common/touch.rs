@@ -1542,7 +1542,7 @@ fn pixel(head: &[u8], shape: &lyt::PaneShape, root_x: f64, root_y: f64) -> Resul
 
 /// The touch screen's pixel in the middle of a picture as it is drawn. A pane's place is the
 /// point it hangs from: Super Training's bag hangs from its top, at (50, 56), and over 300 taps
-/// there landed above it and hit nothing, where one at (50, 110) hit it every time (spike A).
+/// there landed above it and hit nothing, where one at (50, 110) hit it every time (spike 290).
 fn drawn(head: &[u8], shape: &lyt::PaneShape, root_x: f64, root_y: f64) -> Result<(i64, i64)> {
     let (across, down) = shape.origin(head)?;
     let (x, y) = pixel(head, shape, root_x, root_y)?;

@@ -52,13 +52,13 @@
 //! by 100, which has no line in the game's text: offered as "empty bag", as tapping it can find a
 //! bag.
 //!
-//! Core Training (as_super_training_tutorial2, spike A): a bag hangs from its top, so its place is
-//! the top of it, and a tap there does nothing; a tap on the bag or on the Pokémon makes it hit the
-//! bag. A hit takes one from the Pokémon's record's +0x16 of the bags' hits left (2 for a Strength
-//! Bag), and with none left the page's +0x264 goes from 1, idle (6 while it hits), to 4 and the game
-//! draws `surprise_icon.bclim`, a "!" over the Pokémon, until a tap on the Pokémon gives the bag's
-//! effect and says so. Left alone the Pokémon hits the bag once a minute. The page says nothing else
-//! of it.
+//! Core Training (as_super_training_tutorial2, spike 290): a bag hangs from its top, so its place
+//! is the top of it, and a tap there does nothing; a tap on the bag or on the Pokémon makes it hit
+//! the bag. A hit takes one from the Pokémon's record's +0x16 of the bags' hits left (2 for a
+//! Strength Bag), and with none left the page's +0x264 goes from 1, idle (6 while it hits), to 4 and
+//! the game draws `surprise_icon.bclim`, a "!" over the Pokémon, until a tap on the Pokémon gives
+//! the bag's effect and says so. Left alone the Pokémon hits the bag once a minute. The page says
+//! nothing else of it.
 //!
 //! What a round shows besides its goals (measured live in the Magnemite regimen, 2026-10-10, in the
 //! top screen's layout, places as for a goal): the score is digit pictures, `score_nom0.bclim` to
@@ -165,10 +165,10 @@ pub const WAITING_BAG: f64 = 110.0;
 ///
 /// A `frozenset` in Python, only ever tested against.
 pub const PAGE_PANES: [&str; 5] = ["2o", "2p", "3v", "4b", "4e"];
-/// Where after its PokeIcon the page keeps what its Pokémon is doing, +0x264 in ORAS (spike A).
+/// Where after its PokeIcon the page keeps what its Pokémon is doing, +0x264 in ORAS (spike 290).
 pub const STATE: i64 = 0x174;
 /// Where after its PokeIcon the page says a hit is landing on the bag, +0x128 in ORAS: 1 for about
-/// two fifths of a second a hit, and 0 between them (spike A).
+/// two fifths of a second a hit, and 0 between them (spike 290).
 pub const HITTING: i64 = 0x38;
 /// Which of the record's effort values (`pokemon.EFFORT`) each of the game's six labels is, in the
 /// order it writes them: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed.
@@ -194,7 +194,8 @@ pub const NO_NUMBERS: &str = "training-no-numbers";
 pub const ENERGY_IMAGE: &str = "st_gauge_c.bclim";
 pub const ENERGY: &str = "training-energy";
 /// The aura round the Pokémon while a press held is charged, from about 1.9 s into the press for
-/// about 1.5 s: let go in it for a shot worth three times the points (spike A: 21, 63 on Wailmer).
+/// about 1.5 s: let go in it for a shot worth three times the points (spike 290: 21, 63 on
+/// Wailmer).
 pub const CHARGE_IMAGE: &str = "charge01.bclim";
 /// How many screen polls running, about 0.6 s, the aura must be missing to be gone.
 pub const AURA_GONE: i64 = 3;
@@ -247,7 +248,7 @@ pub const FLYING: i64 = 1;
 pub const STOPPED: i64 = 3;
 pub const BLOCKED: &str = "training-blocked";
 pub const BLOCK_NOW: &str = "training-block-now";
-/// The round's Pokémon: its +0x18 how far it stands from the Bot, as a ball's own is (spike A).
+/// The round's Pokémon: its +0x18 how far it stands from the Bot, as a ball's own is (spike 290).
 pub const PLAYER: &str = "N5actor19SparringPlayerActorE";
 /// Where a ball or the Pokémon keeps how far it is from the Bot.
 pub const PLACE_Z: i64 = 0x18;

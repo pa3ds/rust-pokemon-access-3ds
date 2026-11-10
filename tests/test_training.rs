@@ -288,7 +288,7 @@ fn test_training_bags_are_offered_by_the_games_names_on_the_field() {
     );
 }
 
-/// The game's text has no name for it, and tapping it can find a bag (spike A).
+/// The game's text has no name for it, and tapping it can find a bag (spike 290).
 #[test]
 fn test_the_empty_bag_is_offered_but_not_the_one_waiting_behind_the_top_bar() {
     let (fake, drawn, panes) = drawing(&["sand_bag00.bclim", "sand_bag00.bclim"]);
