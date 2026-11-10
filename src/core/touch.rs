@@ -27,8 +27,9 @@
 //! Khai asked for (2026-10-08), for Orion to keep or take back.
 //!
 //! A drag is a press the player holds between keys (`Drag`): held on one point, slid on to the
-//! next in `MOVE` seconds each time the player moves it, and let go when they let go, or after
-//! `HELD` seconds whatever happens, so a finger is never left down for good.
+//! next in `MOVE` seconds each time the player moves it, and let go when they let go (on the
+//! target it was sliding to, if it was), or after `HELD` seconds whatever happens, so a finger is
+//! never left down for good.
 //!
 //! Bound by:
 //! - ADR-0009: a touch, on the player's keys and on targets pa3ds has just named, is the one input
@@ -79,6 +80,9 @@ pub const LISTENING: f64 = 6.0;
 /// How long a held press takes to slide from one target to the next: a fifth of a second
 /// (ADR-0009), not yet measured against a screen that takes a drop.
 pub const MOVE: f64 = 0.2;
+/// How long a press let go while it slides stays on its target before it lets go: two frames, so
+/// the game reads it there.
+pub const LAND: f64 = 2.0 / 60.0;
 /// How long a held press is kept down at most, should its letting go never come.
 ///
 /// A server keeps its own (`State.held_for`), which a test shortens where Python's sets the
@@ -296,6 +300,8 @@ struct State {
     until: f64,
     /// When a press held between keys is let go whatever happens, or 0 with none held.
     held: f64,
+    /// Whether the held press was let go while it slid, and lets go at `held` for that.
+    letting_go: bool,
     /// When the last press let go.
     up: f64,
     /// The ends a press rubs between, while one does (`rub`).
@@ -379,6 +385,7 @@ impl TouchServer {
                 start: 0.0,
                 until: 0.0,
                 held: 0.0,
+                letting_go: false,
                 up: 0.0,
                 rub: None,
                 held_for: HELD,
@@ -445,7 +452,7 @@ impl TouchServer {
         let mut state = self.inner.locked();
         (state.path, state.start) = (vec![point], state.new_press());
         state.until = state.start;
-        (state.held, state.rub) = (state.start + state.held_for, None);
+        (state.held, state.rub, state.letting_go) = (state.start + state.held_for, None, false);
         None
     }
 
@@ -520,9 +527,15 @@ impl TouchServer {
         state.until = state.start + MOVE;
     }
 
-    /// Let a held press go where it is.
+    /// Let a held press go where it is, or, while it slides on to a target, once it gets
+    /// there: let go part way, a Charged Shot flew to between two goals and missed
+    /// (as_super_training_more_l1_regimens).
     pub fn release(&self) {
         let mut state = self.inner.locked();
+        if state.held != 0.0 && state.path.len() > 1 && time::monotonic() < state.until {
+            (state.held, state.letting_go) = (state.until + LAND, true);
+            return;
+        }
         if state.touch.is_some() {
             state.up = time::monotonic();
         }
@@ -653,15 +666,14 @@ impl Inner {
                     let mut touch = along(&state.path, state.start, state.until, now);
                     if touch.is_none() && !state.path.is_empty() && now < state.held {
                         touch = state.path.last().copied();
-                    } else if touch.is_none() && state.held != 0.0 {
+                    } else if touch.is_none() && state.held != 0.0 && !state.letting_go {
                         (self.log)(&format!(
                             "touch: a press held {} s let go",
                             py::fixed(state.held_for, 0)
                         ));
-                        state.held = 0.0;
                     }
                     if touch.is_none() {
-                        state.path = Vec::new();
+                        (state.path, state.held, state.letting_go) = (Vec::new(), 0.0, false);
                     }
                     touch
                 };

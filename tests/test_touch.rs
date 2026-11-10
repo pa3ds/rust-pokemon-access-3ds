@@ -145,6 +145,55 @@ fn test_a_held_press_stays_down_moves_and_lets_go_when_released_or_held_too_long
     server.close();
 }
 
+/// Let go part way to a goal, a Charged Shot flew to between two goals and missed
+/// (as_super_training_more_l1_regimens).
+#[test]
+fn test_a_held_press_let_go_while_it_slides_lets_go_where_it_was_sliding_to() {
+    let server = touch::TouchServer::new(Arc::new(|_line: &str| {}), 0).unwrap();
+    let port = server.port().unwrap();
+    let client = UdpSocket::bind((touch::HOST, 0)).unwrap();
+    client
+        .set_read_timeout(Some(Duration::from_secs(1)))
+        .unwrap();
+    let mut ask = b"DSUC".to_vec();
+    ask.extend_from_slice(&1001u16.to_le_bytes());
+    ask.extend_from_slice(&12u16.to_le_bytes());
+    ask.extend_from_slice(&0u32.to_le_bytes());
+    ask.extend_from_slice(&1u32.to_le_bytes());
+    ask.extend_from_slice(&(touch::PAD_DATA as u32).to_le_bytes());
+    ask.extend_from_slice(&[0; 8]);
+    client.send_to(&ask, (touch::HOST, port as u16)).unwrap();
+    time::sleep(0.05);
+    server.hold(95, 23);
+    let touches = |seconds: f64| -> Vec<(u8, u8, i64, i64)> {
+        let mut out: Vec<(u8, u8, i64, i64)> = Vec::new();
+        let deadline = time::monotonic() + seconds;
+        let mut buffer = [0u8; 100];
+        while time::monotonic() < deadline {
+            let size = client.recv(&mut buffer).unwrap();
+            let data = &buffer[20..size];
+            out.push((data[36], data[37], u16_at(data, 38), u16_at(data, 40)));
+        }
+        out
+    };
+    assert_eq!(*touches(0.1).last().unwrap(), (1, 0, 95, 23));
+    server.r#move(160, 120);
+    server.release();
+    let touched = touches(touch::MOVE + 0.2);
+    let pressed: Vec<(u8, u8, i64, i64)> = touched
+        .iter()
+        .copied()
+        .filter(|state| state.0 != 0)
+        .collect();
+    assert!(*pressed.last().unwrap() == (1, 0, 160, 120) && touched.last().unwrap().0 == 0);
+    let last = touched
+        .iter()
+        .position(|state| state == pressed.last().unwrap())
+        .unwrap();
+    assert!(touched[..last].iter().all(|state| state.0 != 0));
+    server.close();
+}
+
 /// Pokémon-Amie's Pokémon turns round only to separate presses, and the stroke key pressed
 /// again mid-stroke had carried one press on for 16 s (spike 276): a new slide lets go for
 /// `LIFT` before it presses.
