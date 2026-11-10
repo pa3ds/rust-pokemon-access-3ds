@@ -43,6 +43,7 @@ struct Pressed {
     seconds: RefCell<Vec<f64>>,
     touches: RefCell<Vec<(&'static str, i64, i64)>>,
     rubs: RefCell<Vec<(Ends, Option<f64>, f64)>>,
+    rubbed_on: RefCell<Vec<Ends>>,
 }
 
 /// The two ends a rub goes between.
@@ -52,6 +53,10 @@ impl crate::core::touch::TouchScreen for Pressed {
     fn rub(&self, ends: Ends, seconds: Option<f64>, delay: f64) -> Option<String> {
         self.rubs.borrow_mut().push((ends, seconds, delay));
         None
+    }
+
+    fn rub_on(&self, ends: Ends) {
+        self.rubbed_on.borrow_mut().push(ends);
     }
 
     fn tap(&self, x: i64, y: i64) -> Option<String> {
@@ -1372,14 +1377,13 @@ fn test_a_tap_on_a_target_rubbed_rubs_a_second_and_a_move_carries_it_on() {
     );
     screen.found.borrow_mut()[0] = stylus(166, ((156, 120), (176, 120)));
     screen.targets.carry(2).unwrap();
-    let (ends, seconds, _) = *screen.pressed.rubs.borrow().last().unwrap();
     assert!(
-        ends == ((156, 120), (176, 120))
-            && seconds.is_some_and(|seconds| 0.0 < seconds && seconds < 1.0)
+        *screen.pressed.rubbed_on.borrow() == [((156, 120), (176, 120))]
+            && screen.pressed.rubs.borrow().len() == 1
     );
     screen.targets.carry(2).unwrap(); // the ends as they were: nothing sent again
     assert!(
-        screen.pressed.rubs.borrow().len() == 2
+        screen.pressed.rubbed_on.borrow().len() == 1
             && screen.tapped().is_empty()
             && screen.pressed.touches.borrow().is_empty()
     );
@@ -1397,7 +1401,10 @@ fn test_a_target_the_screen_moves_takes_nothing_from_the_target_chosen() {
     assert_eq!(screen.press(touch::ITEM_NEXT), "return");
     screen.found.borrow_mut()[0] = stylus(166, ((156, 120), (176, 120)));
     screen.targets.carry(2).unwrap();
-    assert_eq!(screen.pressed.rubs.borrow().len(), 1); // not carried on: return is chosen
+    // not carried on: return is chosen
+    assert!(
+        screen.pressed.rubs.borrow().len() == 1 && screen.pressed.rubbed_on.borrow().is_empty()
+    );
     screen.press(touch::TAP);
     assert_eq!(screen.tapped(), [(285, 223)]);
 }

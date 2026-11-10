@@ -537,16 +537,16 @@ impl TouchMode {
         String::new()
     }
 
-    /// Carry a tap's rub on between a target's ends as they are now, where they have moved.
+    /// Carry a tap's rub on between a target's ends as they are now, where they have moved,
+    /// if the screen's still lasts: a beckon tapped, or Shift let go, in its second ended it.
     fn rub_on(&mut self, target: &Target) {
-        let left = self.rubbed_until - py::time::monotonic();
         if self.picked.is_none()
             && let Some(ends) = target.rub
             && Some(ends) != self.ends
-            && left > 0.0
+            && self.rubbed_until > py::time::monotonic()
             && let Some(screen) = &self.screen
         {
-            screen.rub(ends, Some(left), 0.0);
+            screen.rub_on(ends);
             self.ends = Some(ends);
         }
     }

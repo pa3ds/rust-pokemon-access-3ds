@@ -204,7 +204,8 @@ pub fn rubbed(ends: ((i64, i64), (i64, i64)), travelled: f64) -> (i64, i64) {
 /// a tap, a slide along a path, and a press the player holds between keys. Each says why not
 /// where it cannot, as `TouchServer.tap` does.
 ///
-/// A test's stand-in that never rubs has no `rub`, as Python duck-types it: here it rubs nothing.
+/// A test's stand-in that never rubs has no `rub` or `rub_on`, as Python duck-types it: here it
+/// rubs nothing.
 pub trait TouchScreen {
     /// Press at (x, y) and let go.
     fn tap(&self, x: i64, y: i64) -> Option<String>;
@@ -232,6 +233,10 @@ pub trait TouchScreen {
     ) -> Option<String> {
         None
     }
+
+    /// Carry a rub that lasts on between new ends, for the time it has left, never lifted;
+    /// nothing where none lasts.
+    fn rub_on(&self, _ends: ((i64, i64), (i64, i64))) {}
 }
 
 /// A point kept to the touch screen's pixels.
@@ -466,6 +471,18 @@ impl TouchServer {
         None
     }
 
+    /// Carry a rub that lasts on between new ends, for the time it has left, never lifting:
+    /// Amie's stylus moved by an arrow in a tap's second. Where none lasts, ended by its time,
+    /// a tap, a slide or a release, nothing: only the player's tap or drag starts a press
+    /// (ADR-0009), and an arrow after a beckon, or after Shift let go, had pressed again.
+    pub fn rub_on(&self, ends: ((i64, i64), (i64, i64))) {
+        let a = on_screen(ends.0.0, ends.0.1);
+        let mut state = self.inner.locked();
+        if state.rub.is_some() && !state.path.is_empty() && time::monotonic() < state.until {
+            (state.rub, state.path) = (Some((a, on_screen(ends.1.0, ends.1.1))), vec![a]);
+        }
+    }
+
     /// Slide a held press from where it is on to (x, y) over `MOVE` seconds, still down.
     pub fn r#move(&self, x: i64, y: i64) {
         let mut state = self.inner.locked();
@@ -492,6 +509,13 @@ impl TouchServer {
     /// `touch.HELD = seconds` for this server, as a test shortens it.
     pub fn set_held(&self, seconds: f64) {
         self.inner.locked().held_for = seconds;
+    }
+
+    /// `server._rub` and `server._until`, as a test reads them.
+    #[cfg(test)]
+    pub(crate) fn rub_until(&self) -> (Option<((i64, i64), (i64, i64))>, f64) {
+        let state = self.inner.locked();
+        (state.rub, state.until)
     }
 
     pub fn close(&self) {
@@ -548,6 +572,10 @@ impl TouchScreen for TouchServer {
         delay: f64,
     ) -> Option<String> {
         TouchServer::rub(self, ends, seconds, delay)
+    }
+
+    fn rub_on(&self, ends: ((i64, i64), (i64, i64))) {
+        TouchServer::rub_on(self, ends);
     }
 }
 

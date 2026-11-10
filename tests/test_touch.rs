@@ -454,3 +454,95 @@ fn test_slides_a_poll_apart_sound_without_a_break() {
         .unwrap();
     assert!(!voice.sounding());
 }
+
+/// A client that has asked `server` for the pad, as Azahar does.
+fn listened(server: &touch::TouchServer) -> UdpSocket {
+    let client = UdpSocket::bind((touch::HOST, 0)).unwrap();
+    client
+        .set_read_timeout(Some(Duration::from_secs(1)))
+        .unwrap();
+    let mut ask = b"DSUC".to_vec();
+    ask.extend_from_slice(&1001u16.to_le_bytes());
+    ask.extend_from_slice(&12u16.to_le_bytes());
+    ask.extend_from_slice(&0u32.to_le_bytes());
+    ask.extend_from_slice(&1u32.to_le_bytes());
+    ask.extend_from_slice(&(touch::PAD_DATA as u32).to_le_bytes());
+    ask.extend_from_slice(&[0; 8]);
+    client
+        .send_to(&ask, (touch::HOST, server.port().unwrap() as u16))
+        .unwrap();
+    time::sleep(0.05);
+    client
+}
+
+/// A tap on Pokémon-Amie's stylus rubs a second, and an arrow moving the stylus in that second
+/// carries the rub on; but a rub something else ended stays ended. Tapping "beckon" in the
+/// second, or pressing Shift and letting it go as to quiet a screen reader, ended it, and the
+/// next arrow pressed the screen again with no tap (ADR-0009: a touch only on the player's tap
+/// or drag; a review of feat/amie-greys, 2026-11-08).
+#[test]
+fn test_an_arrow_never_starts_again_a_rub_something_else_ended() {
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    use crate::games::common::touch::{DRAG, ITEM_PREVIOUS, ModeOptions, TAP, Target, TouchMode};
+
+    fn stylus(x: i64) -> Target {
+        Target {
+            rub: Some(((x - 10, 100), (x + 10, 100))),
+            ..Target::new(2, "stylus, head", x, 100, 0.0, 240.0)
+        }
+    }
+
+    let beckon = Target {
+        path: vec![(160, 130)],
+        seconds: 0.4,
+        ..Target::new(1, "beckon", 160, 120, 0.0, 240.0)
+    };
+    for ended_by in ["beckon", "shift"] {
+        let server = Rc::new(touch::TouchServer::new(Arc::new(|_line: &str| {}), 0).unwrap());
+        let client = listened(&server);
+        let found = Rc::new(RefCell::new(vec![beckon.clone(), stylus(160)]));
+        let given = found.clone();
+        let mut mode = TouchMode::new(
+            Rc::new(move || Ok(given.borrow().clone())),
+            Rc::new(|_line: &str| {}),
+            ModeOptions {
+                screen: Some(server.clone()),
+                ..ModeOptions::default()
+            },
+        );
+        mode.choose(2).unwrap();
+        assert_eq!(mode.press(TAP).unwrap(), "");
+        if ended_by == "beckon" {
+            mode.press(ITEM_PREVIOUS).unwrap();
+            mode.press(TAP).unwrap();
+        } else {
+            mode.press(DRAG).unwrap();
+            mode.drop();
+        }
+        assert_eq!(server.rub_until().0, None);
+        found.borrow_mut()[1] = stylus(166);
+        mode.choose(2).unwrap(); // an arrow, as `amie.StylusKeys` moves the stylus
+        assert_eq!(server.rub_until().0, None, "{ended_by}");
+        server.close();
+        drop(client);
+    }
+}
+
+/// Carried on, a rub keeps its press down and the time it has left (Amie counts a pet afresh
+/// at every press); with none lasting, carrying one on presses nothing.
+#[test]
+fn test_a_rub_that_lasts_is_carried_on_between_new_ends() {
+    let server = touch::TouchServer::new(Arc::new(|_line: &str| {}), 0).unwrap();
+    let client = listened(&server);
+    server.rub_on(((10, 10), (30, 10)));
+    assert_eq!(server.rub_until().0, None);
+    server.rub(((10, 10), (30, 10)), Some(1.0), 0.0);
+    let until = server.rub_until().1;
+    server.rub_on(((20, 10), (40, 10)));
+    assert_eq!(server.rub_until().0, Some(((20, 10), (40, 10))));
+    assert_eq!(server.rub_until().1, until);
+    server.close();
+    drop(client);
+}
