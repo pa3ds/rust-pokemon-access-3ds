@@ -5,11 +5,11 @@ settings later versions bring, at their defaults, takes out the ones it no longe
 that moved among them, and keeps its tables in order with `[azahar]` last; it changes no other line
 you have. Each setting has a comment in the file saying what it does.
 
-The mod settings change them for you: in pa3ds's window, Settings in the **Mod** menu. It has a
-tab for each table below, and Ctrl+Tab and Ctrl+Shift+Tab change the tab from anywhere in it; Tab
-walks a tab's settings, each said with what it does after it. A relative volume is in percent there, 100 as loud as the game. OK and Apply write only the
-settings you changed, and ask whether to restart pa3ds now for them to take effect; otherwise
-they take effect the next time pa3ds starts.
+The mod settings change them for you: in pa3ds's window, Settings in the **Mod** menu. It has a tab
+for each table below, and Ctrl+Tab and Ctrl+Shift+Tab change the tab from anywhere in it; Tab walks
+a tab's settings, each said with what it does after it. A relative volume is in percent there, 100
+as loud as the game. OK and Apply write only the settings you changed, and ask whether to restart
+pa3ds now for them to take effect; otherwise they take effect the next time pa3ds starts.
 
 | Setting | Default | What it does |
 |---|---|---|
@@ -23,7 +23,8 @@ they take effect the next time pa3ds starts.
 | `interrupt` | `false` | Cut off speech when a menu's cursor moves, instead of queueing. pa3ds's own keys always cut off speech. |
 | `unfocused` | `false` | Keep saying what the game shows while another window is in front. |
 | `language` | `""` | The language of pa3ds's own words: `en`, `fr`, `de`, `es`, `it`, `ja`, `ko`, `zh-CN` or `zh-TW`. Empty follows your save. See [Languages](languages.md). |
-| `descriptions` | `false` | Describe the scenes the game shows without words, and Tile Puzzle's picture, said as "Narration:". |
+| `descriptions` | `true` | Describe the scenes the game shows without words, and Tile Puzzle's picture, said as "Narration:". |
+| `trainer_party` | `"text"` | As a trainer's battle opens, after "You are challenged by", how many Pokémon they have, from the balls the game shows: `"text"` says "2 Pokémon", `"beeps"` plays a beep for each, as loud as `tones`, and `"off"` neither. Not in Sun and Moon yet. |
 | **`[pa3ds.audio]`** | | How loud pa3ds's own sounds are, beside the game's. Each follows Azahar's volume: 1 as loud as the game, 0.5 half as loud, 1.5 louder, 0 none. |
 | `tones` | `1.0` | The short tone as the map's cursor or touch mode moves: higher the further up, panned the further right. Also the tone as the way up walks you turns. |
 | `footsteps` | `1.0` | pa3ds's footsteps, where the game plays none. |
@@ -42,7 +43,9 @@ they take effect the next time pa3ds starts.
 | `wrap` | `true` | Go from the last button back to the first, and from the bottom row back to the top. `false` stops at the ends, so pressing `O` a few times always ends on the bottom row. |
 | `next_row` | `true` | `J` and `L` go on into the next row at a row's end. `false` keeps them in their row, so pressing `L` a few times always ends at its right. |
 | `drag` | `"hold"` | How to drag: `"hold"` holds Shift, or a key you bind to drag, while you choose where to and lets go as it comes up; `"toggle"` picks up with one press and lets go with the next. Only Pokémon-Amie drags. |
-| **`[pa3ds.amie]`** | | Pokémon-Amie's games. `berry_picker_style` and `head_it_style` were one `feedback_style` for both games, and pa3ds carries your choice to each. |
+| **`[pa3ds.amie]`** | | Pokémon-Amie and its games ([Pokémon-Amie](amie.md)). `berry_picker_style` and `head_it_style` were one `feedback_style` for both games, and pa3ds carries your choice to each. |
+| `descriptions` | `false` | Say what your Pokémon is seen doing in Pokémon-Amie as it starts and stops, "Pikachu is looking around", and each of its animations as it plays, in a sentence of that Pokémon's own. It says when your Pokémon holds up its hand for a high five and when one lands, and what a pet shows: "3 hearts", or "Pikachu didn't like that...". See [Pokémon-Amie](amie.md). |
+| `fidgets` | `false` | With `descriptions` on, also say the small movements your Pokémon makes by itself every few seconds. |
 | `berry_first` | `true` | Berry Picker says the berry first, in the order you give it: "Pinap Berry for Pikachu". `false` says "Pikachu wants Pinap Berry". |
 | `one_at_a_time` | `true` | Berry Picker says one Pokémon wanting a berry at a time, and the next once you have given a berry or the one said has gone. `false` says each as it comes. |
 | `berry_picker_style` | `"name"` | How Berry Picker says a Pokémon: `"name"` by its name; `"cry"` by its own cry, from its place in the round's lineup: the first in the left ear, the second in both, the third in the right, wherever it pops up, and the berry alone ("Pinap Berry wanted"); `"both"` its name and its cry. The round's lineup is said by name either way. The cry needs `feedback_sounds` above 0. |
@@ -50,6 +53,10 @@ they take effect the next time pa3ds starts.
 | `head_it_lead` | `0.4` | How many seconds before a ball reaches its Pokémon the cue sounds: about how long you take from hearing it to pressing the key. At each round's results pa3ds says its estimate of yours, to put here. Raise it if your taps come too late, lower it if too early. |
 | `head_it_style` | `"name"` | How Head It says the Pokémon a ball falls at: `"name"`, `"cry"` (the cry alone) or `"both"`, as in Berry Picker, or `"none"`, nothing, for the cue alone with `head_it_cue`. The round's lineup is said by name either way. |
 | `head_it_score` | `false` | Head It says the score, the combo and each MISS! as they come, the score and the combo once while they keep counting up. `false` leaves them to Head It's `R`, which says them whenever you press it. |
+| **`[pa3ds.training]`** | | Super Training's regimens. |
+| `shot_cue` | `"sound"` | How you hear a Balloon Bot's shot being fired: `"sound"` the game's alert sound, `"speech"` the words "shot coming", or `"off"`. With `feedback_sounds` at 0, `"sound"` is said in words. |
+| `block_cue` | `"sound"` | How you hear that it's time to block or dodge: `"sound"` the game's "!" sound, `"speech"` the word "now", or `"off"`. With `feedback_sounds` at 0, `"sound"` is said in words. |
+| `block_lead` | `0.6` | How many seconds before a shot arrives `block_cue` comes. A barrier lasts under a second from when you press L, so this less your own reaction time is how early you raise it. |
 | **`[pa3ds.extras]`** | | See [Extras](#extras). |
 | `conditions` | `false` | Say a Pokémon's contest conditions as numbers, on its summary and in the Pokéblock Case. |
 | `hidden_items` | `"off"` | List the hidden items you have not found yet among the items, as "hidden item": `"underwater"` under the sea alone, `"all"` everywhere. |
@@ -66,6 +73,9 @@ in a way pa3ds cannot otherwise put into words. Each is off until you turn it on
 
 - **`conditions`**: the game draws a Pokémon's contest conditions as a star. pa3ds cannot read
   the star, so it says the numbers the star is drawn from.
+- **`base_stats`**: the game draws each stat your Pokémon has gained in Super Training as a
+  chart. `R` on its page says how many fifths of it each fills; with this on, it says the
+  points.
 - **`hidden_items`**: under the sea the Dowsing Machine cannot be used, and a hidden item is
   something a sighted player may spot among the rocks and weed, so `"underwater"` lists those,
   and the Scanner under Sea Mauville until you take it. `"all"` lists every hidden item, which

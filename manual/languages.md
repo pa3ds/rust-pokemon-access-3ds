@@ -18,7 +18,8 @@ They are in the `data` folder beside pa3ds: every game's in `data\common`, and e
 text: each line is a word's name, `=`, and the words.
 
 Every language the games come in has every file. The translations began as a machine's, so some
-words may sound wrong; names are each language's official ones where the games have one. A word missing from a language is said in English.
+words may sound wrong; names are each language's official ones where the games have one. A word
+missing from a language is said in English.
 
 ## Translating
 

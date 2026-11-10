@@ -18,7 +18,10 @@ the Game Boy games. Nothing here is taken from its code.
 ## The manual
 
 - This page: the games, what pa3ds says, setting it up, and updating.
-- [Keys](manual/keys.md): pa3ds's keys, the map's list, finding the way, and naming things.
+- [Keys](manual/keys.md): pa3ds's keys, the map's list, touch mode, finding the way, and naming
+  things.
+- [Pokémon-Amie](manual/amie.md): petting, beckoning, high fives and Poké Puffs, and the keys of
+  Amie and its three games.
 - [Settings](manual/settings.md): every setting, the Azahar settings pa3ds changes, and your files.
 - [Languages](manual/languages.md): the language pa3ds speaks, and translating it.
 - [Known issues](manual/known-issues.md): what pa3ds gets wrong or leaves out for now.
@@ -28,7 +31,8 @@ the Game Boy games. Nothing here is taken from its code.
 - **Omega Ruby and Alpha Sapphire**: the most complete.
 - **X and Y**: most of what Omega Ruby has, with some screens still silent.
 - **Sun and Moon**: dialogue, menus and screens, the name entry keyboard, battles, and the map's
-  doors, signs, people and items, with pathfinding.
+  doors, signs, people and items, with pathfinding. Trainers, signs, the things you can check and
+  many buildings' doors are called by the game's own words.
 
 ## What it says
 
@@ -36,27 +40,32 @@ the Game Boy games. Nothing here is taken from its code.
 - **Menus**: the item under the cursor, then its details, such as a description or a count.
 - **Screen text**: labels, options and questions as they appear and when they change. In
   Pokémon-Amie's games the clock is said each half minute, and a countdown at 10 seconds and
-  each of its last 5; at the end, your rank and the stars it earned, and Berry Picker's count of
-  berries. Berry Picker says which berry each Pokémon wants as it comes, and Head It which Pokémon
-  each ball of yarn falls at. Tile Puzzle's difficulties
-  say the best stars earned on each, and while you play its points are said only as a puzzle
-  starts and once it is solved.
+  each of its last 5; at the end, your rank and the stars it earned.
 - **Name entry**: the key under the cursor.
-- **Battles**: the battle text, and each side's Pokémon with its name, gender, level and HP. Your
-  HP is said exactly, the enemy's as a percentage, because a bar is all the game shows. A move's
-  category, power, accuracy and description on the move info screen, where the four moves are
-  said by number, and when a move is to be forgotten.
-- **The PC Box, the party, the Bag and the Pokédex**, the habitat map included.
+- **Battles**: the battle text, how many Pokémon a trainer has as their battle opens, and each
+  side's Pokémon with its name, gender, level and HP. Your HP is said exactly, the enemy's as a
+  percentage, because a bar is all the game shows. A move's category, power, accuracy and
+  description on the move info screen, where the four moves are said by number, and when a move
+  is to be forgotten.
+- **The PC Box, the party, the Bag and the Pokédex**, the habitat map included. The PC Box says its mode
+  as Start and Select change it.
 - **The fitting room** in X and Y's boutiques: each category, and each item with its colour and
   price.
 - **Contests and the Pokéblock Kit**: each move with its appeal and jamming, each entrant's
   place, and your berries and blocks with how many you have.
+- **The Bag's own sort**: an item carried with Y, and the two it would land between.
+- **The Y button's menu**: each registered key item with the way that uses it, "up Mach Bike".
 - **Where you are**: the place name when you arrive somewhere new.
 - **The map**: exits, interactables (signs and the like), people, items, berry spots, obstacles
   and more, each with its direction and distance, and the way to any of them on foot.
 - **The touch screen**: the buttons on the bottom screen where the game needs a touch, which
   touch mode can tap for you: the PokéNav's and PlayNav's apps, the AreaNav's places,
   Pokémon-Amie and Super Training.
+- **Pokémon-Amie** ([its own page](manual/amie.md)): the arrow keys move a stylus over your
+  Pokémon, saying the part it is on, and touch mode pets that part; beckoning, high fives and
+  Poké Puffs; your Pokémon's numbers, and what it is doing, each animation in a sentence of its
+  own. In Berry Picker which berry each Pokémon wants, in Head It which Pokémon each ball falls
+  at, and in Tile Puzzle where each tile's piece belongs, each game with keys of its own.
 - **The AreaNav**: each place, and the Pokémon seen there, as the DexNav says them.
 - **The DexNav**: the area's Pokémon, which are met on the water or by fishing, and which you
   have caught, searching, and a hidden Pokémon's details.
@@ -64,10 +73,10 @@ the Game Boy games. Nothing here is taken from its code.
   them included, and other players' bases named as the game names them.
 - **Pictures the game never names**: the boy and the girl to choose from as a game begins, and
   the Trainer Passport's photos in Sun and Moon, described in pa3ds's own words.
-- **Scenes without words**, described when the `descriptions` setting is on: many in Omega Ruby
-  and Alpha Sapphire, each one's intro and title screen among them, X's and Y's intro and title
-  screen, AZ's story in X's Lysandre Labs, the ultimate weapon's rising seen from there in X and Y, Xerneas and Yveltal waking, the weapon firing its last after Lysandre's battle, and one in Sun so far. Pokémon-Amie's Tile Puzzle says which of your Pokémon stand
-  where in each picture it draws, Play Again's too, and where the picture is set.
+- **Scenes without words**, described unless the `descriptions` setting is turned off: many in
+  Omega Ruby and Alpha Sapphire, the story's in X and Y, and one in Sun so far. Pokémon-Amie's
+  Tile Puzzle says which of your Pokémon stand where in each picture it draws, and where the
+  picture is set.
 - **Footsteps** where Omega Ruby, Alpha Sapphire, X and Y play none, as on streets, floors and in
   caves: the game's own step sound, as loud as the game and Azahar would play it.
 
@@ -116,8 +125,8 @@ is only a menu bar: press Alt for its menus. **Mod** has Settings, Check for upd
 **Azahar** downloads Azahar's latest portable zip or its installer, and **Help** opens a page of
 this manual in your browser, or reports an issue on GitHub. Settings opens the mod settings
 ([Settings](manual/settings.md)). It hides the window while Azahar is open, so it is not in
-Alt+Tab; `hide_window` keeps it in sight. While another window is in front of Azahar, pa3ds says nothing of the
-game, but still answers its keys.
+Alt+Tab; `hide_window` keeps it in sight. While another window is in front of Azahar, pa3ds says
+nothing of the game, but still answers its keys.
 
 ## Updating
 

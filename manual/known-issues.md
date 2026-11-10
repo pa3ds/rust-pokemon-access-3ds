@@ -5,21 +5,29 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
 
 ## Every game
 
-- **Some touch-screen apps are only partly read**: the DexNav, Pokémon-Amie, Super Training and
-  the PSS. Super Training's regimen descriptions read their two columns run together, and
-  turning a PlayNav page with its arrows says nothing of the new page. Pokémon-Amie's Switch
-  screen calls each party member "button pokémon" and says no hearts, puffs or notes after
-  Affection, Fullness and Enjoyment. Of its games, Berry Picker's Unlimited says the misses you
-  have left as a number alone, "2", and Berry Picker does not say when a Pokémon has eaten a
-  berry or gone away; Head It says when a ball reaches its Pokémon only with `head_it_cue` on,
-  and it reads its results out of order, the total last; in Tile Puzzle "Yes" is said as a puzzle
-  begins, the last
-  swap's points are said as it is solved, and a tile says where its piece of the picture belongs,
-  not what is on it. pa3ds does not say when your Pokémon has eaten a Poké Puff, and only the five
-  puffs the bar shows at once are offered. It does not say when your Pokémon in Amie has its back
-  to you, or when it turns round. With an Azahar older than 2126.2, Amie's stroke goes across the
-  middle of the screen, and can miss a Pokémon standing to one side.
+- **Some touch-screen apps are only partly read**: the DexNav, Super Training and the PSS.
+  Turning a PlayNav page with its arrows says nothing of the new page.
 - **X, Y, Sun and Moon** are read less completely than Omega Ruby and Alpha Sapphire.
+
+## Pokémon-Amie
+
+- **The names of a Pokémon's own parts** have not been checked by a sighted player yet, so some
+  may name the wrong part. In every language but English they are a machine's translation.
+- **The descriptions of your Pokémon's animations** were written from still pictures and have
+  not been checked by a sighted player either. In every language but English they are a machine's
+  translation.
+- **With an Azahar older than 2126.2** the stylus says no parts, and a pet goes where the stylus
+  is rather than to a part.
+- **With full Affection** a pet says no hearts, as the number can rise no further.
+- **Poké Puffs**: only the five the bar shows at once are offered.
+- **Head It** says when a ball reaches its Pokémon only with `head_it_cue` on.
+- **Tile Puzzle**: "Yes" is said as a puzzle begins, the last swap's points are said as it is
+  solved, and a tile says where its piece of the picture belongs, not what is on it.
+
+## Super Training
+
+- **Tapping a training bag faster than about twice a second**, some of your Pokémon's hits run
+  together and go unheard: about a third of them, at a tap every 0.4 seconds.
 
 ## The map
 
@@ -40,6 +48,9 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
 
 ## Omega Ruby and Alpha Sapphire
 
+- **Sorting the Bag with Y**: picking an item up is said only at your first step, as "moving"
+  and the item.
+- **In the Y button's menu**, what Select and Start do is not said.
 - **A scene you skip** goes undescribed from there, and a description waits while the emulator is
   paused.
 - **A Pokémon met in seaweed under water** is said as one met walking, and as met in grass in the
@@ -95,11 +106,32 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
   round pad, a push that crosses a second arrow, and the rooms behind the doors have not been
   tried; the doors are said as "passage", and the books and the report in the room with the
   bookshelves are not named yet.
+- **Snowbelle Gym**: its four switches are listed by colour, and `P` goes round the gaps in the
+  coloured floors as the switches have turned them. Where the gaps cut the way, `P` says "can't
+  continue" rather than which switch to step on. Only the pink switch has been tried. Step on a
+  switch within half a minute of loading a save in the Gym and `P` may not know it turned yet.
+  After Wulfric is beaten, the ice slide up the middle has not been tried with `P`.
 - **Riding on Routes 9 and 17**: getting off and smashing a rock have not been tried with `P`.
 - **Rails outside Shalour Gym**, on Routes 5, 13 and 18 and in Dendemille and Couriway Towns, are
   found the same way and nobody has tried them. A rail broken in the middle, as Route 5's over the
   water is, is not taken by `P`.
+- **The Pokémon League's Radiant Chamber**: the way up to the Champion is listed as an elevator,
+  the round glass platform, and `P` walks you onto it. The door it takes you to is not listed,
+  since it stands in the wall. `P` onto the platform has not been tried in the game yet.
+- **The Elite Four's rooms**: `P` now walks you straight north from the platform you arrive on,
+  over the way back down, which only takes you down walking south. A way out of a building
+  across its mat going north is the same rule, and has been tried in the Elite Four's rooms
+  only.
 
 ## Sun and Moon
 
 - **Your save's language** cannot be read: set it yourself (see [Languages](languages.md)).
+- **How many Pokémon a trainer has** is not told as their battle opens: `trainer_party` works in
+  Omega Ruby, Alpha Sapphire, X and Y only.
+- **Townspeople are named by how they look**, "Old woman", "Clerk", "Little boy": the game has
+  no word for them, so pa3ds chose one from their clothes and what they say, and one can be
+  wrong. A few people, about 15 in the whole game, are still "person".
+- **Some doors are only "door"**: every plain house, which the game never names, and a few
+  buildings its map does not place, such as the Trainers' School and the Thrifty Megamart.
+- **A board can run its two lines together** where its second line has no quotation marks:
+  "Hau'oli Police Station Keep our roads safe!".

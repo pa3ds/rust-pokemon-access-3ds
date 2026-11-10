@@ -7,21 +7,24 @@ When one of them is also bound to an Azahar button, pa3ds says so as it starts.
 ## The map's list
 
 pa3ds lists what is on the map in categories: all, exits, interactables, obstacles, people, items,
-berries, ash, bike, riding, climbing, currents, arrows and pokémon, and while soaring, towns, routes, landmarks and mirage
-spots. A category with nothing in it is skipped. Each thing is said with where it is from you:
-"door, 1 of 3, 3 east 2 north". A thing more than two squares' height above or below you says how
-far, in the game's units, 18 to a square: "item ball, 1 north, 90 below". North is the way up
-walks you: where the camera is turned, as in Parfum Palace's garden in X, round Prism Tower in
-Lumiose City or on the Battle Resort's beach, the directions turn with it. Where the camera stays
-behind you and left, right and down turn you, as in X's Glittering Cave, things are said from the
-way you face, "9 ahead 8 left", and `P` says the turns, "turn left, 5 forward". Each time the way
-up walks you turns a quarter, pa3ds plays a short tone: high for north, low for south, in your
-right ear for east and your left for west.
+berries, ash, bike, riding, climbing, currents, arrows and pokémon, and while soaring, towns,
+routes, landmarks and mirage spots. A category with nothing in it is skipped. Each thing is said
+with where it is from you: "door, 1 of 3, 3 east 2 north". A thing more than two squares' height
+above or below you says how far, in the game's units, 18 to a square: "item ball, 1 north, 90
+below". North is the way up walks you: where the camera is turned, as in Parfum Palace's garden in
+X, round Prism Tower in Lumiose City or on the Battle Resort's beach, the directions turn with it.
+Where the camera stays behind you and left, right and down turn you, as in X's Glittering Cave,
+things are said from the way you face, "9 ahead 8 left", and `P` says the turns, "turn left, 5
+forward". Each time the way up walks you turns a quarter, pa3ds plays a short tone: high for north,
+low for south, in your right ear for east and your left for west.
 
 Exits side by side into the same place are one exit. On Lumiose City's streets, where a street
 ends on a plaza you walk freely, the exits list that end as "open ground": walk onto the plaza and
 its own exits are listed. In X and Y, a gate is said with the place beyond it: "Lumiose Gate to
-Route 4".
+Route 4". Lumiose's exits say where they go even where the game puts no sign up: the alleys onto
+its five plazas by the plaza, "Rouge Plaza"; the Looker Bureau and Restaurant Le Wow by their
+signs; and the doors the game never names by what is behind them, "back alley", "office
+building", "photo shoot".
 
 In Laverre Gym, in X and Y, the interactables list each teleporter with where it puts you, and `P`
 leads you through them, saying the way as far as the first and how many more.
@@ -32,6 +35,8 @@ belt as "conveyor belt", and the switch that turns a belt round as "switch".
 In Lysandre Labs, in X and Y, the arrows list each arrow tile by the way it points, "arrow west",
 with where it leaves you, and the exits list each round pad as "teleporter", with where it puts
 you.
+
+## Modes
 
 The list has three **modes**, and the apostrophe steps through them. During a battle or a scene
 the map's keys say "no map", and the thing you had chosen is kept for when the map comes back.
@@ -48,12 +53,13 @@ The battle's keys work throughout.
 | `Alt+P` | Stop guiding. |
 | `Ctrl+P` | Leave out of the list everything `Shift+P` finds no way to from where you stand, or put it back. Everything is listed each time pa3ds starts. |
 | `,` and `.` (comma and period) | Previous and next way to the chosen thing, where there is more than one, such as which way to push a big boulder. |
-| `R` | Say your side of the battle again. In a contest, your place. In Head It, the score. |
+| `R` | Say your side of the battle again. In a contest, your place. In Pokémon-Amie, your Pokémon's numbers, and in Head It, the score. On Super Training's page, your Pokémon's base stats and the kind of shot it fires, and in a regimen, the score, the time left and how full the energy meter is. |
 | `Shift+R` | Say the enemy's side of the battle again. In a contest, everyone else's place. |
 | `Shift+K` | Give the chosen thing a name of your own. |
 | `Shift+J` | Give whoever spoke last a name of your own. |
-| `C` | Say the square you are standing on, as x and z: x grows going east, z going south. |
+| `C` | Say the square you are standing on, as x and z: x grows going east, z going south. In a Super Training regimen, where your Pokémon stands, as below. |
 | `Shift+C` | Say the chosen thing's squares the same way. |
+| `Y` | Say again the last thing pa3ds said, whatever said it. |
 
 **List mode** walks the whole list, nearest first.
 
@@ -72,7 +78,9 @@ The battle's keys work throughout.
 | `L` | The next thing to the south. |
 | `K` | The next thing to the west. |
 
-**Touch mode** walks the buttons on the bottom screen, in reading order. While a panel or a Yes
+## Touch mode
+
+Touch mode walks the buttons on the bottom screen, in reading order. While a panel or a Yes
 and No is up, it leaves out the buttons behind it that a tap no longer reaches. It works where the
 game needs a touch: on the map with the PokéNav Plus, in the AreaNav, Pokémon-Amie and Super
 Training. Elsewhere, in the Bag, the PC or a battle, the game's own buttons do everything a touch
@@ -84,7 +92,7 @@ does, and touch mode says "nothing to touch".
 | `I` and `O` | The button above and below: the nearest in the previous and next row. |
 | `K` | The chosen button again. |
 | `U` | Tap the chosen button. |
-| `Shift` | In Pokémon-Amie, pick up the chosen button to drag it, with the PC Box's sound for picking up a Pokémon. Keep Shift down: `J`, `L`, `I` and `O` choose where to, and `K` says where it is. Let go of Shift to drop it there, with another sound. With the `drag` setting at `"toggle"`, press once to pick up and again to drop; with `feedback_sounds` at 0, "holding" and "let go on" are said instead of the sounds. Nothing else drags. You can move drag to another key (Changing keys, below). |
+| `Shift` | In Pokémon-Amie, pick up the chosen button to drag it, with the PC Box's sound for picking up a Pokémon. Keep Shift down: `J`, `L`, `I` and `O` choose where to, and `K` says where it is. Let go of Shift to drop it there, with another sound. With the `drag` setting at `"toggle"`, press once to pick up and again to drop; with `feedback_sounds` at 0, "holding" and "let go on" are said instead of the sounds. In a Super Training regimen, hold it on a goal to charge a shot, as below. Nothing else drags. You can move drag to another key (Changing keys, below). |
 
 In the AreaNav, touch mode offers each place on the map by name, and a tap chooses it.
 
@@ -92,62 +100,58 @@ When a message on the bottom screen waits for a tap, as Super Training's welcome
 mode offers "continue", and a tap goes on with the message. The PlayNav's "previous" and "next"
 turn the page instead, away from the message.
 
-In Pokémon-Amie, touch mode offers to stroke your Pokémon, and the tap key strokes it across its
-head, or its body when its head hardly shows, wherever it stands; with an Azahar older than
-2126.2, across the middle of the screen. This is an experiment. Amie sometimes opens with your Pokémon's back to you and its buttons hidden: stroke it
-two or three times and it turns round and comes up to you, and the buttons appear. Its Poké Puffs
-button opens a bar of puffs, each said by its kind. To give one, hold
-Shift on it and carry it to your Pokémon, and keep Shift down while your Pokémon eats it: let go
-once you hear it finish and cry, a few seconds, longer for some Pokémon than others. In its Tile
-Puzzle, each tile is said as a spreadsheet names a cell, its column a letter from A and its row a
-number from 1, and then where the piece of the picture on it belongs: "B1, goes to D3", or "in
-place". Tap a tile, then the tile where its piece belongs, to swap them. Over the finished picture there
-is nothing to touch: B goes back. In its Berry Picker, touch mode offers the berries on the tree
-by name, and each Pokémon that pops up wanting one, "Pinap Berry for Treecko", which pa3ds also
-says, one at a time: the next once you have given a berry or the one said has gone, unless the
-`one_at_a_time` setting is off. Hold Shift on that berry, choose the Pokémon with `J`, `L`, `I` and `O`, and let
-go of Shift: the berry goes straight to it. Nothing moves until you let go, so choosing past
-another Pokémon is safe, but a wrong berry sends a Pokémon away. A Pokémon waits only about two
-seconds. A tap knocks a berry off the tree for nobody. For a higher score, lower Azahar's speed
-limit in its general settings: at 50 percent each Pokémon waits twice as long, and the round
-lasts two minutes. Turn on realtime audio in Azahar's audio settings, or the sound stutters.
+On Super Training's page, touch mode offers the training bag hanging beside your Pokémon, by its
+name, or "empty bag" when none is in use. A tap on the bag or on your Pokémon makes it hit the
+bag, and a hit on the empty bag can find a new one. Each hit of a tap makes a sound of the
+game's, with `feedback_sounds` on, so a tap that misses is silent. Your Pokémon also hits the bag
+on its own about once a minute, and that's silent. When a bag is finished pa3ds says so, "Ralts
+finished Core Training", with the game's "!" sound: tap your Pokémon to get what the bag gave.
+When the Pokémon you've chosen is resting, pa3ds says so, "Ralts is resting": it won't do a
+regimen until you tap it.
 
-Berry Picker also has keys of its own, in any mode. `1` to `7` pick up a berry, in the game's own
-order: Razz, Bluk and Pinap on Easy, then Wepear and Magost on Normal, and Durin and Nomel on Hard;
-that is left to right on the tree. `8`, `9` and `0` are the round's three Pokémon, each
-keeping its key all round. With a berry picked up, a Pokémon's key gives it the berry; with none,
-it says what that Pokémon wants. As each round is about to start, pa3ds says the three in their
-keys' order. Another berry's key picks that one up instead. A key with nothing to do, as `7` on Easy,
-plays the game's error sound. Outside Berry Picker these keys are Azahar's as ever.
+`R` on that page says how much of each base stat your Pokémon has trained, in fifths of how full
+the game's chart is of it, the total, and the kind of shot it fires: "HP 1 of 5, Attack 1 of 5,
+Defense 1 of 5, Sp. Atk 0 of 5, Sp. Def 0 of 5, Speed 1 of 5, total 1 of 5, blue shot".
+With the `base_stats` Extra on, it says the points instead: see [Settings](settings.md#extras).
 
-In its Head It, balls of yarn fall at your Pokémon, and pa3ds says which Pokémon each falls at
-as it comes: "Ralts". Touch mode offers each Pokémon by name while the round runs; tap it about a
-second after its name to head the ball back, as the ball reaches it. Too early or too late is a
-miss. On Easy the Pokémon you play with stands alone in the middle at first, and two more come up
-beside it as the round goes on. pa3ds leaves the score, the combo and each MISS! unsaid, so the
-names keep up with the balls; the game plays its own sound for a miss. The time left is said
-each half minute and over the last ten seconds, the misses you have left as they change, and the
-results say the rest. With the `head_it_score` setting on, the score and the combo are said once,
-then left unsaid while they keep counting up.
+In Pokémon-Amie touch mode beckons your Pokémon, pets it with a stylus and gives it Poké
+Puffs, and Amie and its three games have keys of their own: see [Pokémon-Amie](amie.md).
 
-Head It also has keys of its own, in any mode: `8`, `9` and `0` tap the Pokémon on the left, in
-the middle and on the right. As each round starts, pa3ds says its three Pokémon in that order,
-those not up yet too. A key where no Pokémon stands, or before the balls start, plays the game's
-error sound. As Azahar ships, none of the three is one of its buttons; outside Head It they are
-Azahar's as ever. `R` says the score, the combo and the time or the misses left: "819, 98-HIT
-COMBO, Time Left: 23". The game shows the combo for a moment after each hit; `R` says it until a
-miss ends it. With the `head_it_cue` setting on, the game's "!" sound plays as the moment to
-tap a ball comes: in your left ear for the left Pokémon, both ears for the middle, your right ear
-for the right. Press the Pokémon's key as soon as you hear it: that is steadier than timing your
-tap from the game's sound of the ball falling. At each round's results, pa3ds says its own
-estimate of your lead, from how long after each "!" you pressed that Pokémon's key with these
-keys; put it in the `head_it_lead` setting, or nudge from it. The lead never changes during a
-round.
+In a Super Training regimen you shoot at the goals a Balloon Bot puts up, until you have the
+points before the clock runs out. Touch mode offers each goal:
 
-In a Super Training regimen, touch mode offers each goal the
-Balloon Bot puts up: the tap key's first press says the goal, and each press after that shoots at
-it, wherever it has moved. pa3ds says "shot coming" about a second before the bot's ball arrives:
-move with the Circle Pad, or raise a shield with L.
+- `U` the first time says the goal, and each press after that shoots at it, wherever it has
+  moved.
+- **A charged shot:** hold `Shift` on the goal, the drag key. The press itself fires an ordinary
+  shot. After about two seconds pa3ds says "charged", and if you let go in the second and a half
+  after that, it is a Charged Shot, worth three times the points. Hold on too long and it says
+  "fizzled", and nothing more is fired. Let go then, and your next press fires nothing: it's the
+  press after that one that shoots. Touch mode has to be on, and the goal chosen, before you
+  press it. Choose another goal while you hold, and the press moves over to it in a fifth of a
+  second: let go before it gets there and pa3ds lets go once it has, so the shot still goes to
+  the goal you chose. The first tutorial, against Scatterbug, cannot charge.
+- **A barrier:** some Bots, such as Graveler's at Level 2, raise a barrier, and while it is up
+  there are no goals. Touch mode offers "barrier" in their place. One shot that lands on it
+  brings it down, a plain shot as well as a charged one. It circles quickly, so touch mode aims
+  where it will be when your shot lands, by how fast your Pokémon's shots fly and how near it
+  stands. The first shot of a round can land a little behind, as touch mode learns your
+  Pokémon's speed from it. Left alone, a barrier goes by itself after 20 seconds.
+- **The Bot's shots** cost you points. pa3ds plays the game's alert sound as one is fired, and
+  the game's "!" sound when it's time to act: move out of the way with the Circle Pad, or press
+  the game's `L` to raise a barrier. A barrier lasts under a second, so wait for the "!" rather
+  than holding `L` from the start. pa3ds says "blocked" when it stops one. With `feedback_sounds`
+  off, these are "shot coming" and "now" in words. Each can be changed under
+  [`[pa3ds.training]`](settings.md).
+- `C` says where your Pokémon stands, in steps from where it started, the way the map's list
+  says where a thing is: "7 up 2 left", or "at the start". The Circle Pad moves it, and up takes
+  it nearer the Balloon Bot, to about 8 up at the nearest. Near, your shots land sooner, so the
+  goals have less time to drift away from them, and the Bot's shots reach you sooner too. A shot
+  scores the same from anywhere. `C` works while you hold `Shift` too.
+- `R` says the score, the time left and how full the energy meter is, even while you hold
+  `Shift` for a charge. A shot with the meter at
+  4 of 5 or more uses over half of it, about two and a half seconds' worth, and scores the
+  regimen's full points. Below about 3 of 5 a shot uses none and scores far less (against
+  Wailmer, 3 points to 21), so shooting steadily scores more than tapping as fast as you can.
 
 ## Finding the way
 
@@ -198,7 +202,8 @@ Mach Bike `P` takes no rail or bumpy slope, and on the Acro Bike no sandy slope 
 which bike the way needs.
 
 **Jumping stones.** In Pokémon X, `P` crosses a mud pit by its stones: each press of the way hops
-you two squares, onto the next stone.
+you two squares, onto the next stone. In Victory Road, where the stones stand in a pit you can
+also walk, a way along the pit's floor goes round them.
 
 **Riding Rhyhorn and Mamoswine.** In X and Y, only a Rhyhorn crosses Route 9's spiky ground, and
 only a Mamoswine Route 17's deep snow. The riding category lists each patch of flat ground, where
@@ -253,8 +258,8 @@ stairs on each landing to the top. `P` says each stretch of it as one step of th
 up the ramp 22 east": hold that key and the ramp carries you round its curve to the next
 landing. The way to someone on the ground goes back down it first, "down the ramp 16 west".
 
-**Big boulders** say which ways they can be pushed from where they stand, or "immoveable". Hold
-the way for a moment to push one a square. Push one into a hole and both leave the list.
+**Big boulders** say which ways you can push them, from the sides you can get to, or "immoveable".
+Hold the way for a moment to push one a square. Push one into a hole and both leave the list.
 
 **Diagonal steps.** In Santalune Gym, in X and Y, `P` says a step along a diagonal thread of the
 web as "1 north-east": tilt the circle pad that way, or hold both keys.
@@ -264,6 +269,16 @@ web as "1 north-east": tilt the circle pad that way, or hold both keys.
 The game never names most people on the map, signs and doors, and pa3ds gives some of them a name
 of its own. `Shift+K` names the chosen thing, and `Shift+J` whoever spoke last: type the name and
 press Enter.
+
+In Sun and Moon much of the map is named from the game itself. A trainer is their class and name,
+"Youngster Jimmy", and anyone who looks like a kind of trainer is that kind, "Lass". Someone you
+battle more than once is named wherever they stand: "Pokémon Trainer Hau", "Hala", "Team Skull
+Gladion". The rest of the story's people, your mom, Professor Kukui, Lillie and the captains,
+are named by pa3ds, and so are townspeople, by how they look: "Old woman", "Clerk", "Little
+boy". A Pokémon standing on the map is its species, "Meowth". A sign is its
+first line, "Route 1 sign" or "Trainer Tips sign". Something you can check is the first thing it
+says when you do, "It's a Wii U!". A building's door is the building: "Pokémon Center", "Apparel
+Shop", "Malie Library".
 
 People and things drawn alike, such as every Youngster or every big boulder, share a name
 unless you tick **Only this one**, a Tab away from the name and ticked as the box opens. A name
@@ -285,11 +300,11 @@ front of its line: a line you delete is put back the next time pa3ds starts.
   alone. Change it to another key, such as `"d" = "drag"`, and that key drags instead and Shift
   no longer does. It works as Shift did, held or pressed as the `drag` setting says, and outside
   Pokémon-Amie says "nothing to drag".
-- `[pa3ds.amie.berry_picker]` holds Berry Picker's own keys, `"first berry"` to `"seventh berry"`
-  and `"first pokemon"` to `"third pokemon"`. pa3ds takes them only while Berry Picker runs,
-  and there they win over the keys above. `[pa3ds.amie.head_it]` holds Head It's,
-  `"left pokemon"`, `"middle pokemon"`, `"right pokemon"` and `"score"`, taken only while Head
-  It runs.
+- `[pa3ds.amie.stylus]`, `[pa3ds.amie.berry_picker]` and `[pa3ds.amie.head_it]` hold the keys
+  of Pokémon-Amie and of its games, taken only while each runs: see
+  [Changing Amie's keys](amie.md#changing-amies-keys).
+- `[pa3ds.training.page]` and `[pa3ds.training.round]` hold the keys of Super Training's page and
+  of its regimens, taken only while each is up.
 - `[azahar]` rebinds Azahar's own buttons, and `[azahar.circle_pad]` and `[azahar.c_stick]` its
   two sticks. Changes apply the next time pa3ds starts with Azahar closed.
 

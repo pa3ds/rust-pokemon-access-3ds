@@ -14,9 +14,10 @@ path (`docs/porting.md`), so an upstream change is a change to the files it maps
 
 The Python checkout sits beside this one, at `../pokemon-access-3ds` (or `PA3DS_PYTHON`). Its
 glossary and docs are this repository's too, and are not copied here: before the first change in
-a session, read its `GLOSSARY.md` in full — the vocabulary, which code and conversation both use
-— and the **ADRs** for the area you are working in (`docs/adr/README.md` there is grouped by
-area). Before changing a module, read every ADR its module doc lists under **Bound by**, copied
+a session, read the opening of its `GLOSSARY.md` (*pa3ds in a page*) and its section for the area
+you are working in: the vocabulary, which code and conversation both use (grep it for any other
+term before naming a thing). Read the **ADRs** for that area too (`docs/adr/README.md` there is
+grouped by area). Before changing a module, read every ADR its module doc lists under **Bound by**, copied
 from its Python docstring: a rule every screen goes through, as `common.touch` and
 `common.screen_announce` are, keeps decisions made for screens far from the one you are changing.
 An ADR is binding: contradict one only by saying so. A path such as `docs/runbooks/rig.md`
@@ -166,12 +167,14 @@ counterpart. It runs only in a build `tools/package.ps1` made (`PA3DS_RELEASE`),
 
 [README.md](README.md) and the pages it links to in [`manual/`](manual/) are what a player reads,
 and they ship in the release zip: the README the games, what is said, setup and updating;
-`keys.md` the default keys; `settings.md` every setting, the Azahar settings pa3ds writes and the
+`keys.md` the default keys, the map's list, touch mode and naming; `amie.md` Pokémon-Amie, its
+keys and its games; `settings.md` every setting, the Azahar settings pa3ds writes and the
 player's files; `languages.md` languages and translating; `known-issues.md` every known problem
 and gap a player meets, there and not in the other pages (Orion, 2026-10-24). Upstream's are the
 same manual for the Python pa3ds (Orion, 2026-10-06); a sync that changes them changes these to match, in the same
 commit, but for running `pa3ds.exe` where upstream runs uv, and for the Updating section, which
-only the port has. Keep them short, as upstream's AGENTS.md says (Orion, 2026-10-18). They name
+only the port has. Write them as upstream's `CODING_STANDARDS.md` (*The player's manual*) says,
+short (Orion, 2026-10-18). They name
 no ADR, finding or spike. Building and releasing are in [BUILDING.md](BUILDING.md), which does
 not ship.
 
