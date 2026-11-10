@@ -654,7 +654,9 @@ pub const LEAGUE_ENTRANCE: i64 = 0xF5;
 pub const LEAGUE_HALL: i64 = 0xF6;
 /// The script of the entrance's two triggers, each on the last line of one of the two streets
 /// that climb its sides, at about (29, 12) and (52, 12): its case calls the League's native 22 with
-/// nothing, the only way on into the hall. Read off the ROM; no recording has the player take it.
+/// nothing, the only way on into the hall. P walked the player up the east street onto it, "warp,
+/// here", and two seconds later into the hall at (8, 8), nothing said between
+/// (x_pokemon_league_hall).
 pub const LEAGUE_CLIMB: i64 = 0x1;
 
 /// Coumarine City Gym's vines (zone 0xbf), a tree climbed from 0 to Ramos at 720, its levels 0,

@@ -1196,8 +1196,9 @@ impl Ground {
     /// launches stand on the pit's rim, and the player at (44, 59), between the stone at
     /// (44, 58) and the launch at (44, 60), pressed south onto the launch and did not move
     /// (Khai, 2026-11-07). Its ground is stacked, with no height a cell, so the rim is told by
-    /// the hops alone. The cells of a hop, the floor hopped over and the stone, are `joined`,
-    /// as a way found is checked a cell at a time.
+    /// the hops alone. Khai hopped the way P then found, from the launch at (44, 54) over the
+    /// stones to the launch at (44, 60) (2026-11-07). The cells of a hop, the floor hopped over
+    /// and the stone, are `joined`, as a way found is checked a cell at a time.
     pub fn walks(&self, cell: Cell, step: Cell) -> Result<bool> {
         // Python's `_kind`, which is `kind` over again.
         let kinds = (self.kind(cell)?, self.kind(step)?);
