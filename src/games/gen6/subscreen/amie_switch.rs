@@ -15,6 +15,7 @@
 //! Bound by:
 //! - ADR-0037: pictures counted and said in words of pa3ds's own, by the game's own label.
 
+use std::collections::HashSet;
 use std::rc::Rc;
 
 use indexmap::IndexMap;
@@ -24,9 +25,9 @@ use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
 use crate::core::words::own;
 use crate::games::common::layout::Layouts;
-use crate::games::common::pokemon;
 use crate::games::common::screen::ScreenText;
 use crate::games::common::touch::ImageOf;
+use crate::games::common::{lyt, pokemon};
 use crate::games::gen6::screens::partyicons::{COUNT, SLOTS};
 use crate::games::gen6::subscreen::amie::{METER, PAGE_APPS};
 use crate::games::gen6::subscreen::berry_picker::Name;
@@ -70,8 +71,6 @@ pub struct SwitchScreen {
     party: Rc<dyn Fn() -> Option<i64>>,
     /// A party member as the player knows it.
     called: Name,
-    /// The layout whose rows were on the screen at the last poll, none where they were not.
-    root: Option<i64>,
     /// `pictures`, as a test replaces it.
     pub(crate) pictures: PicturesOf,
 }
@@ -94,7 +93,6 @@ impl SwitchScreen {
             labels,
             party,
             called,
-            root: None,
             pictures,
         }
     }
@@ -118,16 +116,12 @@ impl SwitchScreen {
     }
 
     /// The words on the screen, each row's label with how many of its pictures are filled.
-    pub fn reworded(
-        &mut self,
-        found: IndexMap<i64, ScreenText>,
-    ) -> Result<IndexMap<i64, ScreenText>> {
+    pub fn reworded(&self, found: IndexMap<i64, ScreenText>) -> Result<IndexMap<i64, ScreenText>> {
         let labels: Vec<&ScreenText> = found
             .values()
             .filter(|piece| self.labels.contains(&piece.text))
             .collect();
-        self.root = (labels.len() == ROWS.len()).then(|| labels[0].root);
-        if self.root.is_none() {
+        if labels.len() != ROWS.len() {
             return Ok(found);
         }
         let rows = self.rows()?;
@@ -161,8 +155,10 @@ impl SwitchScreen {
 
     /// The party member a picture of the party's buttons stands for, or None.
     pub fn name(&self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
-        let (party, slot) = ((self.party)(), self.slot(picture)?);
-        let (true, Some(party), Some(slot)) = (PAGE_APPS.contains(&running), party, slot) else {
+        let (true, Some(party)) = (PAGE_APPS.contains(&running), (self.party)()) else {
+            return Ok(None);
+        };
+        let Some(slot) = self.slot(picture)? else {
             return Ok(None);
         };
         let head = self.memory.read(party, COUNT + 1)?;
@@ -181,12 +177,7 @@ impl SwitchScreen {
     /// Which of the party's buttons a picture stands in, by its place, or None.
     fn slot(&self, picture: i64) -> Result<Option<i64>> {
         let layouts = &self.layouts;
-        // Only the screen's own: the page lying under it keeps its pictures, and a visitor there
-        // took the name of the button above it, and kept it (or_amie_affection_increase).
-        let Some(placement) = layouts
-            .placement(picture)?
-            .filter(|placement| Some(placement.root) == self.root)
-        else {
+        let Some(placement) = layouts.placement(picture)? else {
             return Ok(None);
         };
         let (shape, root, here) = (
@@ -197,8 +188,31 @@ impl SwitchScreen {
         if f32(&here, shape.y)? - f32(&root, shape.y)? < ROWS_BELOW {
             return Ok(None);
         }
+        // Only the screen's own: the page lying under it keeps its pictures, and a visitor there
+        // took the name of the button above it, and kept it (or_amie_affection_increase).
+        if !self.draws_rows(placement.root)? {
+            return Ok(None);
+        }
         Ok(Some(py::round(
             (f32(&here, shape.x)? - f32(&root, shape.x)? - FIRST_BUTTON) / BUTTONS_APART,
         )?))
+    }
+
+    /// Whether a layout draws pictures of all three rows, as only the Switch screen does: the
+    /// page under it keeps a plate of hearts alone, off the screen's edge. Asked of the layout as
+    /// touch mode names a picture, it needs no poll of the screen's words before it.
+    fn draws_rows(&self, root: i64) -> Result<bool> {
+        let mut kinds: HashSet<&str> = HashSet::new();
+        for (&pane, kind) in &self.layouts.tree(root) {
+            if kind != lyt::PICTURE_CLASS {
+                continue;
+            }
+            if let Some(image) = (self.image_of)(pane)?
+                && let Some(row) = ROWS.iter().find(|&&row| image.starts_with(row))
+            {
+                kinds.insert(row);
+            }
+        }
+        Ok(ROWS.iter().all(|row| kinds.contains(row)))
     }
 }

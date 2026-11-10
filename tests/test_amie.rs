@@ -1479,12 +1479,24 @@ fn test_the_switch_screens_buttons_are_named_by_the_party_member_their_place_hol
         memory.write(pane + fake.shape.x, &x.to_le_bytes());
         memory.write(pane + fake.shape.y, &y.to_le_bytes());
     }
+    // The screen draws its three rows; the page under it, a plate of hearts alone.
+    let rows = IndexMap::from([
+        (0x08A37000, "heart_00.bclim"),
+        (0x08A38000, "ic_hungry_black.bclim"),
+        (0x08A39000, "ic_asobu.bclim"),
+        (0x08A42000, "heart_01.bclim"),
+    ]);
+    let picture = classes.add(lyt::PICTURE_CLASS);
+    for &pane in rows.keys() {
+        let parent = if pane == 0x08A42000 { page_root } else { root };
+        fake.pane_with_vtable(pane, parent, Some(picture));
+    }
     fake.track().unwrap();
-    let mut screen = amie_switch::SwitchScreen::new(
+    let screen = amie_switch::SwitchScreen::new(
         memory.clone(),
         Rc::new(ClassNames::new(memory.clone(), CODE)),
         fake.layouts.clone(),
-        Rc::new(|_pane| Ok(None)),
+        Rc::new(move |pane| Ok(rows.get(&pane).map(|image| image.to_string()))),
         ["Affection", "Fullness", "Enjoyment"]
             .map(String::from)
             .to_vec(),
@@ -1498,24 +1510,7 @@ fn test_the_switch_screens_buttons_are_named_by_the_party_member_their_place_hol
         }),
     );
     let [first, second, third, chosen, under, seventh] = PLACES.map(|(pane, _)| pane);
-    assert_eq!(screen.name(first, Some(FIELD)).unwrap(), None); // not that screen
-    screen
-        .reworded(
-            ["Affection", "Fullness", "Enjoyment"]
-                .iter()
-                .enumerate()
-                .map(|(r#box, text)| {
-                    (
-                        r#box as i64,
-                        ScreenText {
-                            root,
-                            ..ScreenText::new(r#box as i64, *text, false)
-                        },
-                    )
-                })
-                .collect(),
-        )
-        .unwrap();
+    // with no poll of the screen's words before it
     assert_eq!(
         screen.name(first, Some(FIELD)).unwrap().as_deref(),
         Some("Blaze")
@@ -1555,7 +1550,7 @@ fn test_the_switch_screen_says_each_row_by_its_label() {
         Rc::new(|_found: &crate::games::common::pokemon::Pokemon| None),
     );
     screen.pictures = drawn_rows;
-    let mut words = |texts: &[&str]| -> Vec<String> {
+    let words = |texts: &[&str]| -> Vec<String> {
         let found: IndexMap<i64, ScreenText> = texts
             .iter()
             .enumerate()

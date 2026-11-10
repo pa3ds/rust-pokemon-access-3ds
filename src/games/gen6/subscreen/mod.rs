@@ -29,7 +29,10 @@
 //!   Head It's balls, for its cue;
 //! - `holding(running)`, whether its round holds the heap's whole sweep off: Head It's;
 //! - `scored(piece, running)`, whether words on its screen are its score, left unsaid as they
-//!   come unless the player asks: Head It's.
+//!   come unless the player asks: Head It's;
+//! - `reworded(found)`, the screen's words as they are said, which the screen text reader asks of
+//!   every poll's in any app, so each reader rewords only what it knows for its own: the Switch
+//!   screen's rows, Head It's numbers.
 //!
 //! A new one is built here and put in the tuples of what it answers, in the order it is asked in:
 //! touch mode names a picture by the first reader with a name for it, and offers targets in order.
@@ -126,6 +129,23 @@ pub trait Polled {
 /// A reader describing a picture the game shows without words.
 pub trait Described {
     fn describe(&self, running: Option<&str>) -> Result<Vec<(String, String, Option<Category>)>>;
+}
+
+/// A reader rewording the screen's words as they are said, only what it knows for its own.
+pub trait Rewording {
+    fn reworded(&self, found: IndexMap<i64, ScreenText>) -> Result<IndexMap<i64, ScreenText>>;
+}
+
+impl Rewording for RefCell<SwitchScreen> {
+    fn reworded(&self, found: IndexMap<i64, ScreenText>) -> Result<IndexMap<i64, ScreenText>> {
+        self.borrow().reworded(found)
+    }
+}
+
+impl Rewording for RefCell<HeadIt> {
+    fn reworded(&self, found: IndexMap<i64, ScreenText>) -> Result<IndexMap<i64, ScreenText>> {
+        Ok(self.borrow().reworded(found))
+    }
 }
 
 /// A screen's own keys: the table of the keys file they are in while it runs, and the line a
@@ -361,8 +381,8 @@ pub struct Subscreens {
     /// as a trait of one: a test reaches its cue through them, as Python's does.
     pub(crate) ticked: Vec<Rc<RefCell<HeadIt>>>,
     holding: Vec<Rc<RefCell<HeadIt>>>,
+    rewording: Vec<Rc<dyn Rewording>>,
     head_it: Rc<RefCell<HeadIt>>,
-    switch: Rc<RefCell<SwitchScreen>>,
 }
 
 /// `yours`: a Pokémon of the player's by the nickname they gave it, or else as the game calls its
@@ -583,10 +603,10 @@ impl Subscreens {
             keyed: vec![berry_keys, head_keys, stylus_keys],
             ticked: vec![head_it.clone()],
             holding: vec![head_it.clone()],
+            rewording: vec![switch, head_it.clone()],
             head_it,
             puzzle,
             berry_picker,
-            switch,
         }
     }
 
@@ -711,11 +731,17 @@ impl Subscreens {
         self.head_it.borrow().scored(piece, running)
     }
 
-    /// The words on the screen as they are said: the Switch screen's labels with their rows,
-    /// and Head It's numbers without the zeros it pads them with.
-    pub fn reworded(&self, found: IndexMap<i64, ScreenText>) -> Result<IndexMap<i64, ScreenText>> {
-        let found = self.switch.borrow_mut().reworded(found)?;
-        Ok(self.head_it.borrow().reworded(found))
+    /// The words on the screen as they are said, each reader rewording them in turn: the
+    /// Switch screen's labels with their rows, and Head It's numbers without the zeros it pads
+    /// them with.
+    pub fn reworded(
+        &self,
+        mut found: IndexMap<i64, ScreenText>,
+    ) -> Result<IndexMap<i64, ScreenText>> {
+        for reader in &self.rewording {
+            found = reader.reworded(found)?;
+        }
+        Ok(found)
     }
 
     /// Whether a screen's round holds the heap's whole sweep off: a second of nothing else
