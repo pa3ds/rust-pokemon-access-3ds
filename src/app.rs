@@ -716,9 +716,10 @@ fn session(
                 _ => None,
             },
             feedback_sounds: match &loudness {
-                Some(loudness) if audio.feedback_sounds > 0.0 => {
-                    Some(Rc::new(Clips::new(loudness.clone(), audio.feedback_sounds)))
-                }
+                Some(loudness) if audio.feedback_sounds > 0.0 => Some(Rc::new(Clips::apart(
+                    loudness.clone(),
+                    audio.feedback_sounds,
+                ))),
                 _ => None,
             },
             cries: match &loudness {
