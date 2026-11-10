@@ -647,6 +647,16 @@ pub const QUIZ_LIFT: i64 = 0x7;
 /// "Which floor would you like to go to?", and of Clemont's room's, at (19, 26) too (spike 252).
 pub const CLEMONT_LIFT: i64 = 0x5;
 
+pub const LEAGUE_ENTRANCE: i64 = 0xF5;
+/// The Pokémon League's entrance, where the player comes in from Victory Road's end, and the hall
+/// of the Elite Four's four doors, on matrices of their own (102 and 103) with no warp between them
+/// either way (x_pokemon-league.ctm, 2026-11-07: only the way out and two Veterans were listed).
+pub const LEAGUE_HALL: i64 = 0xF6;
+/// The script of the entrance's two triggers, each on the last line of one of the two streets
+/// that climb its sides, at about (29, 12) and (52, 12): its case calls the League's native 22 with
+/// nothing, the only way on into the hall. Read off the ROM; no recording has the player take it.
+pub const LEAGUE_CLIMB: i64 = 0x1;
+
 /// Coumarine City Gym's vines (zone 0xbf), a tree climbed from 0 to Ramos at 720, its levels 0,
 /// 145, 290, 432, 576 and 720 platforms round the trunk on the Gym's streets, laid as floors (spike
 /// 248). 42 of its furniture records are placed on streets, each on one cell of the grid
@@ -888,6 +898,10 @@ pub fn game() -> &'static Game {
             (
                 (CLEMONT_ROOM, CLEMONT_LIFT),
                 ("exits".to_string(), "elevator".to_string(), None),
+            ),
+            (
+                (LEAGUE_ENTRANCE, LEAGUE_CLIMB),
+                ("exits".to_string(), "warp".to_string(), Some(LEAGUE_HALL)),
             ),
         ])
         .chain(QUIZ_ROOMS.map(|room| {
