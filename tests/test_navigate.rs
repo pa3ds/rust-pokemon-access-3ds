@@ -2043,6 +2043,31 @@ fn test_p_walks_round_a_stone_standing_in_open_floor() {
     assert!(way.is_some() && !path_of(&way).contains(&(92, 175)));
 }
 
+/// Victory Road's launches stand on the pit's rim, over the floor between them and the
+/// stones: the player at (44, 59), between the stone at (44, 58) and the launch at (44, 60),
+/// pressed south onto the launch and did not move (Khai, 2026-11-07).
+#[test]
+fn test_p_never_steps_onto_a_launch_from_the_floor_hopped_over() {
+    let across = Field {
+        interactables: vec![Interactable {
+            source: 0x08D1E9A8,
+            ..Interactable::new("people", "person", (96, 175))
+        }],
+        ..Field::new(street().zone, (91, 178))
+    };
+    let mut blocked: Vec<Cell> = (160..200).filter(|&z| z != 175).map(|z| (92, z)).collect();
+    blocked.push((96, 175));
+    let mut rig = navigator(Want {
+        blocked,
+        ..on(across)
+    });
+    *rig.field.stones.borrow_mut() = [(90, 175)].into_iter().collect();
+    *rig.field.launches.borrow_mut() = [(92, 175)].into_iter().collect();
+    rig.press(PATHFIND);
+    let way = guidance(&rig);
+    assert!(way.is_none() || !path_of(&way).contains(&(92, 175)));
+}
+
 /// Victory Road's stones stand two apart over open floor, not mud: P hops them from the
 /// launch at the pit's edge, over the floor between, as on Route 8.
 #[test]

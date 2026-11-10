@@ -1190,24 +1190,22 @@ impl Ground {
     }
 
     /// Whether a search walks the one step from `cell` to `step`: one `joined` takes, onto or
-    /// off no jumping stone, which is only hopped onto and off. Victory Road's stand in a pit
-    /// whose floor is open, and P walked the player into one from it (x_victory_road_stones,
-    /// 2026-11-07). The cells of a hop, the floor hopped over and the stone, are `joined`, as a
-    /// way found is checked a cell at a time.
+    /// off no jumping stone, which is only hopped onto and off, nor between a launch and the
+    /// floor a hop goes over (`_mud`). Victory Road's stones stand in a pit whose floor is open,
+    /// and P walked the player into one from it (x_victory_road_stones, 2026-11-07); its
+    /// launches stand on the pit's rim, and the player at (44, 59), between the stone at
+    /// (44, 58) and the launch at (44, 60), pressed south onto the launch and did not move
+    /// (Khai, 2026-11-07). Its ground is stacked, with no height a cell, so the rim is told by
+    /// the hops alone. The cells of a hop, the floor hopped over and the stone, are `joined`,
+    /// as a way found is checked a cell at a time.
     pub fn walks(&self, cell: Cell, step: Cell) -> Result<bool> {
-        Ok(self.joined(cell, step)? && !self.stone(cell)? && !self.stone(step)?)
-    }
-
-    fn stone(&self, cell: Cell) -> Result<bool> {
-        let chunk = if self.corridor.is_some() {
-            None
-        } else {
-            self.chunk(cell)?
-        };
-        match chunk {
-            Some(chunk) => Ok(chunk.kind(cell)? == STONE),
-            None => Ok(false),
-        }
+        // Python's `_kind`, which is `kind` over again.
+        let kinds = (self.kind(cell)?, self.kind(step)?);
+        Ok(self.joined(cell, step)?
+            && kinds.0 != Some(STONE)
+            && kinds.1 != Some(STONE)
+            && !(kinds.0 == Some(LAUNCH) && self.mud(step)?)
+            && !(kinds.1 == Some(LAUNCH) && self.mud(cell)?))
     }
 
     /// Whether a hop over a mud pit starts or ends on the cell: a stone or a launch.
