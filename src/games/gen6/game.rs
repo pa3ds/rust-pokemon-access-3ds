@@ -342,6 +342,9 @@ pub struct Game {
     /// Where its field camera's block keeps where the camera looks (`camera.Shape`): ORAS's, or
     /// X's (spikes 230 and 239).
     pub camera: camera::Shape,
+    /// Where the PC Box's process keeps its mode, the pointer and the byte behind it
+    /// (`boxes.Mode`, spike A): ORAS's. None where it has not been measured, X and Y.
+    pub box_mode: Option<(i64, i64)>,
     /// The zones of the places in parts listed whole, the other parts' things out of the ROM
     /// (ADR-0042); every other place in parts is listed a part at a time.
     pub whole: HashSet<i64>,
@@ -413,6 +416,7 @@ impl Game {
             worded: IndexSet::new(),
             field_menu: MENU,
             camera: camera::ORAS,
+            box_mode: None,
             whole: HashSet::new(),
             items_at: IndexMap::new(),
             zone_record: 0xF4,

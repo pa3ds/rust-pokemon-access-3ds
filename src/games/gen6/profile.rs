@@ -306,6 +306,7 @@ pub struct Gen6Profile {
     pub buttons: Rc<RefCell<buttons::Buttons>>,
     pub party_icons: Rc<RefCell<PartyIcons>>,
     pub partners: Rc<RefCell<Partners>>,
+    box_mode: Option<RefCell<boxes::Mode>>,
     pub occupants: Rc<RefCell<boxes::Occupants>>,
     pub standings: Option<Rc<RefCell<dyn StandingsReader>>>,
     pub map_cursor: RefCell<MapCursor>,
@@ -664,6 +665,21 @@ impl Gen6Profile {
             }
         }
 
+        let box_mode = game.box_mode.map(|r#where| {
+            let apps = apps.clone();
+            RefCell::new(boxes::Mode::new(
+                memory.clone(),
+                r#where,
+                Rc::new(move || {
+                    let apps = apps.borrow();
+                    if apps.running.as_deref() == Some(boxes::APP) {
+                        apps.process
+                    } else {
+                        None
+                    }
+                }),
+            ))
+        });
         // Carrying a Pokémon in the PC Box, the slot it is over says who is in it, from the save.
         // Made before the block the cursors are made in, where Python makes it inside, just before
         // them; making it reads nothing.
@@ -1174,6 +1190,7 @@ impl Gen6Profile {
             buttons,
             party_icons,
             partners,
+            box_mode,
             occupants,
             standings,
             map_cursor: RefCell::new(map_cursor),
@@ -1571,6 +1588,8 @@ impl Gen6Profile {
     /// `poll_screen(hold, with_choices)`. Named apart from `poll_screen` because the runtime's
     /// `Profile::poll_screen` takes neither.
     pub fn poll_screen_with(&self, hold: bool, with_choices: bool) -> Result<()> {
+        // Set inside the phase, as Python's locals are.
+        let mut box_mode: Option<String> = None;
         let polled = phase(&*self.memory, "screen", || {
             // The field's layouts come back where they were when a menu screen closes, and a
             // layout found before it was built is taken in once it is.
@@ -1610,6 +1629,10 @@ impl Gen6Profile {
                 standings.borrow_mut().poll(on_screen)?;
             }
             self.map_cursor.borrow_mut().poll()?;
+            box_mode = match &self.box_mode {
+                None => None,
+                Some(reader) => reader.borrow_mut().poll()?,
+            };
             let running = self.apps.borrow().running.clone();
             let played = self.subscreens.poll(running.as_deref())?;
             let cursors = self.cursors.borrow_mut().poll(on_screen)?;
@@ -1621,6 +1644,10 @@ impl Gen6Profile {
             if let Some(category) = category {
                 self.speech.say(line, *category);
             }
+        }
+        if let Some(box_mode) = &box_mode {
+            (self.log)(&format!("box mode: {box_mode}"));
+            self.speech.say(box_mode, Category::Menu);
         }
         let mut labels = self.lists.borrow().labels();
         labels.extend(self.announcements.borrow_mut().recent_labels());

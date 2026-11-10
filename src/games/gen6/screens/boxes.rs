@@ -23,6 +23,8 @@ use indexmap::IndexMap;
 use crate::core::binary::u32;
 use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
+use crate::core::words::own;
+use crate::games::common::pictures::TEXTURE;
 use crate::games::common::{pokemon, slots};
 use crate::games::gen6::screens::partyicons;
 use crate::py::{self, Result};
@@ -32,6 +34,71 @@ pub const NAMES: &str = "N8savedata3BOXE";
 pub const COUNT: i64 = 31;
 pub const SLOTS: i64 = 30;
 pub const NAME: i64 = 0x22;
+pub const APP: &str = "N3app3box4ProcE";
+/// The Box's modes as its tabs draw them (`pictures.TEXTURE`): normal, swap and multi-select.
+pub const MODE_WORDS: [&str; 3] = ["mode01", "mode02", "mode03"];
+
+/// Says the PC Box's mode as Start and Select change it, and on opening where it is not
+/// normal: its three tabs only pulse as one is chosen and draw nothing to tell them apart
+/// (Orion, or_pc_mode_buttons; spike A).
+pub struct Mode {
+    memory: Rc<dyn Memory>,
+    r#where: (i64, i64),
+    process: Rc<dyn Fn() -> Option<i64>>,
+    last: Option<i64>,
+    held: Option<i64>,
+}
+
+impl Mode {
+    pub fn new(
+        memory: Rc<dyn Memory>,
+        r#where: (i64, i64),
+        process: Rc<dyn Fn() -> Option<i64>>,
+    ) -> Self {
+        Mode {
+            memory,
+            r#where,
+            process,
+            last: None,
+            held: None,
+        }
+    }
+
+    /// The mode in words, once a change has held for a poll: the Box zeroes it as it closes,
+    /// a poll before its process goes, and "normal mode" was said on leaving it in swap mode
+    /// (or_touch_pc_party_summary).
+    pub fn poll(&mut self) -> Result<Option<String>> {
+        let process = (self.process)();
+        let Some(process) = process else {
+            self.last = None;
+            self.held = None;
+            return Ok(None);
+        };
+        let (pointer, byte) = self.r#where;
+        let at = u32(&self.memory.read(process + pointer, 4)?, 0)? + byte;
+        let mode = *self
+            .memory
+            .read(at, 1)?
+            .first()
+            .ok_or_else(|| py::Error::index("index out of range"))? as i64;
+        if Some(mode) == self.last || mode >= MODE_WORDS.len() as i64 {
+            self.held = None;
+            return Ok(None);
+        }
+        if Some(mode) != self.held {
+            self.held = Some(mode);
+            return Ok(None);
+        }
+        let first = self.last.is_none();
+        self.last = Some(mode);
+        self.held = None;
+        Ok(if first && mode == 0 {
+            None
+        } else {
+            Some(own(&format!("{TEXTURE}{}", MODE_WORDS[mode as usize]), &[]))
+        })
+    }
+}
 
 /// Names the Pokémon in a slot of a box, the Battle Box or the party (`slots.Occupant`).
 pub struct Occupants {

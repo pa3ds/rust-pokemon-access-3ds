@@ -1010,6 +1010,7 @@ pub fn game() -> &'static Game {
         form: Some(mmodel::FORM),
         whole: HashSet::from(SAFARI_ZONE),
         anchors: anchors(),
+        box_mode: Some((0x24, 0x21)),
         ..Game::new(
             "Omega Ruby and Alpha Sapphire",
             [OMEGA_RUBY, ALPHA_SAPPHIRE],
