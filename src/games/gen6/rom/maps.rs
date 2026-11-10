@@ -409,7 +409,7 @@ pub const TURNS: i64 = 4;
 /// the four strips from 0x20e0, x 10 and z 51, 45, 39 and 33, 21 cells by 3, then (19, 17) and
 /// (19, 68), 3 by 2, the ends of the ice up its middle, and the masks from 0x2180; the first
 /// strip's first mask has gaps at (12, 52), (13, 52) and (27, 51), where the game refused steps
-/// in x_eighth_gym, and none at (27, 52), stepped on (spike A). None where there is no such
+/// in x_eighth_gym, and none at (27, 52), stepped on (spike 286). None where there is no such
 /// run.
 pub fn gym_floor(module: &[u8]) -> Result<Option<GymFloor>> {
     let rect = |at: i64| -> Result<Option<(i64, i64, i64, i64)>> {

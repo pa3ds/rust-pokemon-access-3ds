@@ -1226,7 +1226,7 @@ impl Landform for Conveyors {
 
 /// One zone's floor strips, each turned about its middle by a switch, whose gaps the player
 /// cannot step into, though the chunk has them open: Snowbelle City Gym's four, where P walked
-/// into them (x_eighth_gym, spike A). The gaps of each strip are its module's (`Here.gym_floor`)
+/// into them (x_eighth_gym, spike 286). The gaps of each strip are its module's (`Here.gym_floor`)
 /// for the times its switch has turned it, as on entering until a sweep finds the Gym's object,
 /// laid on the ground floor alone (`Ground.gaps`). The ends of the ice up the middle are shut on
 /// every floor while the byte after the counts is 0: Khai says the ice is slid only once Wulfric

@@ -533,7 +533,7 @@ pub const SNOWBELLE_SWITCHES: [(i64, &str); 4] = [
 ];
 /// The Gym's four floor strips, purple, blue, orange and green from the door north, which its
 /// switches turn: the pink switch turned the purple one, and its count, the first u32, went up by
-/// one a turn (x_eighth_gym_switches, spike A). Each other switch is taken to turn the strip its
+/// one a turn (x_eighth_gym_switches, spike 286). Each other switch is taken to turn the strip its
 /// native 51 is given, the blue the blue one and so on: not seen.
 pub const SNOWBELLE_FLOOR: TurningFloor = TurningFloor {
     zone: SNOWBELLE_GYM,

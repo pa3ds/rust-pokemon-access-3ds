@@ -718,7 +718,7 @@ fn test_a_gym_modules_teleports_are_the_first_half_of_its_places_and_where_each_
     Ok(())
 }
 
-/// Spike A: DllUSGymIce.cro holds Snowbelle City Gym's four floor strips, x, z, width and
+/// Spike 286: DllUSGymIce.cro holds Snowbelle City Gym's four floor strips, x, z, width and
 /// depth as floats, then the ends of the ice up its middle, shut until Wulfric is beaten, and
 /// after them a 64-byte mask of gaps for each strip and each of its four turns, the strip's cells
 /// row by row. Its first mask has the gaps x_eighth_gym walked into.

@@ -312,7 +312,7 @@ pub struct Ground {
     /// them blocked (`HOLE`, spike 202).
     pub filled: HashSet<Cell>,
     /// The cells of the ground floor a turning floor strip has a gap in now: blocked, though the
-    /// chunk has them open. Snowbelle City Gym refused steps into them (`TurningFloor`, spike A).
+    /// chunk has them open. Snowbelle City Gym refused steps into them (`TurningFloor`, spike 286).
     pub gaps: HashSet<Cell>,
     /// The cells blocked on every floor though the chunk has them open: the ends of the ice up
     /// Snowbelle City Gym's middle, until its leader is beaten (`TurningFloor`).

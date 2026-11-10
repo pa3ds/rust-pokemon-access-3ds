@@ -61,7 +61,7 @@ pub struct RomLayout {
     /// X's Anistar City Gym's, `DllUSGymEsper.cro` (spike 264).
     pub gym_modules: Vec<String>,
     /// The Gym module holding floor strips its switches turn (`maps.gym_floor`): X's
-    /// Snowbelle City Gym's, `DllUSGymIce.cro` (spike A); None in a game without one.
+    /// Snowbelle City Gym's, `DllUSGymIce.cro` (spike 286); None in a game without one.
     pub turning_floor: Option<String>,
     /// The sound archive, whose footsteps pa3ds plays where the game plays none (`footsteps`);
     /// None in a game whose footsteps are not measured.

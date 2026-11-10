@@ -10,7 +10,7 @@
 //! In Snowbelle City Gym a `field::FieldUniqueSequenceGymIce`'s +0x14 points at a u32 a floor
 //! strip, how many times its switch has turned it, from 0 to 3 and round to 0: stepping onto the
 //! pink switch five times made the first 1, 2, 3, 0 and 1, each as its turn ended, and the other
-//! three stayed 0 (x_eighth_gym_switches, spike A).
+//! three stayed 0 (x_eighth_gym_switches, spike 286).
 
 use std::cell::RefCell;
 use std::collections::HashSet;
