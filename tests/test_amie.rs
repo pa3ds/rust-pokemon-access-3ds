@@ -318,7 +318,7 @@ fn test_the_stylus_is_kept_on_its_part_as_the_pokemon_moves() {
 
 /// A grey is a kind of part, the same on every Pokémon (spike A): 17 Pikachu's cheek, which
 /// shocks the hand. A sweet spot (27, 28) or a danger zone (25, 26) is said by the Pokémon's own
-/// name for it in `amie.ftl`, Sceptile's 28 the leaves on its arms; one it has none for, as
+/// name for it in `amie.ftl`, Sceptile's 28 its arm leaves; one it has none for, as
 /// the head or the body, the side of the pair each is (Orion, 2026-11-05).
 #[test]
 fn test_the_stylus_is_offered_by_the_kind_of_part_it_is_on() {
@@ -348,7 +348,7 @@ fn test_the_stylus_is_offered_by_the_kind_of_part_it_is_on() {
     let (top, corner) = (stylus(150, 65), stylus(105, 65));
     assert!(top == corner && corner == "stylus, head");
     assert_eq!(stylus(150, 200), "stylus, body");
-    assert_eq!(stylus(125, 205), "stylus, leaves on its arms");
+    assert_eq!(stylus(125, 205), "stylus, arm leaves");
     let (away, grey_0) = (stylus(10, 10), stylus(205, 205));
     assert!(away == grey_0 && grey_0 == "stylus, off");
 }
