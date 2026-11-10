@@ -373,6 +373,16 @@ pub const MOODS_OVER: [(i64, &str); 4] = [
     (9, "amie-mood-awake"),
     (LAST_BITE, "amie-mood-eaten"),
 ];
+/// The moods saying the puff by its kind, as the game's text has no one word for a puff in every
+/// language: its label is the plural in English and German. Left unsaid where nothing says which puff
+/// it is, one not picked up by touch mode (Orion, 2026-11-06: "use words from the ROM"). A
+/// `frozenset` in Python, only ever tested for membership.
+pub const OF_THE_PUFF: [&str; 4] = [
+    "amie-mood-puff-seen",
+    "amie-mood-reaching",
+    "amie-mood-eaten",
+    "amie-mood-puff-fell",
+];
 /// What the log calls a line of `Moods`.
 pub const MOOD_LOG: &str = "amie mood";
 pub const TASK: i64 = 0x1BC;
@@ -1808,6 +1818,9 @@ impl Goods {
 /// amended 2026-11-06): a whole sentence, not Narration's, as it is said over play.
 pub struct Moods {
     page: Rc<RefCell<AmiePage>>,
+    /// The puff last carried to the Pokémon. Python's keeps touch mode, which says the puff
+    /// carried by its kind; here touch mode is handed to `poll`.
+    puff: String,
     /// The love command at the last poll.
     mood: Option<i64>,
     /// The Pokémon's numbers at the last poll.
@@ -1820,6 +1833,7 @@ impl Moods {
     pub fn new(page: Rc<RefCell<AmiePage>>) -> Self {
         Moods {
             page,
+            puff: String::new(),
             mood: None,
             numbers: None,
             raised: f64::NEG_INFINITY,
@@ -1831,6 +1845,7 @@ impl Moods {
     pub fn poll(
         &mut self,
         running: Option<&str>,
+        touch: &mut dyn Touching,
     ) -> Result<Vec<(String, String, Option<Category>)>> {
         let before = self.mood;
         self.mood = if running == Some(AMIE) {
@@ -1842,12 +1857,14 @@ impl Moods {
             self.numbers = None;
             return Ok(Vec::new());
         }
-        let mut said = self.shown()?;
         if self.mood == Some(HAND_RAISED) {
             self.raised = py::time::monotonic();
         }
+        if let Some(picked) = touch.picked().filter(|picked| !picked.is_empty()) {
+            self.puff = picked;
+        }
         if self.mood == before || (before == Some(LAST_BITE) && self.mood == Some(NEXT_BITE)) {
-            return Ok(said);
+            return self.shown();
         }
         let word = |table: &[(i64, &'static str)], number: i64| {
             table
@@ -1855,6 +1872,7 @@ impl Moods {
                 .find(|(key, _)| *key == number)
                 .map(|(_, word)| *word)
         };
+        let mut said = Vec::new();
         for word in [
             word(&MOODS_OVER, before.unwrap_or(0)),
             word(&MOODS, self.mood.unwrap_or(0)),
@@ -1862,20 +1880,25 @@ impl Moods {
         .into_iter()
         .flatten()
         {
+            if self.puff.is_empty() && OF_THE_PUFF.contains(&word) {
+                continue;
+            }
             let called = self.page.borrow_mut().called()?;
             said.push((
                 MOOD_LOG.to_string(),
-                own(word, &[("pokemon", &called)]),
+                own(word, &[("pokemon", &called), ("puff", &self.puff)]),
                 Some(Category::Screen),
             ));
         }
+        said.extend(self.shown()?);
         Ok(said)
     }
 
     /// What the Pokémon's numbers moving shows, a line at most: a pet takes from Enjoyment and
     /// gives the hearts seen to Affection, and one it dislikes takes and gives none, Pikachu's
-    /// ears 20 on or_amie_interactions, where a puff eaten gave Affection 2 and took nothing, and
-    /// said "finished the puff". At full Affection a pet looks like a dislike, so says nothing.
+    /// ears 20 on or_amie_interactions, where a puff eaten gave Affection 2, took nothing, and
+    /// brought a happy dance and no hearts on either screen. At full Affection a pet looks like a
+    /// dislike, so says nothing.
     fn shown(&mut self) -> Result<Vec<(String, String, Option<Category>)>> {
         let before = self.numbers;
         self.numbers = self.page.borrow().numbers()?;
@@ -1887,6 +1910,9 @@ impl Moods {
         let mut line = String::new();
         if enjoyed < 0 && gained > 0 {
             line = own("amie-hearts", &[("count", &gained)]);
+        } else if gained > 0 {
+            let called = self.page.borrow_mut().called()?;
+            line = own("amie-mood-delighted", &[("pokemon", &called)]);
         } else if enjoyed < 0 && numbers.0 < METER_FULL {
             let called = self.page.borrow_mut().called()?;
             line = own("amie-mood-disliked", &[("pokemon", &called)]);

@@ -124,7 +124,8 @@ pub struct PartyIcons {
     names: Rc<ClassNames>,
     species: Vec<String>,
     running: Rc<dyn Fn() -> Option<String>>,
-    party: Option<i64>,
+    /// The party's list, as last found: the Switch screen names its buttons by it.
+    pub party: Option<i64>,
     battle_box: Option<i64>,
     icons: PySet,
     /// Image -> the species it draws, until the next sweep: screen text asks of every

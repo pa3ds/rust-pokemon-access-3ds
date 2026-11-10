@@ -20,6 +20,7 @@ use crate::games::common::touch::{ImageOf, Target};
 use crate::games::common::{lyt, pokemon};
 use crate::games::gen6::apps::FIELD;
 use crate::games::gen6::screens::distribution as d;
+use crate::games::gen6::screens::partyicons::COUNT;
 use crate::games::gen6::subscreen::berry_picker::Touching;
 use crate::games::gen6::subscreen::{amie, amie_switch};
 use crate::games::xy;
@@ -613,6 +614,27 @@ fn test_a_speck_of_a_part_is_left_out_of_the_still_picture() {
 const COMMAND: i64 = 0x08A0F000;
 const PARAM: i64 = 0x08A10000;
 
+/// Touch mode as the moods use it: what is picked up.
+struct Held(Option<String>);
+
+impl Touching for Held {
+    fn targets(&mut self) -> Result<Vec<Target>> {
+        Ok(Vec::new())
+    }
+
+    fn give(&mut self, _picked: &Target, _over: &Target) -> String {
+        String::new()
+    }
+
+    fn tap(&mut self, _target: &Target) -> String {
+        String::new()
+    }
+
+    fn picked(&self) -> Option<String> {
+        self.0.clone()
+    }
+}
+
 /// Amie's love command as `number`, or none running.
 fn mood(memory: &FakeMemory, number: Option<i64>) {
     memory.u32(
@@ -631,14 +653,15 @@ fn mood(memory: &FakeMemory, number: Option<i64>) {
 #[test]
 fn test_what_the_pokemon_is_seen_doing_is_said_as_it_starts_and_stops() {
     let (found, memory) = running(&[(8, HEAD)], false);
+    let mut held = Held(None);
     let mut moods = amie::Moods::new(Rc::new(RefCell::new(found)));
-    let mut said = |numbers: &[Option<i64>]| -> Vec<String> {
+    let mut said = |numbers: &[Option<i64>], held: &mut Held| -> Vec<String> {
         let mut lines = Vec::new();
         for &number in numbers {
             mood(&memory, number);
             lines.extend(
                 moods
-                    .poll(Some(amie::AMIE))
+                    .poll(Some(amie::AMIE), held)
                     .unwrap()
                     .into_iter()
                     .map(|(_log, line, _category)| line),
@@ -646,33 +669,49 @@ fn test_what_the_pokemon_is_seen_doing_is_said_as_it_starts_and_stops() {
         }
         lines
     };
-    assert_eq!(said(&[Some(7), Some(7)]), ["Sceptile has its back turned"]);
-    assert_eq!(said(&[Some(0)]), ["Sceptile turned round"]);
-    assert!(said(&[Some(13), None, Some(0)]).is_empty()); // a pet is the player's own doing
     assert_eq!(
-        said(&[Some(22), Some(24), None, Some(24)]),
+        said(&[Some(7), Some(7)], &mut held),
+        ["Sceptile has its back turned"]
+    );
+    assert_eq!(said(&[Some(0)], &mut held), ["Sceptile turned round"]);
+    // a pet is the player's own doing
+    assert!(said(&[Some(13), None, Some(0)], &mut held).is_empty());
+    assert_eq!(
+        said(&[Some(22), Some(24), None, Some(24)], &mut held),
         [
             "Sceptile is watching your hand",
             "Sceptile is holding up its hand",
             "Sceptile is holding up its hand"
         ]
     );
-    assert_eq!(said(&[Some(23)]), ["Sceptile is looking around"]);
+    assert_eq!(said(&[Some(23)], &mut held), ["Sceptile is looking around"]);
     assert_eq!(
-        said(&[15, 17, 18, 19, 15, 17, 18, 19, 0].map(Some)),
+        said(&[15, 17, 18, 19, 15, 17, 18, 19, 0].map(Some), &mut held),
+        ["Sceptile is eating", "Sceptile is eating"]
+    ); // a puff no key of pa3ds's picked up
+    held.0 = Some("Mint Poké Puff".to_string());
+    assert_eq!(
+        said(&[15, 17, 18, 19, 15, 17, 18, 19].map(Some), &mut held),
         [
-            "Sceptile is eyeing the puff",
+            "Sceptile is eyeing the Mint Poké Puff",
             "Sceptile is eating",
-            "Sceptile is eating",
-            "Sceptile finished the puff"
+            "Sceptile is eating"
         ]
     );
-    assert_eq!(said(&[Some(22)]), ["Sceptile is watching your hand"]);
-    assert!(moods.poll(Some(FIELD)).unwrap().is_empty());
+    held.0 = None; // let go as it was eaten
+    assert_eq!(
+        said(&[Some(0)], &mut held),
+        ["Sceptile finished the Mint Poké Puff"]
+    );
+    assert_eq!(
+        said(&[Some(22)], &mut held),
+        ["Sceptile is watching your hand"]
+    );
+    assert!(moods.poll(Some(FIELD), &mut held).unwrap().is_empty());
     let mut said = |number: i64| -> Vec<String> {
         mood(&memory, Some(number));
         moods
-            .poll(Some(amie::AMIE))
+            .poll(Some(amie::AMIE), &mut held)
             .unwrap()
             .into_iter()
             .map(|(_log, line, _category)| line)
@@ -741,10 +780,11 @@ fn test_xs_player_keeps_its_love_command_and_picture_four_bytes_later() {
 fn test_the_moods_no_movie_reached_are_said_too() {
     let (found, memory) = running(&[(8, HEAD)], false);
     let mut moods = amie::Moods::new(Rc::new(RefCell::new(found)));
+    let mut held = Held(Some("Sweet Poké Puff".to_string()));
     let mut said = |number: i64| -> Vec<String> {
         mood(&memory, Some(number));
         moods
-            .poll(Some(amie::AMIE))
+            .poll(Some(amie::AMIE), &mut held)
             .unwrap()
             .into_iter()
             .map(|(_log, line, _category)| line)
@@ -758,8 +798,8 @@ fn test_the_moods_no_movie_reached_are_said_too() {
         said(14),
         ["Sceptile woke up", "Sceptile is too full to eat"]
     );
-    assert_eq!(said(16), ["Sceptile is reaching for the puff"]);
-    assert_eq!(said(20), ["the puff fell"]);
+    assert_eq!(said(16), ["Sceptile is reaching for the Sweet Poké Puff"]);
+    assert_eq!(said(20), ["the Sweet Poké Puff fell"]);
     assert_eq!(said(21), ["Sceptile frowns and turns away"]);
     assert_eq!(said(27), ["Sceptile leans in to your face"]);
 }
@@ -1063,12 +1103,13 @@ fn test_a_key_says_the_numbers_as_the_switch_screen_would_show_them() {
 fn test_what_a_pet_or_a_high_five_shows_is_said_as_the_numbers_move() {
     let k = keyed(&[(8, HEAD)]);
     let mut moods = amie::Moods::new(k.found.clone());
+    let mut held = Held(None);
     let mut said = |affection: i64, enjoyment: i64, love: Option<i64>| -> Vec<String> {
         numbers(&k.memory, affection, 0, enjoyment);
         mood(&k.memory, love);
         k.now.set(k.now.get() + 0.2);
         moods
-            .poll(Some(amie::AMIE))
+            .poll(Some(amie::AMIE), &mut held)
             .unwrap()
             .into_iter()
             .map(|(_log, line, _category)| line)
@@ -1077,22 +1118,23 @@ fn test_what_a_pet_or_a_high_five_shows_is_said_as_the_numbers_move() {
     assert!(said(60, 255, Some(0)).is_empty());
     assert_eq!(said(63, 205, Some(0)), ["3 hearts"]);
     assert_eq!(said(64, 185, Some(0)), ["1 heart"]);
-    assert_eq!(said(64, 165, Some(0)), ["Sceptile didn't like that"]);
-    assert!(said(66, 165, Some(0)).is_empty()); // a puff
+    assert_eq!(said(64, 165, Some(0)), ["Sceptile didn't like that..."]);
+    // a puff, whose dance shows no hearts
+    assert_eq!(said(66, 165, Some(0)), ["Sceptile dances happily"]);
     assert!(said(66, 175, Some(0)).is_empty()); // Enjoyment rising by itself, no hand up
     said(66, 175, Some(amie::HAND_RAISED));
-    assert_eq!(said(66, 185, Some(0)), ["high five"]);
+    assert_eq!(said(66, 185, Some(0)), ["High five! A burst of pink dots"]);
     k.now.set(k.now.get() + amie::HIGH_FIVE_SECONDS);
     assert!(said(66, 195, Some(0)).is_empty());
-    assert!(said(255, 195, Some(0)).is_empty());
+    assert_eq!(said(255, 195, Some(0)), ["Sceptile dances happily"]);
     assert!(said(255, 145, Some(0)).is_empty()); // at full Affection a pet gives no hearts to count
-    assert!(moods.poll(Some(FIELD)).unwrap().is_empty());
+    assert!(moods.poll(Some(FIELD), &mut held).unwrap().is_empty());
     let mut said = |affection: i64, enjoyment: i64| -> Vec<String> {
         numbers(&k.memory, affection, 0, enjoyment);
         mood(&k.memory, Some(0));
         k.now.set(k.now.get() + 0.2);
         moods
-            .poll(Some(amie::AMIE))
+            .poll(Some(amie::AMIE), &mut held)
             .unwrap()
             .into_iter()
             .map(|(_log, line, _category)| line)
@@ -1122,6 +1164,91 @@ fn drawn_rows(
         .collect())
 }
 
+/// Panes of the Switch screen by their places: the root, three of the party's buttons and the
+/// chosen Pokémon's picture. Python's are panes 0 to 4 of a fake `Layouts`; here panes of
+/// `FakeLayouts` at these addresses, under one root.
+const PLACES: [(i64, (f32, f32)); 4] = [
+    (0x08A31000, (-125.0, 66.0)),
+    (0x08A32000, (-75.0, 70.0)),
+    (0x08A33000, (-25.0, 66.0)),
+    (0x08A34000, (-87.0, 15.0)),
+];
+
+/// They said "button pokémon", the icon they draw saying nothing of whose (Orion, 2026-11-06).
+/// Nothing but the Switch screen's own pictures, and only the party's row, has a name here.
+#[test]
+fn test_the_switch_screens_buttons_are_named_by_the_party_member_their_place_holds() {
+    let memory = FakeMemory::new();
+    let classes = FakeClasses::new(memory.clone());
+    let vtable = classes.add(pokemon::PARAM_CLASS);
+    let party = 0x08A20000;
+    for (slot, blob) in [
+        record(0x101, 254, "Blaze", true),
+        record(0x202, 25, "Pikachu", false),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let param = PARAM + 0x400 * slot as i64;
+        memory.u32(param, &[vtable]);
+        memory.u32(
+            param + pokemon::PARAM_RECORD,
+            &[param + pokemon::RECORD_IN_PARAM],
+        );
+        memory.write(param + pokemon::RECORD_IN_PARAM, &blob);
+        memory.u32(party + 4 * slot as i64, &[param]);
+    }
+    memory.write(party + COUNT, &[2]);
+    let fake = FakeLayouts::new(&memory, &classes);
+    let (_work, root) = fake.screen_with(0x08A30000, false, false);
+    for (pane, (x, y)) in PLACES {
+        fake.pane(pane, root);
+        memory.write(pane + fake.shape.x, &x.to_le_bytes());
+        memory.write(pane + fake.shape.y, &y.to_le_bytes());
+    }
+    fake.track().unwrap();
+    let mut screen = amie_switch::SwitchScreen::new(
+        memory.clone(),
+        Rc::new(ClassNames::new(memory.clone(), CODE)),
+        fake.layouts.clone(),
+        Rc::new(|_pane| Ok(None)),
+        ["Affection", "Fullness", "Enjoyment"]
+            .map(String::from)
+            .to_vec(),
+        Rc::new(move || Some(party)),
+        Rc::new(|found: &crate::games::common::pokemon::Pokemon| {
+            Some(if found.nicknamed {
+                found.nickname.clone()
+            } else {
+                "Pikachu".to_string()
+            })
+        }),
+    );
+    let [first, second, third, chosen] = PLACES.map(|(pane, _)| pane);
+    assert_eq!(screen.name(first, Some(FIELD)).unwrap(), None); // not that screen
+    screen
+        .reworded(
+            ["Affection", "Fullness", "Enjoyment"]
+                .iter()
+                .enumerate()
+                .map(|(r#box, text)| (r#box as i64, ScreenText::new(r#box as i64, *text, false)))
+                .collect(),
+        )
+        .unwrap();
+    assert_eq!(
+        screen.name(first, Some(FIELD)).unwrap().as_deref(),
+        Some("Blaze")
+    );
+    assert_eq!(
+        screen.name(second, Some(FIELD)).unwrap().as_deref(),
+        Some("Pikachu")
+    );
+    assert_eq!(screen.name(third, Some(FIELD)).unwrap(), None); // past the party's end
+    // the chosen Pokémon's own picture, lower down
+    assert_eq!(screen.name(chosen, Some(FIELD)).unwrap(), None);
+    assert_eq!(screen.name(first, Some(amie::AMIE)).unwrap(), None);
+}
+
 /// The game's words and how many of the five pictures beside them are filled, the heart over
 /// the Pokémon chosen no part of a row (or_amie_interactions).
 #[test]
@@ -1131,14 +1258,18 @@ fn test_the_switch_screen_says_each_row_by_its_label() {
         .layouts
         .clone();
     let mut screen = amie_switch::SwitchScreen::new(
+        memory.clone(),
+        Rc::new(ClassNames::new(memory.clone(), CODE)),
         layouts,
         Rc::new(|_pane| Ok(None)),
         ["Affection", "Fullness", "Enjoyment"]
             .map(String::from)
             .to_vec(),
+        Rc::new(|| None),
+        Rc::new(|_found: &crate::games::common::pokemon::Pokemon| None),
     );
     screen.pictures = drawn_rows;
-    let words = |texts: &[&str]| -> Vec<String> {
+    let mut words = |texts: &[&str]| -> Vec<String> {
         let found: IndexMap<i64, ScreenText> = texts
             .iter()
             .enumerate()
@@ -1161,6 +1292,41 @@ fn test_the_switch_screen_says_each_row_by_its_label() {
         ]
     );
     assert_eq!(words(&["Affection", "Pikachu"]), ["Affection", "Pikachu"]); // not that screen
+    let found: IndexMap<i64, ScreenText> = [
+        ("Switch Pokémon!", 104.0),
+        ("Pikachu", -10.0),
+        ("Affection", 30.0),
+        ("Fullness", 5.0),
+        ("Enjoyment", -20.0),
+    ]
+    .iter()
+    .enumerate()
+    .map(|(r#box, (text, row))| {
+        (
+            r#box as i64,
+            ScreenText {
+                row: *row,
+                ..ScreenText::new(r#box as i64, *text, false)
+            },
+        )
+    })
+    .collect();
+    let rows: IndexMap<String, f64> = screen
+        .reworded(found)
+        .unwrap()
+        .into_values()
+        .map(|piece| (piece.text, piece.row))
+        .collect();
+    assert_eq!(
+        rows,
+        IndexMap::from([
+            ("Switch Pokémon!".to_string(), 104.0),
+            ("Pikachu".to_string(), 31.0),
+            ("Affection 2 of 5".to_string(), 30.0),
+            ("Fullness 0 of 5".to_string(), 5.0),
+            ("Enjoyment 4 of 5".to_string(), -20.0)
+        ])
+    ); // the name first
 }
 
 /// Amie's decorate screen draws its puffs with the images of a system holding a texture for

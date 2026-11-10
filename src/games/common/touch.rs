@@ -551,6 +551,11 @@ impl TouchMode {
         }
     }
 
+    /// The name of what is picked up to drag, while something is.
+    pub fn picked(&self) -> Option<String> {
+        self.picked.as_ref().map(|picked| picked.name.clone())
+    }
+
     /// Whether a target is picked up to drag (`DRAG`), pressed yet or not.
     pub fn holding(&self) -> bool {
         self.picked.is_some()

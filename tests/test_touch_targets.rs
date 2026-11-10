@@ -1299,11 +1299,14 @@ fn test_a_drag_holds_the_target_named_carries_it_with_the_keys_and_lets_go() {
     };
     let mut screen = Screen::new(vec![puff, pokemon]);
     assert_eq!(screen.press(touch::ITEM_READ), "Sweet Poké Puff");
+    assert_eq!(screen.targets.picked(), None);
     assert!(screen.press(touch::DRAG) == "holding Sweet Poké Puff" && screen.targets.holding());
+    assert_eq!(screen.targets.picked().as_deref(), Some("Sweet Poké Puff"));
     assert!(screen.press(touch::DRAG).is_empty() && screen.press(touch::TAP).is_empty());
     assert_eq!(screen.press(touch::ITEM_NEXT), "stroke Pikachu");
     assert_eq!(screen.press(touch::ITEM_READ), "stroke Pikachu");
     assert!(screen.targets.drop() == "let go on stroke Pikachu" && !screen.targets.holding());
+    assert_eq!(screen.targets.picked(), None);
     assert_eq!(screen.targets.drop(), "");
     assert_eq!(
         *screen.pressed.touches.borrow(),

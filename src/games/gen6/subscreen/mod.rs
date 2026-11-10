@@ -332,9 +332,15 @@ impl Polled for RefCell<Moods> {
     fn poll(
         &self,
         running: Option<&str>,
-        _touch: &mut dyn Touching,
+        touch: &mut dyn Touching,
     ) -> Result<Vec<(String, String, Option<Category>)>> {
-        self.borrow_mut().poll(running)
+        self.borrow_mut().poll(running, touch)
+    }
+}
+
+impl Named for RefCell<SwitchScreen> {
+    fn name(&self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
+        self.borrow().name(picture, running)
     }
 }
 
@@ -356,7 +362,7 @@ pub struct Subscreens {
     pub(crate) ticked: Vec<Rc<RefCell<HeadIt>>>,
     holding: Vec<Rc<RefCell<HeadIt>>>,
     head_it: Rc<RefCell<HeadIt>>,
-    switch: SwitchScreen,
+    switch: Rc<RefCell<SwitchScreen>>,
 }
 
 /// `yours`: a Pokémon of the player's by the nickname they gave it, or else as the game calls its
@@ -399,6 +405,7 @@ impl Subscreens {
         process: Process,
         file_of: FileOf,
         on_screen: OnScreen,
+        party: Rc<dyn Fn() -> Option<i64>>,
     ) -> Subscreens {
         // The Pokémon-Amie page draws its Pokémon's icon, and says nothing of whose; Amie itself
         // has its Pokémon beckoned, and petted with a stylus over a picture of its parts the GPU
@@ -420,8 +427,19 @@ impl Subscreens {
             text.amie_numbers.clone(),
         )));
         // Its Switch screen draws the three numbers as rows of icons, and names each row alone.
-        let switch =
-            SwitchScreen::new(layouts.clone(), image_of.clone(), text.amie_numbers.clone());
+        // and the party's buttons draw each member's icon, and say nothing of whose.
+        let switch = Rc::new(RefCell::new(SwitchScreen::new(
+            memory.clone(),
+            names.clone(),
+            layouts.clone(),
+            image_of.clone(),
+            text.amie_numbers.clone(),
+            party,
+            {
+                let text = text.clone();
+                Rc::new(move |found: &pokemon::Pokemon| yours(&text, found))
+            },
+        )));
         // Amie's decorate screen draws its Poké Puffs, and says nothing of which.
         let puffs = Rc::new(RefCell::new(Puffs::new(
             memory.clone(),
@@ -546,7 +564,14 @@ impl Subscreens {
         Subscreens {
             classes: classes.into_iter().collect(),
             tracked,
-            named: vec![page.clone(), training, puffs, goods, puzzle.clone()],
+            named: vec![
+                switch.clone(),
+                page.clone(),
+                training,
+                puffs,
+                goods,
+                puzzle.clone(),
+            ],
             offering: vec![page, goals, berry_picker.clone(), head_it.clone()],
             pictured: vec![waiting, bags],
             polled,
@@ -684,7 +709,7 @@ impl Subscreens {
 
     /// The words on the screen as they are said: the Switch screen's labels with their rows.
     pub fn reworded(&self, found: IndexMap<i64, ScreenText>) -> Result<IndexMap<i64, ScreenText>> {
-        self.switch.reworded(found)
+        self.switch.borrow_mut().reworded(found)
     }
 
     /// Whether a screen's round holds the heap's whole sweep off: a second of nothing else
