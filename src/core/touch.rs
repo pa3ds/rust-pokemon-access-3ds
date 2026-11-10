@@ -86,7 +86,7 @@ pub const MOVE: f64 = 0.2;
 pub const HELD: f64 = 30.0;
 /// How fast a rub goes back and forth, in the screen's pixels a second: Pokémon-Amie counts a
 /// stroke only while the hand has moved at least 4 pixels since its script's last tick, and a swipe
-/// of 30 a tick is something else (spike A). 300 is 10 a tick at 30 ticks a second, 5 at 60.
+/// of 30 a tick is something else (spike 287). 300 is 10 a tick at 30 ticks a second, 5 at 60.
 pub const RUB_SPEED: f64 = 300.0;
 
 /// Said for a tap Azahar is not listening for: its touch device is not pa3ds's.
@@ -434,7 +434,7 @@ impl TouchServer {
     /// until `release` where None (and `HELD` at most), going down `delay` seconds from now.
     /// Asked for while a rub lasts, it carries that one on between the new ends for as long as
     /// this one asks, never lifting: Pokémon-Amie starts counting a pet afresh at every press
-    /// (spike A). Says why not as `tap` does.
+    /// (spike 287). Says why not as `tap` does.
     pub fn rub(
         &self,
         ends: ((i64, i64), (i64, i64)),

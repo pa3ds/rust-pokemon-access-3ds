@@ -359,7 +359,7 @@ fn rubbed(found: &mut amie::AmiePage) -> ((i64, i64), (i64, i64)) {
         .expect("a rub")
 }
 
-/// Amie counts a pet only while the hand moves 4 pixels a tick on one kind of part (spike A):
+/// Amie counts a pet only while the hand moves 4 pixels a tick on one kind of part (spike 287):
 /// a rub stays on the part, `RUB_REACH` at most either side, and `RUB_HALF` at least.
 #[test]
 fn test_a_rub_goes_across_the_part_the_stylus_is_on_the_way_it_is_longer() {
@@ -402,7 +402,7 @@ fn test_a_rub_goes_across_the_part_the_stylus_is_on_the_way_it_is_longer() {
     );
 }
 
-/// A grey is a kind of part, the same on every Pokémon (spike A): 17 Pikachu's cheek, which
+/// A grey is a kind of part, the same on every Pokémon (spike 287): 17 Pikachu's cheek, which
 /// shocks the hand. A sweet spot (27, 28) or a danger zone (25, 26) is said by the Pokémon's own
 /// name for it in `amie.ftl`, Sceptile's 28 its arm leaves; one it has none for, as
 /// the head or the body, the side of the pair each is (Orion, 2026-11-05).
@@ -440,7 +440,7 @@ fn test_the_stylus_is_offered_by_the_kind_of_part_it_is_on() {
 }
 
 /// Burmy's cloaks share a model's name, so that told them from nothing, and the sweep finds a
-/// copy of the Player's words in the module's code first, which says nothing (spike A).
+/// copy of the Player's words in the module's code first, which says nothing (spike 287).
 #[test]
 fn test_a_form_and_a_female_are_told_by_what_player_says_it_draws() {
     let (found, memory) = running(&[(8, HEAD)], true);
@@ -653,7 +653,7 @@ fn test_a_jump_goes_past_a_part_said_as_the_one_it_left() {
 }
 
 /// Pikachu Rock Star's head has specks in its forehead, which a step or a jump landed on and
-/// called the head again (spike A); the same pixels stay where they are all of a part, as a
+/// called the head again (spike 287); the same pixels stay where they are all of a part, as a
 /// Metagross's eyes are.
 #[test]
 fn test_a_speck_of_a_part_is_left_out_of_the_still_picture() {
@@ -860,7 +860,7 @@ fn test_xs_player_keeps_its_love_command_and_picture_four_bytes_later() {
 }
 
 /// Orion, 2026-11-06: "describe the other moods too, even if nothing reaches them yet"; seen
-/// started at will on the research rig (spike A's `look`).
+/// started at will on the research rig (spike 287's `look`).
 #[test]
 fn test_the_moods_no_movie_reached_are_said_too() {
     let (mut found, memory) = running(&[(8, HEAD)], false);
@@ -1077,7 +1077,7 @@ fn test_amie_closing_leaves_the_still_picture_behind() {
 }
 
 /// Wailord stays on the top screen, a strip of belly on the bottom one, until a press held at
-/// the top edge brings it down, and one at the bottom edge sends it back (spike A's `watch`).
+/// the top edge brings it down, and one at the bottom edge sends it back (spike 287's `watch`).
 /// Once it has moved the still picture is taken anew, and that is said. Regigigas and Zygarde
 /// have no eyes to show it has come down: what was last pressed says (Orion, 2026-11-07).
 #[test]
@@ -1141,7 +1141,7 @@ fn test_hoopa_unbound_is_too_big_for_the_bottom_screen_and_its_confined_form_is_
 }
 
 /// Bayleef up close reaches the top of the screen with no eyes drawn, and a press at the top
-/// edge only steps it back (spike A).
+/// edge only steps it back (spike 287).
 #[test]
 fn test_a_pokemon_only_standing_close_is_offered_no_way_between_the_screens() {
     assert_eq!(targets(&keyed(&[(9, BODY), (8, (100, 0, 220, 100))])), 2);
@@ -1164,7 +1164,7 @@ fn numbers(memory: &FakeMemory, affection: i64, fullness: i64, enjoyment: i64) {
     }
 }
 
-/// Measured with the record rewritten and the screen read, alike for all three (spike A).
+/// Measured with the record rewritten and the screen read, alike for all three (spike 287).
 #[test]
 fn test_each_number_fills_its_row_as_the_switch_screen_does() {
     assert_eq!(

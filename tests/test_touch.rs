@@ -326,7 +326,7 @@ fn test_a_rub_goes_back_and_forth_between_its_ends() {
     assert_eq!(touch::rubbed(((7, 7), (7, 7)), 99.0), (7, 7));
 }
 
-/// Pokémon-Amie counts a pet afresh at every press (spike A): a tap's rub lasts its second,
+/// Pokémon-Amie counts a pet afresh at every press (spike 287): a tap's rub lasts its second,
 /// another before it ends carries it on between the new ends, still down, and a rub held until
 /// let go is let go by `release`.
 #[test]

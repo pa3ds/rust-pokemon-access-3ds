@@ -43,7 +43,7 @@
 //!
 //! A grey is a kind of part, the same on every Pokémon, in pairs, the odd one on the head and the
 //! even on the body, and Amie's script switches on it for the stroke's sound and pitch, its kind, and
-//! the hand it draws: a burn on 15 and 16, a shock on 17 and 18 (spike A's census of every model in
+//! the hand it draws: a burn on 15 and 16, a shock on 17 and 18 (spike 287's census of every model in
 //! the ROM, and its listing of the script). It counts a pet only while the hand moves 4 pixels a tick
 //! and the press stays down, a lift starting its count afresh. So the **stylus**, a point the arrow
 //! keys move over the Pokémon while Amie runs (`StylusKeys`), or jump with Ctrl to the next part,
@@ -62,7 +62,7 @@
 //! still picture is taken anew.
 //!
 //! What the Pokémon is doing is the **love command** running, a routine and a class each, which
-//! `Player` points at (spike A). `Moods` says what a sighted player sees of it, where the player asks
+//! `Player` points at (spike 287). `Moods` says what a sighted player sees of it, where the player asks
 //! (`[pa3ds.amie] descriptions`): its back turned, its watching the hand, its hand raised, its
 //! eating. A press held off the Pokémon brings the raised hand, a high five's, waving about two
 //! seconds, so Ctrl and any arrow then jump the stylus straight to it (`AmiePage.raised_hand`).
@@ -188,14 +188,14 @@ type Ends = ((i64, i64), (i64, i64));
 /// Where `Player` keeps the Pokémon it draws, a word each: its species, its form, its sex and the
 /// encryption constant its record starts with, which says whose it is. X's is 0x5F8
 /// (`Game.amie_shown`). Found with the lead rewritten as Burmy's three cloaks on the research rig,
-/// and checked against Metagross's, Rock Star Pikachu's and Froakie's records (spike A).
+/// and checked against Metagross's, Rock Star Pikachu's and Froakie's records (spike 287).
 pub const SHOWN: i64 = 0x5FC;
 /// A female, in `SHOWN`'s third word.
 pub const FEMALE: i64 = 1;
 /// A female moving unlike her male in a message's key, `amie-motion-592-f-happyB`.
 pub const FEMALE_FORM: &str = "f";
 /// How long the picture is taken as read while a touch goes on, and as the arrows move the stylus,
-/// which held repeat some thirty times a second; a whole picture is 20 ms to read (spike A).
+/// which held repeat some thirty times a second; a whole picture is 20 ms to read (spike 287).
 pub const FRESH: f64 = 0.1;
 /// How long between looks at the picture as the still one is taken (`AmiePage.settle`).
 pub const LOOK: f64 = 0.5;
@@ -208,7 +208,7 @@ pub const RUB_REACH: i64 = 12;
 /// How far a rub keeps in from its part's edges, as the Pokémon sways under it.
 pub const RUB_INSET: i64 = 3;
 /// Half a rub at the least: 12 pixels across at `touch.RUB_SPEED` moves the hand 4 pixels a tick
-/// of Amie's script and more, which it counts a pet by (spike A); a part narrower than that is
+/// of Amie's script and more, which it counts a pet by (spike 287); a part narrower than that is
 /// rubbed a little past its edges, and Amie forgives two ticks off a part.
 pub const RUB_HALF: i64 = 6;
 pub const RICHER: f64 = 10.0;
@@ -220,7 +220,7 @@ pub const BIGGER: f64 = 1.25;
 pub const SETTLE: f64 = 1.0;
 /// The most pixels of a part left out of the still picture as a speck, where there is more of it:
 /// Pikachu Rock Star's head has a dozen of 1 to 4 pixels in its forehead, which a jump landed on and
-/// called the head again (spike A). A Pokémon's eyes can be nothing but specks: those stay.
+/// called the head again (spike 287). A Pokémon's eyes can be nothing but specks: those stay.
 pub const SPECK: i64 = 8;
 /// How far inside its part a touch looks to be from every edge, `RUB_REACH` along it: a part is
 /// only its grey to the game, so where on it is touched matters only for staying on it as the
@@ -229,7 +229,7 @@ pub const DEEP: i64 = 12;
 pub const OFF_SIDES: (i64, i64) = (24, 295);
 /// Where a press off the Pokémon goes, at the screen's side nearer the stylus and between the
 /// corners' buttons. A press beside the Pokémon can touch it as it sways, and raises no hand; held
-/// at (40, 120) it always did (spike A), and worked out from the Pokémon as it swayed the press
+/// at (40, 120) it always did (spike 287), and worked out from the Pokémon as it swayed the press
 /// went back and forth 40 pixels (or_amie_interactions).
 pub const OFF_ROWS: (i64, i64) = (60, 180);
 pub const BOTH_SCREENS: [i64; 21] = [
@@ -238,7 +238,7 @@ pub const BOTH_SCREENS: [i64; 21] = [
 ];
 /// The Pokémon too big for the bottom screen, by species, and Hoopa Unbound: each census Pokémon
 /// reaching the top of the screen with no eyes drawn was pressed at the top edge, and these came down
-/// (spike A, 2026-11-07). The other 9 were only standing close: Bayleef, Spinda, Flygon, Trubbish,
+/// (spike 287, 2026-11-07). The other 9 were only standing close: Bayleef, Spinda, Flygon, Trubbish,
 /// female Jellicent, Accelgor and the biggest Pumpkaboo and Gourgeist. Nothing read says which are
 /// which: `Player`'s size, the word `SHOWN` + 0x18, has Snorlax at 1 and Charizard at 2.
 pub const UNBOUND: (i64, i64) = (720, 1);
@@ -248,7 +248,7 @@ pub const VIEW_TOP: (i64, i64) = (160, 2);
 pub const VIEW_BOTTOM: (i64, i64) = (160, 237);
 /// Where a press brings a Pokémon too big for the bottom screen down onto it, where it sends it
 /// back to the top screen, and how long: Wailord, Snorlax and Lugia showed their eyes about 2 s into
-/// a press held at the top edge, stayed there, and went back to one at the bottom edge (spike A's
+/// a press held at the top edge, stayed there, and went back to one at the bottom edge (spike 287's
 /// `watch`).
 pub const VIEW_SECONDS: f64 = 3.0;
 pub const VIEW_DOWN: &str = "amie-view-down";
@@ -262,16 +262,16 @@ pub const VIEW_LOG: &str = "amie view";
 /// Pokémon stands.
 pub const STYLUS_START: (i64, i64) = (160, 120);
 /// How far an arrow moves the stylus, in the screen's pixels: Pikachu's cheek, the narrowest part
-/// spike A stroked, was 9 to 11 across, so no step jumps one; the screen is 53 steps across.
+/// spike 287 stroked, was 9 to 11 across, so no step jumps one; the screen is 53 steps across.
 pub const STEP: i64 = 6;
 /// Said as the stylus leaves the Pokémon, or comes onto grey 0, which the script takes for off
 /// it.
 pub const OFF: &str = "amie-part-off";
-/// Each grey by the kind of part it is, a message each (spike A), where the Pokémon has no name of
+/// Each grey by the kind of part it is, a message each (spike 287), where the Pokémon has no name of
 /// pa3ds's own for it in `amie.ftl` (Orion, 2026-11-05: "our own name a Pokémon", then "cheeks for
 /// Pikachu, tail for the Charmander line"). 2 and 3 are the ears, the Pokémon's own right and left,
 /// as 4 and 6 are its eyes; 10, where it high-fives, a hand or paw on most, a mouth on a few
-/// (spike A's census). 25 to 28, the danger zone and the sweet spot, are said as the head and the
+/// (spike 287's census). 25 to 28, the danger zone and the sweet spot, are said as the head and the
 /// body, the side of the pair each is: the game's own sound tells them apart, its pitch down on a
 /// danger zone and up on a sweet spot (`SEQ_SE_KW_STROKE` at 108 and 148 against 128). Any other
 /// grey is said as a part, `amie-part`: 1 among them, seen only as specks at Victini's ears and
@@ -305,21 +305,21 @@ pub const PARTS: [(i64, &str); 26] = [
     (28, "amie-part-body"),
 ];
 pub const PART: &str = "amie-part";
-/// The grey a Pokémon high-fives with: a hand or arm on most, a mouth on a few (spike A).
+/// The grey a Pokémon high-fives with: a hand or arm on most, a mouth on a few (spike 287).
 pub const HAND: i64 = 10;
 pub const LOVE: i64 = 0x1B8;
 /// `Player` +0x1B8 -> the love command running, none for a moment between two, and its number, an
-/// s16 at +0xC (spike A).
+/// s16 at +0xC (spike 287).
 pub const LOVE_NUMBER: i64 = 0xC;
 /// `LoveLookTouch`: a press held off the Pokémon a few seconds raises its hand, longer the lower
 /// its affection (Pikachu Rock Star's 60 took 4.8 s), which it waves about 2 s, about a second a
 /// wave, and raises again 5 s later while the press stays; the stylus on grey 10 meanwhile is the
-/// high five (spike A, live).
+/// high five (spike 287, live).
 pub const HAND_RAISED: i64 = 24;
 /// `LoveAppear`, the ways a Pokémon comes into Amie, chosen as it opens from tables of the
 /// script's: 7 with its back turned, and 6 where the Pokémon called the player
 /// (`CheckCalledByMonster`). Seen started at will, 1 to 6 each leaned up close, gazing at the stylus
-/// (spike A's `look`). A `frozenset` of `range(1, 8)` in Python.
+/// (spike 287's `look`). A `frozenset` of `range(1, 8)` in Python.
 pub const APPEARING: std::ops::Range<i64> = 1..8;
 pub const NEXT_BITE: i64 = 15;
 /// `LoveFoodIdle`: a puff held out, and where eating goes to when more of it is left; and the last
@@ -327,7 +327,7 @@ pub const NEXT_BITE: i64 = 15;
 pub const LAST_BITE: i64 = 19;
 /// What the Pokémon is seen doing as a love command starts, a message each (Orion, 2026-11-06:
 /// "describe the other moods too, even if nothing reaches them yet"). Which class each number builds
-/// is the module's own table, read from the module loaded (spike A), each started at will on the
+/// is the module's own table, read from the module loaded (spike 287), each started at will on the
 /// research rig and pictured (`look --loves`): 1 to 7 `LoveAppear`; 8 and 9 `LoveMotionRepeat`, a
 /// sleepy nod and lying asleep; 14 `LoveHate`, which the script sets only for a puff held out to a
 /// Pokémon whose fullness, cell 64, is 255; 15 and 16 `LoveFoodIdle`, 16 after waiting, its head
@@ -379,7 +379,7 @@ pub const OF_THE_PUFF: [&str; 4] = [
 /// What the log calls a line of `Moods`.
 pub const MOOD_LOG: &str = "amie mood";
 /// `Player` +0x146: the animation its model plays, its number in the model's list plus 2, and 2
-/// while it stands, which it goes back to as each ends (spike A).
+/// while it stands, which it goes back to as each ends (spike 287).
 pub const PLAYING: i64 = 0x146;
 /// The animations a sentence describes, by `PLAYING`: the models' own `kw10_respond` to
 /// `kw60_touch`, the three of eating, the three of nodding off and the two of sleep one action each.
@@ -433,7 +433,7 @@ pub const TASK_SCRIPT: i64 = 0x04;
 pub const SCRIPT_MAGIC: i64 = 0xF1E0;
 pub const SCRIPT_MAGIC_AT: i64 = 0x04;
 /// `Player` +0x1BC -> its `kawaigari::PawnTask`, +0x04 -> Amie's script as it runs, its magic at
-/// +0x04 and at +0x10 how far in its data starts (spike A).
+/// +0x04 and at +0x10 how far in its data starts (spike 287).
 pub const SCRIPT_DATA: i64 = 0x10;
 pub const NUMBERS: [i64; 3] = [56, 64, 60];
 pub const AFFECTION: usize = 0;
@@ -447,7 +447,7 @@ pub const METER_FULL: i64 = 255;
 pub const METER: &str = "amie-meter";
 pub const HIGH_FIVE: i64 = 10;
 /// What a high five adds to Enjoyment, and how long after the hand was up it lands: the script
-/// adds the same for other things (spike A), and on or_amie_interactions 2 s after 24 ended.
+/// adds the same for other things (spike 287), and on or_amie_interactions 2 s after 24 ended.
 pub const HIGH_FIVE_SECONDS: f64 = 4.0;
 /// Where ORAS's page keeps its Pokémon's number; X's keeps it at 0x124 (`Game.amie`).
 pub const NUMBER: i64 = 0x14C;
@@ -808,7 +808,7 @@ pub fn placed(before: &Picture, after: &Picture, x: i64, y: i64, grey: i64) -> (
 }
 
 /// How many of its row's five icons one of Amie's numbers fills: 1 to 49 one, 50 to 99 two,
-/// 100 to 149 three, 150 to 254 four, and only 255 five (spike A's `--meters`, the record
+/// 100 to 149 three, 150 to 254 four, and only 255 five (spike 287's `--meters`, the record
 /// rewritten and the Switch screen read, alike for all three).
 pub fn meter(number: i64) -> i64 {
     if number <= 0 {
@@ -1311,7 +1311,7 @@ impl AmiePage {
     /// its first frames may catch it looking away or still walking up. It is left until the
     /// Pokémon comes anew, with its back turned, or `look_again` asks. Left alone Pikachu's box
     /// moved 85 pixels in 40 s, so that a part found with the arrows had gone by the next press
-    /// (Orion, 2026-11-06, spike A's `watch`); this holds them still, and a touch finds its part
+    /// (Orion, 2026-11-06, spike 287's `watch`); this holds them still, and a touch finds its part
     /// wherever it has gone (`placed`).
     pub fn settle(&mut self) -> Result<()> {
         let now = py::time::monotonic();
@@ -1391,7 +1391,7 @@ impl AmiePage {
     /// across it the way it is longer, `RUB_REACH` at most either side and `RUB_HALF` at least;
     /// where the part cannot be found, `RUB_HALF` either side of where the stylus is. Off the
     /// Pokémon it stays still: a press held there raises its hand, and any rub reaching back
-    /// onto it was taken for a press on it, which never does (spike A, live).
+    /// onto it was taken for a press on it, which never does (spike 287, live).
     pub fn rub(&mut self) -> Result<Ends> {
         let (x, y) = self.stylus;
         let live = if self.still.is_some() {

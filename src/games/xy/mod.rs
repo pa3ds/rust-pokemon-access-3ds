@@ -274,7 +274,7 @@ pub const TEXTURE_ARCHIVES: [&str; 112] = [
 /// 108). The moves' names are text file 13, as file 14 (spike 136); the Pokémon's names file 80
 /// (spike 178). The Pokémon on the map are the field's models from `EV_POKE01`, `0xf2` of `a/0/2/1`,
 /// each tagged as its battle models in `a/0/0/7` are, Fletchling's `pm0753` (spike 218).
-/// "Affection", "Fullness" and "Enjoyment", in Pokémon-Amie's text (spike A).
+/// "Affection", "Fullness" and "Enjoyment", in Pokémon-Amie's text (spike 287).
 pub const AMIE_NUMBERS: (i64, i64) = (93, 14);
 pub fn rom() -> &'static RomLayout {
     static ROM: OnceLock<RomLayout> = OnceLock::new();
@@ -804,10 +804,10 @@ pub const WORDED: [&str; 3] = [
 /// as its Super Training page is, Frogadier's 657 (spike 228, x_super_train2).
 pub const AMIE: i64 = 0x124;
 /// How much later than ORAS's X's `kawaigari::Player` keeps its fields: its love command at +0x1BC
-/// and its picture's holder at +0x230 (spike A, x_amie_head_it_hard).
+/// and its picture's holder at +0x230 (spike 287, x_amie_head_it_hard).
 pub const AMIE_PLAYER: i64 = 4;
 /// Where X's `kawaigari::Player` keeps the Pokémon it draws: Froakie's 656, form, sex and its
-/// record's constant (spike A, x_amie_interactions).
+/// record's constant (spike 287, x_amie_interactions).
 pub const AMIE_SHOWN: i64 = 0x5F8;
 /// Where X's Super Training page, `FM_Training`, keeps its party's PokeIcon: 0x28 before ORAS's,
 /// and its records with it, Frogadier's at +0x124 (spike 228).

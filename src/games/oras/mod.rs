@@ -387,7 +387,7 @@ pub const MOVE_CATEGORIES: (i64, i64) = (150, 17);
 /// Coolness, Beauty, Cuteness, Cleverness, Toughness: the contest's own text, in its move icons'
 /// order, `contest_icon_00` to `contest_icon_04` (spike 196: Hold Back's is 00, Iron Defense's 04).
 pub const CONTEST_CATEGORIES: (i64, i64) = (141, 121);
-/// "Affection", "Fullness" and "Enjoyment", in Pokémon-Amie's text (spike A).
+/// "Affection", "Fullness" and "Enjoyment", in Pokémon-Amie's text (spike 287).
 pub const AMIE_NUMBERS: (i64, i64) = (111, 14);
 /// "Pokémon:" and "Trainer:", the contest's labels of the entrant its cursor is on (spike 196).
 pub const CONTEST_ENTRANT: (i64, i64) = (141, 138);

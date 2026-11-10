@@ -169,7 +169,7 @@ pub fn zones() -> &'static IndexSet<i64> {
 pub const MAPPER_CLASS: &str = "N5field10secretBase16SecretBaseMapperE";
 pub const CURSOR_CLASS: &str = "N5field10secretBase21SecretBaseCursorModelE";
 /// The decorations' classes stood on rather than walked round, by the game's own hit test (spike
-/// A): Your Location, the Welcome Mats, the cushions and plain mats whose class is not hit, the
+/// 281): Your Location, the Welcome Mats, the cushions and plain mats whose class is not hit, the
 /// note and glitter mats, the Stand, the Stairs, the Tall Grass, the Solid Board and the Pitfall
 /// Mat. The player walked six of each Stand's eight cells, and fell into the Pitfall Mat once and
 /// was left on it, then crossed it (or_secret_base_objects). Every other class is solid to P:
