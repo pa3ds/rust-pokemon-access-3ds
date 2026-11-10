@@ -63,14 +63,16 @@ pub const IDC_KNOWN_ISSUES: i64 = 209;
 pub const IDC_TRANSLATING: i64 = 210;
 pub const IDC_CHANGELOG: i64 = 211;
 pub const IDC_SETTINGS_GUIDE: i64 = 212;
+pub const IDC_AMIE: i64 = 213;
 /// Where the manual is read: the port's, which is what players run and which ships it, on
 /// GitHub, which shows it as a page a screen reader walks by its headings; beside pa3ds.exe it is
 /// Markdown, which nothing on a player's machine may open (Orion, 2026-10-25).
 pub const DOCS: &str = "https://github.com/pa3ds/rust-pokemon-access-3ds/blob/main/";
 /// Each of the Help menu's pages of the manual, by where it is under `DOCS`.
-pub const DOCUMENTS: [(i64, &str); 6] = [
+pub const DOCUMENTS: [(i64, &str); 7] = [
     (IDC_DOCUMENTATION, "README.md"),
     (IDC_KEYS, "manual/keys.md"),
+    (IDC_AMIE, "manual/amie.md"),
     (IDC_KNOWN_ISSUES, "manual/known-issues.md"),
     (IDC_TRANSLATING, "manual/languages.md"),
     (IDC_CHANGELOG, "CHANGELOG.md"),
@@ -101,6 +103,7 @@ pub const MENUS: [(&str, &[(i64, &str)]); 3] = [
         &[
             (IDC_DOCUMENTATION, "window-documentation"),
             (IDC_KEYS, "window-keys"),
+            (IDC_AMIE, "window-amie"),
             (IDC_KNOWN_ISSUES, "window-known-issues"),
             (IDC_TRANSLATING, "window-translating"),
             (IDC_CHANGELOG, "window-changelog"),

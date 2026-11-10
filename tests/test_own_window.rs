@@ -3,9 +3,9 @@
 use super::test_rename::read_template;
 use crate::core::keyfile::data_path;
 use crate::ux::window::{
-    DOCUMENTS, IDC_CHANGELOG, IDC_DOCUMENTATION, IDC_EXIT, IDC_INSTALLER, IDC_ISSUES, IDC_KEYS,
-    IDC_KNOWN_ISSUES, IDC_PORTABLE, IDC_SETTINGS, IDC_SETTINGS_GUIDE, IDC_TRANSLATING, IDC_UPDATES,
-    INSTALLER, PORTABLE, WS_EX_APPWINDOW, download, menus, template,
+    DOCUMENTS, IDC_AMIE, IDC_CHANGELOG, IDC_DOCUMENTATION, IDC_EXIT, IDC_INSTALLER, IDC_ISSUES,
+    IDC_KEYS, IDC_KNOWN_ISSUES, IDC_PORTABLE, IDC_SETTINGS, IDC_SETTINGS_GUIDE, IDC_TRANSLATING,
+    IDC_UPDATES, INSTALLER, PORTABLE, WS_EX_APPWINDOW, download, menus, template,
 };
 
 /// A window left in sight for OBS takes as little of the screen as a window can (Orion,
@@ -44,6 +44,7 @@ fn test_the_window_is_pa3dss_by_its_title_and_holds_nothing_but_its_menu_bar() {
                 owned(&[
                     (IDC_DOCUMENTATION, "&Documentation..."),
                     (IDC_KEYS, "&Key commands..."),
+                    (IDC_AMIE, "Pokémon-&Amie..."),
                     (IDC_KNOWN_ISSUES, "Known &issues..."),
                     (IDC_TRANSLATING, "&Translating..."),
                     (IDC_CHANGELOG, "&Changelog..."),
