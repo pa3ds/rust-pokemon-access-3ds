@@ -3,16 +3,17 @@
 //! its streets (spike 264).
 
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use indexmap::{IndexMap, IndexSet};
 
 use crate::core::binary::{f32, u16, u32};
+use crate::core::pathfind::Cell;
 use crate::core::rom::{Rom, lz11};
 use crate::games::common::field::chunk::Floor;
 use crate::games::common::garc::{garc_files, garc_spans};
-use crate::games::gen6::field::conveyors::TurningStrip;
+use crate::games::gen6::field::conveyors::{GymFloor, TurningStrip};
 use crate::games::gen6::field::zonedata::CELL;
 use crate::games::gen6::field::{mapblock, rail};
 use crate::py::{self, Error, Kind, Result};
@@ -401,13 +402,16 @@ pub const GAP_MASK: i64 = 64;
 /// and round to 0 (`conveyors`).
 pub const TURNS: i64 = 4;
 
-/// The floor strips a Gym's module turns, with their gaps: the first run of two or more
-/// rectangles of one size (`STRIP_ENTRY`), and after them the first run of `GAP_MASK` bytes
-/// a mask, `TURNS` to a strip, holding only 0 and 1. DllUSGymIce.cro, Snowbelle City Gym's,
-/// holds the four from 0x20e0, x 10 and z 51, 45, 39 and 33, 21 cells by 3, and their masks
-/// from 0x2180; the first strip's first mask has gaps at (12, 52), (13, 52) and (27, 51), where
-/// the game refused steps in x_eighth_gym, and none at (27, 52), stepped on (spike A).
-pub fn turning_strips(module: &[u8]) -> Result<Vec<TurningStrip>> {
+/// The floor strips a Gym's module turns, with their gaps, and what it shuts until its leader
+/// is beaten: the first run of two or more rectangles of one size (`STRIP_ENTRY`), the strips,
+/// the rectangles straight after them, shut, and after those the first run of `GAP_MASK` bytes a
+/// mask, `TURNS` to a strip, holding only 0 and 1. DllUSGymIce.cro, Snowbelle City Gym's, holds
+/// the four strips from 0x20e0, x 10 and z 51, 45, 39 and 33, 21 cells by 3, then (19, 17) and
+/// (19, 68), 3 by 2, the ends of the ice up its middle, and the masks from 0x2180; the first
+/// strip's first mask has gaps at (12, 52), (13, 52) and (27, 51), where the game refused steps
+/// in x_eighth_gym, and none at (27, 52), stepped on (spike A). None where there is no such
+/// run.
+pub fn gym_floor(module: &[u8]) -> Result<Option<GymFloor>> {
     let rect = |at: i64| -> Result<Option<(i64, i64, i64, i64)>> {
         let values = [
             f32(module, at)?,
@@ -448,7 +452,15 @@ pub fn turning_strips(module: &[u8]) -> Result<Vec<TurningStrip>> {
         at += if rects.len() >= 2 { 0 } else { 4 };
     }
     if rects.len() < 2 {
-        return Ok(Vec::new());
+        return Ok(None);
+    }
+    let mut shut: HashSet<Cell> = HashSet::new();
+    while at + STRIP_ENTRY <= size {
+        let Some((x, z, width, depth)) = rect(at)? else {
+            break;
+        };
+        shut.extend((0..width).flat_map(|dx| (0..depth).map(move |dz| (x + dx, z + dz))));
+        at += STRIP_ENTRY;
     }
     let masks_size = TURNS * rects.len() as i64 * GAP_MASK;
     while at + masks_size <= size
@@ -459,7 +471,7 @@ pub fn turning_strips(module: &[u8]) -> Result<Vec<TurningStrip>> {
         at += 4;
     }
     if at + masks_size > size {
-        return Ok(Vec::new());
+        return Ok(None);
     }
     let mut out: Vec<TurningStrip> = Vec::new();
     for (i, &(x, z, width, depth)) in rects.iter().enumerate() {
@@ -482,5 +494,5 @@ pub fn turning_strips(module: &[u8]) -> Result<Vec<TurningStrip>> {
                 .collect(),
         });
     }
-    Ok(out)
+    Ok(Some(GymFloor { strips: out, shut }))
 }

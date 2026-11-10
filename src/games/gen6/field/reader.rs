@@ -52,7 +52,7 @@ use crate::games::common::field::things::{
     TRIGGER_SOURCE, WARP_SOURCE, kind_said, place_source,
 };
 use crate::games::gen6::anchors::follow;
-use crate::games::gen6::field::conveyors::{Switches, TurningStrip};
+use crate::games::gen6::field::conveyors::{GymFloor, Switches};
 use crate::games::gen6::field::features::{
     DoorReader, Feature, HiddenReader, Hiding, IceReader, SecretBaseReader, Tracked,
 };
@@ -323,8 +323,8 @@ pub struct FieldReader {
     armed_warps: IndexMap<(i64, i64), (i64, i64)>,
     /// What each zone's switches have turned (`landform.Conveyors`, `landform.TurningFloor`).
     switches: Option<Switches>,
-    /// The floor strips a Gym's module turns (`maps.turning_strips`).
-    strips: Vec<TurningStrip>,
+    /// What a Gym's module turns and shuts (`maps.gym_floor`).
+    gym_floor: Option<GymFloor>,
     /// The hidden items still to be found, where the Extra lists them (spike 249).
     hidden_items: Option<HiddenItems>,
     /// (zone, sprite) of the move models that are a barrier's beam (`Game.barriers`).
@@ -540,7 +540,7 @@ impl FieldReader {
                     Some(Switches::new(memory.clone(), states))
                 }
             },
-            strips: text.strips.clone(),
+            gym_floor: text.gym_floor.clone(),
             zones: ZoneTable::new(memory.clone(), text.zone_table.clone()),
             warp_words: game.warps.clone(),
             landings: game.landings.clone(),
@@ -2981,7 +2981,7 @@ impl FieldReader {
                 None => Ok(None),
                 Some(switches) => switches.turned(state, size),
             }),
-            strips: &self.strips,
+            gym_floor: self.gym_floor.as_ref(),
             terrain: &self.terrain,
             zones: &self.zones,
         }

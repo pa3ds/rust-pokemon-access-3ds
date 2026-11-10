@@ -314,6 +314,9 @@ pub struct Ground {
     /// The cells of the ground floor a turning floor strip has a gap in now: blocked, though the
     /// chunk has them open. Snowbelle City Gym refused steps into them (`TurningFloor`, spike A).
     pub gaps: HashSet<Cell>,
+    /// The cells blocked on every floor though the chunk has them open: the ends of the ice up
+    /// Snowbelle City Gym's middle, until its leader is beaten (`TurningFloor`).
+    pub shut: HashSet<Cell>,
     /// Whether the player is riding the Mach Bike, which rides up a slope as well as down: P's
     /// ground goes up one only then (spike 158).
     pub bike: bool,
@@ -486,6 +489,7 @@ impl Default for Ground {
             hm: false,
             filled: HashSet::new(),
             gaps: HashSet::new(),
+            shut: HashSet::new(),
             bike: false,
             acro: false,
             cliffs: IndexSet::new(),
@@ -950,10 +954,11 @@ impl Ground {
         Ok(false)
     }
 
-    /// Whether a turning floor strip has a gap in the cell on `floor`, the ground floor's
-    /// alone (`gaps`).
+    /// Whether the cell is `shut`, or a turning floor strip has a gap in it on `floor`, the
+    /// ground floor's alone (`gaps`).
     pub fn gap(&self, cell: Cell, floor: i64) -> bool {
-        (floor == ANY_FLOOR || floor == 0) && self.gaps.contains(&cell)
+        self.shut.contains(&cell)
+            || ((floor == ANY_FLOOR || floor == 0) && self.gaps.contains(&cell))
     }
 
     /// The floor a step from `cell`, walked on `floor`, lands on at `step`: of its open floors
