@@ -47,7 +47,10 @@ commit (`git show <sha>`) before deciding.
 
 ## 4. Write the section
 
-Add it to `CHANGELOG.md` above the newest section, below the `# Changelog` heading:
+Add it to `CHANGELOG.md` above the newest section, below the `# Changelog` heading. A
+`## [Unreleased]` section there holds what was written ahead for this release, such as a known
+issue the user asked to note when they agreed to ship: the new section takes its place, keeping
+every entry in it.
 
 ```
 ## [0.2.0] - 2026-10-16
@@ -61,7 +64,7 @@ Add it to `CHANGELOG.md` above the newest section, below the `# Changelog` headi
 - Ctrl+P walks a stacked ground one floor at a time.
 ```
 
-- `Added`, `Changed`, `Fixed`, in that order, each only when it has an entry.
+- `Added`, `Changed`, `Fixed`, `Known issues`, in that order, each only when it has an entry.
 - One bullet per change a player would tell apart. Commits that make one change together are one
   bullet.
 - In the manual's words and voice: plain, present tense, keys and settings named as the manual

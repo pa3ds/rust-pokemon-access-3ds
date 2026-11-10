@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Known issues
+
+- To use Pokémon-Amie fully, update Azahar to 2126.2 or newer. Azahar 2126.1 runs Amie without
+  crashing, but pa3ds cannot read which parts of your Pokémon you can pet: the stylus says no
+  parts, and a pet goes where the stylus is rather than to a part.
+- Super Training is still being worked on. So far only the tutorials, Core Training, the six
+  Level 1 regimens and one Level 2 regimen, Graveler's for Defense, have been checked working.
+
 ## [0.11.0] - 2026-11-05
 
 ### Added
