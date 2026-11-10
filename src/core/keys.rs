@@ -221,15 +221,15 @@ impl Released {
 /// The name to answer for a press, or "" for one that is nobody's.
 ///
 /// Shift falls back: with only `k` bound, shift and k together still read the item, because a
-/// player holding shift from the last thing they typed should not find the key dead. **Ctrl and
-/// alt never fall back**, since ctrl and a letter belongs to whatever is in front — ctrl+c must
-/// reach the emulator even when `c` is pa3ds's. **Nothing is pa3ds's with a key of `ELSEWHERE`
-/// held**, the screen reader's modifier or Windows's.
+/// player holding shift from the last thing they typed should not find the key dead; and with
+/// `ctrl+up` bound, ctrl, shift and up jump Amie's stylus while Shift holds its press (Orion,
+/// 2026-11-06: the jump was dead until he let Shift go). **Ctrl and alt never fall back**, since
+/// ctrl and a letter belongs to whatever is in front — ctrl+c must reach the emulator even when
+/// `c` is pa3ds's. **Nothing is pa3ds's with a key of `ELSEWHERE` held**, the screen reader's
+/// modifier or Windows's.
 pub fn bound<S: AsRef<str>>(
     name: &str,
     keys: impl IntoIterator<Item = S> + Clone,
-    ctrl: bool,
-    alt: bool,
     elsewhere: bool,
 ) -> String {
     if elsewhere {
@@ -239,15 +239,8 @@ pub fn bound<S: AsRef<str>>(
     if has(name) {
         return name.to_string();
     }
-    if ctrl || alt {
-        return String::new();
-    }
-    let bare = name.strip_prefix(&format!("{SHIFT}+")).unwrap_or(name);
-    if has(bare) {
-        bare.to_string()
-    } else {
-        String::new()
-    }
+    let bare = name.replace(&format!("{SHIFT}+"), "");
+    if has(&bare) { bare } else { String::new() }
 }
 
 /// Whether a modifier is down *now*. `GetAsyncKeyState` reads the physical keyboard, so
@@ -502,7 +495,7 @@ impl State {
                     .chain(lock(&self.contextual).iter())
                     .cloned()
                     .collect();
-                let key = bound(&name, &keys, ctrl, alt, elsewhere);
+                let key = bound(&name, &keys, elsewhere);
                 if !key.is_empty() && front {
                     if lock(&self.released).down(event.vkCode as i64, &key) {
                         if shift {

@@ -1047,34 +1047,38 @@ fn test_modifiers_are_written_in_one_order_so_one_press_has_one_name() {
 /// A player holding shift from the last thing they typed should not find K dead.
 #[test]
 fn test_shift_falls_back_to_the_key_on_its_own() {
-    assert_eq!(bound("shift+k", ["k"], false, false, false), "k");
-    assert_eq!(
-        bound("shift+k", ["shift+k", "k"], false, false, false),
-        "shift+k"
-    );
+    assert_eq!(bound("shift+k", ["k"], false), "k");
+    assert_eq!(bound("shift+k", ["shift+k", "k"], false), "shift+k");
+}
+
+/// Amie's jump, Ctrl and an arrow, was dead while Shift held the press (Orion, 2026-11-06).
+#[test]
+fn test_shift_falls_back_beside_ctrl_as_it_holds_a_press() {
+    assert_eq!(bound("ctrl+shift+left", ["ctrl+left"], false), "ctrl+left");
+    assert_eq!(bound("ctrl+shift+left", ["left"], false), "");
 }
 
 /// Ctrl and a letter belongs to whatever is in front: ctrl+c must reach the emulator even
 /// when C is one of pa3ds's keys.
 #[test]
 fn test_ctrl_and_alt_never_fall_back() {
-    assert_eq!(bound("ctrl+c", ["c"], true, false, false), "");
-    assert_eq!(bound("alt+k", ["k"], false, true, false), "");
-    assert_eq!(bound("ctrl+k", ["ctrl+k"], true, false, false), "ctrl+k");
+    assert_eq!(bound("ctrl+c", ["c"], false), "");
+    assert_eq!(bound("alt+k", ["k"], false), "");
+    assert_eq!(bound("ctrl+k", ["ctrl+k"], false), "ctrl+k");
 }
 
 /// Insert and R is NVDA's OCR, and pa3ds took it for R and said the battle's side (Orion,
 /// 2026-09-29).
 #[test]
 fn test_nothing_is_pa3ds_s_while_the_screen_reader_s_key_is_held() {
-    assert_eq!(bound("r", ["r"], false, false, true), "");
-    assert_eq!(bound("shift+r", ["shift+r"], false, false, true), "");
-    assert_eq!(bound("r", ["r"], false, false, false), "r");
+    assert_eq!(bound("r", ["r"], true), "");
+    assert_eq!(bound("shift+r", ["shift+r"], true), "");
+    assert_eq!(bound("r", ["r"], false), "r");
 }
 
 #[test]
 fn test_a_key_nobody_bound_is_nobody_s() {
-    assert_eq!(bound("q", ["k"], false, false, false), "");
+    assert_eq!(bound("q", ["k"], false), "");
 }
 
 // ---------------------------------------------------------------- the sticks
