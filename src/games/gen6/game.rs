@@ -331,6 +331,9 @@ pub struct Game {
     /// Where its Pokémon-Amie page keeps its Pokémon's number, its icon's holder following
     /// (`subscreen.amie`): ORAS's 0x14C, X's 0x124 (spike 228).
     pub amie: i64,
+    /// How much later than ORAS's Amie's `Player` keeps its fields (`subscreen.amie`): X's 4, its
+    /// love command at +0x1BC and its picture's holder at +0x230 (spike A).
+    pub amie_player: i64,
     /// Textures a game draws as a button's words with no line of its text to name them, named
     /// instead by pa3ds's own words for the picture (`pictures.named`) and offered as a button of
     /// their own, as the game's word would be: X's Pokémon-Amie menu (spike 228).
@@ -416,6 +419,7 @@ impl Game {
             steps: ORAS,
             training: ICONS,
             amie: NUMBER,
+            amie_player: 0,
             worded: IndexSet::new(),
             field_menu: MENU,
             camera: camera::ORAS,

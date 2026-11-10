@@ -449,6 +449,8 @@ pub fn moved(before: &Band, after: &Band, x: i64, y: i64) -> (i64, i64) {
 /// Amie's Pokémon to beckon and its stylus to rub with.
 pub struct AmiePage {
     memory: Rc<dyn Memory>,
+    /// How much later than ORAS's `Player` keeps its fields (`Game.amie_player`).
+    later: i64,
     /// Whether the picture of parts is read: the GPU draws it, and Azahar before 2126.2 can
     /// crash when memory the GPU draws into is read (`Rpc.reads_beside_gpu`).
     aim: bool,
@@ -498,7 +500,7 @@ impl AmiePage {
         species: Vec<String>,
         number: i64,
     ) -> Self {
-        AmiePage::with_aim(memory, names, species, number, false)
+        AmiePage::with_aim(memory, names, species, number, false, 0)
     }
 
     /// `AmiePage(...)` with every argument.
@@ -508,9 +510,11 @@ impl AmiePage {
         species: Vec<String>,
         number: i64,
         aimed: bool,
+        later: i64,
     ) -> Self {
         AmiePage {
             memory,
+            later,
             aim: aimed,
             names,
             species,
@@ -696,7 +700,7 @@ impl AmiePage {
         if self.form.0 != Some(player) {
             let memory = &self.memory;
             let read = || -> Result<Option<String>> {
-                let model = u32(&memory.read(player + MODEL, 4)?, 0)?;
+                let model = u32(&memory.read(player + MODEL + self.later, 4)?, 0)?;
                 let resource = if model != 0 {
                     u32(&memory.read(model + MODEL_RESOURCE, 4)?, 0)?
                 } else {
@@ -859,7 +863,7 @@ impl AmiePage {
             if self.holder(player, vtable)?.is_none() {
                 continue;
             }
-            let command = u32(&self.memory.read(player + LOVE, 4)?, 0)?;
+            let command = u32(&self.memory.read(player + LOVE + self.later, 4)?, 0)?;
             if within(HEAP_SPAN, command) {
                 return Ok(Some(s16(&self.memory.read(command + LOVE_NUMBER, 2)?, 0)?));
             }
@@ -1016,8 +1020,8 @@ impl AmiePage {
     /// the Players; here each caller walks them and asks this of each in turn, so the reads are
     /// made as lazily.
     fn holder(&self, player: i64, vtable: i64) -> Result<Option<i64>> {
-        let head = self.memory.read(player, HOLDS_PICTURE + 4)?;
-        let holder = u32(&head, HOLDS_PICTURE)?;
+        let head = self.memory.read(player, HOLDS_PICTURE + self.later + 4)?;
+        let holder = u32(&head, HOLDS_PICTURE + self.later)?;
         // A Player freed, or a copy of its words in the module's code, leads nowhere.
         Ok((u32(&head, 0)? == vtable
             && within(HEAP_SPAN, holder)

@@ -406,6 +406,7 @@ impl Subscreens {
             text.species.clone(),
             game.amie,
             reads_beside_gpu,
+            game.amie_player,
         )));
         // Its own keys, the arrows, move the stylus, saying the part it comes onto, and keep it
         // there as the Pokémon moves, for touch mode to rub there.

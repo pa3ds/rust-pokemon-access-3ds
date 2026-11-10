@@ -38,11 +38,11 @@ pub(crate) fn species() -> Vec<String> {
 }
 
 pub(crate) fn page(number: i64) -> (amie::AmiePage, Rc<FakeMemory>) {
-    page_aimed(number, false)
+    page_aimed(number, false, 0)
 }
 
-/// `page(number, aimed)`.
-fn page_aimed(number: i64, aimed: bool) -> (amie::AmiePage, Rc<FakeMemory>) {
+/// `page(number, aimed, later)`.
+fn page_aimed(number: i64, aimed: bool, later: i64) -> (amie::AmiePage, Rc<FakeMemory>) {
     let memory = FakeMemory::new();
     let classes = FakeClasses::new(memory.clone());
     memory.u32(PAGE, &[classes.add(amie::CLASS)]);
@@ -66,6 +66,7 @@ fn page_aimed(number: i64, aimed: bool) -> (amie::AmiePage, Rc<FakeMemory>) {
         species(),
         number,
         aimed,
+        later,
     );
     found
         .track(&IndexMap::from([(PAGE, amie::CLASS.to_string())]), false)
@@ -208,11 +209,20 @@ fn amie_running(parts: &[(u8, (i64, i64, i64, i64))], aimed: bool) -> amie::Amie
 
 /// Amie running, its picture of parts drawn as `pokemon` draws it: the page and the memory.
 fn running(parts: &[(u8, (i64, i64, i64, i64))], aimed: bool) -> (amie::AmiePage, Rc<FakeMemory>) {
-    let (mut found, memory) = page_aimed(amie::NUMBER, aimed);
+    running_later(parts, aimed, 0)
+}
+
+/// `running(parts, aimed, later)`.
+fn running_later(
+    parts: &[(u8, (i64, i64, i64, i64))],
+    aimed: bool,
+    later: i64,
+) -> (amie::AmiePage, Rc<FakeMemory>) {
+    let (mut found, memory) = page_aimed(amie::NUMBER, aimed, later);
     let classes = FakeClasses::starting(memory.clone(), CODE.0 + 0x8000);
     let player = classes.add(amie::PLAYER);
     memory.u32(PLAYER, &[player]);
-    memory.u32(PLAYER + amie::HOLDS_PICTURE, &[ALLOCATOR]);
+    memory.u32(PLAYER + amie::HOLDS_PICTURE + later, &[ALLOCATOR]);
     memory.u32(ALLOCATOR, &[classes.add(amie::PICTURE_HOLDER)]);
     memory.u32(ALLOCATOR + amie::BUFFERS, &[BUFFER - 0x80000, BUFFER, 1]);
     // A copy of a Player's first words in the module's code, which a sweep finds too (spike 279).
@@ -583,6 +593,18 @@ fn test_what_the_pokemon_is_seen_doing_is_said_as_it_starts_and_stops() {
             .collect()
     };
     assert_eq!(said(22), ["watching the stylus"]); // Amie opened again
+}
+
+/// Read where ORAS keeps them, X's stylus said no parts and its Pokémon no moods
+/// (x_amie_head_it_hard).
+#[test]
+fn test_xs_player_keeps_its_love_command_and_picture_four_bytes_later() {
+    let later = xy::game().amie_player;
+    let (mut found, memory) = running_later(&[(8, HEAD)], true, later);
+    memory.u32(PLAYER + amie::LOVE + later, &[COMMAND]);
+    memory.write(COMMAND + amie::LOVE_NUMBER, &23u16.to_le_bytes());
+    assert_eq!(found.mood().unwrap(), Some(23));
+    assert_eq!(found.outline().unwrap(), Some((100, 60, 219, 119)));
 }
 
 /// ADR-0009: the hand is up about 2 s and a player cannot see where, so a jump goes straight
