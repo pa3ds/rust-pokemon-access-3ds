@@ -793,7 +793,7 @@ fn test_a_zone_is_the_field_s_low_half_word() {
 }
 
 /// A model standing on a trainer's record of its own model is that trainer; a thing is what it
-/// says, and a door the building behind it (spike A).
+/// says, and a door the building behind it (spike 291).
 #[test]
 fn test_the_keys_say_the_game_s_own_words_for_a_trainer_a_thing_and_a_door() {
     let bedroom = rom();

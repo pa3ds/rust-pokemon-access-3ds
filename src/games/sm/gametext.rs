@@ -1,5 +1,5 @@
 //! The game's own words for what stands on Sun's field: the kind of trainer a person looks like,
-//! each trainer's name, what a sign and a thing say, and the building behind a door (spike A).
+//! each trainer's name, what a sign and a thing say, and the building behind a door (spike 291).
 //!
 //! **People.** Every trainer record names its trainer (`zones.TRAINER_FLAGS`), whose file in
 //! `a/1/0/5` gives their class at +0x00: text file 106 the classes, 105 the names. Each class says
@@ -83,7 +83,7 @@ pub const SIGN_TEXT: i64 = 21;
 pub const TRAINERS: &str = "a/1/0/5";
 pub const TRAINER_CLASS: i64 = 0x00;
 /// A file a trainer class, its +0x08 u16 the field model it is drawn as: Youngster `0x43`, the
-/// Pokémon Trainer who is Hau `0x04`, the Island Kahuna who is Hala `0x1b` (spike A).
+/// Pokémon Trainer who is Hau `0x04`, the Island Kahuna who is Hala `0x1b` (spike 291).
 pub const CLASSES: &str = "a/1/0/4";
 pub const CLASS_MODEL: i64 = 0x08;
 /// The field's models, model n file n, a Pokémon's tagged with its national number as gen 6's
@@ -98,7 +98,8 @@ pub const BATTLE_MODEL_FILES: i64 = 9;
 /// Cosmog's `pm0871` beside Cosmoem's `pm0872`, and the last two none.
 pub const BATTLE_MODEL_TAGGED: i64 = 2;
 /// The first species a model may tag apart from its number, Chespin: Kalos's and Alola's are
-/// tagged in another order, Stufful `pm0852`, and every tag below is the species itself (spike A).
+/// tagged in another order, Stufful `pm0852`, and every tag below is the species itself (spike
+/// 291).
 pub const RETAGGED: i64 = 650;
 pub const TOWN_MAP: &str = "a/2/4/1";
 pub const TOWN_MAP_RECORD: i64 = 0x2C;
@@ -137,7 +138,7 @@ const STOPS: [char; 7] = [
     '.', '!', '?', '\u{2026}', '\u{3002}', '\u{ff01}', '\u{ff1f}',
 ];
 /// The controls that put a value the game fills in into a line: 0x100 a name, 0x101 a Pokémon's,
-/// 0x102 a number, opening 1,200 of the story's lines in English and Japanese (spike A).
+/// 0x102 a number, opening 1,200 of the story's lines in English and Japanese (spike 291).
 pub const VALUES: (i64, i64) = (0x100, 0x200);
 /// What a name may open on besides a letter or a digit: a quotation, or a pause, "...Heh".
 pub const OPENING: &str = "“「『«\"(¡¿….";

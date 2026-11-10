@@ -396,7 +396,7 @@ fn test_x_ships_a_table_in_every_language_it_carries() {
 }
 
 /// The user, 2026-11-10: Mom and the professor had no name on Sun's map. Neither battles as
-/// the model they stand as, so the ROM names neither (spike A); nor Lillie, nor the captains
+/// the model they stand as, so the ROM names neither (spike 291); nor Lillie, nor the captains
 /// battled once, nor the townsfolk, whom the user asked to have named too.
 #[test]
 fn test_sun_ships_the_story_s_people_the_rom_never_names_in_every_language() {

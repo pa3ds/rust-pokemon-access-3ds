@@ -1,4 +1,4 @@
-//! Sun's zone scripts: which line of text a thing, a sign or a person shows (spike A).
+//! Sun's zone scripts: which line of text a thing, a sign or a person shows (spike 291).
 //!
 //! An area's eighth file in the event archive ('ZS', `zones.AREA_FILES`) is a pack of one script a
 //! zone, in the area's order. Each is a Pawn program, written from Pawn's own documentation of its
@@ -39,7 +39,7 @@ pub const MAGIC: i64 = 0xF1E0;
 pub const COMPACT: i64 = 0x04;
 pub const HEADER: i64 = 0x2C;
 /// The hash a script names the message window's native by: every helper that shows a line of
-/// text comes to it, in every zone measured (spike A).
+/// text comes to it, in every zone measured (spike 291).
 pub const MESSAGE: i64 = 0xFD1CF919;
 
 pub const PROC: i64 = 46;

@@ -272,7 +272,7 @@ impl SunProfile {
             read_each,
         ));
         // The game's own words for its people, signs, things and doors, behind the player's names
-        // and ahead of the shipped (spike A, ADR-0023).
+        // and ahead of the shipped (spike 291, ADR-0023).
         let named = named.unwrap_or_else(|| Rc::new(Names::default()));
         if let Some(game_text) = &game_text {
             named.use_game(

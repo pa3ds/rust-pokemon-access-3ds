@@ -131,7 +131,7 @@ pub fn tagged_species(rom: &Rom, archive: &str) -> Result<IndexMap<i64, i64>> {
 /// `pm0704` (spike 218). File 0 gives each species from Bulbasaur four bytes, the first of its
 /// models (a u16) and how many (a byte); model m is `files` files from 1 + files·m, the file
 /// `tagged` of them tagged: X's eight, the last; Sun's nine, the second, its Stufful `pm0852`
-/// (spike A). With `numbers`, those species alone are read. A tag of two species, or a file of
+/// (spike 291). With `numbers`, those species alone are read. A tag of two species, or a file of
 /// two tags, is left out.
 pub fn tagged_species_with(
     rom: &Rom,

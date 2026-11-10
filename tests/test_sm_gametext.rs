@@ -1,5 +1,5 @@
 //! Sun's own words for its field: the line a zone's script shows for a thing, a sign or a person,
-//! the people by their trainers, and the doors by the Town Map and the plates (spike A).
+//! the people by their trainers, and the doors by the Town Map and the plates (spike 291).
 
 use std::collections::HashSet;
 

@@ -26,7 +26,7 @@
 //!
 //! ```text
 //! 1  people   0x78 a record: +0x24 u32 the flag that hides it, which the new game's script
-//!             sets (spike A; spike 115 took it for a script), +0x34 u32 the model it is
+//!             sets (spike 291; spike 115 took it for a script), +0x34 u32 the model it is
 //!             drawn as (0x77, 0x04, 0x21 in the bedroom, as RAM has them), +0x38 u32 what it
 //!             runs when talked to, a case of the zone's script below 0x100
 //!             (`script.TALK_CASES`), +0x70 and +0x74 offsets to more of its own
@@ -104,7 +104,7 @@ pub const THING_SHAPE: i64 = 0x38;
 pub const TRAINER_MODEL: i64 = 0x30;
 pub const TRAINER_FLAG: i64 = 0x34;
 /// A trainer's flag less its number in the trainer table (`a/1/0/5`): every one of the game's 180
-/// trainer records is a trainer, and the 47 models they stand as are each one class (spike A).
+/// trainer records is a trainer, and the 47 models they stand as are each one class (spike 291).
 pub const TRAINER_FLAGS: i64 = 1000;
 pub const ITEM_ITEM: i64 = 0x30;
 pub const ITEM_LIES: i64 = 0x38;
