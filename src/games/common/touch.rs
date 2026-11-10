@@ -283,6 +283,9 @@ pub struct TouchMode {
     rubbing: bool,
     /// When the rub a tap began ends, which another tap or a move of the target carries on.
     rubbed_until: f64,
+    /// The ends the rub going on was last given, which a move gives again only where they
+    /// have changed.
+    ends: Option<((i64, i64), (i64, i64))>,
     chosen: Option<i64>,
 }
 
@@ -310,6 +313,7 @@ impl TouchMode {
             pressed: false,
             rubbing: false,
             rubbed_until: 0.0,
+            ends: None,
             chosen: None,
         }
     }
@@ -344,7 +348,7 @@ impl TouchMode {
             .position(|target| Some(target.pane) == self.chosen)
         else {
             self.chosen = Some(found[0].pane);
-            self.carry(&found[0]);
+            self.carry_to(&found[0]);
             return Ok(self.said(&found[0]));
         };
         if action == DRAG {
@@ -371,6 +375,7 @@ impl TouchMode {
                     return Ok(why);
                 }
                 (self.pressed, self.rubbing) = (true, true);
+                self.ends = Some(ends);
             }
             self.picked = Some(target.clone());
             self.over = Some(target.clone());
@@ -448,34 +453,39 @@ impl TouchMode {
         }
         self.chosen = Some(found[at].pane);
         if found[at].pane != before.pane {
-            self.carry(&found[at]);
+            self.carry_to(&found[at]);
         }
         Ok(self.said(&found[at]))
     }
 
     /// Choose a target a screen's own key has moved, carrying a drag picked up, or a tap's
     /// rub, on to where it is now, with its name to say: Pokémon-Amie's stylus
-    /// (`amie.StylusKeys`). `quiet` says nothing and sounds no tone, for a target the screen
-    /// moves itself, the stylus kept on its part as the Pokémon moves.
-    pub fn choose(&mut self, pane: i64, quiet: bool) -> Result<String> {
+    /// (`amie.StylusKeys`).
+    pub fn choose(&mut self, pane: i64) -> Result<String> {
         let Some(target) = (self.targets)()?.into_iter().find(|t| t.pane == pane) else {
             return Ok(String::new());
         };
         self.chosen = Some(pane);
-        self.carry(&target);
-        let left = self.rubbed_until - py::time::monotonic();
-        if self.picked.is_none()
-            && let Some(ends) = target.rub
-            && left > 0.0
-            && let Some(screen) = &self.screen
-        {
-            screen.rub(ends, Some(left), 0.0);
+        self.carry_to(&target);
+        self.rub_on(&target);
+        Ok(self.said(&target))
+    }
+
+    /// Carry a drag or a tap's rub on a target on to where it is now, choosing nothing and
+    /// saying nothing, for a target the screen moves itself: the stylus kept on its part as the
+    /// Pokémon moves, which re-chose the stylus and took the player's choice from them
+    /// (Orion, 2026-11-05).
+    pub fn carry(&mut self, pane: i64) -> Result<()> {
+        let dragged = self.over.as_ref().is_some_and(|over| over.pane == pane);
+        let rubbed = self.chosen == Some(pane) && self.rubbed_until > py::time::monotonic();
+        if !(dragged || rubbed) {
+            return Ok(());
         }
-        Ok(if quiet {
-            String::new()
-        } else {
-            self.said(&target)
-        })
+        if let Some(target) = (self.targets)()?.into_iter().find(|t| t.pane == pane) {
+            self.carry_to(&target);
+            self.rub_on(&target);
+        }
+        Ok(())
     }
 
     /// Rub a target touched by rubbing for `RUB_SECONDS`, with the line to say: a tap's, which
@@ -493,8 +503,22 @@ impl TouchMode {
         {
             return why;
         }
-        self.rubbed_until = py::time::monotonic() + RUB_SECONDS;
+        (self.rubbed_until, self.ends) = (py::time::monotonic() + RUB_SECONDS, Some(ends));
         String::new()
+    }
+
+    /// Carry a tap's rub on between a target's ends as they are now, where they have moved.
+    fn rub_on(&mut self, target: &Target) {
+        let left = self.rubbed_until - py::time::monotonic();
+        if self.picked.is_none()
+            && let Some(ends) = target.rub
+            && Some(ends) != self.ends
+            && left > 0.0
+            && let Some(screen) = &self.screen
+        {
+            screen.rub(ends, Some(left), 0.0);
+            self.ends = Some(ends);
+        }
     }
 
     /// Whether a target is picked up to drag (`DRAG`), pressed yet or not.
@@ -570,22 +594,33 @@ impl TouchMode {
     /// such move, and slid from target to target after; or, where the screen drags only on
     /// letting go (`delayed`), nothing touched until then. A target the keys move, as the
     /// stylus, is carried on to wherever it has gone (`choose`).
-    fn carry(&mut self, target: &Target) {
+    ///
+    /// Python's `_carry`: `carry` is its public one's name.
+    fn carry_to(&mut self, target: &Target) {
         let (Some(picked), Some(over), Some(screen)) = (&self.picked, &self.over, &self.screen)
         else {
             return;
         };
+        let (picked, screen) = (picked.clone(), screen.clone());
+        if self.rubbing {
+            // Rubbed between its ends as they are now, wherever they have gone.
+            let point = point(target);
+            let ends = target.rub.unwrap_or((point, point));
+            self.over = Some(target.clone());
+            if Some(ends) != self.ends {
+                screen.rub(ends, None, 0.0);
+                self.ends = Some(ends);
+                (self.log)(&format!(
+                    "touch: rub on {} between [{:?}, {:?}]",
+                    target.name, ends.0, ends.1
+                ));
+            }
+            return;
+        }
         if target.pane == over.pane && point(target) == point(over) {
             return;
         }
-        let (picked, screen) = (picked.clone(), screen.clone());
         self.over = Some(target.clone());
-        if self.rubbing {
-            let point = point(target);
-            screen.rub(target.rub.unwrap_or((point, point)), None, 0.0);
-            (self.log)(&format!("touch: rub on {} at {point:?}", target.name));
-            return;
-        }
         if (self.delayed)() {
             (self.log)(&format!("touch: choose {}", target.name));
             return;

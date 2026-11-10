@@ -144,6 +144,14 @@ pub const STYLUS_MOVES: [(&str, (i64, i64)); 4] = [
     ("stylus left", (-1, 0)),
     ("stylus right", (1, 0)),
 ];
+/// Amie's stylus jumped to the next part that way, past the one it is on and any gap: Orion could
+/// not find a hand or fur a step at a time (2026-11-05).
+pub const STYLUS_JUMPS: [(&str, (i64, i64)); 4] = [
+    ("stylus jump up", (0, -1)),
+    ("stylus jump down", (0, 1)),
+    ("stylus jump left", (-1, 0)),
+    ("stylus jump right", (1, 0)),
+];
 
 pub const EXPLAINED: [(&str, &str); 10] = [
     (
@@ -190,7 +198,11 @@ pub const EXPLAINED: [(&str, &str); 10] = [
     (
         "stylus up",
         "In Pokémon-Amie, moves the stylus over your Pokémon, saying the part it comes onto; touch \
-         mode's drag key picks it up there, and these keys then stroke.",
+         mode's tap or drag key on the stylus pets there.",
+    ),
+    (
+        "stylus jump up",
+        "In Pokémon-Amie, jumps the stylus to the next part of your Pokémon that way.",
     ),
     (REPEAT, "Says again the last thing pa3ds said."),
 ];
@@ -375,6 +387,10 @@ pub static DEFAULT_CONTEXTS: LazyLock<Contexts> = LazyLock::new(|| {
                 ("down".to_string(), "stylus down".to_string()),
                 ("left".to_string(), "stylus left".to_string()),
                 ("right".to_string(), "stylus right".to_string()),
+                ("ctrl+up".to_string(), "stylus jump up".to_string()),
+                ("ctrl+down".to_string(), "stylus jump down".to_string()),
+                ("ctrl+left".to_string(), "stylus jump left".to_string()),
+                ("ctrl+right".to_string(), "stylus jump right".to_string()),
             ]),
         ),
     ])

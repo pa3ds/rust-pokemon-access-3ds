@@ -8,6 +8,7 @@ use indexmap::IndexMap;
 use super::fake_memory::{CODE, FakeClasses, FakeMemory};
 use crate::core::keyfile::data_path;
 use crate::core::rtti::ClassNames;
+use crate::core::speech::Category;
 use crate::core::words::{self, ENGLISH, Words};
 use crate::games::common::field::keys::STYLUS;
 use crate::games::common::lyt;
@@ -277,9 +278,9 @@ fn test_a_rub_goes_across_the_part_the_stylus_is_on_the_way_it_is_longer() {
         found.stylus = (x, y);
         found.targets(Some(amie::AMIE)).unwrap()[1].rub
     };
-    assert_eq!(rub(150, 90), Some(((130, 90), (170, 90)))); // the head: across, wider than tall
-    assert_eq!(rub(183, 120), Some(((183, 103), (183, 137)))); // a cheek's strip: down it
-    assert_eq!(rub(160, 65), Some(((143, 65), (177, 65)))); // a sweet spot's strip: across it
+    assert_eq!(rub(150, 90), Some(((138, 90), (162, 90)))); // the head: across, wider than tall
+    assert_eq!(rub(183, 120), Some(((183, 108), (183, 132)))); // a cheek's strip: down it
+    assert_eq!(rub(160, 65), Some(((148, 65), (172, 65)))); // a sweet spot's strip: across it
     assert_eq!(rub(104, 62), Some(((97, 62), (109, 62)))); // an ear tip, 8 across: a little past it
     assert_eq!(rub(20, 20), Some(((14, 20), (26, 20)))); // off the Pokémon: where it is
     // Where the picture cannot be read, before Azahar 2126.2, it rubs where it is all the same.
@@ -359,11 +360,12 @@ fn test_where_the_picture_cannot_be_read_the_stylus_is_offered_alone() {
     assert_eq!(found.targets(Some(amie::AMIE)).unwrap()[1].name, "stylus");
 }
 
-/// Touch mode as the stylus's keys use it: where the stylus was when each move chose it,
-/// and whether quietly.
+/// Touch mode as the stylus's keys use it: where the stylus was when each move chose it, and
+/// when each poll carried a rub on, choosing nothing.
 struct Chosen {
     page: Rc<RefCell<amie::AmiePage>>,
-    chosen: Vec<((i64, i64), bool)>,
+    chosen: Vec<(i64, i64)>,
+    carried: Vec<(i64, i64)>,
 }
 
 impl Touching for Chosen {
@@ -379,60 +381,113 @@ impl Touching for Chosen {
         String::new()
     }
 
-    fn choose(&mut self, pane: i64, quiet: bool) -> Result<String> {
+    fn choose(&mut self, pane: i64) -> Result<String> {
         assert_eq!(pane, amie::STYLUS_TARGET);
-        self.chosen.push((self.page.borrow().stylus, quiet));
+        self.chosen.push(self.page.borrow().stylus);
         Ok(String::new())
+    }
+
+    fn carry(&mut self, pane: i64) -> Result<()> {
+        assert_eq!(pane, amie::STYLUS_TARGET);
+        self.carried.push(self.page.borrow().stylus);
+        Ok(())
+    }
+}
+
+/// Amie running with the stylus's keys, its clock the cell's one number, to move on: the page,
+/// the memory, the keys, touch mode as they use it, the clock, and the clock's guard.
+struct Keyed {
+    found: Rc<RefCell<amie::AmiePage>>,
+    memory: Rc<FakeMemory>,
+    keys: amie::StylusKeys,
+    chosen: Chosen,
+    now: Rc<Cell<f64>>,
+    _thawed: Thawed,
+}
+
+impl Keyed {
+    fn press(&mut self, action: &str) -> String {
+        self.keys
+            .press(action, Some(amie::AMIE), &mut self.chosen)
+            .unwrap()
+    }
+
+    fn poll(&mut self, running: &str) -> Vec<(String, String, Option<Category>)> {
+        self.keys.poll(Some(running), &mut self.chosen).unwrap()
+    }
+}
+
+fn keyed(parts: &[(u8, (i64, i64, i64, i64))]) -> Keyed {
+    let now = Rc::new(Cell::new(100.0));
+    let thawed = frozen(&now);
+    let (found, memory) = running(parts, true);
+    let found = Rc::new(RefCell::new(found));
+    let chosen = Chosen {
+        page: found.clone(),
+        chosen: Vec::new(),
+        carried: Vec::new(),
+    };
+    let keys = amie::StylusKeys::new(found.clone(), Rc::new(|line: &str| format!("! {line}")));
+    Keyed {
+        found,
+        memory,
+        keys,
+        chosen,
+        now,
+        _thawed: thawed,
     }
 }
 
 /// Orion, 2026-11-05: the arrows move the stylus over the Pokémon, a step a press, and touch
-/// mode chooses it as it goes, to rub there; a poll keeps it on its part, quietly.
+/// mode chooses it as it goes, to rub there; a poll keeps it on its part, choosing nothing in
+/// touch mode; and the arrows keep it within a step of the Pokémon.
 #[test]
 fn test_the_arrows_move_the_stylus_saying_a_part_as_it_comes_onto_one() {
-    let now = Rc::new(Cell::new(100.0));
-    let _thawed = frozen(&now);
-    let (found, memory) = running(&[(8, HEAD)], true);
-    let found = Rc::new(RefCell::new(found));
-    let mut chosen = Chosen {
-        page: found.clone(),
-        chosen: Vec::new(),
-    };
-    let mut keys = amie::StylusKeys::new(found.clone(), Rc::new(|line: &str| format!("! {line}")));
-    assert!(keys.context(Some(amie::AMIE)) == Some(STYLUS) && keys.context(Some(FIELD)).is_none());
-    found.borrow_mut().stylus = (160, 126);
-    let mut press =
-        |action: &str, chosen: &mut Chosen| keys.press(action, Some(amie::AMIE), chosen).unwrap();
-    assert_eq!(press("stylus up", &mut chosen), "off");
-    assert_eq!(press("stylus up", &mut chosen), "head");
-    assert_eq!(press("stylus up", &mut chosen), ""); // still the head
-    assert_eq!(press("stylus right", &mut chosen), "");
+    let mut k = keyed(&[(8, HEAD)]);
+    assert!(
+        k.keys.context(Some(amie::AMIE)) == Some(STYLUS) && k.keys.context(Some(FIELD)).is_none()
+    );
+    k.found.borrow_mut().stylus = (160, 126);
+    assert_eq!(k.press("stylus up"), "off");
+    assert_eq!(k.press("stylus up"), "head");
+    assert_eq!(k.press("stylus up"), ""); // still the head
+    assert_eq!(k.press("stylus right"), "");
     assert_eq!(
-        chosen.chosen,
-        [
-            ((160, 120), false),
-            ((160, 114), false),
-            ((160, 108), false),
-            ((166, 108), false)
-        ]
+        k.chosen.chosen,
+        [(160, 120), (160, 114), (160, 108), (166, 108)]
     );
-    assert!(
-        keys.poll(Some(amie::AMIE), &mut chosen).unwrap().is_empty() && chosen.chosen.len() == 4
-    );
-    pokemon(&memory, &[(8, (180, 60, 300, 120))]); // the head moved off the stylus, 80 right
-    now.set(now.get() + 1.0);
-    // Amie not running
-    assert!(keys.poll(Some(FIELD), &mut chosen).unwrap().is_empty() && chosen.chosen.len() == 4);
-    assert!(
-        keys.poll(Some(amie::AMIE), &mut chosen).unwrap().is_empty()
-            && chosen.chosen.last() == Some(&((189, 108), true))
-    );
-    let mut press =
-        |action: &str, chosen: &mut Chosen| keys.press(action, Some(amie::AMIE), chosen).unwrap();
-    found.borrow_mut().stylus = (2, 0);
-    assert_eq!(press("stylus left", &mut chosen), "off");
-    assert_eq!(press("stylus left", &mut chosen), "! edge");
-    assert!(press("stylus up", &mut chosen) == "! edge" && found.borrow().stylus == (0, 0));
+    assert!(k.poll(amie::AMIE).is_empty() && k.chosen.carried == [(166, 108)]);
+    pokemon(&k.memory, &[(8, (180, 60, 300, 120))]); // the head moved off the stylus, 80 right
+    k.now.set(k.now.get() + 1.0);
+    assert!(k.poll(FIELD).is_empty() && k.chosen.carried.len() == 1); // Amie not running
+    assert!(k.poll(amie::AMIE).is_empty() && k.chosen.carried.last() == Some(&(189, 108)));
+    assert_eq!(k.chosen.chosen.len(), 4); // the poll chose nothing
+    k.found.borrow_mut().stylus = (180, 60); // the head's top left corner
+    assert_eq!(k.press("stylus left"), "off");
+    assert_eq!(k.press("stylus left"), "! edge"); // a step off the Pokémon at most
+    assert_eq!(k.press("stylus up"), "");
+    assert!(k.press("stylus up") == "! edge" && k.found.borrow().stylus == (174, 54));
+}
+
+/// Orion could not find a hand or fur a step at a time (2026-11-05): a jump goes past the
+/// part the stylus is on and any gap, to the middle of the next part's run, and says it.
+#[test]
+fn test_ctrl_and_an_arrow_jump_the_stylus_to_the_next_part_that_way() {
+    let mut k = keyed(&[
+        (9, BODY),
+        (8, HEAD),
+        (17, (180, 100, 186, 140)),
+        (27, (140, 60, 180, 70)),
+    ]);
+    k.found.borrow_mut().stylus = (120, 105);
+    assert_eq!(k.press("stylus jump right"), "sparks");
+    assert_eq!(k.found.borrow().stylus, (182, 105));
+    assert_eq!(k.press("stylus jump right"), "head");
+    assert_eq!(k.found.borrow().stylus, (202, 105));
+    k.found.borrow_mut().stylus = (160, 100);
+    assert!(k.press("stylus jump up") == "head" && k.found.borrow().stylus == (160, 64));
+    k.found.borrow_mut().stylus = (110, 90);
+    assert!(k.press("stylus jump left") == "! edge" && k.found.borrow().stylus == (110, 90));
 }
 
 /// Amie's decorate screen draws its puffs with the images of a system holding a texture for
