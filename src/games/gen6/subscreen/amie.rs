@@ -194,15 +194,16 @@ pub const STEP: i64 = 6;
 pub const OFF: &str = "amie-part-off";
 /// Each grey by the kind of part it is, a message each (spike A), where the Pokémon has no name of
 /// pa3ds's own for it in `amie.ftl` (Orion, 2026-11-05: "our own name a Pokémon", then "cheeks for
-/// Pikachu, tail for the Charmander line"). 1 lies on eye and mouth textures and 2 and 3 on furry
-/// Pokémon, not yet seen on screen. 25 to 28, the danger zone and the sweet spot, are said as the
-/// head and the body, the side of the pair each is: the game's own sound tells them apart, its pitch
-/// down on a danger zone and up on a sweet spot (`SEQ_SE_KW_STROKE` at 108 and 148 against 128).
-/// Any other grey is said as a part, `amie-part`.
-pub const PARTS: [(i64, &str); 27] = [
-    (1, "amie-part-face"),
-    (2, "amie-part-fur"),
-    (3, "amie-part-fur"),
+/// Pikachu, tail for the Charmander line"). 2 and 3 are the ears, the Pokémon's own right and left,
+/// as 4 and 6 are its eyes; 10, where it high-fives, a hand or paw on most, a mouth on a few
+/// (spike A's census). 25 to 28, the danger zone and the sweet spot, are said as the head and the
+/// body, the side of the pair each is: the game's own sound tells them apart, its pitch down on a
+/// danger zone and up on a sweet spot (`SEQ_SE_KW_STROKE` at 108 and 148 against 128). Any other
+/// grey is said as a part, `amie-part`: 1 among them, seen only as specks at Victini's ears and
+/// under Manaphy's head.
+pub const PARTS: [(i64, &str); 26] = [
+    (2, "amie-part-right-ear"),
+    (3, "amie-part-left-ear"),
     (4, "amie-part-right-eye"),
     (5, "amie-part-eye"),
     (6, "amie-part-left-eye"),
