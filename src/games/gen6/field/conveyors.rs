@@ -30,7 +30,7 @@ pub const POINTER: i64 = 4;
 
 /// One of Snowbelle City Gym's floor strips, turned about its middle by its switch, with gaps
 /// in it the player cannot step into: which cells are gaps depends on how many times it has been
-/// turned (`maps.turning_strips`).
+/// turned (`maps.gym_floor`).
 #[derive(Debug, Clone, PartialEq)]
 pub struct TurningStrip {
     /// The gaps after each number of turns, from none.
