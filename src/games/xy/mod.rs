@@ -302,6 +302,7 @@ pub fn rom() -> &'static RomLayout {
         puffs: Some(PUFF_NAMES),
         amie_numbers: Some(AMIE_NUMBERS),
         training_stats: Some((42, 65)),
+        training_gains: Some((42, 59)),
         goods: Some(GOODS_NAMES),
         items: Some(ITEM_NAMES),
         sounds: Some(SOUND_ARCHIVE.to_string()),

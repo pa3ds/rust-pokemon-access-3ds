@@ -122,6 +122,9 @@ pub struct RomLayout {
     /// The text file and line of the six stats as Super Training's regimens label them, "HP" to
     /// "Speed" (`subscreen.super_training`).
     pub training_stats: Option<(i64, i64)>,
+    /// The text file and line of the two headers over those stats, "Possible base stat increase:"
+    /// and "Base stat increase:".
+    pub training_gains: Option<(i64, i64)>,
     /// The text file and line of a contest's labels of the entrant under its cursor, "Pokémon:"
     /// and "Trainer:" (`oras.screens.contest`).
     pub contest_entrant: Option<(i64, i64)>,
@@ -235,6 +238,7 @@ impl RomLayout {
             contest_categories: None,
             amie_numbers: None,
             training_stats: None,
+            training_gains: None,
             contest_entrant: None,
             contest_conditions: None,
             contest_rivals: None,

@@ -101,7 +101,7 @@
 //! - ADR-0017: the chart is said by each stat's rough share, its points only with the Extra on.
 
 use std::cell::RefCell;
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashSet};
 use std::rc::Rc;
 use std::sync::LazyLock;
 
@@ -123,7 +123,7 @@ use crate::games::gen6::apps::FIELD;
 use crate::games::gen6::screens::distribution as d;
 use crate::games::gen6::subscreen::amie::{METER, PAGE_APPS};
 use crate::games::gen6::subscreen::berry_picker::Touching;
-use crate::py::{self, Result};
+use crate::py::{self, Error, Result};
 
 pub const CLASS: &str = "N5field9subscreen8training11FM_TrainingE";
 /// A round of Super Training, the app the goals are offered in.
@@ -201,6 +201,9 @@ pub const CHARGE_IMAGE: &str = "charge01.bclim";
 pub const AURA_GONE: i64 = 3;
 pub const CHARGED: &str = "training-charged";
 pub const FIZZLED: &str = "training-fizzled";
+/// What a regimen writes beside a stat it raises.
+pub static GAIN: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^\+\d+$").expect("a fixed pattern"));
 /// The regimen menu's count of the Pokémon's medals, written beside a picture of one.
 ///
 /// Python's `$` also matches before a newline at the end, so `\n?` before it here.
@@ -947,6 +950,83 @@ impl Medals {
 /// `sorted((x, what) ...)`: Python's tuple order, x first and then the words.
 fn by_place(items: Vec<(f64, String)>) -> Vec<(f64, String)> {
     py::sorted_by_lt(items, |a, b| if a.0 != b.0 { a.0 < b.0 } else { a.1 < b.1 })
+}
+
+/// The stats a regimen raises, said as one: the game lists all six and writes "+4" beside the
+/// one it raises, and the regimen's target time between them, which read in the order built as
+/// "HP, Attack: Target Time Remaining: Defense, 2:30.0, Sp. Atk: +4, Sp. Def, Speed".
+pub struct Gains {
+    running: Rc<dyn Fn() -> Option<String>>,
+    stats: HashSet<String>,
+    /// The headers over the stats: "Possible base stat increase:" and "Base stat increase:".
+    headers: HashSet<String>,
+}
+
+impl Gains {
+    pub fn new(
+        running: Rc<dyn Fn() -> Option<String>>,
+        stats: &[String],
+        headers: &[String],
+    ) -> Self {
+        Gains {
+            running,
+            stats: stats.iter().cloned().collect(),
+            headers: headers.iter().cloned().collect(),
+        }
+    }
+
+    /// The words on the screen, the header holding each stat raised and the rest gone.
+    pub fn reworded(&self, found: IndexMap<i64, ScreenText>) -> Result<IndexMap<i64, ScreenText>> {
+        if (self.running)().as_deref() != Some(MENU) || self.headers.is_empty() {
+            return Ok(found);
+        }
+        let stats: Vec<ScreenText> = found
+            .values()
+            .filter(|piece| self.stats.contains(&piece.text))
+            .cloned()
+            .collect();
+        let header = found
+            .values()
+            .find(|piece| self.headers.contains(&piece.text))
+            .cloned();
+        let Some(header) = header else {
+            return Ok(found);
+        };
+        if stats.len() != self.stats.len() {
+            return Ok(found);
+        }
+        let gains: Vec<ScreenText> = found
+            .values()
+            .filter(|piece| GAIN.is_match(&piece.text))
+            .cloned()
+            .collect();
+        let mut worded = found.clone();
+        let mut raised: Vec<String> = Vec::new();
+        for stat in &stats {
+            worded
+                .shift_remove(&stat.r#box)
+                .ok_or_else(|| Error::key(stat.r#box.to_string()))?;
+            let gain = gains
+                .iter()
+                .find(|gain| (gain.row - stat.row).abs() <= SAME_ROW * 2.0);
+            if let Some(gain) = gain {
+                worded
+                    .shift_remove(&gain.r#box)
+                    .ok_or_else(|| Error::key(gain.r#box.to_string()))?;
+                raised.push(format!("{} {}", stat.text, gain.text));
+            }
+        }
+        if !raised.is_empty() {
+            worded.insert(
+                header.r#box,
+                ScreenText {
+                    text: format!("{} {}", header.text, raised.join(", ")),
+                    ..header
+                },
+            );
+        }
+        Ok(worded)
+    }
 }
 
 /// The bottom screen's message waiting for a tap, offered at its ▼: Super Training's

@@ -79,7 +79,8 @@ use berry_picker::{BerryKeys, BerryPicker, Process, Touching};
 use head_it::{Cue, Frames, HeadIt, HeadItKeys};
 use puzzle::TilePuzzle;
 use super_training::{
-    Bags, CoreTraining, Goals, Medals, Round, RoundOptions, TrainingKeys, TrainingPage, Waiting,
+    Bags, CoreTraining, Gains, Goals, Medals, Round, RoundOptions, TrainingKeys, TrainingPage,
+    Waiting,
 };
 
 /// The subscreens' apps touch mode offers targets in (ADR-0009 as amended 2026-10-29), beside the
@@ -194,6 +195,12 @@ impl Rewording for RefCell<HeadIt> {
 impl Rewording for Medals {
     fn reworded(&self, found: IndexMap<i64, ScreenText>) -> Result<IndexMap<i64, ScreenText>> {
         Medals::reworded(self, found)
+    }
+}
+
+impl Rewording for Gains {
+    fn reworded(&self, found: IndexMap<i64, ScreenText>) -> Result<IndexMap<i64, ScreenText>> {
+        Gains::reworded(self, found)
     }
 }
 
@@ -609,7 +616,7 @@ impl Subscreens {
             bag_hit,
             bag_finished,
         )));
-        let medals = Rc::new(Medals::new(running));
+        let medals = Rc::new(Medals::new(running.clone()));
         let goals = Rc::new(Goals::new(layouts.clone(), image_of.clone()));
         // A message on the bottom screen waits for a tap on no button: Super Training's welcome.
         let waiting = Rc::new(Waiting::new(layouts.clone(), image_of.clone()));
@@ -711,6 +718,11 @@ impl Subscreens {
             .flat_map(|reader| reader.classes().iter().copied())
             .collect();
         // The page first: Amie's `Player` is read afresh for each poll as the others ask.
+        let gains = Rc::new(Gains::new(
+            running,
+            &text.training_stats,
+            &text.training_gains,
+        ));
         let mut polled: Vec<Rc<dyn Polled>> = vec![
             page.clone(),
             core,
@@ -744,7 +756,7 @@ impl Subscreens {
             keyed: vec![berry_keys, head_keys, stylus_keys, training_keys],
             ticked: vec![head_it.clone(), sparring.clone()],
             holding: vec![head_it.clone(), sparring.clone()],
-            rewording: vec![switch, head_it.clone(), medals],
+            rewording: vec![switch, head_it.clone(), medals, gains],
             head_it,
             puzzle,
             berry_picker,

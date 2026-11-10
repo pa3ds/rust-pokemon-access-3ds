@@ -668,6 +668,78 @@ fn test_the_game_labels_its_stats_in_another_order_than_the_record_keeps_them() 
     assert_eq!(found.efforts().unwrap(), Some(vec![1, 2, 3, 5, 6, 4]));
 }
 
+/// A piece of words at a row, as the screen text reader makes one.
+fn worded(r#box: i64, text: &str, row: f64) -> ScreenText {
+    ScreenText {
+        row,
+        glyph: 12.0,
+        ..ScreenText::new(r#box, text, false)
+    }
+}
+
+/// A regimen's description: its header, the six stats a row each, and its target time.
+fn gains_screen(gain_row: Option<f64>) -> IndexMap<i64, ScreenText> {
+    let mut pieces = vec![worded(1, "Possible base stat increase:", 250.0)];
+    for (i, stat) in STATS.iter().enumerate() {
+        pieces.push(worded(2 + i as i64, stat, 220.0 - 30.0 * i as f64));
+    }
+    pieces.push(worded(20, "Target Time Remaining:", 119.0));
+    pieces.push(worded(21, "2:30.0", 141.0));
+    if let Some(gain_row) = gain_row {
+        pieces.push(worded(30, "+4", gain_row));
+    }
+    pieces
+        .into_iter()
+        .map(|piece| (piece.r#box, piece))
+        .collect()
+}
+
+const HEADERS: [&str; 2] = ["Possible base stat increase:", "Base stat increase:"];
+
+fn gains(running: &'static str) -> super_training::Gains {
+    super_training::Gains::new(
+        Rc::new(move || Some(running.to_string())),
+        &STATS.map(str::to_string),
+        &HEADERS.map(str::to_string),
+    )
+}
+
+fn texts(found: &IndexMap<i64, ScreenText>) -> Vec<&str> {
+    found.values().map(|piece| piece.text.as_str()).collect()
+}
+
+/// The six stats, read in build order among its target time, ran together.
+#[test]
+fn test_a_regimens_gain_is_said_beside_its_stat_and_the_others_left_out() {
+    let gains = gains(super_training::MENU);
+    assert_eq!(
+        texts(&gains.reworded(gains_screen(Some(70.0))).unwrap()),
+        [
+            "Possible base stat increase: Speed +4",
+            "Target Time Remaining:",
+            "2:30.0"
+        ]
+    );
+}
+
+#[test]
+fn test_a_regimens_header_waits_for_its_gain_and_other_screens_are_left_alone() {
+    let gains = gains(super_training::MENU);
+    assert_eq!(
+        texts(&gains.reworded(gains_screen(None)).unwrap()),
+        [
+            "Possible base stat increase:",
+            "Target Time Remaining:",
+            "2:30.0"
+        ]
+    );
+    let elsewhere = self::gains(FIELD);
+    assert_eq!(
+        elsewhere.reworded(gains_screen(Some(70.0))).unwrap(),
+        gains_screen(Some(70.0))
+    );
+}
+
 fn finished() -> (String, String, Option<Category>) {
     (
         "training".to_string(),
