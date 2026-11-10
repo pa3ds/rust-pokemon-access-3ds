@@ -43,7 +43,8 @@
 //!
 //! Bound by:
 //! - ADR-0009: touch mode offers targets in the subscreens' apps that need a touch, Shift alone
-//!   drags only in Pokémon-Amie's, and Berry Picker's drag is made on letting go.
+//!   drags in Pokémon-Amie's and holds a charge in Super Training's rounds, and Berry Picker's drag
+//!   is made on letting go.
 //!
 //! Python asks each reader by the same name, duck-typed; here each answer is a trait, implemented
 //! for the `RefCell` a reader is shared in, and the tuples are lists of them.
@@ -77,7 +78,9 @@ use amie_switch::SwitchScreen;
 use berry_picker::{BerryKeys, BerryPicker, Process, Touching};
 use head_it::{Cue, Frames, HeadIt, HeadItKeys};
 use puzzle::TilePuzzle;
-use super_training::{Bags, CoreTraining, Goals, Medals, Round, TrainingPage, Waiting};
+use super_training::{
+    Bags, CoreTraining, Goals, Medals, Round, RoundOptions, TrainingKeys, TrainingPage, Waiting,
+};
 
 /// The subscreens' apps touch mode offers targets in (ADR-0009 as amended 2026-10-29), beside the
 /// field whose bottom screen they are: Pokémon-Amie, its decorate screen and its games, and Super
@@ -91,8 +94,17 @@ pub const TOUCHED: [&str; 7] = [
     super_training::MENU,
     super_training::SPARRING,
 ];
-/// The apps where Shift alone drags, Pokémon-Amie's, the only ones that drag (ADR-0009).
-pub const DRAGS: [&str; 5] = amie::SCREENS;
+/// The apps where Shift alone drags (ADR-0009): Pokémon-Amie's, and Super Training's rounds, where
+/// it is the stylus held on a goal to charge a shot. A `frozenset` in Python, only ever tested for
+/// membership.
+pub const DRAGS: [&str; 6] = [
+    amie::SCREENS[0],
+    amie::SCREENS[1],
+    amie::SCREENS[2],
+    amie::SCREENS[3],
+    amie::SCREENS[4],
+    super_training::SPARRING,
+];
 
 /// A reader handed what a sweep found of its objects, by class.
 pub trait Tracked {
@@ -157,7 +169,7 @@ impl Rewording for Medals {
 /// A screen's own keys: the table of the keys file they are in while it runs, and the line a
 /// key's action says. Touch mode, which the navigator owns, is handed to `press`.
 pub trait Keyed {
-    fn context(&self, running: Option<&str>) -> Option<&'static str>;
+    fn context(&self, running: Option<&str>) -> Result<Option<&'static str>>;
     fn press(
         &self,
         action: &str,
@@ -167,8 +179,8 @@ pub trait Keyed {
 }
 
 impl Keyed for RefCell<BerryKeys> {
-    fn context(&self, running: Option<&str>) -> Option<&'static str> {
-        self.borrow().context(running)
+    fn context(&self, running: Option<&str>) -> Result<Option<&'static str>> {
+        Ok(self.borrow().context(running))
     }
 
     fn press(
@@ -182,8 +194,8 @@ impl Keyed for RefCell<BerryKeys> {
 }
 
 impl Keyed for RefCell<StylusKeys> {
-    fn context(&self, running: Option<&str>) -> Option<&'static str> {
-        self.borrow().context(running)
+    fn context(&self, running: Option<&str>) -> Result<Option<&'static str>> {
+        Ok(self.borrow().context(running))
     }
 
     fn press(
@@ -197,8 +209,8 @@ impl Keyed for RefCell<StylusKeys> {
 }
 
 impl Keyed for HeadItKeys {
-    fn context(&self, running: Option<&str>) -> Option<&'static str> {
-        HeadItKeys::context(self, running)
+    fn context(&self, running: Option<&str>) -> Result<Option<&'static str>> {
+        Ok(HeadItKeys::context(self, running))
     }
 
     fn press(
@@ -208,6 +220,21 @@ impl Keyed for HeadItKeys {
         touch: &mut dyn Touching,
     ) -> Result<String> {
         HeadItKeys::press(self, action, running, touch)
+    }
+}
+
+impl Keyed for TrainingKeys {
+    fn context(&self, running: Option<&str>) -> Result<Option<&'static str>> {
+        TrainingKeys::context(self, running)
+    }
+
+    fn press(
+        &self,
+        action: &str,
+        running: Option<&str>,
+        _touch: &mut dyn Touching,
+    ) -> Result<String> {
+        TrainingKeys::press(self, action, running)
     }
 }
 
@@ -318,9 +345,19 @@ impl Polled for RefCell<Round> {
     fn poll(
         &self,
         running: Option<&str>,
-        _touch: &mut dyn Touching,
+        touch: &mut dyn Touching,
     ) -> Result<Vec<(String, String, Option<Category>)>> {
-        Ok(said(self.borrow_mut().poll(running)?))
+        self.borrow_mut().poll_with(running, &|| touch.holding())
+    }
+}
+
+impl Polled for Goals {
+    fn poll(
+        &self,
+        running: Option<&str>,
+        touch: &mut dyn Touching,
+    ) -> Result<Vec<(String, String, Option<Category>)>> {
+        Goals::poll(self, running, Some(touch))
     }
 }
 
@@ -453,6 +490,10 @@ impl Subscreens {
         on_screen: OnScreen,
         party: Rc<dyn Fn() -> Option<i64>>,
         running: Rc<dyn Fn() -> Option<String>>,
+        bag_hit: Rc<dyn Fn()>,
+        bag_finished: Rc<dyn Fn()>,
+        shot_coming: Rc<dyn Fn(&str) -> String>,
+        exact_stats: bool,
     ) -> Subscreens {
         let short: berry_picker::Name = {
             let text = text.clone();
@@ -526,13 +567,15 @@ impl Subscreens {
         )));
         // It draws a "!" over its Pokémon when a bag is finished, and says nothing of it; and its
         // regimen menu writes the Pokémon's medals "x 0" beside a picture of one.
-        let core = Rc::new(RefCell::new(CoreTraining::new(
+        let core = Rc::new(RefCell::new(CoreTraining::with(
             training.clone(),
             layouts.clone(),
             {
                 let text = text.clone();
                 Rc::new(move |found: &pokemon::Pokemon| yours(&text, found))
             },
+            bag_hit,
+            bag_finished,
         )));
         let medals = Rc::new(Medals::new(running));
         let goals = Rc::new(Goals::new(layouts.clone(), image_of.clone()));
@@ -596,9 +639,29 @@ impl Subscreens {
             on_screen,
         )));
         // And its own keys, a Pokémon's, which tap it, and the score's.
-        let head_keys = Rc::new(HeadItKeys::new(head_it.clone(), wrong));
-        // A round says its score, clock and banners, and warns of a Bot's shot.
-        let sparring = Rc::new(RefCell::new(Round::new(layouts, image_of, memory, None)));
+        let head_keys = Rc::new(HeadItKeys::new(head_it.clone(), wrong.clone()));
+        // A round says its score, clock and banners, and warns of a Bot's shot. Whether the
+        // press is held is asked of touch mode as the round is polled (`Polled`).
+        let sparring = Rc::new(RefCell::new(Round::with(
+            layouts.clone(),
+            image_of.clone(),
+            memory,
+            RoundOptions {
+                warned: Some(shot_coming),
+                ..RoundOptions::default()
+            },
+        )));
+        // And R says what the page and a round draw and do not say.
+        let training_keys = Rc::new(TrainingKeys::new(
+            core.clone(),
+            training.clone(),
+            sparring.clone(),
+            text.training_stats.clone(),
+            exact_stats,
+            layouts,
+            image_of,
+            wrong,
+        ));
         let tracked: Vec<Rc<dyn Tracked>> = vec![
             page.clone(),
             puffs.clone(),
@@ -617,6 +680,7 @@ impl Subscreens {
         let mut polled: Vec<Rc<dyn Polled>> = vec![
             page.clone(),
             core,
+            goals.clone(),
             sparring,
             berry_picker.clone(),
             head_it.clone(),
@@ -643,7 +707,7 @@ impl Subscreens {
             pictured: vec![waiting, bags],
             polled,
             described: vec![puzzle.clone()],
-            keyed: vec![berry_keys, head_keys, stylus_keys],
+            keyed: vec![berry_keys, head_keys, stylus_keys, training_keys],
             ticked: vec![head_it.clone()],
             holding: vec![head_it.clone()],
             rewording: vec![switch, head_it.clone(), medals],
@@ -706,8 +770,13 @@ impl Subscreens {
     }
 
     /// The table of the keys file of the screen running, where it has keys of its own.
-    pub fn context(&self, running: Option<&str>) -> Option<&'static str> {
-        self.keyed.iter().find_map(|keys| keys.context(running))
+    pub fn context(&self, running: Option<&str>) -> Result<Option<&'static str>> {
+        for keys in &self.keyed {
+            if let Some(context) = keys.context(running)? {
+                return Ok(Some(context));
+            }
+        }
+        Ok(None)
     }
 
     /// Answer one of the screen's own keys, with the line to say.
@@ -717,14 +786,12 @@ impl Subscreens {
         running: Option<&str>,
         touch: &mut dyn Touching,
     ) -> Result<String> {
-        match self
-            .keyed
-            .iter()
-            .find(|keys| keys.context(running).is_some())
-        {
-            Some(keys) => keys.press(action, running, touch),
-            None => Ok(String::new()),
+        for keys in &self.keyed {
+            if keys.context(running)?.is_some() {
+                return keys.press(action, running, touch);
+            }
         }
+        Ok(String::new())
     }
 
     /// What each screen says now, as (what the log calls it, the line, its category), one

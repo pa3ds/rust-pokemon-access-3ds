@@ -190,6 +190,31 @@ impl Screen {
     }
 }
 
+/// ADR-0009 as amended 2026-11-09: a goal of Super Training's, charged by a press held on it,
+/// and shot where it has drifted to as the press is let go.
+#[test]
+fn test_a_held_target_is_pressed_at_once_followed_as_it_moves_and_let_go_with_the_key() {
+    let goal = |x: i64, y: i64| Target {
+        held: true,
+        ..Target::new(1, "goal", x, y, 60.0, 32.0)
+    };
+    let mut screen = Screen::new(vec![goal(100, 60)]);
+    screen.start();
+    screen.press(touch::DRAG);
+    assert_eq!(*screen.pressed.touches.borrow(), [("hold", 100, 60)]);
+    screen.found.borrow_mut()[0] = goal(110, 70);
+    screen.targets.follow().unwrap();
+    assert_eq!(
+        screen.pressed.touches.borrow().last(),
+        Some(&("move", 110, 70))
+    );
+    screen.targets.drop();
+    assert_eq!(
+        screen.pressed.touches.borrow().last(),
+        Some(&("release", 0, 0))
+    );
+}
+
 #[test]
 fn test_targets_are_walked_row_by_row_from_the_top() {
     let mut screen = Screen::new([bar(), vec![area(), dexnav()]].concat());

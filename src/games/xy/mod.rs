@@ -301,6 +301,7 @@ pub fn rom() -> &'static RomLayout {
         battle_models: Some("a/0/0/7".to_string()),
         puffs: Some(PUFF_NAMES),
         amie_numbers: Some(AMIE_NUMBERS),
+        training_stats: Some((42, 65)),
         goods: Some(GOODS_NAMES),
         items: Some(ITEM_NAMES),
         sounds: Some(SOUND_ARCHIVE.to_string()),

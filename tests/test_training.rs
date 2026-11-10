@@ -9,8 +9,10 @@ use indexmap::IndexMap;
 use super::fake_layouts::FakeLayouts;
 use super::fake_memory::{CODE, FakeClasses, FakeMemory};
 use super::test_battle::record_of;
+use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
 use crate::core::speech::Category;
+use crate::games::common::field::keys::{BASE_STATS, TRAINING_ROUND};
 use crate::games::common::screen::ScreenText;
 use crate::games::common::touch::{ImageOf, Target};
 use crate::games::common::{lyt, pokemon};
@@ -28,6 +30,7 @@ const FIRST: i64 = 0x08B06000;
 const SECOND: i64 = 0x08B07000;
 const OTHER: i64 = 0x08B08000;
 const IMAGE: i64 = 0x18300000;
+const STATS: [&str; 6] = ["HP", "Attack", "Defense", "Sp. Atk", "Sp. Def", "Speed"];
 
 fn species() -> Vec<String> {
     let mut names = vec![String::new(); 254];
@@ -179,8 +182,14 @@ fn test_a_goal_shown_while_a_round_runs_is_offered_at_the_pixel_that_shoots_it()
     assert_eq!(
         goals.targets(Some(super_training::SPARRING)).unwrap(),
         [
-            Target::new(goal, "goal", 126, 98, -3.0, 32.0),
-            Target::new(red, "red goal", 126, 98, -3.0, 32.0)
+            Target {
+                held: true,
+                ..Target::new(goal, "goal", 126, 98, -3.0, 32.0)
+            },
+            Target {
+                held: true,
+                ..Target::new(red, "red goal", 126, 98, -3.0, 32.0)
+            }
         ]
     );
     assert!(
@@ -243,8 +252,17 @@ fn test_the_empty_bag_is_offered_but_not_the_one_waiting_behind_the_top_bar() {
     );
 }
 
-/// A page in a state, its layout drawn or not, whose Pokémon is called "Ralts".
+/// What `core`'s page plays, in order: Python's `PLAYED`.
+type Played = Rc<RefCell<Vec<&'static str>>>;
+
+/// A page in a state, its layout drawn or not, whose Pokémon is called "Ralts", with what it
+/// plays.
 fn core(state: i64, shown: bool) -> (super_training::CoreTraining, Rc<FakeMemory>) {
+    let (reader, memory, _played) = played_core(state, shown);
+    (reader, memory)
+}
+
+fn played_core(state: i64, shown: bool) -> (super_training::CoreTraining, Rc<FakeMemory>, Played) {
     let (found, memory, classes) = paged(super_training::ICONS);
     memory.u32(
         PAGE + super_training::ICONS + super_training::STATE,
@@ -266,14 +284,324 @@ fn core(state: i64, shown: bool) -> (super_training::CoreTraining, Rc<FakeMemory
     }
     fake.visible(group - 0x200, shown);
     fake.track().unwrap();
+    let played: Played = Rc::new(RefCell::new(Vec::new()));
+    let (hit, finished) = (played.clone(), played.clone());
     (
-        super_training::CoreTraining::new(
+        super_training::CoreTraining::with(
             Rc::new(RefCell::new(found)),
             fake.layouts.clone(),
             Rc::new(|_who| Some("Ralts".to_string())),
+            Rc::new(move || hit.borrow_mut().push("hit")),
+            Rc::new(move || finished.borrow_mut().push("finished")),
         ),
         memory,
+        played,
     )
+}
+
+#[test]
+fn test_each_hit_landing_on_the_bag_is_heard_and_logged_once() {
+    let (mut reader, memory, played) = played_core(1, true);
+    let hitting = PAGE + super_training::ICONS + super_training::HITTING;
+    let mut said = Vec::new();
+    for now in [0, 1, 1, 0, 1] {
+        memory.u32(hitting, &[now]);
+        said.extend(reader.poll(Some(FIELD)).unwrap());
+    }
+    assert_eq!(*played.borrow(), ["hit", "hit"]);
+    assert_eq!(
+        said,
+        vec![("training".to_string(), "hit".to_string(), None); 2]
+    );
+}
+
+#[test]
+fn test_a_finished_bag_is_heard_with_its_words() {
+    let (mut reader, _memory, played) = played_core(super_training::FINISHED, true);
+    for _ in 0..3 {
+        reader.poll(Some(FIELD)).unwrap();
+    }
+    assert_eq!(*played.borrow(), ["finished"]);
+}
+
+/// A tap that finishes the bag goes on to what it gave: finished for one poll, with no "!" to
+/// tap (as_super_training_tutorial2).
+#[test]
+fn test_a_bag_finished_by_a_tap_that_goes_straight_on_is_not_said() {
+    let (mut reader, memory) = core(super_training::FINISHED, true);
+    assert!(reader.poll(Some(FIELD)).unwrap().is_empty());
+    memory.u32(PAGE + super_training::ICONS + super_training::STATE, &[8]);
+    assert!(reader.poll(Some(FIELD)).unwrap().is_empty());
+}
+
+/// Writes a record's effort values, in the record's order, re-encrypting it as the game keeps it.
+fn write_efforts(memory: &FakeMemory, param: i64, points: [i64; 6]) {
+    let raw = memory
+        .read(param + pokemon::RECORD_IN_PARAM, pokemon::RECORD_SIZE)
+        .unwrap();
+    let mut plain = pokemon::decrypt(&raw).unwrap();
+    for (i, value) in points.into_iter().enumerate() {
+        plain[pokemon::EFFORT as usize + i] = value as u8;
+    }
+    let checksum = plain[pokemon::PLAIN as usize..]
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .map(|word| u16::from_le_bytes(*word) as i64)
+        .sum::<i64>()
+        & 0xFFFF;
+    let at = pokemon::CHECKSUM as usize;
+    plain[at..at + 2].copy_from_slice(&(checksum as u16).to_le_bytes());
+    let mut out = plain[..pokemon::PLAIN as usize].to_vec();
+    out.extend(pokemon::crypt(
+        &plain[pokemon::PLAIN as usize..],
+        0x00000101,
+    ));
+    memory.write(param + pokemon::RECORD_IN_PARAM, &out);
+}
+
+/// What `keys` says was wrong, in order.
+type Wrong = Rc<RefCell<Vec<String>>>;
+
+/// R's reader over a page whose Pokémon has these effort values in the game's order, drawing
+/// this kind of shot; and the lines heard for nothing to say.
+///
+/// Python's patches the page's `efforts`; here they are written into the selected Pokémon's
+/// record, and None is a page the sweep has not found.
+fn keys(
+    exact: bool,
+    efforts: Option<[i64; 6]>,
+    shot: &'static str,
+) -> (super_training::TrainingKeys, Wrong) {
+    let (mut found, page_memory, _classes) = paged(super_training::ICONS);
+    match efforts {
+        Some(efforts) => {
+            let param = page_memory
+                .read(PAGE + super_training::ICONS + super_training::PARAMS, 4)
+                .unwrap();
+            let param = i64::from(u32::from_le_bytes(param.try_into().unwrap()));
+            let mut points = [0; 6];
+            for (label, &record) in super_training::STAT_ORDER.iter().enumerate() {
+                points[record] = efforts[label];
+            }
+            write_efforts(&page_memory, param, points);
+        }
+        None => found.track(&IndexMap::new(), false).unwrap(),
+    }
+    let found = Rc::new(RefCell::new(found));
+    let (fake, drawn, _panes) = drawing(&[shot]);
+    let memory = FakeMemory::new();
+    let sparring = Rc::new(RefCell::new(super_training::Round::new(
+        fake.layouts.clone(),
+        Rc::new(|_pane| Ok(None)),
+        memory,
+        Some(Rc::new(|| 0.0)),
+    )));
+    let wrong: Wrong = Rc::new(RefCell::new(Vec::new()));
+    let said_wrong = {
+        let wrong = wrong.clone();
+        Rc::new(move |why: &str| {
+            wrong.borrow_mut().push(why.to_string());
+            String::new()
+        })
+    };
+    let core_reader = Rc::new(RefCell::new(super_training::CoreTraining::new(
+        found.clone(),
+        fake.layouts.clone(),
+        Rc::new(|_who| Some("Ralts".to_string())),
+    )));
+    (
+        super_training::TrainingKeys::new(
+            core_reader,
+            found,
+            sparring,
+            STATS.iter().map(|stat| stat.to_string()).collect(),
+            exact,
+            fake.layouts.clone(),
+            drawn,
+            said_wrong,
+        ),
+        wrong,
+    )
+}
+
+/// ADR-0017: the points are an Extra, off as it ships; off, the chart is said in fifths.
+#[test]
+fn test_r_says_each_stats_rough_share_of_the_chart_the_total_and_the_shot() {
+    let (reader, _wrong) = keys(false, Some([0, 40, 100, 200, 0, 0]), "shot_icon02.bclim");
+    assert_eq!(
+        reader.press(BASE_STATS, Some(FIELD)).unwrap(),
+        "HP 0 of 5, Attack 1 of 5, Defense 2 of 5, Sp. Atk 4 of 5, Sp. Def 0 of 5, Speed 0 of 5, \
+         total 4 of 5, blue shot"
+    );
+}
+
+#[test]
+fn test_a_stat_is_0_of_5_only_with_no_points_and_5_of_5_only_when_full() {
+    let (reader, _wrong) = keys(false, Some([252, 251, 1, 0, 6, 0]), "shot_icon02.bclim");
+    assert!(
+        reader.press(BASE_STATS, Some(FIELD)).unwrap().starts_with(
+            "HP 5 of 5, Attack 4 of 5, Defense 1 of 5, Sp. Atk 0 of 5, Sp. Def 1 of 5"
+        )
+    );
+}
+
+/// ADR-0017: the Extra says the numbers the chart is drawn from, in the share's place.
+#[test]
+fn test_r_says_the_points_instead_with_the_extra_on() {
+    let (reader, _wrong) = keys(true, Some([2, 1, 4, 0, 0, 2]), "shot_icon02.bclim");
+    assert_eq!(
+        reader.press(BASE_STATS, Some(FIELD)).unwrap(),
+        "HP 2, Attack 1, Defense 4, Sp. Atk 0, Sp. Def 0, Speed 2, total 9 of 510, blue shot"
+    );
+}
+
+#[test]
+fn test_r_with_nothing_to_read_goes_to_wrong() {
+    let (reader, wrong) = keys(false, None, "shot_icon02.bclim");
+    assert_eq!(reader.press(BASE_STATS, Some(FIELD)).unwrap(), "");
+    assert_eq!(*wrong.borrow(), ["no numbers yet"]);
+}
+
+#[test]
+fn test_rs_table_follows_the_page_and_a_round() {
+    let reader = keys(false, Some([2, 1, 4, 0, 0, 2]), "shot_icon02.bclim").0;
+    assert_eq!(
+        reader.context(Some(super_training::SPARRING)).unwrap(),
+        Some(TRAINING_ROUND)
+    );
+    // this fake's layout is not the page's
+    assert_eq!(reader.context(Some(FIELD)).unwrap(), None);
+}
+
+#[test]
+fn test_r_says_a_rounds_score_and_clock_as_last_read() {
+    let mut sparring = rounds(Rc::new(Cell::new(0.0))).0;
+    assert_eq!(sparring.numbers().unwrap(), "");
+    for _ in 0..2 {
+        sparring
+            .hear(&[score("34/50"), clock(88)].concat())
+            .unwrap();
+    }
+    assert_eq!(sparring.numbers().unwrap(), "34 of 50, 1:28 left");
+}
+
+/// The first tutorial's round draws none (as_super_training_tutorial2).
+#[test]
+fn test_r_says_the_energy_meter_by_its_scale_where_the_round_draws_one() {
+    let memory = FakeMemory::new();
+    let classes = FakeClasses::new(memory.clone());
+    let fake = FakeLayouts::new(&memory, &classes);
+    let picture = classes.add(lyt::PICTURE_CLASS);
+    let (_work, group) = fake.screen_with(0x14B00000, true, true);
+    memory.u32(group + lyt::CHILD_COUNT, &[1]);
+    fake.pane_with_vtable(group + 0x100, group, Some(picture));
+    memory.write(group + 0x100 + lyt::SCALE_X, &floats(&[0.72]));
+    fake.track().unwrap();
+    let mut sparring = super_training::Round::new(
+        fake.layouts.clone(),
+        drawn(IndexMap::from([(
+            group + 0x100,
+            super_training::ENERGY_IMAGE,
+        )])),
+        memory.clone(),
+        Some(Rc::new(|| 0.0)),
+    );
+    sparring.poll(Some(super_training::SPARRING)).unwrap();
+    assert_eq!(sparring.numbers().unwrap(), "energy 4 of 5");
+}
+
+/// A round drawing one picture of the aura, shown or not by the second value of `fake.visible`
+/// through the returned panes; and its layouts, which Python's keeps in `FAKES`.
+fn charging(
+    holding: Rc<Cell<bool>>,
+) -> (
+    super_training::Round,
+    Vec<i64>,
+    Rc<FakeMemory>,
+    i64,
+    FakeLayouts,
+) {
+    let memory = FakeMemory::new();
+    let classes = FakeClasses::new(memory.clone());
+    let fake = FakeLayouts::new(&memory, &classes);
+    let picture = classes.add(lyt::PICTURE_CLASS);
+    let (_work, group) = fake.screen_with(0x14B00000, true, true);
+    memory.u32(group + lyt::CHILD_COUNT, &[1]);
+    let aura = group + 0x100;
+    fake.pane_with_vtable(aura, group, Some(picture));
+    fake.track().unwrap();
+    let sparring = super_training::Round::with(
+        fake.layouts.clone(),
+        drawn(IndexMap::from([(aura, super_training::CHARGE_IMAGE)])),
+        memory.clone(),
+        super_training::RoundOptions {
+            now: Some(Rc::new(|| 0.0)),
+            holding: Some(Rc::new(move || holding.get())),
+            ..super_training::RoundOptions::default()
+        },
+    );
+    (sparring, vec![aura], memory, group, fake)
+}
+
+fn warning(line: &str) -> (String, String, Option<Category>) {
+    (
+        "round".to_string(),
+        line.to_string(),
+        Some(Category::Warning),
+    )
+}
+
+#[test]
+fn test_the_aura_of_a_press_held_is_said_as_it_comes_and_if_it_burns_out_held() {
+    let holding = Rc::new(Cell::new(true));
+    let (mut sparring, panes, _memory, _group, fake) = charging(holding);
+    assert_eq!(
+        sparring.poll(Some(super_training::SPARRING)).unwrap(),
+        [warning("charged")]
+    );
+    assert!(
+        sparring
+            .poll(Some(super_training::SPARRING))
+            .unwrap()
+            .is_empty()
+    );
+    fake.visible(panes[0], false);
+    fake.layouts.refresh();
+    assert_eq!(
+        sparring.poll(Some(super_training::SPARRING)).unwrap(),
+        [warning("fizzled")]
+    );
+}
+
+#[test]
+fn test_the_aura_going_as_the_press_is_let_go_says_nothing() {
+    let holding = Rc::new(Cell::new(true));
+    let (mut sparring, panes, _memory, _group, fake) = charging(holding.clone());
+    sparring.poll(Some(super_training::SPARRING)).unwrap();
+    holding.set(false);
+    fake.visible(panes[0], false);
+    fake.layouts.refresh();
+    assert!(
+        sparring
+            .poll(Some(super_training::SPARRING))
+            .unwrap()
+            .is_empty()
+    );
+}
+
+/// The record's: HP, Attack, Defense, Speed, Sp. Atk, Sp. Def.
+#[test]
+fn test_the_game_labels_its_stats_in_another_order_than_the_record_keeps_them() {
+    let (found, memory, _classes) = paged(super_training::ICONS);
+    let param = PARAMS;
+    write_efforts(&memory, param, [1, 2, 3, 4, 5, 6]);
+    // The selected record is the second built, Sceptile's; the first is `PARAMS`.
+    memory.u32(
+        PAGE + super_training::ICONS + super_training::PARAMS,
+        &[param],
+    );
+    assert_eq!(found.efforts().unwrap(), Some(vec![1, 2, 3, 5, 6, 4]));
 }
 
 fn finished() -> (String, String, Option<Category>) {
@@ -287,6 +615,7 @@ fn finished() -> (String, String, Option<Category>) {
 #[test]
 fn test_a_finished_bag_is_said_once_while_the_pokemon_waits_for_a_tap() {
     let (mut reader, memory) = core(super_training::FINISHED, true);
+    assert!(reader.poll(Some(FIELD)).unwrap().is_empty());
     assert_eq!(reader.poll(Some(FIELD)).unwrap(), [finished()]);
     assert!(reader.poll(Some(FIELD)).unwrap().is_empty());
     memory.u32(PAGE + super_training::ICONS + super_training::STATE, &[1]);
@@ -295,6 +624,7 @@ fn test_a_finished_bag_is_said_once_while_the_pokemon_waits_for_a_tap() {
         PAGE + super_training::ICONS + super_training::STATE,
         &[super_training::FINISHED],
     );
+    assert!(reader.poll(Some(FIELD)).unwrap().is_empty());
     assert_eq!(reader.poll(Some(FIELD)).unwrap(), [finished()]);
 }
 
@@ -327,7 +657,7 @@ fn test_the_state_is_read_from_the_object_that_holds_the_pages_icons() {
         )
         .unwrap();
     let state = found.selected().unwrap();
-    assert!(state.is_some_and(|state| state.0 == super_training::FINISHED));
+    assert!(state.is_some_and(|state| state.state == super_training::FINISHED));
 }
 
 #[test]
@@ -577,7 +907,79 @@ fn test_a_ball_of_the_bots_going_into_flight_warns_once() {
         [(
             super_training::ROUND_LOG.to_string(),
             "shot coming".to_string(),
-            Category::Warning
+            Some(Category::Warning)
+        )]
+    );
+}
+
+/// The ball at 0x08C00000 the round tracks, written as the Bot's.
+fn bot_ball(sparring: &mut super_training::Round, memory: &FakeMemory, classes: &FakeClasses) {
+    memory.u32(0x08C00000, &[classes.add(super_training::MISSILE)]);
+    memory.u32(0x08C00000 + super_training::BOT_BALL, &[0x08D00000]);
+    sparring
+        .track(
+            &IndexMap::from([(0x08C00000, super_training::MISSILE.to_string())]),
+            false,
+        )
+        .unwrap();
+}
+
+/// L held as it arrived, no points lost, and the ball's state 3 where a hit's is 2
+/// (as_super_training_tutorial2 against as_super_training_tutorial).
+#[test]
+fn test_a_ball_stopped_by_the_barrier_is_said_blocked() {
+    let (mut sparring, memory, classes) = rounds(Rc::new(Cell::new(0.0)));
+    bot_ball(&mut sparring, &memory, &classes);
+    let mut said = Vec::new();
+    for state in [0, 1, 3, 3] {
+        memory.u32(0x08C00004, &[state]);
+        said.extend(sparring.poll(Some(super_training::SPARRING)).unwrap());
+    }
+    assert_eq!(
+        said,
+        [
+            (
+                super_training::ROUND_LOG.to_string(),
+                "shot coming".to_string(),
+                Some(Category::Warning)
+            ),
+            (
+                super_training::ROUND_LOG.to_string(),
+                "blocked".to_string(),
+                Some(Category::Screen)
+            )
+        ]
+    );
+}
+
+/// With feedback sounds on, the "!" stands in for "shot coming" (Orion, 2026-11-09).
+#[test]
+fn test_a_ball_heard_as_the_games_exclamation_is_only_logged() {
+    let memory = FakeMemory::new();
+    let classes = FakeClasses::new(memory.clone());
+    let fake = FakeLayouts::new(&memory, &classes);
+    let mut sparring = super_training::Round::with(
+        fake.layouts.clone(),
+        Rc::new(|_pane| Ok(None)),
+        memory.clone(),
+        super_training::RoundOptions {
+            now: Some(Rc::new(|| 0.0)),
+            warned: Some(Rc::new(|_said: &str| String::new())),
+            ..super_training::RoundOptions::default()
+        },
+    );
+    bot_ball(&mut sparring, &memory, &classes);
+    let mut said = Vec::new();
+    for state in [0, 1] {
+        memory.u32(0x08C00004, &[state]);
+        said.extend(sparring.poll(Some(super_training::SPARRING)).unwrap());
+    }
+    assert_eq!(
+        said,
+        [(
+            super_training::ROUND_LOG.to_string(),
+            "shot coming".to_string(),
+            None
         )]
     );
 }

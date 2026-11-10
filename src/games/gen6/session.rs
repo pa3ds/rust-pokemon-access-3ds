@@ -27,7 +27,7 @@ use crate::games::common::session::{Profile, Session, Setup};
 use crate::games::gen6::field::footsteps;
 use crate::games::gen6::game::Game;
 use crate::games::gen6::profile::{
-    CUE_SOUND, DROP_SOUND, Gen6Profile, Options, PICK_SOUND, REQUIRED, WRONG_SOUND,
+    CUE_SOUND, DROP_SOUND, Gen6Profile, HIT_SOUND, Options, PICK_SOUND, REQUIRED, WRONG_SOUND,
 };
 use crate::games::gen6::rom::archives::{GameText, no_text};
 use crate::games::gen6::rom::cries::{Crier, Cries};
@@ -260,7 +260,7 @@ pub fn feedback_sounds(setup: &Setup, layout: &RomLayout) -> Result<IndexMap<Str
         bcsar::sounds(
             &image,
             archive,
-            [PICK_SOUND, DROP_SOUND, WRONG_SOUND, CUE_SOUND],
+            [PICK_SOUND, DROP_SOUND, WRONG_SOUND, CUE_SOUND, HIT_SOUND],
         )
     });
     match read {

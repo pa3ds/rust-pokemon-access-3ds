@@ -50,6 +50,10 @@ pub const SPECIES_MAX: i64 = 721;
 pub const CONTEST: i64 = 0x24;
 pub const CONTEST_CONDITIONS: i64 = 5;
 
+/// The effort values, a byte each: HP, Attack, Defense, Speed, Sp. Atk, Sp. Def.
+pub const EFFORT: i64 = 0x1E;
+pub const EFFORT_STATS: i64 = 6;
+
 pub const MALE: i64 = 0;
 pub const FEMALE: i64 = 1;
 
@@ -155,6 +159,21 @@ pub fn contest_conditions(
     let plain = decrypt(&memory.read(param + RECORD_IN_PARAM, RECORD_SIZE)?);
     Ok(plain.map(|plain| {
         py::slice(&plain, CONTEST, CONTEST + CONTEST_CONDITIONS)
+            .iter()
+            .map(|&byte| i64::from(byte))
+            .collect()
+    }))
+}
+
+/// The effort values of the Pokémon a `PokemonParam` holds, in the record's order (`EFFORT`),
+/// or None when it is not one.
+pub fn efforts(memory: &dyn Memory, names: &ClassNames, param: i64) -> Result<Option<Vec<i64>>> {
+    if names.of_object(param)?.as_deref() != Some(PARAM_CLASS) {
+        return Ok(None);
+    }
+    let plain = decrypt(&memory.read(param + RECORD_IN_PARAM, RECORD_SIZE)?);
+    Ok(plain.map(|plain| {
+        py::slice(&plain, EFFORT, EFFORT + EFFORT_STATS)
             .iter()
             .map(|&byte| i64::from(byte))
             .collect()

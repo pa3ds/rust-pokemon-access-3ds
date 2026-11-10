@@ -325,6 +325,9 @@ pub struct GameText {
     pub map_places: IndexMap<String, String>,
     /// What the game calls each Secret Base decoration, by its number (`RomLayout.decorations`).
     pub decorations: Vec<String>,
+    /// What the game calls the six stats on Super Training's screens, "HP" to "Speed"
+    /// (`RomLayout.training_stats`); none where they are not read.
+    pub training_stats: Vec<String>,
     /// What the game calls Amie's three numbers (`RomLayout.amie_numbers`); none where they are
     /// not read.
     pub amie_numbers: Vec<String>,
@@ -424,6 +427,7 @@ impl PartialEq for GameText {
             && self.caught == other.caught
             && self.map_places == other.map_places
             && self.decorations == other.decorations
+            && self.training_stats == other.training_stats
             && self.amie_numbers == other.amie_numbers
             && self.base_names == other.base_names
             && self.bike == other.bike
@@ -469,6 +473,7 @@ impl Default for GameText {
             caught: HashSet::new(),
             map_places: IndexMap::new(),
             decorations: Vec::new(),
+            training_stats: Vec::new(),
             amie_numbers: Vec::new(),
             puffs: Vec::new(),
             base_names: Vec::new(),
@@ -869,6 +874,7 @@ impl GameText {
             contest_categories: lines_from(layout.contest_categories)?,
             contest_entrant: py::slice(&lines_from(layout.contest_entrant)?, 0, 2).to_vec(),
             amie_numbers: py::slice(&lines_from(layout.amie_numbers)?, 0, 3).to_vec(),
+            training_stats: py::slice(&lines_from(layout.training_stats)?, 0, 6).to_vec(),
             contest_rivals: match layout.contest_rivals {
                 Some(file) => halves(&lines_of_file(&story, file)?),
                 None => Vec::new(),

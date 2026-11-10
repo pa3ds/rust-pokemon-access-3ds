@@ -769,7 +769,7 @@ fn session(
                 // The screen's own keys are taken only while it runs: told every poll, so the hook
                 // lets them through to Azahar the moment another screen comes.
                 if let Some(hotkeys) = hotkeys.borrow().as_ref() {
-                    hotkeys.set_contextual(context_keys(&contexts, profile.context()));
+                    hotkeys.set_contextual(context_keys(&contexts, profile.context()?));
                 }
                 // A rename dialog answers on its own thread, so its answer is picked up here
                 // rather than waited for: the game kept running while it was open.

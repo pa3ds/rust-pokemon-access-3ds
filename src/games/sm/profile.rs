@@ -753,7 +753,7 @@ impl Profile for SunProfile {
     }
 
     /// No screen of Sun and Moon has keys of its own yet.
-    fn context(&self) -> Option<&'static str> {
-        None
+    fn context(&self) -> Result<Option<&'static str>> {
+        Ok(None)
     }
 }

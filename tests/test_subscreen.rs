@@ -53,6 +53,10 @@ fn subscreens() -> Subscreens {
         Rc::new(Vec::new),
         Rc::new(|| None),
         Rc::new(|| None),
+        Rc::new(|| {}),
+        Rc::new(|| {}),
+        Rc::new(|said: &str| said.to_string()),
+        false,
     );
     found
         .track(&IndexMap::from([(PAGE, amie::CLASS.to_string())]), false)
@@ -80,8 +84,11 @@ fn test_the_amie_pages_pokemon_is_named_on_the_field_and_offered_to_beckon_in_am
     assert_eq!(names, ["beckon Sceptile", "stylus"]);
     assert!(found.poll(Some(FIELD), &mut Untouched).unwrap().is_empty());
     // Keys of its own only while the screen that has them runs.
-    assert_eq!(found.context(Some(berry_picker::APP)), Some(BERRY_PICKER));
-    assert_eq!(found.context(Some(FIELD)), None);
+    assert_eq!(
+        found.context(Some(berry_picker::APP)).unwrap(),
+        Some(BERRY_PICKER)
+    );
+    assert_eq!(found.context(Some(FIELD)).unwrap(), None);
     assert_eq!(
         found
             .press(BERRIES[0], Some(FIELD), &mut Untouched)
@@ -93,8 +100,8 @@ fn test_the_amie_pages_pokemon_is_named_on_the_field_and_offered_to_beckon_in_am
 #[test]
 fn test_touch_mode_in_the_subscreens_apps_is_as_they_say() {
     // ADR-0009: touch mode offers targets in Amie's and Super Training's apps, Shift alone drags
-    // only in Amie's, and Berry Picker's drag is made on letting go, at full speed until its clock
-    // is seen to run.
+    // in Amie's and holds a charge in Super Training's rounds, and Berry Picker's drag is made on
+    // letting go, at full speed until its clock is seen to run.
     for app in [amie::AMIE, amie::GAMES[0], amie::GAMES[1], amie::GAMES[2]]
         .into_iter()
         .chain([super_training::SPARRING])
@@ -106,8 +113,9 @@ fn test_touch_mode_in_the_subscreens_apps_is_as_they_say() {
             .iter()
             .all(|app| profile::TOUCHED.contains(app))
     );
-    assert_eq!(subscreen::DRAGS, amie::SCREENS);
-    assert!(!subscreen::DRAGS.contains(&super_training::SPARRING));
+    let mut drags: Vec<&str> = amie::SCREENS.to_vec();
+    drags.push(super_training::SPARRING);
+    assert_eq!(subscreen::DRAGS.to_vec(), drags);
     let found = subscreens();
     assert!(found.delayed(Some(berry_picker::APP)) && !found.delayed(Some(amie::AMIE)));
     assert_eq!(found.pace(), 1.0);

@@ -143,6 +143,9 @@ pub struct Target {
     /// The two ends a touch on it rubs between, for a target touched by rubbing, Amie's stylus:
     /// a tap rubs `RUB_SECONDS`, a drag until it is let go; none for a tap.
     pub rub: Option<((i64, i64), (i64, i64))>,
+    /// Whether a drag presses it at once and keeps the press on it as it moves: a goal of Super
+    /// Training's, charged by a press held on it (ADR-0009 as amended 2026-11-09).
+    pub held: bool,
     /// Told once a slide along `path` has begun, for a target that moves what the screen shows:
     /// Amie's beckon and its Pokémon brought between the screens, whose still picture is taken anew
     /// (`amie.Stylus.look_again`).
@@ -186,6 +189,7 @@ impl Target {
             seconds: 0.0,
             drop: None,
             rub: None,
+            held: false,
             after: After::default(),
         }
     }
@@ -392,6 +396,14 @@ impl TouchMode {
                     return Ok(why);
                 }
                 self.pressed = true;
+            } else if target.held {
+                let screen = self.screen.as_ref().expect("checked above");
+                if let Some(why) = screen.hold(target.x, target.y)
+                    && !why.is_empty()
+                {
+                    return Ok(why);
+                }
+                self.pressed = true;
             }
             self.picked = Some(target.clone());
             self.over = Some(target.clone());
@@ -505,6 +517,18 @@ impl TouchMode {
         }
         if let Some(target) = (self.targets)()?.into_iter().find(|t| t.pane == pane) {
             self.carry_on(&target);
+        }
+        Ok(())
+    }
+
+    /// Keep a press held on a target that moves on it, wherever it has gone: a goal drifts
+    /// while it is charged, and the shot goes where the press is let go.
+    pub fn follow(&mut self) -> Result<()> {
+        if let Some(over) = &self.over
+            && over.held
+        {
+            let pane = over.pane;
+            self.carry(pane)?;
         }
         Ok(())
     }
@@ -1138,6 +1162,7 @@ impl TouchTargets {
                     seconds: 0.0,
                     drop: None,
                     rub: None,
+                    held: false,
                     after: After::default(),
                 });
             }
@@ -1256,6 +1281,7 @@ impl TouchTargets {
                     seconds: 0.0,
                     drop: None,
                     rub: None,
+                    held: false,
                     after: After::default(),
                 });
             }

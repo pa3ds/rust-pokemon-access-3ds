@@ -186,6 +186,9 @@ pub const WRONG_SOUND: &str = "SEQ_SE_BEEP";
 /// place of a tone): 0.3 s, the same wave and volume in Omega Ruby and X, where `SEQ_SE_FLD_277` is
 /// that wave too (spike 274).
 pub const CUE_SOUND: &str = "SEQ_SE_FLD_036";
+/// Played as a hit lands on Super Training's bag, of which the game gives no sound (Orion,
+/// 2026-11-09): 0.34 s, the same wave and volume in Omega Ruby, Alpha Sapphire and X.
+pub const HIT_SOUND: &str = "SEQ_SE_SP_017";
 /// Where the tone of each quarter up walks sounds, across and down as `Tones.play` has them,
 /// north first and clockwise: north high, south low, east in the right ear and west in the left, as
 /// the Hoenn map's cursor sounds its place (`core.tones`).
@@ -795,6 +798,30 @@ impl Gen6Profile {
                 said
             })
         };
+        let played = {
+            let feedback_sounds = feedback_sounds.clone();
+            Rc::new(move |sound: &str| {
+                if let Some(sounds) = &feedback_sounds {
+                    // The sound thread not starting, raised to the poll in Python.
+                    let _ = sounds.play(sound);
+                }
+            })
+        };
+        // The game's "!" in place of words, or the words where it cannot be played.
+        let cued = {
+            let feedback_sounds = feedback_sounds.clone();
+            Rc::new(move |said: &str| -> String {
+                let Some(sounds) = feedback_sounds
+                    .as_ref()
+                    .filter(|sounds| sounds.names().contains(CUE_SOUND))
+                else {
+                    return said.to_string();
+                };
+                // The sound thread not starting, raised to the poll in Python.
+                let _ = sounds.play(CUE_SOUND);
+                String::new()
+            })
+        };
         // Head It's cue, in the ear of the Pokémon's side, the middle's in both (Orion,
         // 2026-11-01, ADR-0025 as amended); logged so a round's log shows each beside the key
         // pressed for it.
@@ -853,6 +880,13 @@ impl Gen6Profile {
                 let apps = apps.clone();
                 Rc::new(move || apps.borrow().running.clone())
             },
+            {
+                let played = played.clone();
+                Rc::new(move || played(HIT_SOUND))
+            },
+            Rc::new(move || played(CUE_SOUND)),
+            cued,
+            tables.extras.base_stats,
         ));
         screen.borrow_mut().set_reworded({
             let subscreens = subscreens.clone();
@@ -1821,7 +1855,7 @@ impl Gen6Profile {
     /// runs (`context`), in every mode.
     pub fn press(&self, key: &str) -> Result<()> {
         phase(&*self.memory, "keys", || {
-            let context = self.context();
+            let context = self.context()?;
             let action = context.and_then(|context| {
                 self.contexts
                     .get(context)
@@ -1850,7 +1884,7 @@ impl Gen6Profile {
 
     /// The table of the keys file of the screen running now, where it has keys of its own:
     /// Berry Picker's (`Subscreens.context`).
-    pub fn context(&self) -> Option<&'static str> {
+    pub fn context(&self) -> Result<Option<&'static str>> {
         self.subscreens
             .context(self.apps.borrow().running.as_deref())
     }
@@ -2641,7 +2675,7 @@ impl Profile for Gen6Profile {
         Gen6Profile::press(self, key)
     }
 
-    fn context(&self) -> Option<&'static str> {
+    fn context(&self) -> Result<Option<&'static str>> {
         Gen6Profile::context(self)
     }
 

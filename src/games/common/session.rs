@@ -58,8 +58,9 @@ pub trait Profile {
     fn press(&self, key: &str) -> Result<()>;
 
     /// The screen running now that has keys of its own (`field.keys.DEFAULT_CONTEXTS`), or None:
-    /// the keys the hook takes besides the modes'.
-    fn context(&self) -> Option<&'static str>;
+    /// the keys the hook takes besides the modes'. It can read memory: Super Training's page is
+    /// told by its layout being drawn.
+    fn context(&self) -> Result<Option<&'static str>>;
 
     fn sweep_wanted(&self) -> Result<bool>;
 

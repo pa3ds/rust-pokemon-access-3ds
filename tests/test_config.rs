@@ -113,6 +113,7 @@ fn test_the_first_run_writes_every_default_and_reads_them_back() {
         ours["extras"],
         toml::Value::Table(toml::Table::from_iter([
             ("conditions".to_string(), toml::Value::Boolean(false)),
+            ("base_stats".to_string(), toml::Value::Boolean(false)),
             (
                 "hidden_items".to_string(),
                 toml::Value::String("off".to_string())

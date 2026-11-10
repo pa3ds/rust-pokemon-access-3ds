@@ -508,6 +508,7 @@ pub fn rom() -> &'static RomLayout {
         puffs: Some(PUFF_NAMES),
         goods: Some(GOODS_NAMES),
         amie_numbers: Some(AMIE_NUMBERS),
+        training_stats: Some((45, 65)),
         files: vec![sky::ARCHIVE.to_string()],
         touch_words: [
             touch_words(),

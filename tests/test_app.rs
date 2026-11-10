@@ -781,7 +781,7 @@ impl Profile for Patched {
     fn press(&self, key: &str) -> Result<()> {
         self.real.press(key)
     }
-    fn context(&self) -> Option<&'static str> {
+    fn context(&self) -> Result<Option<&'static str>> {
         self.real.context()
     }
     fn sweep_wanted(&self) -> Result<bool> {

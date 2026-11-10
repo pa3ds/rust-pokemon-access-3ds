@@ -138,6 +138,11 @@ pub const HEADERS: [&str; 3] = ["left pokemon", "middle pokemon", "right pokemon
 pub const SCORE_KEY: &str = "score";
 /// Says Amie's Pokémon's three numbers, as the Switch screen shows them (Orion, 2026-11-06).
 pub const STYLUS_NUMBERS: &str = "stylus numbers";
+/// Says what Super Training's page draws as a chart and an icon: each stat's points, the total and
+/// the kind of shot (Orion, 2026-11-09; `super_training.TrainingKeys`).
+pub const BASE_STATS: &str = "base stats";
+/// Says a Super Training round's score and clock (Orion, 2026-11-09).
+pub const ROUND_NUMBERS: &str = "round numbers";
 /// Amie's stylus moved a step over the Pokémon, which way across and down the screen each goes
 /// (Orion, 2026-11-05; `amie.StylusKeys`).
 pub const STYLUS_MOVES: [(&str, (i64, i64)); 4] = [
@@ -155,7 +160,7 @@ pub const STYLUS_JUMPS: [(&str, (i64, i64)); 4] = [
     ("stylus jump right", (1, 0)),
 ];
 
-pub const EXPLAINED: [(&str, &str); 12] = [
+pub const EXPLAINED: [(&str, &str); 14] = [
     (
         ENEMY_SIDE,
         "The enemy's Pokémon are said in the order the battle places them. In a horde of five that \
@@ -196,6 +201,15 @@ pub const EXPLAINED: [(&str, &str); 12] = [
     (
         SCORE_KEY,
         "In Head It, says the score, the combo and the time or the chances left.",
+    ),
+    (
+        BASE_STATS,
+        "On Super Training's page, says how much of each base stat your Pokémon has trained, the \
+         total, and the kind of shot it fires.",
+    ),
+    (
+        ROUND_NUMBERS,
+        "In a round of Super Training, says the score and the time left.",
     ),
     (
         "stylus up",
@@ -353,6 +367,10 @@ pub const BERRY_PICKER: &str = "amie.berry_picker";
 pub const HEAD_IT: &str = "amie.head_it";
 /// Pokémon-Amie itself while it runs: `[pa3ds.amie.stylus]` in the keys file.
 pub const STYLUS: &str = "amie.stylus";
+/// Super Training's page while it is drawn: `[pa3ds.training.page]` in the keys file.
+pub const TRAINING_PAGE: &str = "training.page";
+/// A round of Super Training while it runs: `[pa3ds.training.round]` in the keys file.
+pub const TRAINING_ROUND: &str = "training.round";
 
 /// Context -> key -> action: keys that mean something only while one screen runs, in every mode,
 /// and are taken from the emulator only then, so a key that is a button of Azahar's elsewhere stays
@@ -366,7 +384,9 @@ pub type Contexts = IndexMap<String, IndexMap<String, String>>;
 /// 2026-11-04), pa3ds's key everywhere else, a battle's side: S and T, which he offered beside it,
 /// are his B and his D-pad's up, which the list after a round may want. In Amie itself the arrows
 /// move the stylus over the Pokémon (Orion, 2026-11-05): they are the circle pad as Orion binds it,
-/// and Amie's script reads no stick, only that some button is pressed.
+/// and Amie's script reads no stick, only that some button is pressed. R says what a screen draws
+/// and does not say, on down that line: Super Training's chart on its page, and a round's numbers
+/// (Orion, 2026-11-09).
 pub static DEFAULT_CONTEXTS: LazyLock<Contexts> = LazyLock::new(|| {
     let mut keys: IndexMap<String, String> = BERRIES
         .iter()
@@ -400,6 +420,14 @@ pub static DEFAULT_CONTEXTS: LazyLock<Contexts> = LazyLock::new(|| {
                 ("ctrl+right".to_string(), "stylus jump right".to_string()),
                 ("r".to_string(), STYLUS_NUMBERS.to_string()),
             ]),
+        ),
+        (
+            TRAINING_PAGE.to_string(),
+            IndexMap::from([("r".to_string(), BASE_STATS.to_string())]),
+        ),
+        (
+            TRAINING_ROUND.to_string(),
+            IndexMap::from([("r".to_string(), ROUND_NUMBERS.to_string())]),
         ),
     ])
 });

@@ -406,6 +406,7 @@ impl Table for Amie {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Extras {
     pub conditions: bool,
+    pub base_stats: bool,
     pub hidden_items: String,
 }
 
@@ -413,6 +414,7 @@ impl Default for Extras {
     fn default() -> Self {
         Extras {
             conditions: false,
+            base_stats: false,
             hidden_items: HIDDEN_OFF.to_string(),
         }
     }
@@ -422,6 +424,7 @@ impl Table for Extras {
     fn fields(&self) -> Vec<(&'static str, Value)> {
         vec![
             ("conditions", Value::Bool(self.conditions)),
+            ("base_stats", Value::Bool(self.base_stats)),
             ("hidden_items", Value::Str(self.hidden_items.clone())),
         ]
     }
@@ -429,6 +432,7 @@ impl Table for Extras {
     fn set(&mut self, setting: &str, value: Value) {
         match (setting, value) {
             ("conditions", Value::Bool(value)) => self.conditions = value,
+            ("base_stats", Value::Bool(value)) => self.base_stats = value,
             ("hidden_items", Value::Str(value)) => self.hidden_items = value,
             _ => {}
         }

@@ -634,6 +634,12 @@ pub trait Touching {
     fn picked(&self) -> Option<String> {
         None
     }
+    fn holding(&self) -> bool {
+        false
+    }
+    fn follow(&mut self) -> Result<()> {
+        Ok(())
+    }
 }
 
 impl Touching for TouchMode {
@@ -651,6 +657,14 @@ impl Touching for TouchMode {
 
     fn picked(&self) -> Option<String> {
         TouchMode::picked(self)
+    }
+
+    fn holding(&self) -> bool {
+        TouchMode::holding(self)
+    }
+
+    fn follow(&mut self) -> Result<()> {
+        TouchMode::follow(self)
     }
 
     fn give(&mut self, picked: &Target, over: &Target) -> String {
