@@ -833,9 +833,12 @@ pub struct AmiePage {
     memory: Rc<dyn Memory>,
     /// How much later than ORAS's `Player` keeps its fields (`Game.amie_player`).
     later: i64,
-    /// Whether the picture of parts is read: the GPU draws it, and Azahar before 2126.2 can
-    /// crash when memory the GPU draws into is read (`Rpc.reads_beside_gpu`).
-    aim: bool,
+    /// What the picture of parts is read through, none where it is not read: the GPU draws it,
+    /// and Azahar before 2126.2 can crash when that memory is read (`Rpc.reads_beside_gpu`).
+    /// Reading it flushes it from the GPU's copy, right only from its own first byte on: from the
+    /// pages round it, `PageCache`'s, it came back wrapped as far round as the buffer lies off a
+    /// page, 4 to 8 rows on Omega Ruby and half a column on X, and up to half of it gone.
+    drawn: Option<Rc<dyn Memory>>,
     /// The still picture the stylus moves over, none before the Pokémon is drawn.
     still: Option<Rc<Picture>>,
     /// Whether the next picture taken replaces the still one, whatever it shows.
@@ -893,14 +896,14 @@ impl AmiePage {
         AmiePage::with_number(memory, names, species, NUMBER)
     }
 
-    /// `AmiePage(memory, names, species, number)`; Python's `aimed` defaults to False.
+    /// `AmiePage(memory, names, species, number)`; Python's `drawn` defaults to None.
     pub fn with_number(
         memory: Rc<dyn Memory>,
         names: Rc<ClassNames>,
         species: Vec<String>,
         number: i64,
     ) -> Self {
-        AmiePage::with_aim(memory, names, species, number, false, 0)
+        AmiePage::with_aim(memory, names, species, number, None, 0)
     }
 
     /// `AmiePage(...)` with every argument.
@@ -909,13 +912,13 @@ impl AmiePage {
         names: Rc<ClassNames>,
         species: Vec<String>,
         number: i64,
-        aimed: bool,
+        drawn: Option<Rc<dyn Memory>>,
         later: i64,
     ) -> Self {
         AmiePage {
             memory,
             later,
-            aim: aimed,
+            drawn,
             still: None,
             anew: false,
             richer_until: f64::INFINITY,
@@ -1581,10 +1584,10 @@ impl AmiePage {
         {
             return Ok(Some(whole.clone()));
         }
-        let buffer = self.buffer()?;
+        let (buffer, drawn) = (self.buffer()?, self.drawn.clone());
         let mut whole = None;
-        if let Some(buffer) = buffer {
-            whole = match self.memory.read(buffer + PICTURE, touch::WIDTH * COLUMN) {
+        if let (Some(buffer), Some(drawn)) = (buffer, drawn) {
+            whole = match drawn.read(buffer + PICTURE, touch::WIDTH * COLUMN) {
                 Ok(data) => Some(Rc::new(Picture::new(data))),
                 Err(error) if error.is(Kind::RpcError) => None,
                 Err(error) => return Err(error),
@@ -1602,9 +1605,9 @@ impl AmiePage {
     }
 
     /// The buffer of the picture of parts drawn last, or None where no Player leads to one,
-    /// or the emulator cannot read it safely (`aimed`).
+    /// or the emulator cannot read it safely (`_drawn`).
     fn buffer(&mut self) -> Result<Option<i64>> {
-        if !self.aim {
+        if self.drawn.is_none() {
             return Ok(None);
         }
         let players: Vec<(i64, i64)> = self.players.iter().map(|(&p, &v)| (p, v)).collect();

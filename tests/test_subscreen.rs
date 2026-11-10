@@ -47,7 +47,7 @@ fn subscreens() -> Subscreens {
         None,
         None,
         Rc::new(|| Ok(None)),
-        false,
+        None,
         Rc::new(|_app: &str| None),
         Rc::new(|_root: i64| None),
         Rc::new(Vec::new),

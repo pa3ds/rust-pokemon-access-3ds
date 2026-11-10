@@ -9,6 +9,7 @@ use super::fake_layouts::FakeLayouts;
 use super::fake_memory::{CODE, FakeClasses, FakeMemory};
 use super::test_memories::record;
 use crate::core::keyfile::data_path;
+use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
 use crate::core::speech::Category;
 use crate::core::words::{self, ENGLISH, Words};
@@ -43,12 +44,31 @@ pub(crate) fn species() -> Vec<String> {
     names
 }
 
-pub(crate) fn page(number: i64) -> (amie::AmiePage, Rc<FakeMemory>) {
-    page_aimed(number, false, 0)
+/// Memory as `PageCache` serves it, the GPU's picture of parts wrapped half a column round, as
+/// an emulator flushes it for reads that do not start at its first byte (x_amie_interactions).
+struct Paged(Rc<FakeMemory>);
+
+impl Memory for Paged {
+    fn read(&self, address: i64, size: i64) -> Result<Vec<u8>> {
+        let mut data = self.0.read(address, size)?;
+        if address == BUFFER + amie::PICTURE {
+            data.rotate_left((amie::COLUMN / 2) as usize);
+        }
+        Ok(data)
+    }
 }
 
-/// `page(number, aimed, later)`.
-fn page_aimed(number: i64, aimed: bool, later: i64) -> (amie::AmiePage, Rc<FakeMemory>) {
+pub(crate) fn page(number: i64) -> (amie::AmiePage, Rc<FakeMemory>) {
+    page_aimed(number, false, 0, false)
+}
+
+/// `page(number, aimed, later, paged)`.
+fn page_aimed(
+    number: i64,
+    aimed: bool,
+    later: i64,
+    paged: bool,
+) -> (amie::AmiePage, Rc<FakeMemory>) {
     let memory = FakeMemory::new();
     let classes = FakeClasses::new(memory.clone());
     memory.u32(PAGE, &[classes.add(amie::CLASS)]);
@@ -67,11 +87,15 @@ fn page_aimed(number: i64, aimed: bool, later: i64) -> (amie::AmiePage, Rc<FakeM
         memory.u32(material + lyt::MATERIAL_TEXTURE, &[image]);
     }
     let mut found = amie::AmiePage::with_aim(
-        memory.clone(),
+        if paged {
+            Rc::new(Paged(memory.clone())) as Rc<dyn Memory>
+        } else {
+            memory.clone()
+        },
         Rc::new(ClassNames::new(memory.clone(), CODE)),
         species(),
         number,
-        aimed,
+        aimed.then(|| memory.clone() as Rc<dyn Memory>),
         later,
     );
     found
@@ -241,7 +265,7 @@ fn amie_running(parts: &[(u8, (i64, i64, i64, i64))], aimed: bool) -> amie::Amie
 
 /// Amie running, its still picture taken of `drawn`'s: the page and the memory.
 fn running(parts: &[(u8, (i64, i64, i64, i64))], aimed: bool) -> (amie::AmiePage, Rc<FakeMemory>) {
-    running_later(parts, aimed, 0)
+    running_paged(parts, aimed, 0, false)
 }
 
 /// `running(parts, aimed, later)`.
@@ -250,7 +274,17 @@ fn running_later(
     aimed: bool,
     later: i64,
 ) -> (amie::AmiePage, Rc<FakeMemory>) {
-    let (mut found, memory) = page_aimed(amie::NUMBER, aimed, later);
+    running_paged(parts, aimed, later, false)
+}
+
+/// `running(parts, aimed, later, paged)`.
+fn running_paged(
+    parts: &[(u8, (i64, i64, i64, i64))],
+    aimed: bool,
+    later: i64,
+    paged: bool,
+) -> (amie::AmiePage, Rc<FakeMemory>) {
+    let (mut found, memory) = page_aimed(amie::NUMBER, aimed, later, paged);
     let classes = FakeClasses::starting(memory.clone(), CODE.0 + 0x8000);
     let player = classes.add(amie::PLAYER);
     memory.u32(PLAYER, &[player]);
@@ -277,6 +311,19 @@ fn running_later(
 /// Rectangles of a Pokémon's head and body in its picture of parts, x 100 to 219.
 const HEAD: (i64, i64, i64, i64) = (100, 60, 220, 120);
 const BODY: (i64, i64, i64, i64) = (100, 120, 220, 230);
+
+/// Read through `PageCache`, X's picture came back wrapped half a column round, "head", "body"
+/// and "head" again down Froakie, and Omega Ruby's with nearly half of it gone, Pikachu's paw
+/// among it (Orion, 2026-11-07, x_amie_interactions).
+#[test]
+fn test_the_picture_is_read_as_the_gpu_drew_it_and_not_through_the_pages_round_it() {
+    assert_eq!(
+        running_paged(&[(8, HEAD), (9, BODY)], true, 0, true)
+            .0
+            .outline(),
+        Some((100, 60, 219, 229))
+    );
+}
 
 /// `monkeypatch.setattr(amie.time, "monotonic", lambda: now[0])`: this thread's clock reads
 /// `now` until the guard drops.

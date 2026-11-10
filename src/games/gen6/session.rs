@@ -14,7 +14,7 @@ use crate::core::bcsar::{self, Sound};
 use crate::core::clips::sounds;
 use crate::core::discovery::{Found, HEAP_SPAN};
 use crate::core::heaps::{Block, Heaps};
-use crate::core::memory::{Cache, PageCache};
+use crate::core::memory::{Cache, Memory, PageCache, RpcMemory};
 use crate::core::names::Names;
 use crate::core::rom::Rom;
 use crate::core::rpc::Rpc;
@@ -136,7 +136,9 @@ pub fn start(
             title: Some(setup.process.title_id),
             census: setup.census,
             ways: setup.ways.clone(),
-            reads_beside_gpu: rpc.reads_beside_gpu(),
+            drawn: rpc
+                .reads_beside_gpu()
+                .then(|| Rc::new(RpcMemory::new(rpc.clone())) as Rc<dyn Memory>),
         },
     ));
     // What the game allocates is found where it was allocated, the look after (spike 110).

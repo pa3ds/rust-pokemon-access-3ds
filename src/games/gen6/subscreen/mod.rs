@@ -401,7 +401,7 @@ impl Subscreens {
         cue: Option<Cue>,
         cry: Option<Crier>,
         frames: Frames,
-        reads_beside_gpu: bool,
+        drawn: Option<Rc<dyn Memory>>,
         process: Process,
         file_of: FileOf,
         on_screen: OnScreen,
@@ -409,13 +409,13 @@ impl Subscreens {
     ) -> Subscreens {
         // The Pokémon-Amie page draws its Pokémon's icon, and says nothing of whose; Amie itself
         // has its Pokémon beckoned, and petted with a stylus over a picture of its parts the GPU
-        // draws, where the emulator lets that be read (`Rpc.reads_beside_gpu`).
+        // draws, read through `drawn` where the emulator lets that be read.
         let page = AmiePage::with_aim(
             memory.clone(),
             names.clone(),
             text.species.clone(),
             game.amie,
-            reads_beside_gpu,
+            drawn,
             game.amie_player,
         )
         .shared();

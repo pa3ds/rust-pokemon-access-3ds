@@ -132,6 +132,9 @@ impl Memory for RpcMemory {
 /// older than the phase reading it. A phase begins by fetching, in one pipelined batch, the pages
 /// the same phase read last time: a poll reads mostly what it read the poll before. Reads outside
 /// any phase are not cached at all.
+///
+/// Not for what the GPU draws: its pages do not start where it does, and the emulator flushes it
+/// wrong for them. `RpcMemory` reads it from its own first byte (`amie.AmiePage`).
 pub struct PageCache {
     rpc: Rc<dyn Rpc>,
     state: RefCell<PageState>,

@@ -228,7 +228,7 @@ pub struct Options {
     pub contexts: Option<Contexts>,
     /// None is `Tables()`.
     pub tables: Option<Tables>,
-    pub reads_beside_gpu: bool,
+    pub drawn: Option<Rc<dyn Memory>>,
 }
 
 /// The gen 6 readers, and what each sweep and poll does with them, for ORAS or for X and Y.
@@ -426,7 +426,7 @@ impl Gen6Profile {
             ways,
             contexts,
             tables,
-            reads_beside_gpu,
+            drawn,
         } = options;
         // The settings file's tables, each handed to the readers it is for (`config.Tables`).
         let tables = tables.unwrap_or_default();
@@ -838,7 +838,7 @@ impl Gen6Profile {
                 .then_some(cue),
             cry,
             frames_of(memory.clone(), managers.clone()),
-            reads_beside_gpu,
+            drawn,
             {
                 let apps = apps.clone();
                 Rc::new(move |app: &str| process_of(&apps, app))
