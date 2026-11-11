@@ -56,8 +56,8 @@ pub fn newer(current: &str, latest: &str) -> bool {
 }
 
 /// Offers the player the latest release when this is a release build and a newer one is out.
-/// `Some(code)` when it updated and ran the new pa3ds, which exited with `code`; `None` to carry
-/// on with this one.
+/// `Some(code)` when it updated, to end this pa3ds with `code` as the new one starts
+/// (`start_again`); `None` to carry on with this one.
 pub fn offer(argv: &[String]) -> Option<i32> {
     option_env!("PA3DS_RELEASE")?;
     // An agent session runs --silent, and a modal dialog would hang it.
@@ -81,19 +81,21 @@ pub fn offer(argv: &[String]) -> Option<i32> {
     if !newer(CURRENT, &release.version) || !install(&exe, dir, &release) {
         return None;
     }
-    match Command::new(dir.join("pa3ds.exe")).args(argv).status() {
-        Ok(status) => Some(status.code().unwrap_or(1)),
+    match start_again(dir, argv) {
+        Ok(()) => Some(0),
         Err(error) => {
-            println!("could not start the updated pa3ds: {error}");
+            message(
+                &format!("pa3ds is updated, but could not start again: {error}"),
+                MB_OK | MB_ICONWARNING,
+            );
             Some(1)
         }
     }
 }
 
 /// Checks for a newer release on the player's say, from pa3ds's window, and says what it found:
-/// that this is the latest, or the question `offer` asks. Once updated, the new pa3ds starts in a
-/// console of its own, where it is alone and opens its window, and replaces this one (upstream
-/// ADR-0039).
+/// that this is the latest, or the question `offer` asks. Once updated, the new pa3ds starts
+/// (`start_again`) and replaces this one (upstream ADR-0039).
 pub fn check() {
     if option_env!("PA3DS_RELEASE").is_none() {
         message(
@@ -129,23 +131,28 @@ pub fn check() {
         return;
     }
     let argv: Vec<String> = std::env::args().skip(1).collect();
-    #[cfg(windows)]
-    let started = {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NEW_CONSOLE: u32 = 0x10;
-        Command::new(dir.join("pa3ds.exe"))
-            .args(&argv)
-            .creation_flags(CREATE_NEW_CONSOLE)
-            .spawn()
-    };
-    #[cfg(not(windows))]
-    let started = Command::new(dir.join("pa3ds.exe")).args(&argv).spawn();
-    if let Err(error) = started {
+    if let Err(error) = start_again(&dir, &argv) {
         message(
             &format!("pa3ds is updated, but could not start again: {error}"),
             MB_OK | MB_ICONWARNING,
         );
     }
+}
+
+/// Starts the updated pa3ds in a console of its own and does not wait for it. Alone in its console,
+/// it hides the console and opens its window. Started in this one's console it would share it with
+/// this pa3ds, by then `pa3ds.exe.old`, which is not a name of pa3ds's (`instance::OURS`), so it
+/// took the console for a shell's and left it showing.
+fn start_again(dir: &Path, argv: &[String]) -> std::io::Result<()> {
+    let mut command = Command::new(dir.join("pa3ds.exe"));
+    command.args(argv);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NEW_CONSOLE: u32 = 0x10;
+        command.creation_flags(CREATE_NEW_CONSOLE);
+    }
+    command.spawn().map(drop)
 }
 
 const CURRENT: &str = env!("CARGO_PKG_VERSION");
