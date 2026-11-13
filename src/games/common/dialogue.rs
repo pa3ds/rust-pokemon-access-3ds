@@ -631,10 +631,24 @@ fn starts(candidate: &[i64], line: &[i64]) -> bool {
 /// Looking back is what would go wrong: "You" typed at the start of a later page is also the
 /// start of an earlier one. A line left over from the page before a scroll matches that earlier
 /// page and loses to the new line, which is why the furthest match wins.
+///
+/// Except where that line comes again later in the message. A scroll leaves the last line of the
+/// page before the one said at the top of the box, whole, and looking for it only from the page
+/// said on found the refrain of a song's next verse: the verse was said at once and every page
+/// after it was silent (the Sea Mauville Company Song). A whole line of that page is its own.
 fn current_page(message: &[Page], typed: &[Line], said: i64) -> Option<i64> {
     let floor = said.max(0);
+    let left: &[Line] = if said >= 1 {
+        &message[(said - 1) as usize].lines
+    } else {
+        &[]
+    };
     let mut best: Option<i64> = None;
     for line in typed {
+        if left.contains(line) {
+            best = Some(best.map_or(said - 1, |best| best.max(said - 1)));
+            continue;
+        }
         for index in floor..message.len() as i64 {
             if message[index as usize]
                 .lines

@@ -258,6 +258,49 @@ fn test_a_later_page_starting_like_an_earlier_one_is_not_mistaken_for_it() {
 }
 
 #[test]
+fn test_a_line_a_scroll_left_is_not_taken_for_a_later_page_saying_it_again() {
+    // The Sea Mauville Company Song, a crumpled paper in a bin: each verse scrolls a line at a
+    // time and ends in the same two lines. With the refrain's last line typed, the line the scroll
+    // left above it matched the next verse's refrain, and the next verse was said there and then,
+    // all at once, and nothing after.
+    let mut scene = Scene::new(false);
+    scene.message(&format!(
+        "1. The daybreak.\nWake up, our fort.{SCROLL}\nDig through.{SCROLL}\
+         \nAh, Sea Mauville.{CLEAR}\n2. The bright light.\nShiny, our fort.{SCROLL}\
+         \nDig through.{SCROLL}\nAh, Sea Mauville."
+    ));
+    scene.r#type(0, "1. The daybreak.");
+    scene.r#type(1, "Wake up, our fort.");
+    assert_eq!(
+        scene.said(),
+        texts(&["1. The daybreak. Wake up, our fort."])
+    );
+    scene.r#type(0, "Wake up, our fort.");
+    scene.r#type(1, "Dig");
+    assert_eq!(scene.said(), texts(&["Dig through."]));
+    scene.r#type(0, "Dig through.");
+    scene.r#type(1, "Ah");
+    assert_eq!(scene.said(), texts(&["Ah, Sea Mauville."]));
+    scene.r#type(1, "Ah, Sea Mauville.");
+    assert_eq!(scene.said(), texts(&[]));
+    scene.r#type(0, "2. The");
+    scene.r#type(1, "");
+    assert_eq!(
+        scene.said(),
+        texts(&["2. The bright light. Shiny, our fort."])
+    );
+    scene.r#type(0, "2. The bright light.");
+    scene.r#type(1, "Shiny, our fort.");
+    scene.said();
+    scene.r#type(0, "Shiny, our fort.");
+    scene.r#type(1, "Dig through.");
+    assert_eq!(scene.said(), texts(&["Dig through."]));
+    scene.r#type(0, "Dig through.");
+    scene.r#type(1, "Ah, Sea Mauville.");
+    assert_eq!(scene.said(), texts(&["Ah, Sea Mauville."]));
+}
+
+#[test]
 fn test_pages_skipped_between_polls_are_all_said_in_order() {
     let mut scene = Scene::new(false);
     scene.message(&format!("One.{CLEAR}\nTwo.{CLEAR}\nThree."));
