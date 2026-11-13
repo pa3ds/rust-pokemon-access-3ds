@@ -87,6 +87,10 @@ pub const DETAIL_MAX_POLLS: i64 = 8;
 /// so that a value that never holds still cannot keep them unsaid.
 pub const ARRIVAL_MAX_POLLS: i64 = 5;
 
+/// The most polls a label the game's text names waits for a value in its group, said alone after:
+/// the Pokédex's registration draws its values 2.2 s after its labels (or_groudon_master_ball).
+pub const LABEL_POLLS: i64 = 15;
+
 /// Glyphs between a label and the value it names: the level up's are five apart, a name's letters
 /// one.
 pub const LABEL_GAP: f64 = 2.0;
@@ -243,6 +247,9 @@ pub struct ScreenAnnouncer {
     /// Layout root -> the words that came on screen while more of the layout's words were still
     /// being written, each with the poll it came at.
     arriving: IndexMap<i64, Vec<(i64, ScreenText)>>,
+    /// TextBox -> the poll a label came at with no value in its group, and the label
+    /// (`_with_values`).
+    unvalued: IndexMap<i64, (i64, ScreenText)>,
     /// (Layout root, panel) -> the poll words last left it at, for `REPEAT_POLLS`.
     left: IndexMap<(i64, i64), i64>,
     /// The place's name the field said last, and the poll it was said at.
@@ -305,6 +312,7 @@ impl ScreenAnnouncer {
             recent: IndexMap::new(),
             on_screen_since: IndexMap::new(),
             arriving: IndexMap::new(),
+            unvalued: IndexMap::new(),
             left: IndexMap::new(),
             placed: None,
             words_said: IndexMap::new(),
@@ -1025,10 +1033,76 @@ impl ScreenAnnouncer {
                 }
             }
         }
+        let (moved_on, ready) = self.with_values(moved_on, ready, on_screen);
         (
             py::sorted_by_lt(moved_on, |a, b| reading_order(a) < reading_order(b)),
             py::sorted_by_lt(ready, |a, b| reading_order(a) < reading_order(b)),
         )
+    }
+
+    /// What arrived less the labels the game's text names that have no value in their group
+    /// yet, which wait for one and come with it: the Pokédex's registration after a catch draws
+    /// TYPE, HEIGHT, WEIGHT and "Times encountered:" 2.2 s before their values, and was heard as a
+    /// chart, "208 Groudon TYPE HEIGHT WEIGHT Times encountered:", then the values with only some
+    /// of their labels again (or_groudon_master_ball, a player's report). A label comes with a
+    /// value said, not one on screen: values are on screen a poll before they hold still, and
+    /// the labels came alone with them, then again with the values. It waits at most
+    /// `LABEL_POLLS`, and one gone or rewritten meanwhile is not said.
+    fn with_values(
+        &mut self,
+        moved_on: Vec<ScreenText>,
+        mut ready: Vec<ScreenText>,
+        on_screen: &[ScreenText],
+    ) -> (Vec<ScreenText>, Vec<ScreenText>) {
+        let valued: HashSet<(i64, i64)> = on_screen
+            .iter()
+            .filter(|p| !p.label && !p.plain)
+            .map(ScreenText::group)
+            .collect();
+        let arrived: HashSet<(i64, i64)> = moved_on
+            .iter()
+            .chain(&ready)
+            .filter(|p| !p.label && !p.plain)
+            .map(ScreenText::group)
+            .collect();
+        let held: Vec<&ScreenText> = moved_on
+            .iter()
+            .chain(&ready)
+            .filter(|p| p.label && !valued.contains(&p.group()))
+            .collect();
+        for piece in &held {
+            self.unvalued
+                .entry(piece.r#box)
+                .or_insert_with(|| (self.polls, (*piece).clone()));
+        }
+        let kept: HashSet<i64> = held.iter().map(|p| p.r#box).collect();
+        let moved_on: Vec<ScreenText> = moved_on
+            .into_iter()
+            .filter(|p| !kept.contains(&p.r#box))
+            .collect();
+        ready.retain(|p| !kept.contains(&p.r#box));
+        let mut now: IndexMap<i64, &ScreenText> = IndexMap::new();
+        for p in on_screen {
+            now.insert(p.r#box, p);
+        }
+        let boxes: Vec<i64> = self.unvalued.keys().copied().collect();
+        for r#box in boxes {
+            let (since, piece) = &self.unvalued[&r#box];
+            let (since, group) = (*since, piece.group());
+            let current = now.get(&r#box).filter(|current| current.text == piece.text);
+            match current {
+                None => {
+                    self.unvalued.shift_remove(&r#box);
+                }
+                Some(current) => {
+                    if arrived.contains(&group) || self.polls - since >= LABEL_POLLS {
+                        self.unvalued.shift_remove(&r#box);
+                        ready.push((*current).clone());
+                    }
+                }
+            }
+        }
+        (moved_on, ready)
     }
 
     /// Is this not what another layout said a moment ago? Remembers it when it is not.

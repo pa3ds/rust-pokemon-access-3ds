@@ -14,8 +14,8 @@ use crate::games::common::cursors::shared::{CursorItem, CursorPoll};
 use crate::games::common::dialogue::{PageShown, Shown};
 use crate::games::common::screen::{ScreenPoll, ScreenText};
 use crate::games::common::screen_announce::{
-    ARRIVAL_MAX_POLLS, CURSOR_HEARD_POLLS, DETAIL_MAX_POLLS, DETAIL_POLLS, PLACE_POLLS,
-    REPEAT_POLLS, Scored, ScreenAnnouncer,
+    ARRIVAL_MAX_POLLS, CURSOR_HEARD_POLLS, DETAIL_MAX_POLLS, DETAIL_POLLS, LABEL_POLLS,
+    PLACE_POLLS, REPEAT_POLLS, Scored, ScreenAnnouncer,
 };
 use crate::py::{Log, Result};
 
@@ -436,6 +436,129 @@ fn test_a_panel_revealed_over_several_polls_is_said_whole_once_its_words_stop_ar
     assert_eq!(
         screen.say(args(&one(&attack_value), vec![], &all)),
         ["HP + 2 ATTACK + 2"]
+    );
+}
+
+/// The Pokédex's registration after a catch, where or_groudon_master_ball's tape has it: the
+/// number, the name and the labels, then two seconds later the values, in three groups of one
+/// panel, the labels the game's text names (`oras.ZUKAN_LABELS`).
+fn registration() -> (Vec<ScreenText>, Vec<ScreenText>) {
+    let (name_row, values, rows) = (0x10, 0x20, 0x30);
+    /// `at(box, text, left, right, row, parent, glyph, label, picture)`.
+    #[allow(clippy::too_many_arguments)]
+    fn at(
+        r#box: i64,
+        text: &str,
+        left: f64,
+        right: f64,
+        row: f64,
+        parent: i64,
+        glyph: f64,
+        label: bool,
+        picture: bool,
+    ) -> ScreenText {
+        ScreenText {
+            root: PANEL,
+            parent,
+            panel: 1,
+            with_layout: true,
+            label,
+            picture,
+            ..ScreenText::placed(r#box, text, false, left, right, row, glyph)
+        }
+    }
+    let first = vec![
+        at(1, "TYPE", -29.5, -4.5, 30.0, values, 12.5, true, false),
+        at(2, "HEIGHT", -29.5, 8.0, 10.0, values, 12.5, true, false),
+        at(3, "WEIGHT", -29.5, 8.0, -10.0, values, 12.5, true, false),
+        at(
+            4,
+            "Times encountered:",
+            -72.5,
+            40.0,
+            -35.0,
+            rows,
+            12.5,
+            true,
+            false,
+        ),
+        at(5, "208", 2.0, 23.0, 100.0, name_row, 14.0, false, false),
+        at(
+            6, "Groudon", 36.0, 79.8, 100.0, name_row, 12.5, false, false,
+        ),
+    ];
+    let later = [
+        at(
+            7,
+            "Continent Pokémon",
+            -30.0,
+            76.2,
+            70.0,
+            rows,
+            12.5,
+            false,
+            false,
+        ),
+        at(8, "Groudon", -30.0, 13.8, 50.0, rows, 12.5, false, false),
+        at(9, "Ground", 35.0, 85.0, 30.0, values, 20.0, false, true),
+        at(10, "11'06\"", 74.0, 116.0, 10.0, values, 14.0, false, false),
+        at(
+            11,
+            "2094.4 lbs.",
+            39.0,
+            116.0,
+            -10.0,
+            values,
+            14.0,
+            false,
+            false,
+        ),
+        at(12, "1", 73.0, 80.0, -35.0, rows, 14.0, false, false),
+    ]
+    .into_iter()
+    .map(|piece| ScreenText {
+        with_layout: false,
+        ..piece
+    })
+    .collect();
+    (first, later)
+}
+
+/// The registration after a catch was heard as a chart, "208 Groudon TYPE HEIGHT WEIGHT Times
+/// encountered:", and two seconds later "Continent Pokémon Groudon Ground HEIGHT 11'06" WEIGHT
+/// 2094.4 lbs. Times encountered: 1", TYPE left off (a player's report).
+#[test]
+fn test_labels_drawn_before_their_values_are_said_with_them() {
+    let mut screen = Screen::new();
+    let (first, later) = registration();
+    assert_eq!(screen.say(args(&first, vec![], &first)), ["208 Groudon"]);
+    for _ in 0..10 {
+        assert_eq!(screen.on(&first), NOTHING);
+    }
+    // The values are on screen a poll before they hold still and are said.
+    let both = cat(&[&first, &later]);
+    assert_eq!(screen.on(&both), NOTHING);
+    assert_eq!(
+        screen.say(args(&later, vec![], &both)),
+        [
+            "Continent Pokémon Groudon TYPE Ground HEIGHT 11'06\" WEIGHT 2094.4 lbs. \
+          Times encountered: 1"
+        ]
+    );
+}
+
+#[test]
+fn test_labels_whose_values_never_come_are_said_alone_in_the_end() {
+    let mut screen = Screen::new();
+    let (first, _later) = registration();
+    let mut said: Vec<String> = Vec::new();
+    for poll in 0..LABEL_POLLS + 1 {
+        let texts = if poll != 0 { Vec::new() } else { first.clone() };
+        said.extend(screen.say(args(&texts, vec![], &first)));
+    }
+    assert_eq!(
+        said,
+        ["208 Groudon", "TYPE HEIGHT WEIGHT Times encountered:"]
     );
 }
 

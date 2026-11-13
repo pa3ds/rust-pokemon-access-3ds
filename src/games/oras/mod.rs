@@ -315,6 +315,18 @@ pub fn dexnav_labels() -> (i64, IndexMap<i64, String>) {
         .collect(),
     )
 }
+/// The Pokédex entry's labels, TYPE, HEIGHT, WEIGHT and "Times encountered:", each beside its
+/// value: the registration after a catch draws them 2.2 s before their values, which they wait for
+/// (`ScreenAnnouncer._with_values`, or_groudon_master_ball).
+pub fn zukan_labels() -> (i64, IndexMap<i64, String>) {
+    (
+        3,
+        [9, 10, 12, 108]
+            .into_iter()
+            .map(|line| (line, String::new()))
+            .collect(),
+    )
+}
 /// The DexNav's titles and buttons, no label of what follows: Nearby, Found, Last seen and Hidden
 /// Pokémon, SEARCH, Pokédex. "Found Pokémon: Search Level" and "Pokédex: SEARCH" were said under
 /// `pauses` (spike 195).
@@ -540,7 +552,7 @@ pub fn rom() -> &'static RomLayout {
             .iter()
             .map(|image| image.to_string())
             .collect(),
-        labels: vec![dexnav_labels()],
+        labels: vec![dexnav_labels(), zukan_labels()],
         plain: vec![
             (DEXNAV_PLAIN.0, DEXNAV_PLAIN.1.to_vec()),
             (bag_plain().0, bag_plain().1.to_vec()),
