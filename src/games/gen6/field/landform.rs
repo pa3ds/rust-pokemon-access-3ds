@@ -730,10 +730,15 @@ fn gathered(cells: &HashSet<Cell>, reach: i64) -> Vec<Vec<Cell>> {
 }
 
 /// Each patch of the water Surf goes onto, with its shore (`SURFED`), listed under obstacles
-/// at its cell nearest the player: so P walks up to where Surf is used, facing the shore Surf
-/// jumps or the water's edge, and Shift and P surfs onto it. Not the patch the player is on.
-/// Under the sea the dive spots up are water alone, and are no patch (`DiveSpots` lists them).
-/// The nearest cell is always on a patch's edge, so only its edge is kept.
+/// at its cell nearest the player. Not the patch the player is on. Under the sea the dive spots
+/// up are water alone, and are no patch (`DiveSpots` lists them).
+///
+/// The whole of its edge is the thing, walked up to and faced (`Interactable.faced`): P and
+/// Shift and P alike go to the edge nearest the player can reach, facing the shore Surf jumps or
+/// the water, where A starts Surf. In Ever Grande City the edge nearest was water beside a rock
+/// in a pond, which nobody stands beside: P said "then can't continue, requires Surf" and Shift
+/// and P "Surf 2 east" where the shore was walked up to (or_water_pathfinding_weirdness). The
+/// nearest cell is always on a patch's edge, so only its edge is kept.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Water;
 
@@ -767,6 +772,8 @@ impl Landform for Water {
                 continue;
             }
             out.push(Interactable {
+                shape: edge.clone(),
+                faced: true,
                 source: place_source(WATER_SOURCE, cell_number(*first))?,
                 home: Some(here.r#where.zone),
                 ..Interactable::new(OBSTACLES, WATER_KIND, nearest(edge.iter().copied(), player))

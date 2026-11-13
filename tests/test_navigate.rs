@@ -1978,12 +1978,21 @@ fn test_shift_p_jumps_the_shore_onto_the_water_and_off_it() {
     assert_eq!(last(&rig.backend), "2 south");
 }
 
-/// Water is listed under obstacles at its patch's cell nearest the player, the shore from
-/// the land (2026-11-12): P walks up to it, facing it, where A starts Surf.
+/// Water is listed under obstacles at its patch's edge cell nearest the player (2026-11-12):
+/// P walks up to the edge nearest they can reach, facing it, where A starts Surf, and Shift and
+/// P goes no further. In Ever Grande City the edge nearest was water beside a rock in the pond,
+/// and P said "then can't continue, requires Surf", Shift and P "Surf 2 east", where the shore
+/// was walked up to (or_water_pathfinding_weirdness). Here a rock stands before the shore's
+/// nearest cell.
 #[test]
 fn test_p_to_water_walks_up_to_the_shore_surf_jumps() {
+    let edge: Vec<Cell> = (80..120)
+        .flat_map(|x| [176, 178].into_iter().map(move |z| (x, z)))
+        .collect();
     let water = Interactable {
         source: 22 << 32,
+        shape: edge.clone(),
+        faced: true,
         ..Interactable::new("obstacles", "water", (100, 176))
     };
     let here = street();
@@ -1993,19 +2002,21 @@ fn test_p_to_water_walks_up_to_the_shore_surf_jumps() {
         interactables,
         ..Field::new(here.zone, (100, 173))
     };
+    let mut blocked = house_front();
+    blocked.push((100, 175));
     let mut rig = navigator(Want {
-        blocked: house_front(),
+        blocked,
         sea: cells(80..120, 177),
         ..on(across)
     });
-    *rig.field.shore.borrow_mut() = (80..120)
-        .flat_map(|x| [176, 178].into_iter().map(move |z| (x, z)))
-        .collect();
+    *rig.field.shore.borrow_mut() = edge.into_iter().collect();
     rig.press(CATEGORY_NEXT);
     rig.press(CATEGORY_NEXT);
     rig.press(PATHFIND);
-    assert_eq!(tail(&rig.backend, 2), ["obstacles, 1", "2 south"]);
-    step(&mut rig, &[(100, 174), (100, 175)]);
+    assert_eq!(tail(&rig.backend, 2), ["obstacles, 1", "1 east, 2 south"]);
+    rig.press_key("shift+p");
+    assert_eq!(last(&rig.backend), "1 east, 2 south");
+    step(&mut rig, &[(101, 173), (101, 174), (101, 175)]);
     assert_eq!(last(&rig.backend), "water, 1 south");
 }
 

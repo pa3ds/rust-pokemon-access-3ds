@@ -4715,9 +4715,11 @@ fn test_a_dive_spot_is_an_exit_at_its_patchs_cell_nearest_the_player() -> Result
 
 /// A player asked for an HMs section, and Surf's water and Waterfall's falls were not listed
 /// with Cut's bushes and Strength's boulders (2026-11-12). A patch of water and its shore is one
-/// obstacle, "water", at its cell nearest the player: from the land, the shore Surf jumps. A
-/// waterfall's row is one, and parts the water above it from the water below. The patch the
-/// player is on is not listed.
+/// obstacle, "water", at its cell nearest the player: from the land, the shore Surf jumps. Its
+/// whole edge is walked up to and faced, which P reaches the nearest of: the edge nearest as the
+/// crow flies may be beside a rock (or_water_pathfinding_weirdness). A waterfall's row is one,
+/// and parts the water above it from the water below. The patch the player is on is not
+/// listed.
 #[test]
 fn test_water_and_a_waterfall_are_listed_under_obstacles() -> Result<()> {
     let sea = (100..106).flat_map(|x| (165..169).map(move |z| ((x, z), 0x3D1A0006)));
@@ -4745,6 +4747,17 @@ fn test_water_and_a_waterfall_are_listed_under_obstacles() -> Result<()> {
             ("waterfall".to_string(), (100, 164))
         ]
     );
+    let water = town
+        .r#where()?
+        .of("obstacles")
+        .into_iter()
+        .find(|item| item.cell == (100, 169))
+        .unwrap();
+    let edge: HashSet<(i64, i64)> = (100..106)
+        .flat_map(|x| (165..170).map(move |z| (x, z)))
+        .filter(|&(x, z)| x == 100 || x == 105 || z == 165 || z == 169)
+        .collect();
+    assert!(water.faced && water.cells().into_iter().collect::<HashSet<_>>() == edge);
     town.model(0, TOWN, mmodel::PLAYER_INDEX, 0xAC, (103, 166));
     assert_eq!(
         obstacles(&town)?,

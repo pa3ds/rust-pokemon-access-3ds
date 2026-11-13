@@ -25,7 +25,7 @@ use crate::games::common::field::ride::{Riding, bumps, riding};
 use crate::games::common::field::rotating::{Doors, RotatingDoor};
 use crate::games::common::field::teleport::Teleporters;
 use crate::games::common::field::things::{
-    ARROWS, Field, Interactable, POKEMON, TRIGGER_SOURCE, WARP_SOURCE,
+    ARROWS, Field, Interactable, POKEMON, TRIGGER_SOURCE, WARP_SOURCE, WATER_SOURCE,
 };
 use crate::games::common::field::traversal::{Name, Traversal};
 use crate::games::common::field::vines::Vines;
@@ -1699,6 +1699,10 @@ impl Ground {
     /// Nurse and a Poké Mart's clerk are talked to (`COUNTER`). A warp walked into one way is
     /// walked up to on that side alone (`Interactable.way_in`). On a stacked ground each is on
     /// the thing's own floor, which a search must reach it on (`floor`).
+    ///
+    /// Water is walked up to too, and reached on it as well: down a waterfall the first cell the
+    /// player can stop on is the water's own, and Shift and P to Ever Grande City's sea below the
+    /// falls went on to a cell past its edge (or_water_pathfinding_weirdness).
     pub fn goals(&self, item: &Interactable) -> Result<IndexMap<Cell, Option<&'static str>>> {
         let cells = item.cells();
         // A bush or a rock is walked up to and cleared from there, with HMs or not.
@@ -1748,6 +1752,13 @@ impl Ground {
             }
             if !beside.is_empty() {
                 break;
+            }
+        }
+        if item.place_kind() == Some(WATER_SOURCE) {
+            for &cell in &cells {
+                if self.open_at(cell, item.height)? {
+                    beside.insert(cell, None);
+                }
             }
         }
         Ok(beside)

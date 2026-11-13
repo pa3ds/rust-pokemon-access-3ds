@@ -284,10 +284,12 @@ pub struct Interactable {
     pub way_in: Option<&'static str>,
     /// The cells it covers where they are not the whole of its box: a warp across a diagonal
     /// street, a row of cells the box round it holds a square of, and a way to it ended a step to
-    /// one side (x_route-6-2.ctm, 2026-10-20). Empty for the box.
+    /// one side (x_route-6-2.ctm, 2026-10-20); a patch of water's edge (`landform.Water`). Empty for
+    /// the box.
     pub shape: Vec<Cell>,
     /// Whether it is taken from beside it, facing it, though its cell can be stood in: a hidden
-    /// item, which A finds from the cell before it (spike 145).
+    /// item, which A finds from the cell before it (spike 145), and water, which Surf is used on
+    /// from beside it, where Shift and P surfed onto it (or_water_pathfinding_weirdness).
     pub faced: bool,
     /// Whether it is on streets the player's reach only through a teleporter, said "past a
     /// teleporter" rather than how far it is: Anistar City Gym's parts lie apart in its corridor,

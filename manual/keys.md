@@ -30,8 +30,9 @@ of your own story, Team Magma's in Omega Ruby and Team Aqua's in Alpha Sapphire.
 
 Obstacles are what a move clears or crosses: bushes Cut cuts, rocks Rock Smash smashes, boulders
 Strength pushes and the holes they drop into, each waterfall, and the water Surf goes onto, said
-"water" at the edge nearest you. `P` to water walks you up to the shore, facing it, where A starts
-Surf; the water you are surfing on is not listed.
+"water" at the edge nearest you. `P` to water walks you up to the nearest of its shore you can get
+to, facing it, where A starts Surf, and `Shift+P` takes you no further: onto it only where Surf or
+Waterfall is the way there. The water you are surfing on is not listed.
 
 In Laverre Gym, in X and Y, the interactables list each teleporter with where it puts you, and `P`
 leads you through them, saying the way as far as the first and how many more.
