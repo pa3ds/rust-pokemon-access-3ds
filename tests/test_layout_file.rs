@@ -3,6 +3,7 @@
 use indexmap::IndexMap;
 
 use super::fake_memory::FakeMemory;
+use super::test_textures::darc;
 use crate::games::common::layout_file::{LayoutFile, LayoutFiles, find, parse, size_of};
 use crate::games::common::pictures::words;
 
@@ -309,6 +310,24 @@ fn test_the_layout_files_in_a_works_archive_are_read_without_a_sweep() {
         found
             .as_ref()
             .is_some_and(|found| found.textures["16"] == ["fight_button.bclim"])
+    );
+}
+
+/// The summary's move panel is known by its file, `waza.bclyt`, to put it away while an Egg
+/// is shown (or_egg_summary).
+#[test]
+fn test_a_layout_file_read_from_an_archive_has_its_name() {
+    let memory = FakeMemory::new();
+    memory.write(0x14BACA80, &darc(&[("command.bclyt", command_menu())]));
+    let files = LayoutFiles::new(memory);
+    files.add_archive(0x14BACA80).unwrap();
+    let found = files.matching(&strings(&[
+        "RootPane", "23", "2j", "z", "16", "2q", "20", "v",
+    ]));
+    assert!(
+        found
+            .as_ref()
+            .is_some_and(|found| found.name == "command.bclyt")
     );
 }
 

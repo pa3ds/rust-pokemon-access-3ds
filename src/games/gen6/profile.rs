@@ -1680,7 +1680,14 @@ impl Gen6Profile {
             // The field's layouts come back where they were when a menu screen closes, and a
             // layout found before it was built is taken in once it is.
             let revived = self.layouts.revive()?;
-            let put_away = self.views.borrow().put_away()?;
+            let mut put_away = self.views.borrow().put_away()?;
+            put_away.extend(summary::put_away(
+                &*self.memory,
+                &self.names,
+                &self.apps.borrow(),
+                &self.layouts,
+                &self.files,
+            )?);
             self.layouts.put_away(put_away);
             // The battle's layouts are built into a pool its message window leads to.
             let failed: RefCell<Option<Error>> = RefCell::new(None);

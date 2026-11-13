@@ -58,6 +58,7 @@ fn wurmple() -> Pokemon {
         gender: FEMALE,
         nicknamed: false,
         form: 0,
+        egg: false,
     }
 }
 
@@ -79,6 +80,20 @@ fn test_a_record_stored_in_order_22_decodes_to_its_name() {
         parse(&plain.unwrap(), SPECIES_MAX).unwrap(),
         Some(wurmple())
     );
+}
+
+/// An Egg's summary shows no moves, and the summary's pages are put away by this bit
+/// (or_egg_summary).
+#[test]
+fn test_an_egg_is_told_by_bit_30_of_its_flags() {
+    let mut plain = decrypt(&first_wurmple()).unwrap_or_default();
+    let flags = u32(&plain, pokemon::FLAGS).unwrap();
+    let at = pokemon::FLAGS as usize;
+    plain[at..at + 4].copy_from_slice(&((flags | pokemon::EGG) as u32).to_le_bytes());
+    let mon = parse(&plain, SPECIES_MAX).unwrap();
+    assert!(mon.as_ref().is_some_and(|mon| mon.egg));
+    let plain = decrypt(&first_wurmple()).unwrap_or_default();
+    assert!(!parse(&plain, SPECIES_MAX).unwrap().or(mon).unwrap().egg);
 }
 
 #[test]

@@ -42,6 +42,7 @@ pub const GENDER: i64 = 0x1D;
 pub const NICKNAME: i64 = 0x40;
 pub const NICKNAME_SIZE: i64 = 0x1A;
 pub const FLAGS: i64 = 0x74;
+pub const EGG: i64 = 1 << 30;
 pub const NICKNAMED: i64 = 1 << 31;
 /// ORAS's last species. Sun keeps its Pokémon in the same record (spike 124), up to 802.
 pub const SPECIES_MAX: i64 = 721;
@@ -77,6 +78,7 @@ pub struct Pokemon {
     /// Whether the nickname is the player's, not the species' name it carries otherwise.
     pub nicknamed: bool,
     pub form: i64,
+    pub egg: bool,
 }
 
 /// XOR each halfword with the next keystream word from `seed`. Its own inverse.
@@ -144,6 +146,7 @@ pub fn parse(plain: &[u8], species_max: i64) -> Result<Option<Pokemon>> {
         gender: (gender >> 1) & 3,
         nicknamed: flags & NICKNAMED != 0,
         form: gender >> 3,
+        egg: flags & EGG != 0,
     }))
 }
 

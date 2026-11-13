@@ -71,10 +71,12 @@ pub struct LayoutFile {
     /// Window pane name -> the names of the textures its content and frames are drawn with, in
     /// order: the main menu's cursor is a window drawn with `cursor_lt.bclim` (spike 96).
     pub frames: IndexMap<String, Vec<String>>,
+    /// What its archive calls it, `waza.bclyt`; "" where it was not read out of an archive.
+    pub name: String,
 }
 
 impl LayoutFile {
-    /// `LayoutFile(panes, textures, frames)`.
+    /// `LayoutFile(panes, textures, frames)`: `name` left to its default, "".
     pub fn new(
         panes: Vec<String>,
         textures: IndexMap<String, Vec<String>>,
@@ -84,6 +86,7 @@ impl LayoutFile {
             panes,
             textures,
             frames,
+            name: String::new(),
         }
     }
 
@@ -350,9 +353,11 @@ impl LayoutFiles {
             return Ok(());
         }
         let data = self.memory.read(address, size)?;
+        let mut named: IndexMap<i64, String> = IndexMap::new();
         match darc_entries(&data) {
             Ok(entries) => {
                 for (name, start, _length) in entries {
+                    named.insert(start, name.clone());
                     if name.ends_with(TEXTURE) {
                         self.images.borrow_mut().insert(address + start, name);
                     }
@@ -365,10 +370,13 @@ impl LayoutFiles {
         find_in(0, &data, &mut offsets);
         for offset in offsets {
             let length = size_of(py::slice(&data, offset, offset + HEADER_SIZE));
-            let parsed = match length {
+            let mut parsed = match length {
                 Some(length) => parse(py::slice(&data, offset, offset + length)),
                 None => None,
             };
+            if let (Some(parsed), Some(name)) = (parsed.as_mut(), named.get(&offset)) {
+                parsed.name = name.clone();
+            }
             let new = match &parsed {
                 Some(parsed) => !self.by_panes.borrow().contains_key(parsed.panes.as_slice()),
                 None => false,

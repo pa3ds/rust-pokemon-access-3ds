@@ -55,7 +55,7 @@ fn padding(length: usize, to: i64) -> Vec<u8> {
 }
 
 /// A `darc` holding these files under its root.
-fn darc(files: &[(&str, Vec<u8>)]) -> Vec<u8> {
+pub(crate) fn darc(files: &[(&str, Vec<u8>)]) -> Vec<u8> {
     let count = files.len() as i64 + 1;
     let mut names: Vec<u8> = vec![0, 0];
     let mut offsets: Vec<i64> = Vec::new();
