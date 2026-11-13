@@ -5407,6 +5407,33 @@ fn test_somebody_the_way_goes_round_is_not_in_the_way() {
     );
 }
 
+/// The Secret Base Guild listed a hidden Swimmer on the player's own cell, and P to the Fairy
+/// Tale Girl beside them failed: the way as far as whoever stood in it first was no cells at all
+/// (or_secret_base_guild_bug). Walled on her other three sides, as Aarune and the tables did.
+#[test]
+fn test_somebody_on_the_players_own_cell_is_not_in_the_way() {
+    let swimmer = Interactable {
+        source: 0x08D1F000,
+        move_model: true,
+        ..Interactable::new("people", "Swimmer", (90, 175))
+    };
+    let girl = Interactable {
+        source: 0x08D1FAB0,
+        move_model: true,
+        ..Interactable::new("people", "Girl", (91, 175))
+    };
+    let mut rig = navigator(Want {
+        blocked: vec![(91, 174), (92, 175), (91, 176)],
+        ..on(Field {
+            interactables: vec![swimmer, girl],
+            ..Field::new(0x134, (90, 175))
+        })
+    });
+    rig.press(ITEM_NEXT);
+    rig.press(PATHFIND);
+    assert_eq!(said(&rig.backend), ["Girl, 2 of 2, 1 east", "Girl, 1 east"]);
+}
+
 /// Spike 161: Fortree Gym's doors stand across its ways, and are walked through by walking into
 /// an arm, which turns the door. A wall with one gap, a door's arm standing across it.
 #[test]

@@ -615,6 +615,12 @@ impl Ground {
     /// is walked over: Dewford Gym's switches, and so is a belt (`landform.Belts`). So is a
     /// teleporter that moves the player within the zone, and it carries them (`teleports`);
     /// `stacked` is whether the ground is, which says the floor each is on.
+    ///
+    /// Nothing stands in the player's own cell: in the Secret Base Guild a hidden Swimmer was
+    /// listed there, and P to the Fairy Tale Girl beside them found the way as far as him,
+    /// which was no cells at all, and failed (or_secret_base_guild_bug).
+    /// ponytail: on a stacked ground, somebody on another floor over the player's cell is
+    /// left out too; take them out by floor if a way ever crosses there.
     pub fn of(r#where: &Field, of: Of) -> Result<Ground> {
         let Of {
             chunks,
@@ -649,6 +655,7 @@ impl Ground {
         for item in &models {
             standing.extend(item.cells());
         }
+        standing.shift_remove(&r#where.cell);
         let mut heights: IndexMap<Cell, Vec<Option<f64>>> = IndexMap::new();
         let from_models = models.iter().map(|item| (item.cells(), item.height));
         let from_solid = solid.iter().map(|(&cell, &height)| (vec![cell], height));
