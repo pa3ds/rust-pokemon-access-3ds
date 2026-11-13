@@ -637,6 +637,8 @@ pub const UNDERWATER_134: i64 = 0xA0;
 pub const UNDERWATER_134_SOUTH: i64 = 0xA1;
 pub const MOVING_TRUCK: i64 = 0x18F;
 pub const LITTLEROOT_TOWN: i64 = 0x6;
+pub const TRICK_HOUSE: i64 = 0x173;
+pub const TRICK_HOUSE_END: i64 = 0x174;
 pub const ROUTE_125: i64 = 0x36;
 pub const SHOAL_CAVE_LOW: i64 = 0x80;
 pub const SHOAL_CAVE_HIGH: i64 = 0x84;
@@ -709,6 +711,13 @@ pub const SCANNER: i64 = 0x2;
 /// Its case ends in the script's one call into Littleroot Town's outdoors, `0x6`, at (100, 172),
 /// between the two houses' doors at (94, 171) and (106, 171). Until 2026-10-18 the truck listed its
 /// five signs and no exit (or_desc and or_desc2, the boy's opening and the girl's).
+///
+/// The Trick House's end room, `0x174`, where every puzzle comes out and the Trick Master gives
+/// his reward, has no warp record either: its only trigger, script 2, one cell at (15, 3), leads
+/// back to the entrance room, `0x173`, at (19, 27). The six puzzles, `0x175` to `0x17a`, have none
+/// either, each left by its locked door at the north end. The player walked out from the end room
+/// after the reward and stood in `0x173` at (19, 27) (or_trick_house_final_room, 2026-11-11);
+/// until then the end room listed no exit.
 ///
 /// Shoal Cave, off Route 125, is two pairs of zones, one for each tide, with no warp from the route
 /// into either: Route 125's only trigger, script 2, one cell at (240, 103) in front of the cave
@@ -817,6 +826,14 @@ pub fn triggers() -> &'static IndexMap<(i64, i64), (String, String, Option<i64>)
                 "exits".to_string(),
                 "way out".to_string(),
                 Some(LITTLEROOT_TOWN),
+            ),
+        );
+        out.insert(
+            (TRICK_HOUSE_END, 0x2),
+            (
+                "exits".to_string(),
+                "way out".to_string(),
+                Some(TRICK_HOUSE),
             ),
         );
         out.insert(
