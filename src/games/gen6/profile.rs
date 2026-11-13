@@ -353,6 +353,10 @@ pub struct Gen6Profile {
     quiet: Cell<f64>,
     /// The language the save says the game is in, as the last whole sweep read it.
     pub save_language: RefCell<Option<String>>,
+    /// Whether the player is a girl, and their name, as the last whole sweep read the save
+    /// (`mystatus.player`): which of Littleroot's houses is theirs. Shared with the closure
+    /// that names a slot (`game_place`), which Python's bound method reads it through.
+    player: Rc<RefCell<Option<(bool, String)>>>,
     pub announcements: Rc<RefCell<Announcements>>,
     pub screen_announcer: RefCell<ScreenAnnouncer>,
     /// The scenes the game shows without words, described where the player asks and the game has
@@ -1226,12 +1230,16 @@ impl Gen6Profile {
             let text = text.clone();
             Rc::new(move |character| game_word(&text, character))
         };
+        let player: Rc<RefCell<Option<(bool, String)>>> = Rc::new(RefCell::new(None));
         let place: GamePlace = {
             let text = text.clone();
             // Python's `self._items_at`: (zone, record) -> the item a thing there is, which names
             // it (`Game.items_at`). Only `_game_place` reads it, so the closure keeps it.
             let items_at = game.items_at.clone();
-            Rc::new(move |zone, slot| game_place(&text, &items_at, zone, slot))
+            let player = player.clone();
+            Rc::new(move |zone, slot| {
+                game_place(&text, &items_at, player.borrow().as_ref(), zone, slot)
+            })
         };
         named.use_game(Some(sprite), Some(place));
         Gen6Profile {
@@ -1291,6 +1299,7 @@ impl Gen6Profile {
             tone,
             quiet: Cell::new(0.0),
             save_language: RefCell::new(None),
+            player,
             announcements,
             screen_announcer: RefCell::new(screen_announcer),
             scenes,
@@ -1371,6 +1380,11 @@ impl Gen6Profile {
             && let Some(language) = mystatus::language(found)
         {
             *self.save_language.borrow_mut() = Some(language.to_string());
+        }
+        if !found.partial
+            && let Some(player) = mystatus::player(found)
+        {
+            *self.player.borrow_mut() = Some(player);
         }
         // A choice box has no class of its own; the device manager it holds does.
         for manager in found.of(&[DEVICE_MANAGER_CLASS]) {
@@ -2504,6 +2518,7 @@ fn game_word(text: &GameText, character: i64) -> Option<String> {
 pub(crate) fn game_place(
     text: &GameText,
     items_at: &IndexMap<(i64, i64), i64>,
+    player: Option<&(bool, String)>,
     zone: i64,
     slot: i64,
 ) -> Option<String> {
@@ -2522,6 +2537,11 @@ pub(crate) fn game_place(
     }
     if let Some((gate, beyond)) = text.gate(zone, source_number(slot)) {
         return Some(own("leads-to", &[("thing", &gate), ("place", &beyond)]));
+    }
+    if let Some((girl, name)) = player
+        && let Some(home) = text.home(zone, source_number(slot), *girl, name)
+    {
+        return Some(home);
     }
     text.door(zone, source_number(slot))
 }

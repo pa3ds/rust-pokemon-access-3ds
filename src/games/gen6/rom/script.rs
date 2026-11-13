@@ -153,6 +153,10 @@ pub struct Script {
     pub order: Vec<i64>,
 }
 
+/// `tuple[list[tuple[int, ...]], list[tuple[int, ...]]]`: a switch's constant calls where the
+/// native gives 0, and where it gives anything else (`Script.switched`).
+pub type Switched = (Vec<Vec<i64>>, Vec<Vec<i64>>);
+
 // `tuple.index(x)` raises where `x` is absent; a `Script` from `read` always has it.
 #[track_caller]
 fn index_of(order: &[i64], start: i64) -> Result<usize> {
@@ -214,6 +218,64 @@ impl Script {
     /// A Python generator there; every call is found at once here, which only a reader that stops
     /// early could tell apart.
     pub fn constant_calls(&self, start: i64) -> Result<Vec<Vec<i64>>> {
+        Ok(self
+            ._constant_calls(start)?
+            .into_iter()
+            .map(|(_cell, constants)| constants)
+            .collect())
+    }
+
+    /// The constant calls the case `number`'s function makes where the native it calls first
+    /// gives 0, and where it gives anything else, or None for a function that does not switch
+    /// on a native so: Littleroot's two house plates each show "Professor Birch's House" on one
+    /// side and the player's own house on the other.
+    pub fn switched(&self, number: i64) -> Result<Option<Switched>> {
+        let case = self.cases()?.get(&number).copied();
+        let function = match case {
+            None => None,
+            Some(case) => self.called(case)?,
+        };
+        let body = match function {
+            None => Vec::new(),
+            Some(function) => self.body(function)?,
+        };
+        let ops: Vec<i64> = body.iter().map(|cell| self.instructions[cell].0).collect();
+        let Some(switch) = ops.iter().position(|&op| op == SWITCH) else {
+            return Ok(None);
+        };
+        if !ops[..switch].contains(&NATIVE) {
+            return Ok(None);
+        }
+        let table = self.target(body[switch])?;
+        let (op, operands) = match self.instructions.get(&table) {
+            Some((op, operands)) => (Some(*op), operands.as_slice()),
+            None => (None, &[][..]),
+        };
+        if op != Some(CASETBL) || operands.len() != 4 || operands[0] != 1 || operands[2] != 0 {
+            return Ok(None);
+        }
+        let (zero, other) = (
+            table + 3 + py::floordiv(operands[3], 4),
+            table + 1 + py::floordiv(operands[1], 4),
+        );
+        let (first, second) = (zero.min(other), zero.max(other));
+        let mut sides: Switched = (Vec::new(), Vec::new());
+        for (cell, constants) in self._constant_calls(body[0])? {
+            if cell >= first {
+                let side = if cell >= second { second } else { first };
+                if side == zero {
+                    sides.0.push(constants);
+                } else {
+                    sides.1.push(constants);
+                }
+            }
+        }
+        Ok(Some(sides))
+    }
+
+    // Python's `_constant_calls` sits beside a public `constant_calls`, so it keeps its
+    // underscore.
+    fn _constant_calls(&self, start: i64) -> Result<Vec<(i64, Vec<i64>)>> {
         let body = self.body(start)?;
         let mut calls = Vec::new();
         for (n, &cell) in body.iter().enumerate() {
@@ -240,7 +302,7 @@ impl Script {
                     };
                     constants.push(*constant);
                 }
-                calls.push(constants);
+                calls.push((cell, constants));
             }
         }
         Ok(calls)

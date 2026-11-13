@@ -72,6 +72,9 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
   since starting pa3ds, it may also list someone the game has taken away.
 - **Parts of a place**: Mauville City's floors, a cave's floors and a hideout's rooms are not
   named as parts yet, so their exits still say only what they are.
+- **Your house and Professor Birch's in Littleroot Town** are named by their signs, "Leos's
+  House", in every language but French, where both are still "door". Playing as the girl has
+  not been tried: if your own house is called Professor Birch's, please tell us.
 - **Secret Bases**: `P` walks you over mats, Pitfall Mats, Stands, Stairs and Solid Boards, but
   goes round the mats and panels that move you, and round Slides, tents and Paradoxical Poppers,
   so it may find no way where a base's owner made the only one across them.

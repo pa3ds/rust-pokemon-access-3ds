@@ -37,6 +37,8 @@ pub const NEAR: i64 = 6;
 pub const FAR: i64 = 12;
 /// How much further the next door must be than the nearest for a plate to be the nearest's.
 pub const APART: f64 = 1.5;
+/// The insert that puts a name the game fills in into a line: on a house's plate, the player's.
+pub const NAME: i64 = 0x100;
 /// The quotation marks a plate puts round a name on a line of its own (`_named`).
 pub const QUOTES: &str = "「」『』“”\"";
 /// A zone-table row's +0x06: the zone's file in the story text archive, which its script's
@@ -186,20 +188,9 @@ pub fn plate_names(
             found.push((record, name, NEAR));
         }
         for (record, words, far) in found {
-            let mut nearest: Vec<(i64, i64)> = Vec::new();
-            for &(slot, door) in &doors {
-                if let Some(d) = apart(record, door)? {
-                    nearest.push((d, slot));
-                }
-            }
-            nearest.sort();
-            if nearest.is_empty() || nearest[0].0 > far {
+            let Some((d, slot)) = door_by(record, &doors, far)? else {
                 continue;
-            }
-            let ((d, slot), rest) = (nearest[0], &nearest[1..]);
-            if !rest.is_empty() && (rest[0].0 as f64) < APART * d as f64 {
-                continue;
-            }
+            };
             let to = u16(item(warps, slot)?, zonedata::WARP_TO)?;
             if place(table, to)? != place(table, zone)? {
                 continue;
@@ -213,6 +204,160 @@ pub fn plate_names(
         .into_iter()
         .map(|(door, (_d, words))| (door, words))
         .collect())
+}
+
+/// `tuple[tuple[str, ...], tuple[str, ...]]`: what a house's plate says in a boy's game and in a
+/// girl's, each as its words around the player's name (`home_plates`).
+pub type Home = (Vec<String>, Vec<String>);
+
+/// (zone, warp slot) -> what the plate beside that door says in a boy's game and in a
+/// girl's, each as its words around the player's name: one piece where it names nobody, two
+/// where the name goes between them. Littleroot's two houses each have a plate that asks a
+/// native and shows "Professor Birch's House" or "<the player>'s House" by its answer
+/// (`Script.switched`); the boy's house is `0xdf`, where his Mom stands, and the plate by its
+/// door shows the player's name where the native gives 0, so 0 is the boy (spike 87). A plate
+/// whose two sides do not each show one line, exactly one of them the player's, names nothing.
+pub fn home_plates(
+    zones: &IndexMap<i64, Zone>,
+    table: &[u8],
+    story: &dyn Fn(i64) -> Result<Vec<Vec<u8>>>,
+    outside: &HashSet<i64>,
+) -> Result<IndexMap<(i64, i64), Home>> {
+    let mut out: IndexMap<(i64, i64), Home> = IndexMap::new();
+    let mut inside: Vec<i64> = outside.iter().copied().collect();
+    inside.sort();
+    for zone in inside {
+        let Some((data, furniture, warps)) = zones.get(&zone) else {
+            continue;
+        };
+        let code = script_of(data)?;
+        let lines = story(row(table, zone, INFO_STORY)?)?;
+        let Some(code) = code.filter(|_| !lines.is_empty()) else {
+            continue;
+        };
+        let mut doors: Vec<(i64, &Vec<u8>)> = Vec::new();
+        for (slot, record) in warps.iter().enumerate() {
+            let to = u16(record, zonedata::WARP_TO)?;
+            if zones.contains_key(&to)
+                && !outside.contains(&to)
+                && place(table, to)? == place(table, zone)?
+            {
+                doors.push((slot as i64, record));
+            }
+        }
+        for record in furniture {
+            let Some(sides) = code.switched(u16(record, zonedata::FURNITURE_SCRIPT)?)? else {
+                continue;
+            };
+            let shown: Vec<Vec<i64>> = [&sides.0, &sides.1]
+                .into_iter()
+                .map(|side| {
+                    side.iter()
+                        .filter(|call| call.len() == 2 && call[1] == script::PLATE)
+                        .map(|call| call[0])
+                        .collect()
+                })
+                .collect();
+            if shown
+                .iter()
+                .any(|side| side.len() != 1 || side[0] >= lines.len() as i64)
+            {
+                continue;
+            }
+            let boy = around_player(item(&lines, shown[0][0])?)?;
+            let girl = around_player(item(&lines, shown[1][0])?)?;
+            let (Some(boy), Some(girl)) = (boy, girl) else {
+                continue;
+            };
+            if boy.len() + girl.len() != 3 {
+                continue;
+            }
+            if let Some((_d, slot)) = door_by(record, &doors, FAR)? {
+                out.insert((zone, slot), (boy, girl));
+            }
+        }
+    }
+    Ok(out)
+}
+
+/// (cells apart, slot) of the door a plate stands by: the nearest within `far`, with no
+/// other door nearly as near (`APART`).
+fn door_by(record: &[u8], doors: &[(i64, &Vec<u8>)], far: i64) -> Result<Option<(i64, i64)>> {
+    let mut nearest: Vec<(i64, i64)> = Vec::new();
+    for &(slot, door) in doors {
+        if let Some(d) = apart(record, door)? {
+            nearest.push((d, slot));
+        }
+    }
+    nearest.sort();
+    if nearest.is_empty() || nearest[0].0 > far {
+        return Ok(None);
+    }
+    if nearest.len() > 1 && (nearest[1].0 as f64) < APART * nearest[0].0 as f64 {
+        return Ok(None);
+    }
+    Ok(Some(nearest[0]))
+}
+
+/// A plate's first page as its words around the one name the game puts in, or whole where
+/// it puts none; None for a plate with any other insert, or more than one name. The French
+/// plate, "Maison <0x1408> <name>", puts "de" or "d'" in by a control pa3ds cannot fill, so
+/// names nothing.
+fn around_player(raw: &[u8]) -> Result<Option<Vec<String>>> {
+    let tokens = match text::tokens(&uncut(raw)) {
+        Ok(tokens) => tokens,
+        Err(error) if error.is(Kind::ValueError) => return Ok(None),
+        Err(error) => return Err(error),
+    };
+    let mut said: Vec<String> = Vec::new();
+    for token in tokens {
+        match token {
+            Token::Text(words) => said.push(words),
+            Token::Control(control) if text::PAGE_BREAKS.contains(&control.code) => break,
+            Token::Control(control) if control.code == NAME => said.push("\0".to_string()),
+            Token::Control(_) => return Ok(None),
+        }
+    }
+    let pieces: Vec<String> = py::split(&said.concat())
+        .join(" ")
+        .split('\0')
+        .map(str::to_string)
+        .collect();
+    Ok(
+        if pieces.len() <= 2 && pieces.iter().any(|piece| !piece.is_empty()) {
+            Some(pieces)
+        } else {
+            None
+        },
+    )
+}
+
+/// A line with the zeros back that end its last control: `garc.message_lines` takes every
+/// trailing zero off, and "Haus von <name>" ends on the name's insert, whose argument is 0.
+fn uncut(raw: &[u8]) -> Vec<u8> {
+    // shortcut: mended here alone, as message_lines' fix changes hundreds of lines in every
+    // language; fix it there once the tapes are checked against it.
+    let units: Vec<i64> = raw
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .map(|pair| i64::from(u16::from_le_bytes(*pair)))
+        .collect();
+    let mut at = 0;
+    while at + 1 < units.len() {
+        if units[at] != text::MARKER {
+            at += 1;
+            continue;
+        }
+        let end = at + 2 + units[at + 1] as usize;
+        if end > units.len() {
+            let mut out = raw.to_vec();
+            out.extend(b"\0\0".repeat(end - units.len()));
+            return out;
+        }
+        at = end;
+    }
+    raw.to_vec()
 }
 
 /// Each furniture record the zone's script shows a plate for in one of several lines as the

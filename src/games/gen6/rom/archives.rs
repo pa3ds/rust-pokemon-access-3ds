@@ -363,6 +363,9 @@ pub struct GameText {
     /// ROM has it: the lines a scene follows (`games.common.scenes`). Left out of the comparison,
     /// as the dataclass leaves it.
     pub lines: IndexMap<String, TextLines>,
+    /// (zone, warp slot) -> what its plate says in a boy's game and in a girl's, around the
+    /// player's name (`plates.home_plates`): Littleroot's two houses.
+    pub homes: IndexMap<(i64, i64), (Vec<String>, Vec<String>)>,
     /// (outdoor zone, furniture index) of every plate that says only a door's name
     /// (`plates.door_signs`).
     pub door_signs: HashSet<(i64, i64)>,
@@ -438,6 +441,7 @@ impl PartialEq for GameText {
             && self.species == other.species
             && self.forms == other.forms
             && self.items == other.items
+            && self.homes == other.homes
             && self.door_signs == other.door_signs
             && self.shared == other.shared
             && self.natives == other.natives
@@ -490,6 +494,7 @@ impl Default for GameText {
             zone_table: Vec::new(),
             items: Vec::new(),
             lines: IndexMap::new(),
+            homes: IndexMap::new(),
             door_signs: HashSet::new(),
             shared: IndexMap::new(),
             natives: IndexMap::new(),
@@ -804,6 +809,8 @@ impl GameText {
         let conditions = lines_from(layout.conditions)?;
         let natives = plates::native_furniture(&read)?;
         let gates = plates::gate_names(&read, &table)?;
+        // Read before `outside` is moved into the text, where Python's reads it in the call.
+        let homes = plates::home_plates(&read, &table, &lines_of(story.clone()), &outside)?;
         let mut parts: IndexMap<i64, Vec<i64>> = IndexMap::new();
         if let Some(matrices) = &layout.matrices {
             match rom
@@ -938,6 +945,7 @@ impl GameText {
             ]),
             door_signs,
             shared: plates::shared_furniture(&natives),
+            homes,
             natives,
             gates,
             title: rom.title(language)?,
@@ -985,6 +993,13 @@ impl GameText {
     /// when the ROM does not say which building it is.
     pub fn door(&self, zone: i64, slot: i64) -> Option<String> {
         self.doors.get(&(zone, slot)).cloned()
+    }
+
+    /// What the plate beside a house's door says in the player's game, the player's own
+    /// name in it, or None where it has none.
+    pub fn home(&self, zone: i64, slot: i64, girl: bool, name: &str) -> Option<String> {
+        let (boy, girls) = self.homes.get(&(zone, slot))?;
+        Some(if girl { girls } else { boy }.join(name))
     }
 
     /// The street of Lumiose's this zone's warp comes out on, or None.

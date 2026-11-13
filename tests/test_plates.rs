@@ -7,8 +7,10 @@ use indexmap::IndexMap;
 
 use super::fake_rom::{MessageLine, message_file};
 use super::test_field::{ZoneSpec, zone_file};
-use super::test_script::{case_script, push, sign_script};
+use super::test_script::{case_script, push, sign_script, switched_sign};
 use crate::games::common::garc::message_lines;
+use crate::games::common::text;
+use crate::games::gen6::rom::archives::GameText;
 use crate::games::{gen6::rom::plates, gen6::rom::script};
 use crate::py::Result;
 
@@ -538,6 +540,100 @@ fn test_a_plate_showing_one_of_several_notices_is_named_by_the_facility_all_of_t
         named,
         IndexMap::from([((TOWN, 0), "Stern's Shipyard".to_string())])
     );
+    Ok(())
+}
+
+/// Littleroot's two plates each show "Professor Birch's House" or the player's house, by a
+/// native that gives 0 for a boy: German's ends on the name, whose insert's last zero the text
+/// file's reading took off. A plate showing nobody's house on either side names nothing.
+#[test]
+fn test_a_houses_plate_is_the_player_s_house_or_the_professor_s_by_the_player() -> Result<()> {
+    let mut house: Vec<i64> = "Haus von ".chars().map(|c| c as i64).collect();
+    house.extend([text::MARKER, 2, plates::NAME, 0]);
+    let lines = vec![
+        MessageLine::from("Haus von Professor Birk"),
+        MessageLine::from(house),
+    ];
+    let code = case_script(&IndexMap::from([
+        (1, switched_sign(1, 0)),
+        (2, switched_sign(0, 1)),
+        (3, switched_sign(0, 0)),
+    ]));
+    let door = crate::games::gen6::field::zonedata::WARP_DOOR;
+    let data = zone_file(&ZoneSpec {
+        furniture: &[(1, 10, 8), (2, 30, 8), (3, 50, 8)],
+        warps: &[
+            (CAFE, door, 10, 10, None, None),
+            (LAB, door, 30, 10, None, None),
+            (CAFE, door, 50, 10, None, None),
+        ],
+        sections: 4,
+        script: &code,
+        ..ZoneSpec::default()
+    });
+    let zone = crate::games::gen6::field::zonedata::zone_file(&data)?.expect("a zone data file");
+    let zones: IndexMap<i64, plates::Zone> = IndexMap::from([
+        (
+            TOWN,
+            (
+                data.clone(),
+                crate::games::gen6::field::zonedata::records(
+                    &data,
+                    &zone,
+                    crate::games::gen6::field::zonedata::FURNITURE,
+                )?,
+                crate::games::gen6::field::zonedata::records(
+                    &data,
+                    &zone,
+                    crate::games::gen6::field::zonedata::WARP,
+                )?,
+            ),
+        ),
+        (CAFE, (Vec::new(), Vec::new(), Vec::new())),
+        (LAB, (Vec::new(), Vec::new(), Vec::new())),
+    ]);
+    let shown = message_lines(&message_file(&lines))?;
+    let story = move |file: i64| -> Result<Vec<Vec<u8>>> {
+        Ok(if file == STORY {
+            shown.clone()
+        } else {
+            Vec::new()
+        })
+    };
+    let homes = plates::home_plates(&zones, &table(), &story, &HashSet::from([TOWN]))?;
+    let words =
+        |pieces: &[&str]| -> Vec<String> { pieces.iter().map(|piece| piece.to_string()).collect() };
+    assert_eq!(
+        homes,
+        IndexMap::from([
+            (
+                (TOWN, 0),
+                (
+                    words(&["Haus von ", ""]),
+                    words(&["Haus von Professor Birk"])
+                )
+            ),
+            (
+                (TOWN, 1),
+                (
+                    words(&["Haus von Professor Birk"]),
+                    words(&["Haus von ", ""])
+                )
+            ),
+        ])
+    );
+    let named = GameText {
+        homes,
+        ..GameText::default()
+    };
+    assert_eq!(
+        [false, true].map(|girl| named.home(TOWN, 0, girl, "Leos")),
+        [
+            Some("Haus von Leos".to_string()),
+            Some("Haus von Professor Birk".to_string())
+        ]
+    );
+    assert_eq!(named.home(TOWN, 2, false, "Leos"), None);
     Ok(())
 }
 

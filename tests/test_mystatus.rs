@@ -10,9 +10,18 @@ use crate::games::gen6::mystatus;
 const RECORD: i64 = 0x08C7D348;
 
 fn found(language: u8, at: i64) -> Found {
+    found_with(language, at, 0, "")
+}
+
+/// `found(language, at, gender, name)`.
+fn found_with(language: u8, at: i64, gender: u8, name: &str) -> Found {
     let page = at - at % PAGE;
     let mut data = vec![0u8; (PAGE * 2) as usize];
     data[(at - page + mystatus::LANGUAGE) as usize] = language;
+    data[(at - page + mystatus::GENDER) as usize] = gender;
+    let raw: Vec<u8> = name.encode_utf16().flat_map(u16::to_le_bytes).collect();
+    let start = (at - page + mystatus::NAME) as usize;
+    data[start..start + raw.len()].copy_from_slice(&raw);
     let half = PAGE as usize;
     Found {
         pages: IndexMap::from([
@@ -53,4 +62,21 @@ fn test_a_record_the_sweep_did_not_read_says_nothing() {
         partial: false,
     };
     assert_eq!(mystatus::language(&nothing), None);
+    assert_eq!(mystatus::player(&unread), None);
+}
+
+/// Every boy's save reads 0; a record with no trainer yet reads 1 and no name, so a gender is
+/// believed only beside a name.
+#[test]
+fn test_the_player_is_a_boy_or_a_girl_once_they_have_a_name() {
+    assert_eq!(
+        mystatus::player(&found_with(2, RECORD, 0, "Leos")),
+        Some((false, "Leos".to_string()))
+    );
+    assert_eq!(
+        mystatus::player(&found_with(2, RECORD, 1, "Ruby")),
+        Some((true, "Ruby".to_string()))
+    );
+    assert_eq!(mystatus::player(&found_with(2, RECORD, 1, "")), None);
+    assert_eq!(mystatus::player(&found_with(2, RECORD, 2, "Leos")), None);
 }

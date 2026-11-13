@@ -788,6 +788,7 @@ fn test_route_111s_fossils_are_called_the_items_they_are_from_the_rom() -> Resul
         called.push(game_place(
             &text,
             &oras::game().items_at,
+            None,
             0x23,
             place_source(MODEL_SOURCE, record)?,
         ));

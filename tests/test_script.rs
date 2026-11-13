@@ -246,6 +246,65 @@ fn test_a_case_handing_a_native_constants_gives_them_first_argument_first() {
     assert_eq!(code.native(3).unwrap(), None);
 }
 
+/// A sign's function as Littleroot's house plates are compiled: it asks native 10, switches
+/// on the answer, and shows the line `zero` where it is 0 and `other` otherwise, each block a
+/// plate's call and a jump to the end, the case table after both.
+pub(crate) fn switched_sign(zero: i64, other: i64) -> Vec<i64> {
+    let plate = |line: i64| {
+        vec![
+            push(script::PLATE),
+            push(line),
+            push(8),
+            script::CALL,
+            0,
+            script::JUMP,
+            0,
+        ]
+    };
+    // Cells: 0 PROC, 1 the native, 4 the switch, 6 the zero block, 13 the other, 20 the table.
+    let mut cells = vec![
+        script::PROC,
+        script::NATIVE,
+        10,
+        0,
+        script::SWITCH,
+        (20 - 4) * 4,
+    ];
+    cells.extend(plate(zero));
+    cells.extend(plate(other));
+    cells.extend([
+        script::CASETBL,
+        1,
+        (13 - 21) * 4,
+        0,
+        (6 - 23) * 4,
+        script::RETN,
+    ]);
+    cells
+}
+
+/// Littleroot's plate by the boy's house shows the player's house where native 10 gives 0
+/// and Professor Birch's otherwise; a sign that does not switch is no such sign.
+#[test]
+fn test_a_sign_switching_on_a_native_shows_one_line_for_0_and_another_otherwise() {
+    let code = script::read(&case_script(&IndexMap::from([
+        (18, switched_sign(16, 17)),
+        (19, switched_sign(17, 16)),
+        (20, vec![script::PROC, script::RETN]),
+    ])))
+    .unwrap()
+    .expect("a script");
+    assert_eq!(
+        code.switched(18).unwrap(),
+        Some((vec![vec![16, script::PLATE]], vec![vec![17, script::PLATE]]))
+    );
+    assert_eq!(
+        code.switched(19).unwrap(),
+        Some((vec![vec![17, script::PLATE]], vec![vec![16, script::PLATE]]))
+    );
+    assert_eq!(code.switched(20).unwrap(), None);
+}
+
 /// The game stores a script's cells compact, seven bits a byte, and a data offset past the
 /// stored bytes' end, since it counts the cells expanded.
 #[test]
