@@ -2,7 +2,9 @@
 //!
 //! ```text
 //! +0x04 u32 zero while the slot is free; for the player, bit 0x200000 (+0x06's 0x20) is set
-//!           while they ride the Mach Bike (spike 158) or a Pokémon on the sea (spike 227)
+//!           while they ride the Mach Bike (spike 158) or a Pokémon on the sea (spike 227);
+//!           bit 0x04 is set on a model the game has hidden, with 0x100 beside it each time
+//!           (`hidden`, spike 294)
 //! +0x0c u32 zone << 16 | the entity index in that zone's table; the player is index 0xff
 //! +0x10 u32 flag << 16 | character — who or what it is: Norman 0x13f, Wally 0xb4, Birch 0x13e,
 //!           and 0x2000 for a Poké Ball lying on the ground
@@ -59,6 +61,8 @@ pub const SLOT: i64 = 0xAB0;
 pub const SLOT_X: i64 = 0xAA8;
 
 pub const IN_USE: i64 = 0x04;
+/// `IN_USE`'s bit on a model the game has hidden (`hidden`).
+pub const HIDDEN: i64 = 0x04;
 pub const RIDING: i64 = 0x06;
 pub const BIKE: i64 = 0x20;
 pub const MOUNT: i64 = 0x07;
@@ -257,6 +261,16 @@ pub fn index_of(head: &[u8]) -> Result<i64> {
 /// Whether the game has anything in this slot.
 pub fn in_use(head: &[u8]) -> Result<bool> {
     Ok(u32(head, IN_USE)? != 0)
+}
+
+/// Whether the game has hidden the model: built, but not drawn, and walked through. The
+/// Secret Base Guild in Fortree builds work objects round Aarune filled with the pals of the
+/// player's own Secret Base, and hides them; drawn ones read `03 00 01 08` from +0x04, those
+/// `07 01 01 09` (or_secret_base_guild_bug). So do the Vigoroth movers once the move is done,
+/// Wally once he has left Petalburg Gym, and the Contest Spectacular Halls' unfilled slots
+/// (spike 294). +0x07's 0x01 is no such bit: every model in Santalune Gym has it, Viola too.
+pub fn hidden(head: &[u8]) -> Result<bool> {
+    Ok(byte(head, IN_USE)? & HIDDEN != 0)
 }
 
 /// Whether it is placed on a rail rather than the grid. On the grid +0xec is where it is in

@@ -5629,6 +5629,30 @@ fn test_a_work_object_is_whoever_it_was_filled_with() -> Result<()> {
     Ok(())
 }
 
+/// The Secret Base Guild fills four work objects round Aarune with the pals of the player's
+/// own Secret Base and hides them: +0x04 reads `07 01 01 09`, a drawn person's `03 00 01 08`.
+/// They were listed, a Swimmer on the player's own cell (or_secret_base_guild_bug, spike 294).
+#[test]
+fn test_a_model_the_game_has_hidden_is_neither_listed_nor_in_the_way() -> Result<()> {
+    let town = Town::new();
+    let swimmer = town.model(1, TOWN, 6, 0x7B, (104, 179));
+    town.memory.u32(swimmer + mmodel::DRAWN, &[0xE5]);
+    town.memory.u32(swimmer + 4, &[0x08010003]);
+    assert_eq!(
+        town.r#where()?
+            .of("people")
+            .iter()
+            .map(|item| item.code)
+            .collect::<Vec<_>>(),
+        [0xE5]
+    );
+    town.memory.u32(swimmer + 4, &[0x09010107]);
+    let r#where = town.r#where()?;
+    assert!(r#where.of("people").is_empty());
+    assert!(!town.reader.ground(&r#where)?.standing.contains(&(104, 179)));
+    Ok(())
+}
+
 /// X keeps the sprite a model is drawn with at +0x890, and a pointer where ORAS keeps it
 /// (spike 100).
 #[test]

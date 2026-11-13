@@ -2228,7 +2228,11 @@ impl FieldReader {
         Ok(data)
     }
 
-    /// Every model in use but the player's, with its head, in the pool's order.
+    /// Every model in use but the player's, with its head, in the pool's order; none the
+    /// game has hidden (`mmodel.hidden`), which is neither listed nor in the way. The Secret
+    /// Base Guild hides four round Aarune filled with the pals of the player's own Secret Base,
+    /// and they were listed until 2026-11-12, one on the player's own cell
+    /// (or_secret_base_guild_bug).
     ///
     /// Python's generator reads each head as its loop comes to it; so does this iterator, so the
     /// reads a loop makes of each model come between the heads, as there.
@@ -2237,10 +2241,10 @@ impl FieldReader {
         models.into_iter().filter_map(move |model| {
             let other = || -> Result<Option<(i64, Vec<u8>)>> {
                 let head = self.memory.read(model, mmodel::HEAD)?;
-                Ok(
-                    (mmodel::in_use(&head)? && mmodel::index_of(&head)? != mmodel::PLAYER_INDEX)
-                        .then_some((model, head)),
-                )
+                Ok((mmodel::in_use(&head)?
+                    && mmodel::index_of(&head)? != mmodel::PLAYER_INDEX
+                    && !mmodel::hidden(&head)?)
+                .then_some((model, head)))
             };
             other().transpose()
         })
