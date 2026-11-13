@@ -1,5 +1,58 @@
 # Changelog
 
+## [0.13.0] - 2026-11-14
+
+### Added
+
+- Southern Island is described in Omega Ruby and Alpha Sapphire: Latias or Latios flying in on
+  Route 118, the flight to the island, the Pokémon waiting there, Team Magma or Team Aqua coming
+  for its Mega Stone, the Mega Bracelet on your wrist, and the way back.
+- Berry spots say what grows in them: "soft soil" with nothing planted, then "planted berry",
+  "berry sprout", "growing berry tree" and "berry tree in bloom", with "dry" in front while the
+  soil needs water, and a tree ready to pick by its Berry, "harvestable Nanab Berry tree".
+- Water and waterfalls are listed under obstacles. `P` to water walks you to the nearest of its
+  shore you can reach, facing it, where A starts Surf.
+- While soaring, the mirage spots list the storm clouds where Tornadus, Thundurus and Landorus
+  are met, and the dimensional rift where Dialga, Palkia and Giratina are.
+- In X and Y, the Furfrou chase in Parfum Palace's garden lists the maze's four waiting spots,
+  the next step to take and a "keep off" line, and `P` leads you through it.
+- Your house and Professor Birch's in Littleroot Town are named by their signs, Slateport's and
+  Lilycove's harbours by their plates on the quay, and Fortree City's houses up its trees
+  "tree house".
+
+### Changed
+
+- `Shift+P` rides a bike over a bumpy slope, onto a rail or up a slope only where no way without
+  one goes.
+- In Lilycove City only the way into the hideout of your own story is listed.
+
+### Fixed
+
+- A Pokémon the story puts on the map, as Latios on Southern Island, is named instead of
+  "person", and so is its cry's speaker.
+- Seafloor Cavern's way back out from under Route 128, and the Trick House's way out of its end
+  room, are listed.
+- People the game has hidden, as round Aarune in the Secret Base Guild, are no longer listed, and
+  nobody is listed in your own place.
+- A key pressed the moment you arrive somewhere waits for the place to be set up, so it never
+  counts anybody the game is about to hide.
+- A way that cannot reach its goal ends as near to it as it can get.
+- The rings where legendary Pokémon wait are "mysterious ring", and the TV in Littleroot's houses
+  "TV".
+- In the DexNav, a hidden Pokémon is said caught only when it is, and Potential's red mark is no
+  longer read as "3 stars/!".
+- The Pokédex's labels wait for their values, an Egg's summary says no moves, the Box says its
+  short lines as it releases a Pokémon, and the name entry's Shift key is said "shift".
+- `R` in a battle before its sides are drawn says so, rather than "no battle".
+- A line of dialogue left on screen by a scroll is said as its own page's.
+- Something changing on screen that no cursor has been over no longer cuts speech off.
+
+### Known issues
+
+- Your house and Professor Birch's in Littleroot Town are still "door" in French.
+- Opening the Box the first time after starting Azahar may say "Normal Pokérus Paralysis" before
+  the first Pokémon.
+
 ## [0.12.0] - 2026-11-11
 
 ### Added
