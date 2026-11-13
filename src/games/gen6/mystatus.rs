@@ -10,8 +10,8 @@
 //! ```
 //!
 //! The gender reads 0 in every Omega Ruby save of a boy on hand (2026-11-11), and 1 in a record
-//! with no trainer yet, no name and no ID, so a gender is believed only beside a name. No girl's
-//! save has been read: 1 for her is PKHeX's format.
+//! with no trainer yet, no name and no ID, so a gender is believed only beside a name. Played as
+//! the girl, 1 names her own house by her name (2026-11-12).
 //!
 //! The language is the one the player chose as their game began, or on a new game the one it starts
 //! with: 1 Japanese, 2 English, 3 French, 4 Italian, 5 German, 7 Spanish, 8 Korean, and in Sun, whose

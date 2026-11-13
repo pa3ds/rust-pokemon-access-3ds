@@ -818,6 +818,28 @@ fn test_what_is_not_an_archive_is_a_rom_error() {
     );
 }
 
+/// The name insert's argument 0 ends "Haus von <name>": only the padding after it goes.
+#[test]
+fn test_a_line_ending_on_a_control_keeps_its_zero_arguments() {
+    let mut insert: Vec<i64> = "Haus von ".chars().map(|c| c as i64).collect();
+    insert.extend([0x10, 2, 0x100, 0]);
+    let padded: Vec<i64> = insert.iter().copied().chain([0, 0]).collect();
+    let packed: Vec<u8> = insert
+        .iter()
+        .flat_map(|&unit| (unit as u16).to_le_bytes())
+        .collect();
+    let hi: Vec<u8> = "Hi".encode_utf16().flat_map(u16::to_le_bytes).collect();
+    assert_eq!(
+        message_lines(&message_file(&[
+            MessageLine::from(insert),
+            MessageLine::from(padded),
+            MessageLine::from("Hi"),
+        ]))
+        .unwrap(),
+        [packed.clone(), packed, hi]
+    );
+}
+
 /// The Center's kind is in three towns and the Mart's in two, so both are shared; Petalburg's
 /// Gym and Littleroot's lab are what is left in their towns; a house, whose kind is its town's,
 /// is nobody's to name.

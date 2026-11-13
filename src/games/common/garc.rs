@@ -18,7 +18,7 @@ use indexmap::IndexMap;
 
 use crate::core::binary::{self, u16, u32};
 use crate::core::rom::Rom;
-use crate::games::common::text::{Token, tokens};
+use crate::games::common::text::{MARKER, Token, tokens};
 use crate::py::{self, Error, Kind, Result};
 
 pub const GARC_MAGIC: &[u8] = b"CRAG";
@@ -133,7 +133,7 @@ pub fn garc_spans(image: &Rom, archive: &str) -> Result<(i64, Vec<(i64, i64)>)> 
 }
 
 /// The lines of one text file, each as UTF-16LE with its control sequences left in and its
-/// trailing zeros taken off.
+/// trailing zeros taken off, short of a control that ends it (`_kept`).
 pub fn message_lines(blob: &[u8]) -> Result<Vec<Vec<u8>>> {
     if blob.len() < 0x10 {
         return Err(Error::new(Kind::RomError, "too short for a text file"));
@@ -168,11 +168,9 @@ pub fn message_lines(blob: &[u8]) -> Result<Vec<Vec<u8>>> {
             clear.push(unit ^ rolling);
             rolling = (rolling << 3 | rolling >> 13) & 0xFFFF;
         }
-        while clear.last() == Some(&0) {
-            clear.pop();
-        }
+        let kept = kept(&clear);
         lines.push(
-            clear
+            clear[..kept]
                 .iter()
                 .flat_map(|&unit| (unit as u16).to_le_bytes())
                 .collect(),
@@ -180,6 +178,25 @@ pub fn message_lines(blob: &[u8]) -> Result<Vec<Vec<u8>>> {
         key = (key + NEXT_KEY) & 0xFFFF;
     }
     Ok(lines)
+}
+
+/// How many of a line's halfwords are its own: all but its trailing zeros, short of the
+/// arguments of a control that ends it, as a name insert's 0 that ends "Haus von <name>".
+fn kept(units: &[i64]) -> usize {
+    let mut end = units.len();
+    while end > 0 && units[end - 1] == 0 {
+        end -= 1;
+    }
+    let mut at = 0;
+    while at + 1 < end {
+        if units[at] == MARKER {
+            at += 2 + units[at + 1] as usize;
+            end = end.max(at.min(units.len()));
+        } else {
+            at += 1;
+        }
+    }
+    end
 }
 
 /// A line's words without its control sequences, or "" when it is only controls or broken.

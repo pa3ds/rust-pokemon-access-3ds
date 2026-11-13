@@ -304,7 +304,7 @@ fn door_by(record: &[u8], doors: &[(i64, &Vec<u8>)], far: i64) -> Result<Option<
 /// plate, "Maison <0x1408> <name>", puts "de" or "d'" in by a control pa3ds cannot fill, so
 /// names nothing.
 fn around_player(raw: &[u8]) -> Result<Option<Vec<String>>> {
-    let tokens = match text::tokens(&uncut(raw)) {
+    let tokens = match text::tokens(raw) {
         Ok(tokens) => tokens,
         Err(error) if error.is(Kind::ValueError) => return Ok(None),
         Err(error) => return Err(error),
@@ -330,34 +330,6 @@ fn around_player(raw: &[u8]) -> Result<Option<Vec<String>>> {
             None
         },
     )
-}
-
-/// A line with the zeros back that end its last control: `garc.message_lines` takes every
-/// trailing zero off, and "Haus von <name>" ends on the name's insert, whose argument is 0.
-fn uncut(raw: &[u8]) -> Vec<u8> {
-    // shortcut: mended here alone, as message_lines' fix changes hundreds of lines in every
-    // language; fix it there once the tapes are checked against it.
-    let units: Vec<i64> = raw
-        .as_chunks::<2>()
-        .0
-        .iter()
-        .map(|pair| i64::from(u16::from_le_bytes(*pair)))
-        .collect();
-    let mut at = 0;
-    while at + 1 < units.len() {
-        if units[at] != text::MARKER {
-            at += 1;
-            continue;
-        }
-        let end = at + 2 + units[at + 1] as usize;
-        if end > units.len() {
-            let mut out = raw.to_vec();
-            out.extend(b"\0\0".repeat(end - units.len()));
-            return out;
-        }
-        at = end;
-    }
-    raw.to_vec()
 }
 
 /// Each furniture record the zone's script shows a plate for in one of several lines as the
