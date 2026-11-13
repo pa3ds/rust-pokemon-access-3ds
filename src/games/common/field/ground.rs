@@ -55,7 +55,8 @@ pub const ROCK_SMASH: i64 = 249;
 /// `BOARD`: five hundred steps' worth, so Shift and P goes round a boulder wherever a way round
 /// lies, and through one only where none does (in Seafloor Cavern). Where a
 /// push leaves the boulder is not modelled, and one pushed the wrong way can shut the way it was
-/// pushed to open.
+/// pushed to open. A bike's hop, rail or slope up costs as much, so a bike is ridden only where
+/// nothing else goes (`Ground.toll`).
 pub const SHOVE: i64 = 1000;
 
 /// The ways a big boulder standing in `cells` moves when pushed, each with whether that push
@@ -1253,11 +1254,10 @@ impl Ground {
     }
 
     /// What a move from `cell` to `step` costs on top of its steps: going onto water,
-    /// through what a move clears, up a waterfall, over a bumpy slope, bunny hopped, or up a
-    /// slope from the foot of it off the Mach Bike or onto a rail off the Acro Bike, where the
-    /// player gets on that bike first, or into a Pokémon waiting to be ridden, faced and
-    /// got on with A (`mounts`), or into a thing it smashes, faced and smashed with A
-    /// (`smashed`); through a big boulder or somebody of `crowd`, `SHOVE`; along a street a
+    /// through what a move clears, up a waterfall, or into a Pokémon waiting to be ridden, faced
+    /// and got on with A (`mounts`), or into a thing it smashes, faced and smashed with A
+    /// (`smashed`); through a big boulder or somebody of `crowd`, or on a bike over a bumpy
+    /// slope, onto a rail or up a slope from its foot, `SHOVE`; along a street a
     /// way it does not run, which the keys never walk and a way takes only where the cells laid
     /// on the grid leave it no other (`lanes`); and off a climbing wall's face onto its ledge or
     /// back, a step's worth a handhold climbed to it (`Walls.toll`), on top of the rest.
@@ -1285,21 +1285,16 @@ impl Ground {
         {
             return Ok(BOARD);
         }
-        // A bunny hop costs as much on the bike: B held two seconds and the way pressed, where
-        // Jagged Pass's ways round its bumpy slopes are as long (or_jagged_pass_slopes).
+        // Either bike is hard to steer by ear, on it or not: a bunny hop, a rail and a slope ridden
+        // up cost a boulder's push, so a way takes one only where no way without a bike goes. In
+        // Lilycove City the hideout's way rode the Acro Bike where Surf from the shore went too.
         if self.hopping(cell, step)
-            || self.climbing(cell, step)
-            || (!self.acro && self.rails.contains_key(&step) && !self.rails.contains_key(&cell))
+            || (self.rails.contains_key(&step) && !self.rails.contains_key(&cell))
+            || (self.climbs(cell, step)? && self.slope(cell)?.is_none())
         {
-            return Ok(BOARD);
+            return Ok(SHOVE);
         }
-        Ok(
-            if !self.bike && self.climbs(cell, step)? && self.slope(cell)?.is_none() {
-                BOARD
-            } else {
-                0
-            },
-        )
+        Ok(if self.climbing(cell, step) { BOARD } else { 0 })
     }
 
     /// Which way the cell goes down, a ledge jumped, a slope walked or a belt ridden, or

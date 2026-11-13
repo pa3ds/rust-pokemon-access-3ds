@@ -3960,9 +3960,9 @@ fn pass() -> Field {
     }
 }
 
-/// Jagged Pass: P to the Hiker up the sandy slope. On foot P goes round
-/// it; on the bike it rides straight up; Shift and P on foot says the leg up it with the bike, as
-/// the player reaches the slope.
+/// Jagged Pass: P to the Hiker up the sandy slope. On foot P goes round it, and Shift and P
+/// too, either bike being hard to steer by ear; with no way round, Shift and P on foot says the
+/// leg up it with the bike, as the player reaches the slope; on the bike P rides up it.
 #[test]
 fn test_p_rides_up_a_slope_only_on_the_bike_and_shift_p_says_the_bike_on_foot() {
     let mut rig = navigator(Want {
@@ -3970,9 +3970,16 @@ fn test_p_rides_up_a_slope_only_on_the_bike_and_shift_p_says_the_bike_on_foot() 
         slopes: slope(),
         ..on(pass())
     });
-    rig.press(PATHFIND);
-    let way = path_of(&guidance(&rig));
-    assert!(!way.iter().any(|cell| slope().contains(cell)));
+    for shifted in [false, true] {
+        if shifted {
+            rig.press_key("shift+p");
+        } else {
+            rig.press(PATHFIND);
+        }
+        let way = path_of(&guidance(&rig));
+        assert!(!way.iter().any(|cell| slope().contains(cell)));
+    }
+    one_chunk(&rig);
     rig.press_key("shift+p");
     assert_eq!(last(&rig.backend), "2 north, Mach Bike 5 north, 7 north");
     step(&mut rig, &[(95, 174), (95, 173)]);
@@ -4007,6 +4014,7 @@ fn test_p_on_the_acro_bike_rides_up_no_slope_and_on_the_mach_bike_along_no_rail(
         acro: Some(false),
         ..pass()
     });
+    one_chunk(&rig);
     rig.press(PATHFIND);
     assert_eq!(last(&rig.backend), "14 north");
     let mut rig = railed((95, 175), true);
@@ -4023,8 +4031,8 @@ fn test_p_on_the_acro_bike_rides_up_no_slope_and_on_the_mach_bike_along_no_rail(
 }
 
 /// Jagged Pass: the player hopped north up the bumpy slope at (49, 30) on the Acro Bike, from
-/// (49, 31) to (49, 29). On foot P goes round it; Shift and P hops it,
-/// said as the bunny hop it takes (or_safari_zone, spike 267).
+/// (49, 31) to (49, 29). P goes round it, and Shift and P too where a way round goes; with
+/// none, Shift and P hops it, said as the bunny hop it takes (or_safari_zone, spike 267).
 #[test]
 fn test_shift_p_hops_up_a_bumpy_slope_and_says_a_bunny_hop() {
     let mut rig = navigator(Want {
@@ -4032,9 +4040,16 @@ fn test_shift_p_hops_up_a_bumpy_slope_and_says_a_bunny_hop() {
         ..on(pass())
     });
     *rig.field.bumpy.borrow_mut() = HashSet::from([(95, 170)]);
-    rig.press(PATHFIND);
-    let way = path_of(&guidance(&rig));
-    assert!(!way.contains(&(95, 170)));
+    for shifted in [false, true] {
+        if shifted {
+            rig.press_key("shift+p");
+        } else {
+            rig.press(PATHFIND);
+        }
+        let way = path_of(&guidance(&rig));
+        assert!(!way.contains(&(95, 170)));
+    }
+    one_chunk(&rig);
     rig.press_key("shift+p");
     assert_eq!(last(&rig.backend), "4 north, bunny hop 2 north, 8 north");
 }
@@ -4056,6 +4071,7 @@ fn test_p_on_the_bike_hops_down_a_bumpy_slope() {
         })
     });
     *rig.field.bumpy.borrow_mut() = HashSet::from([(95, 170)]);
+    one_chunk(&rig);
     rig.press(PATHFIND);
     assert_eq!(last(&rig.backend), "7 south, bunny hop 2 south, 6 south");
 }
