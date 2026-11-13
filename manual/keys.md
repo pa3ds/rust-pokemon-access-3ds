@@ -24,7 +24,8 @@ its own exits are listed. In X and Y, a gate is said with the place beyond it: "
 Route 4". Lumiose's exits say where they go even where the game puts no sign up: the alleys onto
 its five plazas by the plaza, "Rouge Plaza"; the Looker Bureau and Restaurant Le Wow by their
 signs; and the doors the game never names by what is behind them, "back alley", "office
-building", "photo shoot".
+building", "photo shoot". In Lilycove City, the way into the hideout is the one of your own story,
+Team Magma's in Omega Ruby and Team Aqua's in Alpha Sapphire.
 
 In Laverre Gym, in X and Y, the interactables list each teleporter with where it puts you, and `P`
 leads you through them, saying the way as far as the first and how many more.

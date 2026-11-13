@@ -1222,6 +1222,58 @@ fn test_a_lifts_warps_on_one_cell_are_listed_as_its_work_has_the_car() -> Result
     Ok(())
 }
 
+/// Spike 212: Lilycove's way into the hideout is Team Aqua's, zone 0x5c, and Team Magma's,
+/// 0xa9, on one cell, and both were listed. The save's flag 0x43e says it plays Omega Ruby's
+/// story, whose room of each twin pair is the higher, and 0x43d Alpha Sapphire's; both stay
+/// before a sweep has found the works, and in a save with neither flag.
+#[test]
+fn test_of_two_warps_on_one_cell_into_twin_rooms_the_storys_is_listed() -> Result<()> {
+    let mut town = Town::new();
+    let data = zone_file(&ZoneSpec {
+        warps: &[
+            (HOUSE, 0x0301, 94, 171, None, None),
+            (BEDROOM, 0x0301, 94, 171, None, None),
+        ],
+        info: &town_info(),
+        ..ZoneSpec::default()
+    });
+    town.memory.write(FILE, &data);
+    town.memory
+        .u32(HOLDER + 8, &[0x11 | (data.len() as i64) << 8]);
+    town.reader = field_reader(
+        town.memory.clone(),
+        Given::default(),
+        Game {
+            version_flags: Some(oras::VERSION_FLAGS),
+            ..game()
+        },
+    );
+
+    let exits = |town: &Town| -> Result<Vec<Option<i64>>> {
+        Ok(town
+            .r#where()?
+            .of("exits")
+            .into_iter()
+            .filter(|item| item.zone == Some(BEDROOM) || item.zone == Some(HOUSE))
+            .map(|item| item.zone)
+            .collect())
+    };
+    let both = HashSet::from([Some(BEDROOM), Some(HOUSE)]);
+    assert_eq!(exits(&town)?.into_iter().collect::<HashSet<_>>(), both);
+    town.reader.track(&Found {
+        pages: IndexMap::new(),
+        heap: IndexMap::from([(EVENT_WORK, EVENT_CLASS.to_string())]),
+        partial: false,
+    })?;
+    assert_eq!(exits(&town)?.into_iter().collect::<HashSet<_>>(), both);
+    let flags = EVENT_WORK + FLAGS + 0x43E / 8;
+    town.memory.write(flags, &[1 << (0x43E % 8)]);
+    assert_eq!(exits(&town)?, [Some(BEDROOM.max(HOUSE))]);
+    town.memory.write(flags, &[1 << (0x43D % 8)]);
+    assert_eq!(exits(&town)?, [Some(BEDROOM.min(HOUSE))]);
+    Ok(())
+}
+
 /// A warp's high byte is what it is and its low byte the way it is walked into, as a stair's
 /// is: Aquacorde's houses' mats out face east and west (0x0202, 0x0203) and Lumiose's doors
 /// north, east, south and west (0x0301, 0x0302, 0x0300, 0x0303), and every one but the first

@@ -361,6 +361,11 @@ pub struct Game {
     /// Where the field's work holds the current zone's record, which leads to its data and the
     /// zone table: ORAS's +0xF4, X's +0xE4 (`FieldReader.anchor`, spike 282).
     pub zone_record: i64,
+    /// The save's flags saying which version's story it plays: the flag of the version whose
+    /// rooms are the higher zone of each pair of twins, then the other's. Of two warps on one cell
+    /// into two places, the one into the room of the story played is listed (`reader._exits`). None
+    /// in a game whose versions share every room.
+    pub version_flags: Option<(i64, i64)>,
     /// By app, the chains from its process to the objects it keeps, found from the moment it
     /// starts (`gen6.anchors`, spike 282).
     pub anchors: IndexMap<String, Vec<Chain>>,
@@ -428,6 +433,7 @@ impl Game {
             whole: HashSet::new(),
             items_at: IndexMap::new(),
             zone_record: 0xF4,
+            version_flags: None,
             anchors: IndexMap::new(),
         }
     }

@@ -321,6 +321,8 @@ pub struct FieldReader {
     works: Rc<Works>,
     /// (zone, a warp's slot) -> the work and value it is taken at (`Game.armed_warps`).
     armed_warps: IndexMap<(i64, i64), (i64, i64)>,
+    /// The flags saying which version's story the save plays (`Game.version_flags`).
+    version_flags: Option<(i64, i64)>,
     /// What each zone's switches have turned (`landform.Conveyors`, `landform.TurningFloor`).
     switches: Option<Switches>,
     /// What a Gym's module turns and shuts (`maps.gym_floor`).
@@ -526,6 +528,7 @@ impl FieldReader {
             hidden_items: hidden_items(me),
             works,
             armed_warps: game.armed_warps.clone(),
+            version_flags: game.version_flags,
             switches: {
                 let states: IndexSet<(&'static str, i64)> = game
                     .landforms
@@ -1369,7 +1372,11 @@ impl FieldReader {
                     ..warp
                 });
             }
-            items.extend(exits(found, &|zone| self.zones.place_index(zone))?);
+            items.extend(exits(
+                found,
+                &|zone| self.zones.place_index(zone),
+                Some(&|one, other| self.played(one, other)),
+            )?);
         }
         items.extend(self.boulders(people.clone(), r#where.zone, data.as_ref(), home)?);
         items.extend(self.edges(r#where.zone, !r#where.on_rail, true)?);
@@ -1980,7 +1987,7 @@ impl FieldReader {
                 }
             }
         }
-        out.extend(exits(found, &|zone| self.zones.place_index(zone))?);
+        out.extend(exits(found, &|zone| self.zones.place_index(zone), None)?);
         // Off North Boulevard into Magenta Plaza's alley only the way back was listed: the alley
         // ends on the plaza, which is walked on the grid and is on no line (spike 251).
         for (point, cell, ground) in self.rails.ends(corridor)? {
@@ -2347,6 +2354,24 @@ impl FieldReader {
             }
         }
         Ok(out)
+    }
+
+    /// Which of two twin zones the save's story plays (`Game.version_flags`): the higher
+    /// where the first flag is set, the lower where the second is; None in a game without
+    /// twins, in a save with neither, and before a sweep has found the works. Read only where
+    /// two warps on one cell lead to two places, so that no other listing reads the flags.
+    fn played(&self, one: i64, other: i64) -> Result<Option<i64>> {
+        let Some((higher, lower)) = self.version_flags else {
+            return Ok(None);
+        };
+        if self.works.flag(higher)? == Some(true) {
+            return Ok(Some(one.max(other)));
+        }
+        Ok(if self.works.flag(lower)? == Some(true) {
+            Some(one.min(other))
+        } else {
+            None
+        })
     }
 
     /// What the zone's models drawn as nothing stand in for, by their records' indices: the
@@ -2812,7 +2837,7 @@ impl FieldReader {
                 ..warp
             });
         }
-        out.extend(exits(found_exits, &|zone| self.zones.place_of(zone))?);
+        out.extend(exits(found_exits, &|zone| self.zones.place_of(zone), None)?);
         for record in read_records(&memory, &found, NPC)? {
             let here = (zone, u16(&record, NPC_INDEX)?);
             if built.as_ref().is_some_and(|built| !built.contains(&here.1)) {
@@ -3420,29 +3445,47 @@ fn joined(
 /// `place` covers already, which is said alike and walked to alike. Lumiose's streets go on into
 /// the next through three warps a cell apart, "warp to Centrico Plaza here", "1 east" and "1
 /// west", and the Tower of Mastery's stairs up are three side by side twice over, to zones 0xb7
-/// and 0xb9, both the Tower. A game takes one of two warps on one cell by a rule of its own:
-/// Lilycove's way into the hideout is Team Aqua's and Team Magma's on the same cells, and Omega
-/// Ruby's is Magma's, the second; so warps into two places both stay (spike 251).
+/// and 0xb9, both the Tower. A game takes one of two warps on one cell into two places by the
+/// story its save plays: Lilycove's way into the hideout is Team Aqua's and Team Magma's on the
+/// same cells, and Omega Ruby's is Magma's, the second (spike 251). `played` says which of the
+/// two zones is the story's, and only its warp is listed; where it says neither, both stay
+/// (`Game.version_flags`, spike 212).
 fn exits(
     warps: Vec<Interactable>,
     place: &dyn Fn(i64) -> Result<Option<i64>>,
+    played: Option<&dyn Fn(i64, i64) -> Result<Option<i64>>>,
 ) -> Result<Vec<Interactable>> {
     let mut kept: Vec<Interactable> = Vec::new();
     for item in warps {
         let cells: HashSet<Cell> = item.cells().into_iter().collect();
+        // Indices into `kept` rather than the items, so that `kept.index(twin)` is the twin's.
+        let under: Vec<usize> = (0..kept.len())
+            .filter(|&i| {
+                kept[i].kind == item.kind && cells.is_subset(&kept[i].cells().into_iter().collect())
+            })
+            .collect();
         let mut covered = false;
-        for other in &kept {
-            if other.kind == item.kind
-                && cells.is_subset(&other.cells().into_iter().collect())
-                && place(other.zone.unwrap_or(0))? == place(item.zone.unwrap_or(0))?
-            {
+        for &i in &under {
+            if place(kept[i].zone.unwrap_or(0))? == place(item.zone.unwrap_or(0))? {
                 covered = true;
                 break;
             }
         }
-        if !covered {
-            kept.push(item);
+        if covered {
+            continue;
         }
+        let twin = under.iter().copied().find(|&i| kept[i].zone.is_some());
+        if let (Some(played), Some(twin)) = (played, twin)
+            && let (Some(twin_zone), Some(zone)) = (kept[twin].zone, item.zone)
+            && zone != 0
+            && let Some(story) = played(twin_zone, zone)?
+        {
+            if story == zone {
+                kept[twin] = item;
+            }
+            continue;
+        }
+        kept.push(item);
     }
     // Python's key is the tuple (kind, zone, height, home); its parts written out here.
     Ok(joined(kept, &|item| {

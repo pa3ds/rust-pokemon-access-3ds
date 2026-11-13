@@ -622,6 +622,16 @@ pub const SOOTOPOLIS_GYM: i64 = 0x1BC;
 /// (or_safari_zone_multizone_pathfinding). Routes 119, 120 and 123 are listed a part at a time, the
 /// whole place's listing slowing every key.
 pub const SAFARI_ZONE: [i64; 4] = [0xDB, 0xDC, 0xDD, 0xDE];
+/// The save's flags saying which version's story it plays, whatever ROM runs it: `0x43e` Omega
+/// Ruby's and `0x43d` Alpha Sapphire's (`Game.version_flags`, spike 212): one set in each of the
+/// 106 ORAS saves in regression's movies, 94 and 12, and neither in a new game's. Spike 212's other
+/// marker, work 48, was 0 in 45 of those Omega Ruby saves, and never 2 in Alpha Sapphire's
+/// (2026-11-12). Where the versions part, a room is there twice and the room before it has a warp
+/// into each on one spot; of every pair told apart, Omega Ruby's is the higher zone: Seafloor
+/// Cavern's `0x6d` over `0x6c`, the Cave of Origin's `0x1c7`, `0x76` and `0x7a`, and Lilycove's way
+/// into Team Magma's hideout, `0xa9`, over Team Aqua's, `0x5c`, both listed there until
+/// 2026-11-12.
+pub const VERSION_FLAGS: (i64, i64) = (0x43E, 0x43D);
 pub const SWITCH: (&str, &str) = ("signs", "switch");
 pub const PASSAGE: (&str, &str) = ("exits", "passage");
 pub const BELT: (&str, &str) = ("signs", "conveyor belt");
@@ -1060,6 +1070,7 @@ pub fn game() -> &'static Game {
         anchors: anchors(),
         box_mode: Some((0x24, 0x21)),
         registered: Some(0x0E),
+        version_flags: Some(VERSION_FLAGS),
         ..Game::new(
             "Omega Ruby and Alpha Sapphire",
             [OMEGA_RUBY, ALPHA_SAPPHIRE],
