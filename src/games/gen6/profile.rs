@@ -628,17 +628,24 @@ impl Gen6Profile {
         });
         let pauses = ui.pauses;
         let sides: Sides = {
-            let (standings, announcements) = (standings.clone(), announcements.clone());
+            let (standings, announcements, apps) =
+                (standings.clone(), announcements.clone(), apps.clone());
             Rc::new(move |player: bool| {
                 let standing = match &standings {
                     None => None,
                     Some(standings) => standings.borrow().said(player, pauses)?,
                 };
                 // Python's `or`: a standing of "" or None goes on to the battle's sides.
-                match standing {
-                    Some(standing) if !standing.is_empty() => Ok(Some(standing)),
-                    _ => Ok(announcements.borrow().sides(player)),
+                let said = match standing {
+                    Some(standing) if !standing.is_empty() => Some(standing),
+                    _ => announcements.borrow().sides(player),
+                };
+                // A battle has begun before the game draws either side: R was "no battle" for the
+                // seconds before "Go!".
+                if said.is_none() && apps.borrow().running.as_deref() == Some(BATTLE) {
+                    return Ok(Some(own("key-battle-not-shown", &[])));
                 }
+                Ok(said)
             })
         };
         let on_screen: OnScreen = {

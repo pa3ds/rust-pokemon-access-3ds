@@ -22,7 +22,7 @@ use crate::core::memory::{Cache, Memory};
 use crate::core::names::Names;
 use crate::core::rtti::ClassNames;
 use crate::core::speech::Speech;
-use crate::games::common::field::keys::{ITEM_NEXT, MODE_TOGGLE, PATHFIND};
+use crate::games::common::field::keys::{ENEMY_SIDE, ITEM_NEXT, MODE_TOGGLE, OUR_SIDE, PATHFIND};
 use crate::games::common::field::things::{Interactable, WARP_SOURCE};
 use crate::games::common::session::Ways;
 use crate::games::common::touch::Target;
@@ -393,6 +393,21 @@ fn test_there_is_no_map_once_another_screen_has_unloaded_it() {
             "no map",
             walked[1].as_str()
         ]
+    );
+}
+
+/// A battle has begun seconds before the game draws either side, at "Go!", and R said "no
+/// battle" through them (a player's report).
+#[test]
+fn test_r_in_a_battle_before_its_sides_are_drawn_says_so_and_not_no_battle() {
+    let (made, backend) = profile(&Town::new(), no_text(), None, no_log());
+    made.navigator.borrow_mut().press(OUR_SIDE).unwrap();
+    made.apps.borrow_mut().running = Some(BATTLE.to_string());
+    made.navigator.borrow_mut().press(OUR_SIDE).unwrap();
+    made.navigator.borrow_mut().press(ENEMY_SIDE).unwrap();
+    assert_eq!(
+        backend.spoken(),
+        ["no battle", "nothing shown yet", "nothing shown yet"]
     );
 }
 
