@@ -246,6 +246,18 @@ The interactables list its panel as "elevator": face it and press A to take the 
 The exits list the one way out the lift's door leads to where the lift is now, the HQ or Geosenge
 Town.
 
+**The Furfrou in Parfum Palace's garden.** In X and Y, you and Shauna corner a Furfrou in the
+hedge maze at the back of the garden. It stands in the middle of one of the maze's four sides and
+runs to another as you come within three steps of it; Shauna follows you, and waits at one of
+those four places when you talk to her there and answer Yes. While the chase is on, the
+interactables list the four as waiting spots, each with what it is by, and one "next step": where
+Shauna should wait, a walk back to talk to her so she follows again, or where to walk to make the
+Furfrou run the right way. Press `P` on the next step, walk the way, do what it says, and look for
+the next one. A "keep off" entry is the line the Furfrou would escape from; `P` leads you round
+it. The whole chase: Shauna waits at the south spot by the entrance, you send the Furfrou to the
+north spot by the dead end, Shauna waits at the east spot, and you come at the Furfrou along the
+north path from the west.
+
 **Anistar Gym.** In Anistar City, in X and Y, the walkways in space are said by the compass, as
 the keys walk them: "12 north, 3 west, 8 north". The interactables list each teleporter, the
 carpet in the lobby among them: step onto the carpet's middle and the Gym appears round you.

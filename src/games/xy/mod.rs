@@ -27,6 +27,7 @@ use crate::games::gen6::game::{Data, FurnitureKind, Game};
 use crate::games::gen6::rom::layout::{RomLayout, TownFacilities, owned};
 use crate::games::gen6::screens::buttons;
 use crate::games::gen6::subscreen::{amie, berry_picker};
+use crate::games::xy::garden::FurfrouChase;
 use crate::games::xy::intro::IntroReader;
 use crate::py::PySet;
 
@@ -966,6 +967,7 @@ pub fn game() -> &'static Game {
         ]),
         rooms: HashSet::from([HOUSE]),
         models: Some(MODELS),
+        features: vec![FurfrouChase::of],
         landforms: [
             gen6(),
             vec![
@@ -1001,4 +1003,5 @@ pub fn game() -> &'static Game {
     })
 }
 
+pub mod garden;
 pub mod intro;

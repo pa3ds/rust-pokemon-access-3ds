@@ -33,6 +33,7 @@ mod test_distribution;
 mod test_dowsing;
 mod test_field;
 mod test_footsteps;
+mod test_garden;
 mod test_gdb;
 mod test_head_it;
 mod test_heaps;

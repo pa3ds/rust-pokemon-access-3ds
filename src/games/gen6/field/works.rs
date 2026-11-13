@@ -44,20 +44,25 @@ impl Works {
         Ok(())
     }
 
-    /// Whether the save's `work` holds `value`; False before a sweep has found the works.
-    pub fn holds(&self, work: i64, value: i64) -> Result<bool> {
+    /// What the save's `work` holds, or None before a sweep has found the works.
+    pub fn value(&self, work: i64) -> Result<Option<i64>> {
         let Some(event) = self.event.get() else {
-            return Ok(false);
+            return Ok(None);
         };
         let at = event + WORKS + (work - FIRST_WORK) * 2;
         // `int.from_bytes(..., "little")`, which takes however many bytes there are.
-        let held = self
-            .memory
-            .read(at, 2)?
-            .iter()
-            .rev()
-            .fold(0i64, |held, &byte| held << 8 | i64::from(byte));
-        Ok(held == value)
+        Ok(Some(
+            self.memory
+                .read(at, 2)?
+                .iter()
+                .rev()
+                .fold(0i64, |held, &byte| held << 8 | i64::from(byte)),
+        ))
+    }
+
+    /// Whether the save's `work` holds `value`; False before a sweep has found the works.
+    pub fn holds(&self, work: i64, value: i64) -> Result<bool> {
+        Ok(self.value(work)? == Some(value))
     }
 
     /// Whether the save's event flag `number` is set, or None before a sweep has found the
