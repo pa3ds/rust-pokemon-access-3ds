@@ -191,12 +191,26 @@ pub fn hearts(count: i64) -> String {
     own("contest-hearts", &[("count", &count)])
 }
 
-/// What the data calls a texture's picture, `map_big.bclim` "zoom in", or None where no file
-/// of the player's language or English's names it.
+/// `named(texture)`: in no layout.
 pub fn named(texture: &str) -> Option<String> {
+    named_in(texture, "")
+}
+
+/// What the data calls a texture's picture, `map_big.bclim` "zoom in", or None where no file
+/// of the player's language or English's names it. In `layout`, a layout file's name, the
+/// data's word for the picture there comes first: the name entry draws its Shift key with
+/// `icon_delete.bclim`, which the number entry's Delete key is drawn with too (or_name_rater).
+pub fn named_in(texture: &str, layout: &str) -> Option<String> {
     let stem = stem(texture);
     let words = current();
-    let mut said = words.get(&format!("{TEXTURE}{stem}"), &[]);
+    let mut said = if layout.is_empty() {
+        None
+    } else {
+        words.get(&format!("{TEXTURE}{}-{stem}", self::stem(layout)), &[])
+    };
+    if said.is_none() {
+        said = words.get(&format!("{TEXTURE}{stem}"), &[]);
+    }
     if said.is_none()
         && let Some(prefix) = PREFIXED.iter().find(|prefix| stem.starts_with(**prefix))
     {
@@ -205,10 +219,16 @@ pub fn named(texture: &str) -> Option<String> {
     said
 }
 
-/// A texture's picture in words: what the data calls it (`named`), or else words made from its
-/// name, `fight_button.bclim` "fight" (`made`), which the log notes.
+/// `words(texture)`: in no layout.
 pub fn words(texture: &str) -> String {
-    match named(texture) {
+    words_in(texture, "")
+}
+
+/// A texture's picture in words: what the data calls it (`named`), in `layout` where it is
+/// given, or else words made from its name, `fight_button.bclim` "fight" (`made`), which the log
+/// notes.
+pub fn words_in(texture: &str, layout: &str) -> String {
+    match named_in(texture, layout) {
         Some(said) => said,
         None => {
             let said = made(stem(texture));

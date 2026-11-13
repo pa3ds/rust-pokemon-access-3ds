@@ -1172,7 +1172,12 @@ impl TouchTargets {
                             }
                         }
                     }
-                    let mut picture = texture.as_deref().map(pictures::words);
+                    let mut picture = texture.as_deref().map(|texture| {
+                        pictures::words_in(
+                            texture,
+                            file.as_ref().map_or("", |file| file.name.as_str()),
+                        )
+                    });
                     if let Some(texture) = &texture
                         && texture.split('.').next() == Some(pictures::BUTTON)
                         && y < TOP_BAR

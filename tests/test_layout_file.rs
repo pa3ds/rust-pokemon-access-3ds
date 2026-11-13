@@ -5,7 +5,7 @@ use indexmap::IndexMap;
 use super::fake_memory::FakeMemory;
 use super::test_textures::darc;
 use crate::games::common::layout_file::{LayoutFile, LayoutFiles, find, parse, size_of};
-use crate::games::common::pictures::words;
+use crate::games::common::pictures::{words, words_in};
 
 fn le16(value: i64) -> [u8; 2] {
     (value as u16).to_le_bytes()
@@ -398,6 +398,21 @@ fn test_two_files_of_the_same_panes_in_another_order_match_neither() {
     files.add_archive(0x14C00000).unwrap();
     assert!(files.matching(&strings(&["RootPane", "k", "b"])).is_some());
     assert!(files.matching(&strings(&["k", "b", "RootPane"])).is_none());
+}
+
+/// The name entry draws its Shift key, an arrow up, with `icon_delete.bclim`, and the number
+/// entry its Delete key: "delete" named the Shift key (or_name_rater).
+#[test]
+fn test_a_picture_is_said_by_the_layout_it_is_drawn_in_first() {
+    assert_eq!(
+        words_in("icon_delete.bclim", "nameinput2_lower.bclyt"),
+        "shift"
+    );
+    assert_eq!(
+        words_in("icon_delete.bclim", "number_input_lower.bclyt"),
+        "delete"
+    );
+    assert_eq!(words("icon_delete.bclim"), "delete");
 }
 
 #[test]

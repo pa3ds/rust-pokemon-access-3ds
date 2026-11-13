@@ -12,7 +12,7 @@ use crate::core::words::own;
 use crate::games::common::layout::{Layouts, MAX_DEPTH};
 use crate::games::common::layout_file::{LayoutFile, LayoutFiles};
 use crate::games::common::lyt;
-use crate::games::common::pictures::{EMPTY, words};
+use crate::games::common::pictures::{EMPTY, words_in};
 use crate::games::common::screen::{Pictures, ScreenText, distinct, in_rows};
 use crate::games::common::slots::Occupant;
 use crate::py::{self, Result};
@@ -248,7 +248,9 @@ impl Panes {
                 }
             }
         }
-        let mut said: Option<String> = texture.as_deref().map(words);
+        let mut said: Option<String> = texture
+            .as_deref()
+            .map(|texture| words_in(texture, &file.name));
         if let Some(texture) = &texture {
             for piece in on_screen {
                 if piece.root != root {
