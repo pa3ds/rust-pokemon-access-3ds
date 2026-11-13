@@ -260,6 +260,65 @@ fn test_a_question_written_in_a_menu_while_no_cursor_moves_is_said() {
     );
 }
 
+/// Releasing Seedot, the Box wrote "Seedot was released." where "Release this Pokémon?" had
+/// just left, then "Bye-bye, Seedot!", its cursor hidden, and both went unsaid: three words and
+/// two were no sentence, and a sentence was news only beside the menu's rows
+/// (or_releasing_pokemon).
+#[test]
+fn test_short_sentences_in_a_menu_with_its_cursor_hidden_are_said() {
+    let mut screen = Screen::new();
+    let release = piece_kw(1, "RELEASE", 60.0, -40.0, MENU, Kw { parent: 7, ..PLAIN });
+    let asked = piece_kw(
+        2,
+        "Seedot is selected.",
+        -150.0,
+        -100.0,
+        MENU,
+        Kw { parent: 8, ..PLAIN },
+    );
+    screen.say(args(
+        &[release.clone(), asked.clone()],
+        vec![CursorItem::new(0x0C, vec![release.clone()], true)],
+        &[release.clone(), asked.clone()],
+    ));
+    let question = ScreenText {
+        text: "Release this Pokémon?".to_string(),
+        changed: true,
+        with_layout: false,
+        ..asked.clone()
+    };
+    let mut said = screen.say(args(
+        &one(&question),
+        vec![],
+        &[release.clone(), question.clone()],
+    ));
+    said.extend(screen.say(Args {
+        left: one(&question),
+        on_screen: one(&release),
+        ..Args::default()
+    }));
+    let gone = ScreenText {
+        text: "Seedot was released.".to_string(),
+        changed: false,
+        ..question.clone()
+    };
+    said.extend(screen.say(args(&one(&gone), vec![], &one(&gone))));
+    let bye = ScreenText {
+        text: "Bye-bye, Seedot!".to_string(),
+        changed: true,
+        ..gone.clone()
+    };
+    said.extend(screen.say(args(&one(&bye), vec![], &one(&bye))));
+    assert_eq!(
+        said,
+        [
+            "Release this Pokémon?",
+            "Seedot was released.",
+            "Bye-bye, Seedot!"
+        ]
+    );
+}
+
 #[test]
 fn test_a_nameless_item_is_said_by_its_details() {
     // A contest's portraits draw no words, and the screen names the entrant elsewhere as the

@@ -545,25 +545,20 @@ impl ScreenAnnouncer {
             .is_some_and(|gathering| !gathering.count.is_empty());
         // Nor a sentence while no cursor has just moved: the Pokéblock Case asks "Give the
         // Pokéblock to Pikachu?" in the words it asked which Pokémon with, under its list, where
-        // going back to it rewrote "1", "Gyarados" and the counts beside it (movie33).
-        let menu_rows: HashSet<i64> = on_screen
-            .iter()
-            .filter(|p| rows.contains(&p.r#box))
-            .map(|p| p.root)
-            .collect();
+        // going back to it rewrote "1", "Gyarados" and the counts beside it (movie33). Its rows
+        // on screen or not: the Box says "Bye-bye, Seedot!" with its cursor hidden
+        // (or_releasing_pokemon).
         let rowed: HashSet<i64> = if counting {
-            menu_rows.clone()
+            on_screen
+                .iter()
+                .filter(|p| rows.contains(&p.r#box))
+                .map(|p| p.root)
+                .collect()
         } else {
             HashSet::new()
         };
-        let asking: HashSet<i64> = if self.gathering.is_none() {
-            menu_rows
-        } else {
-            HashSet::new()
-        };
-        let news = |piece: &ScreenText| {
-            rowed.contains(&piece.root) || (asking.contains(&piece.root) && sentence(piece))
-        };
+        let asking = self.gathering.is_none();
+        let news = |piece: &ScreenText| rowed.contains(&piece.root) || (asking && sentence(piece));
         // A panel framed in a menu's layout, holding none of what a cursor is over, is the
         // screen's: the battle's move info and the move to forget, each drawn beside the buttons
         // its cursor walks, were never heard (or_move-learning, 2026-10-18).
@@ -1859,10 +1854,20 @@ fn valued(piece: &ScreenText, on_screen: &[ScreenText]) -> bool {
 /// The fewest words a sentence has, a question or a message: more than a label's
 /// (`LABEL_WORDS`) or an item's.
 pub const SENTENCE_WORDS: usize = 4;
+/// How a shorter sentence ends, from two words on: the Box's "Bye-bye, Seedot!"
+/// (or_releasing_pokemon). A word alone is a mark, as the Bag's "ABLE!" beside a Pokémon is.
+pub const SENTENCE_ENDS: [&str; 6] = ["!", "?", "\u{ff01}", "\u{ff1f}", "\u{3002}", "\u{2026}"];
 
-/// Is this a sentence rather than a label, a value or an item's name?
+/// Is this a sentence rather than a label, a value or an item's name? Four words, or fewer
+/// ending as a sentence does: from two words on with "!" or "?", from three with a full stop,
+/// since two are as often a label shortened, "Dex No.", "ID No.". The Box said nothing of
+/// "Seedot was released." and "Bye-bye, Seedot!", taken for the menu's own words
+/// (or_releasing_pokemon).
 fn sentence(piece: &ScreenText) -> bool {
-    py::split(&piece.text).len() >= SENTENCE_WORDS
+    let words = py::split(&piece.text).len();
+    words >= SENTENCE_WORDS
+        || (words >= 2 && SENTENCE_ENDS.iter().any(|end| piece.text.ends_with(end)))
+        || (words >= 3 && piece.text.ends_with('.'))
 }
 
 /// Is this one letter of words being spelled, as a name is typed a letter a TextBox
