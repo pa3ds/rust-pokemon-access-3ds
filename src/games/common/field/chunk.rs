@@ -261,9 +261,12 @@ impl Chunk {
         Ok(self.word(cell)? & BLOCKED == 0)
     }
 
-    /// Whether the cell is water on `floor`, or in `words` for `ANY_FLOOR`.
+    /// Whether the cell is water on `floor`, or in `words` for `ANY_FLOOR` and in a chunk of
+    /// one floor: on Route 119, stacked for its bridges, a way to the water went on onto a chunk
+    /// with no floors of its own, the floor it was walked on still the last chunk's, and the
+    /// reader failed (or_acro_bike_pathfinding).
     pub fn water(&self, cell: (i64, i64), floor: i64) -> Result<bool> {
-        let words = if floor == ANY_FLOOR {
+        let words = if floor == ANY_FLOOR || self.floors.is_empty() {
             &self.words
         } else {
             match usize::try_from(floor).ok().and_then(|k| self.floors.get(k)) {

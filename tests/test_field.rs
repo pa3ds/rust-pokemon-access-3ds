@@ -3445,6 +3445,16 @@ fn test_a_chunk_of_x_s_eight_sections_has_its_deck_from_section_six() -> Result<
     Ok(())
 }
 
+/// Route 119 is stacked for its bridges, and a way to the water went on onto a chunk with no
+/// floors of its own, still walked on the last chunk's floor 0: the reader failed
+/// (or_acro_bike_pathfinding).
+#[test]
+fn test_a_chunk_of_one_floor_is_water_on_any_floor_a_way_carries_onto_it() -> Result<()> {
+    let sea = Chunk::new((0, 0), vec![0x3D1A0006; (CHUNK * CHUNK) as usize]);
+    assert!(sea.water((3, 4), 0)? && sea.water((3, 4), ANY_FLOOR)?);
+    Ok(())
+}
+
 /// Spikes 159 and 167: Route 119's bridge stands over the path it crosses, and from the foot of
 /// the route, the player's height walked the path and cut the bridge, the only way north. The
 /// ground is walked a floor at a time instead: the bridge is open over the river, a step along it
