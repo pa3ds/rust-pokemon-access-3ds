@@ -151,14 +151,14 @@ pub fn character(head: &[u8]) -> Result<i64> {
 /// is drawn with, and reading `drawn` for all 32 would be a page a model for nothing. A work
 /// object whose `drawn` does not hold a sprite yet, as while its looks load, is its own id.
 /// X keeps a pointer where ORAS keeps the sprite, so `drawn` is the game's own. Where `drawn`
-/// holds a model rather than a sprite, as X's does, `models` says where its things' and its
-/// Pokémon's models start (`sprite_of`).
+/// holds a model rather than a sprite, as X's does, or a sprite that numbers a model, as ORAS's
+/// Pokémon's do, `models` says where its things' and its Pokémon's models start (`sprite_of`).
 pub fn drawn_as(
     memory: &dyn Memory,
     model: i64,
     head: &[u8],
     drawn: i64,
-    models: Option<(i64, i64)>,
+    models: Option<(Option<i64>, i64)>,
 ) -> Result<i64> {
     let code = character(head)?;
     if !WORK_OBJECTS.contains(&code) {
@@ -177,16 +177,16 @@ pub fn drawn_as(
 /// The sprite a model draws, given where the things' and the Pokémon's models start: a
 /// person's model is its sprite, a thing's counts on from `PROP_MODEL`, a Pokémon's from
 /// `POKEMON_MODEL` (spikes 218 and 221). X's Rhyhorn by the house is model `0x106`, sprite
-/// `0x1014`.
-pub fn sprite_of(model: i64, models: (i64, i64)) -> i64 {
+/// `0x1014`. ORAS's field models hold no things, which it draws out of an archive of their
+/// own, so its things start nowhere: Southern Island's Latios, sprite `0x1e0`, is `0x1022`.
+pub fn sprite_of(model: i64, models: (Option<i64>, i64)) -> i64 {
     let (things, pokemon) = models;
     if model >= pokemon {
         return POKEMON_MODEL + model - pokemon;
     }
-    if model >= things {
-        PROP_MODEL + model - things
-    } else {
-        model
+    match things {
+        Some(things) if model >= things => PROP_MODEL + model - things,
+        _ => model,
     }
 }
 

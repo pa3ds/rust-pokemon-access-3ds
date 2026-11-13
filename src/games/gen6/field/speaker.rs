@@ -43,7 +43,7 @@ pub struct SpeakerReader {
     /// Where the game keeps the sprite a move model is drawn with (`mmodel.drawn_as`).
     drawn: i64,
     /// Where the game's things' and Pokémon's models start (`mmodel.drawn_as`).
-    models: Option<(i64, i64)>,
+    models: Option<(Option<i64>, i64)>,
     /// Who last spoke, for a rename: a player names somebody having just heard them, which
     /// is a moment later than the page that named them.
     last: Cell<Option<Speaker>>,
@@ -58,7 +58,7 @@ impl SpeakerReader {
         memory: Rc<dyn Memory>,
         names: Rc<Names>,
         drawn: i64,
-        models: Option<(i64, i64)>,
+        models: Option<(Option<i64>, i64)>,
     ) -> Self {
         SpeakerReader {
             memory,

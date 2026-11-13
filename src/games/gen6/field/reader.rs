@@ -377,7 +377,7 @@ pub struct FieldReader {
     /// Where the game keeps the sprite a move model is drawn with (`mmodel.drawn_as`).
     drawn: i64,
     /// Where the game's things' and Pokémon's models start (`Game.models`).
-    model_starts: Option<(i64, i64)>,
+    model_starts: Option<(Option<i64>, i64)>,
     /// Where the player's model says what they move as (`Game.form`).
     form: Option<i64>,
     /// What each kind of use tile is: the game's own word where it has one, the PC's out of

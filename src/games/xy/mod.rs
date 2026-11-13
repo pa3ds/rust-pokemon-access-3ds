@@ -966,7 +966,7 @@ pub fn game() -> &'static Game {
             ),
         ]),
         rooms: HashSet::from([HOUSE]),
-        models: Some(MODELS),
+        models: Some((Some(MODELS.0), MODELS.1)),
         features: vec![FurfrouChase::of],
         landforms: [
             gen6(),

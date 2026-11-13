@@ -280,8 +280,10 @@ pub struct Game {
     /// listed. X's house, its bedroom and its ground floor.
     pub rooms: HashSet<i64>,
     /// Where its things' and its Pokémon's models start, where `drawn` holds a model rather than
-    /// a sprite (`mmodel.sprite_of`): X's; None where it holds the sprite.
-    pub models: Option<(i64, i64)>,
+    /// a sprite, as X's does, or a sprite numbering a model, as ORAS's Pokémon's do; None among
+    /// them where the field's models hold no things (`mmodel.sprite_of`). None where `drawn` holds
+    /// the sprite alone.
+    pub models: Option<(Option<i64>, i64)>,
     /// Its own apps' readers, each built from the memory, the ROM's words, and where to say and
     /// log, or None where what it needs is not read: ORAS's soaring (`oras.field.sky`).
     pub apps: Vec<AppFactory>,

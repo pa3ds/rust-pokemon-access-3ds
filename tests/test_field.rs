@@ -5822,7 +5822,7 @@ fn test_an_x_work_object_holds_the_model_it_was_filled_with_not_its_sprite() -> 
         Given::default(),
         Game {
             drawn: xy::DRAWN,
-            models: Some(xy::MODELS),
+            models: Some((Some(xy::MODELS.0), xy::MODELS.1)),
             ..game()
         },
     );
@@ -5839,6 +5839,37 @@ fn test_an_x_work_object_holds_the_model_it_was_filled_with_not_its_sprite() -> 
         );
     }
     assert_eq!(codes, [0x1014, 0x13, 0x2001]);
+    Ok(())
+}
+
+/// Southern Island's Latios is work object 0x7f, filled with 0x1e0 `EV_POKE24`, and Latias
+/// on Route 118 0x7b with 0x1df `EV_POKE23`, and both were listed as "person" (or_southern_island).
+/// ORAS's sprite list numbers its field models' files, the Pokémon's from `EV_POKE01`'s 0x1be,
+/// which the character `0x1000 + n` draws; a person's sprite is still the person.
+#[test]
+fn test_an_oras_work_object_filled_with_a_pokemon_s_sprite_is_that_pokemon() -> Result<()> {
+    let mut town = Town::new();
+    town.reader = field_reader(
+        town.memory.clone(),
+        Given::default(),
+        Game {
+            models: oras::game().models,
+            ..game()
+        },
+    );
+    let latios = town.model(1, TOWN, 3, 0x7F, (104, 179));
+    let mut codes: Vec<i64> = Vec::new();
+    for sprite in [0x1E0, 0x1DF, 0x13A] {
+        town.memory.u32(latios + mmodel::DRAWN, &[sprite]);
+        codes.extend(
+            town.r#where()?
+                .interactables
+                .iter()
+                .filter(|item| item.cell == (104, 179))
+                .map(|item| item.code),
+        );
+    }
+    assert_eq!(codes, [0x1022, 0x1021, 0x13A]);
     Ok(())
 }
 

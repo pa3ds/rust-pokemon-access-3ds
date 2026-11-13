@@ -398,6 +398,11 @@ pub const SPECIES_NAMES: i64 = 98;
 /// the first Pokémon's, `EV_POKE01`: the character `0x1000 + n` is drawn with model `0x1BE + n`, as
 /// each move model's record of its sprite says at +0x14 (spike 193).
 pub const POKEMON_MODELS: (&str, i64) = ("a/0/2/1", 0x1BE);
+/// Where ORAS's things' and Pokémon's field models start (`Game.models`): its things are drawn
+/// out of an archive of their own, `a/1/3/7`, and a work object a script fills with a Pokémon holds
+/// its sprite, which is its model, `EV_POKE24` 0x1e0 for Southern Island's Latios, the character
+/// `0x1022` (or_southern_island).
+pub const MODELS: (Option<i64>, i64) = (None, POKEMON_MODELS.1);
 /// STATUS, PHYSICAL, SPECIAL: the summary's words, in the category icons' order (spike 147).
 pub const MOVE_CATEGORIES: (i64, i64) = (150, 17);
 /// Coolness, Beauty, Cuteness, Cleverness, Toughness: the contest's own text, in its move icons'
@@ -1071,6 +1076,7 @@ pub fn game() -> &'static Game {
         box_mode: Some((0x24, 0x21)),
         registered: Some(0x0E),
         version_flags: Some(VERSION_FLAGS),
+        models: Some(MODELS),
         ..Game::new(
             "Omega Ruby and Alpha Sapphire",
             [OMEGA_RUBY, ALPHA_SAPPHIRE],
