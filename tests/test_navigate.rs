@@ -4791,14 +4791,14 @@ fn test_with_no_way_there_p_goes_as_near_as_it_can_and_says_it_can_t_continue() 
     rig.press(PATHFIND);
     assert_eq!(
         said(&rig.backend),
-        ["people, 1", "4 south, 7 east, then can't continue"]
+        ["people, 1", "5 south, 7 east, then can't continue"]
     );
-    let mut walked: Vec<Cell> = (176..180).map(|z| (90, z)).collect();
-    walked.extend((91..98).map(|x| (x, 179)));
+    let mut walked: Vec<Cell> = (176..181).map(|z| (90, z)).collect();
+    walked.extend((91..98).map(|x| (x, 180)));
     step(&mut rig, &walked);
     assert_eq!(
         from(&rig.backend, 2),
-        ["7 east", "can't continue, person, 3 east 1 south"]
+        ["7 east", "can't continue, person, 3 east"]
     );
     assert!(!rig.nav.guiding());
 }

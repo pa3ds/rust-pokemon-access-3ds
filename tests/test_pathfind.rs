@@ -348,6 +348,35 @@ fn test_nothing_is_found_where_no_way_leads() {
     );
 }
 
+/// The shore round a pond holds the pond in its box: measured to the box, a way to it that
+/// fell short could end anywhere across the pond's width, nowhere near the shore
+/// (or_water_pathfinding_weirdness).
+#[test]
+fn test_a_way_that_falls_short_ends_nearest_a_goal_not_the_box_round_them() {
+    let (walkable, box_) = drawn(&[
+        ".........",
+        "#########",
+        ".........",
+        ".........",
+        ".........",
+    ]);
+    let closest = Options {
+        closest: true,
+        ..plain()
+    };
+    let way = find(
+        (4, 4),
+        &goals(&[((0, 0), None), ((8, 0), None)]),
+        &*walkable,
+        box_,
+        &closest,
+    )
+    .unwrap()
+    .unwrap();
+    let end = way.last().unwrap().cell;
+    assert!(end == (0, 2) || end == (8, 2), "{end:?}");
+}
+
 /// Issue 3: a ledge was walked round like a wall, and "no path" where a jump was the only
 /// way down. The ledge's cell is in the path, so each cell is a step from the last.
 #[test]

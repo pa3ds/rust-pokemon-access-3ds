@@ -562,10 +562,10 @@ pub fn find(
         node: first.clone(),
     });
     order += 1;
-    // On the goals' floor first, then nearest the goals' box, then cheapest: the box is the
-    // goals for an edge's gap or a cell beside a thing, which is what a way that falls short is
-    // walked to, and the floor under a thing is not beside it.
-    let mut nearest = (!arrives(start, state)?, estimate(start), 0, first.clone());
+    // Every place the player could stop, for a way that falls short to end on the one on the
+    // goals' floor first, then nearest the goals, then cheapest: the floor under a thing is not
+    // beside it.
+    let mut stopped: Vec<(bool, i64, Node)> = vec![(!arrives(start, state)?, 0, first.clone())];
     // Python's `math.inf`: none found yet.
     let mut best: Option<i64> = None;
     while let Some(Entry { key, node }) = frontier.pop() {
@@ -604,11 +604,8 @@ pub fn find(
                 Some(stops) => stops(cell, now)?,
             }
         {
-            // `min` keeps the first of equals, so a later node replaces it only by being less,
-            // and between equal estimates and costs the states themselves are compared, as tuples.
-            let candidate = (!arrives(cell, now)?, estimate(cell), cost, node.clone());
-            if candidate < nearest {
-                nearest = candidate;
+            if *closest {
+                stopped.push((!arrives(cell, now)?, cost, node.clone()));
             }
             if let Some(&face) = goals.get(&cell)
                 && arrives(cell, now)?
@@ -672,11 +669,59 @@ pub fn find(
         let chosen = chosen(&came, &first, &ARRIVED, *part)?;
         return Ok(Some(back(&chosen, &chosen[&ARRIVED])));
     }
-    Ok(if *closest {
-        Some(back(&chosen(&came, &first, &nearest.3, *part)?, &nearest.3))
-    } else {
-        None
-    })
+    if !*closest {
+        return Ok(None);
+    }
+    let gap = gap_of(goals.keys().copied());
+    // `min` keeps the first of equals, so a later node replaces it only by being less, and
+    // between equal gaps and costs the states themselves are compared, as tuples.
+    let mut end: Option<(bool, i64, i64, &Node)> = None;
+    for (off, cost, node) in &stopped {
+        let candidate = (*off, gap(node.0), *cost, node);
+        if end.as_ref().is_none_or(|end| candidate < *end) {
+            end = Some(candidate);
+        }
+    }
+    let end = end.expect("the start is a place the player could stop").3;
+    Ok(Some(back(&chosen(&came, &first, end, *part)?, end)))
+}
+
+/// How many steps a cell is from the nearest of `goals`, walls aside. The box round them is
+/// no measure of it: the shore round a pond holds the pond, and every cell of it, nowhere near
+/// a shore, was as near as the shore itself (or_water_pathfinding_weirdness).
+///
+/// Python's is `_gap`, which hands back a function it caches; this one caches in a map of its
+/// own. Python's `math.inf` before any row is measured is `i64::MAX`: `goals` is never empty.
+fn gap_of(goals: impl IntoIterator<Item = Cell>) -> impl Fn(Cell) -> i64 {
+    let mut rows: IndexMap<i64, Vec<i64>> = IndexMap::new();
+    for (x, z) in goals {
+        rows.entry(z).or_default().push(x);
+    }
+    for xs in rows.values_mut() {
+        xs.sort();
+    }
+    let cache: RefCell<HashMap<Cell, i64>> = RefCell::new(HashMap::new());
+    move |cell: Cell| {
+        if let Some(&known) = cache.borrow().get(&cell) {
+            return known;
+        }
+        let (x, z) = cell;
+        let mut nearest = i64::MAX;
+        for (&row, xs) in &rows {
+            if (row - z).abs() < nearest {
+                let i = xs.partition_point(|&known| known < x);
+                let across = [i.wrapping_sub(1), i]
+                    .into_iter()
+                    .filter(|&j| j < xs.len())
+                    .map(|j| (xs[j] - x).abs())
+                    .min()
+                    .expect("a row has a cell");
+                nearest = nearest.min((row - z).abs() + across);
+            }
+        }
+        cache.borrow_mut().insert(cell, nearest);
+        nearest
+    }
 }
 
 /// Note a way into `onward` from `node` at `price`: the cheapest yet, or as cheap as the
