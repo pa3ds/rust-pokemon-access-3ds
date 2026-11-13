@@ -720,6 +720,71 @@ fn test_a_button_switched_off_whose_picture_is_said_all_the_same_is_offered() {
     );
 }
 
+/// The DexNav's magnifier over a hidden Pokémon holds a Poké Ball over one caught, and the same
+/// magnifier with none over one never caught, which was said caught too (spike 195): by the ball
+/// shown, never by the magnifier, nor by the ball hidden in its button.
+#[test]
+fn test_a_button_is_said_caught_only_while_it_shows_the_picture_that_says_so() {
+    let memory = FakeMemory::new();
+    let classes = FakeClasses::new(memory.clone());
+    let fake = FakeLayouts::new(&memory, &classes);
+    let (bounding, picture) = (
+        classes.add(lyt::BOUNDING_CLASS),
+        classes.add(lyt::PICTURE_CLASS),
+    );
+    let (_work, group) = fake.screen(0x08200000);
+    let button = group + 0x1000;
+    let (area, magnifier, ball) = (button + 0x200, button + 0x400, button + 0x600);
+    fake.pane(button, group);
+    fake.pane_with_vtable(area, button, Some(bounding));
+    fake.pane_with_vtable(magnifier, button, Some(picture));
+    fake.pane_with_vtable(ball, magnifier, Some(picture));
+    memory.write(
+        area + lyt::WIDTH,
+        &[120.0f32.to_le_bytes(), 120.0f32.to_le_bytes()].concat(),
+    );
+    fake.track().unwrap();
+    let drawn: IndexMap<i64, String> = [
+        (magnifier, "search_get_button.bclim".to_string()),
+        (ball, "ball.bclim".to_string()),
+    ]
+    .into_iter()
+    .collect();
+    let mut targets = TouchTargets::new(
+        fake.layouts.clone(),
+        Rc::new(Vec::new),
+        Rc::new(|_box| Ok(String::new())),
+        Rc::new(move |pane| Ok(drawn.get(&pane).cloned())),
+        Rc::new(|_root| None),
+        Rc::new(|_line: &str| {}),
+        Options {
+            images: Some(
+                [(
+                    "search_get_button.bclim".to_string(),
+                    "Hidden Pokémon".to_string(),
+                )]
+                .into_iter()
+                .collect(),
+            ),
+            caught: HashSet::from(["ball.bclim".to_string()]),
+            said_caught: Some(Rc::new(|words: &str| format!("{words} caught"))),
+            ..Options::default()
+        },
+    );
+    let names = |targets: &mut TouchTargets| -> Vec<String> {
+        targets
+            .targets()
+            .unwrap()
+            .into_iter()
+            .map(|t| t.name)
+            .collect()
+    };
+    assert_eq!(names(&mut targets), ["Hidden Pokémon caught"]);
+    fake.visible(ball, false);
+    fake.layouts.refresh();
+    assert_eq!(names(&mut targets), ["Hidden Pokémon"]);
+}
+
 /// Touch mode over a bottom-screen layout drawing two of Super Training's training bags, a
 /// Strength Bag in view and another off the screen's left edge, and a third picture, no touch
 /// area holding any and a screen offering the bags: with those panes in order, and the root.

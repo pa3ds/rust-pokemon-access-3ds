@@ -271,6 +271,8 @@ pub struct Options {
     pub said_off: Option<SaidOff>,
     pub places: Option<Places>,
     pub offered: Option<Rc<dyn Fn() -> bool>>,
+    pub caught: HashSet<String>,
+    pub said_caught: Option<Rc<dyn Fn(&str) -> String>>,
 }
 
 /// The walk over the bottom screen's touch targets: the one chosen, a drag picked up and the
@@ -745,6 +747,12 @@ pub struct TouchTargets {
     /// Whether the screen up now needs a touch: none is offered on one the game's buttons work
     /// (`gen6.profile.TOUCHED`); None offers them everywhere.
     offered: Option<Rc<dyn Fn() -> bool>>,
+    /// Images a button named by the game's word for its picture shows only while what it
+    /// stands for is caught: the DexNav's magnifier holds a Poké Ball over a hidden Pokémon
+    /// caught, and over one never caught draws the same magnifier with none (spike 195).
+    caught: HashSet<String>,
+    /// A button's words said caught.
+    said_caught: Option<Rc<dyn Fn(&str) -> String>>,
     /// A layout's root -> the names of its buttons that were a list's labels while it was up.
     listed: IndexMap<i64, HashSet<String>>,
     /// Touch area -> what it was last called (rule 4), and the panes its button held then.
@@ -778,6 +786,8 @@ impl TouchTargets {
             said_off,
             places,
             offered,
+            caught,
+            said_caught,
         } = options;
         TouchTargets {
             layouts,
@@ -796,6 +806,8 @@ impl TouchTargets {
             said_off,
             places,
             offered,
+            caught,
+            said_caught,
             listed: IndexMap::new(),
             named: IndexMap::new(),
             unnamed: HashSet::new(),
@@ -930,14 +942,26 @@ impl TouchTargets {
                         }
                     }
                 }
-                if let Some(image) = &image
-                    && !image.is_empty()
+                if let Some(shown_image) = image.clone()
+                    && !shown_image.is_empty()
                     && said.is_empty()
                 {
                     spoken
                         .get_mut(&touch)
                         .expect("inserted above")
-                        .insert(image.clone());
+                        .insert(shown_image.clone());
+                    // By what it draws now, never its layout file's texture: the ball is there,
+                    // hidden, over a Pokémon not caught.
+                    if let Some(said_caught) = &self.said_caught
+                        && owned[&touch].iter().any(|p| {
+                            drawn
+                                .get(p)
+                                .and_then(Option::as_deref)
+                                .is_some_and(|i| self.caught.contains(i))
+                        })
+                    {
+                        image = Some(said_caught(&shown_image));
+                    }
                 }
                 if let Some(picture_name) = self.picture_name.clone() {
                     // What the game fills a picture with comes first, as it is drawn: the Bag's

@@ -288,8 +288,12 @@ pub fn berry_picker() -> &'static (i64, IndexMap<&'static str, i64>) {
     static BERRY_PICKER: OnceLock<(i64, IndexMap<&'static str, i64>)> = OnceLock::new();
     BERRY_PICKER.get_or_init(|| (ITEM_NAMES, berry_picker::BERRIES.into_iter().collect()))
 }
-/// Pictures a button draws only while what it shows is caught: said "caught" after its name.
-pub const CAUGHT_IMAGES: [&str; 1] = ["search_get_button.bclim"];
+/// Pictures a button draws only while what it shows is caught: said "caught" after its name. The
+/// DexNav's magnifier over a hidden Pokémon, `search_get_button`, holds a Poké Ball, `ball`, only
+/// over one caught: over a Surskit caught (or_dexnav_search_zigzagoon, 245 s) and not over an
+/// Azumarill never caught (or_uncaught_dexnav_mons, 86 s; spike 195). Every hidden Pokémon was said
+/// caught while the magnifier was taken for the sign.
+pub const CAUGHT_IMAGES: [&str; 1] = ["ball.bclim"];
 /// The DexNav's labels, each over its value or beside it: Name, Search Level, Level, Type,
 /// Potential, First Move, Ability, Held Item; and what its red mark says in the group of each it
 /// marks (spike 195: in First Move's for an egg move, Helping Hand, movie27).

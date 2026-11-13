@@ -652,19 +652,7 @@ impl Gen6Profile {
         // The DexNav draws a Pokémon caught in colour, and only those are said so: "Ralts",
         // "Magikarp fishing caught", with commas under pauses (ADR-0037, `Distribution.said`).
         let gap = if ui.pauses { ", " } else { " " };
-        let caught = format!("{gap}{}", own(CAUGHT, &[]));
-        let mut images: IndexMap<String, String> = text
-            .touch_words
-            .iter()
-            .map(|(image, words)| {
-                let said = if text.caught.contains(image) {
-                    format!("{words}{caught}")
-                } else {
-                    words.clone()
-                };
-                (image.clone(), said)
-            })
-            .collect();
+        let mut images: IndexMap<String, String> = text.touch_words.clone();
         // Pictures of words the game's text has no line for are named by pa3ds's own (X's Amie
         // menu), and keep to them as a button with the game's word does.
         for image in &game.worded {
@@ -976,6 +964,10 @@ impl Gen6Profile {
             touch::Options {
                 images: Some(images.clone()),
                 picture_name: Some(picture_name),
+                caught: text.caught.clone(),
+                said_caught: Some(Rc::new(move |words: &str| {
+                    format!("{words}{gap}{}", own(CAUGHT, &[]))
+                })),
                 lists: Some(lists_labels),
                 idle: Some(idle),
                 off: Some(off),
