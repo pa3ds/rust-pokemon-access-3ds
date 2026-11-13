@@ -888,6 +888,60 @@ fn test_the_dexnav_s_stars_are_counted_and_its_mark_said_after_what_it_marks() {
     );
 }
 
+/// A player heard "Potential 3 stars/!" for a Pokémon of three stars: the red mark drawn
+/// against the third was joined to them as a second type is to the first, and so outlived the
+/// rule that leaves a mark Potential has no word for unsaid.
+#[test]
+fn test_the_dexnav_s_mark_beside_its_stars_is_not_read_as_one_of_them() {
+    let [potential] =
+        <[ScreenText; 1]>::try_from(measured(&[("Potential", 60.0, 110.0, 40.0, 12.5)])).unwrap();
+    let potential = ScreenText {
+        r#box: 0x40,
+        parent: 0x200,
+        label: true,
+        ..potential
+    };
+    let mut stars: IndexMap<i64, ScreenText> = [(0x90, 77.0), (0x94, 91.0), (0x98, 105.0)]
+        .into_iter()
+        .map(|(r#box, left)| {
+            (
+                r#box,
+                ScreenText {
+                    parent: 0x200,
+                    picture: true,
+                    ..ScreenText::placed(
+                        r#box,
+                        pictures::STAR,
+                        false,
+                        left,
+                        left + 16.0,
+                        25.0,
+                        16.0,
+                    )
+                },
+            )
+        })
+        .collect();
+    let mark = ScreenText {
+        parent: 0x200,
+        picture: true,
+        ..ScreenText::placed(0x9C, pictures::SPECIAL, false, 121.0, 137.0, 25.0, 16.0)
+    };
+    stars.insert(mark.r#box, mark);
+    let pieces = screen::side_by_side(&screen::counted_stars(&stars).unwrap());
+    let mut found: IndexMap<i64, ScreenText> = IndexMap::new();
+    found.insert(potential.r#box, potential);
+    found.extend(pieces);
+    let labels: IndexMap<String, String> = [("Potential".to_string(), String::new())]
+        .into_iter()
+        .collect();
+    let mut said: Vec<ScreenText> = screen::by_their_labels(&found, &labels)
+        .into_values()
+        .collect();
+    said.sort_by_key(|piece| piece.r#box);
+    assert_eq!(join(&said, false), "Potential 3 stars");
+}
+
 /// A contest draws a move's appeal as hearts under "Appeal", four for Hold Back (spike 196).
 #[test]
 fn test_a_contest_moves_hearts_are_counted() {

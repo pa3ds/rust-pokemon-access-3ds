@@ -1472,10 +1472,6 @@ pub(crate) fn by_their_labels(
     out
 }
 
-/// Pictures drawn side by side as one piece, their words between slashes: a Pokémon of two
-/// types is "Bug/Water", where joined as drawn they read "BugWater". A
-/// picture saying what the one beside it says is one thing drawn twice, as each Pokédex language
-/// tab is.
 /// A contest's place, drawn left of its entrant, read after the entrant's words: "Raiden &
 /// Metagross third place" (spike 196). The results reveal the places one at
 /// a time after the names, so a place stands far enough past its entrant's words to be said
@@ -1576,6 +1572,13 @@ pub(crate) fn counts_under_their_words(
     out
 }
 
+/// Pictures drawn side by side as one piece, their words between slashes: a Pokémon of two
+/// types is "Bug/Water", where joined as drawn they read "BugWater". A
+/// picture saying what the one beside it says is one thing drawn twice, as each Pokédex language
+/// tab is.
+///
+/// The DexNav's red mark is never one of them: it is said by what it marks or not at all
+/// (`_by_their_labels`), and drawn against the third of three stars it was heard "3 stars/!".
 pub(crate) fn side_by_side(pictures: &IndexMap<i64, ScreenText>) -> IndexMap<i64, ScreenText> {
     let mut out: IndexMap<i64, ScreenText> = IndexMap::new();
     let mut last: Option<ScreenText> = None;
@@ -1602,6 +1605,8 @@ pub(crate) fn side_by_side(pictures: &IndexMap<i64, ScreenText>) -> IndexMap<i64
         if let Some(before) = last.clone()
             && before.root == piece.root
             && before.parent == piece.parent
+            && before.text != SPECIAL
+            && piece.text != SPECIAL
             && touching(&before, piece)
         {
             // A count drawn a digit a picture is one number: Pokémon-Amie's games' results.
