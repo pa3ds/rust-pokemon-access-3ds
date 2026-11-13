@@ -36,10 +36,10 @@ Strength pushes and the holes they drop into, each waterfall, and the water Surf
 to, facing it, where A starts Surf, and `Shift+P` takes you no further: onto it only where Surf or
 Waterfall is the way there. The water you are surfing on is not listed.
 
-While soaring, the mirage spots list the black clouds where Tornadus, Thundurus and Landorus are
-met, and the gap in the sky where Dialga, Palkia and Giratina are, wherever the game puts them up:
-each said from you to where the game asks whether to fly in, and `P` says the turn and how far,
-"here" once you are there.
+While soaring, the mirage spots list the storm clouds where Tornadus, Thundurus and Landorus are
+met, and the dimensional rift where Dialga, Palkia and Giratina are, wherever the game puts them
+up: each said from you to where the game asks whether to fly in, and `P` says the turn and how
+far, "here" once you are there.
 
 In Laverre Gym, in X and Y, the interactables list each teleporter with where it puts you, and `P`
 leads you through them, saying the way as far as the first and how many more.

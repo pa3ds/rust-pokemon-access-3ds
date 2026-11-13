@@ -336,10 +336,10 @@ fn test_flocks_are_found_among_the_skys_models_and_chased_from_the_player() {
 }
 
 /// or_soaring_rifts: north of Fortree City with a Castform in the party, the game asked to fly
-/// into the black clouds 2000 from a flock's model that never moved, which carries Tornadus's
-/// flag; the list had said it as a flock (spike A).
+/// into the storm clouds 2000 from a flock's model that never moved, which carries Tornadus's
+/// flag; the list had said it as a flock (spike 295).
 #[test]
-fn test_a_legends_black_clouds_are_a_mirage_spot_said_to_where_the_game_asks_to_fly_in() {
+fn test_a_legends_storm_clouds_are_a_mirage_spot_said_to_where_the_game_asks_to_fly_in() {
     let memory = FakeMemory::new();
     let clouds = FakeClasses::new(memory.clone()).add(sky::FLOCK_CLASS);
     memory.u32(PROCESS + sky::MANAGER, &[0x08295D04]);
@@ -367,7 +367,7 @@ fn test_a_legends_black_clouds_are_a_mirage_spot_said_to_where_the_game_asks_to_
             x: 8956.5,
             height: 2000.0,
             z: -8631.25,
-            legend: sky::BLACK_CLOUDS,
+            legend: sky::STORM_CLOUDS,
             reach: 2000.0
         }]
     );
@@ -388,7 +388,7 @@ fn test_a_legends_black_clouds_are_a_mirage_spot_said_to_where_the_game_asks_to_
             spot.kind.as_str(),
             spot.bearing(r#where.cell, r#where.heading).unwrap()
         ),
-        ("black clouds", "6 ahead 1 left".to_string())
+        ("storm clouds", "6 ahead 1 left".to_string())
     );
     let steer = r#where.steer.as_ref().unwrap();
     assert_eq!((steer.0)(spot).unwrap(), "6 ahead");

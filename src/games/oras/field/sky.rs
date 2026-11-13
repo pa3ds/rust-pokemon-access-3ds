@@ -18,12 +18,12 @@
 //!               over a mirage spot `BMLegendPoint`, the ship `BMShip`
 //!         +0x04 -> the next, +0x08 -> the one before; +0x20 f32 x, height, z
 //! flock   +0x54 u32 a legend's flag, 0xffffffff for a flock of birds; +0x58 f32 how near the
-//!               player flies before the game asks to fly in, 2000 round the black clouds
+//!               player flies before the game asks to fly in, 2000 round the storm clouds
 //! ```
 //!
-//! The black clouds where Tornadus, Thundurus and Landorus are met, and the gap in the sky where
+//! The storm clouds where Tornadus, Thundurus and Landorus are met, and the dimensional rift where
 //! Dialga, Palkia and Giratina are, are flocks too, ones that never move: what tells them apart is
-//! the legend's flag, which `DllSkyTrip` pairs with each of the six (spike A).
+//! the legend's flag, which `DllSkyTrip` pairs with each of the six (spike 295).
 //!
 //! The Circle Pad's up flies forward and down back, left and right turn on the spot; X and Y pitch
 //! Latios up and down, which changes the height while it flies, and the D-pad and B did nothing seen
@@ -111,21 +111,21 @@ pub const MODELS: usize = 64;
 /// A flock of Pokémon flying over Hoenn, which the player flies into to battle one: pa3ds's word,
 /// since the game draws the birds and never names them.
 pub const FLOCK: &str = "flock";
-pub const BLACK_CLOUDS: &str = "black clouds";
-pub const GAP: &str = "gap in the sky";
+pub const STORM_CLOUDS: &str = "storm clouds";
+pub const RIFT: &str = "dimensional rift";
 /// A legend's flag, as a flock carries it (+0x54), -> what the game shows there. `DllSkyTrip`
 /// pairs these with Thundurus, Tornadus, Landorus, Dialga, Palkia and Giratina, in that order, and
 /// the sky's text asks to fly into "the black clouds" for the first three and "the gap" for the
-/// others: pa3ds's words, after the game's, since it never names them otherwise (spike A).
+/// others, naming them nowhere else: pa3ds's words, the names Bulbapedia gives them (spike 295).
 ///
 /// A dict in Python, read here by `find` on the key: it is never iterated.
 pub const LEGENDS: [(i64, &str); 6] = [
-    (0xB6D, BLACK_CLOUDS),
-    (0xB6C, BLACK_CLOUDS),
-    (0xB70, BLACK_CLOUDS),
-    (0xB63, GAP),
-    (0xB64, GAP),
-    (0xB67, GAP),
+    (0xB6D, STORM_CLOUDS),
+    (0xB6C, STORM_CLOUDS),
+    (0xB70, STORM_CLOUDS),
+    (0xB63, RIFT),
+    (0xB64, RIFT),
+    (0xB67, RIFT),
 ];
 
 pub const MAGIC: &[u8] = b"SLAN";
@@ -248,7 +248,8 @@ impl Flight {
     }
 }
 
-/// A flock of Pokémon in the sky, where it flies now, or a legend's black clouds or gap.
+/// A flock of Pokémon in the sky, where it flies now, or a legend's storm clouds or
+/// dimensional rift.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Flock {
     pub model: i64,
@@ -380,8 +381,8 @@ pub fn shown(memory: &dyn Memory, process: i64, rows: i64) -> Result<Option<Hash
     ))
 }
 
-/// The flocks flying now, and the legends' black clouds and gaps, from the manager's models,
-/// walked both ways from the last built.
+/// The flocks flying now, and the legends' storm clouds and dimensional rifts, from the
+/// manager's models, walked both ways from the last built.
 pub fn flocks(memory: &dyn Memory, process: i64, names: &ClassNames) -> Result<Vec<Flock>> {
     let manager = u32(&memory.read(process + MANAGER, 4)?, 0)?;
     if !within(HEAP_SPAN, manager) {
@@ -430,8 +431,8 @@ pub fn flocks(memory: &dyn Memory, process: i64, names: &ClassNames) -> Result<V
 /// the player, since flying into one is what battles it: in the player's own frame, north ahead,
 /// so a bearing is said "32 ahead 8 left" (`Field.heading`), and P says the turn to face it
 /// (`turn`, `chase`). Without the game's word on what it shows, every place always there.
-/// A legend's black clouds or gap is a mirage spot, said from the player to where the game asks
-/// to fly in.
+/// A legend's storm clouds or dimensional rift is a mirage spot, said from the player to where
+/// the game asks to fly in.
 pub fn listed(
     flight: &Flight,
     known: &[Place],
