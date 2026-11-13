@@ -25,7 +25,7 @@ use crate::core::memory::Memory;
 use crate::core::pathfind::{self, Cell};
 use crate::games::common::field::chunk::HOLE as BOULDER_HOLE;
 use crate::games::common::field::chunk::{
-    BIKE_RAILS, BUMPY_SLOPES, CHUNK, CURRENTS, Chunk, DIVE, FALLS, SLOPES,
+    BIKE_RAILS, BUMPY_SLOPES, CHUNK, CURRENTS, Chunk, DIVE, FALLS, SHORE, SLOPES,
 };
 use crate::games::common::field::climb::Walls;
 use crate::games::common::field::grind::GrindRails;
@@ -33,8 +33,8 @@ use crate::games::common::field::ground::{Ground, STRENGTH, StepWords, WATERFALL
 use crate::games::common::field::guide::{BELT, BUNNY_HOP, CURRENT as CURRENT_WORD, HOP, SLIDE};
 use crate::games::common::field::things::{
     ARROW_SOURCE, ARROWS, BIKE, BIKE_SOURCE, CLIMB_SOURCE, CLIMBING, CURRENT_SOURCE,
-    CURRENTS_CATEGORY, DIVE_SOURCE, Field, Interactable, OBSTACLES, RIDE_SOURCE, RIDING,
-    TILE_SOURCE, VINE_SOURCE, place_source,
+    CURRENTS_CATEGORY, DIVE_SOURCE, FALLS_SOURCE, Field, Interactable, OBSTACLES, RIDE_SOURCE,
+    RIDING, TILE_SOURCE, VINE_SOURCE, WATER_SOURCE, place_source,
 };
 use crate::games::common::field::vines::{End, Vines, paired};
 use crate::games::gen6::field::conveyors::GymFloor;
@@ -69,6 +69,22 @@ pub const DIVE_SPOT: &str = "dive spot";
 /// What the sea's currents that let the player go round one place are called, listed at the cell
 /// of them nearest the player and said with where it lets them go: the game never names one.
 pub const CURRENT: &str = "current";
+
+pub const WATER_KIND: &str = "water";
+/// What a patch of the water Surf goes onto and a waterfall are called, listed under obstacles
+/// beside Cut's bushes, Rock Smash's rocks and Strength's boulders: the game names the moves, never
+/// the water (2026-11-12, from a player asking for an HMs section).
+pub const WATERFALL_KIND: &str = "waterfall";
+
+/// The kinds of the water Surf goes onto (`chunk.WATER`): the sea, `0x42` between it and walls,
+/// the deep water Dive goes down through and the currents; with the strip of shore Surf jumps, so
+/// that a patch's cell nearest a player on land is the shore they face to Surf.
+///
+/// Python's is the frozenset `SURFED`, `{0x3D, 0x42, DIVE, SHORE, *CURRENTS}`, only tested; a
+/// test here, `CURRENTS` being pairs.
+pub fn surfed(kind: i64) -> bool {
+    [0x3D, 0x42, DIVE, SHORE].contains(&kind) || CURRENTS.iter().any(|&(known, _)| known == kind)
+}
 
 /// What a patch of the flat ground a ridden Pokémon is got on and off on is called, listed at its
 /// cell nearest the player: the game never names it (spike 238).
@@ -713,19 +729,88 @@ fn gathered(cells: &HashSet<Cell>, reach: i64) -> Vec<Vec<Cell>> {
     out
 }
 
+/// Each patch of the water Surf goes onto, with its shore (`SURFED`), listed under obstacles
+/// at its cell nearest the player: so P walks up to where Surf is used, facing the shore Surf
+/// jumps or the water's edge, and Shift and P surfs onto it. Not the patch the player is on.
+/// Under the sea the dive spots up are water alone, and are no patch (`DiveSpots` lists them).
+/// The nearest cell is always on a patch's edge, so only its edge is kept.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct Water;
+
+/// What `Water` finds: each patch's first cell, its edge and all its cells.
+type WaterFound = Vec<(Cell, Vec<Cell>, HashSet<Cell>)>;
+
+impl Landform for Water {
+    fn found(&self, matrix: &Matrix) -> Result<Found> {
+        let kinds = matrix.cells(&surfed)?;
+        let mut out: WaterFound = Vec::new();
+        for patch in patches(&kinds.keys().map(|&cell| (cell, 0)).collect()) {
+            if patch.iter().all(|cell| kinds[cell] == DIVE) {
+                continue;
+            }
+            let inside: HashSet<Cell> = patch.iter().copied().collect();
+            let edge: Vec<Cell> = patch
+                .iter()
+                .copied()
+                .filter(|&cell| !beside(cell).iter().all(|near| inside.contains(near)))
+                .collect();
+            out.push((patch[0], edge, inside));
+        }
+        Ok(Rc::new(out))
+    }
+
+    fn listed(&self, found: &Found, here: &Here) -> Result<Vec<Interactable>> {
+        let player = here.r#where.cell;
+        let mut out: Vec<Interactable> = Vec::new();
+        for (first, edge, inside) in found_as::<WaterFound>(found) {
+            if inside.contains(&player) {
+                continue;
+            }
+            out.push(Interactable {
+                source: place_source(WATER_SOURCE, cell_number(*first))?,
+                home: Some(here.r#where.zone),
+                ..Interactable::new(OBSTACLES, WATER_KIND, nearest(edge.iter().copied(), player))
+            });
+        }
+        Ok(out)
+    }
+}
+
+/// What `Waterfalls` finds: each cell with the way it is climbed, and the patches of falls.
+type FallsFound = (IndexMap<Cell, &'static str>, Vec<Vec<Cell>>);
+
 /// The waterfalls, each cell with the way it is climbed, between the water below and above
-/// (`Ground.falls`, spike 170). Not listed.
+/// (`Ground.falls`, spike 170); each of the zone's listed under obstacles at its cell nearest
+/// the player.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Waterfalls;
 
 impl Landform for Waterfalls {
     fn found(&self, matrix: &Matrix) -> Result<Found> {
-        Ok(Rc::new(matrix.terrain.rises(&[FALLS])?))
+        let rises = matrix.terrain.rises(&[FALLS])?;
+        let falls = patches(&matrix.cells(&|kind| kind == FALLS)?);
+        Ok(Rc::new((rises, falls) as FallsFound))
+    }
+
+    fn listed(&self, found: &Found, here: &Here) -> Result<Vec<Interactable>> {
+        let mut out: Vec<Interactable> = Vec::new();
+        for patch in &found_as::<FallsFound>(found).1 {
+            out.push(Interactable {
+                source: place_source(FALLS_SOURCE, cell_number(patch[0]))?,
+                home: Some(here.r#where.zone),
+                ..Interactable::new(
+                    OBSTACLES,
+                    WATERFALL_KIND,
+                    nearest(patch.iter().copied(), here.r#where.cell),
+                )
+            });
+        }
+        Ok(out)
     }
 
     fn laid(&self, found: &Found, ground: Ground, _here: &Here) -> Result<Ground> {
         Ok(Ground {
-            falls: found_as::<IndexMap<Cell, &'static str>>(found).clone(),
+            falls: found_as::<FallsFound>(found).0.clone(),
             ..ground
         })
     }
@@ -1341,6 +1426,7 @@ pub fn gen6() -> Vec<Arc<dyn Landform>> {
         Arc::new(Holes),
         Arc::new(DiveSpots),
         Arc::new(Currents),
+        Arc::new(Water),
         Arc::new(Waterfalls),
         Arc::new(Ice),
     ]

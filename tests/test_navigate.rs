@@ -1978,6 +1978,37 @@ fn test_shift_p_jumps_the_shore_onto_the_water_and_off_it() {
     assert_eq!(last(&rig.backend), "2 south");
 }
 
+/// Water is listed under obstacles at its patch's cell nearest the player, the shore from
+/// the land (2026-11-12): P walks up to it, facing it, where A starts Surf.
+#[test]
+fn test_p_to_water_walks_up_to_the_shore_surf_jumps() {
+    let water = Interactable {
+        source: 22 << 32,
+        ..Interactable::new("obstacles", "water", (100, 176))
+    };
+    let here = street();
+    let mut interactables = here.interactables.clone();
+    interactables.push(water);
+    let across = Field {
+        interactables,
+        ..Field::new(here.zone, (100, 173))
+    };
+    let mut rig = navigator(Want {
+        blocked: house_front(),
+        sea: cells(80..120, 177),
+        ..on(across)
+    });
+    *rig.field.shore.borrow_mut() = (80..120)
+        .flat_map(|x| [176, 178].into_iter().map(move |z| (x, z)))
+        .collect();
+    rig.press(CATEGORY_NEXT);
+    rig.press(CATEGORY_NEXT);
+    rig.press(PATHFIND);
+    assert_eq!(tail(&rig.backend, 2), ["obstacles, 1", "2 south"]);
+    step(&mut rig, &[(100, 174), (100, 175)]);
+    assert_eq!(last(&rig.backend), "water, 1 south");
+}
+
 /// X's Route 8 (x_route-8-3.ctm, spike 235): a mud pit's stones are blocked in the cell table, and
 /// the player hops from the launch at the pit's edge onto one two cells on, over the mud, then from
 /// stone to stone and onto the launch on the far side, each hop one move. P took the pit for a

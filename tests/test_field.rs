@@ -4713,6 +4713,49 @@ fn test_a_dive_spot_is_an_exit_at_its_patchs_cell_nearest_the_player() -> Result
     Ok(())
 }
 
+/// A player asked for an HMs section, and Surf's water and Waterfall's falls were not listed
+/// with Cut's bushes and Strength's boulders (2026-11-12). A patch of water and its shore is one
+/// obstacle, "water", at its cell nearest the player: from the land, the shore Surf jumps. A
+/// waterfall's row is one, and parts the water above it from the water below. The patch the
+/// player is on is not listed.
+#[test]
+fn test_water_and_a_waterfall_are_listed_under_obstacles() -> Result<()> {
+    let sea = (100..106).flat_map(|x| (165..169).map(move |z| ((x, z), 0x3D1A0006)));
+    let shore = (100..106).map(|x| ((x, 169), 0x40000003));
+    let falls = (100..102).map(|x| ((x, 164), 0x3F180003));
+    let above = (100..102).map(|x| ((x, 163), 0x3D1A0006));
+    let tiles: Vec<((i64, i64), i64)> = sea.chain(shore).chain(falls).chain(above).collect();
+    let mut town = Town::new();
+    town.block_tiles(TOWN_BLOCK, TOWN_CHUNK, (80, 160), &border(160), &tiles);
+    let obstacles = |town: &Town| -> Result<Vec<(String, (i64, i64))>> {
+        let mut seen: Vec<(String, (i64, i64))> = town
+            .r#where()?
+            .of("obstacles")
+            .into_iter()
+            .map(|item| (item.kind, item.cell))
+            .collect();
+        seen.sort();
+        Ok(seen)
+    };
+    assert_eq!(
+        obstacles(&town)?,
+        [
+            ("water".to_string(), (100, 163)),
+            ("water".to_string(), (100, 169)),
+            ("waterfall".to_string(), (100, 164))
+        ]
+    );
+    town.model(0, TOWN, mmodel::PLAYER_INDEX, 0xAC, (103, 166));
+    assert_eq!(
+        obstacles(&town)?,
+        [
+            ("water".to_string(), (101, 163)),
+            ("waterfall".to_string(), (101, 164))
+        ]
+    );
+    Ok(())
+}
+
 /// Route 9's ride as `Rides`, smashing `smashes`.
 fn route_9(smashes: &[i64]) -> Rides {
     Rides {

@@ -110,6 +110,12 @@ pub const TELEPORT_SOURCE: i64 = 20 << 32;
 /// An arrow tile's source: `ARROW_SOURCE | x << 12 | z`, its cell (spike 265).
 pub const ARROW_SOURCE: i64 = 21 << 32;
 
+/// A patch of the water Surf goes onto: `WATER_SOURCE | x << 12 | z`, its first cell.
+pub const WATER_SOURCE: i64 = 22 << 32;
+
+/// A waterfall's source: `FALLS_SOURCE | x << 12 | z`, its first cell.
+pub const FALLS_SOURCE: i64 = 23 << 32;
+
 /// A place's `source` from its kind's tag and its own number. The number must leave the tag's
 /// bits clear, and no u16 the game holds can reach them, so one that does is a new encoding
 /// written wider than the tag allows for: a programmer's error, refused here rather than keyed as

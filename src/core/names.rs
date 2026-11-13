@@ -106,7 +106,7 @@ pub fn sprite_key(character: i64) -> String {
 /// What each kind of slot is written as in a names file, by its tag (`things.SOURCE_KIND`): a
 /// warp's slot 3 is `warp:3`. A word, so a person editing the file can tell a door from a sign;
 /// a kind renamed in code keeps its word here, or its names stop matching.
-pub const KINDS: [&str; 22] = [
+pub const KINDS: [&str; 24] = [
     "furniture",
     "warp",
     "tile",
@@ -129,6 +129,8 @@ pub const KINDS: [&str; 22] = [
     "opening",
     "teleport",
     "arrow",
+    "water",
+    "falls",
 ];
 
 /// A slot as names files wrote it until 2026-10-11, its kind's tag and its number one sum:
