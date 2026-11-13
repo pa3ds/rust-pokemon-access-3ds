@@ -5,7 +5,8 @@
 //! Pokémon Lab", "Café Soleil", "Santalune City Pokémon Gym Leader: Viola". It names the door it
 //! stands by, which is the nearest door into a building of the town's own, within `NEAR` cells
 //! (`FAR` for a plate of one line, which the game puts by a garden gate as far as 12 cells from the
-//! house) and with no other door nearly as near. What it says is its first page, the lines run
+//! house; any distance for one naming a facility of its town's list, as the harbours' plates on the
+//! quay do) and with no other door nearly as near. What it says is its first page, the lines run
 //! together, since the Japanese and Korean put a building's second word on a line of its own; a
 //! plate that says who the player is, or that shows one of two messages as the story goes, names
 //! nothing. On a street the plate and the door are on one line, measured in the numbers the game
@@ -188,6 +189,13 @@ pub fn plate_names(
             found.push((record, name, NEAR));
         }
         for (record, words, far) in found {
+            // One naming a facility of its town's list, however far: the harbours' plates stand
+            // on the quay, 11 and 14 cells from their doors, and the harbours went unnamed.
+            let far = if !listed.contains(&words) {
+                far as f64
+            } else {
+                f64::INFINITY
+            };
             let Some((d, slot)) = door_by(record, &doors, far)? else {
                 continue;
             };
@@ -272,7 +280,7 @@ pub fn home_plates(
             if boy.len() + girl.len() != 3 {
                 continue;
             }
-            if let Some((_d, slot)) = door_by(record, &doors, FAR)? {
+            if let Some((_d, slot)) = door_by(record, &doors, FAR as f64)? {
                 out.insert((zone, slot), (boy, girl));
             }
         }
@@ -282,7 +290,7 @@ pub fn home_plates(
 
 /// (cells apart, slot) of the door a plate stands by: the nearest within `far`, with no
 /// other door nearly as near (`APART`).
-fn door_by(record: &[u8], doors: &[(i64, &Vec<u8>)], far: i64) -> Result<Option<(i64, i64)>> {
+fn door_by(record: &[u8], doors: &[(i64, &Vec<u8>)], far: f64) -> Result<Option<(i64, i64)>> {
     let mut nearest: Vec<(i64, i64)> = Vec::new();
     for &(slot, door) in doors {
         if let Some(d) = apart(record, door)? {
@@ -290,7 +298,7 @@ fn door_by(record: &[u8], doors: &[(i64, &Vec<u8>)], far: i64) -> Result<Option<
         }
     }
     nearest.sort();
-    if nearest.is_empty() || nearest[0].0 > far {
+    if nearest.is_empty() || nearest[0].0 as f64 > far {
         return Ok(None);
     }
     if nearest.len() > 1 && (nearest[1].0 as f64) < APART * nearest[0].0 as f64 {

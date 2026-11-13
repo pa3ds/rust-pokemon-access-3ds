@@ -364,6 +364,34 @@ fn test_a_plate_of_more_than_one_line_is_named_by_what_its_towns_list_calls_it()
     Ok(())
 }
 
+/// Slateport's and Lilycove's harbour plates stand on the quay, 11 and 14 cells from their
+/// doors, and both harbours were nameless though the AreaNav lists them. A plate naming nothing
+/// of the list stays within 6 cells, and no door nearly as near is named either way.
+#[test]
+fn test_a_plate_naming_a_facility_of_its_towns_list_names_its_door_however_far() -> Result<()> {
+    let door = crate::games::gen6::field::zonedata::WARP_DOOR;
+    let facilities = IndexMap::from([(PLACE, vec!["shack".to_string()])]);
+    let zones = town(
+        &[(5, 10, 20)],
+        &[(CAFE, door, 10, 34), (CAFE, door, 10, 60)],
+    )?;
+    let towns = HashSet::from([TOWN]);
+    assert_eq!(
+        plates::plate_names(&zones, &table(), &story, &towns, Some(&facilities), &[])?,
+        IndexMap::from([((TOWN, 0), "shack".to_string())])
+    );
+    assert_eq!(
+        plates::plate_names(&zones, &table(), &story, &towns, None, &[])?,
+        IndexMap::<(i64, i64), String>::new()
+    );
+    let zones = town(&[(5, 10, 20)], &[(CAFE, door, 10, 34), (CAFE, door, 10, 5)])?;
+    assert_eq!(
+        plates::plate_names(&zones, &table(), &story, &towns, Some(&facilities), &[])?,
+        IndexMap::<(i64, i64), String>::new()
+    );
+    Ok(())
+}
+
 /// Slateport's list is full at six and leaves out the Oceanic Museum, whose plate says its
 /// slogan first and its name on the next page: the list's text still names it.
 /// Only a whole line, or two run together as the Japanese break a name: a plate
