@@ -143,7 +143,7 @@ pub const DRAWN: [(&str, &str); 14] = [
     ("star_infiniteh", HALF_STAR),
 ];
 /// A contest's places, which its results draw as pictures beside each entrant, `one` to `four`
-/// (spike 196), said after the entrant: "Raiden & Metagross third place".
+/// (spike 196), said after the entrant: "Brendan & Metagross third place".
 pub const PLACES: [(&str, &str); 4] = [
     ("one", "contest-place-one"),
     ("two", "contest-place-two"),

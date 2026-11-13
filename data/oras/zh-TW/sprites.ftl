@@ -203,7 +203,7 @@ sprite-0x2009 = 巨大岩石
 # called what the game calls that thing among the Secret Base decorations (text 56) or the items
 # (text 114).
 # KIRAKIRA: the sparkle at each of the 28 places a Mega Stone lies, a script each from 0x41f
-# to 0x43a (or_mega_stone: "Raiden found a Sablenite!"); the word is story 330:64's
+# to 0x43a (or_mega_stone: "Brendan found a Sablenite!"); the word is story 330:64's
 sprite-0x203d = 超級石
 # DOLL_RURIRI: text 56:111, in both houses in Littleroot
 sprite-0x204a = 露力麗玩偶

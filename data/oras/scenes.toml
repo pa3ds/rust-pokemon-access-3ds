@@ -1403,7 +1403,7 @@ zone = 0x166
 [[scene.beat]]
 id = "steven-leads-on-1"
 
-# May's "Raiden! Honestly, congratulations!"
+# May's "Brendan! Honestly, congratulations!"
 [[scene]]
 after = "story:470:30"
 zone = 0x166

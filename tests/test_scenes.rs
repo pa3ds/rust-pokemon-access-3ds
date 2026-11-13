@@ -67,7 +67,7 @@ fn test_a_line_is_matched_by_its_last_page_with_anything_where_an_insert_was() -
         Part::Control(NAME),
         Part::Text(" changed into the Magma Suit!"),
     ]))?;
-    assert!(index == 0 && words.is_match("Raiden changed into the Magma Suit!"));
+    assert!(index == 0 && words.is_match("Brendan changed into the Magma Suit!"));
     let (_, words) = page(&line(&[Part::Text("Gurrrooouuuhhh!!!")]))?;
     assert!(!words.is_match("Gurrraaahhhh! Gurrrooouuuhhh!!!"));
     Ok(())
@@ -317,10 +317,10 @@ id = "room-1"
     let mut reader = Scenes::with_monotonic(scenes, said_of(&words));
     let mut say = |text: &str| said.borrow_mut().push(text.to_string());
     for room in [0xE0, 0xE2] {
-        reader.heard(0, "Welcome home, Raiden!", Some(0x6), &mut say)?;
+        reader.heard(0, "Welcome home, Brendan!", Some(0x6), &mut say)?;
         reader.arrived(room, &mut say)?;
     }
-    reader.heard(0, "Welcome home, Raiden!", Some(0x6), &mut say)?;
+    reader.heard(0, "Welcome home, Brendan!", Some(0x6), &mut say)?;
     reader.arrived(0xDF, &mut say)?;
     reader.arrived(0xE0, &mut say)?;
     assert_eq!(*said.borrow(), ["Your room.", "Your room."]);

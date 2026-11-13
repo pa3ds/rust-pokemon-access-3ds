@@ -655,13 +655,13 @@ fn test_a_houses_plate_is_the_player_s_house_or_the_professor_s_by_the_player() 
         ..GameText::default()
     };
     assert_eq!(
-        [false, true].map(|girl| named.home(TOWN, 0, girl, "Leos")),
+        [false, true].map(|girl| named.home(TOWN, 0, girl, "Brendan")),
         [
-            Some("Haus von Leos".to_string()),
+            Some("Haus von Brendan".to_string()),
             Some("Haus von Professor Birk".to_string())
         ]
     );
-    assert_eq!(named.home(TOWN, 2, false, "Leos"), None);
+    assert_eq!(named.home(TOWN, 2, false, "Brendan"), None);
     Ok(())
 }
 

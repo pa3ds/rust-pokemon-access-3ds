@@ -332,9 +332,9 @@ pub fn distinct(pieces: impl IntoIterator<Item = ScreenText>) -> Vec<ScreenText>
 ///
 /// Pieces drawn side by side on one row are joined as drawn ("L5", "19/19"). Others are separated
 /// by a space, or when asked for by a comma, or a colon after a label
-/// (`labels_value`): "OT: Raiden, ID No.: 16285". A label with a colon of its
+/// (`labels_value`): "OT: Brendan, ID No.: 16285". A label with a colon of its
 /// own is followed by a space: "Badges: 0", not "Badges:, 0". A value is no label of what
-/// follows it: "ITEM: Potion, Sand Attack", "Name: Raiden, ID No.: 16285".
+/// follows it: "ITEM: Potion, Sand Attack", "Name: Brendan, ID No.: 16285".
 ///
 /// Words the game's text names a label (`ScreenText.label`) are one wherever they are drawn,
 /// touching their value or over it, and a title's or a button's (`ScreenText.plain`) never are:
@@ -1472,7 +1472,7 @@ pub(crate) fn by_their_labels(
     out
 }
 
-/// A contest's place, drawn left of its entrant, read after the entrant's words: "Raiden &
+/// A contest's place, drawn left of its entrant, read after the entrant's words: "Brendan &
 /// Metagross third place" (spike 196). The results reveal the places one at
 /// a time after the names, so a place stands far enough past its entrant's words to be said
 /// with them as a value is with its label (`LABEL_GAP`).

@@ -1403,7 +1403,7 @@ fn test_a_place_revealed_after_its_entrant_is_said_with_it() {
     let mut screen = Screen::new();
     let names = piece_kw(
         1,
-        "Raiden & Metagross",
+        "Brendan & Metagross",
         -75.0,
         -45.0,
         PANEL,
@@ -1432,7 +1432,7 @@ fn test_a_place_revealed_after_its_entrant_is_said_with_it() {
         vec![],
         &cat(&[&one(&names), &one(&place)]),
     ));
-    assert_eq!(said, ["Raiden & Metagross third place"]);
+    assert_eq!(said, ["Brendan & Metagross third place"]);
 }
 
 #[test]
@@ -2438,8 +2438,8 @@ fn test_a_panel_one_layouts_moves_changed_is_not_read_for_another_layouts_items(
 
 #[test]
 fn test_details_are_read_only_from_the_layouts_this_move_changed() {
-    // A summary keeps its other page's panel on screen as that page last showed it, and Zen
-    // Headbutt's details on the contest page were read with Iron Defense's (movie32).
+    // A summary keeps its other page's panel on screen as that page last showed it, and
+    // Zen Headbutt's details on the contest page were read with Iron Defense's (movie32).
     let mut screen = Screen::new();
     let battle = description("The user hardens its body.");
     let contest = piece_kw(

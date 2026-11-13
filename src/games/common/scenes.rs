@@ -170,7 +170,7 @@ pub struct Scene {
 
 /// The index of a message's last page, and a pattern its text matches as the dialogue reader
 /// hears it: the words between inserts in order, anything where an insert was, as the player's
-/// name is in "Raiden changed into the Magma Suit!", and either form where the game chooses one,
+/// name is in "Brendan changed into the Magma Suit!", and either form where the game chooses one,
 /// "boy" or "girl" in Norman's "How about our little boy's favorite?". None for a line that is
 /// not text.
 pub fn last_page(line: &[u8]) -> Result<Option<(i64, Regex)>> {

@@ -30,7 +30,7 @@ fn round_four() -> Vec<Portrait> {
 /// `NAMES.get(p.icon)`.
 fn names(portrait: &Portrait) -> Result<Option<String>> {
     Ok(match portrait.icon {
-        1 => Some("Raiden & Pikachu".to_string()),
+        1 => Some("Brendan & Pikachu".to_string()),
         2 => Some("Molly & Ronnie".to_string()),
         4 => Some("Camden & Bolt".to_string()),
         _ => None,
@@ -41,11 +41,11 @@ fn names(portrait: &Portrait) -> Result<Option<String>> {
 fn test_the_players_place_is_their_portraits_by_the_bars() {
     assert_eq!(
         standings(&round_four(), &names, true, false).unwrap(),
-        Some("Raiden & Pikachu first place".to_string())
+        Some("Brendan & Pikachu first place".to_string())
     );
     assert_eq!(
         standings(&round_four(), &names, true, true).unwrap(),
-        Some("Raiden & Pikachu: first place".to_string())
+        Some("Brendan & Pikachu: first place".to_string())
     );
 }
 

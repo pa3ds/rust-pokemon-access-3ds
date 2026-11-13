@@ -951,7 +951,7 @@ fn ice_floors(memory: Rc<dyn Memory>) -> Rc<dyn IceReader> {
 /// Sootopolis Gym, and the Gym's module sets them in place.
 pub const STOPPER: i64 = 0x8A;
 /// The sparkle at each of the 28 places a Mega Stone lies, a script each from 0x41f to 0x43a
-/// (or_mega_stone: "Raiden found a Sablenite!"): an item found, listed under items.
+/// (or_mega_stone: "Brendan found a Sablenite!"): an item found, listed under items.
 pub const KIRAKIRA: i64 = 0x203D;
 /// What Route 111's two fossils in the desert are drawn as, one model for both: things the player
 /// takes an item at, listed under items (a player's report, spike 233).

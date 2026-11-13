@@ -6,9 +6,9 @@
 //! `poke_icon.bclim`. The game keeps them sorted by appeal, the leader on the left, moving the
 //! icons from portrait to portrait as the order changes, and draws the player's portrait on a
 //! background image of its own. No word names an entrant but on the panel under the move list,
-//! "Pokémon: Pikachu, Trainer: Raiden", for the portrait the cursor is on; each name is learned
+//! "Pokémon: Pikachu, Trainer: Brendan", for the portrait the cursor is on; each name is learned
 //! so, by the image of the icon in that portrait, and said as the entry cards wrote it,
-//! "Raiden & Pikachu", where they did. The computer's entrants are learned before that, in the
+//! "Brendan & Pikachu", where they did. The computer's entrants are learned before that, in the
 //! first round: its portraits stand in its turn order and hold still until all four have
 //! appealed, and each appeal's message names the Pokémon whose turn it is, "Bolt tried to show
 //! its appeal with Light Screen!", one of the contests' own entrants (`GameText.contest_rivals`).
@@ -104,7 +104,7 @@ pub fn by_turn(
 }
 
 /// The player's place, or each other entrant's in order, by the bars, the player's being
-/// the portrait whose background is unlike the others': "Raiden & Pikachu first place".
+/// the portrait whose background is unlike the others': "Brendan & Pikachu first place".
 ///
 /// Python's `pauses` defaults to False. `name` returns `Result`, as Python's raises where it
 /// reads the icon's image.
@@ -356,7 +356,7 @@ impl StandingsReader for Standings {
         }
     }
 
-    /// The player's place, or each other entrant's in order, "Raiden & Pikachu first place";
+    /// The player's place, or each other entrant's in order, "Brendan & Pikachu first place";
     /// None outside the appeals or where the portraits are not found.
     ///
     /// Python's `pauses` defaults to False.

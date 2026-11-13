@@ -122,7 +122,7 @@ slot-titled-grid = { $title }, row { $row }, column { $column }
 slot-titled-list = { $title } { $number }
 slot-empty = { $slot }, empty
 slot-held = { $slot }, { $name }
-# A contest's places, drawn as pictures beside each entrant, said after the entrant: "Raiden &
+# A contest's places, drawn as pictures beside each entrant, said after the entrant: "Brendan &
 # Metagross third place".
 contest-place-one = first place
 contest-place-two = second place

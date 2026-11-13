@@ -686,7 +686,7 @@ fn test_the_designer_s_slash_joins_numbers_hanging_straight_from_the_root() {
 fn summary_panel() -> Vec<ScreenText> {
     [
         ("OT", -195.0, -182.0, 20.0, 12.5),
-        ("Raiden", -68.0, -30.0, 20.0, 12.5),
+        ("Brendan", -68.0, -30.0, 20.0, 12.5),
         ("ID No.", -195.0, -158.0, 0.0, 12.5),
         ("16285", -65.0, -30.0, 0.0, 14.0),
         ("Exp. Points", -195.0, -126.0, -10.0, 12.5),
@@ -710,17 +710,17 @@ fn summary_panel() -> Vec<ScreenText> {
     .collect()
 }
 
-/// Asked for: "OT: Raiden, ID No.: 16285", to hear where one thing ends.
+/// Asked for: "OT: Brendan, ID No.: 16285", to hear where one thing ends.
 #[test]
 fn test_with_pauses_a_label_is_followed_by_a_colon() {
     assert_eq!(
         join(&summary_panel(), true),
-        "OT: Raiden, ID No.: 16285, Exp. Points: 597, To Next Lv.: 145, \
+        "OT: Brendan, ID No.: 16285, Exp. Points: 597, To Next Lv.: 145, \
          Blaze, Powers up Fire-type moves when the Pokémon is in trouble."
     );
     assert_eq!(
         join(&summary_panel(), false),
-        "OT Raiden ID No. 16285 Exp. Points 597 To Next Lv. 145 \
+        "OT Brendan ID No. 16285 Exp. Points 597 To Next Lv. 145 \
          Blaze Powers up Fire-type moves when the Pokémon is in trouble."
     );
 }
@@ -1164,13 +1164,13 @@ fn test_hearts_on_two_rows_of_one_group_are_counted_apart() {
     assert_eq!(texts, ["1 heart", "2 hearts"]);
 }
 
-/// The results draw each entrant's place as a picture left of "Raiden & Metagross" (spike
-/// 196): "Raiden & Metagross: third place" under pauses.
+/// The results draw each entrant's place as a picture left of "Brendan & Metagross" (spike
+/// 196): "Brendan & Metagross: third place" under pauses.
 #[test]
 fn test_a_contests_place_is_read_after_its_entrant() {
     let names = ScreenText {
         parent: 7,
-        ..ScreenText::placed(0x20, "Raiden & Metagross", false, -75.0, 37.5, -45.0, 12.5)
+        ..ScreenText::placed(0x20, "Brendan & Metagross", false, -75.0, 37.5, -45.0, 12.5)
     };
     let place = ScreenText {
         parent: 7,
@@ -1189,8 +1189,8 @@ fn test_a_contests_place_is_read_after_its_entrant() {
     let mut placed: Vec<ScreenText> = screen::places_last(&found).into_values().collect();
     placed.sort_by_key(|piece| piece.r#box);
     let said = in_rows(placed);
-    assert_eq!(join(&said, true), "Raiden & Metagross: third place");
-    assert_eq!(join(&said, false), "Raiden & Metagross third place");
+    assert_eq!(join(&said, true), "Brendan & Metagross: third place");
+    assert_eq!(join(&said, false), "Brendan & Metagross third place");
 }
 
 /// A status move's power is a dash, and under pauses it read "Power, —" (movie32).
@@ -1206,7 +1206,7 @@ fn test_a_dash_is_a_labels_value() {
 fn test_a_label_with_a_colon_of_its_own_is_followed_by_a_space() {
     let panel = measured(&[
         ("CONTINUE", -136.0, -86.0, 89.0, 12.5),
-        ("Raiden", -60.0, -23.0, 66.0, 12.5),
+        ("Brendan", -60.0, -23.0, 66.0, 12.5),
         ("Petalburg City", -60.0, 28.0, 46.0, 12.5),
         ("Badges:", -134.0, -90.0, 20.0, 12.5),
         ("0", -63.0, -56.0, 20.0, 14.0),
@@ -1215,16 +1215,16 @@ fn test_a_label_with_a_colon_of_its_own_is_followed_by_a_space() {
     ]);
     assert_eq!(
         join(&panel, true),
-        "CONTINUE: Raiden, Petalburg City, Badges: 0, Pokédex: 7"
+        "CONTINUE: Brendan, Petalburg City, Badges: 0, Pokédex: 7"
     );
     // The trainer card: what follows a label's own colon is a value, and labels nothing.
     let card = measured(&[
         ("Name:", -190.0, -150.0, 60.0, 12.5),
-        ("Raiden", -100.0, -60.0, 60.0, 12.5),
+        ("Brendan", -100.0, -60.0, 60.0, 12.5),
         ("ID No.:", 0.0, 40.0, 60.0, 12.5),
         ("16285", 90.0, 130.0, 60.0, 14.0),
     ]);
-    assert_eq!(join(&card, true), "Name: Raiden, ID No.: 16285");
+    assert_eq!(join(&card, true), "Name: Brendan, ID No.: 16285");
 }
 
 /// The Box's summary panel (movie11, 2026-10-01): "ITEM: Potion: Sand Attack" and "Ember:

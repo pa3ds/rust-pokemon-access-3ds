@@ -7780,7 +7780,7 @@ fn test_another_players_base_is_named_as_the_game_names_it() -> Result<()> {
         memory.write(at + secret_base::TEAM, &utf16(format!("{team}\0Secret")));
     };
     shared(0, 53, "Crimz", "Tarin");
-    shared(1, 9, "Leos", "");
+    shared(1, 9, "Brendan", "");
     bases.track(&Found {
         pages: pages(&memory),
         heap: IndexMap::from([(save, secret_base::SAVE_CLASS.to_string())]),
@@ -7796,7 +7796,7 @@ fn test_another_players_base_is_named_as_the_game_names_it() -> Result<()> {
         kinds,
         [
             "secret base spot",
-            "Leos\u{2019}s Base",
+            "Brendan\u{2019}s Base",
             "secret base spot",
             "Team Tarin\u{2019}s Base"
         ]

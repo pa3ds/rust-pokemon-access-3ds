@@ -444,7 +444,7 @@ brendan-runs-in-1 = { SPRITE(179) } walks in after him.
 # "No, I should call you the Hoenn region's new Pokémon League Champion... Come with me, Champion."
 steven-leads-on-1 = { TRAINER(557) } leads you up the steps to the archway, and the others stay below.
 
-# May's "Raiden! Honestly, congratulations!"
+# May's "Brendan! Honestly, congratulations!"
 may-congratulates-1 = { TRAINER(4) } waves from the foot of the steps as you follow { TRAINER(557) } through the archway.
 
 # Brendan's "That's awesome, [name]. Congratulations...really!"

@@ -70,13 +70,13 @@ fn test_a_record_the_sweep_did_not_read_says_nothing() {
 #[test]
 fn test_the_player_is_a_boy_or_a_girl_once_they_have_a_name() {
     assert_eq!(
-        mystatus::player(&found_with(2, RECORD, 0, "Leos")),
-        Some((false, "Leos".to_string()))
+        mystatus::player(&found_with(2, RECORD, 0, "Brendan")),
+        Some((false, "Brendan".to_string()))
     );
     assert_eq!(
         mystatus::player(&found_with(2, RECORD, 1, "Ruby")),
         Some((true, "Ruby".to_string()))
     );
     assert_eq!(mystatus::player(&found_with(2, RECORD, 1, "")), None);
-    assert_eq!(mystatus::player(&found_with(2, RECORD, 2, "Leos")), None);
+    assert_eq!(mystatus::player(&found_with(2, RECORD, 2, "Brendan")), None);
 }

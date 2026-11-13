@@ -1403,7 +1403,7 @@ fn r#continue() -> Vec<ScreenText> {
     let panel = MAIN_MENU + 0x600;
     vec![
         main_menu_piece(0x1, "CONTINUE", (-160.0, -100.0, 89.0), panel),
-        main_menu_piece(0x2, "Leos", (-20.0, 10.0, 66.0), panel),
+        main_menu_piece(0x2, "Brendan", (-20.0, 10.0, 66.0), panel),
         main_menu_piece(0x3, "Time:", (-90.0, -50.0, 0.0), panel),
         main_menu_piece(0x4, "0:35", (-20.0, 10.0, 0.0), panel),
     ]
@@ -1554,7 +1554,10 @@ fn test_a_frame_in_the_menus_own_layout_is_a_cursor_once_it_has_moved() {
 #[test]
 fn test_a_frame_drawn_as_a_cursor_says_its_item_as_the_menu_opens() {
     let mut menu = MainMenu::with(false, Some("cursor_lt.bclim"));
-    assert_eq!(menu.heard(), lines(&[("CONTINUE Leos Time: 0:35", true)]));
+    assert_eq!(
+        menu.heard(),
+        lines(&[("CONTINUE Brendan Time: 0:35", true)])
+    );
     assert_eq!(menu.reader.last.lists.clone(), IndexMap::new());
     menu.place(menu.cursor, 0.0, -33.0, 336.0, 43.0);
     assert_eq!(menu.heard(), lines(&[("MYSTERY GIFT", false)]));
@@ -1575,7 +1578,10 @@ fn test_a_frame_resized_back_onto_a_panel_says_the_whole_panel() {
     menu.heard();
     menu.heard();
     menu.place(menu.cursor, 0.0, 48.0, 336.0, 140.0);
-    assert_eq!(menu.heard(), lines(&[("CONTINUE Leos Time: 0:35", false)]));
+    assert_eq!(
+        menu.heard(),
+        lines(&[("CONTINUE Brendan Time: 0:35", false)])
+    );
 }
 
 /// The language screen scrolls by moving its rows (spike 70); rows moving as one are not a
