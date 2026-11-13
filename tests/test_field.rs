@@ -56,7 +56,7 @@ use crate::games::gen6::rom::maps::{ChunkSource, StreetSource};
 use crate::games::oras;
 use crate::games::oras::field::berries::BerrySpots;
 use crate::games::oras::field::hidden::{self, DexNav};
-use crate::games::oras::field::{ash, doors, ice, secret_base};
+use crate::games::oras::field::{ash, berries, doors, ice, secret_base};
 use crate::games::xy;
 use crate::games::{
     gen6::field::camera, gen6::field::mapblock, gen6::field::mmodel, gen6::field::rail,
@@ -5299,6 +5299,101 @@ fn test_a_berry_spot_is_listed_under_its_own_category_in_its_own_zone() -> Resul
         lines
             .contains(&"berries: berry spot 2 east 3 south; berry spot 3 east 3 south".to_string())
     );
+    Ok(())
+}
+
+/// The save's `savedata::KinomiData` keeps a record a spot from +4, the stage first and the
+/// soil's moisture at +4, counting down a minute at a time (spike 293): an Oran tree with Berries
+/// to pick, a Pecha sprouting in soil gone dry, which the game says "The soil is dry..." of, and
+/// one in damp soil; one with nothing planted is soft soil, as the game says facing it. Every
+/// spot is a berry spot before the save is found.
+#[test]
+fn test_a_berry_spot_says_a_tree_ready_to_pick_and_a_plant_whose_soil_is_dry() -> Result<()> {
+    let mut town = Town::new();
+    let save = 0x08C84784;
+    let spots = vec![
+        (ROUTE, (90, 150)),
+        (TOWN, (97, 175)),
+        (TOWN, (96, 175)),
+        (TOWN, (95, 175)),
+        (TOWN, (94, 175)),
+    ];
+    let grown: [(i64, (u8, u16, u16)); 4] = [
+        (1, (5, 0, 155)),
+        (2, (2, 0, 151)),
+        (3, (2, 120, 151)),
+        (4, (0, 0, 0)),
+    ];
+    for (index, (stage, moisture, item)) in grown {
+        // struct.pack("<BBHHHfI", stage, 0, 300, moisture, item, 4.0, 0)
+        let mut record = vec![stage, 0];
+        record.extend(300u16.to_le_bytes());
+        record.extend(moisture.to_le_bytes());
+        record.extend(item.to_le_bytes());
+        record.extend(4.0f32.to_le_bytes());
+        record.extend(0u32.to_le_bytes());
+        town.memory
+            .write(save + berries::RECORDS + index * berries::RECORD, &record);
+    }
+    let kinds = |town: &Town| -> Result<HashMap<(i64, i64), String>> {
+        Ok(town
+            .r#where()?
+            .of("berries")
+            .iter()
+            .map(|item| (item.cell, item.kind.clone()))
+            .collect())
+    };
+    let found = |town: &Town| Found {
+        pages: pages(&town.memory),
+        heap: IndexMap::from([(save, berries::SAVE_CLASS.to_string())]),
+        partial: false,
+    };
+    let reader = Rc::new(BerrySpots::new(
+        town.memory.clone(),
+        spots.clone(),
+        Vec::new(),
+    ));
+    town.reader = field_reader(
+        town.memory.clone(),
+        Given::default(),
+        Game {
+            features: vec![given_feature(reader.clone())],
+            ..game()
+        },
+    );
+    assert_eq!(
+        kinds(&town)?,
+        HashMap::from([
+            ((97, 175), "berry spot".to_string()),
+            ((96, 175), "berry spot".to_string()),
+            ((95, 175), "berry spot".to_string()),
+            ((94, 175), "berry spot".to_string()),
+        ])
+    );
+    reader.track(&found(&town))?;
+    assert_eq!(
+        kinds(&town)?,
+        HashMap::from([
+            ((97, 175), "harvestable berry tree".to_string()),
+            ((96, 175), "dry berry sprout".to_string()),
+            ((95, 175), "berry sprout".to_string()),
+            ((94, 175), "soft soil".to_string()),
+        ])
+    );
+    // The Berries on a tree show which it is, and it is named by the game's name for its Berry.
+    let mut items = vec![String::new(); 156];
+    items[155] = "Oran Berry".to_string();
+    let named = Rc::new(BerrySpots::new(town.memory.clone(), spots, items));
+    named.track(&found(&town))?;
+    town.reader = field_reader(
+        town.memory.clone(),
+        Given::default(),
+        Game {
+            features: vec![given_feature(named)],
+            ..game()
+        },
+    );
+    assert_eq!(kinds(&town)?[&(97, 175)], "harvestable Oran Berry tree");
     Ok(())
 }
 

@@ -188,6 +188,12 @@ stops you, and an arrow you cross turns you its way. `P` takes a push as one ste
 by where it leaves you, "arrow pushes 3 west", and waits until it has. `P` also leads you through
 the round pads, and goes on with the way once a pad has put you down.
 
+**Berry spots.** In Omega Ruby and Alpha Sapphire the berries category lists the soft soil
+Berries grow in, by what grows there: "soft soil" with nothing planted, then "planted berry",
+"berry sprout", "growing berry tree" and "berry tree in bloom" as it grows, each with "dry" in
+front while its soil needs water, "dry berry sprout", and once a tree has Berries to pick, its
+Berry, "harvestable Nanab Berry tree".
+
 **Ice.** In Shoal Cave at low tide you slide across the ice until a wall or the floor stops you.
 `P` says each slide as one step of the way, "slide 4 north": step that way once and let it carry
 you.
