@@ -226,7 +226,8 @@ pub struct Interactable {
     /// `geyser`, `lift`, `teleporter`, `dive spot`, `stairs`, `stairs up`, `stairs down`, `ladder
     /// up`, `ladder down`, `entrance`, `slope`, `bumpy slope`, `rail`, `current`, `blue spot`,
     /// `wall ledge`, `vine up`, `vine down`, `swinging vine`, `open ground`, `arrow east` and its
-    /// other ways, a `flock` in the sky; or in the sky, the game's own name for a place.
+    /// other ways, a `flock`, `black clouds` or `gap in the sky` in the sky; or in the sky, the
+    /// game's own name for a place.
     pub kind: String,
     pub cell: (i64, i64),
     pub size: (i64, i64),

@@ -17,7 +17,13 @@
 //! model   +0x00 its class's vtable: a mirage spot `BMHikyo`, a flock `BMEncount`, the red beacon
 //!               over a mirage spot `BMLegendPoint`, the ship `BMShip`
 //!         +0x04 -> the next, +0x08 -> the one before; +0x20 f32 x, height, z
+//! flock   +0x54 u32 a legend's flag, 0xffffffff for a flock of birds; +0x58 f32 how near the
+//!               player flies before the game asks to fly in, 2000 round the black clouds
 //! ```
+//!
+//! The black clouds where Tornadus, Thundurus and Landorus are met, and the gap in the sky where
+//! Dialga, Palkia and Giratina are, are flocks too, ones that never move: what tells them apart is
+//! the legend's flag, which `DllSkyTrip` pairs with each of the six (spike A).
 //!
 //! The Circle Pad's up flies forward and down back, left and right turn on the spot; X and Y pitch
 //! Latios up and down, which changes the height while it flies, and the D-pad and B did nothing seen
@@ -96,6 +102,8 @@ pub const LAST_MODEL: i64 = 0xA0;
 pub const NEXT: i64 = 0x04;
 pub const PREVIOUS: i64 = 0x08;
 pub const WHERE: i64 = 0x20;
+pub const LEGEND: i64 = 0x54;
+pub const REACH_IN: i64 = 0x58;
 pub const FLOCK_CLASS: &str = "N3app7skyTrip9BMEncountE";
 /// More models than the sky builds: a mirage spot, two flocks, three beacons and the ship were
 /// seen.
@@ -103,6 +111,22 @@ pub const MODELS: usize = 64;
 /// A flock of Pokémon flying over Hoenn, which the player flies into to battle one: pa3ds's word,
 /// since the game draws the birds and never names them.
 pub const FLOCK: &str = "flock";
+pub const BLACK_CLOUDS: &str = "black clouds";
+pub const GAP: &str = "gap in the sky";
+/// A legend's flag, as a flock carries it (+0x54), -> what the game shows there. `DllSkyTrip`
+/// pairs these with Thundurus, Tornadus, Landorus, Dialga, Palkia and Giratina, in that order, and
+/// the sky's text asks to fly into "the black clouds" for the first three and "the gap" for the
+/// others: pa3ds's words, after the game's, since it never names them otherwise (spike A).
+///
+/// A dict in Python, read here by `find` on the key: it is never iterated.
+pub const LEGENDS: [(i64, &str); 6] = [
+    (0xB6D, BLACK_CLOUDS),
+    (0xB6C, BLACK_CLOUDS),
+    (0xB70, BLACK_CLOUDS),
+    (0xB63, GAP),
+    (0xB64, GAP),
+    (0xB67, GAP),
+];
 
 pub const MAGIC: &[u8] = b"SLAN";
 pub const ROWS: i64 = 0x28;
@@ -224,13 +248,18 @@ impl Flight {
     }
 }
 
-/// A flock of Pokémon in the sky, where it flies now.
+/// A flock of Pokémon in the sky, where it flies now, or a legend's black clouds or gap.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Flock {
     pub model: i64,
     pub x: f64,
     pub height: f64,
     pub z: f64,
+    /// What the game shows where a legend is met (`LEGENDS`), "" for a flock of birds.
+    pub legend: &'static str,
+    /// How near a legend's the player flies before the game asks to fly in; 0 for birds, whose
+    /// own was never measured.
+    pub reach: f64,
 }
 
 /// Every place on the sky's map, merged by what the game calls it, in the table's order; none from
@@ -351,7 +380,8 @@ pub fn shown(memory: &dyn Memory, process: i64, rows: i64) -> Result<Option<Hash
     ))
 }
 
-/// The flocks flying now, from the manager's models, walked both ways from the last built.
+/// The flocks flying now, and the legends' black clouds and gaps, from the manager's models,
+/// walked both ways from the last built.
 pub fn flocks(memory: &dyn Memory, process: i64, names: &ClassNames) -> Result<Vec<Flock>> {
     let manager = u32(&memory.read(process + MANAGER, 4)?, 0)?;
     if !within(HEAP_SPAN, manager) {
@@ -372,13 +402,24 @@ pub fn flocks(memory: &dyn Memory, process: i64, names: &ClassNames) -> Result<V
     let mut out: Vec<Flock> = Vec::new();
     for model in seen {
         if names.of_object(model)?.as_deref() == Some(FLOCK_CLASS) {
-            let at = memory.read(model + WHERE, 12)?;
-            let (x, height, z) = (f32(&at, 0)?, f32(&at, 4)?, f32(&at, 8)?);
+            let head = memory.read(model + WHERE, REACH_IN + 4 - WHERE)?;
+            let (x, height, z) = (f32(&head, 0)?, f32(&head, 4)?, f32(&head, 8)?);
+            let flag = u32(&head, LEGEND - WHERE)?;
+            let legend = LEGENDS
+                .iter()
+                .find(|(known, _)| *known == flag)
+                .map_or("", |&(_, legend)| legend);
             out.push(Flock {
                 model,
                 x,
                 height,
                 z,
+                legend,
+                reach: if legend.is_empty() {
+                    0.0
+                } else {
+                    f32(&head, REACH_IN - WHERE)?
+                },
             });
         }
     }
@@ -389,6 +430,8 @@ pub fn flocks(memory: &dyn Memory, process: i64, names: &ClassNames) -> Result<V
 /// the player, since flying into one is what battles it: in the player's own frame, north ahead,
 /// so a bearing is said "32 ahead 8 left" (`Field.heading`), and P says the turn to face it
 /// (`turn`, `chase`). Without the game's word on what it shows, every place always there.
+/// A legend's black clouds or gap is a mirage spot, said from the player to where the game asks
+/// to fly in.
 pub fn listed(
     flight: &Flight,
     known: &[Place],
@@ -419,10 +462,16 @@ pub fn listed(
     }
     let birds: IndexMap<i64, Flock> = flying.iter().map(|flock| (flock.model, *flock)).collect();
     for flock in flying {
-        let at = cell(flight, flock.x - flight.x, flock.z - flight.z)?;
+        let (dx, dz) = edge(flight, flock);
+        let at = cell(flight, dx, dz)?;
+        let (category, kind) = if flock.legend.is_empty() {
+            (POKEMON, FLOCK)
+        } else {
+            (MIRAGE, flock.legend)
+        };
         items.push(Interactable {
             source: place_source(APP_SOURCE, flock.model)?,
-            ..Interactable::new(POKEMON, FLOCK, at)
+            ..Interactable::new(category, kind, at)
         });
     }
     let flight = *flight;
@@ -486,27 +535,30 @@ pub fn turn(flight: &Flight, place: &Place) -> Result<String> {
 }
 
 /// Which way to turn to face a flock, how far it is then, and how far above or below the player it
-/// flies: "turn right 30 degrees, 12 ahead, 2 below".
+/// flies: "turn right 30 degrees, 12 ahead, 2 below". A legend's is said to where the
+/// game asks to fly in, and "here" inside it.
 pub fn chase(flight: &Flight, flock: &Flock) -> Result<String> {
-    let (ahead, right) = frame(flight, flock.x - flight.x, flock.z - flight.z);
+    let (dx, dz) = edge(flight, flock);
+    let (ahead, right) = frame(flight, dx, dz);
     let angle = degrees(right.atan2(ahead));
-    let mut said = vec![own(
-        "steps",
-        &[
-            ("count", &py::round(py::hypot(ahead, right) / UNIT)?),
-            ("way", &way(AHEAD)),
-        ],
-    )];
+    let away = py::round(py::hypot(ahead, right) / UNIT)?;
+    if flock.reach != 0.0 && away == 0 {
+        return Ok(own("here", &[]));
+    }
+    let mut said = vec![own("steps", &[("count", &away), ("way", &way(AHEAD))])];
     if angle.abs() > STRAIGHT {
         said.insert(0, turned(angle)?);
     }
-    let rise = py::round((flock.height - flight.height) / UNIT)?;
-    if rise != 0 {
+    let rise = flock.height - flight.height;
+    // `max(abs(rise) - flock.reach, 0.0)`: the first unless 0.0 is greater, a NaN kept.
+    let above = rise.abs() - flock.reach;
+    let beyond = py::round(if 0.0 > above { 0.0 } else { above }.copysign(rise) / UNIT)?;
+    if beyond != 0 {
         said.push(own(
             "steps",
             &[
-                ("count", &rise.abs()),
-                ("way", &way(if rise > 0 { "above" } else { "below" })),
+                ("count", &beyond.abs()),
+                ("way", &way(if beyond > 0 { "above" } else { "below" })),
             ],
         ));
     }
@@ -668,6 +720,19 @@ fn steer(
 fn cell(flight: &Flight, dx: f64, dz: f64) -> Result<(i64, i64)> {
     let (ahead, right) = frame(flight, dx, dz);
     Ok((py::round(right / UNIT)?, py::round(-ahead / UNIT)?))
+}
+
+/// The world offset from the player to a flock, or to the near edge of a legend's reach:
+/// nothing inside it.
+fn edge(flight: &Flight, flock: &Flock) -> (f64, f64) {
+    let (dx, dz) = (flock.x - flight.x, flock.z - flight.z);
+    let away = py::hypot(dx, dz);
+    if flock.reach == 0.0 || away == 0.0 {
+        return (dx, dz);
+    }
+    let over = away - flock.reach;
+    let left = if 0.0 > over { 0.0 } else { over } / away;
+    (dx * left, dz * left)
 }
 
 /// A turn this many degrees clockwise, said.

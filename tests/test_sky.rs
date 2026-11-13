@@ -301,7 +301,9 @@ fn test_flocks_are_found_among_the_skys_models_and_chased_from_the_player() {
             model: 0x082A3884,
             x: -2465.0,
             height: 1700.0,
-            z: 4874.0
+            z: 4874.0,
+            legend: "",
+            reach: 0.0
         }]
     );
     let north = sky::Flight {
@@ -331,6 +333,71 @@ fn test_flocks_are_found_among_the_skys_models_and_chased_from_the_player() {
         sky::chase(&east, &found[0]).unwrap(),
         "turn left 85 degrees, 51 ahead, 2 below"
     );
+}
+
+/// or_soaring_rifts: north of Fortree City with a Castform in the party, the game asked to fly
+/// into the black clouds 2000 from a flock's model that never moved, which carries Tornadus's
+/// flag; the list had said it as a flock (spike A).
+#[test]
+fn test_a_legends_black_clouds_are_a_mirage_spot_said_to_where_the_game_asks_to_fly_in() {
+    let memory = FakeMemory::new();
+    let clouds = FakeClasses::new(memory.clone()).add(sky::FLOCK_CLASS);
+    memory.u32(PROCESS + sky::MANAGER, &[0x08295D04]);
+    memory.u32(0x08295D04 + sky::LAST_MODEL, &[0x082A3884]);
+    memory.u32(0x082A3884, &[clouds, 0, 0]);
+    memory.write(
+        0x082A3884 + sky::WHERE,
+        &[8956.5f32, 2000.0, -8631.25]
+            .iter()
+            .flat_map(|value| value.to_le_bytes())
+            .collect::<Vec<u8>>(),
+    );
+    memory.u32(0x082A3884 + sky::LEGEND, &[0xB6C]);
+    memory.write(0x082A3884 + sky::REACH_IN, &2000.0f32.to_le_bytes());
+    let found = sky::flocks(
+        &*memory,
+        PROCESS,
+        &ClassNames::new(memory.clone(), LOADED_CODE),
+    )
+    .unwrap();
+    assert_eq!(
+        found,
+        vec![sky::Flock {
+            model: 0x082A3884,
+            x: 8956.5,
+            height: 2000.0,
+            z: -8631.25,
+            legend: sky::BLACK_CLOUDS,
+            reach: 2000.0
+        }]
+    );
+    let east = sky::Flight {
+        x: 6388.0,
+        z: -8324.0,
+        heading: EAST,
+        height: 1898.0,
+    };
+    let r#where = sky::listed(&east, &places(), Some(&HashSet::new()), &found).unwrap();
+    let spots = r#where.of(MIRAGE);
+    let [spot] = spots.as_slice() else {
+        panic!("one mirage spot: {spots:?}");
+    };
+    assert!(r#where.of(POKEMON).is_empty());
+    assert_eq!(
+        (
+            spot.kind.as_str(),
+            spot.bearing(r#where.cell, r#where.heading).unwrap()
+        ),
+        ("black clouds", "6 ahead 1 left".to_string())
+    );
+    let steer = r#where.steer.as_ref().unwrap();
+    assert_eq!((steer.0)(spot).unwrap(), "6 ahead");
+    let nearer = sky::Flight {
+        x: 7087.0,
+        z: -8290.0,
+        ..east
+    };
+    assert_eq!(sky::chase(&nearer, &found[0]).unwrap(), "here");
 }
 
 #[test]
