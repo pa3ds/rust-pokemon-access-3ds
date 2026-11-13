@@ -5,6 +5,8 @@
 //!           while they ride the Mach Bike (spike 158) or a Pokémon on the sea (spike 227);
 //!           bit 0x04 is set on a model the game has hidden, with 0x100 beside it each time
 //!           (`hidden`, spike 294)
+//! +0x08 u8  bit 0x20 set on a model built and not yet set up, for a poll as a zone loads
+//!           (`just_built`)
 //! +0x0c u32 zone << 16 | the entity index in that zone's table; the player is index 0xff
 //! +0x10 u32 flag << 16 | character — who or what it is: Norman 0x13f, Wally 0xb4, Birch 0x13e,
 //!           and 0x2000 for a Poké Ball lying on the ground
@@ -63,6 +65,8 @@ pub const SLOT_X: i64 = 0xAA8;
 pub const IN_USE: i64 = 0x04;
 /// `IN_USE`'s bit on a model the game has hidden (`hidden`).
 pub const HIDDEN: i64 = 0x04;
+pub const SETUP: i64 = 0x08;
+pub const NOT_SET_UP: i64 = 0x20;
 pub const RIDING: i64 = 0x06;
 pub const BIKE: i64 = 0x20;
 pub const MOUNT: i64 = 0x07;
@@ -271,6 +275,15 @@ pub fn in_use(head: &[u8]) -> Result<bool> {
 /// (spike 294). +0x07's 0x01 is no such bit: every model in Santalune Gym has it, Viola too.
 pub fn hidden(head: &[u8]) -> Result<bool> {
     Ok(byte(head, IN_USE)? & HIDDEN != 0)
+}
+
+/// Whether the game has built the model and not yet set it up: true of every model of a zone
+/// the player has just arrived in, theirs included, for the first poll there, `22 00` from
+/// +0x08 where `02 40` is usual, and of none after (six tapes, 2026-11-13). Whether it is hidden
+/// is not set yet: the Guild's pals read as drawn, and its list counted 13, then 9
+/// (or_secret_base_guild_bug).
+pub fn just_built(head: &[u8]) -> Result<bool> {
+    Ok(byte(head, SETUP)? & NOT_SET_UP != 0)
 }
 
 /// Whether it is placed on a rail rather than the grid. On the grid +0xec is where it is in

@@ -1976,9 +1976,17 @@ impl Gen6Profile {
     }
 
     /// Keep any name the player has just given. Costs one empty queue read a poll, and the
-    /// dialog it answers has been up on a thread of its own while the game kept running.
+    /// dialog it answers has been up on a thread of its own while the game kept running. And
+    /// press again a key that waited for the zone the player arrived in to be set up.
     pub fn poll_renames(&self) -> Result<()> {
-        self.navigator.borrow_mut().poll_renames()
+        self.navigator.borrow_mut().poll_renames()?;
+        let held = self.navigator.borrow().held();
+        if let Some(action) = held {
+            phase(&*self.memory, "keys", || {
+                self.navigator.borrow_mut().press(&action)
+            })?;
+        }
+        Ok(())
     }
 
     /// Poll where the player is, and log what is around them when it changes.

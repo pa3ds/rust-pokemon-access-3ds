@@ -112,6 +112,9 @@ pub const SPEAKING: &str = "speaker";
 /// they look like.
 pub const ONLY: &str = "rename-only-this-one";
 
+/// How long a key waits, at most, for the game to set up the models of a zone the player has just
+/// arrived in (`Field.settling`): it took one poll, under a fifth of a second, on every tape.
+pub const SETTLING: f64 = 0.5;
 /// How far direction mode looks, in cells each way: a box, so a thing 10 north and 10 east is
 /// in. The top screen shows about 13 cells across and 9 deep (measured from a rig screenshot,
 /// 2026-09-21), so this is a little over a screen sideways and two screens ahead; chosen
@@ -342,6 +345,10 @@ pub struct Navigator {
     pushing: Option<(Key, &'static str)>,
     /// P, and guiding the player along the way it finds.
     pub guide: Guide,
+    clock: Clock,
+    /// A key's action, pressed before the game set up the models of the zone the player
+    /// arrived in, and when (`held`).
+    held: Option<(String, f64)>,
 }
 
 impl Navigator {
@@ -376,6 +383,7 @@ impl Navigator {
             part,
         } = options;
         let wording = navigation.unwrap_or_default();
+        let clock = clock.unwrap_or_else(|| Rc::new(py::time::monotonic));
         let names = names.unwrap_or_else(|| Rc::new(Names::default()));
         let naming = Rc::new(Naming {
             names: names.clone(),
@@ -402,7 +410,7 @@ impl Navigator {
             tell,
             log.clone(),
             wording.clone(),
-            clock.unwrap_or_else(|| Rc::new(py::time::monotonic)),
+            clock.clone(),
             routes,
             slack,
             moves,
@@ -439,6 +447,8 @@ impl Navigator {
             facing: None,
             pushing: None,
             guide,
+            clock,
+            held: None,
         }
     }
 
@@ -608,7 +618,21 @@ impl Navigator {
             ));
             return Ok(());
         }
-        let Some(r#where) = self.field.poll()? else {
+        let polled = self.field.poll()?;
+        // Pressed as the player arrives, before the game sets up the zone's models, a key would
+        // count the ones it is about to hide: the Secret Base Guild's list counted 13, then 9
+        // (or_secret_base_guild_bug). It waits for the next poll instead (`held`).
+        let now = (self.clock)();
+        let since = match &self.held {
+            Some((held, since)) if held == action => *since,
+            _ => now,
+        };
+        if polled.as_ref().is_some_and(|r#where| r#where.settling) && now - since < SETTLING {
+            self.held = Some((action.to_string(), since));
+            return Ok(());
+        }
+        self.held = None;
+        let Some(r#where) = polled else {
             self.say(&own("key-no-map", &[]));
             return Ok(());
         };
@@ -1106,6 +1130,12 @@ impl Navigator {
             },
         )?;
         Ok(())
+    }
+
+    /// The action of a key waiting for the game to set up the zone the player arrived in, to
+    /// `press` again on the next poll, or None.
+    pub fn held(&self) -> Option<String> {
+        self.held.as_ref().map(|(action, _)| action.clone())
     }
 
     /// Keep any name given since the last poll, and say it back.

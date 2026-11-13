@@ -766,6 +766,7 @@ impl FieldReader {
             ),
         };
         let (bike, acro) = (mmodel::on_bike(&head, form)?, mmodel::acro(&head, form)?);
+        let settling = mmodel::just_built(&head)?;
         self.on_rail.set(mmodel::on_rail(&head)?);
         // One map's streets for the whole poll, the sweep's as the grid is (#18). Without the ROM
         // the sweep keeps no files, and only the field map's own let the last map's lines go.
@@ -788,6 +789,7 @@ impl FieldReader {
                 place: Some(mmodel::place(&head)?),
                 surfing: mmodel::surfing(&head, form)?,
                 height: self.height.get(),
+                settling,
                 heading: match behind {
                     None => None,
                     Some(behind) => Some(pathfind::nearest(behind)?),
@@ -803,6 +805,7 @@ impl FieldReader {
                 on_rail: true,
                 on_bike: bike,
                 height: self.height.get(),
+                settling,
                 ..Field::new(zone, cell)
             }));
         };
@@ -816,6 +819,7 @@ impl FieldReader {
             bearing,
             on_bike: bike,
             height: self.height.get(),
+            settling,
             ..Field::new(zone, at)
         }))
     }

@@ -5771,6 +5771,19 @@ fn test_a_model_the_game_has_hidden_is_neither_listed_nor_in_the_way() -> Result
     Ok(())
 }
 
+/// The game builds a zone's models as the player arrives and sets them up a poll on, hiding
+/// the Guild's pals only then: `22 00` from +0x08 at first, `02 40` after
+/// (or_secret_base_guild_bug).
+#[test]
+fn test_a_zone_whose_models_are_built_but_not_set_up_is_settling() -> Result<()> {
+    let town = Town::new();
+    town.memory.write(POOL + 8, &[0x22, 0x00]);
+    assert!(town.r#where()?.settling);
+    town.memory.write(POOL + 8, &[0x02, 0x40]);
+    assert!(!town.r#where()?.settling);
+    Ok(())
+}
+
 /// X keeps the sprite a model is drawn with at +0x890, and a pointer where ORAS keeps it
 /// (spike 100).
 #[test]

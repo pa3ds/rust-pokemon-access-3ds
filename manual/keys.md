@@ -16,7 +16,9 @@ X, round Prism Tower in Lumiose City or on the Battle Resort's beach, the direct
 Where the camera stays behind you and left, right and down turn you, as in X's Glittering Cave,
 things are said from the way you face, "9 ahead 8 left", and `P` says the turns, "turn left, 5
 forward". Each time the way up walks you turns a quarter, pa3ds plays a short tone: high for north,
-low for south, in your right ear for east and your left for west.
+low for south, in your right ear for east and your left for west. A key pressed the moment you
+arrive somewhere waits a fraction of a second for the game to set the place up, so it never
+counts anybody the game is about to hide.
 
 Exits side by side into the same place are one exit. On Lumiose City's streets, where a street
 ends on a plaza you walk freely, the exits list that end as "open ground": walk onto the plaza and

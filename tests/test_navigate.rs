@@ -883,6 +883,37 @@ fn test_a_category_is_said_with_how_many_things_are_in_it() {
     assert_eq!(said(&rig.backend), ["exits, 2", "interactables, 1"]);
 }
 
+/// or_secret_base_guild_bug: for the first poll in the Secret Base Guild the game had built
+/// its models and not yet hidden the pals of the player's own Secret Base, and the list counted
+/// 13, then 9. A key then waits for the next poll, and answers anyway after half a second.
+#[test]
+fn test_a_key_pressed_before_the_zones_models_are_set_up_waits_for_them() {
+    let now = Rc::new(Slot::new(0.0));
+    let clock = now.clone();
+    let settling = || Field {
+        settling: true,
+        ..town()
+    };
+    let mut rig = navigator(Want {
+        clock: Rc::new(move || clock.get()),
+        ..on(settling())
+    });
+    rig.press(CATEGORY_PREVIOUS);
+    assert!(said(&rig.backend).is_empty());
+    assert_eq!(rig.nav.held().as_deref(), Some(CATEGORY_PREVIOUS));
+    *rig.field.r#where.borrow_mut() = Some(town());
+    let held = rig.nav.held().unwrap();
+    rig.press(&held);
+    assert_eq!(said(&rig.backend), ["people, 2"]);
+    assert_eq!(rig.nav.held(), None);
+    *rig.field.r#where.borrow_mut() = Some(settling());
+    rig.press(CATEGORY_NEXT);
+    now.set(0.6);
+    rig.press(CATEGORY_NEXT);
+    assert_eq!(last(&rig.backend), "all, 5");
+    assert_eq!(rig.nav.held(), None);
+}
+
 #[test]
 fn test_empty_categories_are_skipped_either_way() {
     let mut rig = navigator(Want::default());

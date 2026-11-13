@@ -486,6 +486,9 @@ pub struct Field {
     pub acro: Option<bool>,
     /// Whether the player is surfing, where a current can carry them (spike 208).
     pub surfing: bool,
+    /// Whether the game has just built the zone's models and not yet set them up, so what it is
+    /// about to hide still reads as drawn: a key waits it out (`Navigator.press_key`).
+    pub settling: bool,
     /// How far direction mode looks, in this map's steps each way, where not the field's ten
     /// cells: the sky's places are far apart (`oras.sky.REACH`).
     pub reach: Option<i64>,
@@ -519,6 +522,7 @@ impl Default for Field {
             on_bike: false,
             acro: None,
             surfing: false,
+            settling: false,
             reach: None,
             steer: None,
             place: None,
