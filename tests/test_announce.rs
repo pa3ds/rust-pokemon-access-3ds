@@ -1829,6 +1829,35 @@ fn test_details_are_one_line_that_never_cuts_off_the_item() {
     assert_eq!(screen.backend.interrupting(), ["Growl"]);
 }
 
+/// A battle's ability popup said "Ralts's Trace!", then the game wrote "Ralts's Pickup!"
+/// into it 1.4 s later, and under `interrupt` the second cut the first off (or_ralts_trace).
+#[test]
+fn test_a_change_where_no_cursor_has_been_never_cuts_off_what_came_before() {
+    let mut screen = Screen::new();
+    screen.announcer = ScreenAnnouncer::new(
+        Rc::new(Speech::new(
+            screen.backend.clone(),
+            HashSet::from([Category::Key, Category::Menu]),
+            None,
+        )),
+        Rc::new(|_line: &str| {}),
+    );
+    let trace = piece(1, "Ralts's Trace!", -60.0, 40.0, PANEL);
+    screen.say(args(&one(&trace), vec![], &one(&trace)));
+    let pickup = ScreenText {
+        text: "Ralts's Pickup!".to_string(),
+        changed: true,
+        with_layout: false,
+        ..trace.clone()
+    };
+    screen.say(args(&one(&pickup), vec![], &one(&pickup)));
+    assert_eq!(
+        screen.backend.spoken(),
+        [trace.text.as_str(), pickup.text.as_str()]
+    );
+    assert_eq!(screen.backend.interrupting(), NOTHING);
+}
+
 #[test]
 fn test_a_count_alone_under_a_cursor_is_said_after_what_names_it() {
     // The Berry Blender's cursor sits on a berry's picture and its count, and the top screen

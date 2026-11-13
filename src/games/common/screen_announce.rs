@@ -49,7 +49,9 @@
 //!   word coming back while a game that times the player runs: neither is a screen coming back
 //!   (2026-10-28).
 //! - The item under a cursor comes first, then its details, then what changed, then what came on
-//!   screen. Nothing interrupts unless the speech policy says so.
+//!   screen. Nothing interrupts unless the speech policy says so, and `interrupt` makes only a
+//!   menu's words do so: a change on a screen no cursor has been over queues, as a battle's ability
+//!   popup turning "Ralts's Trace!" into "Ralts's Pickup!" cut the first off (or_ralts_trace).
 //!
 //! List and choice box labels belong to their own readers and are left out everywhere.
 //!
@@ -816,7 +818,16 @@ impl ScreenAnnouncer {
                 "screen changed: {text}  [layout {:#x}]",
                 group[0].root
             ));
-            self.speech.say(&text, Category::Menu);
+            // A menu's under `interrupt`, a screen's elsewhere: a battle's ability popup turned
+            // "Ralts's Trace!" into "Ralts's Pickup!" 1.4 s later, and cut it off (or_ralts_trace).
+            self.speech.say(
+                &text,
+                if self.menus.contains(&group[0].root) {
+                    Category::Menu
+                } else {
+                    Category::Screen
+                },
+            );
         }
 
         self.say_shown(&ready, on_screen, &mut said, labels, &cursored, left);
