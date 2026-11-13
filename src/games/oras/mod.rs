@@ -680,7 +680,10 @@ pub const SCANNER: i64 = 0x2;
 /// (21, 35). A third item is the zone an exit leads to, said after it: "entrance to Seafloor
 /// Cavern". The player dived at (307, 190), south of the ring, swam 6 north into the gap and stood
 /// in `0x62` at (21, 35) (omega_ruby_route-128-sea-floor2.ctm); from inside the ring, diving at
-/// (307, 175), P's way stopped 5 short of the gap.
+/// (307, 175), P's way stopped 5 short of the gap. The way back is `0x62`'s trigger 3, eleven cells
+/// wide at (16, 36), the row south of where the player arrives, whose script leads to (308, 185)
+/// under Route 128: "way out to Route 128", left out until a player found no exit listed there
+/// (or_route_128_into_seafloor_cavern). Not swum through.
 ///
 /// The way into Sootopolis City, under Route 126 (spike 165), is the same: the underwater zone's
 /// only trigger, script 2, five cells wide at (55, 95), ends in its one call into `0x4c`, the
@@ -750,6 +753,14 @@ pub fn triggers() -> &'static IndexMap<(i64, i64), (String, String, Option<i64>)
                 "exits".to_string(),
                 "entrance".to_string(),
                 Some(SEAFLOOR_CAVERN),
+            ),
+        );
+        out.insert(
+            (SEAFLOOR_CAVERN, 0x3),
+            (
+                "exits".to_string(),
+                "way out".to_string(),
+                Some(UNDERWATER_128),
             ),
         );
         out.insert(
