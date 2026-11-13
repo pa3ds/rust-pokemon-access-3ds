@@ -6,3 +6,5 @@ texture-intro_famale = 女孩，白皙的皮肤和红润的脸颊，发梢外翘
 texture-presented_by = 出品方
 texture-gf_logo = Game Freak
 texture-push_start = 按START键
+
+texture-nameinput2_lower-icon_delete = 切换大小写

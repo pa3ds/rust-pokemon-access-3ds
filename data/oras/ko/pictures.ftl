@@ -6,3 +6,5 @@ texture-intro_famale = 여자아이, 볼이 발그레한 하얀 피부, 끝이 �
 texture-presented_by = 제공
 texture-gf_logo = 게임프리크
 texture-push_start = 스타트 버튼을 누르세요
+
+texture-nameinput2_lower-icon_delete = 시프트

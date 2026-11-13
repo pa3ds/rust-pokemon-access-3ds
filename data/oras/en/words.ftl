@@ -11,6 +11,12 @@ category-mirage-spots = mirage spots
 # A flock of Pokémon flying over Hoenn, which the player flies into to battle one: the game draws
 # the birds and never names them.
 kind-flock = flock
+# Where a legend is met in the sky, which the game draws and asks the player to fly into,
+# naming it only in that question ("the black clouds", "a huge gap in the sky"): the storm
+# clouds of Tornadus, Thundurus and Landorus and the dimensional rift of Dialga, Palkia and
+# Giratina, as Bulbapedia names them (spike 295).
+kind-storm-clouds = storm clouds
+kind-dimensional-rift = dimensional rift
 # How far above or below the player a flock flies: "12 ahead, 2 below".
 way-above = above
 way-below = below
@@ -22,6 +28,26 @@ sky-facing = facing { $way }
 ## What is on ORAS's maps alone
 
 kind-berry-spot = berry spot
+# A tree whose Berries are ready to pick, its Berry unnamed where the game's text has no
+# name for it (spike 293).
+kind-harvestable-berry-tree = harvestable berry tree
+# A tree with Berries to pick, by the game's name for its Berry: "harvestable Nanab
+# Berry tree". The Berries on the tree show which it is.
+berry-tree-harvestable = harvestable { $berry } tree
+# A Berry growing, by its stage as the game says it facing the spot, "This is where you
+# planted the Pecha Berry!" to "The Pecha Berry tree is in bloom!", each dry while its
+# soil is: "The soil is dry...".
+kind-planted-berry = planted berry
+kind-dry-planted-berry = dry planted berry
+kind-berry-sprout = berry sprout
+kind-dry-berry-sprout = dry berry sprout
+kind-growing-berry-tree = growing berry tree
+kind-dry-growing-berry-tree = dry growing berry tree
+kind-berry-tree-in-bloom = berry tree in bloom
+kind-dry-berry-tree-in-bloom = dry berry tree in bloom
+# A berry spot with nothing planted, in the game's words for it facing it: "It's soft
+# soil.", each language's from its own line; Chinese, which this game has not, the later games'.
+kind-soft-soil = soft soil
 kind-ash-pile = ash pile
 kind-hidden-Pokemon = hidden Pokémon
 kind-secret-base-spot = secret base spot

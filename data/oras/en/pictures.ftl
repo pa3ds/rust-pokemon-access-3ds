@@ -15,3 +15,8 @@ texture-intro_famale = Girl, fair skin with rosy cheeks, light-brown shoulder-le
 texture-presented_by = Presented by
 texture-gf_logo = Game Freak
 texture-push_start = Press Start
+
+# The name entry's Shift key, its arrow up, drawn with `icon_delete.bclim`, which the number
+# entry draws its Delete key with: said "delete" (or_name_rater). By the layout it is
+# drawn in, `nameinput2_lower`, ahead of the picture's own word (`pictures.named`).
+texture-nameinput2_lower-icon_delete = shift

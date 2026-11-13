@@ -9,6 +9,8 @@ category-routes = percorsi
 category-landmarks = luoghi d'interesse
 category-mirage-spots = luoghi miraggio
 kind-flock = stormo
+kind-storm-clouds = nubi temporalesche
+kind-dimensional-rift = squarcio dimensionale
 way-above = sopra
 way-below = sotto
 sky-turn = gira a { $way } di { $degrees } gradi
@@ -17,6 +19,17 @@ sky-facing = rivolto a { $way }
 ## What is on ORAS's maps alone
 
 kind-berry-spot = terreno per bacche
+kind-harvestable-berry-tree = albero di bacche da raccogliere
+berry-tree-harvestable = { $berry } da raccogliere
+kind-planted-berry = bacca piantata
+kind-dry-planted-berry = bacca piantata secca
+kind-berry-sprout = germoglio di bacca
+kind-dry-berry-sprout = germoglio di bacca secco
+kind-growing-berry-tree = albero di bacche in crescita
+kind-dry-growing-berry-tree = albero di bacche in crescita secco
+kind-berry-tree-in-bloom = albero di bacche in fiore
+kind-dry-berry-tree-in-bloom = albero di bacche in fiore secco
+kind-soft-soil = terreno soffice
 kind-ash-pile = mucchio di cenere
 kind-hidden-Pokemon = Pokémon nascosto
 kind-secret-base-spot = punto per base segreta

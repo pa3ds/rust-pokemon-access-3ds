@@ -219,6 +219,8 @@ sprite-0x204e = 卡比獸玩偶
 sprite-0x204f = 靛藍色寶珠
 # BENIIRONOTAMA: text 114:534, beside it
 sprite-0x2050 = 朱紅色寶珠
+# mysterious ring, story 141:0 in English, translated: no Chinese ROM was read
+sprite-0x2055 = 神秘的圓環
 # MAGMASUIT: text 114:741, in the Magma Hideout
 sprite-0x2056 = 熔岩裝
 # AQUASUIT: text 114:742, in the Aqua Hideout
@@ -661,9 +663,22 @@ place-0x61-furniture-2 = 海洋隊旗幟
 # story 65:25, "It's an Azurill Doll!", where the doll stands
 place-0xdf-furniture-0 = 露力麗玩偶
 place-0xe1-furniture-0 = 露力麗玩偶
+# Both ground floors' TV runs case 7 of its own zone's script, which shows no line naming it,
+# so the word is the decorations' TV, text 56:138
+place-0xdf-furniture-2 = 電視
+place-0xe1-furniture-1 = 電視
 # in the moving truck
 place-0x18f-furniture-0 = 露力麗玩偶
 # The rocks that evolve Eevee, which no text names: story 378:0, in Shoal Cave's ice room
 place-0x86-furniture-0 = 被冰覆蓋的岩石
 # story 432:45, in Petalburg Woods
 place-0x52-furniture-2 = 被青苔覆蓋的岩石
+# tree house: story 536:0, "The tree houses of Fortree are great!", each language's
+# word from it: Fortree City's houses up its trees, zone 0x11, warps 3 to 8, the Secret Base
+# Guild's among them, which the game names nowhere and were said "passage"
+place-0x11-warp-3 = 樹屋
+place-0x11-warp-4 = 樹屋
+place-0x11-warp-5 = 樹屋
+place-0x11-warp-6 = 樹屋
+place-0x11-warp-7 = 樹屋
+place-0x11-warp-8 = 樹屋

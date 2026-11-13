@@ -6,3 +6,5 @@ texture-intro_famale = 女の子、ほおがほんのり赤い色白の肌、毛
 texture-presented_by = 制作
 texture-gf_logo = ゲームフリーク
 texture-push_start = スタートを押してください
+
+texture-nameinput2_lower-icon_delete = シフト

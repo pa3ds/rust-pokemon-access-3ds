@@ -9,6 +9,8 @@ category-routes = 道路
 category-landmarks = 名所
 category-mirage-spots = まぼろしの場所
 kind-flock = 群れ
+kind-storm-clouds = 嵐の雲
+kind-dimensional-rift = 次元の裂け目
 way-above = 上
 way-below = 下
 sky-turn = { $way }に{ $degrees }度回る
@@ -17,6 +19,17 @@ sky-facing = { $way }向き
 ## What is on ORAS's maps alone
 
 kind-berry-spot = きのみの土
+kind-harvestable-berry-tree = 収穫できる きのみの木
+berry-tree-harvestable = 収穫できる { $berry }の木
+kind-planted-berry = 植えた きのみ
+kind-dry-planted-berry = 土が乾いた 植えた きのみ
+kind-berry-sprout = きのみの芽
+kind-dry-berry-sprout = 土が乾いた きのみの芽
+kind-growing-berry-tree = 育っている きのみの木
+kind-dry-growing-berry-tree = 土が乾いた 育っている きのみの木
+kind-berry-tree-in-bloom = 花が咲いた きのみの木
+kind-dry-berry-tree-in-bloom = 土が乾いた 花が咲いた きのみの木
+kind-soft-soil = ふかふかの つち
 kind-ash-pile = 火山灰の山
 kind-hidden-Pokemon = 隠れているポケモン
 kind-secret-base-spot = ひみつきちの場所

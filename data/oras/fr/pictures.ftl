@@ -6,3 +6,5 @@ texture-intro_famale = Fille, peau claire aux joues roses, cheveux châtain clai
 texture-presented_by = Présenté par
 texture-gf_logo = Game Freak
 texture-push_start = Appuyez sur Start
+
+texture-nameinput2_lower-icon_delete = majuscules

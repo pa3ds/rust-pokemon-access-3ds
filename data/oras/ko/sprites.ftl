@@ -340,6 +340,8 @@ sprite-0x204e = 잠만보인형
 sprite-0x204f = 쪽빛구슬
 # Red Orb: text 114:534
 sprite-0x2050 = 주홍구슬
+# mysterious ring: story 141:0
+sprite-0x2055 = 신비한 원
 # Magma Suit: text 114:741
 sprite-0x2056 = 마그마슈트
 # Aqua Suit: text 114:742
@@ -591,9 +593,22 @@ place-0x61-furniture-2 = 아쿠아단의 단기
 place-0xdf-furniture-0 = 루리리인형
 # Azurill Doll: text 56:111
 place-0xe1-furniture-0 = 루리리인형
+# TV: text 56:138
+place-0xdf-furniture-2 = TV
+# TV: text 56:138
+place-0xe1-furniture-1 = TV
 # Azurill Doll: text 56:111
 place-0x18f-furniture-0 = 루리리인형
 # ice rock: story 378:0, "It's a rock that is covered in ice.", in Shoal Cave
 place-0x86-furniture-0 = 얼음바위
 # moss rock: story 432:45, "The surface is covered with moss.", in Petalburg Woods
 place-0x52-furniture-2 = 이끼바위
+# tree house: story 536:0, "The tree houses of Fortree are great!", each language's
+# word from it: Fortree City's houses up its trees, zone 0x11, warps 3 to 8, the Secret Base
+# Guild's among them, which the game names nowhere and were said "passage"
+place-0x11-warp-3 = 트리하우스
+place-0x11-warp-4 = 트리하우스
+place-0x11-warp-5 = 트리하우스
+place-0x11-warp-6 = 트리하우스
+place-0x11-warp-7 = 트리하우스
+place-0x11-warp-8 = 트리하우스

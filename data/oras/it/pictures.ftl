@@ -6,3 +6,5 @@ texture-intro_famale = Ragazza, pelle chiara con guance rosee, capelli castano c
 texture-presented_by = Presentato da
 texture-gf_logo = Game Freak
 texture-push_start = Premi Start
+
+texture-nameinput2_lower-icon_delete = maiuscole

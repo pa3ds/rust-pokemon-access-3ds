@@ -9,6 +9,8 @@ category-routes = 道路
 category-landmarks = 名胜
 category-mirage-spots = 幻影之地
 kind-flock = 鸟群
+kind-storm-clouds = 暴风云
+kind-dimensional-rift = 次元裂缝
 way-above = 上方
 way-below = 下方
 sky-turn = 向{ $way }转{ $degrees }度
@@ -17,6 +19,17 @@ sky-facing = 面向{ $way }
 ## What is on ORAS's maps alone
 
 kind-berry-spot = 树果地
+kind-harvestable-berry-tree = 可收获的树果树
+berry-tree-harvestable = 可收获的{ $berry }树
+kind-planted-berry = 已种下的树果
+kind-dry-planted-berry = 干燥的已种下的树果
+kind-berry-sprout = 树果幼苗
+kind-dry-berry-sprout = 干燥的树果幼苗
+kind-growing-berry-tree = 生长中的树果树
+kind-dry-growing-berry-tree = 干燥的生长中的树果树
+kind-berry-tree-in-bloom = 开花的树果树
+kind-dry-berry-tree-in-bloom = 干燥的开花的树果树
+kind-soft-soil = 松软土壤
 kind-ash-pile = 火山灰堆
 kind-hidden-Pokemon = 隐藏着的宝可梦
 kind-secret-base-spot = 秘密基地位置

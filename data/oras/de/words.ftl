@@ -9,6 +9,8 @@ category-routes = Routen
 category-landmarks = Sehenswürdigkeiten
 category-mirage-spots = Illusionsorte
 kind-flock = Schwarm
+kind-storm-clouds = Gewitterwolken
+kind-dimensional-rift = Dimensionsriss
 way-above = oben
 way-below = unten
 sky-turn = um { $degrees } Grad nach { $way } drehen
@@ -17,6 +19,17 @@ sky-facing = Blick nach { $way }
 ## What is on ORAS's maps alone
 
 kind-berry-spot = Beerenbeet
+kind-harvestable-berry-tree = erntereifer Beerenbaum
+berry-tree-harvestable = erntereife { $berry }
+kind-planted-berry = gepflanzte Beere
+kind-dry-planted-berry = trockene gepflanzte Beere
+kind-berry-sprout = Beerenspross
+kind-dry-berry-sprout = trockener Beerenspross
+kind-growing-berry-tree = wachsender Beerenbaum
+kind-dry-growing-berry-tree = trockener wachsender Beerenbaum
+kind-berry-tree-in-bloom = blühender Beerenbaum
+kind-dry-berry-tree-in-bloom = trockener blühender Beerenbaum
+kind-soft-soil = weicher Lehmboden
 kind-ash-pile = Aschehaufen
 kind-hidden-Pokemon = verstecktes Pokémon
 kind-secret-base-spot = Geheimbasis-Platz

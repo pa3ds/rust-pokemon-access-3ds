@@ -93,6 +93,8 @@ key-path-off = path off
 key-no-path = no path
 # The battle keys out of a battle.
 key-no-battle = no battle
+# The battle keys in a battle before the game has drawn their side.
+key-battle-not-shown = nothing shown yet
 # Y, the last line again, before pa3ds has said anything.
 key-nothing-said = nothing said yet
 # Comma and period on something with only one way to it.
@@ -681,6 +683,9 @@ kind-barrier = barrier
 kind-hole = hole
 kind-dive-spot = dive spot
 kind-current = current
+# Under obstacles: a patch of the water Surf goes onto, at its edge nearest the player, and a waterfall.
+kind-water = water
+kind-waterfall = waterfall
 # An arrow tile in Lysandre Labs, by the way it pushes the player (spike 265).
 kind-arrow-east = arrow east
 kind-arrow-west = arrow west
@@ -702,6 +707,21 @@ kind-vine-down = vine down
 kind-swinging-vine = swinging vine
 # Where Shalour Gym's leader comes out to meet the player, at the centre's edges (spike 247).
 kind-gym-leader-spot = gym leader's spot
+# The four places Shauna waits at in the hedge maze of Parfum Palace's garden, each with what it
+# is by: the maze is hedges alone, so its paths are the only landmarks (spike 292).
+kind-north-waiting-spot = north waiting spot, by the dead end
+kind-south-waiting-spot = south waiting spot, by the maze's entrance
+kind-east-waiting-spot = east waiting spot, east end of the middle path
+kind-west-waiting-spot = west waiting spot, west end of the middle path
+# What to do next to corner the Furfrou there, listed with the spots at the cell to walk to.
+furfrou-wait = next step, { $shauna } waits here
+furfrou-fetch = next step, talk to { $shauna } so she follows
+furfrou-chase = next step, walk here and { $furfrou } runs
+# The line across the path that sends it the wrong way while that step is to walk to it: a way
+# P finds goes round this.
+furfrou-keep-off = keep off, { $furfrou } gets away from here
+furfrou-leave = next step, leave the maze here
+furfrou-enter = next step, go back into the maze
 # The machine in the Team Flare Secret HQ's deepest room that holds the Legendary Pokémon,
 # listed where the player walks up to it.
 kind-machine = machine

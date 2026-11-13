@@ -9,6 +9,8 @@ category-routes = routes
 category-landmarks = lieux remarquables
 category-mirage-spots = lieux mirages
 kind-flock = nuée
+kind-storm-clouds = nuages d'orage
+kind-dimensional-rift = faille dimensionnelle
 way-above = au-dessus
 way-below = en dessous
 sky-turn = tourner à { $way } de { $degrees } degrés
@@ -17,6 +19,17 @@ sky-facing = orienté { $way }
 ## What is on ORAS's maps alone
 
 kind-berry-spot = emplacement de baies
+kind-harvestable-berry-tree = arbre à baies à récolter
+berry-tree-harvestable = { $berry } à récolter
+kind-planted-berry = baie plantée
+kind-dry-planted-berry = baie plantée sèche
+kind-berry-sprout = pousse de baie
+kind-dry-berry-sprout = pousse de baie sèche
+kind-growing-berry-tree = arbre à baies en croissance
+kind-dry-growing-berry-tree = arbre à baies en croissance sec
+kind-berry-tree-in-bloom = arbre à baies en fleur
+kind-dry-berry-tree-in-bloom = arbre à baies en fleur sec
+kind-soft-soil = sol meuble
 kind-ash-pile = tas de cendres
 kind-hidden-Pokemon = Pokémon caché
 kind-secret-base-spot = emplacement de base secrète

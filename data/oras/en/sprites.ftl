@@ -213,6 +213,9 @@ sprite-0x204e = Snorlax Doll
 sprite-0x204f = Blue Orb
 # BENIIRONOTAMA: text 114:534, beside it
 sprite-0x2050 = Red Orb
+# the ring a legendary waits in, in six Mirage spots, Scorched Slab and Sea Mauville's two rooms:
+# story 141:0, "A mysterious ring is floating in the air." (or_mirage_spot_legendaries)
+sprite-0x2055 = mysterious ring
 # MAGMASUIT: text 114:741, in the Magma Hideout
 sprite-0x2056 = Magma Suit
 # AQUASUIT: text 114:742, in the Aqua Hideout
@@ -655,6 +658,10 @@ place-0x61-furniture-2 = Team Aqua flag
 # story 65:25, "It's an Azurill Doll!", where the doll stands
 place-0xdf-furniture-0 = Azurill Doll
 place-0xe1-furniture-0 = Azurill Doll
+# Both ground floors' TV runs case 7 of its own zone's script, which shows no line naming it,
+# so the word is the decorations' TV, text 56:138
+place-0xdf-furniture-2 = TV
+place-0xe1-furniture-1 = TV
 # in the moving truck
 place-0x18f-furniture-0 = Azurill Doll
 # The rocks that evolve Eevee, which no text names: each shows only a message of its own, the
@@ -663,3 +670,12 @@ place-0x18f-furniture-0 = Azurill Doll
 place-0x86-furniture-0 = ice rock
 # story 432:45, "The surface is covered with moss.", in Petalburg Woods (or_mossy_rock)
 place-0x52-furniture-2 = moss rock
+# tree house: story 536:0, "The tree houses of Fortree are great!", each language's
+# word from it: Fortree City's houses up its trees, zone 0x11, warps 3 to 8, the Secret Base
+# Guild's among them, which the game names nowhere and were said "passage"
+place-0x11-warp-3 = tree house
+place-0x11-warp-4 = tree house
+place-0x11-warp-5 = tree house
+place-0x11-warp-6 = tree house
+place-0x11-warp-7 = tree house
+place-0x11-warp-8 = tree house

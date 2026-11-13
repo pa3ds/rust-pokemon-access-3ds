@@ -147,6 +147,84 @@ as-granite-mural-4 = You stand at the foot of the steps, and walk up them to his
 # Steven's "Good luck to you. I must be going now."
 granite-steven-leaves-1 = { TRAINER(557) } walks down the steps and out of the room, leaving you alone before the painted wall.
 
+# Route 118 and Southern Island (or_southern_island). Latias is `{ POKEMON(380) }` and Latios
+# `{ POKEMON(381) }`; Steven `{ TRAINER(557) }`.
+#
+# "I suppose I should be going. I hope to see you again though."
+route118-steven-goes-1 = { TRAINER(557) } walks away east across the grass.
+route118-steven-goes-2 = He stops short, as though he has noticed something.
+# "...Hm?"
+or-route118-latias-comes-1 = { TRAINER(557) } looks up at the sky. A red and white Pokémon with wide, swept-back wings flies across the clouds: { POKEMON(380) }.
+or-route118-latias-comes-2 = It swoops low over the sea, between dark rocks jutting from the waves.
+or-route118-latias-comes-3 = It glides in toward the beach where you and { TRAINER(557) } stand.
+# "If that's the case, let's go!"
+or-to-southern-island-1 = You and { TRAINER(557) } walk down the beach toward { POKEMON(380) }, hovering over the water.
+or-to-southern-island-2 = You and { TRAINER(557) } ride on { POKEMON(380) }'s back, high in the sky.
+or-to-southern-island-3 = Far below, the coast slides past, with small green islands off it.
+or-to-southern-island-4 = { POKEMON(380) } flies on over green hills and forest, past brown mountains with a town at their foot.
+or-to-southern-island-5 = Beyond the land lies open sea, and far out in it a small green island.
+or-to-southern-island-6 = { POKEMON(380) } swoops down toward the island.
+or-to-southern-island-7 = You and { TRAINER(557) } stand on a patch of sand in a grassy clearing, ringed by rocky cliffs and rushing streams. Tall pines grow on a rise to the north.
+# "It is as fantastic as a Steel-type Pokémon..."
+or-southern-latios-1 = { POKEMON(381) }, a blue and white Pokémon with wings swept back like a jet's, hangs in the air beside { TRAINER(557) }, before a rock wall streaked with thin waterfalls. You stand just behind him.
+# "Hm?"
+or-southern-magma-come-1 = Streams ring the clearing, and { POKEMON(381) } floats by a small stone pillar. Two people in red hooded uniforms walk in from its far side.
+# "So Latios noticed their coming, and that is why it called on us."
+or-southern-magma-come-2 = The two stand facing you in red boots and hooded uniforms. One is a young woman with lavender hair under a red hood with two small horns, her eyes half closed.
+# "Returning home."
+or-southern-magma-go-1 = She turns her back on you and walks out of the clearing.
+# "W-wait for me! Courtne-e-e-y!"
+or-southern-magma-go-2 = The man in the red hood runs after her, and they are gone.
+# "Mega Stone, thanks to you."
+or-southern-latios-comes-1 = { POKEMON(381) } leaves the stone pillar and glides down toward you.
+# "[Latios] is carrying a piece of Latiosite!"
+or-southern-latios-joins-1 = { POKEMON(381) } glows, and white light fills everything.
+or-southern-latios-joins-2 = The light fades. { POKEMON(381) } is no longer in the clearing, and you stand with { TRAINER(557) } by the stone pillar.
+# "You should take this from me..."
+southern-bracelet-1 = You stand with a wide band of pale silver on your left wrist. Set in the middle of its outer face is a round stone, swirled blue, green and purple, with a white glint. You raise the arm across your chest to show it.
+# "Together with Latias, waiting so patiently for us there..."
+or-southern-back-1 = You and { TRAINER(557) } walk back south, out of the clearing.
+or-southern-back-2 = In the island's first clearing, { POKEMON(380) } waits at the cliff's edge, and you and { TRAINER(557) } walk over to it.
+or-southern-back-3 = You and { TRAINER(557) } are back on the beach, with { POKEMON(380) } hovering over the water by the rocks.
+# "Hyaahhn!"
+or-route118-latias-goes-1 = { POKEMON(380) } turns and flies away over the sea.
+# "Until then, [name]."
+route118-steven-leaves-1 = { TRAINER(557) } walks away north up the beach, and is gone.
+
+# Alpha Sapphire's, Latios and Latias changing places, and Team Aqua for Team Magma.
+#
+# "...Hm?"
+as-route118-latios-comes-1 = { TRAINER(557) } looks up at the sky. A blue and white Pokémon with wide, swept-back wings flies across the clouds: { POKEMON(381) }.
+as-route118-latios-comes-2 = It swoops low over the sea, between dark rocks jutting from the waves.
+as-route118-latios-comes-3 = It glides in toward the beach where you and { TRAINER(557) } stand.
+# "If that's the case, let's go!"
+as-to-southern-island-1 = You and { TRAINER(557) } walk down the beach toward { POKEMON(381) }, hovering over the water.
+as-to-southern-island-2 = You and { TRAINER(557) } ride on { POKEMON(381) }'s back, high in the sky.
+as-to-southern-island-3 = Far below, the coast slides past, with small green islands off it.
+as-to-southern-island-4 = { POKEMON(381) } flies on over green hills and forest, past brown mountains with a town at their foot.
+as-to-southern-island-5 = Beyond the land lies open sea, and far out in it a small green island.
+as-to-southern-island-6 = { POKEMON(381) } swoops down toward the island.
+as-to-southern-island-7 = You and { TRAINER(557) } stand on a patch of sand in a grassy clearing, ringed by rocky cliffs and rushing streams. Tall pines grow on a rise to the north.
+# "It is as fantastic as a Steel-type Pokémon..."
+as-southern-latias-1 = { POKEMON(380) }, a red and white Pokémon with wings swept back like a jet's, hangs in the air beside { TRAINER(557) }, before a rock wall streaked with thin waterfalls. You stand just behind him.
+# "Hm?"
+as-southern-aqua-come-1 = Streams ring the clearing, and { POKEMON(380) } floats by a small stone pillar. Two people in dark blue walk in from its far side.
+# "So Latias noticed their coming, and that is why it called on us."
+as-southern-aqua-come-2 = The two stand facing you. One is a huge, bare-chested man with blue paint streaked across his face, a black bandana and a gold collar, the top of his blue wetsuit pulled down to his waist. The other is smaller, in a black bandana and blue-striped clothes.
+# "Y...yes...sir..."
+as-southern-aqua-go-1 = { TRAINER(683) } turns and strides off east out of the clearing, and the other hurries after him.
+# "Mega Stone, thanks to you."
+as-southern-latias-comes-1 = { POKEMON(380) } leaves the stone pillar and glides down toward you.
+# "[Latias] is carrying a piece of Latiasite!"
+as-southern-latias-joins-1 = { POKEMON(380) } glows, and white light fills everything.
+as-southern-latias-joins-2 = The light fades. { POKEMON(380) } is no longer in the clearing, and you stand with { TRAINER(557) } by the stone pillar.
+# "Together with Latios, waiting so patiently for us there..."
+as-southern-back-1 = You and { TRAINER(557) } walk back south, out of the clearing.
+as-southern-back-2 = In the island's first clearing, { POKEMON(381) } waits at the cliff's edge, and you and { TRAINER(557) } walk over to it.
+as-southern-back-3 = You and { TRAINER(557) } are back on the beach, with { POKEMON(381) } hovering over the water by the rocks.
+# "Shwaahhn!"
+as-route118-latios-goes-1 = { POKEMON(381) } turns and flies away over the sea.
+
 # Seafloor Cavern, zone 0x6f: Archie's "Augh... You...", after Maxie's battle and before Groudon
 # wakes, a demo of 65 s.
 or-groudon-wakes-1 = { TRAINER(235) } walks to the edge of the lava, where { POKEMON(383) } lies curled up, grey as stone.

@@ -23,8 +23,9 @@
 # Sapphire's movie4_hall_of_fame and movie5_delta_episode_intro; Omega Ruby's movies 1 and 4 and
 # Alpha Sapphire's scene_granite_cave_mural, 2026-10-19; spike 237, Omega Ruby's or_sky_pillar_6 and
 # or_sky_pillar_7, 2026-10-22, and or_sky_pillar_7 and Alpha Sapphire's as_sky_pillar_7 again from
-# states saved while recording them, 2026-10-23); the seconds are from the moment its demo, line,
-# arrival or trigger came there.
+# states saved while recording them, 2026-10-23; spike 296, Omega Ruby's or_southern_island, and the
+# same movie replayed in Alpha Sapphire from its save made Alpha Sapphire's, 2026-11-13); the
+# seconds are from the moment its demo, line, arrival or trigger came there.
 
 # Each version's intro and title screen, before the player is anywhere, each scene said as the app
 # that plays it starts and let go as another starts: A skips the intro straight to the title
@@ -421,6 +422,352 @@ zone = 0x51
 [[scene.beat]]
 at = 1
 id = "granite-steven-leaves-1"
+
+# Route 118, zone 0x2d, and Southern Island, zones 0xd6 and 0xd7, from Omega Ruby's
+# or_southern_island. Steven meets the player east of Mauville, and the version's Eon Pokémon,
+# Latias in Omega Ruby and Latios in Alpha Sapphire, flies them both to the island, where the other
+# waits, and Team Magma or Team Aqua come for its Mega Stone. Most lines are each version's own,
+# its Pokémon's name or cry in them (story 173, 242 and 243); a scene after one both versions say
+# names its title.
+#
+# Steven's "I suppose I should be going. I hope to see you again though.": he walks off east and
+# stops short, before the cry.
+[[scene]]
+after = "story:173:11"
+zone = 0x2d
+
+[[scene.beat]]
+at = 1.5
+id = "route118-steven-goes-1"
+
+[[scene.beat]]
+at = 6
+id = "route118-steven-goes-2"
+
+# Steven's "...Hm?", then 14 s: the view turns to the sky, and Latias flies in over the sea to
+# the beach.
+[[scene]]
+after = "story:173:12"
+zone = 0x2d
+title = 0x000400000011C400
+
+[[scene.beat]]
+at = 2
+id = "or-route118-latias-comes-1"
+
+[[scene.beat]]
+at = 5
+id = "or-route118-latias-comes-2"
+
+[[scene.beat]]
+at = 11.5
+id = "or-route118-latias-comes-3"
+
+# Steven's "If that's the case, let's go!": the two walk to Latias at the water, and a demo of
+# 13 s flies them south over Hoenn to the island, before the field there.
+[[scene]]
+after = "story:173:25"
+zone = 0x2d
+title = 0x000400000011C400
+
+[[scene.beat]]
+at = 2
+id = "or-to-southern-island-1"
+
+[[scene.beat]]
+demo = true
+at = 1
+id = "or-to-southern-island-2"
+
+[[scene.beat]]
+at = 3
+id = "or-to-southern-island-3"
+
+[[scene.beat]]
+at = 5
+id = "or-to-southern-island-4"
+
+[[scene.beat]]
+at = 7.5
+id = "or-to-southern-island-5"
+
+[[scene.beat]]
+at = 9.5
+id = "or-to-southern-island-6"
+
+[[scene.beat]]
+zone = 0xd6
+at = 0.5
+id = "or-to-southern-island-7"
+
+# Steven's "Latios... It's beautiful...", its last page "It is as fantastic as a Steel-type
+# Pokémon...": the view came onto Latios as the player walked up behind Steven, 2 s before it.
+# Alpha Sapphire's line for Latias ends on the same page, and a line is matched by its last page,
+# so the scene names its title.
+[[scene]]
+after = "story:242:0"
+zone = 0xd7
+title = 0x000400000011C400
+
+[[scene.beat]]
+at = 0.5
+id = "or-southern-latios-1"
+
+# Steven's "Hm?": seen from high above, Team Magma come into the clearing.
+[[scene]]
+after = "story:242:2"
+zone = 0xd7
+title = 0x000400000011C400
+
+[[scene.beat]]
+at = 0.5
+id = "or-southern-magma-come-1"
+
+# "Team Magma, is it? So Latios noticed their coming, and that is why it called on us.", then
+# the view rises from their boots to Courtney's face, before her "...".
+[[scene]]
+after = "story:242:3"
+zone = 0xd7
+
+[[scene.beat]]
+at = 1.5
+id = "or-southern-magma-come-2"
+
+# After the battle, Courtney's "Returning home.", and her grunt's "W-wait for me! Courtne-e-e-y!"
+[[scene]]
+after = "story:242:60"
+zone = 0xd7
+
+[[scene.beat]]
+at = 0.5
+id = "or-southern-magma-go-1"
+
+[[scene]]
+after = "story:242:61"
+zone = 0xd7
+
+[[scene.beat]]
+at = 1.5
+id = "or-southern-magma-go-2"
+
+# Steven's "You performed spectacularly. We were able to protect both this wondrous Pokémon and
+# its Mega Stone, thanks to you.", both versions' line.
+[[scene]]
+after = "story:242:31"
+zone = 0xd7
+title = 0x000400000011C400
+
+[[scene.beat]]
+at = 1.5
+id = "or-southern-latios-comes-1"
+
+# "[Latios] is carrying a piece of Latiosite!": Latios glows, and is gone in white light. The
+# line starts with the Pokémon's nickname, if it was given one.
+[[scene]]
+after = "story:242:73"
+zone = 0xd7
+
+[[scene.beat]]
+at = 3
+id = "or-southern-latios-joins-1"
+
+[[scene.beat]]
+at = 6.5
+id = "or-southern-latios-joins-2"
+
+# Steven's "You should take this from me...", then 11 s: the screen goes dark, and comes back on
+# the player close up, the bracelet on their wrist.
+[[scene]]
+after = "story:242:38"
+zone = 0xd7
+
+[[scene.beat]]
+at = 7.5
+id = "southern-bracelet-1"
+
+# Steven's "If that settles that... Should we be heading back? Together with Latias, waiting so
+# patiently for us there...": the two walk out of the clearing, to Latias in the first, and are
+# back on Route 118's beach.
+[[scene]]
+after = "story:242:42"
+zone = 0xd7
+
+[[scene.beat]]
+at = 2
+id = "or-southern-back-1"
+
+[[scene.beat]]
+zone = 0xd6
+at = 1
+id = "or-southern-back-2"
+
+[[scene.beat]]
+zone = 0x2d
+at = 1.5
+id = "or-southern-back-3"
+
+# Latias's "Hyaahhn!", after "Perhaps it's trying to tell you to take good care of Latios."
+[[scene]]
+after = "story:173:35"
+zone = 0x2d
+
+[[scene.beat]]
+at = 1.5
+id = "or-route118-latias-goes-1"
+
+# Steven's "Until then, [name].", a line each for a boy and a girl.
+[[scene]]
+after = ["story:173:40", "story:173:41"]
+zone = 0x2d
+
+[[scene.beat]]
+at = 1
+id = "route118-steven-leaves-1"
+
+# Alpha Sapphire's, from the same movie replayed in Alpha Sapphire from its save made Alpha
+# Sapphire's (spike 296's `save`: the game, the story's flags, and work 0x4021, the Eon Pokémon's
+# character, Latios's), and a recording from that save, as/southern_island. Route 118,
+# the flight, the first clearing, Latias in the inner one and Team Aqua coming were seen beat for
+# beat as in Omega Ruby, to the second, and what follows Matt's battle was written as Omega
+# Ruby's with Latias and Latios changing places, then seen so in the recording.
+[[scene]]
+after = "story:173:12"
+zone = 0x2d
+title = 0x000400000011C500
+
+[[scene.beat]]
+at = 2
+id = "as-route118-latios-comes-1"
+
+[[scene.beat]]
+at = 5
+id = "as-route118-latios-comes-2"
+
+[[scene.beat]]
+at = 11.5
+id = "as-route118-latios-comes-3"
+
+[[scene]]
+after = "story:173:25"
+zone = 0x2d
+title = 0x000400000011C500
+
+[[scene.beat]]
+at = 2
+id = "as-to-southern-island-1"
+
+[[scene.beat]]
+demo = true
+at = 1
+id = "as-to-southern-island-2"
+
+[[scene.beat]]
+at = 3
+id = "as-to-southern-island-3"
+
+[[scene.beat]]
+at = 5
+id = "as-to-southern-island-4"
+
+[[scene.beat]]
+at = 7.5
+id = "as-to-southern-island-5"
+
+[[scene.beat]]
+at = 9.5
+id = "as-to-southern-island-6"
+
+[[scene.beat]]
+zone = 0xd6
+at = 0.5
+id = "as-to-southern-island-7"
+
+# Steven's "Latias... It's beautiful...", whose last page is Omega Ruby's line's.
+[[scene]]
+after = "story:242:1"
+zone = 0xd7
+title = 0x000400000011C500
+
+[[scene.beat]]
+at = 0.5
+id = "as-southern-latias-1"
+
+[[scene]]
+after = "story:242:2"
+zone = 0xd7
+title = 0x000400000011C500
+
+[[scene.beat]]
+at = 0.5
+id = "as-southern-aqua-come-1"
+
+# "Team Aqua, is it? So Latias noticed their coming, and that is why it called on us.", then Matt
+# close up, before his "Huhn?! What's this?! You?!".
+[[scene]]
+after = "story:242:4"
+zone = 0xd7
+
+[[scene.beat]]
+at = 1.5
+id = "as-southern-aqua-come-2"
+
+# After the battle, Matt's "Let's get outta here, you dull Grunt!" and the grunt's
+# "Y...yes...sir...": he turns and strides off east, the grunt after him (as/southern_island).
+[[scene]]
+after = "story:242:27"
+zone = 0xd7
+
+[[scene.beat]]
+at = 1.5
+id = "as-southern-aqua-go-1"
+
+[[scene]]
+after = "story:242:31"
+zone = 0xd7
+title = 0x000400000011C500
+
+[[scene.beat]]
+at = 1.5
+id = "as-southern-latias-comes-1"
+
+[[scene]]
+after = "story:242:74"
+zone = 0xd7
+
+[[scene.beat]]
+at = 3
+id = "as-southern-latias-joins-1"
+
+[[scene.beat]]
+at = 6.5
+id = "as-southern-latias-joins-2"
+
+[[scene]]
+after = "story:242:43"
+zone = 0xd7
+
+[[scene.beat]]
+at = 2
+id = "as-southern-back-1"
+
+[[scene.beat]]
+zone = 0xd6
+at = 1
+id = "as-southern-back-2"
+
+[[scene.beat]]
+zone = 0x2d
+at = 1.5
+id = "as-southern-back-3"
+
+# Latios's "Shwaahhn!", after "Perhaps it's trying to tell you to take good care of Latias."
+[[scene]]
+after = "story:173:36"
+zone = 0x2d
+
+[[scene.beat]]
+at = 1.5
+id = "as-route118-latios-goes-1"
 
 # Seafloor Cavern, zone 0x6f: Archie's "Augh... You...", after Maxie's battle and before Groudon
 # wakes, a demo of 65 s.

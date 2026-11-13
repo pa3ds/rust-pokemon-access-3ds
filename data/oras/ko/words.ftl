@@ -9,6 +9,8 @@ category-routes = 도로
 category-landmarks = 명소
 category-mirage-spots = 환상의 장소
 kind-flock = 무리
+kind-storm-clouds = 폭풍 구름
+kind-dimensional-rift = 차원의 틈
 way-above = 위
 way-below = 아래
 sky-turn = { $way } 방향으로 { $degrees }도 회전
@@ -17,6 +19,17 @@ sky-facing = { $way } 방향을 봄
 ## What is on ORAS's maps alone
 
 kind-berry-spot = 나무열매 밭
+kind-harvestable-berry-tree = 수확할 수 있는 나무열매 나무
+berry-tree-harvestable = 수확할 수 있는 { $berry } 나무
+kind-planted-berry = 심은 나무열매
+kind-dry-planted-berry = 흙이 마른 심은 나무열매
+kind-berry-sprout = 나무열매 싹
+kind-dry-berry-sprout = 흙이 마른 나무열매 싹
+kind-growing-berry-tree = 자라는 나무열매 나무
+kind-dry-growing-berry-tree = 흙이 마른 자라는 나무열매 나무
+kind-berry-tree-in-bloom = 꽃이 핀 나무열매 나무
+kind-dry-berry-tree-in-bloom = 흙이 마른 꽃이 핀 나무열매 나무
+kind-soft-soil = 푹신푹신한 흙
 kind-ash-pile = 화산재 더미
 kind-hidden-Pokemon = 숨어 있는 포켓몬
 kind-secret-base-spot = 비밀기지 장소
