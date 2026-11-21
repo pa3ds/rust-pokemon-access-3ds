@@ -94,8 +94,8 @@ use crate::games::gen6::screens::mapcursor::MapCursor;
 use crate::games::gen6::screens::partners::Partners;
 use crate::games::gen6::screens::partyicons::PartyIcons;
 use crate::games::gen6::screens::{
-    bag, bag_sort, boxes, buttons, counts, distribution, mart, partners, partyicons, registered,
-    summary, townmap,
+    bag, bag_sort, battle_bag, boxes, buttons, counts, distribution, mart, partners, partyicons,
+    registered, summary, townmap,
 };
 use crate::games::gen6::subscreen::amie;
 use crate::games::gen6::subscreen::head_it::Cue;
@@ -334,6 +334,7 @@ pub struct Gen6Profile {
     pub occupants: Rc<RefCell<boxes::Occupants>>,
     pub standings: Option<Rc<RefCell<dyn StandingsReader>>>,
     pub counts: RefCell<counts::Counts>,
+    battle_bag: RefCell<battle_bag::BattleBag>,
     mart: RefCell<mart::Jumps>,
     summary_pages: RefCell<summary::Pages>,
     /// The game's words for the contest categories, the conditions star's labels.
@@ -661,6 +662,19 @@ impl Gen6Profile {
         let pauses = ui.pauses;
         // A Poké Mart's count, said whole at each change where the screen held it to a pause.
         let counts = RefCell::new(counts::Counts::new(layouts.clone(), files.clone(), pauses));
+        let battle_bag = RefCell::new(battle_bag::BattleBag::new(
+            memory.clone(),
+            {
+                let apps = apps.clone();
+                Rc::new(move || apps.borrow().process)
+            },
+            layouts.clone(),
+            files.clone(),
+            {
+                let gauges = gauges.clone();
+                Rc::new(move || gauges.kept())
+            },
+        ));
         // A Poké Mart's list jumped a page is said where it lands, not where it passes.
         let mart = RefCell::new(mart::Jumps::new(
             memory.clone(),
@@ -1364,6 +1378,7 @@ impl Gen6Profile {
             occupants,
             standings,
             counts,
+            battle_bag,
             mart,
             summary_pages,
             contest_words,
@@ -1798,6 +1813,7 @@ impl Gen6Profile {
         let mut carried: Option<String> = None;
         let mut count: Option<String> = None;
         let mut counted: HashSet<i64> = HashSet::new();
+        let mut paged = battle_bag::nothing();
         let polled = phase(&*self.memory, "screen", || {
             // The field's layouts come back where they were when a menu screen closes, and a
             // layout found before it was built is taken in once it is.
@@ -1836,6 +1852,7 @@ impl Gen6Profile {
             };
             self.habitat.borrow_mut().poll(on_screen)?;
             (count, counted) = self.counts.borrow_mut().poll(on_screen)?;
+            paged = self.battle_bag.borrow_mut().poll(on_screen)?;
             let in_townmap = self.apps.borrow().running.as_deref() == Some(townmap::APP);
             let listed = self
                 .distribution_reader
@@ -1869,7 +1886,21 @@ impl Gen6Profile {
             let found = self.cursors.borrow_mut().poll(on_screen)?;
             let cursors;
             (carried, cursors) = self.bag_sort.borrow_mut().poll(found, on_screen);
-            let cursors = self.mart.borrow_mut().poll(cursors)?;
+            let mut cursors = self.mart.borrow_mut().poll(cursors)?;
+            if !paged.pockets.is_empty() {
+                // The battle Bag's pockets' menu, behind an open pocket's list, is no cursor's.
+                let mut items: Vec<CursorItem> = Vec::new();
+                for item in &cursors.items {
+                    let first = item
+                        .pieces
+                        .first()
+                        .ok_or_else(|| Error::index("tuple index out of range"))?;
+                    if !paged.pockets.contains(&first.root) {
+                        items.push(item.clone());
+                    }
+                }
+                cursors = CursorPoll { items, ..cursors };
+            }
             let (chosen, pocket) = match &self.bag {
                 None => (IndexMap::new(), None),
                 Some(bag) => bag.borrow_mut().poll(&cursors)?,
@@ -1912,6 +1943,7 @@ impl Gen6Profile {
         // no values: the conditions Extra says them with theirs.
         let unseen = self.summary_pages.borrow().hidden();
         let mut unsaid = counted.clone();
+        unsaid.extend(paged.unsaid.iter().copied());
         unsaid.extend(
             self.summary_pages
                 .borrow()
@@ -2029,11 +2061,12 @@ impl Gen6Profile {
             ..screen.clone()
         };
         let subject = || summary::name(&*self.memory, &self.names, &self.apps.borrow());
-        // `pocket or box_title`.
-        let title = match pocket {
-            Some(pocket) if !pocket.is_empty() => Some(pocket),
-            _ => box_title,
-        };
+        // `pocket or box_title or paged.turned`.
+        let title = [pocket, box_title]
+            .into_iter()
+            .flatten()
+            .find(|title| !title.is_empty())
+            .or(paged.turned.clone());
         self.screen_announcer.borrow_mut().say(
             &poll,
             &cursors,
@@ -2044,6 +2077,11 @@ impl Gen6Profile {
             title.as_deref(),
             &turned,
         )?;
+        // A battle Bag's pocket just opened says its page after its first item.
+        if let Some(opened) = &paged.opened {
+            (self.log)(&format!("battle bag: {opened}"));
+            self.speech.say(opened, Category::Screen);
+        }
         // After the screen's words, which name the place first.
         for line in &listed {
             (self.log)(&format!("distribution: {line}"));

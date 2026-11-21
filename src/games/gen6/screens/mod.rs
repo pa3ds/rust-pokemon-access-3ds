@@ -20,5 +20,6 @@ pub mod bag_sort;
 pub mod registered;
 
 pub mod bag;
+pub mod battle_bag;
 pub mod counts;
 pub mod mart;

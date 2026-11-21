@@ -46,7 +46,7 @@ the Game Boy games. Nothing here is taken from its code.
   side's Pokémon with its name, gender, level and HP. Your HP is said exactly, the enemy's as a
   percentage, because a bar is all the game shows. A move's category, power, accuracy and
   description on the move info screen, where the four moves are said by number, and when a move
-  is to be forgotten.
+  is to be forgotten. In the Bag, a pocket's page as you turn to it, then the item.
 - **The PC Box, the party, the Bag and the Pokédex**, the habitat map included. A Pokémon's
   summary says each page as you turn to it, then the button under it if it has one, and as you
   switch Pokémon its name, level and item and only the page you are on. In Check Moves each move

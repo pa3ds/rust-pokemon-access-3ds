@@ -17,6 +17,7 @@ mod test_archives;
 mod test_bag;
 mod test_bag_sort;
 mod test_battle;
+mod test_battle_bag;
 mod test_berry_picker;
 mod test_boxes;
 mod test_buttons;

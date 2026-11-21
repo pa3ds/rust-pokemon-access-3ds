@@ -192,6 +192,11 @@ impl Gauges {
         Ok(())
     }
 
+    /// The gauges kept, words a sweep took for gauges among them (`shown`).
+    pub fn kept(&self) -> Vec<i64> {
+        self.gauges.borrow().keys().copied().collect()
+    }
+
     /// What each gauge whose level TextBox is one of these shows. A sweep can find a word
     /// equal to a gauge's vtable where no gauge is, so only a gauge whose level is on screen has
     /// its record read.
