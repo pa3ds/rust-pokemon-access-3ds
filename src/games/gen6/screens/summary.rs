@@ -19,6 +19,7 @@ use indexmap::IndexMap;
 use crate::core::binary::{u16, u32};
 use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
+use crate::games::common::cursors::shared::CursorPoll;
 use crate::games::common::layout::{Layouts, TrackedLayouts};
 use crate::games::common::layout_file::{FileMatching, LayoutFiles};
 use crate::games::common::pokemon;
@@ -55,6 +56,8 @@ pub const BUTTON: &str = "touch_bar_lower.bclyt";
 pub const INFO: &str = "info.bclyt";
 /// The conditions page's layout, which draws the conditions' star and its labels.
 pub const STAR_PAGE: &str = "params_contest.bclyt";
+/// The pages' moves, which Check Moves' cursors go over. A `frozenset` only tested.
+pub const MOVES: [&str; 2] = ["waza.bclyt", "waza_contest.bclyt"];
 /// The summary's process -> the place of the Pokémon shown in its party or box, from 0: it
 /// changes at every switch, where `SHOWN` points at one copy of each in turn (spike G).
 pub const PLACE: i64 = 0x7C;
@@ -334,6 +337,72 @@ impl Pages {
             chosen.insert(u16(&self.memory.read(lists[page] + CHOSEN, 2)?, 0)?);
         }
         Ok(chosen.len() == 1 && !chosen.contains(&0))
+    }
+
+    /// The cursors, those over the moves left out while Check Moves shows no move.
+    ///
+    /// Check Moves ended, the game leaves a moves cursor set until a switch (spike H): ended
+    /// on the conditions page, it owned that page's moves, which turning back to it left
+    /// unsaid; and switching Pokémon said a move first, "Scratch, Toughness", then the
+    /// Pokémon as its details, its whole stats page on the stats page (or_summary_spike). The
+    /// shown page's list holds the move chosen while Check Moves is on, from the poll its
+    /// cursor comes on screen (`CHOSEN`, spike G), and is read only while a cursor is over the
+    /// moves.
+    pub fn cursors(&self, cursors: CursorPoll, on_screen: &[ScreenText]) -> Result<CursorPoll> {
+        let moves: HashSet<i64> = if self.page.is_some() {
+            self.roots(&MOVES)
+        } else {
+            HashSet::new()
+        };
+        if moves.is_empty()
+            || !cursors
+                .under
+                .iter()
+                .any(|under| under.iter().any(|p| moves.contains(&p.root)))
+        {
+            return Ok(cursors);
+        }
+        if self.chosen()? != 0 {
+            return Ok(cursors);
+        }
+        let boxes: HashSet<i64> = on_screen
+            .iter()
+            .filter(|piece| moves.contains(&piece.root))
+            .map(|piece| piece.r#box)
+            .collect();
+        Ok(CursorPoll {
+            items: cursors
+                .items
+                .iter()
+                .filter(|item| item.pieces.iter().all(|p| !moves.contains(&p.root)))
+                .cloned()
+                .collect(),
+            under: cursors
+                .under
+                .iter()
+                .filter(|under| under.iter().all(|p| !moves.contains(&p.root)))
+                .cloned()
+                .collect(),
+            lists: cursors
+                .lists
+                .iter()
+                .filter(|(root, _)| !moves.contains(root))
+                .map(|(&root, listed)| (root, listed.clone()))
+                .collect(),
+            rows: cursors.rows.difference(&boxes).copied().collect(),
+            ..cursors
+        })
+    }
+
+    /// The move the shown page's list has chosen in Check Moves, or 0.
+    fn chosen(&self) -> Result<i64> {
+        let (Some(page), Some((_, lists))) = (self.page, &self.lists) else {
+            return Ok(0);
+        };
+        if !self.shape.lists[page].3 {
+            return Ok(0);
+        }
+        u16(&self.memory.read(lists[page] + CHOSEN, 2)?, 0)
     }
 
     /// The roots of the pages not shown, whose words are not heard; none before a page is

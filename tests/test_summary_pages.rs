@@ -9,6 +9,7 @@ use indexmap::IndexMap;
 
 use super::fake_memory::{CODE, FakeClasses, FakeMemory};
 use crate::core::rtti::ClassNames;
+use crate::games::common::cursors::shared::{CursorItem, CursorPoll};
 use crate::games::common::layout::TrackedLayouts;
 use crate::games::common::layout_file::{FileMatching, LayoutFile};
 use crate::games::common::screen::ScreenText;
@@ -304,4 +305,34 @@ fn test_x_has_two_pages_whose_lists_and_place_sit_sooner() {
     // The memo shown, the stats page's layouts unheard; the switch to Torchic said as one.
     assert_eq!(pages.hidden(), roots(&[PARAMS, WAZA, CONTEST]));
     assert_eq!(pages.switched(), roots(&[MEMO, INFO, BUTTON]));
+}
+
+#[test]
+fn test_a_moves_cursor_check_moves_left_set_is_no_cursor() {
+    let (memory, _, mut pages) = summary_of();
+    let over = vec![piece(WAZA, "Scratch", 1)];
+    let cursors = CursorPoll {
+        items: vec![CursorItem::new(0x0C, over.clone(), false)],
+        under: vec![over.clone()],
+        lists: IndexMap::from([(WAZA, HashSet::from([WAZA + 1]))]),
+        moving: HashSet::new(),
+        rows: HashSet::from([WAZA + 1]),
+    };
+    // In Check Moves, the shown page's list holding the move chosen: the cursor is the player's.
+    poll_with(&memory, &mut pages, Some(MOVES), METAGROSS, (IRON_HEAD, 0));
+    assert_eq!(pages.cursors(cursors.clone(), &over).unwrap(), cursors);
+    // Ended on the conditions page, the stats page's list keeps its move and the shown one has
+    // none: the game's cursor left over the moves is no one's.
+    poll_with(
+        &memory,
+        &mut pages,
+        Some(CONTEST_MOVES),
+        METAGROSS,
+        (IRON_HEAD, 0),
+    );
+    let left = pages.cursors(cursors, &over).unwrap();
+    assert_eq!(
+        (left.items, left.under, left.lists, left.rows),
+        (Vec::new(), Vec::new(), IndexMap::new(), HashSet::new())
+    );
 }

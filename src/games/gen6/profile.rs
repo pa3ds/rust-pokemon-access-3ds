@@ -1940,6 +1940,10 @@ impl Gen6Profile {
                 Some(bag) => bag.borrow_mut().poll(&cursors)?,
             };
             self.summary_pages.borrow_mut().poll()?;
+            let cursors = self
+                .summary_pages
+                .borrow()
+                .cursors(cursors, on_screen)?;
             Ok((
                 screen, sides, party, listed, cursors, played, chosen, pocket,
             ))
