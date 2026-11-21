@@ -40,6 +40,8 @@ pub struct MenuCursors {
     names: Rc<ClassNames>,
     /// The cursors found so far.
     pub windows: Vec<i64>,
+    /// The cursors on screen, as of the last poll.
+    pub shown: Vec<i64>,
     /// The TextBoxes of the rows drawn like the ones the cursors are over, as of the last
     /// poll: the Bag's list writes an item into a row as it scrolls it into view, and "Soft
     /// Sand" was said as new beside the cursor's "Quick Claw" (movie29, spike 196).
@@ -54,6 +56,7 @@ impl MenuCursors {
             said,
             names,
             windows: Vec::new(),
+            shown: Vec::new(),
             rows: HashSet::new(),
         }
     }
@@ -75,11 +78,13 @@ impl MenuCursors {
     /// Report the item under each menu cursor on screen.
     pub fn poll(&mut self, on_screen: &[ScreenText], items: &mut Vec<CursorItem>) -> Result<()> {
         self.rows = HashSet::new();
+        self.shown = Vec::new();
         for &cursor in &self.windows {
             let Some(rect) = self.rect(cursor)? else {
                 self.said.forget(cursor);
                 continue;
             };
+            self.shown.push(cursor);
             // A cursor built into a layout frames that layout's words: Sun's keyboard keeps a
             // second, parked over the keys of the page drawn in front of it (spike 112).
             let own = self.built_into(cursor)?;

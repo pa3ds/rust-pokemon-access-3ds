@@ -10,7 +10,9 @@
 //!
 //! ```text
 //! app::poroc_case::Proc   +0x28  u8 4 the Case, its party and their questions; 7 the Blender;
-//!                                8 turning from the Blender to the Case; 0xB closing
+//!                                5 and 6 turning from the Case to the Blender, 8 and 3 back;
+//!                                5, 9 and 0xA closing, 0xB closed; 1 and 2 opening (read
+//!                                every tick, live)
 //! app::poroc_case::Proc   +0x20  -> the Case's views, of no class
 //! the views              +0x30C  u8 the Case's own screen: 1 its list, 4 the party, 7 the Yes or
 //!                                No, 0xA the block given, 3 back to the list; 2 the Blender,
@@ -19,8 +21,16 @@
 //!
 //! The screen not shown is put away by its layouts' files, and its lower screen's whole pool with
 //! them: each cursor is a layout of its own, `base.bclyt`, built into its screen's pool, and left
-//! out, each read the other screen's tab under it, "Make" in the Case. Closing, both are put away:
-//! the Blender came back for its last polls, "10 90", "7 2 8".
+//! out, each read the other screen's tab under it, "Make" in the Case. Turning, the screen turned
+//! from stays up until the other is; closing, both are put away: the Blender came back for its
+//! last polls, "10 90", "7 2 8", the values passed through closing and turning not yet known.
+//!
+//! Nor does the Kit keep an index of the block or the berry under its cursor: the cursor's place
+//! is the one word that changes as it moves (`lyt.X`, `lyt.Y`), and it was seen at a screen poll,
+//! up to a fifth of a second after, the block's name a poll after that. The places of the cursors
+//! on screen are read every tick, and a move has the screen polled at once
+//! (`Gen6Profile.poll_menus`). At rest each holds still, and it jumps from cell to cell (spike B
+//! on or_pokeblock_kit).
 
 use std::cell::RefCell;
 use std::collections::HashSet;
@@ -30,12 +40,13 @@ use indexmap::IndexMap;
 
 use crate::core::binary::u32;
 use crate::core::memory::Memory;
+use crate::games::common::lyt;
 use crate::games::common::layout::{Layouts, TrackedLayouts};
 use crate::games::common::layout_file::{FileMatching, LayoutFiles};
 use crate::games::gen6::apps::RunningApp;
 use crate::games::gen6::game::ScreensReader;
 use crate::games::oras::screens::conditions::CASE;
-use crate::py::{Error, PySet, Result};
+use crate::py::{self, Error, PySet, Result};
 
 pub const SEQUENCE: i64 = 0x28;
 /// The Case's list and the block's details, the party and the Pokémon's star, and the block
@@ -54,12 +65,14 @@ pub const LOWER: [&str; 2] = ["poroc_case_lower.bclyt", "brender_lower.bclyt"];
 /// seen. A dict in the Python.
 pub fn hidden(sequence: i64) -> Vec<&'static str> {
     match sequence {
-        4 | 8 => BLENDER_FILES.to_vec(),
+        3 | 4 | 5 | 6 | 8 => BLENDER_FILES.to_vec(),
         7 => CASE_FILES.to_vec(),
-        0xB => [CASE_FILES.as_slice(), BLENDER_FILES.as_slice()].concat(),
+        9 | 0xA | 0xB => [CASE_FILES.as_slice(), BLENDER_FILES.as_slice()].concat(),
         _ => Vec::new(),
     }
 }
+/// A cursor window's X to its Y, read whole and compared by those two alone.
+pub const PLACE: i64 = lyt::Y - lyt::X + 4;
 
 /// Which of the Kit's screens is up, and the other's layouts.
 pub struct Kit {
@@ -70,6 +83,8 @@ pub struct Kit {
     /// Work -> its first word, which points into its pool's own work: the same for every work of
     /// a pool (`Layouts`). Read once a work, while the Kit runs.
     pools: IndexMap<i64, i64>,
+    /// Cursor window -> its X and Y as of the last tick.
+    places: IndexMap<i64, Vec<u8>>,
 }
 
 impl Kit {
@@ -85,6 +100,7 @@ impl Kit {
             layouts,
             files,
             pools: IndexMap::new(),
+            places: IndexMap::new(),
         }
     }
 
@@ -108,6 +124,25 @@ impl Kit {
 }
 
 impl ScreensReader for Kit {
+    /// Whether a cursor on screen has moved since the last tick, in the Kit: `windows`, the
+    /// menus' cursors on screen at the last screen poll. One small read each, every tick.
+    fn moved(&mut self, windows: &[i64]) -> Result<bool> {
+        if self.apps.borrow().running.as_deref() != Some(CASE) {
+            self.places = IndexMap::new();
+            return Ok(false);
+        }
+        let last = std::mem::take(&mut self.places);
+        for &window in windows {
+            let place = self.memory.read(window + lyt::X, PLACE)?;
+            let kept = [py::slice(&place, 0, 4), py::slice_from(&place, -4)].concat();
+            self.places.insert(window, kept);
+        }
+        Ok(self
+            .places
+            .iter()
+            .any(|(window, place)| last.get(window).unwrap_or(place) != place))
+    }
+
     /// The works of the layouts of the screens not shown, or none outside the Kit.
     fn put_away(&mut self) -> Result<HashSet<i64>> {
         let (running, process) = {

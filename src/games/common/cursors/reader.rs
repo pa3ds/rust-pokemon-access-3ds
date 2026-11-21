@@ -109,6 +109,11 @@ impl CursorReader {
         self.menus.track(windows)
     }
 
+    /// The app menus' cursors on screen, as of the last poll (`MenuCursors.shown`).
+    pub fn windows(&self) -> Vec<i64> {
+        self.menus.shown.clone()
+    }
+
     /// Is there a named cursor on screen whose place each tick should sample?
     pub fn sampling(&self) -> bool {
         self.lists.sampling()

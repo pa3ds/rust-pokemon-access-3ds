@@ -1,4 +1,5 @@
-//! The Pokéblock Kit's screen not shown is put away (`oras.screens.pokeblock_kit`, spike B).
+//! The Pokéblock Kit's screen not shown is put away, and its cursors' moves seen each tick
+//! (`oras.screens.pokeblock_kit`, spike B).
 
 use std::cell::RefCell;
 use std::collections::HashSet;
@@ -9,6 +10,7 @@ use indexmap::IndexMap;
 use super::fake_memory::{CODE, FakeMemory};
 use crate::core::rtti::ClassNames;
 use crate::games::common::layout::TrackedLayouts;
+use crate::games::common::lyt;
 use crate::games::common::layout_file::{FileMatching, LayoutFile};
 use crate::games::gen6::apps::RunningApp;
 use crate::games::gen6::game::ScreensReader;
@@ -82,12 +84,7 @@ fn test_the_screen_not_shown_is_put_away_with_its_cursors() {
         memory.u32(root - 0x10000, &[pool]);
     }
     // `SimpleNamespace(running=CASE, process=PROCESS)`.
-    let apps = Rc::new(RefCell::new(RunningApp::new(
-        memory.clone(),
-        Rc::new(ClassNames::new(memory.clone(), CODE)),
-    )));
-    apps.borrow_mut().running = Some(CASE.to_string());
-    apps.borrow_mut().process = Some(PROCESS);
+    let apps = case_running(&memory);
     let mut kit = pokeblock_kit::Kit::new(
         memory.clone(),
         apps,
@@ -112,4 +109,55 @@ fn test_the_screen_not_shown_is_put_away_with_its_cursors() {
         FILES.iter().map(|&(root, _)| root).collect::<HashSet<i64>>()
     );
     assert_eq!(away(2), HashSet::new());
+    // Turning, the screen turned from is up until the other is; closing, neither is.
+    let blender = HashSet::from([BLENDER, BLENDER_TOP, BLENDER_CURSOR]);
+    let turning = [away(5), away(6), away(8), away(3)];
+    assert!(turning.iter().all(|each| *each == blender));
+    let every: HashSet<i64> = FILES.iter().map(|&(root, _)| root).collect();
+    let closing = [away(9), away(0xA)];
+    assert!(closing.iter().all(|each| *each == every));
+}
+
+/// `RunningApp`, its app the Case's and its process `PROCESS`.
+fn case_running(memory: &Rc<FakeMemory>) -> Rc<RefCell<RunningApp>> {
+    let apps = Rc::new(RefCell::new(RunningApp::new(
+        memory.clone(),
+        Rc::new(ClassNames::new(memory.clone(), CODE)),
+    )));
+    apps.borrow_mut().running = Some(CASE.to_string());
+    apps.borrow_mut().process = Some(PROCESS);
+    apps
+}
+
+#[test]
+fn test_a_cursor_moving_is_seen_by_its_place_alone() {
+    let memory = FakeMemory::new();
+    let apps = case_running(&memory);
+    let mut kit = pokeblock_kit::Kit::new(
+        memory.clone(),
+        apps.clone(),
+        Rc::new(FakeLayouts),
+        Rc::new(FakeFiles),
+    );
+    let window = 0x082CF174;
+    let place = |x: f32, y: f32, scale: f32| {
+        memory.write(window + lyt::X, &x.to_le_bytes());
+        memory.write(window + lyt::SCALE_Y, &scale.to_le_bytes());
+        memory.write(window + lyt::Y, &y.to_le_bytes());
+    };
+    place(-125.0, 45.0, 1.05);
+    assert!(!kit.moved(&[window]).unwrap());
+    assert!(!kit.moved(&[window]).unwrap());
+    place(-125.0, 45.0, 1.0);
+    assert!(!kit.moved(&[window]).unwrap());
+    place(-75.0, 45.0, 1.05);
+    assert!(kit.moved(&[window]).unwrap());
+    assert!(!kit.moved(&[window]).unwrap());
+    place(-75.0, -5.0, 1.05);
+    assert!(kit.moved(&[window]).unwrap());
+    apps.borrow_mut().running = None;
+    place(-25.0, -5.0, 1.05);
+    assert!(!kit.moved(&[window]).unwrap());
+    apps.borrow_mut().running = Some(CASE.to_string());
+    assert!(!kit.moved(&[window]).unwrap());
 }

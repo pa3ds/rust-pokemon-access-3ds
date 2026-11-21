@@ -344,6 +344,8 @@ pub struct Gen6Profile {
     rows: Rc<RefCell<rows::Rows>>,
     /// Ticks left to poll the screen at, until a row's move is said (`rows.CHASE`).
     chasing: Cell<i64>,
+    /// Whether the move chased is said once its details are too (`Game.screens`).
+    chasing_details: Cell<bool>,
     /// Whether the last screen poll said a cursor's move or opening.
     cursor_said: Cell<bool>,
     /// Whether the last screen poll found a cursor on screen.
@@ -1499,6 +1501,7 @@ impl Gen6Profile {
             shiny,
             rows,
             chasing: Cell::new(0),
+            chasing_details: Cell::new(false),
             cursor_said: Cell::new(false),
             cursor_shown,
             mart,
@@ -1927,6 +1930,17 @@ impl Gen6Profile {
             if self.rows.borrow_mut().moved()? {
                 self.chasing.set(rows::CHASE);
             }
+            // The Pokéblock Kit keeps no index of what its cursor is over, and its cursor's place
+            // is read instead. The block's count is said with its name, which the game writes as
+            // the cursor moves: the screen is polled until both are said (or_pokeblock_kit).
+            if let Some(screens) = &self.screens
+                && screens
+                    .borrow_mut()
+                    .moved(&self.cursors.borrow().windows())?
+            {
+                self.chasing.set(rows::CHASE);
+                self.chasing_details.set(true);
+            }
             Ok(match &self.box_titles {
                 None => false,
                 Some(titles) => titles.borrow().turned()?,
@@ -1934,12 +1948,19 @@ impl Gen6Profile {
         })?;
         self.moving.set(self.moving.get() || turned);
         if (self.chasing.get() != 0 || turned) && !screen_polled {
+            let gathering = self.screen_announcer.borrow().gathering();
             self.poll_screen()?;
-            self.chasing.set(if self.cursor_said.get() {
+            let mut said = self.cursor_said.get();
+            if self.chasing_details.get() {
+                said = (said || gathering) && !self.screen_announcer.borrow().gathering();
+            }
+            self.chasing.set(if said {
                 0
             } else {
                 (self.chasing.get() - 1).max(0)
             });
+            self.chasing_details
+                .set(self.chasing_details.get() && self.chasing.get() != 0);
             screen_polled = true;
         }
         Ok(screen_polled)

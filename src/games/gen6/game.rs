@@ -106,11 +106,15 @@ pub trait ConditionsReader {
     ) -> Result<()>;
 }
 
-/// Which of an app's screens kept on screen it does not draw now, where only one game's app
-/// keeps two: ORAS's Pokéblock Kit (`oras.screens.pokeblock_kit`).
+/// Which of an app's screens kept on screen it does not draw now, and when its cursors move,
+/// where only one game's app keeps two: ORAS's Pokéblock Kit (`oras.screens.pokeblock_kit`).
 pub trait ScreensReader {
     /// Every screen poll: the works of the layouts not drawn now (`Layouts.put_away`).
     fn put_away(&mut self) -> Result<HashSet<i64>>;
+
+    /// Every tick: whether one of these menu cursors on screen has moved since the last, in
+    /// an app with no index of what is under it, where the screen is polled at once.
+    fn moved(&mut self, windows: &[i64]) -> Result<bool>;
 }
 
 /// The Pokémon one game's save keeps for its credits' moments, which scenes name as
