@@ -416,6 +416,9 @@ pub struct Gen6Profile {
     unheard: RefCell<HashSet<i64>>,
     /// Whether a sweep is wanted for the talk object showing a page.
     speaker_wanted: Cell<bool>,
+    /// Pages the game has said since Move to forget gave way to the screen it was opened from,
+    /// while that screen opening again is left unsaid (`poll_screen`); None otherwise.
+    after_forget: Cell<Option<i64>>,
     /// Whether a cursor has moved or opened since `sweep_held` last asked.
     pub(crate) moving: Cell<bool>,
     /// The tick a cursor was last seen to move or open at.
@@ -1538,6 +1541,7 @@ impl Gen6Profile {
             zone: Cell::new(None),
             unheard: RefCell::new(HashSet::new()),
             speaker_wanted: Cell::new(false),
+            after_forget: Cell::new(None),
             moving: Cell::new(false),
             moved: Cell::new(None),
             holding: Cell::new(None),
@@ -1720,12 +1724,18 @@ impl Gen6Profile {
     /// Whether another app has started since the last poll: the field, the Bag, the Pokédex, a
     /// battle. One read a poll, and the moment to sweep for the new screen's objects.
     pub fn poll_app(&self) -> Result<bool> {
+        let was = self.apps.borrow().running.clone();
         let started = phase(&*self.memory, "app", || self.apps.borrow_mut().poll())?;
         let Some(started) = started else {
             self.anchor(false)?;
             return Ok(false);
         };
         (self.log)(&format!("app: {}", demangle(&started)));
+        if was.as_deref() == Some(rows::FORGET) && started != FIELD {
+            self.after_forget.set(Some(0));
+        } else if started == FIELD || started == rows::FORGET {
+            self.after_forget.set(None);
+        }
         self.anchors.borrow_mut().started();
         self.anchor(true)?;
         self.dialogue.borrow_mut().forget_hosts();
@@ -1822,6 +1832,18 @@ impl Gen6Profile {
                 .collect();
             standings.borrow_mut().heard(&texts)?;
         }
+        if let Some(after_forget) = self.after_forget.get() {
+            // The question or the news of the move is the first page, and a page after it is
+            // said once the screen behind is up (`poll_screen`).
+            let pages = shown
+                .iter()
+                .filter(|page| matches!(page, Shown::Page(_)))
+                .count() as i64;
+            self.after_forget.set(Some(after_forget + pages));
+            if after_forget + pages > 1 {
+                self.after_forget.set(None);
+            }
+        }
         let said = self.announcements.borrow_mut().pages(&shown)?;
         if said && let Some(opponents) = &self.opponents {
             opponents.borrow_mut().paged();
@@ -1881,6 +1903,8 @@ impl Gen6Profile {
             // comes first too, without waiting for it to hold.
             self.poll_screen_with(false, false)?;
             screen_polled = true;
+            // The answer is the player's to give now, and the screen behind is up.
+            self.after_forget.set(None);
         }
         for focus in &focuses {
             // The save's YES was read by the cursor over it before a sweep found its list, and
@@ -1907,6 +1931,9 @@ impl Gen6Profile {
             self.announcements
                 .borrow_mut()
                 .focus(focus, "choice", heard);
+        }
+        if chosen.iter().any(|focus| focus.opened) {
+            self.after_forget.set(None);
         }
         let process = self.apps.borrow().process;
         if let Some(opening) = &self.opening
@@ -2160,6 +2187,37 @@ impl Gen6Profile {
                 texts.push(text.clone());
             }
         }
+        if self.apps.borrow().running.as_deref() == Some(rows::FITTING) {
+            // The fitting room's cursor walks its tabs, pictures, and on into the list and the
+            // buttons drawn in their layout, which open with it as a menu's do: owning the tab
+            // alone, as the AreaNav's cursor does, it read Change, Back and the cards as the
+            // room opened (x_cyllage_boutique_fitting_room). Their changes are still heard: the
+            // cards a move between categories shows are its details.
+            let walked: HashSet<i64> = cursors
+                .under
+                .iter()
+                .flatten()
+                .map(|piece| piece.root)
+                .collect();
+            texts.retain(|text| text.changed || !text.with_layout || !walked.contains(&text.root));
+        }
+        // `pocket or box_title or paged.turned`.
+        let mut title = [pocket, box_title]
+            .into_iter()
+            .flatten()
+            .find(|title| !title.is_empty())
+            .or(paged.turned.clone());
+        let mut cursors = cursors;
+        if self.after_forget.get().is_some() {
+            // Back from Move to forget, the Bag or the Move Reminder is built again as the player
+            // left it, under the game's question or its news of the move, and its opening is
+            // left unsaid: its stats, moves and pocket were read between "Give up trying to make
+            // Altaria remember a move?" and its YES (or_move_reminder, a player's log of the
+            // Bag). Its cursors still count as said for the chase.
+            texts.retain(|text| text.changed || !text.with_layout);
+            cursors.items.retain(|item| !item.opened);
+            title = None;
+        }
         // The Distribution's icons are not gathered with the rest of their screen either: a
         // rewrite reads again the groups it has met.
         let heard: Vec<ScreenText> = screen
@@ -2268,12 +2326,6 @@ impl Gen6Profile {
                 &self.summary_shape,
             )
         };
-        // `pocket or box_title or paged.turned`.
-        let title = [pocket, box_title]
-            .into_iter()
-            .flatten()
-            .find(|title| !title.is_empty())
-            .or(paged.turned.clone());
         self.screen_announcer.borrow_mut().say(
             &poll,
             &cursors,
