@@ -80,7 +80,8 @@ the Game Boy games. Nothing here is taken from its code.
 - **The DexNav**: the area's Pokémon, which are met on the water or by fishing, and which you
   have caught, searching, and a hidden Pokémon's details.
 - **The Dowsing Machine**, **soaring** on Latios or Latias, and **Secret Bases**, decorating
-  them included, and other players' bases named as the game names them.
+  them included, a category of decorations you have none of said empty, and other players'
+  bases named as the game names them.
 - **Pictures the game never names**: the boy and the girl to choose from as a game begins, and
   the Trainer Passport's photos in Sun and Moon, described in pa3ds's own words.
 - **Scenes without words**, described unless the `descriptions` setting is turned off: many in

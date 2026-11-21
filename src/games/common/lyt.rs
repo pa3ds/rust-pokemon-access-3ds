@@ -100,6 +100,9 @@ pub const CAPACITY: i64 = 0xF8;
 /// Capacity comes first. As one word the pair reads `0x00240086`, easy to split the wrong way.
 pub const LENGTH: i64 = 0xFA;
 pub const TEXT_POSITION: i64 = 0xFC;
+/// Its words' colours, RGBA a byte each, the top's and then the bottom's: the Secret Base PC
+/// draws a category with nothing in it at alpha 0x80, the rest at 0xFF (spike L).
+pub const TEXT_COLOURS: i64 = 0xD8;
 
 /// Where one game's panes keep the fields that moved between versions of NintendoWare.
 ///
@@ -128,6 +131,9 @@ pub struct PaneShape {
     pub text_position: i64,
     /// How much of a TextBox one read takes: through its text position, within the object.
     pub textbox_head: i64,
+    /// Where a TextBox keeps its words' colours (`TEXT_COLOURS`), within `textbox_head`; None
+    /// where not measured, as in Sun.
+    pub text_colours: Option<i64>,
     /// Alignment codes in NintendoWare's order, centre, left, right, in the low two bits, as Sun
     /// keeps both a pane's anchor and a TextBox's text position; ORAS keeps its text position
     /// modulo 3, left, centre, right, and its anchor as `origin` reads it.
@@ -192,6 +198,7 @@ pub const ORAS: PaneShape = PaneShape {
     length: LENGTH,
     text_position: TEXT_POSITION,
     textbox_head: HEAD,
+    text_colours: Some(TEXT_COLOURS),
     centre_first: false,
 };
 

@@ -47,6 +47,7 @@ pub const SHAPE: PaneShape = PaneShape {
     length: 0xCE,
     text_position: 0xD1,
     textbox_head: 0xD4,
+    text_colours: None,
     centre_first: true,
 };
 /// The system text file and line holding the game's own words for a level, "Lv." in English: the

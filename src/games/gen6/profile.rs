@@ -97,7 +97,7 @@ use crate::games::gen6::screens::partners::Partners;
 use crate::games::gen6::screens::partyicons::PartyIcons;
 use crate::games::gen6::screens::{
     bag, bag_sort, battle_bag, boxes, buttons, counts, distribution, mart, partners, partyicons,
-    registered, reminder, rows, shiny, summary, townmap,
+    registered, reminder, rows, secret_base, shiny, summary, townmap,
 };
 use crate::games::gen6::subscreen::amie;
 use crate::games::gen6::subscreen::head_it::Cue;
@@ -1099,8 +1099,14 @@ impl Gen6Profile {
             tables.extras.base_stats,
         ));
         screen.borrow_mut().set_reworded({
-            let subscreens = subscreens.clone();
-            Rc::new(move |found| subscreens.reworded(found))
+            let (subscreens, files, layouts) = (subscreens.clone(), files.clone(), layouts.clone());
+            Rc::new(move |found| {
+                Ok(secret_base::emptied(
+                    subscreens.reworded(found)?,
+                    &*files,
+                    &*layouts,
+                ))
+            })
         });
         let classes: IndexSet<String> = HEAP_CLASSES
             .iter()

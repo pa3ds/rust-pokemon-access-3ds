@@ -29,3 +29,5 @@ pub mod shiny;
 pub mod rows;
 
 pub mod reminder;
+
+pub mod secret_base;

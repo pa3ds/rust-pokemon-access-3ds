@@ -57,6 +57,8 @@ pub const PLACE_AFTER: f64 = 2.5;
 /// Units a hidden heart is taken to stand past the words it hangs from, and to be wide and tall:
 /// a contest's hearts are 10 by 10, 10 apart (spike 196).
 pub const GLYPH_SPOT: f64 = 10.0;
+/// A colour's alpha drawn whole (`ScreenText.faded`).
+pub const OPAQUE: i64 = 0xFF;
 /// Units within which two pieces with the same words are one drawn twice.
 pub const SAME_PLACE: f64 = 2.0;
 /// Pieces whose words come closer than this many glyph widths are one piece: "L5" and "19/19" are
@@ -129,6 +131,9 @@ pub struct ScreenText {
     /// Its words are a title's or a button's, no label however they are drawn
     /// (`GameText.plain`).
     pub plain: bool,
+    /// Its words are drawn less than opaque by their own colour (`PaneShape.text_colours`), as
+    /// the Secret Base PC greys a category with nothing in it (spike L).
+    pub faded: bool,
 }
 
 impl ScreenText {
@@ -155,6 +160,7 @@ impl ScreenText {
             frame: 0,
             label: false,
             plain: false,
+            faded: false,
         }
     }
 
@@ -900,6 +906,15 @@ impl ScreenTextReader {
         }
         let placed = placed(r#box, &text, &head, &shape)?;
         let parent = self.group_of(u32(&head, lyt::PARENT)?, true)?;
+        let faded = match shape.text_colours {
+            None => false,
+            Some(colours) => {
+                (*head
+                    .get((colours + 3) as usize)
+                    .ok_or_else(|| Error::index("index out of range"))? as i64)
+                    < OPAQUE
+            }
+        };
         let mut piece = ScreenText {
             top: placement.top,
             root: placement.root,
@@ -907,6 +922,7 @@ impl ScreenTextReader {
             parent,
             label: self.labels.contains_key(&text),
             plain: self.plain.contains(&text),
+            faded,
             ..placed
         };
         let root = self.layouts.pane(placement.root)?;

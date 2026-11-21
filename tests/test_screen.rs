@@ -438,6 +438,28 @@ fn test_words_missing_for_a_single_poll_are_taken_as_still_there() {
     assert_eq!(game.heard(), words(&[]));
 }
 
+/// The Secret Base PC draws a category with nothing in it at alpha 0x80 (spike L).
+#[test]
+fn test_words_drawn_less_than_opaque_are_faded() {
+    let (mut game, _work, _group, value) = settled();
+    let faded = |game: &Game| -> Vec<bool> {
+        game.reader
+            .on_screen()
+            .into_iter()
+            .filter(|p| p.r#box == value)
+            .map(|p| p.faded)
+            .collect()
+    };
+    game.memory
+        .write(value + lyt::TEXT_COLOURS, &[0x3A, 0x17, 0x02, 0xFF]);
+    game.heard();
+    assert_eq!(faded(&game), [false]);
+    game.memory
+        .write(value + lyt::TEXT_COLOURS, &[0x3A, 0x17, 0x02, 0x80]);
+    game.heard();
+    assert_eq!(faded(&game), [true]);
+}
+
 /// The Move Reminder's page turned read the list just put away a poll more, "Thrash Normal PP
 /// 10/10 Toughness" then "Thrash Toughness" (or_move_reminder_bugs).
 #[test]

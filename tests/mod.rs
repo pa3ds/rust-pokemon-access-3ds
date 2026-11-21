@@ -72,6 +72,7 @@ mod test_rpc;
 mod test_rtti;
 mod test_scenes;
 mod test_screen;
+mod test_secret_base;
 mod test_script;
 mod test_settings_dialog;
 mod test_shiny;
