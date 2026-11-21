@@ -18,3 +18,5 @@ pub mod partners;
 
 pub mod bag_sort;
 pub mod registered;
+
+pub mod bag;

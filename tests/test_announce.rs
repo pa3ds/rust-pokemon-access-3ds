@@ -95,6 +95,7 @@ struct Args {
     moving: HashSet<i64>,
     rows: HashSet<i64>,
     subject: Option<Box<dyn Fn() -> Result<Option<String>>>>,
+    chosen: Option<IndexMap<i64, String>>,
 }
 
 fn args(texts: &[ScreenText], items: Vec<CursorItem>, on_screen: &[ScreenText]) -> Args {
@@ -180,6 +181,7 @@ impl Screen {
                 &given.labels,
                 given.roots.as_ref(),
                 given.subject.as_deref(),
+                given.chosen.as_ref(),
             )
             .unwrap();
         self.backend.spoken()[before..].to_vec()
@@ -2529,6 +2531,198 @@ fn test_an_item_of_another_list_keeps_no_details_from_this_ones_moves() {
     }
 }
 
+/// The Bag's top screen: the item's name and count in one group, its description below.
+fn bag_top(name: &str, count: &str, about: &str, changed: bool) -> Vec<ScreenText> {
+    let at = |r#box, text, x, y, parent| ScreenText {
+        changed,
+        ..piece_kw(
+            r#box,
+            text,
+            x,
+            y,
+            PANEL,
+            Kw {
+                parent,
+                ..PLAIN
+            },
+        )
+    };
+    vec![
+        at(30, name, -150.0, 60.0, 20),
+        at(31, count, 60.0, 60.0, 20),
+        at(32, about, -150.0, 20.0, 21),
+    ]
+}
+
+/// `{0x0C: name}`: the list's cursor's cursor source.
+fn chosen_0c(name: &str) -> Option<IndexMap<i64, String>> {
+    Some(IndexMap::from([(0x0C, name.to_string())]))
+}
+
+/// The Bag says which item it has chosen (`gen6.screens.bag`): once its top screen names it,
+/// nothing is waited for but words still being written.
+#[test]
+fn test_a_cursor_sources_details_come_the_poll_after_the_screen_names_its_item() {
+    let mut screen = Screen::new();
+    let rows = [
+        piece(1, "Poké Ball", -120.0, 70.0, MENU),
+        piece(2, "Potion", -120.0, 50.0, MENU),
+    ];
+    let potion = vec![rows[1].clone()];
+    let top = bag_top("Potion", "12", "A spray-type medicine.", true);
+    let everything = cat(&[&rows, &top]);
+    assert_eq!(
+        screen.say(Args {
+            chosen: chosen_0c("Potion"),
+            ..args(&top, vec![CursorItem::new(0x0C, potion, false)], &everything)
+        }),
+        ["Potion"]
+    );
+    assert_eq!(
+        screen.say(Args {
+            chosen: chosen_0c("Potion"),
+            ..args(&[], vec![], &everything)
+        }),
+        ["12, A spray-type medicine."]
+    );
+}
+
+/// Changing pockets quickly, the top screen was written for the pocket's first item before
+/// the one the cursor came to: its count and description were said as that one's (spike 197).
+#[test]
+fn test_a_cursor_sources_details_wait_while_the_screen_names_another_item() {
+    let mut screen = Screen::new();
+    let rows = [
+        piece(1, "Poké Ball", -120.0, 70.0, MENU),
+        piece(2, "Potion", -120.0, 50.0, MENU),
+    ];
+    let potion = vec![rows[1].clone()];
+    let stale = bag_top("Poké Ball", "7", "A device for catching wild Pokémon.", true);
+    let everything = cat(&[&rows, &stale]);
+    assert_eq!(
+        screen.say(Args {
+            chosen: chosen_0c("Potion"),
+            ..args(&stale, vec![CursorItem::new(0x0C, potion, false)], &everything)
+        }),
+        ["Potion"]
+    );
+    let heard: Vec<Vec<String>> = (0..3)
+        .map(|_| {
+            screen.say(Args {
+                chosen: chosen_0c("Potion"),
+                ..args(&[], vec![], &everything)
+            })
+        })
+        .collect();
+    assert_eq!(heard, vec![Vec::<String>::new(); 3]);
+    let top = bag_top("Potion", "12", "A spray-type medicine.", true);
+    assert_eq!(
+        screen.say(Args {
+            chosen: chosen_0c("Potion"),
+            ..args(&top, vec![], &cat(&[&rows, &top]))
+        }),
+        ["12, A spray-type medicine."]
+    );
+}
+
+/// The TM pocket's top screen writes "TM39 Rock Tomb" where the item is "TM39": its details
+/// waited their most polls and were lost when the cursor moved sooner
+/// (or_tm_steel_wing_wingull).
+#[test]
+fn test_a_cursor_sources_item_is_named_among_the_words_written() {
+    let mut screen = Screen::new();
+    let rows = [
+        piece(1, "Rock Tomb", -120.0, 70.0, MENU),
+        piece(2, "Cut", -120.0, 50.0, MENU),
+    ];
+    let tomb = vec![rows[0].clone()];
+    let under = |r#box, text, y, parent| {
+        changed(&piece_kw(
+            r#box,
+            text,
+            -150.0,
+            y,
+            PANEL,
+            Kw {
+                parent,
+                ..PLAIN
+            },
+        ))
+    };
+    let top = [
+        under(30, "TM39 Rock Tomb", 60.0, 20),
+        under(32, "Boulders are hurled.", 20.0, 21),
+    ];
+    let everything = cat(&[&rows, &top]);
+    assert_eq!(
+        screen.say(Args {
+            chosen: chosen_0c("TM39"),
+            ..args(&top, vec![CursorItem::new(0x0C, tomb, false)], &everything)
+        }),
+        ["Rock Tomb"]
+    );
+    assert_eq!(
+        screen.say(Args {
+            chosen: chosen_0c("TM39"),
+            ..args(&[], vec![], &everything)
+        }),
+        ["TM39, Boulders are hurled."]
+    );
+}
+
+/// An item taken up with Y moves its cursor onto the same item, and the top screen, which
+/// names it already, is not written again: its details waited their most polls
+/// (or_bag_manual_sorting).
+#[test]
+fn test_a_cursor_sources_item_chosen_again_is_named_by_the_screen_as_it_stands() {
+    let mut screen = Screen::new();
+    let rows = [
+        piece(1, "Poké Ball", -120.0, 70.0, MENU),
+        piece(2, "Potion", -120.0, 50.0, MENU),
+    ];
+    let top = bag_top("Potion", "12", "A spray-type medicine.", true);
+    let everything = cat(&[&rows, &top]);
+    assert_eq!(
+        screen.say(Args {
+            chosen: chosen_0c("Potion"),
+            ..args(
+                &top,
+                vec![CursorItem::new(0x0C, vec![rows[1].clone()], false)],
+                &everything
+            )
+        }),
+        ["Potion"]
+    );
+    assert_eq!(
+        screen.say(Args {
+            chosen: chosen_0c("Potion"),
+            ..args(&[], vec![], &everything)
+        }),
+        ["12, A spray-type medicine."]
+    );
+    let standing = bag_top("Potion", "12", "A spray-type medicine.", false);
+    let carried = [piece(3, "Potion", -120.0, 30.0, MENU)];
+    let everything = cat(&[&rows[..1], &carried, &standing]);
+    assert_eq!(
+        screen.say(Args {
+            chosen: chosen_0c("Potion"),
+            ..args(
+                &[],
+                vec![CursorItem::new(0x0C, carried.to_vec(), false)],
+                &everything
+            )
+        }),
+        ["Potion"]
+    );
+    assert_eq!(
+        screen.say(Args {
+            chosen: chosen_0c("Potion"),
+            ..args(&[], vec![], &everything)
+        }),
+        ["12, A spray-type medicine."]
+    );
+}
+
 #[test]
 fn test_details_wait_for_words_being_written_no_longer_than_their_most_polls() {
     let mut screen = Screen::new();
@@ -2662,6 +2856,7 @@ fn test_words_under_a_cursor_that_settle_after_it_spoke_are_not_said_again() {
                 ..CursorPoll::default()
             },
             &HashSet::new(),
+            None,
             None,
             None,
         )
@@ -3036,6 +3231,7 @@ fn listed(
                 ..CursorPoll::default()
             },
             &HashSet::new(),
+            None,
             None,
             None,
         )

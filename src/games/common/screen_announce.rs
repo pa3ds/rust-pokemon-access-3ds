@@ -162,6 +162,10 @@ struct Gathering {
     lead: (i64, String),
     /// What the cursor said of the item, left out of its details.
     item: String,
+    /// The words written outside the item's own layout since the cursor moved: where a cursor
+    /// source says what the item is, its details are those of the item they name, or, none
+    /// written, the item the screen still names (`_settled`).
+    written: HashSet<String>,
     /// The root of the layout the item is in.
     menu: i64,
     /// The list of rows the item is one of, where its cursor knows it (`CursorItem.rows`): the
@@ -191,6 +195,7 @@ impl Gathering {
             held,
             lead: (0, String::new()),
             item: String::new(),
+            written: HashSet::new(),
             menu: 0,
             rows: 0,
         }
@@ -226,6 +231,9 @@ pub struct ScreenAnnouncer {
     /// Roots of the layouts a cursor has been over, for as long as those layouts live.
     menus: HashSet<i64>,
     gathering: Option<Gathering>,
+    /// This poll's cursor sources: cursor -> the item its screen's own objects say it is on
+    /// (`say`).
+    chosen: IndexMap<i64, String>,
     /// A screen rewritten with no cursor moving, gathered until it settles.
     rewrite: Option<Gathering>,
     /// Cursor -> the words it opened on and the poll it did, for one that only slides into
@@ -306,6 +314,7 @@ impl ScreenAnnouncer {
             clocks: HashSet::new(),
             menus: HashSet::new(),
             gathering: None,
+            chosen: IndexMap::new(),
             rewrite: None,
             opened: IndexMap::new(),
             detail_panels: IndexMap::new(),
@@ -367,6 +376,14 @@ impl ScreenAnnouncer {
     /// screen is rewritten, for the name of what it shows where that is known: the summary's
     /// Pokémon's.
     ///
+    /// `chosen` gives a cursor's **cursor source**: the name of the item its screen's own
+    /// objects say it is on, as the Bag's do (`gen6.screens.bag`). Its details are said the poll
+    /// after it moved where the words written outside its layout since then name that item, or,
+    /// none written, the words standing there do, and none is still being written, and not
+    /// before, however long they wait short of their most polls: the Bag's top screen, rewritten
+    /// for each item, said the last item's count and description with the next one's name when
+    /// the pockets changed quickly (spike 197).
+    ///
     /// A cursor that knows its list owns the list and no more of its layout. The Poké Mart draws
     /// its list, the money, the count in the bag and the chosen item's description in one
     /// layout, and left to the cursor as a menu's layout is, the description was never heard as
@@ -374,7 +391,7 @@ impl ScreenAnnouncer {
     /// pictures alone owns those pictures: the AreaNav's tabs are drawn in its bar's layout, and
     /// left to them its View Details was never heard (or_area_nav).
     ///
-    /// Python's `roots` and `subject` default to None.
+    /// Python's `roots`, `subject` and `chosen` default to None.
     pub fn say(
         &mut self,
         screen: &ScreenPoll,
@@ -382,8 +399,10 @@ impl ScreenAnnouncer {
         labels: &HashSet<String>,
         roots: Option<&IndexSet<i64>>,
         subject: Option<Subject>,
+        chosen: Option<&IndexMap<i64, String>>,
     ) -> Result<()> {
         self.polls += 1;
+        self.chosen = chosen.cloned().unwrap_or_default();
         let (texts, on_screen, settling, left) = (
             &screen.texts,
             &screen.on_screen,
@@ -755,11 +774,18 @@ impl ScreenAnnouncer {
             gathered
                 .joined
                 .extend(joining.iter().map(ScreenText::group));
+            let menu = gathered.menu;
+            gathered.written.extend(
+                texts
+                    .iter()
+                    .filter(|p| p.root != menu)
+                    .map(|p| p.text.clone()),
+            );
             let joined: HashSet<i64> = joining.iter().map(|p| p.r#box).collect();
             shown.retain(|p| !joined.contains(&p.r#box));
             gathered.said.extend(shown.iter().map(|p| p.r#box));
             changed = Vec::new();
-            if !self.settled(&gathered, settling) {
+            if !self.settled(&gathered, settling, on_screen) {
                 gathered.polls += 1;
                 if is_gathering {
                     self.gathering = Some(gathered);
@@ -1146,11 +1172,34 @@ impl ScreenAnnouncer {
     /// A move's description was written a poll after its panel, and was read after the panel
     /// where it was read before it every other time. Before any panel is known, any words still
     /// being written anywhere may be the details, so they are waited for too.
-    fn settled(&self, gathering: &Gathering, settling: &IndexSet<i64>) -> bool {
+    fn settled(
+        &self,
+        gathering: &Gathering,
+        settling: &IndexSet<i64>,
+        on_screen: &[ScreenText],
+    ) -> bool {
         if gathering.polls >= DETAIL_MAX_POLLS {
             return true;
         }
-        if gathering.polls < DETAIL_POLLS {
+        if let Some(named) = self.chosen.get(&gathering.cursor) {
+            // The item's own source says when they are its: once the screen names it (`say`).
+            // Nothing written since the move, the screen still stands for the item it named: an
+            // item taken up with Y is chosen again, and the top screen is not written again.
+            let standing: HashSet<String>;
+            let words = if gathering.written.is_empty() {
+                standing = on_screen
+                    .iter()
+                    .filter(|p| p.root != gathering.menu)
+                    .map(|p| p.text.clone())
+                    .collect();
+                &standing
+            } else {
+                &gathering.written
+            };
+            if gathering.polls < 1 || !words.iter().any(|text| names(text, named)) {
+                return false;
+            }
+        } else if gathering.polls < DETAIL_POLLS {
             return false;
         }
         let mut panels: IndexSet<Panel> = IndexSet::new();
@@ -1509,6 +1558,12 @@ fn line(parts: &[String]) -> String {
         out += part;
     }
     out
+}
+
+/// Do the words name the item, whole words of theirs being its name? The TM pocket's top
+/// screen writes its number with its move, "TM39 Rock Tomb", where the item is "TM39".
+fn names(text: &str, name: &str) -> bool {
+    format!(" {} ", py::split(text).join(" ")).contains(&format!(" {name} "))
 }
 
 /// The piece less the item its cursor has just said, where its words end with it: the TM

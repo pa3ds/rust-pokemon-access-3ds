@@ -91,7 +91,8 @@ use crate::games::gen6::screens::mapcursor::MapCursor;
 use crate::games::gen6::screens::partners::Partners;
 use crate::games::gen6::screens::partyicons::PartyIcons;
 use crate::games::gen6::screens::{
-    bag_sort, boxes, buttons, distribution, partners, partyicons, registered, summary, townmap,
+    bag, bag_sort, boxes, buttons, distribution, partners, partyicons, registered, summary,
+    townmap,
 };
 use crate::games::gen6::subscreen::amie;
 use crate::games::gen6::subscreen::head_it::Cue;
@@ -317,6 +318,7 @@ pub struct Gen6Profile {
     box_mode: Option<RefCell<boxes::Mode>>,
     registered: Option<RefCell<registered::Registered>>,
     bag_sort: RefCell<bag_sort::BagSort>,
+    bag: Option<RefCell<bag::Chosen>>,
     pub occupants: Rc<RefCell<boxes::Occupants>>,
     pub standings: Option<Rc<RefCell<dyn StandingsReader>>>,
     pub map_cursor: RefCell<MapCursor>,
@@ -701,6 +703,22 @@ impl Gen6Profile {
             let apps = apps.clone();
             Rc::new(move || apps.borrow().running.as_deref() == Some(partyicons::BAG))
         }));
+        let bag = game.bag.clone().map(|shape| {
+            let apps = apps.clone();
+            RefCell::new(bag::Chosen::new(
+                memory.clone(),
+                shape,
+                Rc::new(move || {
+                    let apps = apps.borrow();
+                    if apps.running.as_deref() == Some(partyicons::BAG) {
+                        apps.process
+                    } else {
+                        None
+                    }
+                }),
+                text.items.clone(),
+            ))
+        });
         // Carrying a Pokémon in the PC Box, the slot it is over says who is in it, from the save.
         // Made before the block the cursors are made in, where Python makes it inside, just before
         // them; making it reads nothing.
@@ -1280,6 +1298,7 @@ impl Gen6Profile {
             box_mode,
             registered,
             bag_sort,
+            bag,
             occupants,
             standings,
             map_cursor: RefCell::new(map_cursor),
@@ -1756,9 +1775,13 @@ impl Gen6Profile {
             let found = self.cursors.borrow_mut().poll(on_screen)?;
             let cursors;
             (carried, cursors) = self.bag_sort.borrow_mut().poll(found, on_screen);
-            Ok((screen, sides, party, listed, cursors, played))
+            let chosen = match &self.bag {
+                None => IndexMap::new(),
+                Some(bag) => bag.borrow_mut().poll(&cursors)?,
+            };
+            Ok((screen, sides, party, listed, cursors, played, chosen))
         })?;
-        let (screen, sides, party, listed, cursors, played) = polled;
+        let (screen, sides, party, listed, cursors, played, chosen) = polled;
         for (logged, line, category) in &played {
             (self.log)(&format!("{logged}: {line}"));
             if let Some(category) = category {
@@ -1815,6 +1838,7 @@ impl Gen6Profile {
             &labels,
             Some(&roots),
             Some(&subject),
+            Some(&chosen),
         )?;
         // After the screen's words, which name the place first.
         for line in &listed {
