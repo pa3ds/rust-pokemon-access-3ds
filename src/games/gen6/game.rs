@@ -36,7 +36,7 @@ use crate::games::gen6::field::landform::{Landform, gen6};
 use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::rom::layout::RomLayout;
 use crate::games::gen6::screens::buttons::MENU;
-use crate::games::gen6::screens::{bag, summary, townmap};
+use crate::games::gen6::screens::{bag, boxes, rows, summary, townmap};
 use crate::games::gen6::subscreen::amie::{NUMBER, ORAS_PLAYER, PlayerFields};
 use crate::games::gen6::subscreen::super_training::ICONS;
 use crate::py::{Log, Result};
@@ -133,6 +133,26 @@ pub trait MemoriesReader {
 
 /// `Callable[[Memory], MemoriesReader]`.
 pub type MemoriesFactory = fn(Rc<dyn Memory>) -> Rc<dyn MemoriesReader>;
+
+/// Where one game keeps its screens' cursor sources (ADR-0043), each its screen's own
+/// `Shape`, measured in that game. None where not measured: that screen is then its layout's
+/// alone, as it was before its source was found.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct CursorShapes {
+    /// The X menu's button, the options' row and the party's slot (`rows.Rows`, spikes 298 and
+    /// 306); the other rows `rows` reads are the same in Omega Ruby and X.
+    pub rows: Option<rows::Shape>,
+    /// The Bag's pocket, item and mode (`bag.Chosen`, spike 297).
+    pub bag: Option<bag::Shape>,
+    /// The Pokémon the summary shows and its pages' lists (`summary.Pages`, spikes 303 and
+    /// 304).
+    pub summary: Option<summary::Shape>,
+    /// The PC Box's mode and the box its grid shows (`boxes.Mode`, `boxes.shown`, spikes 288
+    /// and 298).
+    pub r#box: Option<boxes::Shape>,
+    /// The place under the AreaNav's map cursor (`townmap.Places`, spike 309).
+    pub map_view: Option<townmap::Shape>,
+}
 
 /// `str | int | tuple[str, str, int]`, what `Game.furniture` says a record is: a word, the kind
 /// of use tile it is called as, or, for a record the player leaves by, the category it is listed
@@ -368,39 +388,14 @@ pub struct Game {
     /// set while an app has the input (`buttons`): ORAS's +0x7C and +0x9C, X's +0x70 and +0x90
     /// (spike 228).
     pub field_menu: (i64, i64),
-    /// Where the field menu keeps the X menu's button under the cursor, read every tick
-    /// (`screens.rows`): ORAS's +0x82, X's +0x76 (spike 306). None where it has not been measured.
-    pub menu_row: Option<i64>,
-    /// Where the options screen's process keeps the row under its cursor, read every tick
-    /// (`screens.rows`): ORAS's and X's +0x4C (spike 298). None where it has not been measured.
-    pub options_row: Option<i64>,
-    /// Where the party's `app::pokelist::StaticWork` keeps the slot under its cursor, read every
-    /// tick (`screens.rows`): ORAS's +0x1A8, X's and Y's +0x1B0 (spike 298). None where it has not
-    /// been measured.
-    pub party_slot: Option<i64>,
+    /// Where its screens keep what their cursors are on (ADR-0043).
+    pub cursors: CursorShapes,
     /// Where its field camera's block keeps where the camera looks (`camera.Shape`): ORAS's, or
     /// X's (spikes 230 and 239).
     pub camera: camera::Shape,
     /// Where the save's Bag keeps the key items of the Y button's menu (`screens.registered`,
     /// spike 289): +0x0E in ORAS and X. None in a game that has no such menu.
     pub registered: Option<i64>,
-    /// Where the PC Box's process keeps its mode, the pointer and the byte behind it
-    /// (`boxes.Mode`, spike 288): the same in ORAS and X. None where it has not been measured.
-    pub box_mode: Option<(i64, i64)>,
-    /// Where the PC Box's process keeps the box its grid shows, as `box_mode` (`boxes.shown`,
-    /// spike 298): the work block's +0x24, in ORAS and X. None where it has not been measured: a
-    /// box is then the one named as the title is.
-    pub box_shown: Option<(i64, i64)>,
-    /// Where the town map's `app::townmap::MapView` keeps the place under its cursor
-    /// (`townmap.Places`, spike 309): ORAS's or X's. None where it has not been measured: the place
-    /// is then the screen's alone.
-    pub map_view: Option<townmap::Shape>,
-    /// Where the Bag keeps the item under its cursor, its cursor source (`screens.bag`, spike 297):
-    /// ORAS's, or X's. None where it has not been measured.
-    pub bag: Option<bag::Shape>,
-    /// Where the summary keeps the Pokémon it shows and its pages' lists (`screens.summary`,
-    /// spikes 303 and 304): ORAS's, or X's.
-    pub summary: summary::Shape,
     /// The zones of the places in parts listed whole, the other parts' things out of the ROM
     /// (ADR-0042); every other place in parts is listed a part at a time.
     pub whole: HashSet<i64>,
@@ -478,16 +473,9 @@ impl Game {
             amie_player: ORAS_PLAYER,
             worded: IndexSet::new(),
             field_menu: MENU,
-            menu_row: None,
-            options_row: None,
-            party_slot: None,
+            cursors: CursorShapes::default(),
             camera: camera::ORAS,
             registered: None,
-            box_mode: None,
-            box_shown: None,
-            map_view: None,
-            bag: None,
-            summary: summary::ORAS,
             whole: HashSet::new(),
             items_at: IndexMap::new(),
             zone_record: 0xF4,

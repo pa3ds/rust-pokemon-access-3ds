@@ -23,9 +23,9 @@ use crate::games::gen6::field::landform::{
     ArrowTiles, Climbing, Conveyors, Grinding, Landform, Rides, Strands, TurningFloor, Vining, gen6,
 };
 use crate::games::gen6::field::{camera, mapblock, mmodel};
-use crate::games::gen6::game::{Data, FurnitureKind, Game};
+use crate::games::gen6::game::{CursorShapes, Data, FurnitureKind, Game};
 use crate::games::gen6::rom::layout::{RomLayout, TownFacilities, owned};
-use crate::games::gen6::screens::{bag, buttons, pokedex, rows, summary, townmap};
+use crate::games::gen6::screens::{bag, boxes, buttons, pokedex, rows, summary, townmap};
 use crate::games::gen6::subscreen::{amie, berry_picker};
 use crate::games::xy::garden::FurfrouChase;
 use crate::games::xy::intro::IntroReader;
@@ -1031,15 +1031,14 @@ pub fn game() -> &'static Game {
         amie_player: AMIE_PLAYER,
         field_menu: FIELD_MENU,
         worded: WORDED.iter().map(|texture| texture.to_string()).collect(),
-        box_mode: Some((0x24, 0x21)),
         registered: Some(0x0E),
-        box_shown: Some((0x24, 0x24)),
-        bag: Some(bag::XY),
-        summary: summary::XY,
-        map_view: Some(townmap::XY),
-        menu_row: Some(rows::XY_MENU_ROW),
-        options_row: Some(rows::OPTIONS_ROW),
-        party_slot: Some(rows::XY_PARTY_SLOT),
+        cursors: CursorShapes {
+            rows: Some(rows::XY),
+            bag: Some(bag::XY),
+            summary: Some(summary::XY),
+            r#box: Some(boxes::GEN6),
+            map_view: Some(townmap::XY),
+        },
         camera: camera::X,
         opening: Some(|memory, _language| Box::new(IntroReader::new(memory))),
         zone_record: 0xE4,

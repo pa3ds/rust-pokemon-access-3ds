@@ -124,7 +124,7 @@ fn summary_of() -> (Rc<FakeMemory>, Rc<RefCell<RunningApp>>, summary::Pages) {
         apps.clone(),
         Rc::new(FakeLayouts),
         Rc::new(FakeFiles),
-        summary::ORAS,
+        Some(summary::ORAS),
     );
     (memory, apps, pages)
 }
@@ -416,7 +416,7 @@ fn test_x_has_two_pages_whose_lists_and_place_sit_sooner() {
         apps,
         Rc::new(FakeLayouts),
         Rc::new(FakeFiles),
-        summary::XY,
+        Some(summary::XY),
     );
     for (shown, mon) in [(MOVES, METAGROSS), (RIBBONS, METAGROSS), (RIBBONS, TORCHIC)] {
         for each in [MOVES, RIBBONS] {

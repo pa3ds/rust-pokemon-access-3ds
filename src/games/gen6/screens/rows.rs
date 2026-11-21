@@ -77,8 +77,8 @@
 //! ```
 //!
 //! The byte says when a row is chosen, never what: the words are still the screen's. Measured in
-//! Omega Ruby and X; a game whose offsets are not measured reads nothing here (`Game.menu_row`,
-//! `Game.options_row`, `Game.party_slot`), but for the keyboard's, the PC's, the move screens',
+//! Omega Ruby and X; a game whose offsets are not measured reads nothing here (`Shape`,
+//! `CursorShapes.rows`), but for the keyboard's, the PC's, the move screens',
 //! the title menu's and the starter's, the same in both (spike 298 on x_move_reminder and
 //! x_title_screen for the move screens and the title menu), and the contest's, which X and Y have
 //! none of, and the fitting room's, which Omega Ruby has none of.
@@ -186,6 +186,29 @@ pub const LIST_ROW: i64 = 0x18;
 /// screen poll's worth.
 pub const CHASE: i64 = 12;
 
+/// Where a game keeps the rows that sit at other offsets in each game: the X menu's button,
+/// the options' row and the party's slot.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Shape {
+    /// As `MENU_ROW`.
+    pub menu_row: i64,
+    /// As `OPTIONS_ROW`.
+    pub options_row: i64,
+    /// As `PARTY_SLOT`.
+    pub party_slot: i64,
+}
+
+pub const ORAS: Shape = Shape {
+    menu_row: MENU_ROW,
+    options_row: OPTIONS_ROW,
+    party_slot: PARTY_SLOT,
+};
+pub const XY: Shape = Shape {
+    menu_row: XY_MENU_ROW,
+    options_row: OPTIONS_ROW,
+    party_slot: XY_PARTY_SLOT,
+};
+
 /// The Move Reminder's move: the row the cursor is on plus the rows scrolled away.
 fn r#move(row_and_scroll: &[u8]) -> Result<f64> {
     let (row, scroll) = (
@@ -212,9 +235,7 @@ pub struct Rows {
     process: Rc<dyn Fn() -> Option<i64>>,
     menu: Rc<dyn Fn() -> Result<Option<i64>>>,
     shown: Rc<dyn Fn() -> bool>,
-    menu_row: Option<i64>,
-    options_row: Option<i64>,
-    party_slot: Option<i64>,
+    shape: Option<Shape>,
     /// Where the row was read last tick, and what it read.
     last: Option<(i64, Vec<u8>)>,
     /// Where the row was read and what it read as it last moved, while it is still that menu's:
@@ -233,18 +254,15 @@ pub struct Rows {
 
 impl Rows {
     /// `menu` is the field menu, `shown` whether a cursor is on screen, which the field's menu row
-    /// is read only while it is; `menu_row`, `options_row` and `party_slot` where the game keeps
-    /// their rows, None where not measured. Python's default for `party_slot` is None.
-    #[allow(clippy::too_many_arguments)]
+    /// is read only while it is; `shape` where the game keeps the rows of its own, None where
+    /// not measured.
     pub fn new(
         memory: Rc<dyn Memory>,
         running: Rc<dyn Fn() -> Option<String>>,
         process: Rc<dyn Fn() -> Option<i64>>,
         menu: Rc<dyn Fn() -> Result<Option<i64>>>,
         shown: Rc<dyn Fn() -> bool>,
-        menu_row: Option<i64>,
-        options_row: Option<i64>,
-        party_slot: Option<i64>,
+        shape: Option<Shape>,
     ) -> Self {
         Rows {
             kept: Kept::new(memory.clone(), process.clone(), running.clone()),
@@ -253,9 +271,7 @@ impl Rows {
             process,
             menu,
             shown,
-            menu_row,
-            options_row,
-            party_slot,
+            shape,
             last: None,
             moved_to: None,
             contest: None,
@@ -342,22 +358,23 @@ impl Rows {
         if !(self.shown)() {
             return Ok(None);
         }
+        let shape = self.shape;
         if running.as_deref() == Some(OPTIONS)
-            && let Some(options_row) = self.options_row
+            && let Some(shape) = shape
         {
-            return Ok((self.process)().map(|process| (process + options_row, OPTIONS_READ)));
+            return Ok((self.process)().map(|process| (process + shape.options_row, OPTIONS_READ)));
         }
         if running.as_deref() == Some(FIELD)
-            && let Some(menu_row) = self.menu_row
+            && let Some(shape) = shape
         {
-            return Ok((self.menu)()?.map(|menu| (menu + menu_row, 1)));
+            return Ok((self.menu)()?.map(|menu| (menu + shape.menu_row, 1)));
         }
         if running.as_deref() == Some(PARTY)
-            && let Some(party_slot) = self.party_slot
+            && let Some(shape) = shape
         {
             return Ok(self
                 .found(&[PARTY_WORK], Some(STATIC_WORK))?
-                .map(|work| (work + party_slot, 1)));
+                .map(|work| (work + shape.party_slot, 1)));
         }
         if running.as_deref() == Some(KEYBOARD) {
             return Ok(self

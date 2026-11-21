@@ -682,9 +682,10 @@ impl Gen6Profile {
         )));
         // The place under its map cursor, said from its MapView before the top screen names it
         // (spike 309), and the lists drawn over the map.
+        let sources = &game.cursors;
         let areanav = RefCell::new(townmap::AreaNav::new(
             views.clone(),
-            game.map_view.map(|map_view| {
+            sources.map_view.map(|map_view| {
                 let map_areas = text.map_areas.clone();
                 let (running, process) = (apps.clone(), apps.clone());
                 townmap::Places::new(
@@ -787,9 +788,7 @@ impl Gen6Profile {
                 let cursor_shown = cursor_shown.clone();
                 Rc::new(move || cursor_shown.get())
             },
-            game.menu_row,
-            game.options_row,
-            game.party_slot,
+            sources.rows,
         )));
         // A Poké Mart's list jumped a page is said where it lands, not where it passes.
         let mart = RefCell::new(mart::Jumps::new(
@@ -833,7 +832,7 @@ impl Gen6Profile {
             apps.clone(),
             layouts.clone(),
             files.clone(),
-            game.summary,
+            sources.summary,
         ));
         let contest_words: HashSet<String> = text.contest_categories.iter().cloned().collect();
         let sides: Sides = {
@@ -890,10 +889,10 @@ impl Gen6Profile {
                 }
             })
         };
-        let box_mode = game.box_mode.map(|r#where| {
+        let box_mode = sources.r#box.map(|r#box| {
             RefCell::new(boxes::Mode::new(
                 memory.clone(),
-                r#where,
+                r#box.mode,
                 box_process.clone(),
             ))
         });
@@ -905,7 +904,7 @@ impl Gen6Profile {
                 file_of.clone(),
             ))
         });
-        let bag = game.bag.clone().map(|shape| {
+        let bag = sources.bag.clone().map(|shape| {
             let apps = apps.clone();
             Rc::new(RefCell::new(bag::Chosen::new(
                 memory.clone(),
@@ -932,7 +931,11 @@ impl Gen6Profile {
         // Carrying a Pokémon in the PC Box, the slot it is over says who is in it, from the save.
         // Made before the block the cursors are made in, where Python makes it inside, just before
         // them; making it reads nothing.
-        let box_shown = boxes::shown(memory.clone(), game.box_shown, box_process.clone());
+        let box_shown = boxes::shown(
+            memory.clone(),
+            sources.r#box.map(|r#box| r#box.shown),
+            box_process.clone(),
+        );
         let occupants = Rc::new(RefCell::new(boxes::Occupants::with(
             memory.clone(),
             names.clone(),
@@ -947,7 +950,7 @@ impl Gen6Profile {
             box_shown.clone(),
         )));
         // The box turned to, said from the Box's byte before its title is written (spike 298).
-        let box_titles = game.box_shown.map(|_| {
+        let box_titles = sources.r#box.map(|_| {
             let occupants = occupants.clone();
             RefCell::new(boxes::Titles::new(
                 box_shown.clone(),

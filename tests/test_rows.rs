@@ -28,9 +28,7 @@ fn rows_of(
         Rc::new(|| Some(PROCESS)),
         Rc::new(|| Ok(Some(MENU))),
         Rc::new(move || shown),
-        measured.then_some(rows::MENU_ROW),
-        measured.then_some(rows::OPTIONS_ROW),
-        None,
+        measured.then_some(rows::ORAS),
     )
 }
 
@@ -78,9 +76,7 @@ fn test_the_partys_slot_is_read_from_its_static_work() {
         },
         Rc::new(|| Ok(Some(MENU))),
         Rc::new(|| true),
-        Some(rows::MENU_ROW),
-        Some(rows::OPTIONS_ROW),
-        Some(rows::PARTY_SLOT),
+        Some(rows::ORAS),
     );
     assert!(!party.moved().unwrap());
     memory.write(WORK + rows::PARTY_SLOT, &[2]);
@@ -113,9 +109,7 @@ fn test_the_name_entrys_key_is_read_through_its_main_system() {
         Rc::new(|| Some(PROCESS)),
         Rc::new(|| Ok(Some(MENU))),
         Rc::new(|| true),
-        Some(rows::MENU_ROW),
-        Some(rows::OPTIONS_ROW),
-        Some(rows::PARTY_SLOT),
+        Some(rows::ORAS),
     );
     assert!(!keyboard.moved().unwrap()); // not its main system yet
     memory.u32(WORK, &[classes.add(rows::MAIN_SYSTEM)]);
@@ -145,9 +139,7 @@ fn test_the_pcs_row_is_read_from_the_menu_up_now() {
         Rc::new(|| Some(PROCESS)),
         Rc::new(|| Ok(Some(MENU))),
         Rc::new(|| true),
-        Some(rows::MENU_ROW),
-        Some(rows::OPTIONS_ROW),
-        Some(rows::PARTY_SLOT),
+        Some(rows::ORAS),
     );
     assert!(!pc.moved().unwrap()); // no menu up yet
     memory.u32(holder + rows::IN_USE, &[first]);
@@ -181,9 +173,7 @@ fn test_the_boxs_slot_is_read_from_the_cursor_in_use() {
         Rc::new(|| Some(PROCESS)),
         Rc::new(|| Ok(Some(MENU))),
         Rc::new(|| true),
-        Some(rows::MENU_ROW),
-        Some(rows::OPTIONS_ROW),
-        Some(rows::PARTY_SLOT),
+        Some(rows::ORAS),
     );
     assert!(!r#box.moved().unwrap());
     assert_eq!(r#box.box_slot().unwrap(), None); // not moved yet
@@ -224,8 +214,6 @@ fn test_the_move_screens_rows_are_read_through_their_views() {
         },
         Rc::new(|| Ok(Some(MENU))),
         Rc::new(|| true),
-        None,
-        None,
         None,
     );
     assert!(!moves.moved().unwrap());
@@ -279,8 +267,6 @@ fn test_the_title_menus_row_is_read_from_its_main_system() {
         Rc::new(|| Ok(Some(MENU))),
         Rc::new(|| true),
         None,
-        None,
-        None,
     );
     assert!(!title.moved().unwrap()); // not its main system yet
     memory.u32(WORK, &[classes.add(rows::TITLE_MAIN)]);
@@ -306,8 +292,6 @@ fn test_the_starters_ball_is_read_with_no_cursor_on_screen() {
         Rc::new(|| Some(PROCESS)),
         Rc::new(|| Ok(Some(MENU))),
         Rc::new(|| false),
-        None,
-        None,
         None,
     );
     assert!(!starter.moved().unwrap());
@@ -343,8 +327,6 @@ fn test_a_contests_picked_entrant_is_read_from_its_appeal_ui() {
         Rc::new(|| Ok(Some(MENU))),
         Rc::new(|| true),
         None,
-        None,
-        None,
     );
     assert!(!contest.moved().unwrap()); // not its main yet
     memory.u32(WORK, &[classes.add(rows::CONTEST_MAIN)]);
@@ -373,8 +355,6 @@ fn test_the_fitting_rooms_slot_is_read_through_its_objects() {
         Rc::new(|| Some(PROCESS)),
         Rc::new(|| Ok(Some(MENU))),
         Rc::new(|| true),
-        None,
-        None,
         None,
     );
     assert!(!fitting.moved().unwrap()); // hat, as it opens
@@ -410,8 +390,6 @@ fn test_an_app_built_where_another_was_has_its_own_path_followed() {
         Rc::new(|| Some(PROCESS)),
         Rc::new(|| Ok(Some(MENU))),
         Rc::new(|| true),
-        None,
-        None,
         None,
     );
     assert!(!reader.moved().unwrap());

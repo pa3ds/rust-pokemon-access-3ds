@@ -14,7 +14,7 @@
 //! BattleBox   +0x04  six records
 //! ```
 //!
-//! A box is the one the Box's work block names, a byte beside its mode (`Game.box_shown`): from 0,
+//! A box is the one the Box's work block names, a byte beside its mode (`Shape.shown`): from 0,
 //! and 0xFF on the Battle Box, written as the grid starts to turn, about 0.2 s before the title
 //! above it (spike 298, or_pc_organize). Where that byte is not measured, it is the box whose name
 //! is the title, which the player can rename.
@@ -45,6 +45,22 @@ pub const NAME: i64 = 0x22;
 pub const APP: &str = "N3app3box4ProcE";
 /// The Box's modes as its tabs draw them (`pictures.TEXTURE`): normal, swap and multi-select.
 pub const MODE_WORDS: [&str; 3] = ["mode01", "mode02", "mode03"];
+
+/// Where the Box's process keeps its mode and the box its grid shows, each the pointer to
+/// its work block and the byte in it (`work_byte`).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Shape {
+    /// The pointer, and the mode: 0 normal, 1 swap, 2 multi-select (`Mode`, spike 288).
+    pub mode: (i64, i64),
+    /// The pointer, and the box the grid shows (`shown`, spike 298).
+    pub shown: (i64, i64),
+}
+
+/// Omega Ruby's and X's, the same.
+pub const GEN6: Shape = Shape {
+    mode: (0x24, 0x21),
+    shown: (0x24, 0x24),
+};
 
 /// A byte of the Box's work block: `where` is the pointer to it in the process, and the byte.
 pub fn work_byte(memory: &dyn Memory, r#where: (i64, i64), process: i64) -> Result<i64> {

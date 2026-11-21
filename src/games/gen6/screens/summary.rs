@@ -197,6 +197,7 @@ fn rowed(pieces: Vec<ScreenText>, on_screen: &[ScreenText]) -> Vec<ScreenText> {
 pub struct Pages {
     memory: Rc<dyn Memory>,
     names: Rc<ClassNames>,
+    measured: bool,
     shape: Shape,
     apps: Rc<RefCell<RunningApp>>,
     layouts: Rc<dyn TrackedLayouts>,
@@ -215,14 +216,16 @@ pub struct Pages {
 }
 
 impl Pages {
-    /// `names` names the Pokémon shown's record (`pokemon.read`).
+    /// `names` names the Pokémon shown's record (`pokemon.read`); `shape` is where the game
+    /// keeps it and its pages' lists, None where not measured: its pages are then its
+    /// layouts' alone. Python's default is `Some(ORAS)`.
     pub fn new(
         memory: Rc<dyn Memory>,
         names: Rc<ClassNames>,
         apps: Rc<RefCell<RunningApp>>,
         layouts: Rc<dyn TrackedLayouts>,
         files: Rc<dyn FileMatching>,
-        shape: Shape,
+        shape: Option<Shape>,
     ) -> Self {
         let kept = Kept::new(
             memory.clone(),
@@ -238,7 +241,8 @@ impl Pages {
         Pages {
             memory,
             names,
-            shape,
+            measured: shape.is_some(),
+            shape: shape.unwrap_or(ORAS),
             apps,
             layouts,
             files,
@@ -255,7 +259,7 @@ impl Pages {
     pub fn poll(&mut self) -> Result<()> {
         let process = {
             let apps = self.apps.borrow();
-            if apps.running.as_deref() == Some(SUMMARY) {
+            if apps.running.as_deref() == Some(SUMMARY) && self.measured {
                 apps.process
             } else {
                 None
@@ -407,7 +411,11 @@ impl Pages {
     }
 
     fn shown_pokemon(&self) -> Result<Option<Pokemon>> {
-        let param = shown(&*self.memory, &self.apps.borrow(), &self.shape)?;
+        let param = if self.measured {
+            shown(&*self.memory, &self.apps.borrow(), &self.shape)?
+        } else {
+            None
+        };
         match param {
             Some(param) if param != 0 => {
                 pokemon::read(&*self.memory, &self.names, param, pokemon::SPECIES_MAX)

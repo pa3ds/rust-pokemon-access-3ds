@@ -24,10 +24,12 @@ use crate::games::gen6::field::features::{
 use crate::games::gen6::field::landform::{Belts, Landform, gen6};
 use crate::games::gen6::field::reader::{FLAG, PC_TILE};
 use crate::games::gen6::field::{mapblock, mmodel};
-use crate::games::gen6::game::{Data, FurnitureKind, Game};
+use crate::games::gen6::game::{CursorShapes, Data, FurnitureKind, Game};
 use crate::games::gen6::rom::archives::{BOY, GIRL, GameText};
 use crate::games::gen6::rom::layout::{RomLayout, TownFacilities};
-use crate::games::gen6::screens::{bag, buttons, distribution, pokedex, rows, townmap};
+use crate::games::gen6::screens::{
+    bag, boxes, buttons, distribution, pokedex, rows, summary, townmap,
+};
 use crate::games::gen6::subscreen::{amie, berry_picker, super_training};
 use crate::games::oras::field::ash::{self, AshPiles};
 use crate::games::oras::field::berries::BerrySpots;
@@ -1082,13 +1084,13 @@ pub fn game() -> &'static Game {
         form: Some(mmodel::FORM),
         whole: HashSet::from(SAFARI_ZONE),
         anchors: anchors(),
-        box_mode: Some((0x24, 0x21)),
-        box_shown: Some((0x24, 0x24)),
-        bag: Some(bag::ORAS),
-        map_view: Some(townmap::ORAS),
-        menu_row: Some(rows::MENU_ROW),
-        options_row: Some(rows::OPTIONS_ROW),
-        party_slot: Some(rows::PARTY_SLOT),
+        cursors: CursorShapes {
+            rows: Some(rows::ORAS),
+            bag: Some(bag::ORAS),
+            summary: Some(summary::ORAS),
+            r#box: Some(boxes::GEN6),
+            map_view: Some(townmap::ORAS),
+        },
         registered: Some(0x0E),
         version_flags: Some(VERSION_FLAGS),
         models: Some(MODELS),
