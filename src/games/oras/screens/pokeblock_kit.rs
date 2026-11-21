@@ -40,9 +40,9 @@ use indexmap::IndexMap;
 
 use crate::core::binary::u32;
 use crate::core::memory::Memory;
-use crate::games::common::lyt;
 use crate::games::common::layout::{Layouts, TrackedLayouts};
 use crate::games::common::layout_file::{FileMatching, LayoutFiles};
+use crate::games::common::lyt;
 use crate::games::gen6::apps::RunningApp;
 use crate::games::gen6::game::ScreensReader;
 use crate::games::oras::screens::conditions::CASE;

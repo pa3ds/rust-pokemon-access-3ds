@@ -177,7 +177,10 @@ fn test_the_layout_its_cursor_is_over_is_a_lists() {
     );
     assert_eq!(
         pages.cursors(cursors.clone()).lists,
-        IndexMap::from([(0x500, HashSet::new()), (0x600, HashSet::from([other.r#box]))])
+        IndexMap::from([
+            (0x500, HashSet::new()),
+            (0x600, HashSet::from([other.r#box]))
+        ])
     );
     *running.borrow_mut() = rows::FORGET.to_string();
     assert_eq!(pages.cursors(cursors.clone()), cursors);
@@ -188,7 +191,10 @@ fn test_the_layout_its_cursor_is_over_is_a_lists() {
 #[test]
 fn test_a_move_reminder_of_one_page_puts_nothing_away() {
     let (memory, classes, _pages) = move_reminder(false);
-    memory.u32(CONTEST_VIEW, &[classes.add("N3app13wazaomoidashi9UpperViewE")]);
+    memory.u32(
+        CONTEST_VIEW,
+        &[classes.add("N3app13wazaomoidashi9UpperViewE")],
+    );
     assert_eq!(
         pages_of(&memory, rows::REMEMBER).put_away().unwrap(),
         HashSet::new()

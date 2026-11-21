@@ -242,7 +242,10 @@ fn test_the_move_screens_rows_are_read_through_their_views() {
     memory.u32(contest_view, &[classes.add(rows::LOWER_CONTEST_VIEW)]);
     memory.u32(contest_view + rows::CONTEST_LIST[1], &[contest]);
     // Row 2, 1.0 scrolled away: the fourth move.
-    memory.write(first + rows::LIST_ROW, &[2, 0, 0, 0, 0x00, 0x00, 0x80, 0x3f]);
+    memory.write(
+        first + rows::LIST_ROW,
+        &[2, 0, 0, 0, 0x00, 0x00, 0x80, 0x3f],
+    );
     *running.borrow_mut() = rows::REMEMBER.to_string();
     process.set(OTHER);
     assert!(!moves.moved().unwrap());

@@ -168,7 +168,11 @@ impl Pages {
         if (self.running)().as_deref() != Some(REMEMBER) {
             return Ok(None);
         }
-        if self.parent.as_ref().is_none_or(|parent| parent.0 != process) {
+        if self
+            .parent
+            .as_ref()
+            .is_none_or(|parent| parent.0 != process)
+        {
             let Some(parent) = follow(&*self.memory, process, &REMEMBER_LIST[..1])? else {
                 return Ok(None);
             };

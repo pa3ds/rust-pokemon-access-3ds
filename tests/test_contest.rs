@@ -33,7 +33,9 @@ fn appeals(rounds: u8, places: [u8; 4]) -> Vec<u8> {
 
 #[test]
 fn test_the_places_and_rounds_are_read_as_the_game_keeps_them() {
-    let now = standing(&appeals(5, RESULTS.map(|place| place as u8))).unwrap().unwrap();
+    let now = standing(&appeals(5, RESULTS.map(|place| place as u8)))
+        .unwrap()
+        .unwrap();
     assert!(now.rounds == 5 && now.places == RESULTS);
     // Not yet written, or not the appeals: no place is each of 1 to 4.
     assert_eq!(standing(&appeals(0, [0, 0, 0, 0])).unwrap(), None);
@@ -140,7 +142,9 @@ fn test_a_portrait_is_named_by_its_pokemon_as_its_entry_card_wrote_it() {
         (rival("Gina", "Macherie"), "Gina & Macherie"),
     ]);
     let card = |trainer: &str, pokemon: &str| -> Option<String> {
-        cards.get(&rival(trainer, pokemon)).map(|words| words.to_string())
+        cards
+            .get(&rival(trainer, pokemon))
+            .map(|words| words.to_string())
     };
     assert_eq!(
         entrant("Seedottie", &rivals, &card),

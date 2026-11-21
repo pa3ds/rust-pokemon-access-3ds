@@ -10,8 +10,8 @@ use indexmap::IndexMap;
 use super::fake_memory::{CODE, FakeMemory};
 use crate::core::rtti::ClassNames;
 use crate::games::common::layout::TrackedLayouts;
-use crate::games::common::lyt;
 use crate::games::common::layout_file::{FileMatching, LayoutFile};
+use crate::games::common::lyt;
 use crate::games::gen6::apps::RunningApp;
 use crate::games::gen6::game::ScreensReader;
 use crate::games::oras::screens::conditions::CASE;
@@ -106,7 +106,10 @@ fn test_the_screen_not_shown_is_put_away_with_its_cursors() {
     assert_eq!(away(7), HashSet::from([CASE_LIST, PARTY, CASE_CURSOR]));
     assert_eq!(
         away(0xB),
-        FILES.iter().map(|&(root, _)| root).collect::<HashSet<i64>>()
+        FILES
+            .iter()
+            .map(|&(root, _)| root)
+            .collect::<HashSet<i64>>()
     );
     assert_eq!(away(2), HashSet::new());
     // Turning, the screen turned from is up until the other is; closing, neither is.

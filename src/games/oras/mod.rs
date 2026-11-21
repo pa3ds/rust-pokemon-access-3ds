@@ -39,8 +39,8 @@ use crate::games::oras::field::sky;
 use crate::games::oras::field::sky::Soaring;
 use crate::games::oras::memories::Memories;
 use crate::games::oras::screens::conditions::Conditions;
-use crate::games::oras::screens::pokeblock_kit::Kit;
 use crate::games::oras::screens::contest::Standings;
+use crate::games::oras::screens::pokeblock_kit::Kit;
 
 /// ORAS's own words, for what the game does not say itself (ADR-0040): its scenes' timing, and a
 /// folder a language of the names, picture words, scene descriptions and words only ORAS says.

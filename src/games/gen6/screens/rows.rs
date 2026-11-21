@@ -323,9 +323,11 @@ impl Rows {
             .first()
             .ok_or_else(|| Error::index("index out of range"))? as i64;
         Ok(if slots == GRID_SLOTS {
-            Some(*slot
-                .first()
-                .ok_or_else(|| Error::index("index out of range"))? as i64)
+            Some(
+                *slot
+                    .first()
+                    .ok_or_else(|| Error::index("index out of range"))? as i64,
+            )
         } else {
             None
         })
