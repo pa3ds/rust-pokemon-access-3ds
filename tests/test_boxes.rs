@@ -252,3 +252,26 @@ fn test_a_turn_says_the_box_from_its_byte_and_leaves_the_screens_box_names_unsai
         said(&[None, None])
     );
 }
+
+/// Holding right turned faster than the screen polls, and said BOX 2, BOX 6, BOX 7
+/// (or_pc_box_bugs): each turn is told as it comes, but BOX 1, said once it holds.
+#[test]
+fn test_a_turn_is_told_the_tick_the_byte_turns_so_no_box_passed_goes_unsaid() {
+    let byte: Rc<Cell<Option<i64>>> = Rc::new(Cell::new(None));
+    let mut titles = boxes::Titles::new(
+        {
+            let byte = byte.clone();
+            Rc::new(move || Ok(byte.get()))
+        },
+        Rc::new(|| Ok(Some((1..8).map(|n| format!("BOX {n}")).collect()))),
+    );
+    assert!(!titles.turned().unwrap()); // not in the Box
+    byte.set(Some(2));
+    assert!(titles.turned().unwrap());
+    titles.poll().unwrap();
+    assert!(!titles.turned().unwrap());
+    byte.set(Some(3));
+    assert!(titles.turned().unwrap());
+    byte.set(Some(0));
+    assert!(!titles.turned().unwrap());
+}

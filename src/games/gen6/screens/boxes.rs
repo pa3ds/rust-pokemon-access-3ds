@@ -148,6 +148,15 @@ impl Titles {
         Ok(Some(name))
     }
 
+    /// Has the byte turned to another box since the last poll? Asked every tick, one read or
+    /// two, so that a screen poll comes at each turn: polled only every 0.2 s, holding left or
+    /// right turned faster than that, and said BOX 2, BOX 6, BOX 7 (or_pc_box_bugs). Not a turn
+    /// to BOX 1, which `poll` says only once it has held a poll.
+    pub fn turned(&self) -> Result<bool> {
+        let byte = (self.shown)()?;
+        Ok(byte.is_some_and(|byte| Some(byte) != self.last && byte != 0))
+    }
+
     /// The words for a box the screen should leave unsaid this poll: while the byte names
     /// a box, every other box's name, a title written late, and its own name for `REPEAT_POLLS`
     /// after it was said from the byte.

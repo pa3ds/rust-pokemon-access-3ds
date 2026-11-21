@@ -1867,18 +1867,25 @@ impl Gen6Profile {
             }
         }
         // A menu's row moved: the screen is polled now, and each tick until its word is said.
-        phase(&*self.memory, "rows", || {
+        // The Box turned to another box: the screen is polled now, once, and the heap's whole
+        // sweep waits as it does for a cursor moving: one ran into a turn through the boxes, and
+        // BOX 4 and BOX 5 went unsaid (or_pc_box_bugs).
+        let turned = phase(&*self.memory, "rows", || {
             if self.rows.borrow_mut().moved()? {
                 self.chasing.set(rows::CHASE);
             }
-            Ok(())
+            Ok(match &self.box_titles {
+                None => false,
+                Some(titles) => titles.borrow().turned()?,
+            })
         })?;
-        if self.chasing.get() != 0 && !screen_polled {
+        self.moving.set(self.moving.get() || turned);
+        if (self.chasing.get() != 0 || turned) && !screen_polled {
             self.poll_screen()?;
             self.chasing.set(if self.cursor_said.get() {
                 0
             } else {
-                self.chasing.get() - 1
+                (self.chasing.get() - 1).max(0)
             });
             screen_polled = true;
         }
