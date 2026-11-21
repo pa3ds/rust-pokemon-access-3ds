@@ -310,3 +310,30 @@ fn test_a_game_not_measured_reads_nothing_nor_a_screen_with_no_cursor() {
     assert!(!field.moved().unwrap());
     assert_eq!(memory.reads.get(), 0);
 }
+
+/// ADR-0013: a contest's portraits say when the cursor moves between them, the entrant it picks
+/// read through `contest::Main`, checked by class (spike B on or_toughness_contest).
+#[test]
+fn test_a_contests_picked_entrant_is_read_from_its_appeal_ui() {
+    let memory = FakeMemory::new();
+    let classes = FakeClasses::new(memory.clone());
+    let [main, ui] = rows::CONTEST_UI;
+    memory.u32(PROCESS + main, &[WORK]);
+    memory.u32(WORK + ui, &[OTHER]);
+    memory.write(OTHER + rows::PICKED, &[7]); // the player's portrait, on the right
+    let mut contest = rows::Rows::new(
+        memory.clone(),
+        Rc::new(|| Some(rows::CONTEST.to_string())),
+        Rc::new(|| Some(PROCESS)),
+        Rc::new(|| Ok(Some(MENU))),
+        Rc::new(|| true),
+        None,
+        None,
+        None,
+    );
+    assert!(!contest.moved().unwrap()); // not its main yet
+    memory.u32(WORK, &[classes.add(rows::CONTEST_MAIN)]);
+    assert!(!contest.moved().unwrap());
+    memory.write(OTHER + rows::PICKED, &[6]); // the portrait to its left
+    assert!(contest.moved().unwrap());
+}

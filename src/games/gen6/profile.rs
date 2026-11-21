@@ -675,10 +675,20 @@ impl Gen6Profile {
         // ORAS's contests' appeals draw who stands where as portraits, said on the keys that say
         // a battle's sides.
         let standings: Option<Rc<RefCell<dyn StandingsReader>>> = game.standings.map(|make| {
-            make(memory.clone(), layouts.clone(), files.clone(), &text, {
-                let apps = apps.clone();
-                Rc::new(move || apps.borrow().running.clone())
-            })
+            make(
+                memory.clone(),
+                layouts.clone(),
+                files.clone(),
+                &text,
+                {
+                    let apps = apps.clone();
+                    Rc::new(move || apps.borrow().running.clone())
+                },
+                {
+                    let apps = apps.clone();
+                    Rc::new(move || apps.borrow().process)
+                },
+            )
         });
         let pauses = ui.pauses;
         // A Poké Mart's count, said whole at each change where the screen held it to a pause.
@@ -1913,6 +1923,7 @@ impl Gen6Profile {
     pub fn poll_screen_with(&self, hold: bool, with_choices: bool) -> Result<()> {
         // Set inside the phase, as Python's locals are.
         let mut box_mode: Option<String> = None;
+        let mut entrant: Option<String> = None;
         let mut box_title: Option<String> = None;
         let mut slots: Option<String> = None;
         let mut carried: Option<String> = None;
@@ -1964,9 +1975,10 @@ impl Gen6Profile {
                 .distribution_reader
                 .borrow_mut()
                 .poll(on_screen, in_townmap)?;
-            if let Some(standings) = &self.standings {
-                standings.borrow_mut().poll(on_screen)?;
-            }
+            entrant = match &self.standings {
+                None => None,
+                Some(standings) => standings.borrow_mut().poll(on_screen)?,
+            };
             self.map_cursor.borrow_mut().poll()?;
             box_mode = match &self.box_mode {
                 None => None,
@@ -2046,6 +2058,12 @@ impl Gen6Profile {
         if let Some(box_mode) = &box_mode {
             (self.log)(&format!("box mode: {box_mode}"));
             self.speech.say(box_mode, Category::Menu);
+        }
+        if let Some(entrant) = &entrant {
+            // A contest's portrait draws no words, and the panel names it a second and a half
+            // after the cursor comes onto it.
+            (self.log)(&format!("contest entrant: {entrant}"));
+            self.speech.say(entrant, Category::Menu);
         }
         if let Some(carried) = &carried {
             (self.log)(&format!("bag sort: {carried}"));

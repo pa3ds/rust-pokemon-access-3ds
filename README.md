@@ -59,8 +59,9 @@ the Game Boy games. Nothing here is taken from its code.
 - **A Poké Mart's count**, to buy or to sell, with its price, each time it changes: hold a key and
   every number is said as it passes, each cutting off the last. A jump of a page through the
   Mart's list with left or right says only the item it lands on.
-- **Contests and the Pokéblock Kit**: each move with its appeal and jamming, each entrant's
-  place, and your berries and blocks with how many you have.
+- **Contests and the Pokéblock Kit**: each move with its appeal and jamming, the entrant whose
+  portrait you move onto, before their moves, each entrant's place, and your berries and blocks
+  with how many you have.
 - **The Bag's own sort**: an item picked up with Y, said as you pick it up, and at each step the
   two it would land between.
 - **The Y button's menu**: each registered key item with the way that uses it, "up Mach Bike".

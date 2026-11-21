@@ -54,13 +54,20 @@
 //!                                      right, 3 before the first move, read with no cursor on
 //!                                      screen: the ball is told by its description (spike B on
 //!                                      or_opening and x_opening; upper::View +0xEC the same)
+//! contest::MainProc             +0x30  -> contest::Main, a contest's appeals
+//! contest::Main                 +0x30  -> contest::AppealUi
+//! contest::AppealUi            +0x24C  u8 the entrant the cursor has picked, 4 to 7 its portrait
+//!                                      left to right, kept as the cursor goes down into the
+//!                                      moves it shows: a move between portraits, not one onto
+//!                                      them (spike B on or_toughness_contest, Omega Ruby alone)
 //! ```
 //!
 //! The byte says when a row is chosen, never what: the words are still the screen's. Measured in
 //! Omega Ruby and X; a game whose offsets are not measured reads nothing here (`Game.menu_row`,
 //! `Game.options_row`, `Game.party_slot`), but for the keyboard's, the PC's, the move screens',
 //! the title menu's and the starter's, the same in both (spike B on x_move_reminder and
-//! x_title_screen for the move screens and the title menu).
+//! x_title_screen for the move screens and the title menu), and the contest's, which X and Y have
+//! none of.
 //!
 //! Bound by:
 //! - ADR-0013: a cursor source says which item is under the cursor and when it moved, the words
@@ -140,6 +147,12 @@ pub const STARTER_VIEWS: [i64; 2] = [0x3C, 0x80];
 pub const STARTER_VIEW: &str = "N3app11poke3select4ViewE";
 /// `lower::View` -> the ball under the cursor, in Omega Ruby and X (spike B).
 pub const BALL: i64 = 0xB4;
+pub const CONTEST: &str = "N7contest8MainProcE";
+/// A contest's appeals' process -> `contest::Main` -> its `contest::AppealUi`.
+pub const CONTEST_UI: [i64; 2] = [0x30, 0x30];
+pub const CONTEST_MAIN: &str = "N7contest4MainE";
+/// `AppealUi` -> the entrant the cursor has picked, its portrait 4 to 7 (spike B).
+pub const PICKED: i64 = 0x24C;
 /// The Move Reminder's list -> the row the cursor is on, a u32, and after it the rows scrolled
 /// away, an f32: both read, as a move down a long list changes the scroll alone.
 pub const LIST_ROW: i64 = 0x18;
@@ -165,7 +178,8 @@ pub fn controls(app: &str) -> Option<[i64; 3]> {
 }
 
 /// The row under the X menu's, the options screen's, the party's, the PC's or the move screens'
-/// cursor, or the key under the name entry's, read every tick.
+/// cursor, the key under the name entry's or the entrant a contest's has picked, read every
+/// tick.
 pub struct Rows {
     memory: Rc<dyn Memory>,
     running: Rc<dyn Fn() -> Option<String>>,
@@ -180,9 +194,10 @@ pub struct Rows {
     /// Where the row was read and what it read as it last moved, while it is still that menu's:
     /// none once another menu has taken the input.
     moved_to: Option<(i64, Vec<u8>)>,
-    /// The party's, the name entry's, the PC's, a move screen's, the title menu's or the
-    /// starter's process and the object holding its byte or its menus, once found: its class,
-    /// where it has one, is checked once a screen, and only what it holds read each tick after.
+    /// The party's, the name entry's, the PC's, a move screen's, the title menu's, the starter's
+    /// or a contest's process and the object holding its byte or its menus, once found: its
+    /// class, where it has one, is checked once a screen, and only what it holds read each tick
+    /// after.
     work: Option<(i64, i64)>,
     // ponytail: kept while the process is, so an app built again at the same address round
     // other objects reads the old ones until another app's row is looked for. Dropped at
@@ -328,6 +343,10 @@ impl Rows {
         if running.as_deref() == Some(REMEMBER) {
             let moves = self.found(&REMEMBER_LIST, Some(PARENT_VIEW))?;
             return Ok(moves.map(|moves| (moves + LIST_ROW, 8)));
+        }
+        if running.as_deref() == Some(CONTEST) {
+            let ui = self.found(&CONTEST_UI, Some(CONTEST_MAIN))?;
+            return Ok(ui.map(|ui| (ui + PICKED, 1)));
         }
         Ok(None)
     }

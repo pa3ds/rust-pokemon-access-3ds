@@ -71,8 +71,9 @@ pub trait StandingsReader {
     /// The dialogue pages just said, which name whose turn it is.
     fn heard(&mut self, texts: &[&str]);
 
-    /// Every screen poll, with every piece of screen text on screen.
-    fn poll(&mut self, on_screen: &[ScreenText]) -> Result<()>;
+    /// Every screen poll, with every piece of screen text on screen: the entrant the cursor
+    /// has just come onto, to say, or None.
+    fn poll(&mut self, on_screen: &[ScreenText]) -> Result<Option<String>>;
 
     /// The player's standing, or everyone else's; None out of a competition. Python's `pauses`
     /// defaults to False.
@@ -158,6 +159,7 @@ pub type StandingsFactory = fn(
     Rc<LayoutFiles>,
     &GameText,
     Rc<dyn Fn() -> Option<String>>,
+    Rc<dyn Fn() -> Option<i64>>,
 ) -> Rc<RefCell<dyn StandingsReader>>;
 /// `Callable[[Memory, ClassNames, Layouts, LayoutFiles, RunningApp, GameText, Speech,
 /// Callable[[str], None], bool], ConditionsReader]`.
@@ -301,8 +303,8 @@ pub struct Game {
     /// holds that value. The Team Flare Secret HQ's lift (spike 266).
     pub armed_warps: IndexMap<(i64, i64), (i64, i64)>,
     /// The reader of who stands where in its competitions, built from the memory, the layouts
-    /// and their files, the ROM's words and the app running, or None in a game with none: ORAS's
-    /// contests (`oras.screens.contest`).
+    /// and their files, the ROM's words, the app running and its process, or None in a game with
+    /// none: ORAS's contests (`oras.screens.contest`).
     pub standings: Option<StandingsFactory>,
     /// The reader of a Pokémon's contest conditions, built as the Extra is turned on, or None in
     /// a game that draws none: ORAS's (`oras.screens.conditions`).

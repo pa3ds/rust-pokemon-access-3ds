@@ -1,6 +1,6 @@
 //! A contest's standings, from its portraits as spike 196 read them (movie33).
 
-use crate::games::oras::screens::contest::{Portrait, by_turn, named_in, standings};
+use crate::games::oras::screens::contest::{Portrait, by_turn, entrant, named_in, standings};
 use crate::py::Result;
 
 /// The images the portraits' backgrounds draw: the player's is unlike the others'.
@@ -139,4 +139,41 @@ fn test_the_first_rounds_appeals_name_its_portraits_left_to_right_but_the_player
             ("tailster".to_string(), rival("Gianna", "Tailster")),
         ])
     );
+}
+
+/// The game names the Pokémon of the portrait the cursor picks the moment it is picked (spike
+/// B on or_toughness_contest): its trainer from the contests' entrants, the two as the card
+/// wrote them.
+#[test]
+fn test_a_portrait_is_named_by_its_pokemon_as_its_entry_card_wrote_it() {
+    let rivals = [
+        rival("Micah", "Poochin"),
+        rival("Jordyn", "Seedottie"),
+        rival("Ali", "Macherie"),
+        rival("Gina", "Macherie"),
+    ];
+    let cards = indexmap::IndexMap::from([
+        (rival("Jordyn", "Seedottie"), "Jordyn & Seedottie"),
+        (rival("Gina", "Macherie"), "Gina & Macherie"),
+    ]);
+    let card = |trainer: &str, pokemon: &str| -> Option<String> {
+        cards.get(&rival(trainer, pokemon)).map(|words| words.to_string())
+    };
+    assert_eq!(
+        entrant("Seedottie", &rivals, &card),
+        Some("Jordyn & Seedottie".to_string())
+    );
+    // No card shown for it: the trainer and the Pokémon joined.
+    assert_eq!(
+        entrant("Poochin", &rivals, &card),
+        Some("Micah & Poochin".to_string())
+    );
+    // A name two rivals share is told apart by the card shown.
+    assert_eq!(
+        entrant("Macherie", &rivals, &card),
+        Some("Gina & Macherie".to_string())
+    );
+    assert_eq!(entrant("Macherie", &rivals, &|_t, _p| None), None);
+    // The player's own is no rival's.
+    assert_eq!(entrant("Metagross", &rivals, &card), None);
 }
