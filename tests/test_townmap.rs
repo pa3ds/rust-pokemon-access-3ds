@@ -459,3 +459,20 @@ fn test_trainer_s_eye_s_place_block_is_the_layout_naming_the_area() {
         HashSet::from([1, 2])
     );
 }
+
+/// A game whose map's place is not measured says no place, and Berry Trees' times are still
+/// said with their berries alone.
+#[test]
+fn test_the_areanav_unmeasured_still_leaves_berry_times_to_their_berries() {
+    let (_, views) = berry_list(1);
+    views.put_away(&IndexMap::new()).unwrap();
+    let mut areanav = townmap::AreaNav::new(Rc::new(RefCell::new(views)), None);
+    let time = ScreenText {
+        top: true,
+        root: 0x1,
+        ..ScreenText::new(9, "12 hours", true)
+    };
+    assert!(!areanav.turned().unwrap());
+    assert_eq!(areanav.title().unwrap(), None);
+    assert_eq!(areanav.unsaid(&[time]), HashSet::from([9]));
+}

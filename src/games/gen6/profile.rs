@@ -334,7 +334,7 @@ pub struct Gen6Profile {
     pub partners: Rc<RefCell<Partners>>,
     box_mode: Option<RefCell<boxes::Mode>>,
     box_titles: Option<RefCell<boxes::Titles>>,
-    places: Option<RefCell<townmap::Places>>,
+    areanav: RefCell<townmap::AreaNav>,
     registered: Option<RefCell<registered::Registered>>,
     bag_sort: RefCell<bag_sort::BagSort>,
     bag: Option<Rc<RefCell<bag::Chosen>>>,
@@ -354,7 +354,6 @@ pub struct Gen6Profile {
     cursor_shown: Rc<Cell<bool>>,
     mart: RefCell<mart::Jumps>,
     xy_list: RefCell<pokedex::XyList>,
-    list_rows: RefCell<townmap::ListRows>,
     search_rows: RefCell<scrolled::Scrolled>,
     oras_list: RefCell<pokedex::OrasList>,
     screens: Option<RefCell<Box<dyn ScreensReader>>>,
@@ -681,6 +680,22 @@ impl Gen6Profile {
             memory.clone(),
             names.clone(),
         )));
+        // The place under its map cursor, said from its MapView before the top screen names it
+        // (spike 309), and the lists drawn over the map.
+        let areanav = RefCell::new(townmap::AreaNav::new(
+            views.clone(),
+            game.map_view.map(|map_view| {
+                let map_areas = text.map_areas.clone();
+                let (running, process) = (apps.clone(), apps.clone());
+                townmap::Places::new(
+                    memory.clone(),
+                    Rc::new(move || running.borrow().running.clone()),
+                    Rc::new(move || process.borrow().process),
+                    Rc::new(move |index: i64| map_areas.get(&index).cloned()),
+                    map_view,
+                )
+            }),
+        ));
         // So does the Move Reminder of the page of moves' effects it is not drawing.
         let reminder = RefCell::new(reminder::Pages::new(
             memory.clone(),
@@ -789,9 +804,7 @@ impl Gen6Profile {
         ));
         // X's Pokédex list says an entry by its number alone; the top screen's panel names it.
         let xy_list = RefCell::new(pokedex::XyList::new());
-        // The AreaNav's lists' moves along rows reading alike, Lum Berry after Lum Berry.
-        let list_rows = RefCell::new(townmap::ListRows::new());
-        // And search and sort's, its dashes after another field's.
+        // Search and sort's moves along rows reading alike, its dashes after another field's.
         let search_rows = RefCell::new(scrolled::Scrolled::new());
         // Omega Ruby's says its entry from the list's own rows, the tick it is chosen (spike 310).
         let oras_list = RefCell::new(pokedex::OrasList::new(
@@ -941,19 +954,7 @@ impl Gen6Profile {
                 Rc::new(move || occupants.borrow().names()),
             ))
         });
-        // The place under the AreaNav's map cursor, said from its MapView before the top screen
-        // names it (spike 309).
-        let places = game.map_view.map(|map_view| {
-            let map_areas = text.map_areas.clone();
-            let (running, process) = (apps.clone(), apps.clone());
-            RefCell::new(townmap::Places::new(
-                memory.clone(),
-                Rc::new(move || running.borrow().running.clone()),
-                Rc::new(move || process.borrow().process),
-                Rc::new(move |index: i64| map_areas.get(&index).cloned()),
-                map_view,
-            ))
-        });
+
         // Omega Ruby's boy and girl are portraits the game never names, said in pa3ds's words
         // (`pictures.named`).
         // A cursor over pictures alone says what the game calls them, by the image or by the
@@ -1544,7 +1545,7 @@ impl Gen6Profile {
             partners,
             box_mode,
             box_titles,
-            places,
+            areanav,
             registered,
             bag_sort,
             bag,
@@ -1560,7 +1561,6 @@ impl Gen6Profile {
             cursor_shown,
             mart,
             xy_list,
-            list_rows,
             search_rows,
             oras_list,
             screens,
@@ -2027,11 +2027,7 @@ impl Gen6Profile {
                 Some(titles) => titles.borrow().turned()?,
             };
             // The AreaNav's map cursor came onto another place: the screen is polled now, once.
-            Ok(turned
-                || match &self.places {
-                    None => false,
-                    Some(places) => places.borrow_mut().turned()?,
-                })
+            Ok(turned || self.areanav.borrow_mut().turned()?)
         })?;
         self.moving.set(self.moving.get() || turned);
         if (self.chasing.get() != 0 || turned) && !screen_polled {
@@ -2066,7 +2062,6 @@ impl Gen6Profile {
         let mut entrant: Option<String> = None;
         let mut box_title: Option<String> = None;
         let mut place: Option<String> = None;
-        let mut area: Option<String> = None;
         let mut slots: Option<String> = None;
         let mut carried: Option<String> = None;
         let mut count: Option<String> = None;
@@ -2133,10 +2128,7 @@ impl Gen6Profile {
                 None => None,
                 Some(titles) => titles.borrow_mut().poll()?,
             };
-            place = match &self.places {
-                None => None,
-                Some(places) => places.borrow_mut().poll(self.views.borrow().listing())?,
-            };
+            place = self.areanav.borrow_mut().title()?;
             slots = match &self.registered {
                 None => None,
                 Some(reader) => reader.borrow_mut().poll(self.layouts.roots())?,
@@ -2195,23 +2187,7 @@ impl Gen6Profile {
                 on_screen,
                 &self.text.search_labels,
             );
-            area = match &self.places {
-                None => None,
-                Some(places) => places.borrow().current(),
-            };
-            cursors = self.list_rows.borrow_mut().poll(
-                cursors,
-                self.views.borrow().list_drawn(),
-                area.as_deref(),
-                on_screen,
-            );
-            if let Some(area) = &area
-                && self.views.borrow().listing()
-            {
-                // A list over the AreaNav's map says each row's place: said as the area as the
-                // map moves to it, and not again with its rows.
-                cursors = townmap::unplaced(cursors, area);
-            }
+            cursors = self.areanav.borrow_mut().cursors(cursors, on_screen);
             if self.chasing.get() != 0
                 && cursors.items.is_empty()
                 && self.apps.borrow().running.as_deref() == Some(boxes::APP)
@@ -2281,14 +2257,7 @@ impl Gen6Profile {
             &cursors,
             &self.text.search_labels,
         ));
-        let drawn = self.views.borrow().list_drawn();
-        if let Some(area) = &area
-            && drawn == Some(townmap::TRAINERS)
-        {
-            // Trainer's Eye's area is said as it changes, its words above the card no more.
-            unsaid.extend(townmap::place_block(&screen.on_screen, area));
-        }
-        unsaid.extend(townmap::berry_times(&screen.on_screen, drawn));
+        unsaid.extend(self.areanav.borrow().unsaid(&screen.on_screen));
         let mut texts: Vec<ScreenText> = Vec::new();
         for text in &screen.texts {
             if !self.battle.borrow().owns(text)?

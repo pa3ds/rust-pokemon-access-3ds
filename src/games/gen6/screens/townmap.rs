@@ -41,7 +41,7 @@
 //!   only as it changes, a berry with its time; a view not drawn is put away, its cursor's
 //!   layout too.
 
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::collections::HashSet;
 use std::rc::Rc;
 
@@ -473,6 +473,77 @@ impl ListRows {
             chased,
             ..cursors
         }
+    }
+}
+
+/// What the AreaNav makes of a screen poll: the place under its map's cursor said as a title
+/// (`Places`), the lists drawn over the map read row by row (`ListRows`) without the area said
+/// already, and the words they make the screen's no more. `places` is None in a game whose
+/// `MapView` is not measured: the place is then the screen's alone.
+pub struct AreaNav {
+    views: Rc<RefCell<Views>>,
+    places: Option<Places>,
+    rows: ListRows,
+}
+
+impl AreaNav {
+    pub fn new(views: Rc<RefCell<Views>>, places: Option<Places>) -> Self {
+        AreaNav {
+            views,
+            places,
+            rows: ListRows::new(),
+        }
+    }
+
+    /// Every tick: has the map's cursor come onto another place (`Places.turned`)?
+    pub fn turned(&mut self) -> Result<bool> {
+        match &mut self.places {
+            None => Ok(false),
+            Some(places) => places.turned(),
+        }
+    }
+
+    /// Every screen poll, before the cursors: the place the cursor has just come onto.
+    pub fn title(&mut self) -> Result<Option<String>> {
+        match &mut self.places {
+            None => Ok(None),
+            Some(places) => {
+                let listing = self.views.borrow().listing();
+                places.poll(listing)
+            }
+        }
+    }
+
+    /// The cursors, a list over the map read row by row, each row without its area.
+    pub fn cursors(&mut self, cursors: CursorPoll, on_screen: &[ScreenText]) -> CursorPoll {
+        let area = self.area();
+        let drawn = self.views.borrow().list_drawn();
+        let mut cursors = self.rows.poll(cursors, drawn, area.as_deref(), on_screen);
+        if let Some(area) = &area
+            && self.views.borrow().listing()
+        {
+            // A list over the AreaNav's map says each row's place: said as the area as the map
+            // moves to it, and not again with its rows.
+            cursors = unplaced(cursors, area);
+        }
+        cursors
+    }
+
+    /// The boxes of the words the lists over the map leave unsaid.
+    pub fn unsaid(&self, on_screen: &[ScreenText]) -> HashSet<i64> {
+        let (area, drawn) = (self.area(), self.views.borrow().list_drawn());
+        // Trainer's Eye's area is said as it changes, its words above the card no more.
+        let mut unsaid = berry_times(on_screen, drawn);
+        if let Some(area) = &area
+            && drawn == Some(TRAINERS)
+        {
+            unsaid.extend(place_block(on_screen, area));
+        }
+        unsaid
+    }
+
+    fn area(&self) -> Option<String> {
+        self.places.as_ref().and_then(|places| places.current())
     }
 }
 
