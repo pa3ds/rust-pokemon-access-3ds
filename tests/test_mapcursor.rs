@@ -26,8 +26,7 @@ fn place(fake: &FakeLayouts, pane: i64, x: f64, y: f64, width: f64, height: f64)
         (shape.scale_x, 1.0),
         (shape.scale_y, 1.0),
     ] {
-        fake.memory
-            .write(pane + at, &(value as f32).to_le_bytes());
+        fake.memory.write(pane + at, &(value as f32).to_le_bytes());
     }
 }
 

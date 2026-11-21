@@ -176,9 +176,7 @@ fn test_the_fitting_rooms_cursor_owns_the_layouts_it_walks_as_they_open() {
         &[],
     );
     assert_eq!(said.texts, vec![changed.clone(), other.clone()]);
-    assert!(
-        said.lead == said.reread && said.reread == said.rewritten && said.rewritten.is_empty()
-    );
+    assert!(said.lead == said.reread && said.reread == said.rewritten && said.rewritten.is_empty());
     let elsewhere = sources_of(rows::OPTIONS, Rc::new(Cell::new(None)));
     assert_eq!(
         elsewhere

@@ -185,7 +185,6 @@ pub const XY: Shape = Shape {
     party_slot: XY_PARTY_SLOT,
 };
 
-
 /// `CONTROLS[app]`: the hops to an app's control block, where it has one.
 pub fn controls(app: &str) -> Option<[i64; 3]> {
     CONTROLS
@@ -379,7 +378,6 @@ impl Rows {
         }
         Ok(None)
     }
-
 
     /// Where `hops` lead from the process, once the object its first hop leads to is of class
     /// `name`, where it has one.

@@ -298,14 +298,31 @@ fn test_an_egg_and_the_pokemon_after_it_are_switches_not_turns() {
     assert_eq!(pages.hidden(), roots(&[CONTEST, MEMO]));
 }
 
-
 #[test]
 fn test_check_moves_says_each_move_in_the_shown_pages_words_with_its_row() {
     let (memory, _, mut pages) = summary_of();
     let pages = &mut pages;
-    poll_with(&memory, pages, Some(CONTEST_MOVES), METAGROSS, (0, IRON_HEAD));
-    poll_with(&memory, pages, Some(CONTEST_MOVES), METAGROSS, (0, IRON_HEAD));
-    poll_with(&memory, pages, Some(CONTEST_MOVES), METAGROSS, (0, IRON_HEAD));
+    poll_with(
+        &memory,
+        pages,
+        Some(CONTEST_MOVES),
+        METAGROSS,
+        (0, IRON_HEAD),
+    );
+    poll_with(
+        &memory,
+        pages,
+        Some(CONTEST_MOVES),
+        METAGROSS,
+        (0, IRON_HEAD),
+    );
+    poll_with(
+        &memory,
+        pages,
+        Some(CONTEST_MOVES),
+        METAGROSS,
+        (0, IRON_HEAD),
+    );
     let battle = piece(WAZA, "Iron Head", 1);
     let name = ScreenText {
         parent: CONTEST + 0x40,
@@ -315,7 +332,11 @@ fn test_check_moves_says_each_move_in_the_shown_pages_words_with_its_row() {
         parent: CONTEST + 0x40,
         ..piece(CONTEST, "Toughness", 3)
     };
-    let cursors = cursors_of(vec![CursorItem::new(0x1, vec![battle, kind.clone()], false)]);
+    let cursors = cursors_of(vec![CursorItem::new(
+        0x1,
+        vec![battle, kind.clone()],
+        false,
+    )]);
     let rowed = pages.rowed(cursors, &[name.clone(), kind.clone()]);
     assert_eq!(
         rowed

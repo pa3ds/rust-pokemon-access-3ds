@@ -81,9 +81,7 @@ use crate::games::gen6::field::reader::{FieldReader, MOVE_MODEL_CLASS};
 use crate::games::gen6::field::speaker::SpeakerReader;
 use crate::games::gen6::field::{camera, mapblock, talk};
 use crate::games::gen6::game::MemoriesReader;
-use crate::games::gen6::game::{
-    ConditionsReader, Game, OpeningReader, OwnApp, StandingsReader,
-};
+use crate::games::gen6::game::{ConditionsReader, Game, OpeningReader, OwnApp, StandingsReader};
 use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::rom::cries::Crier;
 use crate::games::gen6::rom::textures;
@@ -1929,12 +1927,12 @@ impl Gen6Profile {
                 self.subscreens.poll(running.as_deref(), touch)?
             };
             let found = self.cursors.borrow_mut().poll(on_screen)?;
-            let polled = self.sources.borrow_mut().poll(
-                &screen,
-                found,
-                self.chasing.get() != 0,
-                &|| self.battle.borrow().shiny(),
-            )?;
+            let polled =
+                self.sources
+                    .borrow_mut()
+                    .poll(&screen, found, self.chasing.get() != 0, &|| {
+                        self.battle.borrow().shiny()
+                    })?;
             Ok((screen, sides, party, listed, played, polled))
         })?;
         let (screen, sides, party, listed, played, polled) = polled;
@@ -2886,7 +2884,6 @@ pub fn dragged(sounds: Option<Rc<Clips>>) -> Option<Rc<dyn Fn(bool)>> {
 fn in_a_heap(address: i64) -> bool {
     within(HEAP_SPAN, address) || within(LINEAR_SPAN, address)
 }
-
 
 impl Profile for Gen6Profile {
     fn track(&self, found: &Found) -> Result<()> {

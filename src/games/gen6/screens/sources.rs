@@ -102,7 +102,6 @@ pub struct Polled {
     pub labels: HashSet<String>,
 }
 
-
 /// The poll's cursors and words as the sources leave them, and how the announcer is to hear
 /// them (`ScreenAnnouncer.say`).
 #[derive(Debug, Clone, PartialEq)]
@@ -200,12 +199,9 @@ impl CursorSources {
             .r#box
             .map(|r#box| boxes::Mode::new(memory.clone(), r#box.mode, box_process));
         // The box turned to, said from the Box's byte before its title is written (spike 298).
-        let box_titles = shapes.r#box.map(|_| {
-            boxes::Titles::new(
-                box_shown,
-                Rc::new(move || occupants.borrow().names()),
-            )
-        });
+        let box_titles = shapes
+            .r#box
+            .map(|_| boxes::Titles::new(box_shown, Rc::new(move || occupants.borrow().names())));
         let bag = shapes.bag.clone().map(|shape| {
             let apps = apps.clone();
             Rc::new(RefCell::new(bag::Chosen::new(
