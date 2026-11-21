@@ -2006,7 +2006,7 @@ fn test_a_count_is_said_once_its_panel_names_it_and_with_it_as_it_comes_back() {
         &cat(&[&figy, &[name.clone(), words.clone()]]),
     ));
     said.extend(screen.say(args(
-        &[figy_name.clone()],
+        std::slice::from_ref(&figy_name),
         vec![],
         &cat(&[&figy, &[figy_name.clone(), words.clone()]]),
     )));

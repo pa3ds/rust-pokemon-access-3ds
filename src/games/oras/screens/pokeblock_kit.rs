@@ -67,7 +67,7 @@ pub fn hidden(sequence: i64) -> Vec<&'static str> {
     match sequence {
         3 | 4 | 5 | 6 | 8 => BLENDER_FILES.to_vec(),
         7 => CASE_FILES.to_vec(),
-        9 | 0xA | 0xB => [CASE_FILES.as_slice(), BLENDER_FILES.as_slice()].concat(),
+        9..=0xB => [CASE_FILES.as_slice(), BLENDER_FILES.as_slice()].concat(),
         _ => Vec::new(),
     }
 }
