@@ -898,13 +898,30 @@ fn test_typing_restarted_under_another_tag_processor_is_not_heard_again() {
     assert_eq!(scene.said(), texts(&[]));
 }
 
+/// X's fitting room asks its question in a window that shows nothing of its own: the screen
+/// text reader says it, as it comes and goes (x_dendemille_fitting_room).
 #[test]
-fn test_text_written_where_none_of_the_windows_own_lines_are_left_is_not_said() {
+fn test_text_written_where_none_of_the_windows_own_lines_are_left_is_the_screens() {
     let mut scene = described();
+    let objects = |scene: &Scene| {
+        scene
+            .reader
+            .line_objects()
+            .iter()
+            .collect::<HashSet<i64>>()
+    };
+    assert_eq!(objects(&scene), HashSet::from(BOXES));
     scene.tag(1, SCREEN_TAG);
     scene.write_over("Something else\nentirely.");
     scene.said();
     assert_eq!(scene.said(), texts(&[]));
+    assert_eq!(objects(&scene), HashSet::new());
+    scene.tag(1, 0);
+    scene.said();
+    assert_eq!(objects(&scene), HashSet::from([BOXES[1]]));
+    scene.reopen();
+    scene.said();
+    assert_eq!(objects(&scene), HashSet::from(BOXES));
 }
 
 /// Such a sweep says what is new and nothing of what is gone (spike 110).

@@ -324,6 +324,8 @@ impl DialogueReader {
     ///
     /// They are layout TextBoxes like any other, so the screen text reader would see every
     /// character typed into them; it leaves these to this reader, which says them a page at a time.
+    /// Not the lines a screen writes into a window showing nothing of its own, which are the
+    /// screen's.
     ///
     /// Python returns a `set`, iterated by the reader of screen text; `PySet` iterates it as
     /// Python does.
@@ -381,6 +383,20 @@ impl DialogueReader {
             if *tag != 0 && *tag != own && self.window_of(*tag)?.is_some() {
                 return Ok(gone(progress, "again after its lines were taken over"));
             }
+        }
+        if !typed.iter().any(|(tag, _)| *tag == own) {
+            // A window showing nothing of its own leaves what its screen writes into its lines to
+            // the screen text reader, which hears it come and go: X's fitting room asks "Do you
+            // want to quit without changing clothes?" in its message window's one line, under a
+            // tag processor of the app's, the window's own message empty, and neither reader
+            // said it (x_dendemille_fitting_room).
+            let kept: Vec<i64> = boxes
+                .iter()
+                .zip(&typed)
+                .filter(|(_, (tag, _))| *tag == 0)
+                .map(|(r#box, _)| *r#box)
+                .collect();
+            self.lines.insert(address, kept);
         }
 
         let buffer = u32(&head, msgwin::MESSAGE)?;
