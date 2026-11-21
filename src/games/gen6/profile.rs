@@ -1026,14 +1026,17 @@ impl Gen6Profile {
                 }),
                 Some({
                     let (apps, labels) = (apps.clone(), text.search_labels.clone());
-                    Rc::new(move |rect: &Rect, on_screen: &[ScreenText]| {
-                        pokedex::blank(
-                            apps.borrow().running.as_deref(),
-                            rect,
-                            on_screen,
-                            &labels,
-                        )
-                    }) as Blank
+                    Rc::new(
+                        move |rect: &Rect, on_screen: &[ScreenText], framed: &[ScreenText]| {
+                            pokedex::blank(
+                                apps.borrow().running.as_deref(),
+                                rect,
+                                on_screen,
+                                framed,
+                                &labels,
+                            )
+                        },
+                    ) as Blank
                 }),
             )
         };

@@ -62,6 +62,9 @@ pub const SHOWN: i64 = ROWS + 3 * RECORD;
 /// Ticks the index holds before its entry is said: a jump of seven steps it on by one or two
 /// every tick or two (spike N), and a step holds from the first.
 pub const STILL_TICKS: i64 = 4;
+/// Words with no letter or digit: a search field's or a picker's choice of none, its dashes.
+/// Anchored at both ends, as Python's `fullmatch` is.
+pub static WORDLESS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[^\w]+$").unwrap());
 /// A list row's words: the entry's number in the Pokédex shown, three digits. Anchored at both
 /// ends, as Python's `fullmatch` is.
 pub static NUMBER: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\d{3}$").unwrap());
@@ -214,9 +217,10 @@ fn line(
 /// Search and sort in both games is a table, each field's name at its row's left and its value
 /// beside it, and the cursor frames the value alone: a field not set was its dashes alone, and
 /// which of NAME, COLOR, APPEARANCE or ENCOUNTERS it was went unsaid (or_pokedex, x_pokedex);
-/// one set, its letter alone, "A". The labels are the game's text's (`GameText.search_labels`):
-/// the type grid's "Fighting" has "Normal" beside it, no label, and a picker's choices are on
-/// rows under its label's.
+/// one set, its letter alone, "A". The labels are the game's text's (`GameText.search_labels`),
+/// the table's, and a picker's for its choice of none alone, its dashes on the label's row,
+/// "APPEARANCE" and its dashes: the type grid's "Fighting" has "Normal" beside it, no label, and a
+/// picker's label stands beside whichever choice scrolls onto its row, "TYPE Psychic".
 pub fn labelled(
     running: Option<&str>,
     cursors: CursorPoll,
@@ -226,10 +230,7 @@ pub fn labelled(
     if running != Some(APP) && running != Some(ORAS_APP) {
         return cursors;
     }
-    let roots: HashSet<i64> = tables(on_screen, labels)
-        .iter()
-        .map(|&(root, _panel)| root)
-        .collect();
+    let roots = table_roots(on_screen, labels);
     let mut items: Vec<CursorItem> = Vec::new();
     for item in &cursors.items {
         let first = item.pieces.first();
@@ -261,6 +262,7 @@ pub fn labelled(
                 && (p.row - first.row).abs() < ONE_LINE
                 && p.left < first.left
                 && labels.contains(&p.text)
+                && (roots.contains(&p.root) || WORDLESS.is_match(&join(&item.pieces, false)))
                 && label.is_none_or(|best| p.left > best.left)
             {
                 label = Some(p);
@@ -277,18 +279,22 @@ pub fn labelled(
     CursorPoll { items, ..cursors }
 }
 
-/// The label of the search field a menu cursor frames with nothing in it (`menu.Blank`):
+/// The label of the search field a menu cursor frames with no words in it (`menu.Blank`):
 /// TYPE's two and SHAPE's are blank until set, and the cursor on them said nothing
-/// (or_pokedex). Its label is left of it on its row.
+/// (or_pokedex); SHAPE set, its shape alone, "Finned" (heard in play). Its label is left of it
+/// on its row: the table's for a picture `framed`, and for nothing framed a picker's too, its
+/// blank row beside its label, the choice of none.
 pub fn blank(
     running: Option<&str>,
     rect: &Rect,
     on_screen: &[ScreenText],
+    framed: &[ScreenText],
     labels: &HashSet<String>,
 ) -> Vec<ScreenText> {
     if running != Some(APP) && running != Some(ORAS_APP) {
         return Vec::new();
     }
+    let roots = (!framed.is_empty()).then(|| table_roots(on_screen, labels));
     // `max(left, key=left)`: the first of equal bests, as Python's.
     let mut best: Option<&ScreenText> = None;
     for p in on_screen {
@@ -297,6 +303,7 @@ pub fn blank(
             && rect.low <= p.row
             && p.row <= rect.high
             && p.right <= rect.left
+            && roots.as_ref().is_none_or(|roots| roots.contains(&p.root))
             && best.is_none_or(|best| p.left > best.left)
         {
             best = Some(p);
@@ -349,9 +356,22 @@ pub fn search_roots(
     if running != Some(APP) && running != Some(ORAS_APP) {
         return HashSet::new();
     }
-    tables(on_screen, labels)
-        .iter()
-        .map(|&(root, _panel)| root)
+    table_roots(on_screen, labels)
+}
+
+/// The layouts showing search and sort's table: two labels or more on screen. A picker opened
+/// hides the table and shows its own one label, and the table scrolled puts APPEARANCE and
+/// ENCOUNTERS in a panel of their own, one of them now and then alone in it (or_pokedex).
+fn table_roots(on_screen: &[ScreenText], labels: &HashSet<String>) -> HashSet<i64> {
+    let mut held: IndexMap<i64, HashSet<&str>> = IndexMap::new();
+    for p in on_screen {
+        if labels.contains(&p.text) {
+            held.entry(p.root).or_default().insert(p.text.as_str());
+        }
+    }
+    held.iter()
+        .filter(|(_, words)| words.len() > 1)
+        .map(|(&root, _)| root)
         .collect()
 }
 

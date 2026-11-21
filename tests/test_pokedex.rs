@@ -114,9 +114,12 @@ fn test_another_app_is_left_as_it_is() {
     );
 }
 
-/// `frozenset({"NAME", "COLOR"})`.
+/// `frozenset({"NAME", "COLOR", "SHAPE", "TYPE"})`.
 fn labels() -> HashSet<String> {
-    HashSet::from(["NAME".to_string(), "COLOR".to_string()])
+    ["NAME", "COLOR", "SHAPE", "TYPE"]
+        .iter()
+        .map(|label| label.to_string())
+        .collect()
 }
 
 /// Search and sort frames a field's value alone: one not set said only its dashes, one set
@@ -124,6 +127,7 @@ fn labels() -> HashSet<String> {
 /// left out.
 #[test]
 fn test_a_search_field_is_said_with_its_label() {
+    let other_row = piece(9, "NAME", false, 38.0, -150.0, PANEL);
     let label = piece(1, "COLOR", false, -22.0, -150.0, PANEL);
     let normal = ScreenText {
         picture: true,
@@ -144,7 +148,15 @@ fn test_a_search_field_is_said_with_its_label() {
     };
     for (value, said) in [(&unset, "COLOR ---"), (&red, "COLOR Red")] {
         assert_eq!(
-            one(value, &[label.clone(), normal.clone(), value.clone()]),
+            one(
+                value,
+                &[
+                    label.clone(),
+                    other_row.clone(),
+                    normal.clone(),
+                    value.clone()
+                ]
+            ),
             said
         );
     }
@@ -400,15 +412,72 @@ fn test_a_blank_field_is_said_by_its_label() {
         Some(pokedex::ORAS_APP),
         &rect,
         &[label.clone(), other.clone()],
+        &[],
         &labels(),
     );
     assert_eq!(said, vec![label.clone()]);
     assert_eq!(
-        pokedex::blank(Some(pokedex::ORAS_APP), &rect, &[other], &labels()),
+        pokedex::blank(Some(pokedex::ORAS_APP), &rect, &[other], &[], &labels()),
         Vec::new()
     );
     assert_eq!(
-        pokedex::blank(Some("N3app4bag4ProcE"), &rect, &[label], &labels()),
+        pokedex::blank(Some("N3app4bag4ProcE"), &rect, &[label], &[], &labels()),
         Vec::new()
+    );
+}
+
+/// SHAPE set said its shape alone, "Finned" (heard in play); a picker's label stands beside
+/// whichever choice scrolls onto its row, and is said only for its blank row.
+#[test]
+fn test_a_picture_framed_takes_the_table_s_label_alone() {
+    let at = |r#box: i64, text: &str, row: f64, left: f64, right: f64, root: i64| ScreenText {
+        right,
+        ..piece(r#box, text, false, row, left, root)
+    };
+    let shape = at(1, "SHAPE", 8.0, -150.0, -110.0, PANEL);
+    let color = at(2, "COLOR", 38.0, -150.0, -110.0, PANEL);
+    let picker = at(3, "TYPE", 8.0, -160.0, -120.0, PANEL + 0x100);
+    let finned = ScreenText {
+        root: PANEL,
+        picture: true,
+        ..ScreenText::new(4, "Finned", false)
+    };
+    let rect = Rect {
+        top: false,
+        left: 0.0,
+        right: 120.0,
+        low: -5.0,
+        high: 20.0,
+    };
+    let framed = [finned];
+    assert_eq!(
+        pokedex::blank(
+            Some(pokedex::ORAS_APP),
+            &rect,
+            &[shape.clone(), color],
+            &framed,
+            &labels()
+        ),
+        vec![shape]
+    );
+    assert_eq!(
+        pokedex::blank(
+            Some(pokedex::ORAS_APP),
+            &rect,
+            &[picker.clone()],
+            &framed,
+            &labels()
+        ),
+        Vec::new()
+    );
+    assert_eq!(
+        pokedex::blank(
+            Some(pokedex::ORAS_APP),
+            &rect,
+            &[picker.clone()],
+            &[],
+            &labels()
+        ),
+        vec![picker]
     );
 }

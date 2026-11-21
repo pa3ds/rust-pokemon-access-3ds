@@ -31,9 +31,10 @@ use crate::py::{self, Result};
 /// Units a cursor's width or height may differ from the pane it sits on: the Bag's is 157 by 42
 /// on rows of 150 by 30, the Pokéblock Case's 52 by 52 on cells of 50 by 50 (spike 196).
 pub const ON_PANE: f64 = 16.0;
-/// What a menu cursor framing no words and no named picture is on, from its rectangle and the
-/// words of its layout on screen, or none: the screen's own knowledge of a field left blank.
-pub type Blank = Rc<dyn Fn(&Rect, &[ScreenText]) -> Vec<ScreenText>>;
+/// What a menu cursor framing no words is on, from its rectangle, the words of its layout on
+/// screen and the named pictures it frames, or none, said before those pictures: the screen's own
+/// knowledge of a field left blank or shown as a picture.
+pub type Blank = Rc<dyn Fn(&Rect, &[ScreenText], &[ScreenText]) -> Vec<ScreenText>>;
 
 /// The windows that are an app menu's cursor, each read on every poll once found.
 pub struct MenuCursors {
@@ -127,13 +128,15 @@ impl MenuCursors {
                     })
                     .map(|piece| piece.r#box),
             );
-            if inside.is_empty()
-                && let Some(blank) = &self.blank
+            if let Some(blank) = &self.blank
+                && inside.iter().all(|piece| piece.picture)
             {
                 // A field with nothing in it, said by what its screen names it: the Pokédex's
                 // search and sort frames TYPE's and SHAPE's values alone, blank until set, and
                 // the cursor on them said nothing (or_pokedex). Words beside it, no row of its.
-                inside = blank(&rect, &theirs);
+                // So with a picture alone: SHAPE set said its shape without its label, "Fins"
+                // (heard in play).
+                inside = [blank(&rect, &theirs, &inside), inside].concat();
             }
             let at = place_of(&rect)?;
             let said = self.said.said.borrow().get(&cursor).cloned();
