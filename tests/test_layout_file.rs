@@ -4,7 +4,10 @@ use indexmap::IndexMap;
 
 use super::fake_memory::FakeMemory;
 use super::test_textures::darc;
-use crate::games::common::layout_file::{LayoutFile, LayoutFiles, find, parse, size_of};
+use crate::core::memory::Memory;
+use crate::games::common::layout_file::{
+    LayoutFile, LayoutFiles, darc_entries, find, parse, size_of,
+};
 use crate::games::common::pictures::{words, words_in};
 
 fn le16(value: i64) -> [u8; 2] {
@@ -281,20 +284,17 @@ fn test_a_textures_name_is_said_as_words() {
     assert_eq!(words("camera_btn_mini.bclim"), "camera");
 }
 
-/// A `darc` holding these files one after another, as a work's resource points at (spike 64).
+/// A `darc` holding these layout files, as a work's resource points at (spike 64).
 pub(crate) fn archive(files: &[Vec<u8>]) -> Vec<u8> {
-    let body = files.concat();
-    let size = 0x1C + body.len() as i64;
-    let mut darc = b"darc".to_vec();
-    darc.extend(le16(0xFEFF));
-    darc.extend(le16(0x1C));
-    darc.extend(le32(0x01000000));
-    darc.extend(le32(size));
-    darc.extend(le32(0x1C));
-    darc.extend(le32(0));
-    darc.extend(le32(0x1C));
-    darc.extend(body);
-    darc
+    let names: Vec<String> = (0..files.len())
+        .map(|index| format!("file{index}.bclyt"))
+        .collect();
+    let named: Vec<(&str, Vec<u8>)> = names
+        .iter()
+        .map(String::as_str)
+        .zip(files.iter().cloned())
+        .collect();
+    darc(&named)
 }
 
 #[test]
@@ -311,6 +311,54 @@ fn test_the_layout_files_in_a_works_archive_are_read_without_a_sweep() {
             .as_ref()
             .is_some_and(|found| found.textures["16"] == ["fight_button.bclim"])
     );
+}
+
+/// Memory that keeps the size of each read made of it.
+struct Sizes {
+    memory: std::rc::Rc<FakeMemory>,
+    sizes: std::cell::RefCell<Vec<i64>>,
+}
+
+impl Memory for Sizes {
+    fn read(&self, address: i64, size: i64) -> crate::py::Result<Vec<u8>> {
+        self.sizes.borrow_mut().push(size);
+        self.memory.read(address, size)
+    }
+}
+
+/// A texture is most of an archive, and is known by where it starts (spike C).
+#[test]
+fn test_an_archives_textures_are_named_without_being_read() {
+    let data = darc(&[
+        ("command.bclyt", command_menu()),
+        ("fight_button.bclim", vec![0; 0x10000]),
+    ]);
+    let memory = FakeMemory::new();
+    memory.write(0x14BACA80, &data);
+    let sizes = std::rc::Rc::new(Sizes {
+        memory,
+        sizes: std::cell::RefCell::new(Vec::new()),
+    });
+    let files = LayoutFiles::new(sizes.clone());
+    files.add_archive(0x14BACA80).unwrap();
+    let texture = darc_entries(&data)
+        .unwrap()
+        .into_iter()
+        .find(|(name, _, _)| name.ends_with(".bclim"))
+        .map(|(_, start, _)| start)
+        .unwrap();
+    assert_eq!(
+        files.image_at(0x14BACA80 + texture).as_deref(),
+        Some("fight_button.bclim")
+    );
+    assert!(
+        files
+            .matching(&strings(&[
+                "RootPane", "23", "2j", "z", "16", "2q", "20", "v",
+            ]))
+            .is_some()
+    );
+    assert!(sizes.sizes.borrow().iter().sum::<i64>() < 0x10000);
 }
 
 /// The summary's move panel is known by its file, `waza.bclyt`, to put it away while an Egg

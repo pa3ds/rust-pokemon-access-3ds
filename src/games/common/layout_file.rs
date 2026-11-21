@@ -44,6 +44,7 @@ pub const ARCHIVE_SIZE: i64 = 0x0C;
 /// The biggest archive believed; this only rejects a read of something that is not one.
 pub const MAX_ARCHIVE: i64 = 0x400000;
 pub const TEXTURE: &str = ".bclim";
+pub const LAYOUT: &str = ".bclyt";
 pub const DARC_TABLE: i64 = 0x10;
 /// A `darc`'s file table: entries of name offset, data offset and length, the first the root
 /// directory, whose length is the number of entries; the names follow, in UTF-16.
@@ -235,28 +236,22 @@ fn window_materials(section: &[u8]) -> Vec<i64> {
 
 /// The address of every layout file starting in these pages, by its header.
 ///
-/// A layout's work leads to the archive holding its files (spike 64), and the files are found
-/// in the archive by their headers, then matched to layouts by their panes' names.
+/// The runtime finds an archive's files by its file table (`LayoutFiles.add_archive`); spikes
+/// scan swept pages with this (55, C).
 pub fn find(pages: &IndexMap<i64, Vec<u8>>) -> Vec<i64> {
     let mut found: Vec<i64> = Vec::new();
     let mut sorted: Vec<(&i64, &Vec<u8>)> = pages.iter().collect();
     sorted.sort_by_key(|&(page, _)| *page);
     for (&page, data) in sorted {
-        find_in(page, data, &mut found);
-    }
-    found
-}
-
-/// `find`'s walk of one page, which `LayoutFiles.add_archive` makes of its archive alone without
-/// building the one-entry dict (and copying the archive into it) the Python does.
-fn find_in(page: i64, data: &[u8], found: &mut Vec<i64>) {
-    let mut start = 0;
-    while let Some(hit) = find_bytes(data, MAGIC, start) {
-        start = hit + MAGIC.len();
-        if size_of(py::slice(data, hit as i64, hit as i64 + HEADER_SIZE)).is_some() {
-            found.push(page + hit as i64);
+        let mut start = 0;
+        while let Some(hit) = find_bytes(data, MAGIC, start) {
+            start = hit + MAGIC.len();
+            if size_of(py::slice(data, hit as i64, hit as i64 + HEADER_SIZE)).is_some() {
+                found.push(page + hit as i64);
+            }
         }
     }
+    found
 }
 
 /// `data.find(needle, start)`, as an index.
@@ -332,10 +327,14 @@ impl LayoutFiles {
     /// Read every layout file in the `darc` archive at this address, the first time it is given.
     ///
     /// Each layout's work leads to the archive its files came from (spike 64), which is how its
-    /// files are found without scanning every swept page for them.
+    /// files are found without scanning every swept page for them. Only its file table and its
+    /// layout files are read: its textures, the rest of it, are named by where they start, and
+    /// were 212 MB of the 225 MB that 995 archives held over 30 tapes (spike C). Every layout file
+    /// a scan of the whole found was in the table.
     ///
     /// ```text
     /// darc  +0x00 "darc"   +0x04 u16 0xFEFF   +0x06 u16 header size, 0x1c   +0x0c u32 size
+    ///       +0x10 u32 where the file table starts   +0x14 u32 its length
     /// ```
     pub fn add_archive(&self, address: i64) -> Result<()> {
         if !self.archives.borrow_mut().insert(address) {
@@ -349,33 +348,36 @@ impl LayoutFiles {
             return Ok(());
         }
         let size = u32(&head, ARCHIVE_SIZE)?;
-        if !(ARCHIVE_HEADER < size && size <= MAX_ARCHIVE) {
+        let (table, length) = (u32(&head, DARC_TABLE)?, u32(&head, DARC_TABLE + 4)?);
+        if !(ARCHIVE_HEADER < size && size <= MAX_ARCHIVE)
+            || table < ARCHIVE_HEADER
+            || !(0 < length && length <= size - table)
+        {
             return Ok(());
         }
-        let data = self.memory.read(address, size)?;
-        let mut named: IndexMap<i64, String> = IndexMap::new();
-        match darc_entries(&data) {
-            Ok(entries) => {
-                for (name, start, _length) in entries {
-                    named.insert(start, name.clone());
-                    if name.ends_with(TEXTURE) {
-                        self.images.borrow_mut().insert(address + start, name);
-                    }
-                }
+        // `head.ljust(table, b"\0")`: the table is past the header, which the check above holds.
+        let mut data = head.clone();
+        data.resize(table as usize, 0);
+        data.extend(self.memory.read(address + table, length)?);
+        let entries = match darc_entries(&data) {
+            Ok(entries) => entries,
+            Err(error) if error.is(Kind::StructError) || error.is(Kind::IndexError) => {
+                return Ok(());
             }
-            Err(error) if error.is(Kind::StructError) || error.is(Kind::IndexError) => {}
             Err(error) => return Err(error),
-        }
-        let mut offsets: Vec<i64> = Vec::new();
-        find_in(0, &data, &mut offsets);
-        for offset in offsets {
-            let length = size_of(py::slice(&data, offset, offset + HEADER_SIZE));
-            let mut parsed = match length {
-                Some(length) => parse(py::slice(&data, offset, offset + length)),
-                None => None,
-            };
-            if let (Some(parsed), Some(name)) = (parsed.as_mut(), named.get(&offset)) {
-                parsed.name = name.clone();
+        };
+        for (name, start, file_size) in entries {
+            if name.ends_with(TEXTURE) {
+                self.images.borrow_mut().insert(address + start, name.clone());
+            }
+            if !name.ends_with(LAYOUT)
+                || !(0 < file_size && file_size <= MAX_FILE.min(size - start))
+            {
+                continue;
+            }
+            let mut parsed = parse(&self.memory.read(address + start, file_size)?);
+            if let Some(parsed) = parsed.as_mut() {
+                parsed.name = name;
             }
             let new = match &parsed {
                 Some(parsed) => !self.by_panes.borrow().contains_key(parsed.panes.as_slice()),
