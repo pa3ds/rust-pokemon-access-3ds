@@ -31,7 +31,7 @@ use crate::games::gen6::field::mapblock;
 use crate::games::gen6::field::mmodel::PLAYER_INDEX;
 use crate::games::gen6::field::zonetable::{INFO_NAME, INFO_SIZE};
 use crate::games::gen6::game::{Game, OwnApp};
-use crate::games::gen6::profile::{CUE_SOUND, Gen6Profile, Options};
+use crate::games::gen6::profile::{CUE_SOUND, Gen6Profile, HELD_MOST, Options, STILL};
 use crate::games::gen6::rom::archives::{GameText, no_text};
 use crate::games::gen6::screens::summary::SUMMARY;
 use crate::games::oras::field::hidden::PLAYER_WORK_CLASS;
@@ -430,6 +430,26 @@ fn test_the_battle_reader_asks_for_a_sweep_only_while_a_battle_runs() {
     assert!(!made.sweep_wanted().unwrap());
     made.apps.borrow_mut().running = Some(BATTLE.to_string());
     assert!(made.sweep_wanted().unwrap());
+}
+
+/// ADR-0034: a whole sweep waits while a cursor moves. The Bag's own, 1.5 s after it starts,
+/// read nothing else for 1.2 s as the player began moving down its list: the first item of
+/// Medicine went without its details (spike A).
+#[test]
+fn test_a_moving_cursor_holds_the_whole_sweep_off_until_it_is_still_for_three_seconds_at_most() {
+    let (made, _) = profile(&Town::new(), no_text(), None, no_log());
+    assert!(!made.sweep_held(10.0));
+    made.moving.set(true);
+    assert!(made.sweep_held(10.0));
+    assert!(made.sweep_held(10.0 + STILL - 0.1));
+    assert!(!made.sweep_held(10.0 + STILL));
+    let mut held: Vec<bool> = Vec::new();
+    for step in 0..10 {
+        made.moving.set(true);
+        held.push(made.sweep_held(20.0 + step as f64 * 0.5));
+    }
+    let expected: Vec<bool> = (0..10).map(|step| step as f64 * 0.5 < HELD_MOST).collect();
+    assert_eq!(held, expected);
 }
 
 /// AreaNav's words still say it, a moment later, as they always have.

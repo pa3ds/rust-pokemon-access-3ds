@@ -744,7 +744,7 @@ impl Profile for SunProfile {
     }
 
     /// Never: nothing of Sun and Moon's is timed so finely.
-    fn sweep_held(&self) -> bool {
+    fn sweep_held(&self, _now: f64) -> bool {
         false
     }
 

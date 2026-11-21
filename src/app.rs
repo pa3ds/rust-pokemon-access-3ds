@@ -951,7 +951,7 @@ fn session(
             }
             // Held while a timed round would lose to its second of reading nothing else,
             // Head It's balls falling, and swept as it ends.
-            let whole = !profile.sweep_held() && sweeping.due(started);
+            let whole = !profile.sweep_held(started) && sweeping.due(started);
             // A class in a DLL has no vtable until the game loads it, and an app brings the
             // code it runs: the map blocks' is in the field's, and in Sun each app's classes
             // are in a module of its own, as the language choice's are.

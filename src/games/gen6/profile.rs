@@ -10,6 +10,8 @@
 //! - ADR-0009: touch mode offers targets only in the apps that need a touch (`TOUCHED`, and the
 //!   subscreens' among them), and Shift alone drags only where the subscreens say.
 //! - ADR-0025: the game's sounds play in both ears, but for Head It's cue, toward its Pokémon.
+//! - ADR-0034: a whole sweep waits while a cursor moves, until it is still `STILL`, at most
+//!   `HELD_MOST` (`sweep_held`).
 //! - ADR-0041: a replay logs touch mode's targets as they change, so a tape holds them, and a tape
 //!   replay P's ways at each listing (`ways`).
 //! - ADR-0042: a part of a place in parts is said walking into it, every time, and an exit or a leg
@@ -154,6 +156,14 @@ pub const HEAP_CLASSES: [&str; 32] = [
 
 /// Without a message window class there is nothing to read: not this game, or not this version.
 pub const REQUIRED: [&str; 2] = msgwin::CLASSES;
+/// Seconds a cursor holds still before the heap's whole sweep, held while it moves, runs. A sweep
+/// reads 13 MB in one tick of 1.0 to 1.3 s with nothing else read, and the Bag's own, 1.5 s after it
+/// starts, came as the player began moving down its list: the first item of Medicine went without
+/// its details (findings/cursors.md, spike A).
+pub const STILL: f64 = 1.0;
+/// The longest seconds a moving cursor holds the whole sweep off, so what only a sweep finds is
+/// never more than that late.
+pub const HELD_MOST: f64 = 3.0;
 /// The apps touch mode offers targets in (ADR-0009 as amended 2026-10-29): the field, whose
 /// bottom screen is the PokéNav Plus and its DexNav, BuzzNav and PlayNav, or X's own, with
 /// Pokémon-Amie's and Super Training's pages; the subscreens' tutorials; the AreaNav; and the
@@ -381,6 +391,12 @@ pub struct Gen6Profile {
     unheard: RefCell<HashSet<i64>>,
     /// Whether a sweep is wanted for the talk object showing a page.
     speaker_wanted: Cell<bool>,
+    /// Whether a cursor has moved or opened since `sweep_held` last asked.
+    pub(crate) moving: Cell<bool>,
+    /// The tick a cursor was last seen to move or open at.
+    moved: Cell<Option<f64>>,
+    /// The tick a moving cursor began holding the whole sweep off at, while it does.
+    holding: Cell<Option<f64>>,
     /// Every device manager a sweep has found. It lives all session, so a choice box built
     /// later is found in the blocks just allocated by the manager it holds. Iterated by
     /// `Found.holders`, whose result follows its order, so a `PySet`. Shared with the scenes'
@@ -1331,6 +1347,9 @@ impl Gen6Profile {
             zone: Cell::new(None),
             unheard: RefCell::new(HashSet::new()),
             speaker_wanted: Cell::new(false),
+            moving: Cell::new(false),
+            moved: Cell::new(None),
+            holding: Cell::new(None),
             managers,
             decorating: RefCell::new(None),
             own: owned,
@@ -1487,10 +1506,24 @@ impl Gen6Profile {
     }
 
     /// Whether the heap's whole sweep waits: while a subscreen's round would lose a ball to
-    /// the second it takes (`Subscreens.holding`).
-    pub fn sweep_held(&self) -> bool {
-        self.subscreens
-            .holding(self.apps.borrow().running.as_deref())
+    /// the second it takes (`Subscreens.holding`), and while a cursor moves, until it has held
+    /// still `STILL` or held the sweep off `HELD_MOST`.
+    pub fn sweep_held(&self, now: f64) -> bool {
+        if self.moving.get() {
+            self.moved.set(Some(now));
+            self.moving.set(false);
+        }
+        let held = self
+            .subscreens
+            .holding(self.apps.borrow().running.as_deref());
+        if self.moved.get().is_none_or(|moved| now - moved >= STILL) {
+            self.holding.set(None);
+            return held;
+        }
+        if self.holding.get().is_none() {
+            self.holding.set(Some(now));
+        }
+        held || now - self.holding.get().expect("set above") < HELD_MOST
     }
 
     /// Whether another app has started since the last poll: the field, the Bag, the Pokédex, a
@@ -1787,6 +1820,8 @@ impl Gen6Profile {
             Ok((screen, sides, party, listed, cursors, played, chosen, pocket))
         })?;
         let (screen, sides, party, listed, cursors, played, chosen, pocket) = polled;
+        self.moving
+            .set(self.moving.get() || !cursors.items.is_empty());
         for (logged, line, category) in &played {
             (self.log)(&format!("{logged}: {line}"));
             if let Some(category) = category {
@@ -2767,7 +2802,7 @@ impl Profile for Gen6Profile {
         Gen6Profile::sweep_wanted(self)
     }
 
-    fn sweep_held(&self) -> bool {
-        Gen6Profile::sweep_held(self)
+    fn sweep_held(&self, now: f64) -> bool {
+        Gen6Profile::sweep_held(self, now)
     }
 }

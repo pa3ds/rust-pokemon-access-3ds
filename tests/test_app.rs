@@ -787,8 +787,8 @@ impl Profile for Patched {
     fn sweep_wanted(&self) -> Result<bool> {
         self.real.sweep_wanted()
     }
-    fn sweep_held(&self) -> bool {
-        self.real.sweep_held()
+    fn sweep_held(&self, now: f64) -> bool {
+        self.real.sweep_held(now)
     }
 }
 

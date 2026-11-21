@@ -65,8 +65,9 @@ pub trait Profile {
     fn sweep_wanted(&self) -> Result<bool>;
 
     /// Whether the heap's whole sweep waits, due or not, for a game a second's stall in
-    /// reading would spoil: Head It's balls falling.
-    fn sweep_held(&self) -> bool;
+    /// reading would spoil, Head It's balls falling, or a cursor the player is moving. `now` is
+    /// the tick's time, so asking reads no clock a tape has not recorded.
+    fn sweep_held(&self, now: f64) -> bool;
 }
 
 /// One game as the schedule runs it.
