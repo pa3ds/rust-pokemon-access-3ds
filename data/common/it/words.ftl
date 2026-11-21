@@ -525,3 +525,5 @@ bag-moving = sposto { $item }
 bag-between = tra { $above } e { $below }
 bag-above = sopra { $below }
 bag-below = sotto { $above }
+
+shiny-pokemon = { $name } cromatico

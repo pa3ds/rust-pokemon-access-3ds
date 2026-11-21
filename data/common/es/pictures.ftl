@@ -42,6 +42,7 @@ texture-msg_win_c = cerrar
 texture-list_button = sacos de entrenamiento
 texture-stage_icon = empezar
 texture-waza_pos = { "" }
+texture-nameinput2_lower-icon_delete = mayúsculas
 
 # Pokémon-Amie's decorate screen.
 texture-bgbutton_L = anterior

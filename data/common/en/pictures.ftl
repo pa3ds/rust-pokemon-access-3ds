@@ -77,6 +77,11 @@ texture-stage_icon = start
 # `waza_pos` picture with no words: no name of its own, said by its place (`picture-move`)
 # (or_move-learning, 2026-10-18).
 texture-waza_pos = {""}
+# The name entry's Shift key, its arrow up, drawn with `icon_delete.bclim`, which the number
+# entry draws its Delete key with: said "delete" (or_name_rater). By the layout it is drawn in,
+# `nameinput2_lower`, the same in Omega Ruby and X (spike 96), ahead of the picture's own word
+# (`pictures.named`).
+texture-nameinput2_lower-icon_delete = shift
 
 # Pokémon-Amie's decorate screen (`kawaigari_arrange`): `bgbutton_L` and `bgbutton_R` turn its
 # wallpaper in the top bar and its items' page beside the grid, `button_back` closes the items,
@@ -152,3 +157,23 @@ contest-hearts = { $count ->
     [one] { $count } heart
    *[other] { $count } hearts
 }
+
+# The Pokédex's search by shape: a silhouette each of the fourteen shapes a Pokémon's body can be,
+# `search_icon01` to `search_icon14`, which the game names in no word (spike 311, the images decoded
+# from or_pokedex_search_shapes, X's the same textures). In the picker's order, after its blank
+# row. Each an adjective, as a field's value is: the four of a head alone by what it has,
+# nothing, legs, arms, or a torso without limbs.
+texture-search_icon06 = Bodiless
+texture-search_icon10 = Legged
+texture-search_icon14 = Finned
+texture-search_icon12 = Insectoid
+texture-search_icon03 = Quadruped
+texture-search_icon11 = Multi-winged
+texture-search_icon13 = Multi-bodied
+texture-search_icon08 = Tentacled
+texture-search_icon04 = Limbless
+texture-search_icon09 = Tailed biped
+texture-search_icon05 = Tailless biped
+texture-search_icon07 = Winged
+texture-search_icon02 = Serpentine
+texture-search_icon01 = Armed

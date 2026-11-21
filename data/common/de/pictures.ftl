@@ -42,6 +42,7 @@ texture-msg_win_c = schließen
 texture-list_button = Sandsäcke
 texture-stage_icon = Start
 texture-waza_pos = { "" }
+texture-nameinput2_lower-icon_delete = Umschalttaste
 
 # Pokémon-Amie's decorate screen.
 texture-bgbutton_L = zurück

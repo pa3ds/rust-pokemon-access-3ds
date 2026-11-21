@@ -42,6 +42,7 @@ texture-msg_win_c = 닫기
 texture-list_button = 샌드백
 texture-stage_icon = 시작
 texture-waza_pos = { "" }
+texture-nameinput2_lower-icon_delete = 시프트
 
 # Pokémon-Amie's decorate screen.
 texture-bgbutton_L = 이전

@@ -42,6 +42,7 @@ texture-msg_win_c = 关闭
 texture-list_button = 沙袋
 texture-stage_icon = 开始
 texture-waza_pos = {""}
+texture-nameinput2_lower-icon_delete = 切换大小写
 
 # Pokémon-Amie's decorate screen.
 texture-bgbutton_L = 上一页

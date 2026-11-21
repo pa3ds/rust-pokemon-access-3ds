@@ -761,3 +761,7 @@ bag-moving = moving { $item }
 bag-between = between { $above } and { $below }
 bag-above = above { $below }
 bag-below = below { $above }
+
+# A shiny Pokémon under a battle's target cursor, which the game draws sparkling and never
+# names: "Shiny Zigzagoon".
+shiny-pokemon = Shiny { $name }

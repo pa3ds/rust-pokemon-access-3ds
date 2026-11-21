@@ -525,3 +525,5 @@ bag-moving = { $item } wird verschoben
 bag-between = zwischen { $above } und { $below }
 bag-above = über { $below }
 bag-below = unter { $above }
+
+shiny-pokemon = Schillerndes { $name }

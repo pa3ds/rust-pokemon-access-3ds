@@ -525,3 +525,5 @@ bag-moving = moviendo { $item }
 bag-between = entre { $above } y { $below }
 bag-above = encima de { $below }
 bag-below = debajo de { $above }
+
+shiny-pokemon = { $name } variocolor

@@ -520,3 +520,5 @@ bag-moving = 正在移动 { $item }
 bag-between = { $above } 和 { $below } 之间
 bag-above = { $below } 上方
 bag-below = { $above } 下方
+
+shiny-pokemon = 异色{ $name }
