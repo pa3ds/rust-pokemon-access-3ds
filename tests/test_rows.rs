@@ -388,3 +388,41 @@ fn test_the_fitting_rooms_slot_is_read_through_its_objects() {
     memory.write(cursor + rows::SLOT, &[2]); // bottom
     assert!(fitting.moved().unwrap());
 }
+
+/// X's fitting room is built where its title menu was: kept by the process alone, its cursor was
+/// read through the title menu's object, and no move was heard (x_cyllage_boutique_fitting_room).
+#[test]
+fn test_an_app_built_where_another_was_has_its_own_path_followed() {
+    let memory = FakeMemory::new();
+    let classes = FakeClasses::new(memory.clone());
+    memory.u32(PROCESS + rows::TITLE_SYSTEM, &[WORK]);
+    memory.u32(WORK, &[classes.add(rows::TITLE_MAIN)]);
+    let running = running(rows::TITLE);
+    let mut reader = rows::Rows::new(
+        memory.clone(),
+        {
+            let running = running.clone();
+            Rc::new(move || Some(running.borrow().clone()))
+        },
+        Rc::new(|| Some(PROCESS)),
+        Rc::new(|| Ok(Some(MENU))),
+        Rc::new(|| true),
+        None,
+        None,
+        None,
+    );
+    assert!(!reader.moved().unwrap());
+    let cursor = 0x08900000;
+    let mut at = PROCESS;
+    for (hop, next_at) in rows::FITTING_CURSOR
+        .into_iter()
+        .zip([OTHER, OTHER_WORK, 0x08A00000, cursor])
+    {
+        memory.u32(at + hop, &[next_at]);
+        at = next_at;
+    }
+    *running.borrow_mut() = rows::FITTING.to_string();
+    assert!(!reader.moved().unwrap());
+    memory.write(cursor + rows::SLOT, &[1]);
+    assert!(reader.moved().unwrap());
+}

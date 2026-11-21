@@ -218,16 +218,16 @@ pub struct Rows {
     /// Where the row was read and what it read as it last moved, while it is still that menu's:
     /// none once another menu has taken the input.
     moved_to: Option<(i64, Vec<u8>)>,
-    /// The party's, the name entry's, the PC's, a move screen's, the title menu's, the starter's
-    /// or a contest's process and the object holding its byte or its menus, once found: its
-    /// class, where it has one, is checked once a screen, and only what it holds read each tick
-    /// after.
-    work: Option<(i64, i64)>,
-    // ponytail: kept while the process is, so an app built again at the same address round
-    // other objects reads the old ones until another app's row is looked for. Dropped at
-    // each app change instead, the Box's path was found again after every summary, reads no
-    // tape had (or_battle_box); key it by more than the process if that is ever met.
-    names: Option<(i64, ClassNames)>,
+    /// The party's, the name entry's, the PC's, a move screen's, the title menu's, the starter's,
+    /// a contest's or the fitting room's process and app, and the object holding its byte or its
+    /// menus, once found: its class, where it has one, is checked once a screen, and only what it
+    /// holds read each tick after. Kept by the app as well as the process: X's fitting room is
+    /// built where its title menu was, and kept by the process alone it read the title menu's
+    /// object for its cursor and heard no move (x_cyllage_boutique_fitting_room). Not dropped at
+    /// each app change: the Box's path was found again after every summary, reads no tape had
+    /// (or_battle_box).
+    work: Option<((i64, Option<String>), i64)>,
+    names: Option<((i64, Option<String>), ClassNames)>,
     /// The Move Reminder's process and its contest effects' lower view, or None for none.
     contest: Option<(Option<i64>, Option<i64>)>,
 }
@@ -441,15 +441,19 @@ impl Rows {
         let Some(process) = (self.process)() else {
             return Ok(None);
         };
-        if self.work.is_none_or(|work| work.0 != process) {
+        let key = (process, (self.running)());
+        if self.work.as_ref().is_none_or(|work| work.0 != key) {
             let Some(first) = follow(&*self.memory, process, py::slice(hops, 0, 1))? else {
                 return Ok(None);
             };
             if let Some(name) = name {
                 // Named afresh for each screen: its classes are in a module, whose memory is the
                 // next module's once it is unloaded (`apps.RunningApp.poll`).
-                if self.names.as_ref().is_none_or(|names| names.0 != process) {
-                    self.names = Some((process, ClassNames::new(self.memory.clone(), LOADED_CODE)));
+                if self.names.as_ref().is_none_or(|names| names.0 != key) {
+                    self.names = Some((
+                        key.clone(),
+                        ClassNames::new(self.memory.clone(), LOADED_CODE),
+                    ));
                 }
                 let names = &self.names.as_ref().expect("named above").1;
                 if names.of_object(first)?.as_deref() != Some(name) {
@@ -459,8 +463,8 @@ impl Rows {
             let Some(work) = follow(&*self.memory, first, py::slice_from(hops, 1))? else {
                 return Ok(None);
             };
-            self.work = Some((process, work));
+            self.work = Some((key, work));
         }
-        Ok(self.work.map(|work| work.1))
+        Ok(self.work.as_ref().map(|work| work.1))
     }
 }
