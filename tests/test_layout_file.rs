@@ -1,10 +1,14 @@
 //! Layout file tests, against CLYT files built the way spike 50 read the command menu's.
 
+use std::rc::Rc;
+
 use indexmap::IndexMap;
 
 use super::fake_memory::FakeMemory;
 use super::test_textures::darc;
+use crate::core::keyfile::data_path;
 use crate::core::memory::Memory;
+use crate::core::words::{self, ENGLISH, Words};
 use crate::games::common::layout_file::{
     LayoutFile, LayoutFiles, darc_entries, find, parse, size_of,
 };
@@ -449,18 +453,32 @@ fn test_two_files_of_the_same_panes_in_another_order_match_neither() {
 }
 
 /// The name entry draws its Shift key, an arrow up, with `icon_delete.bclim`, and the number
-/// entry its Delete key: "delete" named the Shift key (or_name_rater).
+/// entry its Delete key: "delete" named the Shift key (or_name_rater), and in X still, its
+/// word kept in Omega Ruby's data alone.
 #[test]
 fn test_a_picture_is_said_by_the_layout_it_is_drawn_in_first() {
-    assert_eq!(
-        words_in("icon_delete.bclim", "nameinput2_lower.bclyt"),
-        "shift"
-    );
-    assert_eq!(
-        words_in("icon_delete.bclim", "number_input_lower.bclyt"),
-        "delete"
-    );
-    assert_eq!(words("icon_delete.bclim"), "delete");
+    for game in ["oras", "xy"] {
+        words::r#use(Some(Rc::new(
+            Words::new(
+                ENGLISH,
+                Some(&data_path().unwrap().join(game)),
+                IndexMap::new(),
+                Rc::new(|_line: &str| {}),
+            )
+            .unwrap(),
+        )));
+        assert_eq!(
+            words_in("icon_delete.bclim", "nameinput2_lower.bclyt"),
+            "shift",
+            "{game}"
+        );
+        assert_eq!(
+            words_in("icon_delete.bclim", "number_input_lower.bclyt"),
+            "delete",
+            "{game}"
+        );
+        assert_eq!(words("icon_delete.bclim"), "delete", "{game}");
+    }
 }
 
 #[test]
