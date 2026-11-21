@@ -101,3 +101,32 @@ fn test_the_count_is_said_whole_at_every_change_and_its_words_are_its_own() {
     // Gone from the screen, nothing is the count's.
     assert_eq!(counts.poll(&[]).unwrap(), (None, HashSet::new()));
 }
+
+#[test]
+fn test_xs_count_is_its_group_named_30() {
+    struct XLayouts;
+
+    impl TrackedLayouts for XLayouts {
+        fn works(&self) -> IndexMap<i64, i64> {
+            FakeLayouts.works()
+        }
+
+        fn pane_names(&self, root: i64) -> Vec<String> {
+            FakeLayouts.pane_names(root)
+        }
+
+        fn name(&self, pane: i64) -> Result<Vec<u8>> {
+            match pane {
+                GROUP => Ok(b"30\0".to_vec()),
+                IN_BAG => Ok(b"2w\0".to_vec()),
+                _ => Err(Error::key(pane.to_string())),
+            }
+        }
+    }
+
+    let mut counts = Counts::new(Rc::new(XLayouts), Rc::new(FakeFiles), false);
+    assert_eq!(
+        counts.poll(&screen("04", "$ 800")).unwrap().1,
+        HashSet::from([3, 4, 5])
+    );
+}

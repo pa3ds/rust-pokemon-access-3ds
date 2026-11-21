@@ -150,3 +150,30 @@ fn test_objects_of_other_classes_say_nothing() {
     let mut chosen = chosen_at(&memory, Rc::new(|| Some(PROCESS)));
     assert_eq!(chosen.poll(&moved(0x0C, 5, &[5])).unwrap().0, nothing());
 }
+
+#[test]
+fn test_x_keeps_the_pocket_and_the_draw_object_12_bytes_sooner() {
+    let memory = FakeMemory::new();
+    let classes = FakeClasses::new(memory.clone());
+    memory.u32(PROCESS + 0x24, &[MAIN]);
+    memory.u32(MAIN, &[classes.add(bag::MAIN)]);
+    memory.u32(MAIN + 0x4C, &[BLOCK]);
+    memory.u32(BLOCK, &[DRAW]);
+    memory.u32(DRAW, &[classes.add(bag::DRAW)]);
+    memory.u16(DRAW + 0x10, 1);
+    memory.write(MAIN + 0x30, &[1]);
+    let mut chosen = bag::Chosen::new(
+        memory.clone(),
+        bag::XY,
+        Rc::new(|| Some(PROCESS)),
+        strings(&ITEMS),
+        strings(&POCKETS),
+    );
+    assert_eq!(
+        chosen.poll(&moved(0x0C, 5, &[5])).unwrap(),
+        (
+            IndexMap::from([(0x0C, "Master Ball".to_string())]),
+            Some("MEDICINE".to_string())
+        )
+    );
+}

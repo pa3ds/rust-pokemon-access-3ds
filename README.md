@@ -51,13 +51,13 @@ the Game Boy games. Nothing here is taken from its code.
   summary says each page as you turn to it, then the button under it if it has one, and as you
   switch Pokémon its name, level and item and only the page you are on. In Check Moves each move
   is said in the words of the page you are on: its type and PP, or its contest kind. The PC Box
-  says its mode as Start and Select change it, and in Omega Ruby and Alpha Sapphire each box's
-  name as the box turns, by the name you gave it.
+  says its mode as Start and Select change it, and each box's name as the box turns, by the name
+  you gave it.
 - **The fitting room** in X and Y's boutiques: each category, and each item with its colour and
   price.
 - **A Poké Mart's count**, to buy or to sell, with its price, each time it changes: hold a key and
   every number is said as it passes, each cutting off the last. A jump of a page through the
-  Mart's list with left or right says only the item it lands on. Omega Ruby and Alpha Sapphire.
+  Mart's list with left or right says only the item it lands on.
 - **Contests and the Pokéblock Kit**: each move with its appeal and jamming, each entrant's
   place, and your berries and blocks with how many you have.
 - **The Bag's own sort**: an item carried with Y, and the two it would land between.

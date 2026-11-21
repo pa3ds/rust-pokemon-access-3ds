@@ -199,7 +199,7 @@ impl Conditions {
             return Ok(None);
         };
         if running.as_deref() == Some(summary::SUMMARY) {
-            return summary::shown(&*self.memory, &self.apps.borrow());
+            return summary::shown(&*self.memory, &self.apps.borrow(), &summary::ORAS);
         }
         if running.as_deref() != Some(CASE) {
             return Ok(None);

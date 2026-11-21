@@ -93,20 +93,62 @@ pub const SHOWING: i64 = 0x4;
 /// both hold it (spike H).
 pub const CHOSEN: i64 = 0x22;
 
+/// Where a game's summary keeps the Pokémon it shows and its pages' lists.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Shape {
+    /// As `SHOWN`.
+    pub shown: i64,
+    /// As `PLACE`.
+    pub place: i64,
+    /// As `LISTS`.
+    pub lists: &'static [PageList],
+}
+
+pub const ORAS: Shape = Shape {
+    shown: SHOWN,
+    place: PLACE,
+    lists: &LISTS,
+};
+/// X's: two pages, the stats with the moves and the memo with the ribbons, and no contest
+/// page; each 0x8 to 0x10 sooner than in Omega Ruby (spikes B and G on x_summary_screen).
+pub const XY: Shape = Shape {
+    shown: 0x68,
+    place: 0x6C,
+    lists: &[
+        (
+            0x54,
+            "N3app6status8WazaListE",
+            &["params.bclyt", "waza.bclyt"],
+            true,
+        ),
+        (
+            0x58,
+            "N3app6status10RibbonListE",
+            &["memo.bclyt", "ribbon.bclyt"],
+            false,
+        ),
+    ],
+};
+
 /// The `PokemonParam` the summary shows, or None while no summary runs.
-pub fn shown(memory: &dyn Memory, apps: &RunningApp) -> Result<Option<i64>> {
+pub fn shown(memory: &dyn Memory, apps: &RunningApp, shape: &Shape) -> Result<Option<i64>> {
     if apps.running.as_deref() != Some(SUMMARY) {
         return Ok(None);
     }
     let Some(process) = apps.process else {
         return Ok(None);
     };
-    Ok(Some(u32(&memory.read(process + SHOWN, 4)?, 0)?))
+    Ok(Some(u32(&memory.read(process + shape.shown, 4)?, 0)?))
 }
 
 /// The name of the Pokémon the summary shows, its nickname or its species', or None.
-pub fn name(memory: &dyn Memory, names: &ClassNames, apps: &RunningApp) -> Result<Option<String>> {
-    let found = match shown(memory, apps)? {
+pub fn name(
+    memory: &dyn Memory,
+    names: &ClassNames,
+    apps: &RunningApp,
+    shape: &Shape,
+) -> Result<Option<String>> {
+    let found = match shown(memory, apps, shape)? {
         Some(param) if param != 0 => pokemon::read(memory, names, param, pokemon::SPECIES_MAX)?,
         _ => None,
     };
@@ -120,8 +162,9 @@ pub fn put_away(
     apps: &RunningApp,
     layouts: &Layouts,
     files: &LayoutFiles,
+    shape: &Shape,
 ) -> Result<HashSet<i64>> {
-    let mon = match shown(memory, apps)? {
+    let mon = match shown(memory, apps, shape)? {
         Some(param) if param != 0 => pokemon::read(memory, names, param, pokemon::SPECIES_MAX)?,
         _ => None,
     };
@@ -160,6 +203,7 @@ pub fn put_away(
 /// Electric"; so a turn hears no page for a poll, and the page turned to whole after it.
 pub struct Pages {
     memory: Rc<dyn Memory>,
+    shape: Shape,
     apps: Rc<RefCell<RunningApp>>,
     layouts: Rc<dyn TrackedLayouts>,
     files: Rc<dyn FileMatching>,
@@ -182,9 +226,11 @@ impl Pages {
         apps: Rc<RefCell<RunningApp>>,
         layouts: Rc<dyn TrackedLayouts>,
         files: Rc<dyn FileMatching>,
+        shape: Shape,
     ) -> Self {
         Pages {
             memory,
+            shape,
             apps,
             layouts,
             files,
@@ -217,7 +263,7 @@ impl Pages {
         };
         // As the summary opens no list is flagged for a poll, and the page before holds.
         let page = self.flagged(process)?.or(self.page);
-        let mon = u32(&self.memory.read(process + PLACE, 4)?, 0)?;
+        let mon = u32(&self.memory.read(process + self.shape.place, 4)?, 0)?;
         if let (Some(page), Some(before)) = (page, self.page)
             && page != before
         {
@@ -246,11 +292,11 @@ impl Pages {
                 self.names = Some((process, ClassNames::new(self.memory.clone(), LOADED_CODE)));
             }
             let mut lists: Vec<i64> = Vec::new();
-            for (at, _, _, _) in LISTS {
+            for &(at, _, _, _) in self.shape.lists {
                 lists.push(u32(&self.memory.read(process + at, 4)?, 0)?);
             }
             let names = &self.names.as_ref().expect("named above").1;
-            for (&each, &(_, name, _, _)) in lists.iter().zip(LISTS.iter()) {
+            for (&each, &(_, name, _, _)) in lists.iter().zip(self.shape.lists.iter()) {
                 if each == 0 || names.of_object(each)?.as_deref() != Some(name) {
                     return Ok(None);
                 }
@@ -276,10 +322,11 @@ impl Pages {
 
     /// Whether Check Moves turned the page: both pages' lists of moves hold the move chosen.
     fn flipped(&self, before: usize, after: usize) -> Result<bool> {
+        let shape_lists = self.shape.lists;
         let Some((_, lists)) = &self.lists else {
             return Ok(false);
         };
-        if !(LISTS[before].3 && LISTS[after].3) {
+        if !(shape_lists[before].3 && shape_lists[after].3) {
             return Ok(false);
         }
         let mut chosen: HashSet<i64> = HashSet::new();
@@ -299,7 +346,7 @@ impl Pages {
         let others: Vec<&str> = PAGES
             .iter()
             .copied()
-            .filter(|name| !LISTS[page].2.contains(name))
+            .filter(|name| !self.shape.lists[page].2.contains(name))
             .collect();
         if self.since == 0 {
             return self.roots(&[&PAGES[..], &[BUTTON]].concat());
@@ -315,7 +362,7 @@ impl Pages {
     /// (`ScreenAnnouncer.say`'s `lead`).
     pub fn turned(&self) -> HashSet<i64> {
         match self.page {
-            Some(page) if self.since == 1 => self.roots(LISTS[page].2),
+            Some(page) if self.since == 1 => self.roots(self.shape.lists[page].2),
             _ => HashSet::new(),
         }
     }
@@ -338,7 +385,9 @@ impl Pages {
     /// twice.
     pub fn switched(&self) -> HashSet<i64> {
         match self.page {
-            Some(page) if self.paged <= 1 => self.roots(&[LISTS[page].2, &[INFO, BUTTON]].concat()),
+            Some(page) if self.paged <= 1 => {
+                self.roots(&[self.shape.lists[page].2, &[INFO, BUTTON]].concat())
+            }
             _ => HashSet::new(),
         }
     }

@@ -19,10 +19,14 @@ use crate::games::common::layout_file::FileMatching;
 use crate::games::common::screen::{ScreenText, join};
 use crate::py::{self, Result};
 
-/// The count's group, by its layout's file and the group pane's name: the Mart's own list, and the
-/// Bag's window for how many to sell. Measured in Omega Ruby; nowhere else matches. A `frozenset`
-/// only tested.
-pub const GROUPS: [(&str, &str); 2] = [("shop_lower.bclyt", "2t"), ("bag_item_lower.bclyt", "24")];
+/// The count's group, by its layout's file and the group pane's name: the Mart's own list, `2t` in
+/// Omega Ruby and `30` in X (spike F on x_pokemart), and the Bag's window for how many to sell, the
+/// same in both. A `frozenset` only tested.
+pub const GROUPS: [(&str, &str); 3] = [
+    ("shop_lower.bclyt", "2t"),
+    ("shop_lower.bclyt", "30"),
+    ("bag_item_lower.bclyt", "24"),
+];
 
 /// The words of a Poké Mart's count, each time they change.
 pub struct Counts {

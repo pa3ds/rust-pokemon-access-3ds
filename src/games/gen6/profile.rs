@@ -336,6 +336,7 @@ pub struct Gen6Profile {
     pub counts: RefCell<counts::Counts>,
     battle_bag: RefCell<battle_bag::BattleBag>,
     mart: RefCell<mart::Jumps>,
+    summary_shape: summary::Shape,
     summary_pages: RefCell<summary::Pages>,
     /// The game's words for the contest categories, the conditions star's labels.
     contest_words: HashSet<String>,
@@ -687,11 +688,13 @@ impl Gen6Profile {
             files.clone(),
         ));
         // The summary draws one page and keeps the rest as drawn: those not shown go unheard.
+        let summary_shape = game.summary;
         let summary_pages = RefCell::new(summary::Pages::new(
             memory.clone(),
             apps.clone(),
             layouts.clone(),
             files.clone(),
+            game.summary,
         ));
         let contest_words: HashSet<String> = text.contest_categories.iter().cloned().collect();
         let sides: Sides = {
@@ -1380,6 +1383,7 @@ impl Gen6Profile {
             counts,
             battle_bag,
             mart,
+            summary_shape,
             summary_pages,
             contest_words,
             map_cursor: RefCell::new(map_cursor),
@@ -1825,6 +1829,7 @@ impl Gen6Profile {
                 &self.apps.borrow(),
                 &self.layouts,
                 &self.files,
+                &self.summary_shape,
             )?);
             self.layouts.put_away(put_away);
             // The battle's layouts are built into a pool its message window leads to.
@@ -2060,7 +2065,14 @@ impl Gen6Profile {
             on_screen: heard,
             ..screen.clone()
         };
-        let subject = || summary::name(&*self.memory, &self.names, &self.apps.borrow());
+        let subject = || {
+            summary::name(
+                &*self.memory,
+                &self.names,
+                &self.apps.borrow(),
+                &self.summary_shape,
+            )
+        };
         // `pocket or box_title or paged.turned`.
         let title = [pocket, box_title]
             .into_iter()

@@ -35,7 +35,7 @@ use crate::games::gen6::field::footsteps::{ORAS, Steps};
 use crate::games::gen6::field::landform::{Landform, gen6};
 use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::rom::layout::RomLayout;
-use crate::games::gen6::screens::bag;
+use crate::games::gen6::screens::{bag, summary};
 use crate::games::gen6::screens::buttons::MENU;
 use crate::games::gen6::subscreen::amie::{NUMBER, ORAS_PLAYER, PlayerFields};
 use crate::games::gen6::subscreen::super_training::ICONS;
@@ -355,12 +355,15 @@ pub struct Game {
     /// (`boxes.Mode`, spike 288): the same in ORAS and X. None where it has not been measured.
     pub box_mode: Option<(i64, i64)>,
     /// Where the PC Box's process keeps the box its grid shows, as `box_mode` (`boxes.shown`,
-    /// spike B): ORAS's work block +0x24. None where it has not been measured, X's: a box is then
-    /// the one named as the title is.
+    /// spike B): the work block's +0x24, in ORAS and X. None where it has not been measured: a box
+    /// is then the one named as the title is.
     pub box_shown: Option<(i64, i64)>,
     /// Where the Bag keeps the item under its cursor, its cursor source (`screens.bag`, spike A):
-    /// ORAS's. None where it has not been measured, X's so far.
+    /// ORAS's, or X's. None where it has not been measured.
     pub bag: Option<bag::Shape>,
+    /// Where the summary keeps the Pokémon it shows and its pages' lists (`screens.summary`,
+    /// spikes G and H): ORAS's, or X's.
+    pub summary: summary::Shape,
     /// The zones of the places in parts listed whole, the other parts' things out of the ROM
     /// (ADR-0042); every other place in parts is listed a part at a time.
     pub whole: HashSet<i64>,
@@ -442,6 +445,7 @@ impl Game {
             box_mode: None,
             box_shown: None,
             bag: None,
+            summary: summary::ORAS,
             whole: HashSet::new(),
             items_at: IndexMap::new(),
             zone_record: 0xF4,

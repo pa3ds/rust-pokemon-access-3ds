@@ -15,6 +15,9 @@
 //! app::bag::GraphicWork  +0x10  u16 the item under the cursor, 0 in an empty pocket
 //! ```
 //!
+//! X keeps the pocket at +0x30 and the block at +0x4C, 12 bytes sooner, numbered and laid out
+//! the same (spike A on x_field_bag).
+//!
 //! The pocket's name is said the poll its number changes, before the item. The top screen's title,
 //! written with the item's details a poll or two later, said them as "Potion", then "MEDICINE" with
 //! the count and description, and an empty pocket's 0.27 to 0.41 s after it changed (spike A,
@@ -64,6 +67,12 @@ pub const ORAS: Shape = Shape {
     main: 0x24,
     pocket: 0x3C,
     draw: &[0x58, 0x00],
+    item: 0x10,
+};
+pub const XY: Shape = Shape {
+    main: 0x24,
+    pocket: 0x30,
+    draw: &[0x4C, 0x00],
     item: 0x10,
 };
 

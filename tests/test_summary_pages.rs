@@ -106,6 +106,7 @@ fn summary_of() -> (Rc<FakeMemory>, Rc<RefCell<RunningApp>>, summary::Pages) {
         apps.clone(),
         Rc::new(FakeLayouts),
         Rc::new(FakeFiles),
+        summary::ORAS,
     );
     (memory, apps, pages)
 }
@@ -270,4 +271,37 @@ fn test_lists_not_of_their_class_say_no_page() {
     memory.u32(PROCESS + summary::LISTS[1].0, &[RIBBONS]);
     poll(&memory, &mut pages, Some(MOVES));
     assert_eq!(pages.hidden(), roots(&[]));
+}
+
+#[test]
+fn test_x_has_two_pages_whose_lists_and_place_sit_sooner() {
+    let memory = FakeMemory::new();
+    let classes = FakeClasses::starting(memory.clone(), CODE.0 + 0x8000);
+    for (&(at, name, _, _), each) in summary::XY.lists.iter().zip([MOVES, RIBBONS]) {
+        memory.u32(PROCESS + at, &[each]);
+        memory.u32(each, &[classes.add(name)]);
+    }
+    let apps = Rc::new(RefCell::new(RunningApp::new(
+        memory.clone(),
+        Rc::new(ClassNames::new(memory.clone(), CODE)),
+    )));
+    apps.borrow_mut().running = Some(summary::SUMMARY.to_string());
+    apps.borrow_mut().process = Some(PROCESS);
+    let mut pages = summary::Pages::new(
+        memory.clone(),
+        apps,
+        Rc::new(FakeLayouts),
+        Rc::new(FakeFiles),
+        summary::XY,
+    );
+    for (shown, mon) in [(MOVES, METAGROSS), (RIBBONS, METAGROSS), (RIBBONS, TORCHIC)] {
+        for each in [MOVES, RIBBONS] {
+            memory.write(each + summary::SHOWING, &[(each == shown) as u8]);
+        }
+        memory.u32(PROCESS + summary::XY.place, &[mon]);
+        pages.poll().unwrap();
+    }
+    // The memo shown, the stats page's layouts unheard; the switch to Torchic said as one.
+    assert_eq!(pages.hidden(), roots(&[PARAMS, WAZA, CONTEST]));
+    assert_eq!(pages.switched(), roots(&[MEMO, INFO, BUTTON]));
 }
