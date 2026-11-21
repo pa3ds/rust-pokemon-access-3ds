@@ -1597,10 +1597,13 @@ fn line(parts: &[String]) -> String {
     out
 }
 
-/// Do the words name the item, whole words of theirs being its name? The TM pocket's top
-/// screen writes its number with its move, "TM39 Rock Tomb", where the item is "TM39".
+/// Do the words name the item, starting with its name as whole words? The TM pocket's top
+/// screen writes its number with its move, "TM39 Rock Tomb", where the item is "TM39". Its
+/// name anywhere in them was not enough: "Max Revive" ends with "Revive", and moving up onto
+/// Revive said Max Revive's details as its.
 fn names(text: &str, name: &str) -> bool {
-    format!(" {} ", py::split(text).join(" ")).contains(&format!(" {name} "))
+    let (words, named) = (py::split(text).join(" "), py::split(name).join(" "));
+    words == named || words.starts_with(&format!("{named} "))
 }
 
 /// The piece less the item its cursor has just said, where its words end with it: the TM

@@ -39,10 +39,13 @@ use crate::core::rtti::ClassNames;
 use crate::games::common::cursors::shared::CursorPoll;
 use crate::games::gen6::anchors::follow;
 use crate::games::gen6::apps::LOADED_CODE;
-use crate::py::{Error, Result};
+use crate::py::{self, Error, Result};
 
 pub const MAIN: &str = "N3app3bag10MainSystemE";
 pub const DRAW: &str = "N3app3bag11GraphicWorkE";
+/// ITEMS, MEDICINE, TMs & HMs, BERRIES, KEY ITEMS: the first lines of a text file that goes on
+/// with the Bag's other words, so a pocket byte past them names no pocket.
+pub const POCKETS: i64 = 5;
 
 /// Where a game's Bag keeps the item under its cursor, from its process (module docstring).
 #[derive(Debug, Clone, PartialEq)]
@@ -95,7 +98,7 @@ impl Chosen {
             shape,
             process,
             items,
-            pockets,
+            pockets: py::slice(&pockets, 0, POCKETS).to_vec(),
             names: None,
             cursor: None,
             pocket: None,

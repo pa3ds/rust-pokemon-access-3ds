@@ -111,6 +111,30 @@ fn test_the_pocket_is_named_as_it_changes_once_the_list_has_shown() {
     assert_eq!(chosen.poll(&none()).unwrap().1, None);
 }
 
+/// The pockets' names are the first lines of a text file that goes on with the Bag's other
+/// words: a byte past the five pockets would say one of them as a pocket.
+#[test]
+fn test_a_pocket_byte_past_the_bags_pockets_names_none() {
+    let memory = FakeMemory::new();
+    bag_objects(&memory, 2);
+    let mut words = strings(&POCKETS);
+    words.extend(strings(&["BERRIES", "KEY ITEMS", "USE", "GIVE"]));
+    let mut chosen = bag::Chosen::new(
+        memory.clone(),
+        bag::ORAS,
+        Rc::new(|| Some(PROCESS)),
+        strings(&ITEMS),
+        words,
+    );
+    memory.write(MAIN + 0x3C, &[5]);
+    assert_eq!(chosen.poll(&moved(0x0C, 5, &[5])).unwrap().1, None);
+    memory.write(MAIN + 0x3C, &[4]);
+    assert_eq!(
+        chosen.poll(&none()).unwrap().1.as_deref(),
+        Some("KEY ITEMS")
+    );
+}
+
 #[test]
 fn test_objects_of_other_classes_say_nothing() {
     let memory = FakeMemory::new();

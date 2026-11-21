@@ -2740,6 +2740,58 @@ fn test_a_cursor_sources_item_is_named_among_the_words_written() {
     );
 }
 
+/// Moving up from Max Revive onto Revive as Max Revive's details are still being written, the
+/// top screen names Max Revive, whose words end with "Revive": its count and description would
+/// be said as Revive's.
+#[test]
+fn test_a_cursor_sources_item_is_not_named_by_a_longer_name_ending_in_it() {
+    let mut screen = Screen::new();
+    let rows = [
+        piece(1, "Revive", -120.0, 70.0, MENU),
+        piece(2, "Max Revive", -120.0, 50.0, MENU),
+    ];
+    let stale = bag_top(
+        "Max Revive",
+        "2",
+        "Revives a fainted Pokémon and restores all its HP.",
+        true,
+    );
+    let everything = cat(&[&rows, &stale]);
+    assert_eq!(
+        screen.say(Args {
+            chosen: chosen_0c("Revive"),
+            ..args(
+                &stale,
+                vec![CursorItem::new(0x0C, vec![rows[0].clone()], false)],
+                &everything
+            )
+        }),
+        ["Revive"]
+    );
+    let heard: Vec<Vec<String>> = (0..3)
+        .map(|_| {
+            screen.say(Args {
+                chosen: chosen_0c("Revive"),
+                ..args(&[], vec![], &everything)
+            })
+        })
+        .collect();
+    assert_eq!(heard, vec![Vec::<String>::new(); 3]);
+    let top = bag_top(
+        "Revive",
+        "6",
+        "Revives a fainted Pokémon and restores half its HP.",
+        true,
+    );
+    assert_eq!(
+        screen.say(Args {
+            chosen: chosen_0c("Revive"),
+            ..args(&top, vec![], &cat(&[&rows, &top]))
+        }),
+        ["6, Revives a fainted Pokémon and restores half its HP."]
+    );
+}
+
 /// An item taken up with Y moves its cursor onto the same item, and the top screen, which
 /// names it already, is not written again: its details waited their most polls
 /// (or_bag_manual_sorting).
