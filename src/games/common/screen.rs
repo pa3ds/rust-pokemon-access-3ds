@@ -60,7 +60,9 @@ pub const GLYPH_SPOT: f64 = 10.0;
 /// Units within which two pieces with the same words are one drawn twice.
 pub const SAME_PLACE: f64 = 2.0;
 /// Pieces whose words come closer than this many glyph widths are one piece: "L5" and "19/19" are
-/// 6 to 8 units apart at a glyph width of 16, and "PP 35/35"'s "PP" and "35" about 15 at 12.5.
+/// 6 to 8 units apart at a glyph width of 16, and "PP 35/35"'s "PP" and "35" about 15 at 12.5. The
+/// Move Reminder's details stand 10 apart at 12.5, its category's icon from "POWER" and the power
+/// from "ACCURACY", and joined they were "PHYSICALPOWER 120ACCURACY 100".
 pub const JOIN_GAP: f64 = 0.8;
 /// What Sun's party screen writes where it draws "Lv.": a TextBox of its own holding a lone "l",
 /// drawn as the level mark by the font the level's digits are in, just left of the level in the
@@ -447,7 +449,7 @@ fn touching(first: &ScreenText, second: &ScreenText) -> bool {
     if glyph <= 0.0 || (first.row - second.row).abs() >= glyph {
         return false;
     }
-    -glyph < second.left - first.right && second.left - first.right <= glyph * JOIN_GAP
+    -glyph < second.left - first.right && second.left - first.right < glyph * JOIN_GAP
 }
 
 /// What `poll` keeps of each window shown in a layout: the pane, then its left, right, low and

@@ -658,6 +658,22 @@ fn test_a_sign_is_joined_to_the_number_after_it() {
     );
 }
 
+/// The Move Reminder draws its details 10 apart at a glyph width of 12.5, and joined they were
+/// "PHYSICALPOWER 120ACCURACY 100" (or_move_reminder_bugs).
+#[test]
+fn test_words_a_join_gap_apart_are_two() {
+    let pieces = [
+        ScreenText {
+            picture: true,
+            ..ScreenText::placed(1, "PHYSICAL", false, -155.0, -105.0, 45.0, 20.0)
+        },
+        ScreenText::placed(2, "POWER", false, -95.0, -63.8, 45.0, 12.5),
+        ScreenText::placed(3, "120", false, 4.0, 25.0, 45.0, 14.0),
+        ScreenText::placed(4, "ACCURACY", false, 35.0, 85.0, 45.0, 12.5),
+    ];
+    assert_eq!(join(&pieces, false), "PHYSICAL POWER 120 ACCURACY");
+}
+
 /// The summary's HP hangs every piece from its root, each a panel of its own, and its "/",
 /// the layout file's and never written, was left out: "HP 30 30" (spike 148).
 #[test]
