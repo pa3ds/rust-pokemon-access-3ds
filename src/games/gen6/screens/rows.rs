@@ -42,12 +42,23 @@
 //! the list                      +0x10  how many moves; +0x18 u32 the row the cursor is on, 0 to
 //!                                      3, and +0x1C f32 the rows scrolled away, their sum the
 //!                                      move (spike B on or_move_reminder, 16 moves)
+//! app::title_menu::Proc         +0x24  -> app::title_menu::MainSystem
+//! app::title_menu::MainSystem  +0x1114 u8 the title menu's row, 0 CONTINUE, 1 MYSTERY GIFT, 2
+//!                                      LIVE COMPETITION (spike B on or_pokemon_center_pc)
+//! app::poke3select::Proc        +0x3C  -> app::poke3select::View
+//! app::poke3select::View        +0x80  -> app::poke3select::lower::View
+//! app::poke3select::lower::View +0xB4  u8 the starter's ball under the cursor, 0 to 2 left to
+//!                                      right, 3 before the first move, read with no cursor on
+//!                                      screen: the ball is told by its description (spike B on
+//!                                      or_opening and x_opening; upper::View +0xEC the same)
 //! ```
 //!
 //! The byte says when a row is chosen, never what: the words are still the screen's. Measured in
 //! Omega Ruby and X; a game whose offsets are not measured reads nothing here (`Game.menu_row`,
-//! `Game.options_row`, `Game.party_slot`, `Game.move_rows`), but for the keyboard's and the PC's,
-//! the same in both. The move screens are measured in Omega Ruby alone: no X movie opens them.
+//! `Game.options_row`, `Game.party_slot`, `Game.move_rows`, `Game.title_row`), but for the
+//! keyboard's, the PC's and the starter's, the same in both. The move screens and the title menu
+//! are measured in Omega Ruby alone: no X movie opens the move screens or moves the title menu's
+//! cursor.
 //!
 //! Bound by:
 //! - ADR-0013: a cursor source says which item is under the cursor and when it moved, the words
@@ -112,6 +123,18 @@ pub const REMEMBER: &str = "N3app13wazaomoidashi14SelectWazaProcE";
 /// The Move Reminder's process -> `ParentView` -> `LowerView` -> its list.
 pub const REMEMBER_LIST: [i64; 3] = [0x40, 0x7C, 0x94];
 pub const PARENT_VIEW: &str = "N3app13wazaomoidashi10ParentViewE";
+pub const TITLE: &str = "N3app10title_menu4ProcE";
+/// The title menu's process -> its `app::title_menu::MainSystem`.
+pub const TITLE_SYSTEM: i64 = 0x24;
+pub const TITLE_MAIN: &str = "N3app10title_menu10MainSystemE";
+/// `MainSystem` -> the title menu's row, in Omega Ruby (spike B).
+pub const TITLE_ROW: i64 = 0x1114;
+pub const STARTER: &str = "N3app11poke3select4ProcE";
+/// The starter's process -> `app::poke3select::View` -> its `lower::View`.
+pub const STARTER_VIEWS: [i64; 2] = [0x3C, 0x80];
+pub const STARTER_VIEW: &str = "N3app11poke3select4ViewE";
+/// `lower::View` -> the ball under the cursor, in Omega Ruby and X (spike B).
+pub const BALL: i64 = 0xB4;
 /// The Move Reminder's list -> the row the cursor is on, a u32, and after it the rows scrolled
 /// away, an f32: both read, as a move down a long list changes the scroll alone.
 pub const LIST_ROW: i64 = 0x18;
@@ -148,26 +171,29 @@ pub struct Rows {
     options_row: Option<i64>,
     party_slot: Option<i64>,
     move_rows: bool,
+    title_row: Option<i64>,
     /// Where the row was read last tick, and what it read.
     last: Option<(i64, Vec<u8>)>,
     /// Where the row was read and what it read as it last moved, while it is still that menu's:
     /// none once another menu has taken the input.
     moved_to: Option<(i64, Vec<u8>)>,
-    /// The app running when the row was last looked for.
-    app: Option<String>,
-    /// The party's, the name entry's, the PC's or a move screen's process and the object holding
-    /// its byte or its menus, once found: its class, where it has one, is checked once a screen,
-    /// and only what it holds read each tick after. Dropped once another app runs, lest the next
-    /// of the same app be built at the same address round other objects.
+    /// The party's, the name entry's, the PC's, a move screen's, the title menu's or the
+    /// starter's process and the object holding its byte or its menus, once found: its class,
+    /// where it has one, is checked once a screen, and only what it holds read each tick after.
     work: Option<(i64, i64)>,
+    // ponytail: kept while the process is, so an app built again at the same address round
+    // other objects reads the old ones until another app's row is looked for. Dropped at
+    // each app change instead, the Box's path was found again after every summary, reads no
+    // tape had (or_battle_box); key it by more than the process if that is ever met.
     names: Option<(i64, ClassNames)>,
 }
 
 impl Rows {
     /// `menu` is the field menu, `shown` whether a cursor is on screen, which the field's menu row
-    /// is read only while it is; `menu_row`, `options_row` and `party_slot` where the game keeps
-    /// their rows, None where not measured, and `move_rows` whether the move screens' are.
-    /// Python's defaults are None for `party_slot` and False for `move_rows`.
+    /// is read only while it is; `menu_row`, `options_row`, `party_slot` and `title_row` where the
+    /// game keeps their rows, None where not measured, and `move_rows` whether the move screens'
+    /// are. Python's defaults are None for `party_slot` and `title_row` and False for
+    /// `move_rows`.
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         memory: Rc<dyn Memory>,
@@ -179,6 +205,7 @@ impl Rows {
         options_row: Option<i64>,
         party_slot: Option<i64>,
         move_rows: bool,
+        title_row: Option<i64>,
     ) -> Self {
         Rows {
             memory,
@@ -190,9 +217,9 @@ impl Rows {
             options_row,
             party_slot,
             move_rows,
+            title_row,
             last: None,
             moved_to: None,
-            app: None,
             work: None,
             names: None,
         }
@@ -252,8 +279,10 @@ impl Rows {
     /// Where the row of the menu up now is kept and how many bytes it takes, or None.
     fn at(&mut self) -> Result<Option<(i64, i64)>> {
         let running = (self.running)();
-        if running != self.app {
-            (self.app, self.work) = (running.clone(), None);
+        if running.as_deref() == Some(STARTER) {
+            // No cursor is found on the starter's screen, its ball told by its description.
+            let view = self.found(&STARTER_VIEWS, Some(STARTER_VIEW))?;
+            return Ok(view.map(|view| (view + BALL, 1)));
         }
         if !(self.shown)() {
             return Ok(None);
@@ -293,6 +322,12 @@ impl Rows {
         if running.as_deref() == Some(FORGET) && self.move_rows {
             let cursor = self.found(&FORGET_ROWS, Some(LOWER))?;
             return Ok(cursor.map(|cursor| (cursor + SLOT, 1)));
+        }
+        if running.as_deref() == Some(TITLE)
+            && let Some(title_row) = self.title_row
+        {
+            let main = self.found(&[TITLE_SYSTEM], Some(TITLE_MAIN))?;
+            return Ok(main.map(|main| (main + title_row, 1)));
         }
         if running.as_deref() == Some(REMEMBER) && self.move_rows {
             let moves = self.found(&REMEMBER_LIST, Some(PARENT_VIEW))?;

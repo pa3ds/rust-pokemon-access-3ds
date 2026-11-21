@@ -32,6 +32,7 @@ fn rows_of(
         measured.then_some(rows::OPTIONS_ROW),
         None,
         false,
+        None,
     )
 }
 
@@ -81,6 +82,7 @@ fn test_the_partys_slot_is_read_from_its_static_work() {
         Some(rows::OPTIONS_ROW),
         Some(rows::PARTY_SLOT),
         false,
+        None,
     );
     assert!(!party.moved().unwrap());
     memory.write(WORK + rows::PARTY_SLOT, &[2]);
@@ -117,6 +119,7 @@ fn test_the_name_entrys_key_is_read_through_its_main_system() {
         Some(rows::OPTIONS_ROW),
         Some(rows::PARTY_SLOT),
         false,
+        None,
     );
     assert!(!keyboard.moved().unwrap()); // not its main system yet
     memory.u32(WORK, &[classes.add(rows::MAIN_SYSTEM)]);
@@ -150,6 +153,7 @@ fn test_the_pcs_row_is_read_from_the_menu_up_now() {
         Some(rows::OPTIONS_ROW),
         Some(rows::PARTY_SLOT),
         false,
+        None,
     );
     assert!(!pc.moved().unwrap()); // no menu up yet
     memory.u32(holder + rows::IN_USE, &[first]);
@@ -187,6 +191,7 @@ fn test_the_boxs_slot_is_read_from_the_cursor_in_use() {
         Some(rows::OPTIONS_ROW),
         Some(rows::PARTY_SLOT),
         false,
+        None,
     );
     assert!(!r#box.moved().unwrap());
     assert_eq!(r#box.box_slot().unwrap(), None); // not moved yet
@@ -204,8 +209,8 @@ fn test_the_boxs_slot_is_read_from_the_cursor_in_use() {
 }
 
 /// ADR-0013: Move to forget's row and the Move Reminder's row and scroll say when a move is
-/// made, a move down a long list scrolling it alone; a list built again for the same process,
-/// after another app, is found again (spike B on or_move_reminder).
+/// made, a move down a long list scrolling it alone, a wrap round it left to the screen poll
+/// (spike B on or_move_reminder).
 #[test]
 fn test_the_move_screens_rows_are_read_through_their_views() {
     let memory = FakeMemory::new();
@@ -214,46 +219,104 @@ fn test_the_move_screens_rows_are_read_through_their_views() {
     memory.u32(PROCESS + rows::FORGET_ROWS[0], &[lower]);
     memory.u32(lower, &[classes.add(rows::LOWER)]);
     memory.u32(lower + rows::FORGET_ROWS[1], &[cursor]);
-    let running = running(rows::FORGET);
+    let (running, process) = (running(rows::FORGET), Rc::new(Cell::new(PROCESS)));
     let mut moves = rows::Rows::new(
         memory.clone(),
         {
             let running = running.clone();
             Rc::new(move || Some(running.borrow().clone()))
         },
-        Rc::new(|| Some(PROCESS)),
+        {
+            let process = process.clone();
+            Rc::new(move || Some(process.get()))
+        },
         Rc::new(|| Ok(Some(MENU))),
         Rc::new(|| true),
         None,
         None,
         None,
         true,
+        None,
     );
     assert!(!moves.moved().unwrap());
     memory.write(cursor + rows::SLOT, &[4]); // the move to learn
     assert!(moves.moved().unwrap());
-    let (parent, view, first, second) = (0x08800000, 0x08900000, 0x08A00000, 0x08B00000);
+    let (parent, view, first) = (0x08800000, 0x08900000, 0x08A00000);
     let [hop_parent, hop_view, hop_list] = rows::REMEMBER_LIST;
-    memory.u32(PROCESS + hop_parent, &[parent]);
+    memory.u32(OTHER + hop_parent, &[parent]);
     memory.u32(parent, &[classes.add(rows::PARENT_VIEW)]);
     memory.u32(parent + hop_view, &[view]);
     memory.u32(view + hop_list, &[first]);
     // Row 2, 1.0 scrolled away: the fourth move.
     memory.write(first + rows::LIST_ROW, &[2, 0, 0, 0, 0x00, 0x00, 0x80, 0x3f]);
     *running.borrow_mut() = rows::REMEMBER.to_string();
+    process.set(OTHER);
     assert!(!moves.moved().unwrap());
     memory.write(first + rows::LIST_ROW + 4, &[0x00, 0x00, 0x00, 0x40]); // 2.0: scrolled alone
     assert!(moves.moved().unwrap());
     // Wrapped round to the first move: every row is rewritten after, so the screen poll says it.
     memory.write(first + rows::LIST_ROW, &[0, 0, 0, 0, 0, 0, 0, 0]);
     assert!(!moves.moved().unwrap());
-    *running.borrow_mut() = "N3app13wazaomoidashi4ProcE".to_string(); // the Reminder's own, between its lists
-    assert!(!moves.moved().unwrap());
-    memory.u32(view + hop_list, &[second]);
-    *running.borrow_mut() = rows::REMEMBER.to_string();
-    assert!(!moves.moved().unwrap());
-    memory.write(second + rows::LIST_ROW, &[1]);
-    assert!(moves.moved().unwrap());
+}
+
+/// ADR-0013: the title menu's row says when a move is made, its `MainSystem` checked by class
+/// (spike B on or_pokemon_center_pc); a game not measured reads nothing.
+#[test]
+fn test_the_title_menus_row_is_read_from_its_main_system() {
+    let memory = FakeMemory::new();
+    let classes = FakeClasses::new(memory.clone());
+    memory.u32(PROCESS + rows::TITLE_SYSTEM, &[WORK]);
+    memory.u32(WORK, &[classes.add(rows::TITLE_MAIN)]);
+    let title_of = |title_row: Option<i64>| {
+        rows::Rows::new(
+            memory.clone(),
+            Rc::new(|| Some(rows::TITLE.to_string())),
+            Rc::new(|| Some(PROCESS)),
+            Rc::new(|| Ok(Some(MENU))),
+            Rc::new(|| true),
+            None,
+            None,
+            None,
+            false,
+            title_row,
+        )
+    };
+    let mut title = title_of(Some(rows::TITLE_ROW));
+    assert!(!title.moved().unwrap());
+    memory.write(WORK + rows::TITLE_ROW, &[1]); // MYSTERY GIFT
+    assert!(title.moved().unwrap());
+    let mut unmeasured = title_of(None);
+    assert!(!unmeasured.moved().unwrap());
+    memory.write(WORK + rows::TITLE_ROW, &[2]);
+    assert!(!unmeasured.moved().unwrap());
+}
+
+/// ADR-0013: the starter's ball says when a move is made, though no cursor is found on its
+/// screen (spike B on or_opening and x_opening).
+#[test]
+fn test_the_starters_ball_is_read_with_no_cursor_on_screen() {
+    let memory = FakeMemory::new();
+    let classes = FakeClasses::new(memory.clone());
+    let [view, lower] = rows::STARTER_VIEWS;
+    memory.u32(PROCESS + view, &[WORK]);
+    memory.u32(WORK, &[classes.add(rows::STARTER_VIEW)]);
+    memory.u32(WORK + lower, &[OTHER]);
+    memory.write(OTHER + rows::BALL, &[1]);
+    let mut starter = rows::Rows::new(
+        memory.clone(),
+        Rc::new(|| Some(rows::STARTER.to_string())),
+        Rc::new(|| Some(PROCESS)),
+        Rc::new(|| Ok(Some(MENU))),
+        Rc::new(|| false),
+        None,
+        None,
+        None,
+        false,
+        None,
+    );
+    assert!(!starter.moved().unwrap());
+    memory.write(OTHER + rows::BALL, &[2]); // the Water type's
+    assert!(starter.moved().unwrap());
 }
 
 #[test]

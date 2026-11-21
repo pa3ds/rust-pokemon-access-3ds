@@ -1081,6 +1081,7 @@ pub fn game() -> &'static Game {
         options_row: Some(rows::OPTIONS_ROW),
         party_slot: Some(rows::PARTY_SLOT),
         move_rows: true,
+        title_row: Some(rows::TITLE_ROW),
         registered: Some(0x0E),
         version_flags: Some(VERSION_FLAGS),
         models: Some(MODELS),
