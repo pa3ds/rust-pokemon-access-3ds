@@ -1,13 +1,14 @@
 //! ADR-0034: the running app's process leads to the objects it keeps, each checked by its class,
 //! handed over once an app start.
 
+use std::cell::{Cell, RefCell};
 use std::collections::HashSet;
 use std::rc::Rc;
 
 use indexmap::IndexMap;
 
 use super::fake_memory::{FakeClasses, FakeMemory};
-use crate::games::gen6::anchors::{Anchors, Chain};
+use crate::games::gen6::anchors::{Anchors, Chain, Kept};
 use crate::py::Result;
 
 const APP: &str = "N3app3foo4ProcE";
@@ -119,5 +120,59 @@ fn test_objects_come_back_as_news_when_a_chain_leads_to_them_again() -> Result<(
             (BLOCKS[1], LISTED.to_string()),
         ])
     );
+    Ok(())
+}
+
+/// ADR-0043: a source's object is reached from the app's process and checked by its class,
+/// followed again until the app has built it, and kept while that app runs in that process.
+#[test]
+fn test_a_cursor_source_keeps_what_its_app_keeps_once_built() -> Result<()> {
+    let memory = FakeMemory::new();
+    let classes = FakeClasses::new(memory.clone());
+    let running = Rc::new(RefCell::new(APP.to_string()));
+    let process: Rc<Cell<Option<i64>>> = Rc::new(Cell::new(Some(PROCESS)));
+    let kept = Kept::new(
+        memory.clone(),
+        {
+            let process = process.clone();
+            Rc::new(move || process.get())
+        },
+        {
+            let running = running.clone();
+            Rc::new(move || Some(running.borrow().clone()))
+        },
+    );
+    memory.u32(PROCESS + 0x24, &[WORK]);
+    assert_eq!(kept.find(&[0x24], Some(POOLED), &[0x10])?, None); // not of its class yet
+    memory.u32(WORK, &[classes.add(POOLED)]);
+    assert_eq!(kept.find(&[0x24], Some(POOLED), &[0x10])?, None); // what it leads on to is not built
+    memory.u32(WORK + 0x10, &[POOL]);
+    assert_eq!(kept.find(&[0x24], Some(POOLED), &[0x10])?, Some(POOL));
+    memory.u32(WORK + 0x10, &[ARRAY]);
+    assert_eq!(kept.find(&[0x24], Some(POOLED), &[0x10])?, Some(POOL)); // kept, not read again
+    // Another app built where this one was: found afresh, and named afresh.
+    *running.borrow_mut() = OTHER.to_string();
+    assert_eq!(kept.find(&[0x24], Some(POOLED), &[0x10])?, Some(ARRAY));
+    // The app stopped and run again where it was: found afresh only once told it stopped.
+    memory.u32(WORK + 0x10, &[POOL]);
+    assert_eq!(kept.find(&[0x24], Some(POOLED), &[0x10])?, Some(ARRAY));
+    kept.forget();
+    assert_eq!(kept.find(&[0x24], Some(POOLED), &[0x10])?, Some(POOL));
+    process.set(None);
+    assert_eq!(kept.find(&[0x24], Some(POOLED), &[])?, None);
+    Ok(())
+}
+
+#[test]
+fn test_a_checked_object_is_followed_at_every_ask() -> Result<()> {
+    let memory = FakeMemory::new();
+    let classes = FakeClasses::new(memory.clone());
+    let kept = Kept::of(memory.clone(), Rc::new(|| Some(PROCESS)));
+    memory.u32(PROCESS + 0x24, &[WORK]);
+    memory.u32(WORK, &[classes.add(LISTED)]);
+    assert_eq!(kept.checked(PROCESS, &[0x24], Some(LISTED))?, Some(WORK));
+    assert_eq!(kept.checked(PROCESS, &[0x24], Some(POOLED))?, None);
+    memory.u32(PROCESS + 0x24, &[0]);
+    assert_eq!(kept.checked(PROCESS, &[0x24], None)?, None); // left the heap
     Ok(())
 }

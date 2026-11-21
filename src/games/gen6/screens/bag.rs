@@ -41,10 +41,8 @@ use indexmap::IndexMap;
 
 use crate::core::binary::u16;
 use crate::core::memory::Memory;
-use crate::core::rtti::ClassNames;
 use crate::games::common::cursors::shared::CursorPoll;
-use crate::games::gen6::anchors::follow;
-use crate::games::gen6::apps::LOADED_CODE;
+use crate::games::gen6::anchors::Kept;
 use crate::py::{self, Error, Result};
 
 pub const MAIN: &str = "N3app3bag10MainSystemE";
@@ -95,7 +93,8 @@ pub struct Chosen {
     process: Rc<dyn Fn() -> Option<i64>>,
     items: Vec<String>,
     pockets: Vec<String>,
-    names: Option<(i64, ClassNames)>,
+    /// The Bag's objects, named afresh for each Bag.
+    kept: Kept,
     /// The list's cursor: the one whose item is a row of its menu (`CursorPoll.rows`), not the
     /// TM's bar over the party.
     cursor: Option<i64>,
@@ -114,12 +113,12 @@ impl Chosen {
         pockets: Vec<String>,
     ) -> Self {
         Chosen {
+            kept: Kept::of(memory.clone(), process.clone()),
             memory,
             shape,
             process,
             items,
             pockets: py::slice(&pockets, 0, POCKETS).to_vec(),
-            names: None,
             cursor: None,
             pocket: None,
         }
@@ -134,9 +133,9 @@ impl Chosen {
     ) -> Result<(IndexMap<i64, String>, Option<String>)> {
         let process = (self.process)();
         let Some(process) = process else {
-            self.names = None;
             self.cursor = None;
             self.pocket = None;
+            self.kept.forget();
             return Ok((IndexMap::new(), None));
         };
         for item in &cursors.items {
@@ -195,34 +194,18 @@ impl Chosen {
         Ok(mode == CARRYING)
     }
 
-    fn main(&mut self, process: i64) -> Result<Option<i64>> {
-        // Named afresh for each Bag: its classes are in a module, whose memory is the next
-        // module's once it is unloaded (`apps.RunningApp.poll`).
-        if self.names.as_ref().is_none_or(|names| names.0 != process) {
-            self.names = Some((process, ClassNames::new(self.memory.clone(), LOADED_CODE)));
-        }
-        let main = follow(&*self.memory, process, &[self.shape.main])?;
-        let Some(main) = main else {
-            return Ok(None);
-        };
-        let names = &self.names.as_ref().expect("named above").1;
-        Ok((names.of_object(main)?.as_deref() == Some(MAIN)).then_some(main))
+    fn main(&self, process: i64) -> Result<Option<i64>> {
+        self.kept.checked(process, &[self.shape.main], Some(MAIN))
     }
 
     fn number(&self, main: Option<i64>) -> Result<i64> {
         let draw = match main {
             None => None,
-            Some(main) => follow(&*self.memory, main, self.shape.draw)?,
+            Some(main) => self.kept.checked(main, self.shape.draw, Some(DRAW))?,
         };
-        let Some(draw) = draw else {
-            return Ok(0);
-        };
-        let Some((_, names)) = &self.names else {
-            return Ok(0);
-        };
-        if names.of_object(draw)?.as_deref() != Some(DRAW) {
-            return Ok(0);
+        match draw {
+            None => Ok(0),
+            Some(draw) => u16(&self.memory.read(draw + self.shape.item, 2)?, 0),
         }
-        u16(&self.memory.read(draw + self.shape.item, 2)?, 0)
     }
 }

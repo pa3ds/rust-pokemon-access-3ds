@@ -33,14 +33,14 @@ use indexmap::{IndexMap, IndexSet};
 
 use crate::core::binary::u32;
 use crate::core::memory::Memory;
-use crate::core::rtti::ClassNames;
 use crate::core::words::own;
 use crate::games::common::cursors::shared::{CursorItem, CursorPoll};
 use crate::games::common::layout::TrackedLayouts;
 use crate::games::common::layout_file::FileMatching;
 use crate::games::common::pokemon;
 use crate::games::common::screen::ScreenText;
-use crate::games::gen6::apps::{BATTLE, LOADED_CODE};
+use crate::games::gen6::anchors::Kept;
+use crate::games::gen6::apps::BATTLE;
 use crate::games::gen6::screens::battle_bag::ui_block;
 use crate::py::{self, Error, Result};
 
@@ -61,7 +61,8 @@ pub struct Shiny {
     gauges: Rc<dyn Fn() -> Vec<i64>>,
     layouts: Rc<dyn TrackedLayouts>,
     files: Rc<dyn FileMatching>,
-    battle_names: Option<(i64, ClassNames)>,
+    /// The battle's classes, named afresh for each battle.
+    kept: Kept,
     /// Layout root -> its file's name, for the roots on screen in a battle.
     file: IndexMap<i64, String>,
 }
@@ -78,13 +79,13 @@ impl Shiny {
         files: Rc<dyn FileMatching>,
     ) -> Self {
         Shiny {
+            kept: Kept::of(memory.clone(), process.clone()),
             memory,
             running,
             process,
             gauges,
             layouts,
             files,
-            battle_names: None,
             file: IndexMap::new(),
         }
     }
@@ -156,20 +157,11 @@ impl Shiny {
 
     /// The one battle position a horde's target cursor is on, or None.
     fn position(&mut self) -> Result<Option<i64>> {
-        let Some(process) = (self.process)() else {
+        if (self.process)().is_none() {
             return Ok(None);
-        };
-        // Named afresh for each battle: its classes are in a module, whose memory is the next
-        // module's once it is unloaded.
-        if self
-            .battle_names
-            .as_ref()
-            .is_none_or(|names| names.0 != process)
-        {
-            self.battle_names = Some((process, ClassNames::new(self.memory.clone(), LOADED_CODE)));
         }
-        let names = &self.battle_names.as_ref().expect("named above").1;
-        let Some(ui) = ui_block(&*self.memory, names, &(self.gauges)())? else {
+        let names = self.kept.names();
+        let Some(ui) = ui_block(&*self.memory, &names, &(self.gauges)())? else {
             return Ok(None);
         };
         let screen = u32(&self.memory.read(ui + SCREEN, 4)?, 0)?;

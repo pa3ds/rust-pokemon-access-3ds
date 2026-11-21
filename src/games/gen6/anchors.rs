@@ -28,10 +28,17 @@
 //! chains are each game's (`Game.anchors`): the field's work keeps its parts at other offsets in
 //! X.
 //!
+//! A screen's cursor source reaches the objects it reads the same way, at its own ask rather than
+//! as a find handed over (`Kept`): the Bag's, the summary's, the AreaNav's map, the move screens'
+//! and the rest of ADR-0043's.
+//!
 //! Bound by:
 //! - ADR-0034: what an app keeps is followed from its process, each object checked by its class,
 //!   handed over as a partial find, and swept for as well.
+//! - ADR-0043: a cursor source's objects are reached by a chain from the app's process, each
+//!   checked by its class.
 
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -77,6 +84,113 @@ pub fn follow(memory: &dyn Memory, start: i64, hops: &[i64]) -> Result<Option<i6
         }
     }
     Ok(Some(at))
+}
+
+/// The key of an object found: its hops, its class and the hops on from it.
+type FoundKey = (Vec<i64>, Option<String>, Vec<i64>);
+
+/// What the app running keeps, as a screen's cursor source reaches it (ADR-0043): an object
+/// a chain leads to from the app's process, checked by its class, and remembered once found for
+/// as long as that app runs in that process; followed again at each ask until then, as an app
+/// builds its parts after it starts.
+///
+/// Its classes are named afresh for each app run: a screen's classes are in a module, whose
+/// memory is the next module's once it is unloaded (`apps.RunningApp.poll`), and X's fitting
+/// room is built where its title menu was. `running` may be left out where `process` is the
+/// process of one app alone, or None.
+///
+/// Its methods take `&self`, its state in `RefCell`s, as some of its holders ask it from
+/// methods of their own that take `&self`.
+pub struct Kept {
+    memory: Rc<dyn Memory>,
+    process: Rc<dyn Fn() -> Option<i64>>,
+    running: Rc<dyn Fn() -> Option<String>>,
+    /// The process and the app the names and the objects found are of.
+    run: RefCell<Option<(Option<i64>, Option<String>)>>,
+    names: RefCell<Rc<ClassNames>>,
+    found: RefCell<HashMap<FoundKey, i64>>,
+}
+
+impl Kept {
+    pub fn new(
+        memory: Rc<dyn Memory>,
+        process: Rc<dyn Fn() -> Option<i64>>,
+        running: Rc<dyn Fn() -> Option<String>>,
+    ) -> Self {
+        Kept {
+            names: RefCell::new(Rc::new(ClassNames::new(memory.clone(), LOADED_CODE))),
+            memory,
+            process,
+            running,
+            run: RefCell::new(None),
+            found: RefCell::new(HashMap::new()),
+        }
+    }
+
+    /// `Kept(memory, process)`: `running` left out.
+    pub fn of(memory: Rc<dyn Memory>, process: Rc<dyn Fn() -> Option<i64>>) -> Self {
+        Kept::new(memory, process, Rc::new(|| None))
+    }
+
+    /// The classes of the app running, named since it started.
+    pub fn names(&self) -> Rc<ClassNames> {
+        self.now();
+        self.names.borrow().clone()
+    }
+
+    /// Where `hops` lead from the process, once the object there is of class `cls` (where
+    /// given), and from it where `then` leads, through objects of no class; None until all are
+    /// built.
+    pub fn find(&self, hops: &[i64], cls: Option<&str>, then: &[i64]) -> Result<Option<i64>> {
+        let Some(process) = self.now() else {
+            return Ok(None);
+        };
+        let key = (hops.to_vec(), cls.map(str::to_string), then.to_vec());
+        let known = self.found.borrow().get(&key).copied();
+        if let Some(at) = known {
+            return Ok(Some(at));
+        }
+        let at = match self.checked(process, hops, cls)? {
+            None => None,
+            Some(at) => follow(&*self.memory, at, then)?,
+        };
+        let Some(at) = at else {
+            return Ok(None);
+        };
+        self.found.borrow_mut().insert(key, at);
+        Ok(Some(at))
+    }
+
+    /// Where `hops` lead from `start` now, once the object there is of class `cls` (where
+    /// given): followed and checked at every ask.
+    pub fn checked(&self, start: i64, hops: &[i64], cls: Option<&str>) -> Result<Option<i64>> {
+        let Some(at) = follow(&*self.memory, start, hops)? else {
+            return Ok(None);
+        };
+        Ok(match cls {
+            None => Some(at),
+            Some(cls) => (self.names().of_object(at)?.as_deref() == Some(cls)).then_some(at),
+        })
+    }
+
+    /// Its app has stopped: what it kept is found afresh, should another run of it be built
+    /// where it was. Left unasked, what was found holds until another app is asked for: the
+    /// Box's, under the summary it opens (`rows.Rows`).
+    pub fn forget(&self) {
+        *self.run.borrow_mut() = None;
+    }
+
+    /// The process running, its names and objects found dropped as another app runs.
+    fn now(&self) -> Option<i64> {
+        let run = ((self.process)(), (self.running)());
+        let process = run.0;
+        if self.run.borrow().as_ref() != Some(&run) {
+            *self.run.borrow_mut() = Some(run);
+            *self.names.borrow_mut() = Rc::new(ClassNames::new(self.memory.clone(), LOADED_CODE));
+            self.found.borrow_mut().clear();
+        }
+        process
+    }
 }
 
 /// Follows the chains of the app running, and says what they lead to that is new.

@@ -92,9 +92,8 @@ use std::rc::Rc;
 
 use crate::core::binary;
 use crate::core::memory::Memory;
-use crate::core::rtti::ClassNames;
-use crate::games::gen6::anchors::follow;
-use crate::games::gen6::apps::{FIELD, LOADED_CODE};
+use crate::games::gen6::anchors::{Kept, follow};
+use crate::games::gen6::apps::FIELD;
 use crate::games::gen6::screens::boxes;
 use crate::py::{self, Error, Result};
 
@@ -221,16 +220,13 @@ pub struct Rows {
     /// Where the row was read and what it read as it last moved, while it is still that menu's:
     /// none once another menu has taken the input.
     moved_to: Option<(i64, Vec<u8>)>,
-    /// The party's, the name entry's, the PC's, a move screen's, the title menu's, the starter's,
-    /// a contest's or the fitting room's process and app, and the object holding its byte or its
-    /// menus, once found: its class, where it has one, is checked once a screen, and only what it
-    /// holds read each tick after. Kept by the app as well as the process: X's fitting room is
-    /// built where its title menu was, and kept by the process alone it read the title menu's
-    /// object for its cursor and heard no move (x_cyllage_boutique_fitting_room). Not dropped at
-    /// each app change: the Box's path was found again after every summary, reads no tape had
-    /// (or_battle_box).
-    work: Option<((i64, Option<String>), i64)>,
-    names: Option<((i64, Option<String>), ClassNames)>,
+    /// The party's, the name entry's, the PC's, a move screen's, the title menu's, the
+    /// starter's, a contest's or the fitting room's object holding its byte or its menus, once
+    /// found: its class, where it has one, is checked once a screen, and only what it holds read
+    /// each tick after. Kept by the app as well as the process: X's fitting room is built where
+    /// its title menu was, and kept by the process alone it read the title menu's object for its
+    /// cursor and heard no move (x_cyllage_boutique_fitting_room).
+    kept: Kept,
     /// The Move Reminder's process and its contest effects' lower view, or None for none.
     contest: Option<(Option<i64>, Option<i64>)>,
 }
@@ -251,6 +247,7 @@ impl Rows {
         party_slot: Option<i64>,
     ) -> Self {
         Rows {
+            kept: Kept::new(memory.clone(), process.clone(), running.clone()),
             memory,
             running,
             process,
@@ -261,8 +258,6 @@ impl Rows {
             party_slot,
             last: None,
             moved_to: None,
-            work: None,
-            names: None,
             contest: None,
         }
     }
@@ -425,15 +420,11 @@ impl Rows {
     fn contest_view(&mut self, parent: i64) -> Result<Option<i64>> {
         let process = (self.process)();
         if self.contest.is_none_or(|contest| contest.0 != process) {
-            let view = follow(&*self.memory, parent, &CONTEST_LIST[..1])?;
-            let names = ClassNames::new(self.memory.clone(), LOADED_CODE);
-            let checked = match view {
-                Some(view) if names.of_object(view)?.as_deref() == Some(LOWER_CONTEST_VIEW) => {
-                    Some(view)
-                }
-                _ => None,
-            };
-            self.contest = Some((process, checked));
+            self.contest = Some((
+                process,
+                self.kept
+                    .checked(parent, &CONTEST_LIST[..1], Some(LOWER_CONTEST_VIEW))?,
+            ));
         }
         // ponytail: checked once a screen, the views built with it before any cursor shows;
         // check again while None if one is ever met built later.
@@ -442,34 +433,8 @@ impl Rows {
 
     /// Where `hops` lead from the process, once the object its first hop leads to is of class
     /// `name`, where it has one.
-    fn found(&mut self, hops: &[i64], name: Option<&str>) -> Result<Option<i64>> {
-        let Some(process) = (self.process)() else {
-            return Ok(None);
-        };
-        let key = (process, (self.running)());
-        if self.work.as_ref().is_none_or(|work| work.0 != key) {
-            let Some(first) = follow(&*self.memory, process, py::slice(hops, 0, 1))? else {
-                return Ok(None);
-            };
-            if let Some(name) = name {
-                // Named afresh for each screen: its classes are in a module, whose memory is the
-                // next module's once it is unloaded (`apps.RunningApp.poll`).
-                if self.names.as_ref().is_none_or(|names| names.0 != key) {
-                    self.names = Some((
-                        key.clone(),
-                        ClassNames::new(self.memory.clone(), LOADED_CODE),
-                    ));
-                }
-                let names = &self.names.as_ref().expect("named above").1;
-                if names.of_object(first)?.as_deref() != Some(name) {
-                    return Ok(None);
-                }
-            }
-            let Some(work) = follow(&*self.memory, first, py::slice_from(hops, 1))? else {
-                return Ok(None);
-            };
-            self.work = Some((key, work));
-        }
-        Ok(self.work.as_ref().map(|work| work.1))
+    fn found(&self, hops: &[i64], name: Option<&str>) -> Result<Option<i64>> {
+        self.kept
+            .find(py::slice(hops, 0, 1), name, py::slice_from(hops, 1))
     }
 }

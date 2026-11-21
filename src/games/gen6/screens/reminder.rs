@@ -31,8 +31,7 @@ use crate::core::binary::u32;
 use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
 use crate::games::common::cursors::shared::CursorPoll;
-use crate::games::gen6::anchors::follow;
-use crate::games::gen6::apps::LOADED_CODE;
+use crate::games::gen6::anchors::{Kept, follow};
 use crate::games::gen6::screens::rows::{
     CONTEST_LIST, LOWER_CONTEST_VIEW, PAGE, PARENT_VIEW, REMEMBER, REMEMBER_LIST,
 };
@@ -65,10 +64,8 @@ pub fn cursors(at: i64) -> Option<i64> {
 pub struct Pages {
     memory: Rc<dyn Memory>,
     running: Rc<dyn Fn() -> Option<String>>,
-    process: Rc<dyn Fn() -> Option<i64>>,
-    /// The process, its `ParentView`, once its class is checked, and the names of the classes
-    /// loaded with it.
-    parent: Option<(i64, i64, Rc<ClassNames>)>,
+    /// Its `ParentView` and its contest effects' view, once their classes are checked.
+    kept: Kept,
 }
 
 impl Pages {
@@ -78,10 +75,9 @@ impl Pages {
         process: Rc<dyn Fn() -> Option<i64>>,
     ) -> Self {
         Pages {
+            kept: Kept::new(memory.clone(), process, running.clone()),
             memory,
             running,
-            process,
-            parent: None,
         }
     }
 
@@ -164,36 +160,27 @@ impl Pages {
 
     /// The Move Reminder's `ParentView` and the names of its module's classes, or None
     /// elsewhere and in a game whose Move Reminder has one page (`rows.LOWER_CONTEST_VIEW`).
-    fn parent_view(&mut self) -> Result<Option<(i64, Rc<ClassNames>)>> {
-        let Some(process) = (self.process)() else {
-            return Ok(None);
-        };
+    fn parent_view(&self) -> Result<Option<(i64, Rc<ClassNames>)>> {
         if (self.running)().as_deref() != Some(REMEMBER) {
             return Ok(None);
         }
+        let parent = self
+            .kept
+            .find(&REMEMBER_LIST[..1], Some(PARENT_VIEW), &[])?;
+        let Some(parent) = parent else {
+            return Ok(None);
+        };
         if self
-            .parent
-            .as_ref()
-            .is_none_or(|parent| parent.0 != process)
+            .kept
+            .find(
+                &[&REMEMBER_LIST[..1], &CONTEST_LIST[..1]].concat(),
+                Some(LOWER_CONTEST_VIEW),
+                &[],
+            )?
+            .is_none()
         {
-            let Some(parent) = follow(&*self.memory, process, &REMEMBER_LIST[..1])? else {
-                return Ok(None);
-            };
-            // Named afresh for each screen: its classes are in a module (`rows.Rows._found`).
-            let names = Rc::new(ClassNames::new(self.memory.clone(), LOADED_CODE));
-            let contest = follow(&*self.memory, parent, &CONTEST_LIST[..1])?;
-            if names.of_object(parent)?.as_deref() != Some(PARENT_VIEW) {
-                return Ok(None);
-            }
-            let Some(contest) = contest else {
-                return Ok(None);
-            };
-            if names.of_object(contest)?.as_deref() != Some(LOWER_CONTEST_VIEW) {
-                return Ok(None);
-            }
-            self.parent = Some((process, parent, names));
+            return Ok(None);
         }
-        let (_, parent, names) = self.parent.as_ref().expect("found above");
-        Ok(Some((*parent, names.clone())))
+        Ok(Some((parent, self.kept.names())))
     }
 }

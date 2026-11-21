@@ -43,11 +43,9 @@ use regex::Regex;
 
 use crate::core::binary::{s32, u32};
 use crate::core::memory::Memory;
-use crate::core::rtti::ClassNames;
 use crate::games::common::cursors::shared::{CursorItem, CursorPoll, Rect};
 use crate::games::common::screen::{ScreenText, join};
-use crate::games::gen6::anchors::follow;
-use crate::games::gen6::apps::LOADED_CODE;
+use crate::games::gen6::anchors::Kept;
 use crate::py::{self, Result};
 
 /// X's and Y's Pokédex.
@@ -437,9 +435,9 @@ fn tables(on_screen: &[ScreenText], labels: &HashSet<String>) -> HashSet<(i64, i
 pub struct OrasList {
     memory: Rc<dyn Memory>,
     running: Rc<dyn Fn() -> Option<String>>,
-    process: Rc<dyn Fn() -> Option<i64>>,
-    /// The process and its `ZukanLaunch`, once found and checked by its class.
-    launch: Option<(i64, Option<i64>)>,
+    kept: Kept,
+    /// Its `ZukanLaunch` at the last tick, once found and checked by its class.
+    launch: Option<i64>,
     /// The panes the record showing the entry chosen points at. A `frozenset` only tested.
     boxes: HashSet<i64>,
     index: Option<i64>,
@@ -456,9 +454,9 @@ impl OrasList {
         process: Rc<dyn Fn() -> Option<i64>>,
     ) -> Self {
         OrasList {
+            kept: Kept::new(memory.clone(), process, running.clone()),
             memory,
             running,
-            process,
             launch: None,
             boxes: HashSet::new(),
             index: None,
@@ -485,7 +483,7 @@ impl OrasList {
     /// it changes in its row's words, a jump once it holds still.
     pub fn cursors(&mut self, cursors: CursorPoll, on_screen: &[ScreenText]) -> Result<CursorPoll> {
         let launch = match self.launch {
-            Some((_, Some(launch))) if (self.running)().as_deref() == Some(ORAS_APP) => launch,
+            Some(launch) if (self.running)().as_deref() == Some(ORAS_APP) => launch,
             _ => {
                 self.said = None;
                 return Ok(cursors);
@@ -562,28 +560,13 @@ impl OrasList {
 
     /// The entry chosen, while the Pokédex runs and its list is built.
     fn read(&mut self) -> Result<Option<i64>> {
-        let process = (self.process)();
-        let Some(process) = process.filter(|_| (self.running)().as_deref() == Some(ORAS_APP))
-        else {
+        if (self.running)().as_deref() != Some(ORAS_APP) {
+            self.kept.forget();
             self.launch = None;
             return Ok(None);
-        };
-        if self
-            .launch
-            .is_none_or(|(found, launch)| found != process || launch.is_none())
-        {
-            let mut launch = follow(&*self.memory, process, &[LAUNCH])?;
-            if let Some(found) = launch
-                && ClassNames::new(self.memory.clone(), LOADED_CODE)
-                    .of_object(found)?
-                    .as_deref()
-                    != Some(LAUNCH_CLASS)
-            {
-                launch = None;
-            }
-            self.launch = Some((process, launch));
         }
-        let Some((_, Some(launch))) = self.launch else {
+        self.launch = self.kept.find(&[LAUNCH], Some(LAUNCH_CLASS), &[])?;
+        let Some(launch) = self.launch else {
             return Ok(None);
         };
         s32(&self.memory.read(launch + CHOSEN, 4)?, 0).map(Some)

@@ -45,7 +45,7 @@ use crate::core::rtti::ClassNames;
 use crate::games::common::layout::TrackedLayouts;
 use crate::games::common::layout_file::FileMatching;
 use crate::games::common::screen::ScreenText;
-use crate::games::gen6::apps::LOADED_CODE;
+use crate::games::gen6::anchors::Kept;
 use crate::py::{self, Error, Result};
 
 pub const VIEW: i64 = 0x04;
@@ -94,7 +94,8 @@ pub struct BattleBag {
     gauges: Rc<dyn Fn() -> Vec<i64>>,
     /// Layout root -> its file's name, for the roots on screen.
     file: IndexMap<i64, String>,
-    names: Option<(i64, ClassNames)>,
+    /// The battle's classes, named afresh for each battle.
+    kept: Kept,
     /// The list, its pocket and its page at the last poll its words were on screen.
     shown: Option<(i64, i64, i64)>,
 }
@@ -109,13 +110,13 @@ impl BattleBag {
         gauges: Rc<dyn Fn() -> Vec<i64>>,
     ) -> Self {
         BattleBag {
+            kept: Kept::of(memory.clone(), process.clone()),
             memory,
             process,
             layouts,
             files,
             gauges,
             file: IndexMap::new(),
-            names: None,
             shown: None,
         }
     }
@@ -196,17 +197,12 @@ impl BattleBag {
     /// address alone; or None while neither is.
     fn list(&mut self) -> Result<Option<Listed>> {
         let process = (self.process)();
-        let Some(process) = process else {
+        if process.is_none() {
             return Ok(None);
-        };
-        // Named afresh for each battle: its classes are in a module, whose memory is the next
-        // module's once it is unloaded.
-        if self.names.as_ref().is_none_or(|names| names.0 != process) {
-            self.names = Some((process, ClassNames::new(self.memory.clone(), LOADED_CODE)));
         }
-        let names = &self.names.as_ref().expect("named above").1;
+        let names = self.kept.names();
         let memory = &*self.memory;
-        let Some(ui) = ui_block(memory, names, &(self.gauges)())? else {
+        let Some(ui) = ui_block(memory, &names, &(self.gauges)())? else {
             return Ok(None);
         };
         let mut bag = None;

@@ -52,8 +52,7 @@ use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
 use crate::games::common::cursors::shared::{CursorItem, CursorPoll};
 use crate::games::common::screen::ScreenText;
-use crate::games::gen6::anchors::follow;
-use crate::games::gen6::apps::LOADED_CODE;
+use crate::games::gen6::anchors::Kept;
 use crate::games::gen6::screens::scrolled::{Row, Scrolled, row};
 use crate::py::Result;
 
@@ -267,11 +266,9 @@ pub struct Places {
     memory: Rc<dyn Memory>,
     shape: Shape,
     running: Rc<dyn Fn() -> Option<String>>,
-    process: Rc<dyn Fn() -> Option<i64>>,
     name: Rc<dyn Fn(i64) -> Option<String>>,
-    /// The process and its `MapView`, once found and checked by its class, or None for one
-    /// not built yet.
-    view: Option<(i64, Option<i64>)>,
+    /// Its `MapView`, once found and checked by its class.
+    kept: Kept,
     /// The touch area at the last screen poll, None before the map's first.
     last: Option<i64>,
     /// The last place the cursor was on, said or the one the map opened on: not
@@ -293,12 +290,11 @@ impl Places {
         shape: Shape,
     ) -> Self {
         Places {
+            kept: Kept::new(memory.clone(), process, running.clone()),
             memory,
             shape,
             running,
-            process,
             name,
-            view: None,
             last: None,
             place: None,
             polls: 0,
@@ -348,33 +344,20 @@ impl Places {
 
     /// The touch area under the cursor, while the AreaNav runs and its `MapView` is built.
     fn read(&mut self) -> Result<Option<i64>> {
-        let process = (self.process)();
-        let Some(process) = process.filter(|_| (self.running)().as_deref() == Some(APP)) else {
-            self.view = None;
+        if (self.running)().as_deref() != Some(APP) {
+            self.kept.forget();
             return Ok(None);
-        };
-        if self
-            .view
-            .is_none_or(|(found, view)| found != process || view.is_none())
-        {
-            let view = follow(&*self.memory, process, &self.shape.view)?;
-            let names = ClassNames::new(self.memory.clone(), LOADED_CODE);
-            // Its class is the module's, named while it is loaded.
-            let checked = match view {
-                Some(view) if names.of_object(view)?.as_deref() == Some(MAP_VIEW_CLASS) => {
-                    Some(view)
-                }
-                _ => None,
-            };
-            self.view = Some((process, checked));
         }
-        let Some((_, Some(view))) = self.view else {
-            return Ok(None);
-        };
-        Ok(Some(u32(
-            &self.memory.read(view + self.shape.place, 4)?,
-            0,
-        )?))
+        let view = self
+            .kept
+            .find(&self.shape.view, Some(MAP_VIEW_CLASS), &[])?;
+        match view {
+            None => Ok(None),
+            Some(view) => Ok(Some(u32(
+                &self.memory.read(view + self.shape.place, 4)?,
+                0,
+            )?)),
+        }
     }
 }
 

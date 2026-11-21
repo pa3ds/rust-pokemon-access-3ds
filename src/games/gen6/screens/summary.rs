@@ -28,7 +28,8 @@ use crate::games::common::layout::{Layouts, TrackedLayouts};
 use crate::games::common::layout_file::{FileMatching, LayoutFiles};
 use crate::games::common::pokemon;
 use crate::games::common::screen::ScreenText;
-use crate::games::gen6::apps::{LOADED_CODE, RunningApp};
+use crate::games::gen6::anchors::Kept;
+use crate::games::gen6::apps::RunningApp;
 use crate::py::{Error, Result};
 
 pub const SUMMARY: &str = "N3app6status7ProcessE";
@@ -219,7 +220,7 @@ pub struct Pages {
     apps: Rc<RefCell<RunningApp>>,
     layouts: Rc<dyn TrackedLayouts>,
     files: Rc<dyn FileMatching>,
-    names: Option<(i64, ClassNames)>,
+    kept: Kept,
     /// The process, and its pages' lists in `LISTS`'s order once each is of its class.
     lists: Option<(i64, Vec<i64>)>,
     /// The page shown, its place in `LISTS`.
@@ -240,13 +241,24 @@ impl Pages {
         files: Rc<dyn FileMatching>,
         shape: Shape,
     ) -> Self {
+        let kept = Kept::new(
+            memory.clone(),
+            {
+                let apps = apps.clone();
+                Rc::new(move || apps.borrow().process)
+            },
+            {
+                let apps = apps.clone();
+                Rc::new(move || apps.borrow().running.clone())
+            },
+        );
         Pages {
             memory,
             shape,
             apps,
             layouts,
             files,
-            names: None,
+            kept,
             lists: None,
             page: None,
             shown: None,
@@ -271,6 +283,7 @@ impl Pages {
             self.lists = None;
             self.page = None;
             self.shown = None;
+            self.kept.forget();
             return Ok(());
         };
         // As the summary opens no list is flagged for a poll, and the page before holds.
@@ -298,20 +311,12 @@ impl Pages {
     /// The page whose list is flagged shown, or None while not one alone is.
     fn flagged(&mut self, process: i64) -> Result<Option<usize>> {
         if self.lists.as_ref().is_none_or(|lists| lists.0 != process) {
-            // Named afresh for each summary: its classes are in a module, whose memory is the
-            // next module's once it is unloaded (`apps.RunningApp.poll`).
-            if self.names.as_ref().is_none_or(|names| names.0 != process) {
-                self.names = Some((process, ClassNames::new(self.memory.clone(), LOADED_CODE)));
-            }
             let mut lists: Vec<i64> = Vec::new();
-            for &(at, _, _, _) in self.shape.lists {
-                lists.push(u32(&self.memory.read(process + at, 4)?, 0)?);
-            }
-            let names = &self.names.as_ref().expect("named above").1;
-            for (&each, &(_, name, _, _)) in lists.iter().zip(self.shape.lists.iter()) {
-                if each == 0 || names.of_object(each)?.as_deref() != Some(name) {
+            for &(at, name, _, _) in self.shape.lists {
+                let Some(found) = self.kept.find(&[at], Some(name), &[])? else {
                     return Ok(None);
-                }
+                };
+                lists.push(found);
             }
             self.lists = Some((process, lists));
         }

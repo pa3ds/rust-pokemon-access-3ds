@@ -38,15 +38,14 @@ use indexmap::{IndexMap, IndexSet};
 
 use crate::core::binary::{f32, u32};
 use crate::core::memory::Memory;
-use crate::core::rtti::ClassNames;
+
 use crate::core::words::own;
 use crate::games::common::layout::Layouts;
 use crate::games::common::layout_file::LayoutFiles;
 use crate::games::common::pictures::PLACES;
 use crate::games::common::screen::ScreenText;
 use crate::games::common::{lyt, strbuf};
-use crate::games::gen6::anchors::follow;
-use crate::games::gen6::apps::LOADED_CODE;
+use crate::games::gen6::anchors::{Kept, follow};
 use crate::games::gen6::game::StandingsReader;
 use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::screens::rows::{CONTEST_MAIN, CONTEST_UI, PICKED};
@@ -255,6 +254,7 @@ type Found = (Vec<Portrait>, Option<(f64, f64)>);
 pub struct Standings {
     memory: Rc<dyn Memory>,
     process: Rc<dyn Fn() -> Option<i64>>,
+    kept: Kept,
     /// The appeals' `contest::Main`, once its class is checked.
     ///
     /// A `Cell`: `said` takes `&self` and checks it, as the Python's does.
@@ -297,6 +297,7 @@ impl Standings {
         process: Rc<dyn Fn() -> Option<i64>>,
     ) -> Self {
         Standings {
+            kept: Kept::new(memory.clone(), process.clone(), running.clone()),
             memory,
             process,
             main: Cell::new(None),
@@ -502,11 +503,7 @@ impl Standings {
             return Ok(None);
         };
         if Some(main) != self.main.get() {
-            if ClassNames::new(self.memory.clone(), LOADED_CODE)
-                .of_object(main)?
-                .as_deref()
-                != Some(CONTEST_MAIN)
-            {
+            if self.kept.names().of_object(main)?.as_deref() != Some(CONTEST_MAIN) {
                 return Ok(None);
             }
             self.main.set(Some(main));
