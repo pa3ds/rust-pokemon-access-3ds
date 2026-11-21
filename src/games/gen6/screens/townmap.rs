@@ -76,11 +76,27 @@ pub const LAYOUT_COUNT: i64 = 0x20;
 pub const ENTRY: i64 = 8;
 pub const WORK: i64 = 0x04;
 pub const MAX_LAYOUTS: i64 = 16;
-/// The AreaNav's process -> `MainSystem` -> `GraphicWork` -> `MapView`, in Omega Ruby (spike M).
-pub const MAP_VIEW: [i64; 3] = [0x24, 0x18, 0xA4];
 pub const MAP_VIEW_CLASS: &str = "N3app7townmap7MapViewE";
-/// `MapView` -> the touch area under the map's cursor, by its index among the map's panes.
-pub const PLACE: i64 = 0xEC;
+
+/// Where a game's town map keeps the place under its cursor (module docstring).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Shape {
+    /// The process -> `MainSystem` -> `GraphicWork` -> `MapView`.
+    pub view: [i64; 3],
+    /// `MapView` -> the touch area under the map's cursor, by its index among the map's panes.
+    pub place: i64,
+}
+
+pub const ORAS: Shape = Shape {
+    view: [0x24, 0x18, 0xA4],
+    place: 0xEC,
+};
+/// X's: `GraphicWork` at `MainSystem` +0x14, `MapView` at its +0x90, the place 4 bytes on (spike
+/// M on x_townmap).
+pub const XY: Shape = Shape {
+    view: [0x24, 0x14, 0x90],
+    place: 0xF0,
+};
 pub const NO_PLACE: i64 = 0xFFFFFFFF;
 
 /// The works of the layouts a `G2DUtil` draws.
@@ -207,7 +223,7 @@ impl Views {
 /// (`current`): Berry Trees said "Roseli Berry: Route 123", then "Lum Berry: Route 123".
 pub struct Places {
     memory: Rc<dyn Memory>,
-    chain: &'static [i64],
+    shape: Shape,
     running: Rc<dyn Fn() -> Option<String>>,
     process: Rc<dyn Fn() -> Option<i64>>,
     name: Rc<dyn Fn(i64) -> Option<String>>,
@@ -223,17 +239,17 @@ pub struct Places {
 
 impl Places {
     /// `name` is what the game calls the place of a touch area, by its index, or None;
-    /// `view` the chain from the process to the `MapView` (Python's default `MAP_VIEW`).
+    /// `shape` where the game keeps it (Python's default `ORAS`).
     pub fn new(
         memory: Rc<dyn Memory>,
         running: Rc<dyn Fn() -> Option<String>>,
         process: Rc<dyn Fn() -> Option<i64>>,
         name: Rc<dyn Fn(i64) -> Option<String>>,
-        view: &'static [i64],
+        shape: Shape,
     ) -> Self {
         Places {
             memory,
-            chain: view,
+            shape,
             running,
             process,
             name,
@@ -250,16 +266,16 @@ impl Places {
         Ok(place.is_some_and(|place| Some(place) != self.last && place != NO_PLACE))
     }
 
-    /// The name of the place the cursor has just come onto, or None: nothing as the map
-    /// opens, where the screen says the place the player is in, nor over no place, where the
-    /// game writes nothing, nor, while a list is drawn over the map (`listing`), the area it
-    /// was already in.
+    /// The name of the place the cursor has just come onto, the map's first as it opens, or
+    /// None: nothing over no place, where the game writes nothing, nor, while a list is drawn
+    /// over the map (`listing`), the area it was already in. X writes a place's description
+    /// before its name, and said as they came the Town Map opened on "A rural town where
+    /// Pokémon and windmills…", then "Dendemille Town" (x_townmap).
     pub fn poll(&mut self, listing: bool) -> Result<Option<String>> {
         let Some(place) = self.read()? else {
             (self.last, self.place) = (None, None);
             return Ok(None);
         };
-        let opening = self.last.is_none();
         if Some(place) == self.last {
             return Ok(None);
         }
@@ -268,7 +284,7 @@ impl Places {
             return Ok(None);
         }
         self.place = Some(place);
-        Ok(if opening { None } else { (self.name)(place) })
+        Ok((self.name)(place))
     }
 
     /// The name of the place the cursor is on or last was, as of the last screen poll.
@@ -287,7 +303,7 @@ impl Places {
             .view
             .is_none_or(|(found, view)| found != process || view.is_none())
         {
-            let view = follow(&*self.memory, process, self.chain)?;
+            let view = follow(&*self.memory, process, &self.shape.view)?;
             let names = ClassNames::new(self.memory.clone(), LOADED_CODE);
             // Its class is the module's, named while it is loaded.
             let checked = match view {
@@ -301,7 +317,10 @@ impl Places {
         let Some((_, Some(view))) = self.view else {
             return Ok(None);
         };
-        Ok(Some(u32(&self.memory.read(view + PLACE, 4)?, 0)?))
+        Ok(Some(u32(
+            &self.memory.read(view + self.shape.place, 4)?,
+            0,
+        )?))
     }
 }
 

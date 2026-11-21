@@ -323,9 +323,10 @@ pub struct GameText {
     /// A touch area of the map, by its pane's name -> what the game calls the place, in the
     /// order the AreaNav lists them (`map_places`); none where the map is not read.
     pub map_places: IndexMap<String, String>,
-    /// The map's panes' names by their index, as the AreaNav's `MapView` keeps the touch area
-    /// under its cursor (`map_pane_names`, `townmap.Places`); none where the map is not read.
-    pub map_pane_names: Vec<String>,
+    /// A touch area of the map, by its index among the map's panes, as the town map's `MapView`
+    /// keeps the one under its cursor -> what the game calls its place (`map_areas`,
+    /// `townmap.Places`); none where the town list is not read.
+    pub map_areas: IndexMap<i64, String>,
     /// What the game calls each Secret Base decoration, by its number (`RomLayout.decorations`).
     pub decorations: Vec<String>,
     /// What the game calls the six stats on Super Training's screens, "HP" to "Speed"
@@ -436,7 +437,7 @@ impl PartialEq for GameText {
             && self.plain == other.plain
             && self.caught == other.caught
             && self.map_places == other.map_places
-            && self.map_pane_names == other.map_pane_names
+            && self.map_areas == other.map_areas
             && self.decorations == other.decorations
             && self.training_stats == other.training_stats
             && self.training_gains == other.training_gains
@@ -486,7 +487,7 @@ impl Default for GameText {
             plain: HashSet::new(),
             caught: HashSet::new(),
             map_places: IndexMap::new(),
-            map_pane_names: Vec::new(),
+            map_areas: IndexMap::new(),
             decorations: Vec::new(),
             training_stats: Vec::new(),
             training_gains: Vec::new(),
@@ -836,7 +837,7 @@ impl GameText {
             .keys()
             .filter_map(|zone| read.get(zone).map(|held| (*zone, held.0.clone())))
             .collect();
-        let (map_places, map_panes) = map_places_of(rom, layout, &table, &places)?;
+        let map_places = map_places_of(rom, layout, &table, &places)?;
         let text = GameText {
             places: places.clone(),
             trainers,
@@ -866,7 +867,7 @@ impl GameText {
             categories,
             conditions,
             map_places,
-            map_pane_names: map_panes,
+            map_areas: map_areas_of(rom, layout, &table, &places)?,
             touch_words: touch_words(&files, layout)?,
             labels: {
                 let mut labels: IndexMap<String, String> = IndexMap::new();
@@ -1189,20 +1190,19 @@ fn place_of<'a>(table: &'a [u8], places: &'a [String]) -> impl Fn(i64) -> Option
     }
 }
 
-/// `map_places` and `map_pane_names` out of the ROM, or none where the game's map is not
-/// read.
+/// `map_places` out of the ROM, or none where the game's map is not read.
 fn map_places_of(
     rom: &Rom,
     layout: &RomLayout,
     table: &[u8],
     places: &[String],
-) -> Result<(IndexMap<String, String>, Vec<String>)> {
+) -> Result<IndexMap<String, String>> {
     let (Some((archive, file, pane_at)), Some(towns)) = (&layout.map_panes, &layout.towns) else {
-        return Ok((IndexMap::new(), Vec::new()));
+        return Ok(IndexMap::new());
     };
     let place = place_of(table, places);
 
-    let loaded = (|| -> Result<(IndexMap<String, String>, Vec<String>)> {
+    let loaded = (|| -> Result<IndexMap<String, String>> {
         let map_files = garc_files(&rom.read(archive)?)?;
         let head = item(&map_files, *file)?.clone();
         let nav_files = garc_files(&rom.read(&towns.archive)?)?;
@@ -1212,10 +1212,7 @@ fn map_places_of(
         } else {
             head
         };
-        Ok((
-            map_places(&head, &nav, towns, *pane_at, &place)?,
-            map_pane_names(&head)?,
-        ))
+        map_places(&head, &nav, towns, *pane_at, &place)
     })();
     match loaded {
         Ok(places) => Ok(places),
@@ -1224,7 +1221,59 @@ fn map_places_of(
                 || error.is(Kind::IndexError)
                 || error.is(Kind::StructError) =>
         {
-            Ok((IndexMap::new(), Vec::new()))
+            Ok(IndexMap::new())
+        }
+        Err(error) => Err(error),
+    }
+}
+
+/// Where a row of the town list keeps its town's touch area on the map, by its index among the
+/// map's panes: Omega Ruby's and X's (spikes 152 and M).
+pub const AREA: i64 = 0x04;
+
+/// A touch area of the map, by its index -> what the game calls its place: the town list's
+/// rows keep it at `AREA`, and the first row naming one names it, as `map_places` does.
+pub fn map_areas(
+    nav: &[u8],
+    towns: &TownFacilities,
+    place: &dyn Fn(i64) -> Option<String>,
+) -> Result<IndexMap<i64, String>> {
+    let mut out: IndexMap<i64, String> = IndexMap::new();
+    let mut row = 0;
+    while row < nav.len() as i64 - towns.row + 1 {
+        let zone = u16(nav, row + towns.zone)?;
+        let area = u16(nav, row + AREA)?;
+        if let Some(name) = place(zone).filter(|name| !name.is_empty()) {
+            out.entry(area).or_insert(name);
+        }
+        row += towns.row;
+    }
+    Ok(out)
+}
+
+/// `map_areas` out of the ROM, or none where the town list is not read.
+fn map_areas_of(
+    rom: &Rom,
+    layout: &RomLayout,
+    table: &[u8],
+    places: &[String],
+) -> Result<IndexMap<i64, String>> {
+    let Some(towns) = &layout.towns else {
+        return Ok(IndexMap::new());
+    };
+    let loaded = (|| -> Result<IndexMap<i64, String>> {
+        let nav_files = garc_files(&rom.read(&towns.archive)?)?;
+        let nav = item(&nav_files, towns.file)?.clone();
+        map_areas(&nav, towns, &place_of(table, places))
+    })();
+    match loaded {
+        Ok(areas) => Ok(areas),
+        Err(error)
+            if error.is(Kind::RomError)
+                || error.is(Kind::IndexError)
+                || error.is(Kind::StructError) =>
+        {
+            Ok(IndexMap::new())
         }
         Err(error) => Err(error),
     }

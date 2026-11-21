@@ -353,6 +353,7 @@ pub struct Gen6Profile {
     cursor_shown: Rc<Cell<bool>>,
     mart: RefCell<mart::Jumps>,
     xy_list: RefCell<pokedex::XyList>,
+    oras_list: RefCell<pokedex::OrasList>,
     summary_shape: summary::Shape,
     screens: Option<RefCell<Box<dyn ScreensReader>>>,
     summary_pages: RefCell<summary::Pages>,
@@ -786,6 +787,18 @@ impl Gen6Profile {
         ));
         // X's Pokédex list says an entry by its number alone; the top screen's panel names it.
         let xy_list = RefCell::new(pokedex::XyList::new());
+        // Omega Ruby's says its entry from the list's own rows, the tick it is chosen (spike N).
+        let oras_list = RefCell::new(pokedex::OrasList::new(
+            memory.clone(),
+            {
+                let apps = apps.clone();
+                Rc::new(move || apps.borrow().running.clone())
+            },
+            {
+                let apps = apps.clone();
+                Rc::new(move || apps.borrow().process)
+            },
+        ));
         // The summary draws one page and keeps the rest as drawn: those not shown go unheard.
         let summary_shape = game.summary;
         let screens = game.screens.map(|make| {
@@ -925,20 +938,13 @@ impl Gen6Profile {
         // The place under the AreaNav's map cursor, said from its MapView before the top screen
         // names it (spike M).
         let places = game.map_view.map(|map_view| {
-            let panes = text.map_pane_names.clone();
-            let map_places = text.map_places.clone();
+            let map_areas = text.map_areas.clone();
             let (running, process) = (apps.clone(), apps.clone());
             RefCell::new(townmap::Places::new(
                 memory.clone(),
                 Rc::new(move || running.borrow().running.clone()),
                 Rc::new(move || process.borrow().process),
-                Rc::new(move |index: i64| {
-                    if index < panes.len() as i64 {
-                        map_places.get(&panes[index as usize]).cloned()
-                    } else {
-                        None
-                    }
-                }),
+                Rc::new(move |index: i64| map_areas.get(&index).cloned()),
                 map_view,
             ))
         });
@@ -1534,6 +1540,7 @@ impl Gen6Profile {
             cursor_shown,
             mart,
             xy_list,
+            oras_list,
             summary_shape,
             screens,
             summary_pages,
@@ -1980,7 +1987,7 @@ impl Gen6Profile {
         // sweep waits as it does for a cursor moving: one ran into a turn through the boxes, and
         // BOX 4 and BOX 5 went unsaid (or_pc_box_bugs).
         let turned = phase(&*self.memory, "rows", || {
-            if self.rows.borrow_mut().moved()? {
+            if self.rows.borrow_mut().moved()? || self.oras_list.borrow_mut().moved()? {
                 self.chasing.set(rows::CHASE);
             }
             // The Pokéblock Kit keeps no index of what its cursor is over, and its cursor's place
@@ -2153,6 +2160,7 @@ impl Gen6Profile {
             self.summary_pages.borrow_mut().poll()?;
             let cursors = self.summary_pages.borrow().cursors(cursors, on_screen)?;
             let cursors = self.reminder.borrow().cursors(cursors);
+            let cursors = self.oras_list.borrow_mut().cursors(cursors, on_screen);
             let running = self.apps.borrow().running.clone();
             let cursors = self
                 .xy_list

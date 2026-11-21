@@ -20,7 +20,8 @@ use crate::games::common::layout::Layouts;
 use crate::games::common::lyt;
 use crate::py::{self, Error, Kind, Result};
 
-pub const MAP: &str = "poke_navi_map.bclim";
+/// A `frozenset` only tested.
+pub const MAPS: [&str; 2] = ["poke_navi_map.bclim", "townmap_bg1.bclim"];
 pub const CURSOR: &str = "cursol.bclim";
 pub const HALF_WIDTH: f64 = 160.0;
 /// Half the bottom screen, from its middle, where a layout places its panes.
@@ -140,10 +141,11 @@ impl MapCursor {
                 drawn.insert((self.image_of)(pane)?, pane);
             }
         }
-        let (picture, cursor) = (
-            drawn.get(&Some(MAP.to_string())).copied(),
-            drawn.get(&Some(CURSOR.to_string())).copied(),
-        );
+        let picture = drawn
+            .iter()
+            .find(|(image, _)| image.as_deref().is_some_and(|image| MAPS.contains(&image)))
+            .map(|(_, &pane)| pane);
+        let cursor = drawn.get(&Some(CURSOR.to_string())).copied();
         let parts = match (picture, cursor) {
             (Some(picture), Some(cursor)) => Some((picture, cursor)),
             _ => None,

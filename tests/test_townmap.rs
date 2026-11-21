@@ -80,14 +80,14 @@ type Running = Rc<RefCell<Option<String>>>;
 /// The AreaNav's process leading to its `MapView`, the place under its cursor at +0xEC.
 fn fly_map(place: i64) -> (Rc<FakeMemory>, Running, townmap::Places) {
     let memory = FakeMemory::new();
-    memory.u32(PROCESS + townmap::MAP_VIEW[0], &[MAIN]);
-    memory.u32(MAIN + townmap::MAP_VIEW[1], &[GRAPHIC]);
-    memory.u32(GRAPHIC + townmap::MAP_VIEW[2], &[MAP]);
+    memory.u32(PROCESS + townmap::ORAS.view[0], &[MAIN]);
+    memory.u32(MAIN + townmap::ORAS.view[1], &[GRAPHIC]);
+    memory.u32(GRAPHIC + townmap::ORAS.view[2], &[MAP]);
     memory.u32(
         MAP,
         &[FakeClasses::new(memory.clone()).add(townmap::MAP_VIEW_CLASS)],
     );
-    memory.u32(MAP + townmap::PLACE, &[place]);
+    memory.u32(MAP + townmap::ORAS.place, &[place]);
     let running: Running = Rc::new(RefCell::new(Some(townmap::APP.to_string())));
     let places = townmap::Places::new(
         memory.clone(),
@@ -102,7 +102,7 @@ fn fly_map(place: i64) -> (Rc<FakeMemory>, Running, townmap::Places) {
                 .find(|(each, _)| *each == index)
                 .map(|(_, name)| name.to_string())
         }),
-        &townmap::MAP_VIEW,
+        townmap::ORAS,
     );
     (memory, running, places)
 }
@@ -111,9 +111,9 @@ fn fly_map(place: i64) -> (Rc<FakeMemory>, Running, townmap::Places) {
 #[test]
 fn test_the_place_the_cursor_comes_onto_is_said_by_its_name() {
     let (memory, _running, mut places) = fly_map(0x40);
-    // The map opening: the screen says where the player is.
-    assert_eq!(places.poll(false).unwrap(), None);
-    memory.u32(MAP + townmap::PLACE, &[0x1F]);
+    // The map opening on where the player is.
+    assert_eq!(places.poll(false).unwrap().as_deref(), Some("Route 111"));
+    memory.u32(MAP + townmap::ORAS.place, &[0x1F]);
     assert!(places.turned().unwrap());
     assert_eq!(places.poll(false).unwrap().as_deref(), Some("Mauville City"));
     assert!(!places.turned().unwrap());
@@ -126,33 +126,33 @@ fn test_the_place_the_cursor_comes_onto_is_said_by_its_name() {
 fn test_a_place_moved_off_and_back_onto_is_said_again_but_not_over_a_list() {
     let (memory, _running, mut places) = fly_map(0x40);
     places.poll(false).unwrap();
-    memory.u32(MAP + townmap::PLACE, &[0x1F]);
+    memory.u32(MAP + townmap::ORAS.place, &[0x1F]);
     assert_eq!(places.poll(false).unwrap().as_deref(), Some("Mauville City"));
-    memory.u32(MAP + townmap::PLACE, &[townmap::NO_PLACE]);
+    memory.u32(MAP + townmap::ORAS.place, &[townmap::NO_PLACE]);
     assert!(!places.turned().unwrap());
     assert_eq!(places.poll(false).unwrap(), None);
     assert_eq!(places.current().as_deref(), Some("Mauville City"));
-    memory.u32(MAP + townmap::PLACE, &[0x1F]);
+    memory.u32(MAP + townmap::ORAS.place, &[0x1F]);
     assert!(places.turned().unwrap());
     assert_eq!(places.poll(false).unwrap().as_deref(), Some("Mauville City"));
-    memory.u32(MAP + townmap::PLACE, &[townmap::NO_PLACE]);
+    memory.u32(MAP + townmap::ORAS.place, &[townmap::NO_PLACE]);
     places.poll(true).unwrap();
-    memory.u32(MAP + townmap::PLACE, &[0x1F]);
+    memory.u32(MAP + townmap::ORAS.place, &[0x1F]);
     assert_eq!(places.poll(true).unwrap(), None);
-    memory.u32(MAP + townmap::PLACE, &[0x40]);
+    memory.u32(MAP + townmap::ORAS.place, &[0x40]);
     assert_eq!(places.poll(true).unwrap().as_deref(), Some("Route 111"));
 }
 
 #[test]
-fn test_another_app_reads_nothing_and_the_next_map_opens_unsaid() {
+fn test_another_app_reads_nothing_and_the_next_map_says_its_place() {
     let (memory, running, mut places) = fly_map(0x40);
     places.poll(false).unwrap();
     *running.borrow_mut() = Some("N3app8pokelist4ProcE".to_string());
-    memory.u32(MAP + townmap::PLACE, &[0x1F]);
+    memory.u32(MAP + townmap::ORAS.place, &[0x1F]);
     assert!(!places.turned().unwrap());
     assert_eq!(places.poll(false).unwrap(), None);
     *running.borrow_mut() = Some(townmap::APP.to_string());
-    assert_eq!(places.poll(false).unwrap(), None);
+    assert_eq!(places.poll(false).unwrap().as_deref(), Some("Mauville City"));
 }
 
 /// Trainer's Eye moves the map to each trainer's place: said first, as the area switched to,

@@ -36,7 +36,7 @@ use crate::games::gen6::field::landform::{Landform, gen6};
 use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::rom::layout::RomLayout;
 use crate::games::gen6::screens::buttons::MENU;
-use crate::games::gen6::screens::{bag, summary};
+use crate::games::gen6::screens::{bag, summary, townmap};
 use crate::games::gen6::subscreen::amie::{NUMBER, ORAS_PLAYER, PlayerFields};
 use crate::games::gen6::subscreen::super_training::ICONS;
 use crate::py::{Log, Result};
@@ -391,10 +391,10 @@ pub struct Game {
     /// spike B): the work block's +0x24, in ORAS and X. None where it has not been measured: a box
     /// is then the one named as the title is.
     pub box_shown: Option<(i64, i64)>,
-    /// The chain from the AreaNav's process to its `app::townmap::MapView`, which keeps the place
-    /// under the map's cursor (`townmap.Places`, spike M): ORAS's. None where it has not been
-    /// measured: the place is then the screen's alone.
-    pub map_view: Option<&'static [i64]>,
+    /// Where the town map's `app::townmap::MapView` keeps the place under its cursor
+    /// (`townmap.Places`, spike M): ORAS's or X's. None where it has not been measured: the place
+    /// is then the screen's alone.
+    pub map_view: Option<townmap::Shape>,
     /// Where the Bag keeps the item under its cursor, its cursor source (`screens.bag`, spike A):
     /// ORAS's, or X's. None where it has not been measured.
     pub bag: Option<bag::Shape>,

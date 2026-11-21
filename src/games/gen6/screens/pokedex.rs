@@ -1,4 +1,17 @@
-//! X's Pokédex list: each entry said by its number and the name the top screen gives it.
+//! The Pokédex lists: Omega Ruby's entry said the tick it is chosen, X's by its number and name.
+//!
+//! Omega Ruby's list keeps its rows in `app::sango_zukan::ZukanLaunch`, the process's +0xC8: nine
+//! records of 0x44 bytes from +0x50, each an index and then pointers into a row's panes (spike B
+//! on or_menus). The fifth's index is the entry chosen; the fourth's panes show its number and
+//! name (spike N on or_pokedex: their words change the tick the index does, or a tick before). The
+//! plate over the list is a picture fixed in place while the rows slide a row's height and back
+//! under it, and its item was said once it had read the same for two polls, 0.3 to 0.4 s after
+//! the index changed. The index is read every tick, and a move is said the poll it changes, in
+//! the words of the fourth record's panes (`OrasList`): no slide can put another row's words
+//! there. A page jumps seven, passing the entries between over 0.1 s: said once the index holds
+//! still, as the Mart's jumps are (`mart.Jumps`).
+//!
+//! X's list is described below.
 //!
 //! X's list is a row of numbered icons, and its cursor's words are the number alone, "004"; the
 //! entry's name is the top screen's, on the line of its "No." and the same number, with the seen
@@ -17,18 +30,35 @@
 //! process's +0x3C; X said each move the poll it changed, so it is not read.
 
 use std::collections::HashSet;
+use std::rc::Rc;
 use std::sync::LazyLock;
 
 use regex::Regex;
 
+use crate::core::binary::{s32, u32};
+use crate::core::memory::Memory;
+use crate::core::rtti::ClassNames;
 use crate::games::common::cursors::shared::{CursorItem, CursorPoll};
 use crate::games::common::screen::{ScreenText, join};
-use crate::py;
+use crate::games::gen6::anchors::follow;
+use crate::games::gen6::apps::LOADED_CODE;
+use crate::py::{self, Result};
 
 /// X's and Y's Pokédex.
 pub const APP: &str = "N3app5zukan8MainProcE";
 /// Omega Ruby's and Alpha Sapphire's Pokédex.
 pub const ORAS_APP: &str = "N3app11sango_zukan9ZukanProcE";
+/// The Pokédex's process -> `app::sango_zukan::ZukanLaunch`, its list.
+pub const LAUNCH: i64 = 0xC8;
+pub const LAUNCH_CLASS: &str = "N3app11sango_zukan11ZukanLaunchE";
+pub const ROWS: i64 = 0x50;
+pub const RECORD: i64 = 0x44;
+/// The record whose index, a s32 at its start, is the entry chosen.
+pub const CHOSEN: i64 = ROWS + 4 * RECORD;
+/// The record whose panes show the entry chosen.
+pub const SHOWN: i64 = ROWS + 3 * RECORD;
+/// Ticks a jump's index holds before its entry is said.
+pub const STILL_TICKS: i64 = 2;
 /// A cursor's words with no letter or digit: a search field not set, full-width dashes or "---".
 /// Anchored at both ends, as Python's `fullmatch` is.
 pub static WORDLESS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[^\w]+$").unwrap());
@@ -220,4 +250,165 @@ pub fn labelled(running: Option<&str>, cursors: CursorPoll, on_screen: &[ScreenT
         });
     }
     CursorPoll { items, ..cursors }
+}
+
+/// Omega Ruby's Pokédex list's entry, said the tick it is chosen in its row's own words.
+pub struct OrasList {
+    memory: Rc<dyn Memory>,
+    running: Rc<dyn Fn() -> Option<String>>,
+    process: Rc<dyn Fn() -> Option<i64>>,
+    /// The process and its `ZukanLaunch`, once found and checked by its class.
+    launch: Option<(i64, Option<i64>)>,
+    /// The panes the record showing the entry chosen points at. A `frozenset` only tested.
+    boxes: HashSet<i64>,
+    index: Option<i64>,
+    /// Ticks the index has held, after a step or a jump.
+    still: i64,
+    jumped: bool,
+    /// The entry last said, and its words, while the list is up.
+    said: Option<(i64, String)>,
+}
+
+impl OrasList {
+    pub fn new(
+        memory: Rc<dyn Memory>,
+        running: Rc<dyn Fn() -> Option<String>>,
+        process: Rc<dyn Fn() -> Option<i64>>,
+    ) -> Self {
+        OrasList {
+            memory,
+            running,
+            process,
+            launch: None,
+            boxes: HashSet::new(),
+            index: None,
+            still: 0,
+            jumped: false,
+            said: None,
+        }
+    }
+
+    /// Has the entry chosen changed since the last tick? Asked every tick, one read.
+    pub fn moved(&mut self) -> Result<bool> {
+        let Some(index) = self.read()? else {
+            self.index = None;
+            return Ok(false);
+        };
+        if Some(index) == self.index {
+            self.still += 1;
+            return Ok(false);
+        }
+        self.jumped = self.index.is_some_and(|before| (index - before).abs() > 1);
+        (self.index, self.still) = (Some(index), 0);
+        Ok(true)
+    }
+
+    /// The cursors' poll with the plate's items replaced by the entry chosen, said the poll
+    /// it changes in its row's words, a jump once it holds still.
+    pub fn cursors(&mut self, cursors: CursorPoll, on_screen: &[ScreenText]) -> CursorPoll {
+        let launch = match self.launch {
+            Some((_, Some(launch))) if (self.running)().as_deref() == Some(ORAS_APP) => launch,
+            _ => {
+                self.said = None;
+                return cursors;
+            }
+        };
+        let pieces: Vec<ScreenText> = py::sorted_by_lt(
+            on_screen
+                .iter()
+                .filter(|p| self.boxes.contains(&p.r#box))
+                .cloned()
+                .collect(),
+            |a: &ScreenText, b: &ScreenText| a.left < b.left,
+        );
+        let root = pieces.first().map(|p| p.root);
+        let Some(root) = root.filter(|root| {
+            cursors
+                .under
+                .iter()
+                .any(|under| under.first().is_some_and(|first| first.root == *root))
+        }) else {
+            // No plate over the list: its entry is said afresh when it comes back.
+            self.said = None;
+            return cursors;
+        };
+        let plate: Vec<CursorItem> = cursors
+            .items
+            .iter()
+            .filter(|item| item.pieces.first().is_some_and(|first| first.root == root))
+            .cloned()
+            .collect();
+        let items: Vec<CursorItem> = cursors
+            .items
+            .iter()
+            .filter(|item| !plate.contains(item))
+            .cloned()
+            .collect();
+        let (index, words) = (self.index, join(&pieces, false));
+        let Some(index) = index.filter(|index| {
+            self.said
+                .as_ref()
+                .is_none_or(|(said, _)| said != index)
+        }) else {
+            return CursorPoll { items, ..cursors };
+        };
+        if self.jumped && self.still < STILL_TICKS {
+            return CursorPoll {
+                items,
+                chased: true,
+                ..cursors
+            };
+        }
+        if self.said.as_ref().is_some_and(|(_, said)| *said == words) {
+            // The index has moved and its row's words not yet.
+            return CursorPoll {
+                items,
+                chased: true,
+                ..cursors
+            };
+        }
+        let cursor = plate.first().map_or(launch, |item| item.cursor);
+        let opened = self.said.is_none();
+        self.said = Some((index, words));
+        let mut items = items;
+        items.push(CursorItem::new(cursor, pieces, opened));
+        CursorPoll { items, ..cursors }
+    }
+
+    /// The entry chosen, while the Pokédex runs and its list is built.
+    fn read(&mut self) -> Result<Option<i64>> {
+        let process = (self.process)();
+        let Some(process) = process.filter(|_| (self.running)().as_deref() == Some(ORAS_APP))
+        else {
+            self.launch = None;
+            return Ok(None);
+        };
+        if self
+            .launch
+            .is_none_or(|(found, launch)| found != process || launch.is_none())
+        {
+            let mut launch = follow(&*self.memory, process, &[LAUNCH])?;
+            if let Some(found) = launch
+                && ClassNames::new(self.memory.clone(), LOADED_CODE)
+                    .of_object(found)?
+                    .as_deref()
+                    == Some(LAUNCH_CLASS)
+            {
+                let record = self.memory.read(found + SHOWN, RECORD)?;
+                let mut boxes = HashSet::new();
+                for at in (4..RECORD).step_by(4) {
+                    boxes.insert(u32(&record, at)?);
+                }
+                self.boxes = boxes;
+            } else {
+                launch = None;
+            }
+            self.launch = Some((process, launch));
+        }
+        let Some((_, Some(launch))) = self.launch else {
+            return Ok(None);
+        };
+        s32(&self.memory.read(launch + CHOSEN, 4)?, 0)
+            .map(Some)
+    }
 }
