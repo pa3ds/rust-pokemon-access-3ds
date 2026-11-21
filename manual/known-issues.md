@@ -58,8 +58,6 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
 ## Omega Ruby and Alpha Sapphire
 
 - **In the Y button's menu**, what Select and Start do is not said.
-- **The Pokéblock Kit**: after you give a Pokéblock, turning back to the Pokéblock Case with L or R
-  says that Pokémon's contest moves and "You gave the Pokéblock to …!" again.
 - **A scene you skip** goes undescribed from there, and a description waits while the emulator is
   paused.
 - **A Pokémon met in seaweed under water** is said as one met walking, and as met in grass in the

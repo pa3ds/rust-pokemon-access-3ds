@@ -14,9 +14,9 @@
 //!                                5, 9 and 0xA closing, 0xB closed; 1 and 2 opening (read
 //!                                every tick, live)
 //! app::poroc_case::Proc   +0x20  -> the Case's views, of no class
-//! the views              +0x30C  u8 the Case's own screen: 1 its list, 4 the party, 7 the Yes or
-//!                                No, 0xA the block given, 3 back to the list; 2 the Blender,
-//!                                and 2 again as the Kit closes (not read)
+//! the views              +0x30C  u8 the Case's own screen: 1 its list, 3 leaving it for the
+//!                                party, 4 the party, 7 the Yes or No, 0xA the block given; 2 the
+//!                                Blender, and 2 again as the Kit closes (read every screen poll)
 //! ```
 //!
 //! The screen not shown is put away by its layouts' files, and its lower screen's whole pool with
@@ -24,6 +24,12 @@
 //! out, each read the other screen's tab under it, "Make" in the Case. Turning, the screen turned
 //! from stays up until the other is; closing, both are put away: the Blender came back for its
 //! last polls, "10 90", "7 2 8", the values passed through closing and turning not yet known.
+//!
+//! The Case's own screens are put away by its views' byte the same way: the Pokémon's moves and
+//! star and "You gave the Pokéblock to Pikachu!" stay on screen by every flag once the list is
+//! back, and turned back to from the Blender, the Case said them again, though its top screen
+//! showed the Case and its bottom screen the blocks; and a second block given to Pikachu went
+//! unsaid, its words unchanged (or_pokeblock_kit_2, with pictures).
 //!
 //! Nor does the Kit keep an index of the block or the berry under its cursor: the cursor's place
 //! is the one word that changes as it moves (`lyt.X`, `lyt.Y`), and it was seen at a screen poll,
@@ -71,6 +77,14 @@ pub fn hidden(sequence: i64) -> Vec<&'static str> {
         _ => Vec::new(),
     }
 }
+pub const VIEWS: i64 = 0x20;
+pub const VIEW: i64 = 0x30C;
+/// The Case's files drawn only on some of its views' `VIEW`: the Pokémon's moves and star with the
+/// party, its question and the block given, and the block given's words.
+pub const DRAWN_ON: [(&str, &[i64]); 2] = [
+    ("poroc_case_status_upper.bclyt", &[4, 7, 0xA]),
+    ("poroc_case_eat_lower.bclyt", &[0xA]),
+];
 /// A cursor window's X to its Y, read whole and compared by those two alone.
 pub const PLACE: i64 = lyt::Y - lyt::X + 4;
 
@@ -158,7 +172,20 @@ impl ScreensReader for Kit {
             .read(process + SEQUENCE, 1)?
             .first()
             .ok_or_else(|| Error::index("index out of range"))?;
-        let hidden = hidden(sequence as i64);
+        let mut hidden = hidden(sequence as i64);
+        let views = u32(&self.memory.read(process + VIEWS, 4)?, 0)?;
+        if views != 0 {
+            let view = *self
+                .memory
+                .read(views + VIEW, 1)?
+                .first()
+                .ok_or_else(|| Error::index("index out of range"))? as i64;
+            for (name, drawn) in DRAWN_ON {
+                if !drawn.contains(&view) && !hidden.contains(&name) {
+                    hidden.push(name);
+                }
+            }
+        }
         if hidden.is_empty() {
             return Ok(HashSet::new());
         }

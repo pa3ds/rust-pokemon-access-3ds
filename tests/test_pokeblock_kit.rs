@@ -19,13 +19,14 @@ use crate::games::oras::screens::pokeblock_kit;
 use crate::py::Result;
 
 const PROCESS: i64 = 0x08C652BC;
-const FILES: [(i64, &str); 6] = [
+const FILES: [(i64, &str); 7] = [
     (0x0822A000, "poroc_case_lower.bclyt"),
     (0x0822B000, "poroc_case_status_upper.bclyt"),
     (0x0822C000, "brender_lower.bclyt"),
     (0x0822D000, "brender_upper.bclyt"),
     (0x0822E000, "base.bclyt"),
     (0x0822F000, "base.bclyt"),
+    (0x08230000, "poroc_case_eat_lower.bclyt"),
 ];
 const CASE_LIST: i64 = FILES[0].0;
 const PARTY: i64 = FILES[1].0;
@@ -33,15 +34,18 @@ const BLENDER: i64 = FILES[2].0;
 const BLENDER_TOP: i64 = FILES[3].0;
 const BLENDER_CURSOR: i64 = FILES[4].0;
 const CASE_CURSOR: i64 = FILES[5].0;
-/// Root -> its work's first word: the cursors built into their lower screens' pools.
-const POOLS: [(i64, i64); 6] = [
+const GIVEN: i64 = FILES[6].0;
+const POOLS: [(i64, i64); 7] = [
     (CASE_LIST, 0x08300000),
     (PARTY, 0x08310000),
     (BLENDER, 0x08320000),
     (BLENDER_TOP, 0x08330000),
     (BLENDER_CURSOR, 0x08320000),
     (CASE_CURSOR, 0x08300000),
+    (GIVEN, 0x08300000),
 ];
+/// Root -> its work's first word: the cursors built into their lower screens' pools.
+const VIEWS: i64 = 0x08C70000;
 
 struct FakeLayouts;
 
@@ -103,7 +107,10 @@ fn test_the_screen_not_shown_is_put_away_with_its_cursors() {
         away(4),
         HashSet::from([BLENDER, BLENDER_TOP, BLENDER_CURSOR])
     );
-    assert_eq!(away(7), HashSet::from([CASE_LIST, PARTY, CASE_CURSOR]));
+    assert_eq!(
+        away(7),
+        HashSet::from([CASE_LIST, PARTY, CASE_CURSOR, GIVEN])
+    );
     assert_eq!(
         away(0xB),
         FILES
@@ -119,6 +126,45 @@ fn test_the_screen_not_shown_is_put_away_with_its_cursors() {
     let every: HashSet<i64> = FILES.iter().map(|&(root, _)| root).collect();
     let closing = [away(9), away(0xA)];
     assert!(closing.iter().all(|each| *each == every));
+}
+
+#[test]
+fn test_the_cases_party_and_block_given_are_put_away_by_its_views() {
+    let memory = FakeMemory::new();
+    for (root, pool) in POOLS {
+        memory.u32(root - 0x10000, &[pool]);
+    }
+    memory.u32(PROCESS + pokeblock_kit::VIEWS, &[VIEWS]);
+    memory.write(PROCESS + pokeblock_kit::SEQUENCE, &[4]);
+    let mut kit = pokeblock_kit::Kit::new(
+        memory.clone(),
+        case_running(&memory),
+        Rc::new(FakeLayouts),
+        Rc::new(FakeFiles),
+    );
+    let blender = HashSet::from([BLENDER, BLENDER_TOP, BLENDER_CURSOR]);
+    let with = |more: &[i64]| -> HashSet<i64> { blender.iter().chain(more).copied().collect() };
+    let mut away = |view: u8| -> HashSet<i64> {
+        memory.write(VIEWS + pokeblock_kit::VIEW, &[view]);
+        kit.put_away()
+            .unwrap()
+            .into_iter()
+            .map(|work| work + 0x10000)
+            .collect()
+    };
+
+    // The list, and leaving it: the Pokémon's moves and the block given stay drawn by every flag.
+    let (list, leaving) = (away(1), away(3));
+    assert!(list == leaving && list == with(&[PARTY, GIVEN]));
+    let (party, question) = (away(4), away(7));
+    assert!(party == question && party == with(&[GIVEN]));
+    assert_eq!(away(0xA), blender);
+    // The Blender's own screen puts the Case's away whole.
+    memory.write(PROCESS + pokeblock_kit::SEQUENCE, &[7]);
+    assert_eq!(
+        away(2),
+        HashSet::from([CASE_LIST, PARTY, CASE_CURSOR, GIVEN])
+    );
 }
 
 /// `RunningApp`, its app the Case's and its process `PROCESS`.
