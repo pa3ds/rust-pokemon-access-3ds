@@ -55,6 +55,7 @@
 
 use std::rc::Rc;
 
+use crate::core::binary;
 use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
 use crate::games::gen6::anchors::follow;
@@ -117,6 +118,15 @@ pub const LIST_ROW: i64 = 0x18;
 /// Ticks a row's move is chased, the screen polled at each until the cursor's word is said: a
 /// screen poll's worth.
 pub const CHASE: i64 = 12;
+
+/// The Move Reminder's move: the row the cursor is on plus the rows scrolled away.
+fn r#move(row_and_scroll: &[u8]) -> Result<f64> {
+    let (row, scroll) = (
+        binary::u32(row_and_scroll, 0)?,
+        binary::f32(row_and_scroll, 4)?,
+    );
+    Ok(row as f64 + scroll)
+}
 
 /// `CONTROLS[app]`: the hops to an app's control block, where it has one.
 pub fn controls(app: &str) -> Option<[i64; 3]> {
@@ -207,8 +217,11 @@ impl Rows {
         if now.1 == last.1 {
             return Ok(false);
         }
-        self.moved_to = Some(now);
-        Ok(true)
+        self.moved_to = Some(now.clone());
+        // The Move Reminder's list wrapping round rewrites every row over a few frames after
+        // its row changes, and a poll at once read one half written: "Dragon Breath Normal",
+        // then "Sky Attack" (or_move_reminder, live). A jump is left to the screen poll.
+        Ok(now.1.len() == 1 || (r#move(&now.1)? - r#move(&last.1)?).abs() <= 1.0)
     }
 
     /// The slot the Box's pointer has been moved to, on it or gliding there, while its grid cursor

@@ -244,6 +244,9 @@ fn test_the_move_screens_rows_are_read_through_their_views() {
     assert!(!moves.moved().unwrap());
     memory.write(first + rows::LIST_ROW + 4, &[0x00, 0x00, 0x00, 0x40]); // 2.0: scrolled alone
     assert!(moves.moved().unwrap());
+    // Wrapped round to the first move: every row is rewritten after, so the screen poll says it.
+    memory.write(first + rows::LIST_ROW, &[0, 0, 0, 0, 0, 0, 0, 0]);
+    assert!(!moves.moved().unwrap());
     *running.borrow_mut() = "N3app13wazaomoidashi4ProcE".to_string(); // the Reminder's own, between its lists
     assert!(!moves.moved().unwrap());
     memory.u32(view + hop_list, &[second]);
