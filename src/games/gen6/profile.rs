@@ -704,8 +704,8 @@ impl Gen6Profile {
             layouts.clone(),
             files.clone(),
         ));
-        // The X menu's, the options' and the party's rows, read every tick while a cursor is on
-        // screen: a move polls the screen at once.
+        // The X menu's, the options' and the party's rows and the name entry's key, read every
+        // tick while a cursor is on screen: a move polls the screen at once.
         let cursor_shown = Rc::new(Cell::new(false));
         let rows = RefCell::new(rows::Rows::new(
             memory.clone(),

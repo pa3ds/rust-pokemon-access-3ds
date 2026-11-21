@@ -97,6 +97,36 @@ fn test_the_partys_slot_is_read_from_its_static_work() {
     assert!(party.moved().unwrap());
 }
 
+/// ADR-0013: the key under the name entry's cursor says when a move is made, once the keyboard is
+/// built (spike B on or_opening and x_opening).
+#[test]
+fn test_the_name_entrys_key_is_read_through_its_main_system() {
+    let memory = FakeMemory::new();
+    let classes = FakeClasses::new(memory.clone());
+    memory.u32(PROCESS + rows::KEYBOARD_SYSTEM, &[WORK]);
+    memory.u32(WORK, &[classes.add("N3app8strinput4ProcE")]);
+    let mut keyboard = rows::Rows::new(
+        memory.clone(),
+        Rc::new(|| Some(rows::KEYBOARD.to_string())),
+        Rc::new(|| Some(PROCESS)),
+        Rc::new(|| Ok(Some(MENU))),
+        Rc::new(|| true),
+        Some(rows::MENU_ROW),
+        Some(rows::OPTIONS_ROW),
+        Some(rows::PARTY_SLOT),
+    );
+    assert!(!keyboard.moved().unwrap()); // not its main system yet
+    memory.u32(WORK, &[classes.add(rows::MAIN_SYSTEM)]);
+    assert!(!keyboard.moved().unwrap()); // its keys not built yet
+    memory.u32(WORK + rows::KEYS, &[OTHER]);
+    assert!(!keyboard.moved().unwrap()); // the keyboard just opened: no move yet
+    memory.write(OTHER + rows::KEY, &[0x0B]);
+    assert!(keyboard.moved().unwrap());
+    assert!(!keyboard.moved().unwrap());
+    memory.write(OTHER + rows::KEY, &[0x0C]);
+    assert!(keyboard.moved().unwrap());
+}
+
 #[test]
 fn test_a_game_not_measured_reads_nothing_nor_a_screen_with_no_cursor() {
     let memory = Counting::new(FakeMemory::new());

@@ -1,12 +1,13 @@
-//! The row under a plain menu's cursor, read every tick, so that a move is heard the tick it is
-//! made (spikes B and J).
+//! The row under a plain menu's cursor, or the key under the name entry's, read every tick, so
+//! that a move is heard the tick it is made (spikes B and J).
 //!
 //! The X menu, the options screen and the party are found from the layout, a window or a picture
 //! drawn round the row and its words under it, and pa3ds said each move the screen poll its row's
-//! byte changed: the layout is not behind the game (findings/cursors.md, spikes J and B). What was
-//! left is the screen poll, a fifth of a second. The byte is read every tick while the last screen
-//! poll found a cursor on screen, and when it changes the screen is polled at once, and again each
-//! tick until the cursor's word is said, a poll's worth of ticks at most (`Gen6Profile`'s
+//! byte changed: the layout is not behind the game (findings/cursors.md, spikes J and B). The name
+//! entry's key cursor is a picture moved from key to key (`common.cursors.key`). What was left is
+//! the screen poll, a fifth of a second. The byte is read every tick while the last screen poll
+//! found a cursor on screen, and when it changes the screen is polled at once, and again each tick
+//! until the cursor's word is said, a poll's worth of ticks at most (`Gen6Profile`'s
 //! `poll_menus`). Over or_menus's 36 moves the word came a median 0.017 s after its byte changed,
 //! where it had come 0.121 s after:
 //!
@@ -21,11 +22,15 @@
 //!                                      and or_riding_sharpedo); +0x1B0 in X and Y (x_hoard_battle,
 //!                                      y_legend_wakening_boss). +0x42 is the slot too, but holds
 //!                                      the Pokémon being switched until the switch is made.
+//! app::strinput::Proc           +0x24  -> app::strinput::MainSystem
+//! app::strinput::MainSystem    +0x3E0  -> the keyboard's cursor, null until the keyboard is built
+//! the keyboard's cursor         +0x14  u8 the key under it, 0x0B Q to 0x2E return on the letters
+//!                                      (spike B on or_opening and x_opening); +0x15 the key before
 //! ```
 //!
 //! The byte says when a row is chosen, never what: the words are still the screen's. Measured in
 //! Omega Ruby and X; a game whose offsets are not measured reads nothing here (`Game.menu_row`,
-//! `Game.options_row`, `Game.party_slot`).
+//! `Game.options_row`, `Game.party_slot`), but for the keyboard's, the same in both.
 //!
 //! Bound by:
 //! - ADR-0013: a cursor source says which item is under the cursor and when it moved, the words
@@ -37,7 +42,7 @@ use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
 use crate::games::gen6::anchors::follow;
 use crate::games::gen6::apps::{FIELD, LOADED_CODE};
-use crate::py::{Error, Result};
+use crate::py::{self, Error, Result};
 
 pub const OPTIONS: &str = "N3app6config7ProcessE";
 pub const PARTY: &str = "N3app8pokelist4ProcE";
@@ -54,11 +59,20 @@ pub const MENU_ROW: i64 = 0x82;
 pub const XY_MENU_ROW: i64 = 0x76;
 /// The options screen's process -> the row under its cursor, in Omega Ruby and X (spike B).
 pub const OPTIONS_ROW: i64 = 0x4C;
+pub const KEYBOARD: &str = "N3app8strinput4ProcE";
+/// The name entry's process -> its `app::strinput::MainSystem`.
+pub const KEYBOARD_SYSTEM: i64 = 0x24;
+pub const MAIN_SYSTEM: &str = "N3app8strinput10MainSystemE";
+/// `MainSystem` -> the keyboard's cursor, null until the keyboard is built.
+pub const KEYS: i64 = 0x3E0;
+/// The keyboard's cursor -> the key under it, in Omega Ruby and X (spike B).
+pub const KEY: i64 = 0x14;
 /// Ticks a row's move is chased, the screen polled at each until the cursor's word is said: a
 /// screen poll's worth.
 pub const CHASE: i64 = 12;
 
-/// The row under the X menu's, the options screen's or the party's cursor, read every tick.
+/// The row under the X menu's, the options screen's or the party's cursor, or the key under the
+/// name entry's, read every tick.
 pub struct Rows {
     memory: Rc<dyn Memory>,
     running: Rc<dyn Fn() -> Option<String>>,
@@ -70,8 +84,8 @@ pub struct Rows {
     party_slot: Option<i64>,
     /// Where the row was read last tick, and what it read.
     last: Option<(i64, i64)>,
-    /// The party's process and its `StaticWork`, once found: its class is checked once a party
-    /// screen, and only its byte read each tick after.
+    /// The party's or the name entry's process and the object holding its byte, once found: its
+    /// class is checked once a screen, and only its byte read each tick after.
     work: Option<(i64, i64)>,
     names: Option<(i64, ClassNames)>,
 }
@@ -146,29 +160,41 @@ impl Rows {
         if running.as_deref() == Some(PARTY)
             && let Some(party_slot) = self.party_slot
         {
-            return Ok(self.party_work()?.map(|work| work + party_slot));
+            return Ok(self
+                .found(&[PARTY_WORK], STATIC_WORK)?
+                .map(|work| work + party_slot));
+        }
+        if running.as_deref() == Some(KEYBOARD) {
+            return Ok(self
+                .found(&[KEYBOARD_SYSTEM, KEYS], MAIN_SYSTEM)?
+                .map(|keys| keys + KEY));
         }
         Ok(None)
     }
 
-    fn party_work(&mut self) -> Result<Option<i64>> {
+    /// Where `hops` lead from the process, once the object its first hop leads to is of class
+    /// `name`.
+    fn found(&mut self, hops: &[i64], name: &str) -> Result<Option<i64>> {
         let Some(process) = (self.process)() else {
             return Ok(None);
         };
         if self.work.is_none_or(|work| work.0 != process) {
-            // Named afresh for each party screen: its classes are in a module, whose memory is
-            // the next module's once it is unloaded (`apps.RunningApp.poll`).
+            // Named afresh for each screen: its classes are in a module, whose memory is the
+            // next module's once it is unloaded (`apps.RunningApp.poll`).
             if self.names.as_ref().is_none_or(|names| names.0 != process) {
                 self.names = Some((process, ClassNames::new(self.memory.clone(), LOADED_CODE)));
             }
-            let work = follow(&*self.memory, process, &[PARTY_WORK])?;
+            let first = follow(&*self.memory, process, py::slice(hops, 0, 1))?;
             let names = &self.names.as_ref().expect("named above").1;
-            let Some(work) = work else {
+            let Some(first) = first else {
                 return Ok(None);
             };
-            if names.of_object(work)?.as_deref() != Some(STATIC_WORK) {
+            if names.of_object(first)?.as_deref() != Some(name) {
                 return Ok(None);
             }
+            let Some(work) = follow(&*self.memory, first, py::slice_from(hops, 1))? else {
+                return Ok(None);
+            };
             self.work = Some((process, work));
         }
         Ok(self.work.map(|work| work.1))
