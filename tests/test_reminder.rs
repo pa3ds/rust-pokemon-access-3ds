@@ -51,8 +51,8 @@ fn cursor_works(util: i64) -> i64 {
 fn move_reminder(contest_shown: bool) -> (Rc<FakeMemory>, FakeClasses, reminder::Pages) {
     let memory = FakeMemory::new();
     let classes = FakeClasses::new(memory.clone());
-    memory.u32(PROCESS + rows::REMEMBER_LIST[0], &[PARENT]);
-    memory.u32(PARENT, &[classes.add(rows::PARENT_VIEW)]);
+    memory.u32(PROCESS + reminder::REMEMBER_LIST[0], &[PARENT]);
+    memory.u32(PARENT, &[classes.add(reminder::PARENT_VIEW)]);
     let util_class = classes.add(townmap::UTIL_CLASS);
     let cursor_class = classes.add(reminder::CURSOR_CLASS);
     for (at, view, util, drawn, name) in [
@@ -68,7 +68,7 @@ fn move_reminder(contest_shown: bool) -> (Rc<FakeMemory>, FakeClasses, reminder:
             CONTEST_VIEW,
             CONTEST_UTIL,
             contest_shown,
-            rows::LOWER_CONTEST_VIEW,
+            reminder::LOWER_CONTEST_VIEW,
         ),
     ] {
         memory.u32(PARENT + at, &[view]);
@@ -85,8 +85,8 @@ fn move_reminder(contest_shown: bool) -> (Rc<FakeMemory>, FakeClasses, reminder:
         memory.u32(cursor + reminder::CURSOR_LAYOUT, &[handle]);
         memory.u32(handle + townmap::WORK, &[cursor_works(util)]);
     }
-    memory.write(PARENT + rows::PAGE, &[contest_shown as u8]);
-    let running = Rc::new(RefCell::new(rows::REMEMBER.to_string()));
+    memory.write(PARENT + reminder::PAGE, &[contest_shown as u8]);
+    let running = Rc::new(RefCell::new(reminder::REMEMBER.to_string()));
     let pages = reminder::Pages::new(
         memory.clone(),
         Rc::new(move || Some(running.borrow().clone())),
@@ -120,7 +120,7 @@ fn test_the_page_not_shown_is_put_away_with_its_lists_cursor() {
 #[test]
 fn test_a_page_turning_puts_both_pages_away_until_its_views_are_drawn() {
     let (memory, _classes, mut pages) = move_reminder(false);
-    memory.write(PARENT + rows::PAGE, &[1]);
+    memory.write(PARENT + reminder::PAGE, &[1]);
     assert_eq!(
         pages.put_away().unwrap(),
         HashSet::from([
@@ -137,7 +137,7 @@ fn test_nothing_is_put_away_but_by_the_move_reminders_own_views() {
     let (memory, classes, _pages) = move_reminder(false);
     memory.u32(PARENT, &[classes.add("N3app13wazaomoidashi9LowerViewE")]);
     assert_eq!(
-        pages_of(&memory, rows::REMEMBER).put_away().unwrap(),
+        pages_of(&memory, reminder::REMEMBER).put_away().unwrap(),
         HashSet::new()
     );
     assert_eq!(
@@ -166,7 +166,7 @@ fn test_the_layout_its_cursor_is_over_is_a_lists() {
         rows: HashSet::new(),
         chased: false,
     };
-    let running = Rc::new(RefCell::new(rows::REMEMBER.to_string()));
+    let running = Rc::new(RefCell::new(reminder::REMEMBER.to_string()));
     let pages = reminder::Pages::new(
         FakeMemory::new(),
         {
@@ -196,7 +196,7 @@ fn test_a_move_reminder_of_one_page_puts_nothing_away() {
         &[classes.add("N3app13wazaomoidashi9UpperViewE")],
     );
     assert_eq!(
-        pages_of(&memory, rows::REMEMBER).put_away().unwrap(),
+        pages_of(&memory, reminder::REMEMBER).put_away().unwrap(),
         HashSet::new()
     );
 }

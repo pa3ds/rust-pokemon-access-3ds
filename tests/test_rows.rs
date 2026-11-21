@@ -6,7 +6,7 @@ use std::rc::Rc;
 use super::fake_memory::{Counting, FakeClasses, FakeMemory};
 use crate::core::memory::Memory;
 use crate::games::gen6::apps::{BATTLE, FIELD};
-use crate::games::gen6::screens::{boxes, rows};
+use crate::games::gen6::screens::{boxes, reminder, rows};
 
 const PROCESS: i64 = 0x08100000;
 const MENU: i64 = 0x08200000;
@@ -220,35 +220,35 @@ fn test_the_move_screens_rows_are_read_through_their_views() {
     memory.write(cursor + rows::SLOT, &[4]); // the move to learn
     assert!(moves.moved().unwrap());
     let (parent, view, first) = (0x08800000, 0x08900000, 0x08A00000);
-    let [hop_parent, hop_view, hop_list] = rows::REMEMBER_LIST;
+    let [hop_parent, hop_view, hop_list] = reminder::REMEMBER_LIST;
     memory.u32(OTHER + hop_parent, &[parent]);
-    memory.u32(parent, &[classes.add(rows::PARENT_VIEW)]);
+    memory.u32(parent, &[classes.add(reminder::PARENT_VIEW)]);
     memory.u32(parent + hop_view, &[view]);
     memory.u32(view + hop_list, &[first]);
     let (contest_view, contest) = (0x08B00000, 0x08C00000);
-    memory.u32(parent + rows::CONTEST_LIST[0], &[contest_view]);
-    memory.u32(contest_view, &[classes.add(rows::LOWER_CONTEST_VIEW)]);
-    memory.u32(contest_view + rows::CONTEST_LIST[1], &[contest]);
+    memory.u32(parent + reminder::CONTEST_LIST[0], &[contest_view]);
+    memory.u32(contest_view, &[classes.add(reminder::LOWER_CONTEST_VIEW)]);
+    memory.u32(contest_view + reminder::CONTEST_LIST[1], &[contest]);
     // Row 2, 1.0 scrolled away: the fourth move.
     memory.write(
-        first + rows::LIST_ROW,
+        first + reminder::LIST_ROW,
         &[2, 0, 0, 0, 0x00, 0x00, 0x80, 0x3f],
     );
-    *running.borrow_mut() = rows::REMEMBER.to_string();
+    *running.borrow_mut() = reminder::REMEMBER.to_string();
     process.set(OTHER);
     assert!(!moves.moved().unwrap());
-    memory.write(first + rows::LIST_ROW + 4, &[0x00, 0x00, 0x00, 0x40]); // 2.0: scrolled alone
+    memory.write(first + reminder::LIST_ROW + 4, &[0x00, 0x00, 0x00, 0x40]); // 2.0: scrolled alone
     assert!(moves.moved().unwrap());
     // Wrapped round to the first move: every row is rewritten after, so the screen poll says it.
-    memory.write(first + rows::LIST_ROW, &[0, 0, 0, 0, 0, 0, 0, 0]);
+    memory.write(first + reminder::LIST_ROW, &[0, 0, 0, 0, 0, 0, 0, 0]);
     assert!(!moves.moved().unwrap());
     // The contest effects shown: their list is another, the battle effects' holding still
     // (or_move_reminder_bugs). Turning the page is no move; a move on it is.
-    memory.write(parent + rows::PAGE, &[1]);
+    memory.write(parent + reminder::PAGE, &[1]);
     assert!(!moves.moved().unwrap());
-    memory.write(contest + rows::LIST_ROW, &[1, 0, 0, 0]);
+    memory.write(contest + reminder::LIST_ROW, &[1, 0, 0, 0]);
     assert!(moves.moved().unwrap());
-    memory.write(first + rows::LIST_ROW, &[3, 0, 0, 0]); // the page not shown
+    memory.write(first + reminder::LIST_ROW, &[3, 0, 0, 0]); // the page not shown
     assert!(!moves.moved().unwrap());
 }
 

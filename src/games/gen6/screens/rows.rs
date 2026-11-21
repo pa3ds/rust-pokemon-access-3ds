@@ -41,17 +41,7 @@
 //! app::wazaoboe::Lower          +0x54  -> its cursor, of no class, a PC menu's shape: +0x10 how
 //!                                         many moves, +0x14 u8 the move under it, 0 to 4, the
 //!                                         one to learn last (spike 298 on or_move_reminder)
-//! app::wazaomoidashi::SelectWazaProc  +0x40  -> app::wazaomoidashi::ParentView
-//! app::wazaomoidashi::ParentView      +0x7C  -> app::wazaomoidashi::LowerView
-//! app::wazaomoidashi::LowerView       +0x94  -> the Move Reminder's list, of no class
-//! the list                      +0x10  how many moves; +0x18 u32 the row the cursor is on, 0 to
-//!                                      3, and +0x1C f32 the rows scrolled away, their sum the
-//!                                      move (spike 298 on or_move_reminder, 16 moves)
-//! app::wazaomoidashi::ParentView      +0x90  u8 the page shown, 1 the moves' contest effects
-//!                                            (Omega Ruby's), whose list is another's:
-//! app::wazaomoidashi::ParentView      +0x84  -> app::wazaomoidashi::LowerContestView
-//! app::wazaomoidashi::LowerContestView +0x98 -> its list, the same as the battle effects'
-//!                                            (spike 298 on or_move_reminder_bugs)
+//! the Move Reminder's list      its row and the rows scrolled away (`reminder.Row`)
 //! app::title_menu::Proc         +0x24  -> app::title_menu::MainSystem
 //! app::title_menu::MainSystem  +0x1114 u8 the title menu's row, 0 CONTINUE, 1 MYSTERY GIFT, 2
 //!                                      LIVE COMPETITION (spike 298 on or_pokemon_center_pc)
@@ -90,11 +80,10 @@
 
 use std::rc::Rc;
 
-use crate::core::binary;
 use crate::core::memory::Memory;
 use crate::games::gen6::anchors::{Kept, follow};
 use crate::games::gen6::apps::FIELD;
-use crate::games::gen6::screens::boxes;
+use crate::games::gen6::screens::{boxes, reminder};
 use crate::py::{self, Error, Result};
 
 pub const OPTIONS: &str = "N3app6config7ProcessE";
@@ -145,17 +134,6 @@ pub const FORGET: &str = "N3app8wazaoboe7ProcessE";
 /// Move to forget's process -> `app::wazaoboe::Lower` -> its cursor, whose row is at `SLOT`.
 pub const FORGET_ROWS: [i64; 2] = [0x44, 0x54];
 pub const LOWER: &str = "N3app8wazaoboe5LowerE";
-pub const REMEMBER: &str = "N3app13wazaomoidashi14SelectWazaProcE";
-/// The Move Reminder's process -> `ParentView` -> `LowerView` -> its list.
-pub const REMEMBER_LIST: [i64; 3] = [0x40, 0x7C, 0x94];
-pub const PARENT_VIEW: &str = "N3app13wazaomoidashi10ParentViewE";
-/// `ParentView` -> the page shown, 1 the moves' contest effects (spike 298).
-pub const PAGE: i64 = 0x90;
-/// `ParentView` -> `LowerContestView` -> the contest effects' list, read while they are shown.
-pub const CONTEST_LIST: [i64; 2] = [0x84, 0x98];
-/// X and Y have no contest effects: their `ParentView` holds other things there, and +0x90 read
-/// 100 (spike 298 on x_move_reminder).
-pub const LOWER_CONTEST_VIEW: &str = "N3app13wazaomoidashi16LowerContestViewE";
 pub const TITLE: &str = "N3app10title_menu4ProcE";
 /// The title menu's process -> its `app::title_menu::MainSystem`.
 pub const TITLE_SYSTEM: i64 = 0x24;
@@ -179,9 +157,7 @@ pub const FITTING: &str = "N3app7kisekae11FittingProcE";
 pub const FITTING_CURSOR: [i64; 4] = [0x24, 0x4, 0x20, 0x28];
 /// The fitting room's slots below this are its categories, hat to hat accessory.
 pub const CATEGORIES: i64 = 8;
-/// The Move Reminder's list -> the row the cursor is on, a u32, and after it the rows scrolled
-/// away, an f32: both read, as a move down a long list changes the scroll alone.
-pub const LIST_ROW: i64 = 0x18;
+
 /// Ticks a row's move is chased, the screen polled at each until the cursor's word is said: a
 /// screen poll's worth.
 pub const CHASE: i64 = 12;
@@ -209,14 +185,6 @@ pub const XY: Shape = Shape {
     party_slot: XY_PARTY_SLOT,
 };
 
-/// The Move Reminder's move: the row the cursor is on plus the rows scrolled away.
-fn r#move(row_and_scroll: &[u8]) -> Result<f64> {
-    let (row, scroll) = (
-        binary::u32(row_and_scroll, 0)?,
-        binary::f32(row_and_scroll, 4)?,
-    );
-    Ok(row as f64 + scroll)
-}
 
 /// `CONTROLS[app]`: the hops to an app's control block, where it has one.
 pub fn controls(app: &str) -> Option<[i64; 3]> {
@@ -248,8 +216,7 @@ pub struct Rows {
     /// its title menu was, and kept by the process alone it read the title menu's object for its
     /// cursor and heard no move (x_cyllage_boutique_fitting_room).
     kept: Kept,
-    /// The Move Reminder's process and its contest effects' lower view, or None for none.
-    contest: Option<(Option<i64>, Option<i64>)>,
+    reminder: reminder::Row,
 }
 
 impl Rows {
@@ -266,6 +233,7 @@ impl Rows {
     ) -> Self {
         Rows {
             kept: Kept::new(memory.clone(), process.clone(), running.clone()),
+            reminder: reminder::Row::new(memory.clone(), running.clone(), process.clone()),
             memory,
             running,
             process,
@@ -274,7 +242,6 @@ impl Rows {
             shape,
             last: None,
             moved_to: None,
-            contest: None,
         }
     }
 
@@ -299,11 +266,11 @@ impl Rows {
         }
         self.moved_to = Some(now.clone());
         let running = (self.running)();
-        if running.as_deref() == Some(REMEMBER) {
+        if running.as_deref() == Some(reminder::REMEMBER) {
             // The Move Reminder's list wrapping round rewrites every row over a few frames after
             // its row changes, and a poll at once read one half written: "Dragon Breath Normal",
             // then "Sky Attack" (or_move_reminder, live). A jump is left to the screen poll.
-            return Ok((r#move(&now.1)? - r#move(&last.1)?).abs() <= 1.0);
+            return Ok(!reminder::jumped(&last.1, &now.1)?);
         }
         if running.as_deref() == Some(FITTING) {
             // The fitting room's cursor glides onto its list and its buttons, and a poll at once
@@ -399,27 +366,8 @@ impl Rows {
             let main = self.found(&[TITLE_SYSTEM], Some(TITLE_MAIN))?;
             return Ok(main.map(|main| (main + TITLE_ROW, 1)));
         }
-        if running.as_deref() == Some(REMEMBER) {
-            // The page shown is read each tick: its contest effects' list is another, and it
-            // moved while the battle effects' held still (or_move_reminder_bugs).
-            let Some(parent) = self.found(&REMEMBER_LIST[..1], Some(PARENT_VIEW))? else {
-                return Ok(None);
-            };
-            let contest = self.contest_view(parent)?;
-            let moves = match contest {
-                Some(contest)
-                    if *self
-                        .memory
-                        .read(parent + PAGE, 1)?
-                        .first()
-                        .ok_or_else(|| Error::index("index out of range"))?
-                        != 0 =>
-                {
-                    follow(&*self.memory, contest, &CONTEST_LIST[1..])?
-                }
-                _ => follow(&*self.memory, parent, &REMEMBER_LIST[1..])?,
-            };
-            return Ok(moves.map(|moves| (moves + LIST_ROW, 8)));
+        if running.as_deref() == Some(reminder::REMEMBER) {
+            return self.reminder.at();
         }
         if running.as_deref() == Some(CONTEST) {
             let ui = self.found(&CONTEST_UI, Some(CONTEST_MAIN))?;
@@ -432,21 +380,6 @@ impl Rows {
         Ok(None)
     }
 
-    /// The Move Reminder's contest effects' lower view, checked by class once a screen, or None
-    /// in a game with none.
-    fn contest_view(&mut self, parent: i64) -> Result<Option<i64>> {
-        let process = (self.process)();
-        if self.contest.is_none_or(|contest| contest.0 != process) {
-            self.contest = Some((
-                process,
-                self.kept
-                    .checked(parent, &CONTEST_LIST[..1], Some(LOWER_CONTEST_VIEW))?,
-            ));
-        }
-        // ponytail: checked once a screen, the views built with it before any cursor shows;
-        // check again while None if one is ever met built later.
-        Ok(self.contest.expect("checked above").1)
-    }
 
     /// Where `hops` lead from the process, once the object its first hop leads to is of class
     /// `name`, where it has one.
