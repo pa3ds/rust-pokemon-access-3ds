@@ -8,6 +8,10 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
 - **Some touch-screen apps are only partly read**: the DexNav, Super Training and the PSS.
   Turning a PlayNav page with its arrows says nothing of the new page.
 - **X, Y, Sun and Moon** are read less completely than Omega Ruby and Alpha Sapphire.
+- **Games translated by fans**, such as the Chinese Omega Ruby, are supported where possible,
+  but not as fully as the official games, which pa3ds is built and checked on. Where a
+  translation changed how the game keeps something in its memory, pa3ds may say less there, or
+  now and then the wrong thing, such as the wrong box's name.
 
 ## Pokémon-Amie
 
