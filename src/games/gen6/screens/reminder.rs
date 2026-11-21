@@ -27,6 +27,7 @@ use std::rc::Rc;
 use crate::core::binary::u32;
 use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
+use crate::games::common::cursors::shared::CursorPoll;
 use crate::games::gen6::anchors::follow;
 use crate::games::gen6::apps::LOADED_CODE;
 use crate::games::gen6::screens::rows::{
@@ -130,6 +131,32 @@ impl Pages {
             }
         }
         Ok(works)
+    }
+
+    /// The cursors, each layout a cursor is over in the Move Reminder known for a list's: what
+    /// else it draws, the chosen move's details, is the screen's own, as the Bag's description is
+    /// (`ListCursors.lists`). Each page draws its list and its details in one layout, and taken
+    /// for the menu's, no move's details were said.
+    ///
+    /// Python's roots are a set, added in its order: nothing reads `lists` in order.
+    pub fn cursors(&self, cursors: CursorPoll) -> CursorPoll {
+        if (self.running)().as_deref() != Some(REMEMBER) {
+            return cursors;
+        }
+        let mut roots: Vec<i64> = Vec::new();
+        for p in cursors.under.iter().flatten() {
+            if !cursors.lists.contains_key(&p.root) && !roots.contains(&p.root) {
+                roots.push(p.root);
+            }
+        }
+        if roots.is_empty() {
+            return cursors;
+        }
+        let mut lists = cursors.lists.clone();
+        for root in roots {
+            lists.insert(root, HashSet::new());
+        }
+        CursorPoll { lists, ..cursors }
     }
 
     /// The Move Reminder's `ParentView` and the names of its module's classes, or None

@@ -54,8 +54,11 @@ pub const PAGES: [&str; 6] = [
 pub const BUTTON: &str = "touch_bar_lower.bclyt";
 /// The Pokémon's name, level and item, on every page.
 pub const INFO: &str = "info.bclyt";
-/// The conditions page's layout, which draws the conditions' star and its labels.
-pub const STAR_PAGE: &str = "params_contest.bclyt";
+/// The layouts drawing the conditions' star and its labels: the conditions page's, and the Move
+/// Reminder's contest effects' upper screen's, its moves' category icons beside the star. There the
+/// labels were read with what stood near them, "Black Glasses Coolness", "Beauty", "Cuteness
+/// Cleverness", "Toughness" (or_move_reminder_bugs). A `frozenset` only tested.
+pub const STARS: [&str; 2] = ["params_contest.bclyt", "waza_omoidashi2_upper.bclyt"];
 /// The pages' moves, which Check Moves' cursors go over. A `frozenset` only tested.
 pub const MOVES: [&str; 2] = ["waza.bclyt", "waza_contest.bclyt"];
 /// The summary's process -> the place of the Pokémon shown in its party or box, from 0: it
@@ -478,7 +481,9 @@ impl Pages {
     /// The TextBoxes of the conditions star's labels, "Coolness" to "Toughness": a label
     /// with no value, said as a list on the conditions page, "Coolness", then "Beauty,
     /// Cleverness, Cuteness, Toughness". Never said; the conditions Extra says them with their
-    /// values (`oras.screens.conditions`).
+    /// values (`oras.screens.conditions`). The Move Reminder draws them as pictures hanging from
+    /// its layout's root, and each move's category icon beside the star, which hangs from its
+    /// row, is no label.
     pub fn star_labels(&self, on_screen: &[ScreenText], words: &HashSet<String>) -> HashSet<i64> {
         let mut files: IndexMap<i64, String> = IndexMap::new();
         let mut boxes: HashSet<i64> = HashSet::new();
@@ -493,7 +498,9 @@ impl Pages {
                     found.map(|found| found.name.clone()).unwrap_or_default(),
                 );
             }
-            if files[&piece.root] == STAR_PAGE {
+            if STARS.contains(&files[&piece.root].as_str())
+                && !(piece.picture && piece.parent != piece.root)
+            {
                 boxes.insert(piece.r#box);
             }
         }

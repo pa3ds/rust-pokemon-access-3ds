@@ -29,7 +29,7 @@ const IRON_HEAD: i64 = 442;
 const FILES: [(i64, &str); 6] = [
     (0x0822A000, "params.bclyt"),
     (0x0822B000, "waza.bclyt"),
-    (0x0822C000, summary::STAR_PAGE),
+    (0x0822C000, "params_contest.bclyt"),
     (0x0822D000, "memo.bclyt"),
     (0x0822E000, summary::BUTTON),
     (0x0822F000, summary::INFO),
@@ -222,15 +222,30 @@ fn test_the_page_shown_is_the_one_whose_list_is_flagged_and_the_others_are_unhea
     poll_with(&memory, pages, Some(MOVES), METAGROSS, (IRON_HEAD, 0));
     assert_eq!(pages.turned(), roots(&[PARAMS, WAZA]));
     // The star's labels, on the conditions page alone.
+    // A label drawn as a picture hangs from the root, as the Move Reminder's do; a move's
+    // category icon beside the star hangs from its row.
     let star = [
         piece(CONTEST, "Coolness", 4),
         piece(PARAMS, "HP 199/227", 1),
+        ScreenText {
+            picture: true,
+            parent: CONTEST,
+            ..piece(CONTEST, "Beauty", 6)
+        },
+        ScreenText {
+            picture: true,
+            parent: CONTEST + 0x100,
+            ..piece(CONTEST, "Toughness", 5)
+        },
     ];
-    let words: HashSet<String> = ["Coolness", "HP 199/227"]
+    let words: HashSet<String> = ["Coolness", "Beauty", "Toughness", "HP 199/227"]
         .iter()
         .map(|word| word.to_string())
         .collect();
-    assert_eq!(pages.star_labels(&star, &words), roots(&[CONTEST + 4]));
+    assert_eq!(
+        pages.star_labels(&star, &words),
+        roots(&[CONTEST + 4, CONTEST + 6])
+    );
     // Out of the summary, every page is forgotten.
     apps.borrow_mut().running = None;
     pages.poll().unwrap();

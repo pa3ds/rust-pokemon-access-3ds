@@ -5,7 +5,11 @@ use std::cell::RefCell;
 use std::collections::HashSet;
 use std::rc::Rc;
 
+use indexmap::IndexMap;
+
 use super::fake_memory::{FakeClasses, FakeMemory};
+use crate::games::common::cursors::shared::CursorPoll;
+use crate::games::common::screen::ScreenText;
 use crate::games::gen6::screens::{reminder, rows, townmap};
 
 const PROCESS: i64 = 0x08100000;
@@ -140,6 +144,43 @@ fn test_nothing_is_put_away_but_by_the_move_reminders_own_views() {
         pages_of(&memory, rows::FORGET).put_away().unwrap(),
         HashSet::new()
     );
+}
+
+/// Each page draws its list and the chosen move's details in one layout, and taken for the
+/// menu's, no move's details were said (or_move_reminder_bugs).
+#[test]
+fn test_the_layout_its_cursor_is_over_is_a_lists() {
+    let row = ScreenText {
+        root: 0x500,
+        ..ScreenText::placed(1, "Thrash Normal PP 10/10", false, -100.0, 0.0, 50.0, 12.5)
+    };
+    let other = ScreenText {
+        root: 0x600,
+        ..ScreenText::placed(2, "Ember", false, -100.0, 0.0, 50.0, 12.5)
+    };
+    let cursors = CursorPoll {
+        items: vec![],
+        under: vec![vec![row]],
+        lists: IndexMap::from([(0x600, HashSet::from([other.r#box]))]),
+        moving: HashSet::new(),
+        rows: HashSet::new(),
+        chased: false,
+    };
+    let running = Rc::new(RefCell::new(rows::REMEMBER.to_string()));
+    let pages = reminder::Pages::new(
+        FakeMemory::new(),
+        {
+            let running = running.clone();
+            Rc::new(move || Some(running.borrow().clone()))
+        },
+        Rc::new(|| Some(PROCESS)),
+    );
+    assert_eq!(
+        pages.cursors(cursors.clone()).lists,
+        IndexMap::from([(0x500, HashSet::new()), (0x600, HashSet::from([other.r#box]))])
+    );
+    *running.borrow_mut() = rows::FORGET.to_string();
+    assert_eq!(pages.cursors(cursors.clone()), cursors);
 }
 
 /// X's `ParentView` holds other things where Omega Ruby's holds the contest effects' views
