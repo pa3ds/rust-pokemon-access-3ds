@@ -155,6 +155,13 @@ pub const GOODS_NAMES: i64 = 92;
 /// Ball at 4, which the title screen's film throws (x_intro_and_title_screen). File 98 holds the same
 /// lines, and 95 and 97 the plurals.
 pub const ITEM_NAMES: i64 = 96;
+/// The Bag's pockets' names from its first line, ITEMS to KEY ITEMS in the order the Bag numbers
+/// them, as ORAS's file 163: found by its lines, for the pocket said as it changes (spike A on
+/// x_field_bag).
+pub const POCKET_NAMES: i64 = 139;
+/// The pockets' names drawn as the Bag's title, no label: said as the pocket changes, and left
+/// out of the item's details after it, as ORAS's (`oras.BAG_PLAIN`).
+pub const BAG_PLAIN: (i64, [i64; 5]) = (POCKET_NAMES, [0, 1, 2, 3, 4]);
 /// Pokémon-Amie's Berry Picker's berries, as ORAS's (`oras.BERRY_PICKER`); not seen in X.
 pub fn berry_picker() -> &'static (i64, IndexMap<&'static str, i64>) {
     static BERRY_PICKER: OnceLock<(i64, IndexMap<&'static str, i64>)> = OnceLock::new();
@@ -305,6 +312,8 @@ pub fn rom() -> &'static RomLayout {
         training_gains: Some((42, 59)),
         goods: Some(GOODS_NAMES),
         items: Some(ITEM_NAMES),
+        pockets: Some((POCKET_NAMES, 0)),
+        plain: vec![(BAG_PLAIN.0, BAG_PLAIN.1.to_vec())],
         sounds: Some(SOUND_ARCHIVE.to_string()),
         cries: Some(CRIES.to_string()),
         textures: TEXTURE_ARCHIVES
