@@ -325,6 +325,7 @@ pub struct Gen6Profile {
     pub party_icons: Rc<RefCell<PartyIcons>>,
     pub partners: Rc<RefCell<Partners>>,
     box_mode: Option<RefCell<boxes::Mode>>,
+    box_titles: Option<RefCell<boxes::Titles>>,
     registered: Option<RefCell<registered::Registered>>,
     bag_sort: RefCell<bag_sort::BagSort>,
     bag: Option<RefCell<bag::Chosen>>,
@@ -741,6 +742,7 @@ impl Gen6Profile {
         // Carrying a Pokémon in the PC Box, the slot it is over says who is in it, from the save.
         // Made before the block the cursors are made in, where Python makes it inside, just before
         // them; making it reads nothing.
+        let box_shown = boxes::shown(memory.clone(), game.box_shown, box_process.clone());
         let occupants = Rc::new(RefCell::new(boxes::Occupants::with(
             memory.clone(),
             names.clone(),
@@ -752,8 +754,16 @@ impl Gen6Profile {
                 let party_icons = party_icons.clone();
                 Rc::new(move || party_icons.borrow().battle_box())
             },
-            boxes::shown(memory.clone(), game.box_shown, box_process.clone()),
+            box_shown.clone(),
         )));
+        // The box turned to, said from the Box's byte before its title is written (spike B).
+        let box_titles = game.box_shown.map(|_| {
+            let occupants = occupants.clone();
+            RefCell::new(boxes::Titles::new(
+                box_shown.clone(),
+                Rc::new(move || occupants.borrow().names()),
+            ))
+        });
         // Omega Ruby's boy and girl are portraits the game never names, said in pa3ds's words
         // (`pictures.named`).
         // A cursor over pictures alone says what the game calls them, by the image or by the
@@ -1316,6 +1326,7 @@ impl Gen6Profile {
             party_icons,
             partners,
             box_mode,
+            box_titles,
             registered,
             bag_sort,
             bag,
@@ -1747,6 +1758,7 @@ impl Gen6Profile {
     pub fn poll_screen_with(&self, hold: bool, with_choices: bool) -> Result<()> {
         // Set inside the phase, as Python's locals are.
         let mut box_mode: Option<String> = None;
+        let mut box_title: Option<String> = None;
         let mut slots: Option<String> = None;
         let mut carried: Option<String> = None;
         let polled = phase(&*self.memory, "screen", || {
@@ -1799,6 +1811,10 @@ impl Gen6Profile {
                 None => None,
                 Some(reader) => reader.borrow_mut().poll()?,
             };
+            box_title = match &self.box_titles {
+                None => None,
+                Some(titles) => titles.borrow_mut().poll()?,
+            };
             slots = match &self.registered {
                 None => None,
                 Some(reader) => reader.borrow_mut().poll(self.layouts.roots())?,
@@ -1846,6 +1862,9 @@ impl Gen6Profile {
         }
         let mut labels = self.lists.borrow().labels();
         labels.extend(self.announcements.borrow_mut().recent_labels());
+        if let Some(titles) = &self.box_titles {
+            labels.extend(titles.borrow().unsaid()?);
+        }
         if with_choices {
             labels.extend(self.choices.borrow().labels());
         }
@@ -1872,6 +1891,11 @@ impl Gen6Profile {
         let mut roots = self.layouts.roots();
         roots.extend(self.layouts.buried());
         let subject = || summary::name(&*self.memory, &self.names, &self.apps.borrow());
+        // `pocket or box_title`.
+        let title = match pocket {
+            Some(pocket) if !pocket.is_empty() => Some(pocket),
+            _ => box_title,
+        };
         self.screen_announcer.borrow_mut().say(
             &ScreenPoll {
                 texts,
@@ -1883,7 +1907,7 @@ impl Gen6Profile {
             Some(&roots),
             Some(&subject),
             Some(&chosen),
-            pocket.as_deref(),
+            title.as_deref(),
         )?;
         // After the screen's words, which name the place first.
         for line in &listed {

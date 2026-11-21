@@ -1,5 +1,5 @@
 //! Who is in each of the PC Box's slots, said while the player carries a Pokémon over them
-//! (or_organize_boxes).
+//! (or_organize_boxes), and the box it turns to, said from its own byte (`Titles`).
 //!
 //! While a Pokémon is carried the top screen's summary is the carried one's, so a slot holding
 //! another said only where it was (`common.slots`). The box's icons say no species; the save does,
@@ -19,6 +19,7 @@
 //! above it (spike B, or_pc_organize). Where that byte is not measured, it is the box whose name is
 //! the title, which the player can rename.
 
+use std::collections::HashSet;
 use std::rc::Rc;
 
 use indexmap::IndexMap;
@@ -28,6 +29,7 @@ use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
 use crate::core::words::own;
 use crate::games::common::pictures::TEXTURE;
+use crate::games::common::screen_announce::REPEAT_POLLS;
 use crate::games::common::{pokemon, slots};
 use crate::games::gen6::screens::partyicons;
 use crate::py::{self, Result};
@@ -54,7 +56,8 @@ pub fn work_byte(memory: &dyn Memory, r#where: (i64, i64), process: i64) -> Resu
 /// `Callable[[], int | None]`: the box the grid shows. It reads the game, so it can raise.
 pub type Shown = Rc<dyn Fn() -> Result<Option<i64>>>;
 
-/// The box the grid shows, from 0: None in the Battle Box, out of the Box, or unmeasured.
+/// The box the grid shows, from 0, and 0xFF the Battle Box; None out of the Box or where the
+/// byte is not measured.
 pub fn shown(
     memory: Rc<dyn Memory>,
     r#where: Option<(i64, i64)>,
@@ -62,12 +65,115 @@ pub fn shown(
 ) -> Shown {
     Rc::new(move || {
         let running = process();
-        let (Some(r#where), Some(running)) = (r#where, running) else {
+        match (r#where, running) {
+            (Some(r#where), Some(running)) => Ok(Some(work_byte(&*memory, r#where, running)?)),
+            _ => Ok(None),
+        }
+    })
+}
+
+/// `Callable[[], list[str] | None]`: the boxes' names in the save (`Occupants.names`). It reads
+/// the game, so it can raise.
+pub type BoxNames = Rc<dyn Fn() -> Result<Option<Vec<String>>>>;
+
+/// Says the box the PC Box turns to as its byte changes (`shown`), by the name the player gave
+/// it in the save: the title above the grid is written a poll or more after the byte, and
+/// holding left through the boxes left BOX 6 and BOX 5 unsaid and said BOX 4 again after BOX 3
+/// (spike B, or_pc_organize). The screen's words for a box are then no news (`unsaid`).
+pub struct Titles {
+    shown: Shown,
+    names: BoxNames,
+    /// The boxes' names, read again as the Box opens and at each turn: the player renames
+    /// one from the Box itself.
+    known: Option<Vec<String>>,
+    last: Option<i64>,
+    held: Option<i64>,
+    polls: i64,
+    /// The name last said, and the poll it was said at.
+    said: Option<(String, i64)>,
+}
+
+impl Titles {
+    pub fn new(shown: Shown, names: BoxNames) -> Self {
+        Titles {
+            shown,
+            names,
+            known: None,
+            last: None,
+            held: None,
+            polls: 0,
+            said: None,
+        }
+    }
+
+    /// The name of the box just turned to, or None. Nothing on opening, where the cursor's
+    /// first slot names the box; nothing for the Battle Box, whose title is the screen's to say;
+    /// and a turn to BOX 1 only once it has held a poll, as the Box zeroes its work block as it
+    /// closes (`Mode`).
+    pub fn poll(&mut self) -> Result<Option<String>> {
+        self.polls += 1;
+        let byte = (self.shown)()?;
+        let Some(byte) = byte else {
+            self.last = None;
+            self.held = None;
+            self.known = None;
             return Ok(None);
         };
-        let number = work_byte(&*memory, r#where, running)?;
-        Ok((number < COUNT).then_some(number))
-    })
+        if Some(byte) == self.last {
+            self.held = None;
+            return Ok(None);
+        }
+        if byte == 0 && self.last.is_some() && self.held != Some(0) {
+            self.held = Some(0);
+            return Ok(None);
+        }
+        let opening = self.last.is_none();
+        self.last = Some(byte);
+        self.held = None;
+        self.known = (self.names)()?;
+        if opening || byte >= COUNT {
+            return Ok(None);
+        }
+        let Some(known) = self.known.as_ref().filter(|known| !known.is_empty()) else {
+            return Ok(None);
+        };
+        let name = known
+            .get(byte as usize)
+            .ok_or_else(|| py::Error::index("list index out of range"))?
+            .clone();
+        if name.is_empty() {
+            return Ok(None);
+        }
+        self.said = Some((name.clone(), self.polls));
+        Ok(Some(name))
+    }
+
+    /// The words for a box the screen should leave unsaid this poll: while the byte names
+    /// a box, every other box's name, a title written late, and its own name for `REPEAT_POLLS`
+    /// after it was said from the byte.
+    pub fn unsaid(&self) -> Result<HashSet<String>> {
+        let Some(last) = self.last.filter(|&last| last < COUNT) else {
+            return Ok(HashSet::new());
+        };
+        let Some(known) = self.known.as_ref().filter(|known| !known.is_empty()) else {
+            return Ok(HashSet::new());
+        };
+        let name = known
+            .get(last as usize)
+            .ok_or_else(|| py::Error::index("list index out of range"))?;
+        let mut quiet: HashSet<String> = known
+            .iter()
+            .filter(|each| !each.is_empty() && *each != name)
+            .cloned()
+            .collect();
+        if let Some((said, at)) = &self.said
+            && said == name
+            && self.polls - at <= REPEAT_POLLS
+        {
+            quiet.insert(name.clone());
+        }
+        Ok(quiet)
+    }
 }
 
 /// Says the PC Box's mode as Start and Select change it, and on opening where it is not
@@ -222,28 +328,47 @@ impl Occupants {
     /// The box the Box's byte says is shown; unmeasured, the one whose name is this title, where
     /// only one is.
     fn r#box(&self, title: Option<&str>) -> Result<Option<i64>> {
-        if let Some(r#box) = (self.shown)()? {
+        if let Some(r#box) = (self.shown)()?
+            && r#box < COUNT
+        {
             return Ok(Some(r#box));
         }
-        let names = self.valid(self.saves.get(NAMES).copied(), NAMES)?;
-        let (Some(names), Some(title)) = (names, title.filter(|title| !title.is_empty())) else {
-            return Ok(None);
+        let title = title.filter(|title| !title.is_empty());
+        let names = match title {
+            Some(_) => self.names()?,
+            None => None,
         };
-        let raw = self
-            .memory
-            .read(names + partyicons::RECORDS, NAME * COUNT)?;
-        let mut boxes: Vec<i64> = Vec::new();
-        for i in 0..COUNT {
-            let name = py::decode_utf16le(py::slice(&raw, NAME * i, NAME * (i + 1)));
-            if name.split('\0').next() == Some(title) {
-                boxes.push(i);
-            }
-        }
+        let boxes: Vec<i64> = names
+            .unwrap_or_default()
+            .iter()
+            .enumerate()
+            .filter(|(_, name)| Some(name.as_str()) == title)
+            .map(|(i, _)| i as i64)
+            .collect();
         Ok(if boxes.len() == 1 {
             Some(boxes[0])
         } else {
             None
         })
+    }
+
+    /// The boxes' names in the save, as the player gave them; None before a sweep finds them.
+    pub fn names(&self) -> Result<Option<Vec<String>>> {
+        let names = self.valid(self.saves.get(NAMES).copied(), NAMES)?;
+        let Some(names) = names else {
+            return Ok(None);
+        };
+        let raw = self
+            .memory
+            .read(names + partyicons::RECORDS, NAME * COUNT)?;
+        Ok(Some(
+            (0..COUNT)
+                .map(|i| {
+                    let name = py::decode_utf16le(py::slice(&raw, NAME * i, NAME * (i + 1)));
+                    name.split('\0').next().unwrap_or("").to_string()
+                })
+                .collect(),
+        ))
     }
 
     /// The save's object, while it is still one of its class.

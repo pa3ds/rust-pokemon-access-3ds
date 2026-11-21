@@ -173,10 +173,82 @@ fn test_the_boxs_own_byte_says_which_of_two_boxes_of_one_name_is_shown() {
     );
     // The Battle Box reads 0xFF; out of the Box, the title alone names none of three.
     memory.write(kept + 0x24, &[0xFF]);
-    assert_eq!(shown().unwrap(), None);
+    assert_eq!(shown().unwrap(), Some(0xFF));
     running.set(None);
+    assert_eq!(shown().unwrap(), None);
     assert_eq!(
         occupants.call(slots::TITLED_GRID, Some("BOX"), 4).unwrap(),
         None
+    );
+}
+
+/// `poll_at(*values)`: each value as the byte, and what the titles said of it.
+fn poll_at(
+    titles: &mut boxes::Titles,
+    byte: &Cell<Option<i64>>,
+    values: &[Option<i64>],
+) -> Vec<Option<String>> {
+    let mut out: Vec<Option<String>> = Vec::new();
+    for value in values {
+        byte.set(*value);
+        out.push(titles.poll().unwrap());
+    }
+    out
+}
+
+/// `titles.unsaid()`, sorted: a set of words, which Python compares as a set.
+fn unsaid(titles: &boxes::Titles) -> Vec<String> {
+    let mut words: Vec<String> = titles.unsaid().unwrap().into_iter().collect();
+    words.sort();
+    words
+}
+
+fn said(words: &[Option<&str>]) -> Vec<Option<String>> {
+    words.iter().map(|word| word.map(str::to_string)).collect()
+}
+
+#[test]
+fn test_a_turn_says_the_box_from_its_byte_and_leaves_the_screens_box_names_unsaid() {
+    let byte: Rc<Cell<Option<i64>>> = Rc::new(Cell::new(Some(0)));
+    let mut names: Vec<String> = ["BOX 1", "BOX 2", "Shiny"]
+        .iter()
+        .map(|name| name.to_string())
+        .collect();
+    names.extend(vec![String::new(); (boxes::COUNT - 3) as usize]);
+    let mut titles = boxes::Titles::new(
+        {
+            let byte = byte.clone();
+            Rc::new(move || Ok(byte.get()))
+        },
+        Rc::new(move || Ok(Some(names.clone()))),
+    );
+    let titles = &mut titles;
+
+    // Opening says nothing: the cursor's first slot names the box. Then each turn at once.
+    assert_eq!(
+        poll_at(titles, &byte, &[Some(0), Some(1), Some(2)]),
+        said(&[None, Some("BOX 2"), Some("Shiny")])
+    );
+    // Every other box's name is a title written late, and the one just said already is.
+    assert_eq!(unsaid(titles), ["BOX 1", "BOX 2", "Shiny"]);
+    poll_at(titles, &byte, &[Some(2); 6]);
+    assert_eq!(unsaid(titles), ["BOX 1", "BOX 2"]);
+    // The Battle Box's title is the screen's: nothing said, nothing left unsaid.
+    assert_eq!(poll_at(titles, &byte, &[Some(0xFF)]), said(&[None]));
+    assert_eq!(unsaid(titles), Vec::<String>::new());
+    assert_eq!(poll_at(titles, &byte, &[Some(1)]), said(&[Some("BOX 2")]));
+    // BOX 1 once it holds a poll: the Box zeroes its work as it closes.
+    assert_eq!(
+        poll_at(titles, &byte, &[Some(0), Some(0)]),
+        said(&[None, Some("BOX 1")])
+    );
+    assert_eq!(
+        poll_at(titles, &byte, &[Some(2), Some(0), None]),
+        said(&[Some("Shiny"), None, None])
+    );
+    // Opened again on BOX 1, nothing.
+    assert_eq!(
+        poll_at(titles, &byte, &[Some(0), Some(0)]),
+        said(&[None, None])
     );
 }
