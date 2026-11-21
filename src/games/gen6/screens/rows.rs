@@ -58,10 +58,9 @@
 //!
 //! The byte says when a row is chosen, never what: the words are still the screen's. Measured in
 //! Omega Ruby and X; a game whose offsets are not measured reads nothing here (`Game.menu_row`,
-//! `Game.options_row`, `Game.party_slot`, `Game.move_rows`, `Game.title_row`), but for the
-//! keyboard's, the PC's and the starter's, the same in both. The move screens and the title menu
-//! are measured in Omega Ruby alone: no X movie opens the move screens or moves the title menu's
-//! cursor.
+//! `Game.options_row`, `Game.party_slot`), but for the keyboard's, the PC's, the move screens',
+//! the title menu's and the starter's, the same in both (spike B on x_move_reminder and
+//! x_title_screen for the move screens and the title menu).
 //!
 //! Bound by:
 //! - ADR-0013: a cursor source says which item is under the cursor and when it moved, the words
@@ -176,8 +175,6 @@ pub struct Rows {
     menu_row: Option<i64>,
     options_row: Option<i64>,
     party_slot: Option<i64>,
-    move_rows: bool,
-    title_row: Option<i64>,
     /// Where the row was read last tick, and what it read.
     last: Option<(i64, Vec<u8>)>,
     /// Where the row was read and what it read as it last moved, while it is still that menu's:
@@ -196,10 +193,8 @@ pub struct Rows {
 
 impl Rows {
     /// `menu` is the field menu, `shown` whether a cursor is on screen, which the field's menu row
-    /// is read only while it is; `menu_row`, `options_row`, `party_slot` and `title_row` where the
-    /// game keeps their rows, None where not measured, and `move_rows` whether the move screens'
-    /// are. Python's defaults are None for `party_slot` and `title_row` and False for
-    /// `move_rows`.
+    /// is read only while it is; `menu_row`, `options_row` and `party_slot` where the game keeps
+    /// their rows, None where not measured. Python's default for `party_slot` is None.
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         memory: Rc<dyn Memory>,
@@ -210,8 +205,6 @@ impl Rows {
         menu_row: Option<i64>,
         options_row: Option<i64>,
         party_slot: Option<i64>,
-        move_rows: bool,
-        title_row: Option<i64>,
     ) -> Self {
         Rows {
             memory,
@@ -222,8 +215,6 @@ impl Rows {
             menu_row,
             options_row,
             party_slot,
-            move_rows,
-            title_row,
             last: None,
             moved_to: None,
             work: None,
@@ -326,17 +317,15 @@ impl Rows {
             };
             return Ok(cursor.map(|cursor| (cursor + SLOT, 1)));
         }
-        if running.as_deref() == Some(FORGET) && self.move_rows {
+        if running.as_deref() == Some(FORGET) {
             let cursor = self.found(&FORGET_ROWS, Some(LOWER))?;
             return Ok(cursor.map(|cursor| (cursor + SLOT, 1)));
         }
-        if running.as_deref() == Some(TITLE)
-            && let Some(title_row) = self.title_row
-        {
+        if running.as_deref() == Some(TITLE) {
             let main = self.found(&[TITLE_SYSTEM], Some(TITLE_MAIN))?;
-            return Ok(main.map(|main| (main + title_row, 1)));
+            return Ok(main.map(|main| (main + TITLE_ROW, 1)));
         }
-        if running.as_deref() == Some(REMEMBER) && self.move_rows {
+        if running.as_deref() == Some(REMEMBER) {
             let moves = self.found(&REMEMBER_LIST, Some(PARENT_VIEW))?;
             return Ok(moves.map(|moves| (moves + LIST_ROW, 8)));
         }

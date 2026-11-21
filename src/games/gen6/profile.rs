@@ -739,8 +739,6 @@ impl Gen6Profile {
             game.menu_row,
             game.options_row,
             game.party_slot,
-            game.move_rows,
-            game.title_row,
         )));
         // A Poké Mart's list jumped a page is said where it lands, not where it passes.
         let mart = RefCell::new(mart::Jumps::new(

@@ -31,8 +31,6 @@ fn rows_of(
         measured.then_some(rows::MENU_ROW),
         measured.then_some(rows::OPTIONS_ROW),
         None,
-        false,
-        None,
     )
 }
 
@@ -83,8 +81,6 @@ fn test_the_partys_slot_is_read_from_its_static_work() {
         Some(rows::MENU_ROW),
         Some(rows::OPTIONS_ROW),
         Some(rows::PARTY_SLOT),
-        false,
-        None,
     );
     assert!(!party.moved().unwrap());
     memory.write(WORK + rows::PARTY_SLOT, &[2]);
@@ -120,8 +116,6 @@ fn test_the_name_entrys_key_is_read_through_its_main_system() {
         Some(rows::MENU_ROW),
         Some(rows::OPTIONS_ROW),
         Some(rows::PARTY_SLOT),
-        false,
-        None,
     );
     assert!(!keyboard.moved().unwrap()); // not its main system yet
     memory.u32(WORK, &[classes.add(rows::MAIN_SYSTEM)]);
@@ -154,8 +148,6 @@ fn test_the_pcs_row_is_read_from_the_menu_up_now() {
         Some(rows::MENU_ROW),
         Some(rows::OPTIONS_ROW),
         Some(rows::PARTY_SLOT),
-        false,
-        None,
     );
     assert!(!pc.moved().unwrap()); // no menu up yet
     memory.u32(holder + rows::IN_USE, &[first]);
@@ -192,8 +184,6 @@ fn test_the_boxs_slot_is_read_from_the_cursor_in_use() {
         Some(rows::MENU_ROW),
         Some(rows::OPTIONS_ROW),
         Some(rows::PARTY_SLOT),
-        false,
-        None,
     );
     assert!(!r#box.moved().unwrap());
     assert_eq!(r#box.box_slot().unwrap(), None); // not moved yet
@@ -212,7 +202,7 @@ fn test_the_boxs_slot_is_read_from_the_cursor_in_use() {
 
 /// ADR-0013: Move to forget's row and the Move Reminder's row and scroll say when a move is
 /// made, a move down a long list scrolling it alone, a wrap round it left to the screen poll
-/// (spike B on or_move_reminder).
+/// (spike B on or_move_reminder and x_move_reminder).
 #[test]
 fn test_the_move_screens_rows_are_read_through_their_views() {
     let memory = FakeMemory::new();
@@ -237,8 +227,6 @@ fn test_the_move_screens_rows_are_read_through_their_views() {
         None,
         None,
         None,
-        true,
-        None,
     );
     assert!(!moves.moved().unwrap());
     memory.write(cursor + rows::SLOT, &[4]); // the move to learn
@@ -262,35 +250,28 @@ fn test_the_move_screens_rows_are_read_through_their_views() {
 }
 
 /// ADR-0013: the title menu's row says when a move is made, its `MainSystem` checked by class
-/// (spike B on or_pokemon_center_pc); a game not measured reads nothing.
+/// (spike B on or_pokemon_center_pc and x_title_screen).
 #[test]
 fn test_the_title_menus_row_is_read_from_its_main_system() {
     let memory = FakeMemory::new();
     let classes = FakeClasses::new(memory.clone());
     memory.u32(PROCESS + rows::TITLE_SYSTEM, &[WORK]);
+    memory.u32(WORK, &[classes.add("N3app10title_menu4ProcE")]);
+    let mut title = rows::Rows::new(
+        memory.clone(),
+        Rc::new(|| Some(rows::TITLE.to_string())),
+        Rc::new(|| Some(PROCESS)),
+        Rc::new(|| Ok(Some(MENU))),
+        Rc::new(|| true),
+        None,
+        None,
+        None,
+    );
+    assert!(!title.moved().unwrap()); // not its main system yet
     memory.u32(WORK, &[classes.add(rows::TITLE_MAIN)]);
-    let title_of = |title_row: Option<i64>| {
-        rows::Rows::new(
-            memory.clone(),
-            Rc::new(|| Some(rows::TITLE.to_string())),
-            Rc::new(|| Some(PROCESS)),
-            Rc::new(|| Ok(Some(MENU))),
-            Rc::new(|| true),
-            None,
-            None,
-            None,
-            false,
-            title_row,
-        )
-    };
-    let mut title = title_of(Some(rows::TITLE_ROW));
     assert!(!title.moved().unwrap());
     memory.write(WORK + rows::TITLE_ROW, &[1]); // MYSTERY GIFT
     assert!(title.moved().unwrap());
-    let mut unmeasured = title_of(None);
-    assert!(!unmeasured.moved().unwrap());
-    memory.write(WORK + rows::TITLE_ROW, &[2]);
-    assert!(!unmeasured.moved().unwrap());
 }
 
 /// ADR-0013: the starter's ball says when a move is made, though no cursor is found on its
@@ -312,8 +293,6 @@ fn test_the_starters_ball_is_read_with_no_cursor_on_screen() {
         Rc::new(|| false),
         None,
         None,
-        None,
-        false,
         None,
     );
     assert!(!starter.moved().unwrap());
