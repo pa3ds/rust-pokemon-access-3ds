@@ -96,6 +96,7 @@ struct Args {
     rows: HashSet<i64>,
     subject: Option<Box<dyn Fn() -> Result<Option<String>>>>,
     chosen: Option<IndexMap<i64, String>>,
+    title: Option<String>,
 }
 
 fn args(texts: &[ScreenText], items: Vec<CursorItem>, on_screen: &[ScreenText]) -> Args {
@@ -182,6 +183,7 @@ impl Screen {
                 given.roots.as_ref(),
                 given.subject.as_deref(),
                 given.chosen.as_ref(),
+                given.title.as_deref(),
             )
             .unwrap();
         self.backend.spoken()[before..].to_vec()
@@ -2152,6 +2154,74 @@ fn test_an_items_details_leave_out_the_item_and_a_title_said_already() {
     );
 }
 
+/// Changing pockets said "Potion", then "MEDICINE" with the count and description, and an
+/// empty pocket's name came 0.27 to 0.41 s after it changed (spike A). The Bag's pocket, from
+/// its own objects (`gen6.screens.bag`), is said first, the item queued behind it with menus
+/// set to interrupt, and the top screen's title, written after, is not said again.
+#[test]
+fn test_a_title_from_the_screens_objects_comes_before_its_item_and_is_said_once() {
+    let mut screen = Screen::new();
+    screen.announcer = ScreenAnnouncer::new(
+        Rc::new(Speech::new(
+            screen.backend.clone(),
+            HashSet::from([Category::Key, Category::Menu]),
+            None,
+        )),
+        Rc::new(|_line: &str| {}),
+    );
+    let potion = vec![piece(1, "Potion", 8.0, 90.0, MENU)];
+    assert_eq!(
+        screen.say(Args {
+            title: Some("MEDICINE".to_string()),
+            ..args(
+                &[],
+                vec![CursorItem::new(0x0C, potion.clone(), false)],
+                &potion
+            )
+        }),
+        ["MEDICINE", "Potion"]
+    );
+    let in_panel = |panel: i64| Kw {
+        with_layout: false,
+        panel,
+        ..PLAIN
+    };
+    let top = vec![
+        ScreenText {
+            plain: true,
+            changed: true,
+            ..piece_kw(20, "MEDICINE", -20.0, 110.0, PANEL, in_panel(20))
+        },
+        ScreenText {
+            changed: true,
+            ..piece_kw(22, "A spray for wounds.", -150.0, -15.0, PANEL, in_panel(22))
+        },
+    ];
+    let everything = cat(&[&potion, &top]);
+    let mut said = screen.say(args(&top, vec![], &everything));
+    for _ in 0..DETAIL_POLLS {
+        said.extend(screen.on(&everything));
+    }
+    assert_eq!(said, ["A spray for wounds."]);
+    assert_eq!(screen.backend.interrupting(), ["MEDICINE"]);
+    let tms = ScreenText {
+        text: "TMs & HMs".to_string(),
+        ..top[0].clone()
+    };
+    assert_eq!(
+        screen.say(Args {
+            title: Some("TMs & HMs".to_string()),
+            ..Args::default()
+        }),
+        ["TMs & HMs"]
+    );
+    assert_eq!(
+        screen.say(args(&one(&tms), vec![], &one(&tms))),
+        NOTHING,
+        "an empty pocket's title, on screen"
+    );
+}
+
 /// TM29 Psychic's type is "Psychic", the cursor's item, and its details said "TYPE POWER 90"
 /// (or_movie54, #13). A value beside its label is never the item's name.
 #[test]
@@ -2859,6 +2929,7 @@ fn test_words_under_a_cursor_that_settle_after_it_spoke_are_not_said_again() {
             None,
             None,
             None,
+            None,
         )
         .unwrap();
     assert_eq!(screen.backend.spoken()[before..], NOTHING);
@@ -3231,6 +3302,7 @@ fn listed(
                 ..CursorPoll::default()
             },
             &HashSet::new(),
+            None,
             None,
             None,
             None,

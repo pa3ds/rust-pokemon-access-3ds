@@ -174,6 +174,9 @@ pub struct RomLayout {
     /// The text file of the items' names, a line an item by its number: the Red Orb is 534 in
     /// ORAS. Named in the descriptions of scenes (`games.common.scenes`).
     pub items: Option<i64>,
+    /// The text file naming the Bag's pockets and the line they start at, in the order the Bag
+    /// numbers them: ITEMS, MEDICINE, TMs & HMs, BERRIES, KEY ITEMS (`gen6.screens.bag`).
+    pub pockets: Option<(i64, i64)>,
     /// Archives a game's own readers read for themselves, handed over whole (`GameText.files`):
     /// ORAS's sky's map of places (`oras.field.sky`).
     pub files: Vec<String>,
@@ -255,6 +258,7 @@ impl RomLayout {
             bike: None,
             acro: None,
             items: None,
+            pockets: None,
             files: Vec::new(),
             entrances: HashSet::new(),
         }

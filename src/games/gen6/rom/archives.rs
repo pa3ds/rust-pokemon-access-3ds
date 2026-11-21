@@ -359,6 +359,8 @@ pub struct GameText {
     pub zone_table: Vec<u8>,
     /// What the game calls each item, by its number; none where they are not read.
     pub items: Vec<String>,
+    /// What the game calls each of the Bag's pockets, by its number (`RomLayout.pockets`).
+    pub pockets: Vec<String>,
     /// A file of the "story" text or the "text" as its lines, control sequences in, each as the
     /// ROM has it: the lines a scene follows (`games.common.scenes`). Left out of the comparison,
     /// as the dataclass leaves it.
@@ -441,6 +443,7 @@ impl PartialEq for GameText {
             && self.species == other.species
             && self.forms == other.forms
             && self.items == other.items
+            && self.pockets == other.pockets
             && self.homes == other.homes
             && self.door_signs == other.door_signs
             && self.shared == other.shared
@@ -493,6 +496,7 @@ impl Default for GameText {
             forms: IndexMap::new(),
             zone_table: Vec::new(),
             items: Vec::new(),
+            pockets: Vec::new(),
             lines: IndexMap::new(),
             homes: IndexMap::new(),
             door_signs: HashSet::new(),
@@ -933,6 +937,7 @@ impl GameText {
                 Some(file) => lines_of_file(&files, file)?,
                 None => Vec::new(),
             },
+            pockets: lines_from(layout.pockets)?,
             lines: IndexMap::from([
                 (
                     "story".to_string(),

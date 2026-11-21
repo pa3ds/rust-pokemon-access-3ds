@@ -264,6 +264,8 @@ pub struct ScreenAnnouncer {
     left: IndexMap<(i64, i64), i64>,
     /// The place's name the field said last, and the poll it was said at.
     placed: Option<(String, i64)>,
+    /// The title said last from a screen's own objects, and the poll it was said at (`say`).
+    title: Option<(String, i64)>,
     /// TextBox -> its layout's root and the words last said of it, as screen text or details,
     /// until they change: a title still saying them, the Bag's pocket, is no detail
     /// (`heading`).
@@ -326,6 +328,7 @@ impl ScreenAnnouncer {
             unvalued: IndexMap::new(),
             left: IndexMap::new(),
             placed: None,
+            title: None,
             words_said: IndexMap::new(),
         }
     }
@@ -384,6 +387,12 @@ impl ScreenAnnouncer {
     /// for each item, said the last item's count and description with the next one's name when
     /// the pockets changed quickly (spike 197).
     ///
+    /// `title` is the screen's title from its own objects, where it has just changed: said
+    /// first, as a cursor's move is, with an item said this poll or the next queued behind it,
+    /// and the screen's same words left unsaid when they come. The Bag's pocket, said from its
+    /// top screen, came after the pocket's first item, "Potion", then "MEDICINE" with the count
+    /// and description, and an empty pocket's 0.27 to 0.41 s after it changed (spike A).
+    ///
     /// A cursor that knows its list owns the list and no more of its layout. The Poké Mart draws
     /// its list, the money, the count in the bag and the chosen item's description in one
     /// layout, and left to the cursor as a menu's layout is, the description was never heard as
@@ -391,7 +400,8 @@ impl ScreenAnnouncer {
     /// pictures alone owns those pictures: the AreaNav's tabs are drawn in its bar's layout, and
     /// left to them its View Details was never heard (or_area_nav).
     ///
-    /// Python's `roots`, `subject` and `chosen` default to None.
+    /// Python's `roots`, `subject`, `chosen` and `title` default to None.
+    #[allow(clippy::too_many_arguments)]
     pub fn say(
         &mut self,
         screen: &ScreenPoll,
@@ -400,6 +410,7 @@ impl ScreenAnnouncer {
         roots: Option<&IndexSet<i64>>,
         subject: Option<Subject>,
         chosen: Option<&IndexMap<i64, String>>,
+        title: Option<&str>,
     ) -> Result<()> {
         self.polls += 1;
         self.chosen = chosen.cloned().unwrap_or_default();
@@ -411,6 +422,21 @@ impl ScreenAnnouncer {
         );
         for piece in texts.iter().chain(left.iter()) {
             self.words_said.shift_remove(&piece.r#box);
+        }
+        if let Some(title) = title {
+            self.title = Some((title.to_string(), self.polls));
+            (self.log)(&format!("title: {title}"));
+            self.speech.say(title, Category::Menu);
+        }
+        if let Some((title, at)) = &self.title
+            && self.polls - at <= REPEAT_POLLS
+        {
+            // Its words written on screen are a title already said, in the details too.
+            for p in texts {
+                if p.plain && &p.text == title {
+                    self.words_said.insert(p.r#box, (p.root, p.text.clone()));
+                }
+            }
         }
         let (items, under, listed, moving, rows) = (
             &cursors.items,
@@ -506,9 +532,14 @@ impl ScreenAnnouncer {
             if !held && !again {
                 // Two cursors over one item say it once: a summary's battle page and contest
                 // page each keep one, and both said the move (movie32, the audit, 2026-10-10).
+                // Behind a title just said, which a menu's under `interrupt` would cut off.
+                let titled = self
+                    .title
+                    .as_ref()
+                    .is_some_and(|title| self.polls - title.1 <= 1);
                 self.speech.say(
                     &text,
-                    if item.opened {
+                    if item.opened || titled {
                         Category::Prompt
                     } else {
                         Category::Menu
@@ -1148,6 +1179,12 @@ impl ScreenAnnouncer {
             && root != FIELD_ROOT
             && text == placed
             && self.polls - at <= PLACE_POLLS
+        {
+            return false;
+        }
+        if let Some((title, at)) = &self.title
+            && text == title
+            && self.polls - at <= REPEAT_POLLS
         {
             return false;
         }

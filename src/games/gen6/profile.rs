@@ -717,6 +717,7 @@ impl Gen6Profile {
                     }
                 }),
                 text.items.clone(),
+                text.pockets.clone(),
             ))
         });
         // Carrying a Pokémon in the PC Box, the slot it is over says who is in it, from the save.
@@ -1775,13 +1776,13 @@ impl Gen6Profile {
             let found = self.cursors.borrow_mut().poll(on_screen)?;
             let cursors;
             (carried, cursors) = self.bag_sort.borrow_mut().poll(found, on_screen);
-            let chosen = match &self.bag {
-                None => IndexMap::new(),
+            let (chosen, pocket) = match &self.bag {
+                None => (IndexMap::new(), None),
                 Some(bag) => bag.borrow_mut().poll(&cursors)?,
             };
-            Ok((screen, sides, party, listed, cursors, played, chosen))
+            Ok((screen, sides, party, listed, cursors, played, chosen, pocket))
         })?;
-        let (screen, sides, party, listed, cursors, played, chosen) = polled;
+        let (screen, sides, party, listed, cursors, played, chosen, pocket) = polled;
         for (logged, line, category) in &played {
             (self.log)(&format!("{logged}: {line}"));
             if let Some(category) = category {
@@ -1839,6 +1840,7 @@ impl Gen6Profile {
             Some(&roots),
             Some(&subject),
             Some(&chosen),
+            pocket.as_deref(),
         )?;
         // After the screen's words, which name the place first.
         for line in &listed {

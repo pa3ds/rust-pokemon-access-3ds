@@ -526,6 +526,7 @@ pub fn rom() -> &'static RomLayout {
         bike: Some(MACH_BIKE),
         acro: Some(ACRO_BIKE),
         items: Some(ITEM_NAMES),
+        pockets: Some((bag_pockets().0, 0)),
         puffs: Some(PUFF_NAMES),
         goods: Some(GOODS_NAMES),
         amie_numbers: Some(AMIE_NUMBERS),

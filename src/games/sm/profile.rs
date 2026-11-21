@@ -387,6 +387,7 @@ impl SunProfile {
                 Some(&roots),
                 None,
                 None,
+                None,
             )?;
         }
         self.announcements.borrow_mut().battlers(&sides);
