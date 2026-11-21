@@ -15,7 +15,10 @@
 //! field::subscreen::FieldMenu  +0x82  u8 the X menu's button, 0 POKÉMON to 5 OPTIONS (spike J)
 //!                              +0x76  the same in X, 0xC earlier as its button manager is
 //! app::config::Process          +0x4C  u8 the options' row, 0 TEXT SPEED to 7 QUIT (spike B),
-//!                                      in X too, which has a row more and counts on past it
+//!                                      in X too, which has a row more and counts on past it;
+//!                                      from +0x4D a byte a row, its value: TEXT SPEED 1 NORMAL,
+//!                                      2 FAST (spike B on or_opening and x_opening), read with
+//!                                      the row, so a value turned is a move too
 //! app::pokelist::Proc           +0x90  -> app::pokelist::StaticWork
 //! app::pokelist::StaticWork    +0x1A8  u8 the party's slot, 0 to 5 across its two columns, the
 //!                                      slot chosen to switch with too (spike B on or_horde_battle
@@ -89,6 +92,9 @@ pub const MENU_ROW: i64 = 0x82;
 pub const XY_MENU_ROW: i64 = 0x76;
 /// The options screen's process -> the row under its cursor, in Omega Ruby and X (spike B).
 pub const OPTIONS_ROW: i64 = 0x4C;
+/// The options' row and the values after it, a byte a row, X's eight rows and Omega Ruby's: a
+/// value turned with left or right is said the tick it is drawn, as a row is.
+pub const OPTIONS_READ: i64 = 10;
 pub const KEYBOARD: &str = "N3app8strinput4ProcE";
 /// The name entry's process -> its `app::strinput::MainSystem`.
 pub const KEYBOARD_SYSTEM: i64 = 0x24;
@@ -248,7 +254,8 @@ impl Rows {
         // The Move Reminder's list wrapping round rewrites every row over a few frames after
         // its row changes, and a poll at once read one half written: "Dragon Breath Normal",
         // then "Sky Attack" (or_move_reminder, live). A jump is left to the screen poll.
-        Ok(now.1.len() == 1 || (r#move(&now.1)? - r#move(&last.1)?).abs() <= 1.0)
+        Ok((self.running)().as_deref() != Some(REMEMBER)
+            || (r#move(&now.1)? - r#move(&last.1)?).abs() <= 1.0)
     }
 
     /// The slot the Box's pointer has been moved to, on it or gliding there, while its grid cursor
@@ -290,7 +297,7 @@ impl Rows {
         if running.as_deref() == Some(OPTIONS)
             && let Some(options_row) = self.options_row
         {
-            return Ok((self.process)().map(|process| (process + options_row, 1)));
+            return Ok((self.process)().map(|process| (process + options_row, OPTIONS_READ)));
         }
         if running.as_deref() == Some(FIELD)
             && let Some(menu_row) = self.menu_row

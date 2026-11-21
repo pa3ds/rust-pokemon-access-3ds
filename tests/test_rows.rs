@@ -50,6 +50,8 @@ fn test_a_row_moved_is_told_the_tick_its_byte_changes() {
     memory.write(PROCESS + rows::OPTIONS_ROW, &[1]);
     assert!(options.moved().unwrap());
     assert!(!options.moved().unwrap());
+    memory.write(PROCESS + rows::OPTIONS_ROW + 2, &[1]); // the second row's value turned
+    assert!(options.moved().unwrap());
     // Another menu's row is not a move: the X menu, the options screen closed, holds its own.
     memory.write(MENU + rows::MENU_ROW, &[5]);
     *running.borrow_mut() = FIELD.to_string();
