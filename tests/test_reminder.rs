@@ -1,5 +1,5 @@
 //! The Move Reminder draws one page of its moves' effects, and its other page's layouts are put
-//! away (`gen6.screens.reminder`, spike B on or_move_reminder_bugs).
+//! away (`gen6.screens.reminder`, spike 298 on or_move_reminder_bugs).
 
 use std::cell::RefCell;
 use std::collections::HashSet;
@@ -116,7 +116,7 @@ fn test_the_page_not_shown_is_put_away_with_its_lists_cursor() {
     );
 }
 
-/// The page turns some 0.4 s before the views' bytes do (spike B on or_move_reminder_bugs).
+/// The page turns some 0.4 s before the views' bytes do (spike 298 on or_move_reminder_bugs).
 #[test]
 fn test_a_page_turning_puts_both_pages_away_until_its_views_are_drawn() {
     let (memory, _classes, mut pages) = move_reminder(false);
@@ -187,7 +187,7 @@ fn test_the_layout_its_cursor_is_over_is_a_lists() {
 }
 
 /// X's `ParentView` holds other things where Omega Ruby's holds the contest effects' views
-/// (spike B on x_move_reminder).
+/// (spike 298 on x_move_reminder).
 #[test]
 fn test_a_move_reminder_of_one_page_puts_nothing_away() {
     let (memory, classes, _pages) = move_reminder(false);

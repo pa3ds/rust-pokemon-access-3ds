@@ -10,7 +10,7 @@
 //! PokemonParam   +0x04 -> its record, which sits at +0x40    +0x08 -> its battle stats
 //! record         +0x00 u32 encryption constant    +0x06 u16 checksum of 0x08-0xE8, decrypted
 //!   decrypted    +0x08 u16 species    +0x0c u16 trainer ID    +0x0e u16 secret ID
-//!                +0x18 u32 PID: shiny where the four halves XOR under 16 (spike K)
+//!                +0x18 u32 PID: shiny where the four halves XOR under 16 (spike 307)
 //!                +0x1d u8 gender in bits 1-2: 0 male, 1 female, 2 neither,
 //!                                             and the form from bit 3 (spike 256)
 //!                +0x24 u8 each the contest conditions, coolness to toughness, then sheen
@@ -44,7 +44,7 @@ pub const TRAINER_ID: i64 = 0x0C;
 pub const SECRET_ID: i64 = 0x0E;
 pub const PID: i64 = 0x18;
 /// A Pokémon is shiny where its trainer ID, secret ID and the PID's two halves XOR under this.
-/// A wild one carries the player's IDs (spike K).
+/// A wild one carries the player's IDs (spike 307).
 pub const SHINY_BELOW: i64 = 16;
 pub const GENDER: i64 = 0x1D;
 pub const NICKNAME: i64 = 0x40;

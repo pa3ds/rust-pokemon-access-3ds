@@ -1,4 +1,4 @@
-//! A Poké Mart's list: a jump of a page said where it lands, not where it passes (spike F,
+//! A Poké Mart's list: a jump of a page said where it lands, not where it passes (spike 302,
 //! or_pokemart_columns).
 //!
 //! Left and right move the list's cursor a page, and the game scrolls the list there over a few

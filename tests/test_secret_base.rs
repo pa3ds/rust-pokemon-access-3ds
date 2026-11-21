@@ -1,4 +1,4 @@
-//! The Secret Base PC's greyed categories are said empty (`gen6.screens.secret_base`, spike L).
+//! The Secret Base PC's greyed categories are said empty (`gen6.screens.secret_base`, spike 308).
 
 use std::rc::Rc;
 

@@ -101,7 +101,7 @@ pub const CAPACITY: i64 = 0xF8;
 pub const LENGTH: i64 = 0xFA;
 pub const TEXT_POSITION: i64 = 0xFC;
 /// Its words' colours, RGBA a byte each, the top's and then the bottom's: the Secret Base PC
-/// draws a category with nothing in it at alpha 0x80, the rest at 0xFF (spike L).
+/// draws a category with nothing in it at alpha 0x80, the rest at 0xFF (spike 308).
 pub const TEXT_COLOURS: i64 = 0xD8;
 
 /// Where one game's panes keep the fields that moved between versions of NintendoWare.

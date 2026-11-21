@@ -1,5 +1,5 @@
 //! The Move Reminder's two pages, its moves' battle effects and, in Omega Ruby and Alpha
-//! Sapphire, their contest effects, of which it draws one (spike B on or_move_reminder_bugs).
+//! Sapphire, their contest effects, of which it draws one (spike 298 on or_move_reminder_bugs).
 //!
 //! Each page is a pair of views, its upper screen's and its lower's, and a view draws the layouts
 //! of the `G2DUtil` at its +0x5C only while a byte of its own is 1, as the AreaNav's do
@@ -8,7 +8,7 @@
 //! that row as the battle page's list scrolled under it, a move ahead of the cursor, and its
 //! details said Hyper Beam's appeal for every move after (or_move_reminder_bugs). The layouts of
 //! the views not drawn are put away. X and Y's Move Reminder has the one page, its `ParentView`
-//! holding other things where Omega Ruby's holds the contest effects' views (spike B on
+//! holding other things where Omega Ruby's holds the contest effects' views (spike 298 on
 //! x_move_reminder): nothing is put away there.
 //!
 //! ```text
@@ -43,7 +43,7 @@ use crate::py::{Error, Result};
 pub const VIEWS: [i64; 4] = [0x78, 0x7C, 0x80, 0x84];
 /// The views of the contest effects' page, shown while `ParentView` +0x90 is 1 (`rows.PAGE`).
 pub const CONTEST_VIEWS: [i64; 2] = [0x80, 0x84];
-/// A view -> 1 while it is drawn (spike B).
+/// A view -> 1 while it is drawn (spike 298).
 pub const DRAWN: i64 = 0x68;
 /// Each lower view, by where `ParentView` keeps it -> its list's `app::tool::MenuCursor`, whose
 /// layout is no `G2DUtil`'s: put away with its view's alone, its cursor still said a move. A dict

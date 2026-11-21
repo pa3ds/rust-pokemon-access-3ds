@@ -156,7 +156,7 @@ pub const GOODS_NAMES: i64 = 92;
 /// lines, and 95 and 97 the plurals.
 pub const ITEM_NAMES: i64 = 96;
 /// The Bag's pockets' names from its first line, ITEMS to KEY ITEMS in the order the Bag numbers
-/// them, as ORAS's file 163: found by its lines, for the pocket said as it changes (spike A on
+/// them, as ORAS's file 163: found by its lines, for the pocket said as it changes (spike 297 on
 /// x_field_bag).
 pub const POCKET_NAMES: i64 = 139;
 /// The pockets' names drawn as the Bag's title, no label: said as the pocket changes, and left
@@ -822,7 +822,7 @@ pub fn warps() -> &'static IndexMap<i64, String> {
 /// The Pokémon-Amie menu's PLAY, DECORATE and SWITCH, pictures of their words that X's text has no
 /// line for: named by `pictures.ftl` and offered beside the menu's close, as ORAS's text names them.
 /// Named only by a picture's words, they were taken for part of close and left out (spike 228,
-/// x_super_train3). And search by shape's silhouettes, Omega Ruby's textures (spike O on
+/// x_super_train3). And search by shape's silhouettes, Omega Ruby's textures (spike 311 on
 /// x_pokedex_search_shapes).
 ///
 /// Python's is a frozenset of strings, which it iterates in an order of its own: an `IndexSet` here

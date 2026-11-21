@@ -398,7 +398,7 @@ impl ScreenAnnouncer {
     /// first, as a cursor's move is, with an item said this poll or the next queued behind it,
     /// and the screen's same words left unsaid when they come. The Bag's pocket, said from its
     /// top screen, came after the pocket's first item, "Potion", then "MEDICINE" with the count
-    /// and description, and an empty pocket's 0.27 to 0.41 s after it changed (spike A).
+    /// and description, and an empty pocket's 0.27 to 0.41 s after it changed (spike 297).
     ///
     /// A cursor that knows its list owns the list and no more of its layout. The Poké Mart draws
     /// its list, the money, the count in the bag and the chosen item's description in one

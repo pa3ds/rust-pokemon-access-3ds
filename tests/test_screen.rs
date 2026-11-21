@@ -438,7 +438,7 @@ fn test_words_missing_for_a_single_poll_are_taken_as_still_there() {
     assert_eq!(game.heard(), words(&[]));
 }
 
-/// The Secret Base PC draws a category with nothing in it at alpha 0x80 (spike L).
+/// The Secret Base PC draws a category with nothing in it at alpha 0x80 (spike 308).
 #[test]
 fn test_words_drawn_less_than_opaque_are_faded() {
     let (mut game, _work, _group, value) = settled();

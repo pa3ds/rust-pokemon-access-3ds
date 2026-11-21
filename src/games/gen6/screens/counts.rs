@@ -1,4 +1,4 @@
-//! The count chosen at a Poké Mart, to buy or to sell, said whole each time it changes (spike F,
+//! The count chosen at a Poké Mart, to buy or to sell, said whole each time it changes (spike 302,
 //! or_pokemart_during_normal_play).
 //!
 //! The count's words are a group of their own in its layout, the sign, the number and the price,
@@ -20,8 +20,8 @@ use crate::games::common::screen::{ScreenText, join};
 use crate::py::{self, Result};
 
 /// The count's group, by its layout's file and the group pane's name: the Mart's own list, `2t` in
-/// Omega Ruby and `30` in X (spike F on x_pokemart), and the Bag's window for how many to sell, the
-/// same in both. A `frozenset` only tested.
+/// Omega Ruby and `30` in X (spike 302 on x_pokemart), and the Bag's window for how many to sell,
+/// the same in both. A `frozenset` only tested.
 pub const GROUPS: [(&str, &str); 3] = [
     ("shop_lower.bclyt", "2t"),
     ("shop_lower.bclyt", "30"),

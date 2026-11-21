@@ -1,5 +1,5 @@
 //! The Bag's cursor source: the item its own objects say its list's cursor is on, and its pocket
-//! (spike A).
+//! (spike 297).
 
 use std::cell::Cell;
 use std::collections::HashSet;

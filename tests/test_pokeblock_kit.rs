@@ -1,5 +1,5 @@
 //! The Pokéblock Kit's screen not shown is put away, and its cursors' moves seen each tick
-//! (`oras.screens.pokeblock_kit`, spike B).
+//! (`oras.screens.pokeblock_kit`, spike 298).
 
 use std::cell::RefCell;
 use std::collections::HashSet;

@@ -61,7 +61,7 @@ fn test_a_row_moved_is_told_the_tick_its_byte_changes() {
 }
 
 /// ADR-0013: the party's slot says when a move is made, its object checked by class once a party
-/// screen, and found again for the next screen's (spike B).
+/// screen, and found again for the next screen's (spike 298).
 #[test]
 fn test_the_partys_slot_is_read_from_its_static_work() {
     let memory = FakeMemory::new();
@@ -100,7 +100,7 @@ fn test_the_partys_slot_is_read_from_its_static_work() {
 }
 
 /// ADR-0013: the key under the name entry's cursor says when a move is made, once the keyboard is
-/// built (spike B on or_opening and x_opening).
+/// built (spike 298 on or_opening and x_opening).
 #[test]
 fn test_the_name_entrys_key_is_read_through_its_main_system() {
     let memory = FakeMemory::new();
@@ -130,7 +130,7 @@ fn test_the_name_entrys_key_is_read_through_its_main_system() {
 }
 
 /// ADR-0013: the PC's row says when a move is made, in whichever of its two menus is up; a menu
-/// opening in place of the other is no move (spike B on or_pc_organize and x_pc_mode_buttons).
+/// opening in place of the other is no move (spike 298 on or_pc_organize and x_pc_mode_buttons).
 #[test]
 fn test_the_pcs_row_is_read_from_the_menu_up_now() {
     let memory = FakeMemory::new();
@@ -163,7 +163,7 @@ fn test_the_pcs_row_is_read_from_the_menu_up_now() {
 }
 
 /// ADR-0013: the Box's slot says when a move is made, the grid's and its party's alike; a menu
-/// taking the input is no move (spike B on or_organize_boxes).
+/// taking the input is no move (spike 298 on or_organize_boxes).
 #[test]
 fn test_the_boxs_slot_is_read_from_the_cursor_in_use() {
     let memory = FakeMemory::new();
@@ -202,7 +202,7 @@ fn test_the_boxs_slot_is_read_from_the_cursor_in_use() {
 
 /// ADR-0013: Move to forget's row and the Move Reminder's row and scroll say when a move is
 /// made, a move down a long list scrolling it alone, a wrap round it left to the screen poll
-/// (spike B on or_move_reminder and x_move_reminder).
+/// (spike 298 on or_move_reminder and x_move_reminder).
 #[test]
 fn test_the_move_screens_rows_are_read_through_their_views() {
     let memory = FakeMemory::new();
@@ -265,7 +265,7 @@ fn test_the_move_screens_rows_are_read_through_their_views() {
 }
 
 /// ADR-0013: the title menu's row says when a move is made, its `MainSystem` checked by class
-/// (spike B on or_pokemon_center_pc and x_title_screen).
+/// (spike 298 on or_pokemon_center_pc and x_title_screen).
 #[test]
 fn test_the_title_menus_row_is_read_from_its_main_system() {
     let memory = FakeMemory::new();
@@ -290,7 +290,7 @@ fn test_the_title_menus_row_is_read_from_its_main_system() {
 }
 
 /// ADR-0013: the starter's ball says when a move is made, though no cursor is found on its
-/// screen (spike B on or_opening and x_opening).
+/// screen (spike 298 on or_opening and x_opening).
 #[test]
 fn test_the_starters_ball_is_read_with_no_cursor_on_screen() {
     let memory = FakeMemory::new();
@@ -327,7 +327,7 @@ fn test_a_game_not_measured_reads_nothing_nor_a_screen_with_no_cursor() {
 }
 
 /// ADR-0013: a contest's portraits say when the cursor moves between them, the entrant it picks
-/// read through `contest::Main`, checked by class (spike B on or_toughness_contest).
+/// read through `contest::Main`, checked by class (spike 298 on or_toughness_contest).
 #[test]
 fn test_a_contests_picked_entrant_is_read_from_its_appeal_ui() {
     let memory = FakeMemory::new();
@@ -354,7 +354,7 @@ fn test_a_contests_picked_entrant_is_read_from_its_appeal_ui() {
 }
 
 /// ADR-0013: the fitting room's slot says when a move is made, down its categories and onto its
-/// buttons (spike B on x_cyllage_boutique_fitting_room).
+/// buttons (spike 298 on x_cyllage_boutique_fitting_room).
 #[test]
 fn test_the_fitting_rooms_slot_is_read_through_its_objects() {
     let memory = FakeMemory::new();

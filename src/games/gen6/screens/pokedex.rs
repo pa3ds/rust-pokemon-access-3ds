@@ -1,10 +1,10 @@
 //! The Pokédex lists: Omega Ruby's entry said the tick it is chosen, X's by its number and name.
 //!
 //! Omega Ruby's list keeps its rows in `app::sango_zukan::ZukanLaunch`, the process's +0xC8: nine
-//! records of 0x44 bytes from +0x50, each an index and then pointers into a row's panes (spike B
+//! records of 0x44 bytes from +0x50, each an index and then pointers into a row's panes (spike 298
 //! on or_menus). The fifth's index is the entry chosen; the fourth's panes show its number and
-//! name (spike N on or_pokedex: their words change the tick the index does, or a tick before). The
-//! plate over the list is a picture fixed in place while the rows slide a row's height and back
+//! name (spike 310 on or_pokedex: their words change the tick the index does, or a tick before).
+//! The plate over the list is a picture fixed in place while the rows slide a row's height and back
 //! under it, and its item was said once it had read the same for two polls, 0.3 to 0.4 s after
 //! the index changed. The index is read every tick, and a move is said the poll it changes, in
 //! the words of the fourth record's panes (`OrasList`): no slide can put another row's words
@@ -27,7 +27,7 @@
 //! held HEIGHT's and WEIGHT's values in their labels' column, "Fire Fox Pokémon TYPE HEIGHT WEIGHT
 //! 1'04" 20.7 lbs.".
 //!
-//! The entry under the cursor is `app::zukan::DataManager` +0x130 (spike B on x_pokedex), the
+//! The entry under the cursor is `app::zukan::DataManager` +0x130 (spike 298 on x_pokedex), the
 //! process's +0x3C; X said each move the poll it changed, so it is not read.
 //!
 //! Bound by:
@@ -64,11 +64,11 @@ pub const CHOSEN: i64 = ROWS + 4 * RECORD;
 /// The record whose panes show the entry chosen.
 pub const SHOWN: i64 = ROWS + 3 * RECORD;
 /// Ticks the index holds before its entry is said: a jump of seven steps it on by one or two
-/// every tick or two (spike N), and a step holds from the first.
+/// every tick or two (spike 310), and a step holds from the first.
 pub const STILL_TICKS: i64 = 4;
 /// Search by shape's fourteen silhouettes, the same textures in Omega Ruby and X, which the game
 /// names in no word: named by `pictures.ftl`, said as the cursor comes onto them and as SHAPE's
-/// value once one is chosen (spike O). A `frozenset` of `search_icon01.bclim` to
+/// value once one is chosen (spike 311). A `frozenset` of `search_icon01.bclim` to
 /// `search_icon14.bclim`.
 pub const SHAPES: [&str; 14] = [
     "search_icon01.bclim",

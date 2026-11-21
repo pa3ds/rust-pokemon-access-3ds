@@ -68,7 +68,7 @@ pub const STAR: &str = "star_base.bclim";
 /// The pages' moves, which Check Moves' cursors go over. A `frozenset` only tested.
 pub const MOVES: [&str; 2] = ["waza.bclyt", "waza_contest.bclyt"];
 /// The summary's process -> the place of the Pokémon shown in its party or box, from 0: it
-/// changes at every switch, where `SHOWN` points at one copy of each in turn (spike G).
+/// changes at every switch, where `SHOWN` points at one copy of each in turn (spike 303).
 pub const PLACE: i64 = 0x7C;
 /// One of `LISTS`: where the summary's process keeps a page's list, the list's class, the layout
 /// files of its page, and whether it is a list of moves.
@@ -76,7 +76,7 @@ pub type PageList = (i64, &'static str, &'static [&'static str], bool);
 
 /// The summary's process -> each page's list, of the Pokémon's moves, their contest kinds or its
 /// ribbons, by its class; the layout files of that page, the stats page, the conditions page and
-/// the memo; and whether it is a list of moves, which Check Moves chooses from (spike H).
+/// the memo; and whether it is a list of moves, which Check Moves chooses from (spike 304).
 pub const LISTS: [PageList; 3] = [
     (
         0x5C,
@@ -97,12 +97,12 @@ pub const LISTS: [PageList; 3] = [
         false,
     ),
 ];
-/// A page's list -> 1 while its page is shown, else 0 (spike H).
+/// A page's list -> 1 while its page is shown, else 0 (spike 304).
 pub const SHOWING: i64 = 0x4;
 /// A list of moves -> the move under the Check Moves cursor, by its number, or 0. Check Moves ended
 /// clears it in the shown page's list alone: ended on the conditions page, the stats page's list
 /// keeps its last move. Turning the page in Check Moves gives the move to the other page's list, so
-/// both hold it (spike H).
+/// both hold it (spike 304).
 pub const CHOSEN: i64 = 0x22;
 
 /// Where a game's summary keeps the Pokémon it shows and its pages' lists.
@@ -122,7 +122,7 @@ pub const ORAS: Shape = Shape {
     lists: &LISTS,
 };
 /// X's: two pages, the stats with the moves and the memo with the ribbons, and no contest
-/// page; each 0x8 to 0x10 sooner than in Omega Ruby (spikes B and G on x_summary_screen).
+/// page; each 0x8 to 0x10 sooner than in Omega Ruby (spikes 298 and 303 on x_summary_screen).
 pub const XY: Shape = Shape {
     shown: 0x68,
     place: 0x6C,
@@ -201,14 +201,14 @@ pub fn put_away(
 /// was drawn, and draws one: turned back to, a page said only its button, "Check Moves", its words
 /// said once already, and switching Pokémon read every page's words, on the memo page too
 /// (or_summary_screen_weirdness). Each page has a list, of the moves, their contest kinds or the
-/// ribbons, flagged while its page is shown (`LISTS`, spike H): the other pages' layouts are left
+/// ribbons, flagged while its page is shown (`LISTS`, spike 304): the other pages' layouts are left
 /// unheard (`hidden`), and a turn says the page turned to as a screen opening is read (`turned`).
 /// Their layouts stay read as ever: put away, they left and came back, and the stats came back
 /// into Check Moves' details with each move's. Check Moves flips the page under the player
-/// between the moves and their contest kinds (spike B): each move is heard in the shown page's
+/// between the moves and their contest kinds (spike 298): each move is heard in the shown page's
 /// words, and no flip is a turn, told by the move both pages' lists hold (`CHOSEN`). A cursor
 /// over the moves told it before, and stayed over them once Check Moves had ended on the
-/// conditions page: the turns after it went unsaid (spike H). Nor is a page changed with the
+/// conditions page: the turns after it went unsaid (spike 304). Nor is a page changed with the
 /// Pokémon: an Egg turns the summary to its memo, and the next Pokémon back to its stats, and the
 /// Pokémon is said as a switch is. A page is drawn afresh as it is turned to, a poll on: read at
 /// once, Pikachu's turned to after a switch said "Type: Steel", the Pokémon's before, then "Type:
@@ -286,7 +286,7 @@ impl Pages {
             }
         } else if self.since == 1 && Some(mon) != self.shown {
             // Leaving an Egg, the stats page's list was flagged a poll before the place changed
-            // (spike H): a switch, not a turn, and no button said after it.
+            // (spike 304): a switch, not a turn, and no button said after it.
             self.since = 3;
             self.paged = 0;
         }
@@ -350,12 +350,12 @@ impl Pages {
 
     /// The cursors, those over the moves left out while Check Moves shows no move.
     ///
-    /// Check Moves ended, the game leaves a moves cursor set until a switch (spike H): ended
+    /// Check Moves ended, the game leaves a moves cursor set until a switch (spike 304): ended
     /// on the conditions page, it owned that page's moves, which turning back to it left
     /// unsaid; and switching Pokémon said a move first, "Scratch, Toughness", then the
     /// Pokémon as its details, its whole stats page on the stats page (or_summary_spike). The
     /// shown page's list holds the move chosen while Check Moves is on, from the poll its
-    /// cursor comes on screen (`CHOSEN`, spike G), and is read only while a cursor is over the
+    /// cursor comes on screen (`CHOSEN`, spike 303), and is read only while a cursor is over the
     /// moves.
     pub fn cursors(&self, cursors: CursorPoll, on_screen: &[ScreenText]) -> Result<CursorPoll> {
         let moves: HashSet<i64> = if self.page.is_some() {
@@ -448,7 +448,7 @@ impl Pages {
     /// The roots of the button under the page turned to two polls ago, or none: said after
     /// the page, queued behind it, if it is still there. A Pokémon with no ribbons has none on
     /// its memo, and the game hides the button left from the page before a poll after the turn:
-    /// said with the page, the memo was followed by "Check Moves" (spike H).
+    /// said with the page, the memo was followed by "Check Moves" (spike 304).
     pub fn button(&self) -> HashSet<i64> {
         match self.page {
             Some(_) if self.since == 2 => self.roots(&[BUTTON]),

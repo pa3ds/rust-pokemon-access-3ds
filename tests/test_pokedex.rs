@@ -170,7 +170,7 @@ const NAME_BOX: i64 = 0x08300020;
 const PLATE_ROOT: i64 = 0x082EC748;
 
 /// Omega Ruby's list: `ZukanLaunch` with the chosen entry in its fifth record and the panes
-/// showing it in its fourth (spike N).
+/// showing it in its fourth (spike 310).
 fn oras_list(index: i64) -> (Rc<FakeMemory>, pokedex::OrasList) {
     let memory = FakeMemory::new();
     memory.u32(PROCESS + pokedex::LAUNCH, &[LAUNCH]);

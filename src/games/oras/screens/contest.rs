@@ -4,7 +4,7 @@
 //! movie33): each a pane holding its background, `contest_player_bg_01.bclim`, its appeal so far
 //! as a bar, `appeal_bar_filler.bclim`, and the Pokémon's icon, `poke_icon.bclim`, sorted by
 //! appeal, the leader on the left. The places were once read from the bars and the entrants told
-//! apart by their icons' images; the game keeps both itself (spike B on or_toughness_contest):
+//! apart by their icons' images; the game keeps both itself (spike 298 on or_toughness_contest):
 //!
 //! ```text
 //! contest::MainProc   +0x30  -> contest::Main
@@ -55,10 +55,10 @@ use crate::py::{self, Error, Result};
 /// The entry cards' app, then the appeals' (spike 196). The appeals were taken for the cards'
 /// until a new app built where the last ran was noticed (2026-10-09, or_broken_contest).
 pub const APPS: [&str; 2] = ["N7contest11OhiromeProcE", "N7contest8MainProcE"];
-/// The appeals' process -> its `contest::Main` -> its `contest::AppealUi` (spike B).
+/// The appeals' process -> its `contest::Main` -> its `contest::AppealUi` (spike 298).
 pub const MAIN: i64 = CONTEST_UI[0];
 pub const APPEAL_UI: i64 = CONTEST_UI[1];
-/// `contest::Main` -> the appeals: each entrant's appeal and place (spike B).
+/// `contest::Main` -> the appeals: each entrant's appeal and place (spike 298).
 pub const APPEALS: i64 = 0x24;
 /// The appeals -> the rounds done.
 pub const ROUNDS: i64 = 0x1;
@@ -71,7 +71,7 @@ pub const PLACE: i64 = 0xD;
 pub const PLAYER: i64 = 0;
 /// The pick of the leftmost portrait, first place's.
 pub const FIRST_PICK: i64 = 4;
-/// `contest::Main` -> the Pokémon of the entrant the cursor has picked (spike B).
+/// `contest::Main` -> the Pokémon of the entrant the cursor has picked (spike 298).
 pub const PICKED_NAME: i64 = 0x260;
 /// Halfwords past which a Pokémon's name is no name: a nickname is twelve at most.
 pub const NAME_LIMIT: i64 = 16;
@@ -130,7 +130,7 @@ pub fn named_in(text: &str, rivals: &[(String, String)]) -> Vec<(String, String)
 }
 
 /// Each of the computer's entrants, by its block, -> the entrant whose appeal came in its
-/// turn: until the first round ends the places are its turn order (spike B). The player's turn
+/// turn: until the first round ends the places are its turn order (spike 298). The player's turn
 /// names no entrant of `appealed`, which holds the computer's alone.
 pub fn by_turn(places: &[i64], appealed: &[(String, String)]) -> IndexMap<i64, (String, String)> {
     let theirs = py::sorted_by_lt(

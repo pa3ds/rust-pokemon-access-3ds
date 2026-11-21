@@ -7,11 +7,11 @@
 //! nothing.
 //!
 //! Nothing in the layout says an item is being carried. The Bag's own mode does, from the pick-up
-//! to the drop (`bag.Chosen.carrying`, spike B). pa3ds had told it from the steps, a cursor staying
-//! on one item while the items beside it changed: a pick-up was said only once a step had settled,
-//! the first steps missed (or_bag_manual_sorting, "moving Venusaurite, between Shell Bell and Float
-//! Stone", two steps in), and a drop and pick-up again said the cursor's lines, "Soothe Bell",
-//! "Venusaurite", before "moving" at the next step.
+//! to the drop (`bag.Chosen.carrying`, spike 298). pa3ds had told it from the steps, a cursor
+//! staying on one item while the items beside it changed: a pick-up was said only once a step had
+//! settled, the first steps missed (or_bag_manual_sorting, "moving Venusaurite, between Shell Bell
+//! and Float Stone", two steps in), and a drop and pick-up again said the cursor's lines, "Soothe
+//! Bell", "Venusaurite", before "moving" at the next step.
 //!
 //! Said: the pick-up, "moving Venusaurite", again if the item is dropped and picked straight back
 //! up; each step "between Soothe Bell and Rocky Helmet", or at an end of the list "above

@@ -369,13 +369,13 @@ pub struct Game {
     /// (spike 228).
     pub field_menu: (i64, i64),
     /// Where the field menu keeps the X menu's button under the cursor, read every tick
-    /// (`screens.rows`): ORAS's +0x82, X's +0x76 (spike J). None where it has not been measured.
+    /// (`screens.rows`): ORAS's +0x82, X's +0x76 (spike 306). None where it has not been measured.
     pub menu_row: Option<i64>,
     /// Where the options screen's process keeps the row under its cursor, read every tick
-    /// (`screens.rows`): ORAS's and X's +0x4C (spike B). None where it has not been measured.
+    /// (`screens.rows`): ORAS's and X's +0x4C (spike 298). None where it has not been measured.
     pub options_row: Option<i64>,
     /// Where the party's `app::pokelist::StaticWork` keeps the slot under its cursor, read every
-    /// tick (`screens.rows`): ORAS's +0x1A8, X's and Y's +0x1B0 (spike B). None where it has not
+    /// tick (`screens.rows`): ORAS's +0x1A8, X's and Y's +0x1B0 (spike 298). None where it has not
     /// been measured.
     pub party_slot: Option<i64>,
     /// Where its field camera's block keeps where the camera looks (`camera.Shape`): ORAS's, or
@@ -388,18 +388,18 @@ pub struct Game {
     /// (`boxes.Mode`, spike 288): the same in ORAS and X. None where it has not been measured.
     pub box_mode: Option<(i64, i64)>,
     /// Where the PC Box's process keeps the box its grid shows, as `box_mode` (`boxes.shown`,
-    /// spike B): the work block's +0x24, in ORAS and X. None where it has not been measured: a box
-    /// is then the one named as the title is.
+    /// spike 298): the work block's +0x24, in ORAS and X. None where it has not been measured: a
+    /// box is then the one named as the title is.
     pub box_shown: Option<(i64, i64)>,
     /// Where the town map's `app::townmap::MapView` keeps the place under its cursor
-    /// (`townmap.Places`, spike M): ORAS's or X's. None where it has not been measured: the place
+    /// (`townmap.Places`, spike 309): ORAS's or X's. None where it has not been measured: the place
     /// is then the screen's alone.
     pub map_view: Option<townmap::Shape>,
-    /// Where the Bag keeps the item under its cursor, its cursor source (`screens.bag`, spike A):
+    /// Where the Bag keeps the item under its cursor, its cursor source (`screens.bag`, spike 297):
     /// ORAS's, or X's. None where it has not been measured.
     pub bag: Option<bag::Shape>,
     /// Where the summary keeps the Pokémon it shows and its pages' lists (`screens.summary`,
-    /// spikes G and H): ORAS's, or X's.
+    /// spikes 303 and 304): ORAS's, or X's.
     pub summary: summary::Shape,
     /// The zones of the places in parts listed whole, the other parts' things out of the ROM
     /// (ADR-0042); every other place in parts is listed a part at a time.

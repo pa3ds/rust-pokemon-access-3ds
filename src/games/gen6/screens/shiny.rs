@@ -1,4 +1,4 @@
-//! A shiny Pokémon said so under a horde's target cursor (spike K).
+//! A shiny Pokémon said so under a horde's target cursor (spike 307).
 //!
 //! A battle says a move's target by the name its button shows, a horde's five "Zigzagoon" alike
 //! (or_horde_battle), the shiny one among them, which the game draws sparkling and never names. The
@@ -44,13 +44,13 @@ use crate::games::gen6::apps::{BATTLE, LOADED_CODE};
 use crate::games::gen6::screens::battle_bag::ui_block;
 use crate::py::{self, Error, Result};
 
-/// The view's UI block -> a mask of the battle positions the target cursor is on (spike K).
+/// The view's UI block -> a mask of the battle positions the target cursor is on (spike 307).
 pub const TARGETS: i64 = 0x54;
-/// The view's UI block -> the target screen shown (spike K).
+/// The view's UI block -> the target screen shown (spike 307).
 pub const SCREEN: i64 = 0x84;
-/// A horde's target screen, the player's one Pokémon against five (spike K).
+/// A horde's target screen, the player's one Pokémon against five (spike 307).
 pub const HORDE_CLASS: &str = "N3btl3app16TargetSelect1vs5E";
-/// The party's list in battle, a row a member, its name the row's first words (spike K).
+/// The party's list in battle, a row a member, its name the row's first words (spike 307).
 pub const PARTY_FILE: &str = "poke_list.bclyt";
 
 /// A horde's target cursor said "Shiny" where the Pokémon under it is.

@@ -341,8 +341,8 @@ impl LayoutFiles {
     /// Each layout's work leads to the archive its files came from (spike 64), which is how its
     /// files are found without scanning every swept page for them. Only its file table and its
     /// layout files are read: its textures, the rest of it, are named by where they start, and
-    /// were 212 MB of the 225 MB that 995 archives held over 30 tapes (spike C). Every layout file
-    /// a scan of the whole found was in the table.
+    /// were 212 MB of the 225 MB that 995 archives held over 30 tapes (spike 299). Every layout
+    /// file a scan of the whole found was in the table.
     ///
     /// ```text
     /// darc  +0x00 "darc"   +0x04 u16 0xFEFF   +0x06 u16 header size, 0x1c   +0x0c u32 size

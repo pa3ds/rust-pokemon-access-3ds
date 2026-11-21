@@ -329,7 +329,7 @@ fn in_grid(
 
 /// The touch area of a slot as the game counts its Box's grid cursor's: 0 to 29 the box's thirty
 /// under the layout's root, row by row, and 30 to 35 the party's six, under a panel, in reading
-/// order (spike B on or_organize_boxes and x_pc_boxes). None for any after them, the box's name
+/// order (spike 298 on or_organize_boxes and x_pc_boxes). None for any after them, the box's name
 /// bar's, or where no such slots are shown.
 pub fn nth(layouts: &Layouts, root: i64, index: i64) -> Result<Option<i64>> {
     let mut groups: IndexMap<(i64, (i64, i64)), Vec<i64>> = IndexMap::new();

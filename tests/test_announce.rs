@@ -2288,7 +2288,7 @@ fn test_an_items_details_leave_out_the_item_and_a_title_said_already() {
 }
 
 /// Changing pockets said "Potion", then "MEDICINE" with the count and description, and an
-/// empty pocket's name came 0.27 to 0.41 s after it changed (spike A). The Bag's pocket, from
+/// empty pocket's name came 0.27 to 0.41 s after it changed (spike 297). The Bag's pocket, from
 /// its own objects (`gen6.screens.bag`), is said first, the item queued behind it with menus
 /// set to interrupt, and the top screen's title, written after, is not said again.
 #[test]

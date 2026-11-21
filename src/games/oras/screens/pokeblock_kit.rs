@@ -1,5 +1,5 @@
 //! Which of the Pokéblock Kit's two screens is shown, the Case or the Berry Blender, so that the
-//! other's layouts are put away (spike B on or_pokeblock_kit).
+//! other's layouts are put away (spike 298 on or_pokeblock_kit).
 //!
 //! L and R turn the Kit between the Case and the Blender, and the game keeps both screens' layouts
 //! on screen, every flag of each saying drawn. Once the Blender had been opened both cursors were
@@ -35,7 +35,7 @@
 //! is the one word that changes as it moves (`lyt.X`, `lyt.Y`), and it was seen at a screen poll,
 //! up to a fifth of a second after, the block's name a poll after that. The places of the cursors
 //! on screen are read every tick, and a move has the screen polled at once
-//! (`Gen6Profile.poll_menus`). At rest each holds still, and it jumps from cell to cell (spike B
+//! (`Gen6Profile.poll_menus`). At rest each holds still, and it jumps from cell to cell (spike 298
 //! on or_pokeblock_kit).
 //!
 //! Bound by:

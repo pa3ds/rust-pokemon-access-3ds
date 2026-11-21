@@ -1,4 +1,4 @@
-//! The battle's Bag: a pocket's page said as it turns, before its item (spike I).
+//! The battle's Bag: a pocket's page said as it turns, before its item (spike 305).
 //!
 //! The Bag's list shows six items a page under a title, the pocket and the page, "HP/PP RESTORE
 //! 2/2". Read as screen text, the title was said as details after every move, a page turned to
@@ -7,10 +7,10 @@
 //! its page, reached from the battle's view:
 //!
 //! ```text
-//! a gauge                  +0x04  -> btl::BattleViewSystem (spike B)
+//! a gauge                  +0x04  -> btl::BattleViewSystem (spike 298)
 //! btl::BattleViewSystem   +0x190  -> a block of its UI, whose
-//!                         +0x1D8  is btl::BtlvUiBag, inside it (spike E); +0x1D4 in
-//!                                    X and Y (spike I)
+//!                         +0x1D8  is btl::BtlvUiBag, inside it (spike 301); +0x1D4 in
+//!                                    X and Y (spike 305)
 //! btl::BtlvUiBag           +0x18  -> btl::app::ItemList while a pocket is open, its
 //!                                    pockets' menu (btl::app::ItemCategory) before
 //! btl::app::ItemList       +0xD4  u8 the pocket: 0 HP/PP RESTORE, 1 STATUS RESTORE,
@@ -56,11 +56,11 @@ pub const BAGS: [i64; 2] = [0x1D8, 0x1D4];
 pub const BAG_CLASS: &str = "N3btl9BtlvUiBagE";
 pub const LIST: i64 = 0x18;
 pub const LIST_CLASS: &str = "N3btl3app8ItemListE";
-/// What the Bag's +0x18 is while an item's menu, USE, is open over the list (spike I).
+/// What the Bag's +0x18 is while an item's menu, USE, is open over the list (spike 305).
 pub const INFO_CLASS: &str = "N3btl3app8ItemInfoE";
 pub const POCKET: i64 = 0xD4;
 pub const PAGE: i64 = 0x30C;
-/// Where the battle's objects are: its UI's lie past the application heap (spike I).
+/// Where the battle's objects are: its UI's lie past the application heap (spike 305).
 pub const OBJECTS: (i64, i64) = (0x08000000, 0x20000000);
 pub const LIST_FILE: &str = "item_list.bclyt";
 pub const POCKETS_FILE: &str = "item_category.bclyt";
@@ -263,7 +263,7 @@ impl BattleBag {
 /// The battle view's block of its UI, through the view a gauge points at, or None.
 pub fn ui_block(memory: &dyn Memory, names: &ClassNames, gauges: &[i64]) -> Result<Option<i64>> {
     // A sweep can take a word equal to a gauge's vtable for a gauge: the first kept read
-    // 0xe58d8004 at +0x04 (spike I). The view is the one a gauge points at.
+    // 0xe58d8004 at +0x04 (spike 305). The view is the one a gauge points at.
     let mut view = None;
     for &gauge in gauges {
         let at = u32(&memory.read(gauge + VIEW, 4)?, 0)?;

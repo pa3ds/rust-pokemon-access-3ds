@@ -132,7 +132,7 @@ pub struct ScreenText {
     /// (`GameText.plain`).
     pub plain: bool,
     /// Its words are drawn less than opaque by their own colour (`PaneShape.text_colours`), as
-    /// the Secret Base PC greys a category with nothing in it (spike L).
+    /// the Secret Base PC greys a category with nothing in it (spike 308).
     pub faded: bool,
 }
 

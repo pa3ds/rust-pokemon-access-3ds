@@ -1,5 +1,5 @@
 //! The Secret Base PC's decoration list, Omega Ruby and Alpha Sapphire's: a category with nothing
-//! in it is drawn grey, its words at alpha 0x80 where the others' are opaque (spike L on
+//! in it is drawn grey, its words at alpha 0x80 where the others' are opaque (spike 308 on
 //! or_secret_base_route_111), and was said as the others are. It is said with the word an empty
 //! slot is said with, "Desks, empty". Only the list's own layout is touched.
 

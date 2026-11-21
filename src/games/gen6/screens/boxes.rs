@@ -16,8 +16,8 @@
 //!
 //! A box is the one the Box's work block names, a byte beside its mode (`Game.box_shown`): from 0,
 //! and 0xFF on the Battle Box, written as the grid starts to turn, about 0.2 s before the title
-//! above it (spike B, or_pc_organize). Where that byte is not measured, it is the box whose name is
-//! the title, which the player can rename.
+//! above it (spike 298, or_pc_organize). Where that byte is not measured, it is the box whose name
+//! is the title, which the player can rename.
 //!
 //! Bound by:
 //! - ADR-0043: the slot is said as the pointer sets off, the box by its byte as it turns.
@@ -82,7 +82,7 @@ pub type BoxNames = Rc<dyn Fn() -> Result<Option<Vec<String>>>>;
 /// Says the box the PC Box turns to as its byte changes (`shown`), by the name the player gave
 /// it in the save: the title above the grid is written a poll or more after the byte, and
 /// holding left through the boxes left BOX 6 and BOX 5 unsaid and said BOX 4 again after BOX 3
-/// (spike B, or_pc_organize). The screen's words for a box are then no news (`unsaid`).
+/// (spike 298, or_pc_organize). The screen's words for a box are then no news (`unsaid`).
 pub struct Titles {
     shown: Shown,
     names: BoxNames,

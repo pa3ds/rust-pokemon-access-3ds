@@ -165,7 +165,7 @@ pub const REQUIRED: [&str; 2] = msgwin::CLASSES;
 /// Seconds a cursor holds still before the heap's whole sweep, held while it moves, runs. A sweep
 /// reads 13 MB in one tick of 1.0 to 1.3 s with nothing else read, and the Bag's own, 1.5 s after
 /// it starts, came as the player began moving down its list: the first item of Medicine went
-/// without its details (findings/cursors.md, spike A).
+/// without its details (findings/cursors.md, spike 297).
 pub const STILL: f64 = 1.0;
 /// The longest seconds a moving cursor holds the whole sweep off, so what only a sweep finds is
 /// never more than that late.
@@ -733,7 +733,7 @@ impl Gen6Profile {
                 Rc::new(move || gauges.kept())
             },
         ));
-        // A shiny Pokémon under a horde's target cursor said so (spike K).
+        // A shiny Pokémon under a horde's target cursor said so (spike 307).
         let shiny = RefCell::new(shiny::Shiny::new(
             memory.clone(),
             {
@@ -794,7 +794,7 @@ impl Gen6Profile {
         let list_rows = RefCell::new(townmap::ListRows::new());
         // And search and sort's, its dashes after another field's.
         let search_rows = RefCell::new(scrolled::Scrolled::new());
-        // Omega Ruby's says its entry from the list's own rows, the tick it is chosen (spike N).
+        // Omega Ruby's says its entry from the list's own rows, the tick it is chosen (spike 310).
         let oras_list = RefCell::new(pokedex::OrasList::new(
             memory.clone(),
             {
@@ -934,7 +934,7 @@ impl Gen6Profile {
             },
             box_shown.clone(),
         )));
-        // The box turned to, said from the Box's byte before its title is written (spike B).
+        // The box turned to, said from the Box's byte before its title is written (spike 298).
         let box_titles = game.box_shown.map(|_| {
             let occupants = occupants.clone();
             RefCell::new(boxes::Titles::new(
@@ -943,7 +943,7 @@ impl Gen6Profile {
             ))
         });
         // The place under the AreaNav's map cursor, said from its MapView before the top screen
-        // names it (spike M).
+        // names it (spike 309).
         let places = game.map_view.map(|map_view| {
             let map_areas = text.map_areas.clone();
             let (running, process) = (apps.clone(), apps.clone());
@@ -1953,7 +1953,7 @@ impl Gen6Profile {
             // The question comes before its prompt: "YES, 1 of 2" was heard 1.6 s before "So
             // you're wee?" while a new window waited for a sweep. One is found by its lines as it
             // types now (spike 60), and a sweep of the heap here held every other reader up a
-            // second at each list and found no window the dialogue reader lacked (spike D).
+            // second at each list and found no window the dialogue reader lacked (spike 300).
             self.poll_dialogue()?;
             // A question the screen draws itself, such as "Would you like to make these changes?",
             // comes first too, without waiting for it to hold.

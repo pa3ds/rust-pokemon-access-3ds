@@ -1327,7 +1327,7 @@ fn test_the_maps_touch_areas_are_named_by_the_areanav_row_pointing_at_them() {
             ("m".to_string(), "Route 101".to_string())
         ])
     );
-    // The town map's MapView keeps a touch area by that index (spike M).
+    // The town map's MapView keeps a touch area by that index (spike 309).
     assert_eq!(
         archives::map_pane_names(&head).unwrap(),
         vec!["l".to_string(), "m".to_string(), "n".to_string()]

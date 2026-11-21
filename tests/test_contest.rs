@@ -1,4 +1,4 @@
-//! A contest's standings, from the game's own record of its appeals (spike B on
+//! A contest's standings, from the game's own record of its appeals (spike 298 on
 //! or_toughness_contest): its four entrants' blocks, the player's Metagross first, then Seedottie,
 //! Visikoth and Poochin.
 
@@ -127,7 +127,7 @@ fn test_the_first_rounds_appeals_name_the_computers_entrants_in_place_order() {
 }
 
 /// The game names the Pokémon of the portrait the cursor picks the moment it is picked (spike
-/// B on or_toughness_contest): its trainer from the contests' entrants, the two as the card
+/// 298 on or_toughness_contest): its trainer from the contests' entrants, the two as the card
 /// wrote them.
 #[test]
 fn test_a_portrait_is_named_by_its_pokemon_as_its_entry_card_wrote_it() {

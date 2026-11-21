@@ -18,7 +18,7 @@
 //! handle   +0x04  the layout's work, as a layout pool's table keeps it
 //! ```
 //!
-//! The place under the map's cursor is the AreaNav's cursor source (`Places`, spike M): the Fly
+//! The place under the map's cursor is the AreaNav's cursor source (`Places`, spike 309): the Fly
 //! map's, the Town Map's, and the place a View Details pages to. Its `MapView` keeps the touch
 //! area the top screen tells of, and the module's code sets it before writing the place's words:
 //!
@@ -108,7 +108,7 @@ pub const ORAS: Shape = Shape {
     place: 0xEC,
 };
 /// X's: `GraphicWork` at `MainSystem` +0x14, `MapView` at its +0x90, the place 4 bytes on (spike
-/// M on x_townmap).
+/// 309 on x_townmap).
 pub const XY: Shape = Shape {
     view: [0x24, 0x14, 0x90],
     place: 0xF0,

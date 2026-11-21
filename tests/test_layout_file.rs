@@ -330,7 +330,7 @@ impl Memory for Sizes {
     }
 }
 
-/// A texture is most of an archive, and is known by where it starts (spike C).
+/// A texture is most of an archive, and is known by where it starts (spike 299).
 #[test]
 fn test_an_archives_textures_are_named_without_being_read() {
     let data = darc(&[

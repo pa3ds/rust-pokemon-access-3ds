@@ -1,4 +1,4 @@
-//! The Bag's cursor source: the item under its cursor, from the Bag's own objects (spike A).
+//! The Bag's cursor source: the item under its cursor, from the Bag's own objects (spike 297).
 //!
 //! pa3ds finds the Bag's cursor by the window drawn round its row and says the row's words. The top
 //! screen's pocket, count and description are that item's details, which used to wait two polls
@@ -13,17 +13,17 @@
 //!                               4 Key Items, the order of the ROM's names for them
 //! app::bag::MainSystem   +0x40  u8 the Bag's mode: 6 the list, 7 an item carried with Y,
 //!                               12 an item's action list, 13 and 17 the party for a TM and
-//!                               for Give (spike B; `carrying`, for `bag_sort`)
+//!                               for Give (spike 298; `carrying`, for `bag_sort`)
 //! app::bag::MainSystem   +0x58 -> a block of no class of its own, whose +0x00 ->
 //! app::bag::GraphicWork  +0x10  u16 the item under the cursor, 0 in an empty pocket
 //! ```
 //!
 //! X keeps the pocket at +0x30, the mode at +0x34 and the block at +0x4C, 12 bytes sooner,
-//! numbered and laid out the same (spike A on x_field_bag, spike B on x_bag_manual_sorting).
+//! numbered and laid out the same (spike 297 on x_field_bag, spike 298 on x_bag_manual_sorting).
 //!
 //! The pocket's name is said the poll its number changes, before the item. The top screen's title,
 //! written with the item's details a poll or two later, said them as "Potion", then "MEDICINE" with
-//! the count and description, and an empty pocket's 0.27 to 0.41 s after it changed (spike A,
+//! the count and description, and an empty pocket's 0.27 to 0.41 s after it changed (spike 297,
 //! or_menus).
 //!
 //! An item's name is the ROM's, which the top screen writes among its words. The list's row may say
@@ -82,7 +82,7 @@ pub const XY: Shape = Shape {
     draw: &[0x4C, 0x00],
     item: 0x10,
 };
-/// The Bag's mode while an item is carried with Y, from its pick-up to its drop (spike B on
+/// The Bag's mode while an item is carried with Y, from its pick-up to its drop (spike 298 on
 /// or_bag_manual_sorting and x_bag_manual_sorting): no other mode of the list, its menus or its
 /// party read 7.
 pub const CARRYING: i64 = 7;

@@ -434,7 +434,7 @@ fn test_the_battle_reader_asks_for_a_sweep_only_while_a_battle_runs() {
 
 /// ADR-0034: a whole sweep waits while a cursor moves. The Bag's own, 1.5 s after it starts,
 /// read nothing else for 1.2 s as the player began moving down its list: the first item of
-/// Medicine went without its details (spike A).
+/// Medicine went without its details (spike 297).
 #[test]
 fn test_a_moving_cursor_holds_the_whole_sweep_off_until_it_is_still_for_three_seconds_at_most() {
     let (made, _) = profile(&Town::new(), no_text(), None, no_log());

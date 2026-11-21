@@ -1244,7 +1244,7 @@ fn map_places_of(
 }
 
 /// Where a row of the town list keeps its town's touch area on the map, by its index among the
-/// map's panes: Omega Ruby's and X's (spikes 152 and M).
+/// map's panes: Omega Ruby's and X's (spikes 152 and 309).
 pub const AREA: i64 = 0x04;
 
 /// A touch area of the map, by its index -> what the game calls its place: the town list's
