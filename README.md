@@ -53,7 +53,9 @@ the Game Boy games. Nothing here is taken from its code.
   switch Pokémon its name, level and item and only the page you are on. In Check Moves each move
   is said in the words of the page you are on: its type and PP, or its contest kind. The PC Box
   says its mode as Start and Select change it, and each box's name as the box turns, by the name
-  you gave it. X and Y's Pokédex list says each entry by its number and name, "004 Fennekin".
+  you gave it. The Pokédex's list says each entry as you move onto it, and a jump of a page only
+  where it lands; X and Y's by its number and name, "004 Fennekin". In search and sort, a field
+  not set is said with its name, "COLOR ---".
 - **The fitting room** in X and Y's boutiques: each category, and each item with its colour and
   price.
 - **A Poké Mart's count**, to buy or to sell, with its price, each time it changes: hold a key and
@@ -77,8 +79,10 @@ the Game Boy games. Nothing here is taken from its code.
   own. In Berry Picker which berry each Pokémon wants, in Head It which Pokémon each ball falls
   at, and in Tile Puzzle where each tile's piece belongs, each game with keys of its own.
 - **The AreaNav, the Town Map and the Fly map**: each place as the cursor comes onto it, even
-  one it glides straight through (in Omega Ruby and Alpha Sapphire), then what is there and
-  what it is like; the Pokémon seen there, as the DexNav says them.
+  one it glides straight through, then what is there and what it is like, with a tone as the
+  cursor moves. In the AreaNav, the Pokémon
+  seen there, as the DexNav says them, and in Trainer's Eye, Berry Trees and Secret Bases the
+  area first as you switch to it, then each row without it.
 - **The DexNav**: the area's Pokémon, which are met on the water or by fishing, and which you
   have caught, searching, and a hidden Pokémon's details.
 - **The Dowsing Machine**, **soaring** on Latios or Latias, and **Secret Bases**, decorating
