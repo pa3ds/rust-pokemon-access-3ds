@@ -39,6 +39,7 @@ use crate::core::touch::TouchScreen;
 use crate::core::words::{current, own};
 use crate::games::common::announce::{Announcements, Speaker};
 use crate::games::common::cursors::reader::CursorReader;
+use crate::games::common::cursors::shared::{CursorItem, CursorPoll};
 use crate::games::common::dialogue::{DialogueReader, Shown};
 use crate::games::common::field::ground::Ground;
 use crate::games::common::field::guide::{FieldSource, Place};
@@ -335,6 +336,8 @@ pub struct Gen6Profile {
     pub counts: RefCell<counts::Counts>,
     mart: RefCell<mart::Jumps>,
     summary_pages: RefCell<summary::Pages>,
+    /// The game's words for the contest categories, the conditions star's labels.
+    contest_words: HashSet<String>,
     pub map_cursor: RefCell<MapCursor>,
     pub footsteps: Option<RefCell<Footsteps>>,
     /// Python's `self.touch` is the navigator's `touch`, which it owns here.
@@ -676,6 +679,7 @@ impl Gen6Profile {
             layouts.clone(),
             files.clone(),
         ));
+        let contest_words: HashSet<String> = text.contest_categories.iter().cloned().collect();
         let sides: Sides = {
             let (standings, announcements, apps) =
                 (standings.clone(), announcements.clone(), apps.clone());
@@ -1362,6 +1366,7 @@ impl Gen6Profile {
             counts,
             mart,
             summary_pages,
+            contest_words,
             map_cursor: RefCell::new(map_cursor),
             footsteps,
             navigator: RefCell::new(navigator),
@@ -1904,14 +1909,21 @@ impl Gen6Profile {
         if with_choices {
             labels.extend(self.choices.borrow().labels());
         }
-        // The summary's pages it does not draw are not heard.
+        // The summary's pages it does not draw are not heard, nor its star's labels, which have
+        // no values: the conditions Extra says them with theirs.
         let unseen = self.summary_pages.borrow().hidden();
+        let mut unsaid = counted.clone();
+        unsaid.extend(
+            self.summary_pages
+                .borrow()
+                .star_labels(&screen.on_screen, &self.contest_words),
+        );
         let mut texts: Vec<ScreenText> = Vec::new();
         for text in &screen.texts {
             if !self.battle.borrow().owns(text)?
                 && !self.habitat.borrow().owns(text)
                 && !self.distribution_reader.borrow().owns(text)
-                && !counted.contains(&text.r#box)
+                && !unsaid.contains(&text.r#box)
                 && !unseen.contains(&text.root)
             {
                 texts.push(text.clone());
@@ -1924,25 +1936,82 @@ impl Gen6Profile {
             .iter()
             .filter(|piece| {
                 !self.distribution_reader.borrow().owns(piece)
-                    && !counted.contains(&piece.r#box)
+                    && !unsaid.contains(&piece.r#box)
                     && !unseen.contains(&piece.root)
             })
             .cloned()
             .collect();
-        // A summary page turned to is said as a screen rewritten, its words as they stand: its
-        // first row at once, the rest after it, cut off by the next turn.
+        let cursors = if unseen.is_empty() {
+            cursors
+        } else {
+            // Check Moves' cursors are over both pages' moves: each move in the shown one's words,
+            // with the rest of its row there. On the conditions page the cursor rests on the
+            // battle moves' row, and the contest list's word under it was the kind alone.
+            let items = cursors
+                .items
+                .iter()
+                .map(|item| {
+                    let shown: Vec<ScreenText> = item
+                        .pieces
+                        .iter()
+                        .filter(|p| !unseen.contains(&p.root))
+                        .cloned()
+                        .collect();
+                    CursorItem {
+                        pieces: rowed(shown, &heard),
+                        ..item.clone()
+                    }
+                })
+                .collect();
+            CursorPoll { items, ..cursors }
+        };
+        // A summary page turned to is said as it opened, its words as they stand, the first
+        // cutting off the page before (`lead`).
         let turned = self.summary_pages.borrow().turned();
         if !turned.is_empty() {
             let written: HashSet<i64> = texts.iter().map(|text| text.r#box).collect();
+            texts = texts
+                .into_iter()
+                .map(|text| {
+                    if turned.contains(&text.root) {
+                        ScreenText {
+                            changed: false,
+                            returned: true,
+                            ..text
+                        }
+                    } else {
+                        text
+                    }
+                })
+                .collect();
             texts.extend(
                 heard
                     .iter()
                     .filter(|piece| turned.contains(&piece.root) && !written.contains(&piece.r#box))
                     .map(|piece| ScreenText {
-                        changed: true,
+                        changed: false,
+                        returned: true,
                         ..piece.clone()
                     }),
             );
+        }
+        // A page changed with the Pokémon, an Egg's or the one after it, is said as a switch is:
+        // the name, then the rest, its layouts coming back to the screen part of it.
+        let switched = self.summary_pages.borrow().switched();
+        if !switched.is_empty() {
+            texts = texts
+                .into_iter()
+                .map(|text| {
+                    if switched.contains(&text.root) {
+                        ScreenText {
+                            changed: true,
+                            ..text
+                        }
+                    } else {
+                        text
+                    }
+                })
+                .collect();
         }
         if let Some(count) = &count {
             (self.log)(&format!("count: {count}"));
@@ -1958,10 +2027,7 @@ impl Gen6Profile {
             on_screen: heard,
             ..screen.clone()
         };
-        let subject = || {
-            let name = summary::name(&*self.memory, &self.names, &self.apps.borrow())?;
-            Ok(self.summary_pages.borrow().lead(&poll.on_screen, name))
-        };
+        let subject = || summary::name(&*self.memory, &self.names, &self.apps.borrow());
         // `pocket or box_title`.
         let title = match pocket {
             Some(pocket) if !pocket.is_empty() => Some(pocket),
@@ -1975,6 +2041,7 @@ impl Gen6Profile {
             Some(&subject),
             Some(&chosen),
             title.as_deref(),
+            &turned,
         )?;
         // After the screen's words, which name the place first.
         for line in &listed {
@@ -1994,6 +2061,7 @@ impl Gen6Profile {
         }
         if let Some(conditions) = &self.conditions {
             // After the screen's words, and once a cursor's details are said, so they come last.
+            // The words of the summary's page shown alone: its other pages keep the star on screen.
             let under: Vec<String> = cursors
                 .under
                 .iter()
@@ -2003,7 +2071,7 @@ impl Gen6Profile {
             let waiting = self.screen_announcer.borrow().gathering();
             conditions
                 .borrow_mut()
-                .poll(&under, &screen.on_screen, &screen.settling, waiting)?;
+                .poll(&under, &poll.on_screen, &screen.settling, waiting)?;
         }
         if let Some(party) = party {
             (self.log)(&format!("battle party: {party}"));
@@ -2838,6 +2906,28 @@ pub fn dragged(sounds: Option<Rc<Clips>>) -> Option<Rc<dyn Fn(bool)>> {
 /// Is this in the heap or the linear heap, where a work's resource and archive have been?
 fn in_a_heap(address: i64) -> bool {
     within(HEAP_SPAN, address) || within(LINEAR_SPAN, address)
+}
+
+/// The pieces with the rest of the pane their words hang from, in its order: a cursor's item
+/// whose other words lay under another layout's row. The contest moves' kind and name hang from
+/// one pane, a little apart in height.
+fn rowed(pieces: Vec<ScreenText>, on_screen: &[ScreenText]) -> Vec<ScreenText> {
+    if pieces.is_empty() {
+        return pieces;
+    }
+    let groups: HashSet<(i64, i64)> = pieces.iter().map(|p| (p.root, p.parent)).collect();
+    let boxes: HashSet<i64> = pieces.iter().map(|p| p.r#box).collect();
+    let mates: Vec<ScreenText> = on_screen
+        .iter()
+        .filter(|p| groups.contains(&(p.root, p.parent)) && !boxes.contains(&p.r#box))
+        .cloned()
+        .collect();
+    if mates.is_empty() {
+        return pieces;
+    }
+    let mut all: Vec<ScreenText> = pieces.into_iter().chain(mates).collect();
+    all.sort_by_key(|p| p.r#box);
+    all
 }
 
 impl Profile for Gen6Profile {

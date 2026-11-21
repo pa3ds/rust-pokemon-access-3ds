@@ -18,8 +18,10 @@ use crate::py::Result;
 
 const PROCESS: i64 = 0x08C652BC;
 /// Two pages' values, addresses in the code.
-const STATS: i64 = 0x0071590C;
-const CONDITIONS: i64 = 0x007166B8;
+const STATS: i64 = 0x0073190C;
+const CONDITIONS: i64 = 0x007326B8;
+const METAGROSS: i64 = 0;
+const TORCHIC: i64 = 1;
 const WORKS: [(i64, i64); 3] = [
     (0x0821A000, 0x0822A000),
     (0x0821B000, 0x0822B000),
@@ -40,7 +42,7 @@ impl TrackedLayouts for FakeLayouts {
         let file = match root {
             PARAMS => "params.bclyt",
             WAZA => "waza.bclyt",
-            CONTEST => "params_contest.bclyt",
+            CONTEST => summary::STAR_PAGE,
             _ => panic!("KeyError: {root}"),
         };
         vec![file.to_string()]
@@ -64,12 +66,11 @@ impl FileMatching for FakeFiles {
     }
 }
 
-fn piece(root: i64, text: &str, row: f64) -> ScreenText {
+fn piece(root: i64, text: &str, r#box: i64) -> ScreenText {
     ScreenText {
-        row,
         top: true,
         root,
-        ..ScreenText::new(root + row as i64, text, false)
+        ..ScreenText::new(root + r#box, text, false)
     }
 }
 
@@ -92,45 +93,51 @@ fn test_a_page_is_learnt_as_it_first_shows_and_the_others_are_unheard() {
         Rc::new(FakeLayouts),
         Rc::new(FakeFiles),
     );
-    let stats = vec![
-        piece(PARAMS, "Dex No. 376", 60.0),
-        piece(PARAMS, "HP 199/227", 40.0),
-        piece(WAZA, "Hold Back", 0.0),
-    ];
+    let stats = vec![piece(PARAMS, "HP 199/227", 1), piece(WAZA, "Hold Back", 2)];
     let mut both = stats.clone();
-    both.push(piece(CONTEST, "Coolness", 70.0));
+    both.extend([piece(CONTEST, "Name", 3), piece(CONTEST, "Coolness", 4)]);
 
-    let mut poll = |word: i64, on_screen: &[ScreenText], cursored: &[i64]| {
+    // `poll(word, on_screen, mon, cursored)`, then what the pages say: hidden and turned.
+    let mut poll = |word: i64, on_screen: &[ScreenText], mon: i64, cursored: &[i64]| {
         memory.u32(PROCESS + summary::PAGE, &[word]);
+        memory.u32(PROCESS + summary::PLACE, &[mon]);
         pages.poll(on_screen, &roots(cursored)).unwrap();
-        (
-            pages.hidden(),
-            pages.turned(),
-            pages.lead(on_screen, Some("Metagross".to_string())),
-        )
+        (pages.hidden(), pages.turned())
     };
 
     // As the summary opens its value points into the heap: nothing is learnt.
-    assert_eq!(poll(0x08C6A770, &stats, &[]).0, roots(&[]));
-    assert_eq!(poll(STATS, &stats, &[]).0, roots(&[]));
+    assert_eq!(poll(0x08C6A770, &stats, METAGROSS, &[]).0, roots(&[]));
+    assert_eq!(poll(STATS, &stats, METAGROSS, &[]).0, roots(&[]));
     // The conditions page's layout shows first under its value, and is its; the first visit is
     // no turn, its words newly on screen.
-    let (hidden, turned, _) = poll(CONDITIONS, &both, &[]);
+    let (hidden, turned) = poll(CONDITIONS, &both, METAGROSS, &[]);
     assert_eq!(turned, roots(&[]));
     assert_eq!(hidden, roots(&[PARAMS, WAZA]));
-    // Turned back: the stats page is said, led by its first line, the other unheard.
-    let (hidden, turned, lead) = poll(STATS, &both, &[]);
+    // Turned back: no page is heard as the game draws it afresh, then the stats page is said,
+    // the other unheard.
+    let (hidden, turned) = poll(STATS, &both, METAGROSS, &[]);
+    assert_eq!(turned, roots(&[]));
+    assert_eq!(hidden, roots(&[PARAMS, WAZA, CONTEST]));
+    let (hidden, turned) = poll(STATS, &both, METAGROSS, &[]);
     assert_eq!(turned, roots(&[PARAMS, WAZA]));
     assert_eq!(hidden, roots(&[CONTEST]));
-    assert_eq!(lead.as_deref(), Some("Dex No. 376"));
-    let (_, turned, lead) = poll(STATS, &both, &[]);
+    let (_, turned) = poll(STATS, &both, METAGROSS, &[]);
     assert_eq!(turned, roots(&[]));
-    assert_eq!(lead.as_deref(), Some("Metagross"));
-    // Check Moves, a cursor on a page's moves, flips the page under the player: every page is
-    // heard and no flip is a turn.
-    let (hidden, turned, _) = poll(CONDITIONS, &both, &[WAZA]);
+    // A page changed with the Pokémon is a switch, said as one, not a turn: an Egg's memo.
+    let (hidden, turned) = poll(CONDITIONS, &both, TORCHIC, &[]);
     assert_eq!(turned, roots(&[]));
-    assert_eq!(hidden, roots(&[]));
+    assert_eq!(hidden, roots(&[PARAMS, WAZA]));
+    // Check Moves, a cursor on a page's moves, flips the page under the player: no flip is a
+    // turn, and each move is heard in the shown page's words.
+    let (hidden, turned) = poll(STATS, &both, TORCHIC, &[WAZA]);
+    assert_eq!(turned, roots(&[]));
+    assert_eq!(hidden, roots(&[CONTEST]));
+    // The star's labels, on the conditions page alone.
+    let words: HashSet<String> = ["Coolness", "HP 199/227"]
+        .iter()
+        .map(|word| word.to_string())
+        .collect();
+    assert_eq!(pages.star_labels(&both, &words), roots(&[CONTEST + 4]));
     // Out of the summary, every page is forgotten.
     apps.borrow_mut().running = None;
     pages.poll(&[], &roots(&[])).unwrap();

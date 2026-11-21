@@ -886,7 +886,7 @@ impl GameText {
                 plain
             },
             caught: layout.caught.clone(),
-            contest_categories: lines_from(layout.contest_categories)?,
+            contest_categories: py::slice(&lines_from(layout.contest_categories)?, 0, 5).to_vec(),
             contest_entrant: py::slice(&lines_from(layout.contest_entrant)?, 0, 2).to_vec(),
             amie_numbers: py::slice(&lines_from(layout.amie_numbers)?, 0, 3).to_vec(),
             training_stats: py::slice(&lines_from(layout.training_stats)?, 0, 6).to_vec(),

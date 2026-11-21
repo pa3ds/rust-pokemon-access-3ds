@@ -72,7 +72,8 @@ in a way pa3ds cannot otherwise put into words. Each is off until you turn it on
 `[pa3ds.extras]`.
 
 - **`conditions`**: the game draws a Pokémon's contest conditions as a star. pa3ds cannot read
-  the star, so it says the numbers the star is drawn from.
+  the star, so it says the numbers the star is drawn from, after the rest of the summary's
+  conditions page. With it off, the star's labels are not said, having no values.
 - **`base_stats`**: the game draws each stat your Pokémon has gained in Super Training as a
   chart. `R` on its page says how many fifths of it each fills; with this on, it says the
   points.

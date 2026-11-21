@@ -48,7 +48,9 @@ the Game Boy games. Nothing here is taken from its code.
   description on the move info screen, where the four moves are said by number, and when a move
   is to be forgotten.
 - **The PC Box, the party, the Bag and the Pokédex**, the habitat map included. A Pokémon's
-  summary says each page as you turn to it, and only the page you are on as you switch Pokémon. The PC Box says its mode
+  summary says each page as you turn to it, then the button under it, and as you switch Pokémon
+  its name, level and item and only the page you are on. In Check Moves each move is said in the
+  words of the page you are on: its type and PP, or its contest kind. The PC Box says its mode
   as Start and Select change it, and in Omega Ruby and Alpha Sapphire each box's name as the box
   turns, by the name you gave it.
 - **The fitting room** in X and Y's boutiques: each category, and each item with its colour and

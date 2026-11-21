@@ -97,6 +97,7 @@ struct Args {
     subject: Option<Box<dyn Fn() -> Result<Option<String>>>>,
     chosen: Option<IndexMap<i64, String>>,
     title: Option<String>,
+    lead: HashSet<i64>,
 }
 
 fn args(texts: &[ScreenText], items: Vec<CursorItem>, on_screen: &[ScreenText]) -> Args {
@@ -184,6 +185,7 @@ impl Screen {
                 given.subject.as_deref(),
                 given.chosen.as_ref(),
                 given.title.as_deref(),
+                &given.lead,
             )
             .unwrap();
         self.backend.spoken()[before..].to_vec()
@@ -2989,6 +2991,7 @@ fn test_words_under_a_cursor_that_settle_after_it_spoke_are_not_said_again() {
             None,
             None,
             None,
+            &HashSet::new(),
         )
         .unwrap();
     assert_eq!(screen.backend.spoken()[before..], NOTHING);
@@ -3365,6 +3368,7 @@ fn listed(
             None,
             None,
             None,
+            &HashSet::new(),
         )
         .unwrap();
     screen.backend.spoken()[before..].to_vec()

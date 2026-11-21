@@ -158,10 +158,15 @@ impl ConditionsReader for Conditions {
             self.said = None;
             return Ok(());
         };
+        // The star's words not on screen, the summary on another page that keeps the star drawn:
+        // said again when it comes back to it, as part of that page.
+        if !on_screen.iter().any(|piece| piece.root == root) {
+            self.said = None;
+            return Ok(());
+        }
         // Words still being written, as a description is when the cursor moves along the moves,
         // put the conditions off without forgetting whose were said.
-        if waiting || settling.contains(&root) || !on_screen.iter().any(|piece| piece.root == root)
-        {
+        if waiting || settling.contains(&root) {
             return Ok(());
         }
         let param = self.shown(under)?;

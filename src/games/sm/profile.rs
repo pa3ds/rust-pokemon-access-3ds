@@ -388,6 +388,7 @@ impl SunProfile {
                 None,
                 None,
                 None,
+                &HashSet::new(),
             )?;
         }
         self.announcements.borrow_mut().battlers(&sides);

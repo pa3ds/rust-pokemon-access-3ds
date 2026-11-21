@@ -266,6 +266,8 @@ pub struct ScreenAnnouncer {
     placed: Option<(String, i64)>,
     /// The title said last from a screen's own objects, and the poll it was said at (`say`).
     title: Option<(String, i64)>,
+    /// The roots of a screen just turned to, until the first of their words is said (`say`).
+    lead: HashSet<i64>,
     /// TextBox -> its layout's root and the words last said of it, as screen text or details,
     /// until they change: a title still saying them, the Bag's pocket, is no detail
     /// (`heading`).
@@ -329,6 +331,7 @@ impl ScreenAnnouncer {
             left: IndexMap::new(),
             placed: None,
             title: None,
+            lead: HashSet::new(),
             words_said: IndexMap::new(),
         }
     }
@@ -400,7 +403,13 @@ impl ScreenAnnouncer {
     /// pictures alone owns those pictures: the AreaNav's tabs are drawn in its bar's layout, and
     /// left to them its View Details was never heard (or_area_nav).
     ///
-    /// Python's `roots`, `subject`, `chosen` and `title` default to None.
+    /// `lead` is the roots of layouts a screen has just turned to, whose words come on screen
+    /// as a screen opening's do: the first of them said is said as a cursor's move is, cutting
+    /// off what the screen said before, and the rest queued behind it. A summary page turned to
+    /// was queued behind the last page's rest, and turning on through the pages heard each page
+    /// whole (`summary.Pages`).
+    ///
+    /// Python's `roots`, `subject`, `chosen` and `title` default to None, and `lead` to none.
     #[allow(clippy::too_many_arguments)]
     pub fn say(
         &mut self,
@@ -411,8 +420,10 @@ impl ScreenAnnouncer {
         subject: Option<Subject>,
         chosen: Option<&IndexMap<i64, String>>,
         title: Option<&str>,
+        lead: &HashSet<i64>,
     ) -> Result<()> {
         self.polls += 1;
+        self.lead = lead.clone();
         self.chosen = chosen.cloned().unwrap_or_default();
         let (texts, on_screen, settling, left) = (
             &screen.texts,
@@ -1018,7 +1029,18 @@ impl ScreenAnnouncer {
                 continue;
             }
             (self.log)(&format!("screen shown: {text}  [layout {root:#x}]"));
-            self.speech.say(&text, Category::Screen);
+            let leading = self.lead.contains(&root);
+            if leading {
+                self.lead = HashSet::new();
+            }
+            self.speech.say(
+                &text,
+                if leading {
+                    Category::Menu
+                } else {
+                    Category::Screen
+                },
+            );
         }
     }
 
