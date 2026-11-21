@@ -18,7 +18,7 @@ use crate::games::gen6::field::zonetable::{INFO_KIND, INFO_NAME, INFO_PARENT, IN
 use crate::games::gen6::rom::archives::{self, BERRY_SPOT, GameText, PC_LINES};
 use crate::games::gen6::rom::layout::{RomLayout, TownFacilities};
 use crate::games::gen6::rom::maps::{MapChunks, Streets};
-use crate::games::gen6::rom::people::DOUBLE;
+use crate::games::gen6::rom::people::{self, DOUBLE};
 use crate::games::{gen6::field::mapblock, gen6::field::rail};
 use crate::games::{oras, xy};
 use crate::py::Kind;
@@ -758,6 +758,40 @@ fn test_a_tag_that_is_not_a_national_number_is_named_through_the_battle_models()
             Some("Machoke".to_string()),
             None
         ]
+    );
+}
+
+/// An empty range is no species, not every one: Sun's numbers from 650 up to a species list
+/// shorter than that.
+#[test]
+fn test_no_numbers_asked_for_reads_no_species() {
+    let tmp_path = TmpDir::new();
+    let mut head = vec![0u8; 4];
+    head[..3].copy_from_slice(&[0, 0, 1]);
+    let mut files: Vec<Vec<u8>> = vec![head];
+    files.extend(vec![Vec::new(); 7]);
+    files.push(b"pm0753_00".to_vec());
+    let rom = open_rom(
+        tmp_path.path(),
+        &Files::from([("a/0/0/7".to_string(), garc_of(files))]),
+        OMEGA_RUBY,
+    );
+    assert_eq!(
+        people::tagged_species(&rom, "a/0/0/7").unwrap(),
+        IndexMap::from([(753, 1)])
+    );
+    #[allow(clippy::reversed_empty_ranges)]
+    let numbers = 650..600;
+    assert_eq!(
+        people::tagged_species_with(
+            &rom,
+            "a/0/0/7",
+            people::MODEL_FILES,
+            people::MODEL_FILES,
+            Some(numbers),
+        )
+        .unwrap(),
+        IndexMap::new()
     );
 }
 

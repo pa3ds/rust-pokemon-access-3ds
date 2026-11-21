@@ -146,10 +146,7 @@ pub fn tagged_species_with(
         .ok_or_else(|| Error::index("list index out of range"))?;
     let head = rom.read_part(archive, start + at, end - at)?;
     let mut found: IndexMap<i64, HashSet<i64>> = IndexMap::new();
-    // Python's `numbers or range(...)`: an empty range is as good as none.
-    let read = numbers
-        .filter(|numbers| !numbers.is_empty())
-        .unwrap_or(1..(head.len() as i64 / 4 + 1));
+    let read = numbers.unwrap_or(1..(head.len() as i64 / 4 + 1));
     for number in read {
         if !(0 < number && number <= head.len() as i64 / 4) {
             continue;
