@@ -24,10 +24,11 @@ use std::cell::RefCell;
 use std::collections::HashSet;
 use std::rc::Rc;
 
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 
 use crate::core::binary::{u16, u32};
 use crate::core::memory::Memory;
+use crate::games::common::layout::TrackedLayouts;
 use crate::py::{self, Error, Kind, Result};
 
 pub const MAGIC: &[u8] = b"CLYT";
@@ -298,6 +299,46 @@ pub trait FileMatching {
 impl FileMatching for LayoutFiles {
     fn matching(&self, panes: &[String]) -> Option<Rc<LayoutFile>> {
         LayoutFiles::matching(self, panes)
+    }
+}
+
+/// The name of the file each layout on screen was built from, by its root, kept while it
+/// stays on screen. A layout's file is known only once its archive has been read, which can be
+/// polls after the layout shows: a miss is asked again.
+pub struct FilesOnScreen {
+    layouts: Rc<dyn TrackedLayouts>,
+    files: Rc<dyn FileMatching>,
+    names: IndexMap<i64, String>,
+}
+
+impl FilesOnScreen {
+    pub fn new(layouts: Rc<dyn TrackedLayouts>, files: Rc<dyn FileMatching>) -> Self {
+        FilesOnScreen {
+            layouts,
+            files,
+            names: IndexMap::new(),
+        }
+    }
+
+    /// Layout root -> its file's name, for these roots on screen whose file is known.
+    ///
+    /// A set Python iterates; what is done for each root reads nothing.
+    pub fn poll(&mut self, roots: impl IntoIterator<Item = i64>) -> &IndexMap<i64, String> {
+        let roots: IndexSet<i64> = roots.into_iter().collect();
+        self.names.retain(|root, _| roots.contains(root));
+        for root in roots {
+            if self.names.contains_key(&root) {
+                continue;
+            }
+            if let Some(found) = self.files.matching(&self.layouts.pane_names(root)) {
+                self.names.insert(root, found.name.clone());
+            }
+        }
+        &self.names
+    }
+
+    pub fn forget(&mut self) {
+        self.names = IndexMap::new();
     }
 }
 

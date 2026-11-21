@@ -37,13 +37,13 @@
 use std::collections::HashSet;
 use std::rc::Rc;
 
-use indexmap::{IndexMap, IndexSet};
+use indexmap::IndexMap;
 
 use crate::core::binary::u32;
 use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
 use crate::games::common::layout::TrackedLayouts;
-use crate::games::common::layout_file::FileMatching;
+use crate::games::common::layout_file::{FileMatching, FilesOnScreen};
 use crate::games::common::screen::ScreenText;
 use crate::games::gen6::anchors::Kept;
 use crate::py::{self, Error, Result};
@@ -90,10 +90,8 @@ pub struct BattleBag {
     memory: Rc<dyn Memory>,
     process: Rc<dyn Fn() -> Option<i64>>,
     layouts: Rc<dyn TrackedLayouts>,
-    files: Rc<dyn FileMatching>,
     gauges: Rc<dyn Fn() -> Vec<i64>>,
-    /// Layout root -> its file's name, for the roots on screen.
-    file: IndexMap<i64, String>,
+    file: FilesOnScreen,
     /// The battle's classes, named afresh for each battle.
     kept: Kept,
     /// The list, its pocket and its page at the last poll its words were on screen.
@@ -111,31 +109,21 @@ impl BattleBag {
     ) -> Self {
         BattleBag {
             kept: Kept::of(memory.clone(), process.clone()),
+            file: FilesOnScreen::new(layouts.clone(), files.clone()),
             memory,
             process,
             layouts,
-            files,
             gauges,
-            file: IndexMap::new(),
             shown: None,
         }
     }
 
     pub fn poll(&mut self, on_screen: &[ScreenText]) -> Result<Heard> {
-        // A set Python iterates below; what is done for each root reads nothing.
-        let roots: IndexSet<i64> = on_screen.iter().map(|piece| piece.root).collect();
-        // A layout's file is known only once its archive has been read: a miss is asked again.
-        self.file.retain(|root, _| roots.contains(root));
-        for &root in &roots {
-            if self.file.contains_key(&root) {
-                continue;
-            }
-            if let Some(found) = self.files.matching(&self.layouts.pane_names(root)) {
-                self.file.insert(root, found.name.clone());
-            }
-        }
-        let lists: HashSet<i64> = self
+        let files = self
             .file
+            .poll(on_screen.iter().map(|piece| piece.root))
+            .clone();
+        let lists: HashSet<i64> = files
             .iter()
             .filter(|(_, name)| *name == LIST_FILE)
             .map(|(&root, _)| root)
@@ -151,8 +139,7 @@ impl BattleBag {
             .cloned()
             .collect();
         let unsaid: HashSet<i64> = words.iter().map(|piece| piece.r#box).collect();
-        let pockets: HashSet<i64> = self
-            .file
+        let pockets: HashSet<i64> = files
             .iter()
             .filter(|(_, name)| *name == POCKETS_FILE)
             .map(|(&root, _)| root)

@@ -12,10 +12,10 @@
 use std::collections::HashSet;
 use std::rc::Rc;
 
-use indexmap::{IndexMap, IndexSet};
+use indexmap::IndexMap;
 
 use crate::games::common::layout::TrackedLayouts;
-use crate::games::common::layout_file::FileMatching;
+use crate::games::common::layout_file::{FileMatching, FilesOnScreen};
 use crate::games::common::screen::{ScreenText, join};
 use crate::py::{self, Result};
 
@@ -31,10 +31,9 @@ pub const GROUPS: [(&str, &str); 3] = [
 /// The words of a Poké Mart's count, each time they change.
 pub struct Counts {
     layouts: Rc<dyn TrackedLayouts>,
-    files: Rc<dyn FileMatching>,
     pauses: bool,
     /// Layout root -> its file's name, for the roots on screen.
-    file: IndexMap<i64, String>,
+    file: FilesOnScreen,
     /// Count group -> its words, as last said, for the groups on screen.
     said: IndexMap<i64, String>,
 }
@@ -42,10 +41,9 @@ pub struct Counts {
 impl Counts {
     pub fn new(layouts: Rc<dyn TrackedLayouts>, files: Rc<dyn FileMatching>, pauses: bool) -> Self {
         Counts {
+            file: FilesOnScreen::new(layouts.clone(), files),
             layouts,
-            files,
             pauses,
-            file: IndexMap::new(),
             said: IndexMap::new(),
         }
     }
@@ -53,24 +51,11 @@ impl Counts {
     /// The count's words where they have changed since they were last said, or None, and
     /// the TextBoxes that are the count's, which the screen's own reading leaves unsaid.
     pub fn poll(&mut self, on_screen: &[ScreenText]) -> Result<(Option<String>, HashSet<i64>)> {
-        // A set Python iterates below; what is done for each root reads nothing.
-        let roots: IndexSet<i64> = on_screen.iter().map(|piece| piece.root).collect();
-        // A layout's file is known only once its archive has been read, which can be polls after
-        // the layout shows: a miss is asked again.
-        self.file.retain(|root, _| roots.contains(root));
-        for &root in &roots {
-            if self.file.contains_key(&root) {
-                continue;
-            }
-            if let Some(found) = self.files.matching(&self.layouts.pane_names(root)) {
-                self.file.insert(root, found.name.clone());
-            }
-        }
+        let files = self.file.poll(on_screen.iter().map(|piece| piece.root));
         let mut groups: IndexMap<i64, Vec<ScreenText>> = IndexMap::new();
         let names: HashSet<&str> = GROUPS.iter().map(|&(name, _)| name).collect();
         for piece in on_screen {
-            if self
-                .file
+            if files
                 .get(&piece.root)
                 .is_some_and(|file| names.contains(file.as_str()))
             {
@@ -79,7 +64,7 @@ impl Counts {
         }
         let mut kept: IndexMap<i64, Vec<ScreenText>> = IndexMap::new();
         for (parent, pieces) in groups {
-            let file = self.file[&pieces[0].root].clone();
+            let file = files[&pieces[0].root].clone();
             let name = self::name(&self.layouts.name(parent)?);
             if GROUPS.contains(&(file.as_str(), name.as_str())) {
                 kept.insert(parent, pieces);

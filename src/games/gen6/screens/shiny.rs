@@ -29,14 +29,14 @@
 use std::collections::HashSet;
 use std::rc::Rc;
 
-use indexmap::{IndexMap, IndexSet};
+use indexmap::IndexMap;
 
 use crate::core::binary::u32;
 use crate::core::memory::Memory;
 use crate::core::words::own;
 use crate::games::common::cursors::shared::{CursorItem, CursorPoll};
 use crate::games::common::layout::TrackedLayouts;
-use crate::games::common::layout_file::FileMatching;
+use crate::games::common::layout_file::{FileMatching, FilesOnScreen};
 use crate::games::common::pokemon;
 use crate::games::common::screen::ScreenText;
 use crate::games::gen6::anchors::Kept;
@@ -59,12 +59,10 @@ pub struct Shiny {
     running: Rc<dyn Fn() -> Option<String>>,
     process: Rc<dyn Fn() -> Option<i64>>,
     gauges: Rc<dyn Fn() -> Vec<i64>>,
-    layouts: Rc<dyn TrackedLayouts>,
-    files: Rc<dyn FileMatching>,
     /// The battle's classes, named afresh for each battle.
     kept: Kept,
-    /// Layout root -> its file's name, for the roots on screen in a battle.
-    file: IndexMap<i64, String>,
+    /// The files of the layouts on screen in a battle.
+    file: FilesOnScreen,
 }
 
 impl Shiny {
@@ -80,13 +78,11 @@ impl Shiny {
     ) -> Self {
         Shiny {
             kept: Kept::of(memory.clone(), process.clone()),
+            file: FilesOnScreen::new(layouts.clone(), files.clone()),
             memory,
             running,
             process,
             gauges,
-            layouts,
-            files,
-            file: IndexMap::new(),
         }
     }
 
@@ -98,7 +94,7 @@ impl Shiny {
         targets: &dyn Fn() -> IndexMap<i64, pokemon::Pokemon>,
     ) -> Result<CursorPoll> {
         if (self.running)().as_deref() != Some(BATTLE) {
-            self.file = IndexMap::new();
+            self.file.forget();
             return Ok(cursors);
         }
         let targets = targets();
@@ -136,19 +132,8 @@ impl Shiny {
 
     /// The roots of the party's list on screen.
     fn party_lists(&mut self, on_screen: &[ScreenText]) -> HashSet<i64> {
-        // A set Python iterates below; what is done for each root reads nothing.
-        let roots: IndexSet<i64> = on_screen.iter().map(|piece| piece.root).collect();
-        // A layout's file is known only once its archive has been read: a miss is asked again.
-        self.file.retain(|root, _| roots.contains(root));
-        for &root in &roots {
-            if self.file.contains_key(&root) {
-                continue;
-            }
-            if let Some(found) = self.files.matching(&self.layouts.pane_names(root)) {
-                self.file.insert(root, found.name.clone());
-            }
-        }
-        self.file
+        let files = self.file.poll(on_screen.iter().map(|piece| piece.root));
+        files
             .iter()
             .filter(|(_, name)| *name == PARTY_FILE)
             .map(|(&root, _)| root)
