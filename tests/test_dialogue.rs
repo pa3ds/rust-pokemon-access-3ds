@@ -9,7 +9,9 @@ use super::fake_memory::{CODE, FakeClasses, FakeMemory};
 use crate::core::heaps::IN_USE;
 use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
-use crate::games::common::dialogue::{AWAY_POLLS, DialogueReader, PageShown, Shown, TextWritten};
+use crate::games::common::dialogue::{
+    AWAY_POLLS, DialogueReader, ORAS_SHAPES, PageShown, Shown, TextWritten,
+};
 use crate::games::common::{lyt, msgwin};
 
 const CLEAR: &str = "\u{10}\u{1}\u{be01}";
@@ -414,7 +416,7 @@ fn test_talking_to_the_same_person_again_is_heard_again() {
 /// demonstration in a box that never leaves. It cost more than it saved: reading a signpost twice
 /// was sometimes silent, because a box that closes and reopens inside a poll is never caught off
 /// screen, and with nothing said there is no telling pa3ds having hung from the NPC having
-/// finished. The options screen repeating itself is tolerable because nothing interrupts.
+/// finished. The options screen is left out by the profile instead (`says_retyped`).
 #[test]
 fn test_a_message_typed_again_while_its_box_stays_on_screen_is_heard_again() {
     let mut scene = Scene::new(true);
@@ -423,6 +425,28 @@ fn test_a_message_typed_again_while_its_box_stays_on_screen_is_heard_again() {
     assert_eq!(scene.said(), texts(&["Choose a text speed."]));
     scene.r#type(0, "Cho");
     assert_eq!(scene.said(), texts(&["Choose a text speed."]));
+    scene.r#type(0, "Choose a text speed.");
+    assert_eq!(scene.said(), texts(&[]));
+}
+
+/// The options screen retypes TEXT SPEED's description the tick its value turns, and the value
+/// said cut the description off.
+#[test]
+fn test_a_message_typed_again_on_a_screen_that_shows_its_typing_is_not_heard_again() {
+    let mut scene = Scene::new(true);
+    scene.reader = DialogueReader::with(
+        scene.memory.clone(),
+        Rc::new(ClassNames::new(scene.memory.clone(), CODE)),
+        Some(scene.fake.layouts.clone()),
+        ORAS_SHAPES,
+        Rc::new(|| false),
+    );
+    scene.reader.track(&[WINDOW], false);
+    scene.message("Choose a text speed.");
+    scene.r#type(0, "Choose a text speed.");
+    assert_eq!(scene.said(), texts(&["Choose a text speed."]));
+    scene.r#type(0, "Cho");
+    assert_eq!(scene.said(), texts(&[]));
     scene.r#type(0, "Choose a text speed.");
     assert_eq!(scene.said(), texts(&[]));
 }

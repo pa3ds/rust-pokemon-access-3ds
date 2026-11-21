@@ -42,7 +42,7 @@ use crate::core::words::{current, own};
 use crate::games::common::announce::{Announcements, Speaker};
 use crate::games::common::cursors::reader::CursorReader;
 use crate::games::common::cursors::shared::{CursorItem, CursorPoll, Slot};
-use crate::games::common::dialogue::{DialogueReader, Shown};
+use crate::games::common::dialogue::{DialogueReader, ORAS_SHAPES, Shown};
 use crate::games::common::field::ground::Ground;
 use crate::games::common::field::guide::{FieldSource, Place};
 use crate::games::common::field::keys::{Bindings, Contexts, DEFAULT_CONTEXTS};
@@ -487,7 +487,17 @@ impl Gen6Profile {
         let named = named.unwrap_or_else(|| Rc::new(Names::empty()));
         let layouts = Rc::new(Layouts::new(memory.clone(), names.clone(), lyt::ORAS));
         let apps = Rc::new(RefCell::new(RunningApp::new(memory.clone(), names.clone())));
-        let dialogue = DialogueReader::new(memory.clone(), names.clone(), Some(layouts.clone()));
+        // The options screen types TEXT SPEED's description again to show the speed chosen.
+        let dialogue = DialogueReader::with(
+            memory.clone(),
+            names.clone(),
+            Some(layouts.clone()),
+            ORAS_SHAPES,
+            {
+                let apps = apps.clone();
+                Rc::new(move || apps.borrow().running.as_deref() != Some(rows::OPTIONS))
+            },
+        );
         let lists = Rc::new(RefCell::new(ListReader::new(memory.clone(), names.clone())));
         let choices = Rc::new(RefCell::new(ChoiceReader::new(
             memory.clone(),

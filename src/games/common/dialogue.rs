@@ -191,6 +191,9 @@ pub struct DialogueReader {
     names: Rc<ClassNames>,
     layouts: Option<Rc<Layouts>>,
     shapes: Shapes,
+    /// Whether a message typed again from the start, its window never closed, is said again
+    /// now: not on a screen that retypes its text only to show it typing.
+    says_retyped: Rc<dyn Fn() -> bool>,
     // A window's progress is held apart from the reader while it is polled, which changes the
     // reader's other fields: the `Rc` is the Python's one object in the dict.
     progress: IndexMap<i64, Rc<RefCell<Progress>>>,
@@ -215,18 +218,31 @@ impl DialogueReader {
         DialogueReader::with_shapes(memory, names, layouts, ORAS_SHAPES)
     }
 
-    /// `DialogueReader(memory, names, layouts, shapes)`.
+    /// `DialogueReader(memory, names, layouts, shapes)`, with Python's default `says_retyped`,
+    /// always True.
     pub fn with_shapes(
         memory: Rc<dyn Memory>,
         names: Rc<ClassNames>,
         layouts: Option<Rc<Layouts>>,
         shapes: Shapes,
     ) -> Self {
+        DialogueReader::with(memory, names, layouts, shapes, Rc::new(|| true))
+    }
+
+    /// `DialogueReader(memory, names, layouts, shapes, says_retyped)`.
+    pub fn with(
+        memory: Rc<dyn Memory>,
+        names: Rc<ClassNames>,
+        layouts: Option<Rc<Layouts>>,
+        shapes: Shapes,
+        says_retyped: Rc<dyn Fn() -> bool>,
+    ) -> Self {
         DialogueReader {
             memory,
             names,
             layouts,
             shapes,
+            says_retyped,
             progress: IndexMap::new(),
             active: Vec::new(),
             started: false,
@@ -455,10 +471,13 @@ impl DialogueReader {
         // demonstration in a box that never leaves; the cost of it was that reading a signpost
         // twice was sometimes silent, because a box that closes and reopens inside a poll is never
         // caught off screen. Silence is the worse fault: with nothing said, there is no telling
-        // pa3ds having hung from the NPC having finished. The options screen repeating its
-        // description is tolerable because nothing interrupts by default, so it follows the value
-        // rather than cutting it off.
-        if own_typing && restarted(&progress.pages, &progress.typed, &lines, progress.said) {
+        // pa3ds having hung from the NPC having finished. The options screen is left out instead,
+        // by `says_retyped`: its retyping began the tick TEXT SPEED's value turned, and the value
+        // cut it off under `interrupt`, while the speed it shows is not heard.
+        if own_typing
+            && (self.says_retyped)()
+            && restarted(&progress.pages, &progress.typed, &lines, progress.said)
+        {
             progress.said = -1;
             progress.join = false;
             progress.why = "again, typed from the start".to_string();
