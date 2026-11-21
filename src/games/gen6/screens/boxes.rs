@@ -18,6 +18,9 @@
 //! and 0xFF on the Battle Box, written as the grid starts to turn, about 0.2 s before the title
 //! above it (spike B, or_pc_organize). Where that byte is not measured, it is the box whose name is
 //! the title, which the player can rename.
+//!
+//! Bound by:
+//! - ADR-0043: the slot is said as the pointer sets off, the box by its byte as it turns.
 
 use std::collections::HashSet;
 use std::rc::Rc;

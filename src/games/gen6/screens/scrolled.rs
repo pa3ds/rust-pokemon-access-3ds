@@ -5,6 +5,9 @@
 //! move to it: the AreaNav's Route 104 has three Lum Berry rows in a row (or_areanav_berries), and
 //! the Pokédex's search and sort scrolls APPEARANCE's dashes away for ENCOUNTERS' (or_pokedex).
 //! The rows are other boxes: each of search and sort's fields keeps its own as it scrolls.
+//!
+//! Bound by:
+//! - ADR-0043: a row of the same words in other boxes, still a poll, is a move.
 
 use std::collections::HashSet;
 

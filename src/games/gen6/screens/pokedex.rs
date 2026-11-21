@@ -29,6 +29,10 @@
 //!
 //! The entry under the cursor is `app::zukan::DataManager` +0x130 (spike B on x_pokedex), the
 //! process's +0x3C; X said each move the poll it changed, so it is not read.
+//!
+//! Bound by:
+//! - ADR-0043: the list's entry once its index holds, a jump where it lands; search's fields
+//!   with their labels, the shapes in pa3ds's words.
 
 use std::collections::HashSet;
 use std::rc::Rc;

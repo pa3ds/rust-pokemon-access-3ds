@@ -14,6 +14,9 @@
 //! ```
 //!
 //! Measured in Omega Ruby; X's shop is another (spike 196).
+//!
+//! Bound by:
+//! - ADR-0043: a page jump says only the item it stops on.
 
 use std::collections::HashSet;
 use std::rc::Rc;

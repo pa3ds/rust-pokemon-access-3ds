@@ -20,6 +20,9 @@
 //! LowerView +0xA4, LowerContestView +0xA8 -> app::tool::MenuCursor, its list's cursor
 //! MenuCursor  +0x10 -> its layout's handle, +0x04 its work (a probe on or_move_reminder_bugs)
 //! ```
+//!
+//! Bound by:
+//! - ADR-0043: the page not drawn is put away, the shown page's list read every tick.
 
 use std::collections::HashSet;
 use std::rc::Rc;

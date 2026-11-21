@@ -5,7 +5,7 @@
 //! after a move whatever the screen held, and could be another item's when the pockets changed
 //! quickly. The Bag keeps the item it has chosen, so its details are said the poll the top screen
 //! names that item, and never while it names another (`ScreenAnnouncer.say`'s `chosen`;
-//! docs/plans/cursor-sources.md):
+//! ADR-0043):
 //!
 //! ```text
 //! app::bag::Proc         +0x24 -> app::bag::MainSystem

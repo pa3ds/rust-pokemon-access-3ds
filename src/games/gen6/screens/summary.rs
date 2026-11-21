@@ -9,6 +9,10 @@
 //! into the move panel's boxes and stops drawing the panel, every flag of it still saying drawn:
 //! its moves were read out (or_egg_summary). While an Egg is shown, its pages of a Pokémon's are
 //! put away (`Layouts.put_away`), as the AreaNav's views are.
+//!
+//! Bound by:
+//! - ADR-0043: a page is said as it is turned to, from its list's flag; a switch says the page
+//!   shown.
 
 use std::cell::RefCell;
 use std::collections::HashSet;

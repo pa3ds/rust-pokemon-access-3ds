@@ -35,6 +35,11 @@
 //! It changes a screen poll before the top screen's words are read, and a place crossed in less
 //! than a poll's rewrite, as the Fly map's cursor glides, was heard only inside the next one's
 //! details, "Mauville City", then "Route 110, Cycling Road Trick House, …" (or_bag_and_battle_bag).
+//!
+//! Bound by:
+//! - ADR-0043: the place under the map's cursor is said as it changes, the area over a list
+//!   only as it changes, a berry with its time; a view not drawn is put away, its cursor's
+//!   layout too.
 
 use std::cell::Cell;
 use std::collections::HashSet;

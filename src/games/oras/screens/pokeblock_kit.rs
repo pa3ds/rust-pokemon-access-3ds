@@ -37,6 +37,9 @@
 //! on screen are read every tick, and a move has the screen polled at once
 //! (`Gen6Profile.poll_menus`). At rest each holds still, and it jumps from cell to cell (spike B
 //! on or_pokeblock_kit).
+//!
+//! Bound by:
+//! - ADR-0043: the screen not shown is put away, the cursors' places read every tick.
 
 use std::cell::RefCell;
 use std::collections::HashSet;
