@@ -349,3 +349,42 @@ fn test_a_contests_picked_entrant_is_read_from_its_appeal_ui() {
     memory.write(OTHER + rows::PICKED, &[6]); // the portrait to its left
     assert!(contest.moved().unwrap());
 }
+
+/// ADR-0013: the fitting room's slot says when a move is made, down its categories and onto its
+/// buttons (spike B on x_cyllage_boutique_fitting_room).
+#[test]
+fn test_the_fitting_rooms_slot_is_read_through_its_objects() {
+    let memory = FakeMemory::new();
+    let cursor = 0x08900000;
+    let mut at = PROCESS;
+    for (hop, next_at) in rows::FITTING_CURSOR
+        .into_iter()
+        .zip([WORK, OTHER, OTHER_WORK, cursor])
+    {
+        memory.u32(at + hop, &[next_at]);
+        at = next_at;
+    }
+    let mut fitting = rows::Rows::new(
+        memory.clone(),
+        Rc::new(|| Some(rows::FITTING.to_string())),
+        Rc::new(|| Some(PROCESS)),
+        Rc::new(|| Ok(Some(MENU))),
+        Rc::new(|| true),
+        None,
+        None,
+        None,
+    );
+    assert!(!fitting.moved().unwrap()); // hat, as it opens
+    memory.write(cursor + rows::SLOT, &[1]); // top
+    assert!(fitting.moved().unwrap());
+    assert!(!fitting.moved().unwrap());
+    // Onto its list and buttons the cursor glides: left to the screen poll.
+    memory.write(cursor + rows::SLOT, &[0xE]); // the list of tops
+    assert!(!fitting.moved().unwrap());
+    memory.write(cursor + rows::SLOT, &[0x16]); // Change
+    assert!(!fitting.moved().unwrap());
+    memory.write(cursor + rows::SLOT, &[1]); // back on top
+    assert!(!fitting.moved().unwrap());
+    memory.write(cursor + rows::SLOT, &[2]); // bottom
+    assert!(fitting.moved().unwrap());
+}

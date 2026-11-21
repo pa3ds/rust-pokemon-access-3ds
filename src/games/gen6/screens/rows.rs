@@ -65,6 +65,13 @@
 //!                                      left to right, kept as the cursor goes down into the
 //!                                      moves it shows: a move between portraits, not one onto
 //!                                      them (spike B on or_toughness_contest, Omega Ruby alone)
+//! app::kisekae::FittingProc  +0x24 +0x4 +0x20 +0x28  -> the fitting room's cursor, a PC menu's
+//!                                      shape: +0x10 how many slots, 32; +0x14 u8 the slot
+//!                                      under it, 0 hat to 7 hat accessory down the categories,
+//!                                      0xD or 0xE the list of things to wear, 0x16 Change, 0x1E
+//!                                      Back; +0x15 the slot before. The list scrolls under it,
+//!                                      a move along the list left to the screen poll (spike B
+//!                                      on x_cyllage_boutique_fitting_room, X alone)
 //! ```
 //!
 //! The byte says when a row is chosen, never what: the words are still the screen's. Measured in
@@ -72,7 +79,7 @@
 //! `Game.options_row`, `Game.party_slot`), but for the keyboard's, the PC's, the move screens',
 //! the title menu's and the starter's, the same in both (spike B on x_move_reminder and
 //! x_title_screen for the move screens and the title menu), and the contest's, which X and Y have
-//! none of.
+//! none of, and the fitting room's, which Omega Ruby has none of.
 //!
 //! Bound by:
 //! - ADR-0013: a cursor source says which item is under the cursor and when it moved, the words
@@ -165,6 +172,11 @@ pub const CONTEST_UI: [i64; 2] = [0x30, 0x30];
 pub const CONTEST_MAIN: &str = "N7contest4MainE";
 /// `AppealUi` -> the entrant the cursor has picked, its portrait 4 to 7 (spike B).
 pub const PICKED: i64 = 0x24C;
+pub const FITTING: &str = "N3app7kisekae11FittingProcE";
+/// The fitting room's process -> its cursor, whose slot is at `SLOT` (spike B).
+pub const FITTING_CURSOR: [i64; 4] = [0x24, 0x4, 0x20, 0x28];
+/// The fitting room's slots below this are its categories, hat to hat accessory.
+pub const CATEGORIES: i64 = 8;
 /// The Move Reminder's list -> the row the cursor is on, a u32, and after it the rows scrolled
 /// away, an f32: both read, as a move down a long list changes the scroll alone.
 pub const LIST_ROW: i64 = 0x18;
@@ -190,8 +202,8 @@ pub fn controls(app: &str) -> Option<[i64; 3]> {
 }
 
 /// The row under the X menu's, the options screen's, the party's, the PC's or the move screens'
-/// cursor, the key under the name entry's or the entrant a contest's has picked, read every
-/// tick.
+/// cursor, the key under the name entry's, the entrant a contest's has picked or the slot under
+/// the fitting room's, read every tick.
 pub struct Rows {
     memory: Rc<dyn Memory>,
     running: Rc<dyn Fn() -> Option<String>>,
@@ -272,11 +284,26 @@ impl Rows {
             return Ok(false);
         }
         self.moved_to = Some(now.clone());
-        // The Move Reminder's list wrapping round rewrites every row over a few frames after
-        // its row changes, and a poll at once read one half written: "Dragon Breath Normal",
-        // then "Sky Attack" (or_move_reminder, live). A jump is left to the screen poll.
-        Ok((self.running)().as_deref() != Some(REMEMBER)
-            || (r#move(&now.1)? - r#move(&last.1)?).abs() <= 1.0)
+        let running = (self.running)();
+        if running.as_deref() == Some(REMEMBER) {
+            // The Move Reminder's list wrapping round rewrites every row over a few frames after
+            // its row changes, and a poll at once read one half written: "Dragon Breath Normal",
+            // then "Sky Attack" (or_move_reminder, live). A jump is left to the screen poll.
+            return Ok((r#move(&now.1)? - r#move(&last.1)?).abs() <= 1.0);
+        }
+        if running.as_deref() == Some(FITTING) {
+            // The fitting room's cursor glides onto its list and its buttons, and a poll at once
+            // read the card half written, "Two-Tone Bag", "red", or the tab it passed, "hat
+            // accessory bag" (x_cyllage_boutique_fitting_room, live): those moves are left to
+            // the screen poll, and only one between categories, which it jumps, is chased.
+            let first = |read: &[u8]| -> Result<i64> {
+                Ok(*read
+                    .first()
+                    .ok_or_else(|| Error::index("index out of range"))? as i64)
+            };
+            return Ok(first(&now.1)?.max(first(&last.1)?) < CATEGORIES);
+        }
+        Ok(true)
     }
 
     /// The slot the Box's pointer has been moved to, on it or gliding there, while its grid cursor
@@ -380,6 +407,10 @@ impl Rows {
         if running.as_deref() == Some(CONTEST) {
             let ui = self.found(&CONTEST_UI, Some(CONTEST_MAIN))?;
             return Ok(ui.map(|ui| (ui + PICKED, 1)));
+        }
+        if running.as_deref() == Some(FITTING) {
+            let cursor = self.found(&FITTING_CURSOR, None)?;
+            return Ok(cursor.map(|cursor| (cursor + SLOT, 1)));
         }
         Ok(None)
     }
