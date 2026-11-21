@@ -915,13 +915,30 @@ fn test_text_written_where_none_of_the_windows_own_lines_are_left_is_the_screens
     scene.write_over("Something else\nentirely.");
     scene.said();
     assert_eq!(scene.said(), texts(&[]));
-    assert_eq!(objects(&scene), HashSet::new());
-    scene.tag(1, 0);
-    scene.said();
     assert_eq!(objects(&scene), HashSet::from([BOXES[1]]));
     scene.reopen();
     scene.said();
     assert_eq!(objects(&scene), HashSet::from(BOXES));
+}
+
+/// Y's capture asks "Give a nickname to the caught Yveltal?" so: said once, by this reader
+/// alone (y_legend_wakening_boss).
+#[test]
+fn test_a_windows_own_message_typed_under_another_tag_is_still_its_own() {
+    let mut scene = Scene::new(false);
+    scene.message("Give a nickname?");
+    scene.tag(0, SCREEN_TAG);
+    scene.tag(1, SCREEN_TAG);
+    scene.r#type(0, "Give a nick");
+    assert_eq!(scene.said(), texts(&["Give a nickname?"]));
+    assert_eq!(
+        scene
+            .reader
+            .line_objects()
+            .iter()
+            .collect::<HashSet<i64>>(),
+        HashSet::from(BOXES)
+    );
 }
 
 /// Such a sweep says what is new and nothing of what is gone (spike 110).

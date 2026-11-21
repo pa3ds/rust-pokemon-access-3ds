@@ -384,20 +384,6 @@ impl DialogueReader {
                 return Ok(gone(progress, "again after its lines were taken over"));
             }
         }
-        if !typed.iter().any(|(tag, _)| *tag == own) {
-            // A window showing nothing of its own leaves what its screen writes into its lines to
-            // the screen text reader, which hears it come and go: X's fitting room asks "Do you
-            // want to quit without changing clothes?" in its message window's one line, under a
-            // tag processor of the app's, the window's own message empty, and neither reader
-            // said it (x_dendemille_fitting_room).
-            let kept: Vec<i64> = boxes
-                .iter()
-                .zip(&typed)
-                .filter(|(_, (tag, _))| *tag == 0)
-                .map(|(r#box, _)| *r#box)
-                .collect();
-            self.lines.insert(address, kept);
-        }
 
         let buffer = u32(&head, msgwin::MESSAGE)?;
         let message = strbuf::raw(&*self.memory, buffer, MAX_MESSAGE)?;
@@ -421,13 +407,34 @@ impl DialogueReader {
             (progress.message, progress.buffer, progress.said) = (Some(message), buffer, -1);
         }
 
-        let written: Vec<Line> = typed
+        let screens: Vec<bool> = typed
             .iter()
-            .filter(|(tag, line)| {
+            .map(|(tag, line)| {
                 *tag != 0 && *tag != own && !line.is_empty() && !in_message(&progress.pages, line)
             })
-            .map(|(_, line)| line.clone())
             .collect();
+        let written: Vec<Line> = typed
+            .iter()
+            .zip(&screens)
+            .filter(|(_, screen)| **screen)
+            .map(|((_, line), _)| line.clone())
+            .collect();
+        if !typed.iter().any(|(tag, _)| *tag == own) {
+            // A window showing nothing of its own leaves what its screen writes into its lines to
+            // the screen text reader, which hears it come and go: X's fitting room asks "Do you
+            // want to quit without changing clothes?" in its message window's one line, under a
+            // tag processor of the app's, the window's own message empty, and neither reader
+            // said it (x_dendemille_fitting_room). Its own message typed under another's tag
+            // stays this reader's: Y's capture asks "Give a nickname to the caught Yveltal?" so,
+            // and both readers said it (y_legend_wakening_boss).
+            let kept: Vec<i64> = boxes
+                .iter()
+                .zip(&screens)
+                .filter(|(_, screen)| !**screen)
+                .map(|(r#box, _)| *r#box)
+                .collect();
+            self.lines.insert(address, kept);
+        }
         if !written.is_empty() {
             let still_own = typed.iter().any(|(tag, _)| *tag == own);
             return written_text(address, progress, written, still_own);
