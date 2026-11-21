@@ -82,10 +82,13 @@ pub struct Placement {
     pub drawn: bool,
     /// The layout's work reads alive, drawn or not.
     pub alive: bool,
+    /// The layout is one its app is not drawing, every flag of it as when it was (`put_away`).
+    pub put_away: bool,
 }
 
 impl Placement {
-    /// `Placement(shown, top)`: `root` and `panel` 0, and `visible`, `drawn` and `alive` True.
+    /// `Placement(shown, top)`: `root` and `panel` 0, `visible`, `drawn` and `alive` True and
+    /// `put_away` False.
     pub fn new(shown: bool, top: bool) -> Self {
         Placement {
             shown,
@@ -95,6 +98,7 @@ impl Placement {
             visible: true,
             drawn: true,
             alive: true,
+            put_away: false,
         }
     }
 }
@@ -647,9 +651,8 @@ impl Layouts {
         if byte(&state, lyt::WORK_LISTED)? == 1 && !self.built.borrow().contains_key(&root) {
             self.listed.borrow_mut().insert((layout.work, root));
         }
-        let drawn = alive
-            && byte(&state, lyt::WORK_DRAWN)? == 1
-            && !self.put_away.borrow().contains(&layout.work);
+        let away = self.put_away.borrow().contains(&layout.work);
+        let drawn = alive && byte(&state, lyt::WORK_DRAWN)? == 1 && !away;
         let projection = f32(&state, lyt::WORK_PROJECTION)?;
         let mut top = if projection < 0.0 {
             -2.0 / projection >= SCREEN_SPLIT
@@ -668,6 +671,7 @@ impl Layouts {
             visible,
             drawn,
             alive,
+            put_away: away,
         }))
     }
 

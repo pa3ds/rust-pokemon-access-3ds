@@ -513,6 +513,11 @@ pub struct ScreenTextReader {
     message_lines: PySet,
     /// TextBoxes of a layout still tracked that were hidden at the last poll.
     hidden: HashSet<i64>,
+    /// The roots of layouts put away this poll (`Layouts.put_away`), whose words and pictures
+    /// are never carried: the Move Reminder's page turned read the list just put away a poll
+    /// more, "Thrash Normal PP 10/10 Toughness" then "Thrash Toughness", and its type's icon,
+    /// "Normal" (or_move_reminder_bugs).
+    away: HashSet<i64>,
     /// TextBox -> its words, for TextBoxes drawn outside their screen at the last poll.
     outside: IndexMap<i64, String>,
     /// TextBox -> its words, for TextBoxes that moved onto their screen and are not reported
@@ -583,6 +588,7 @@ impl ScreenTextReader {
             window_tags: IndexMap::new(),
             message_lines: PySet::new(),
             hidden: HashSet::new(),
+            away: HashSet::new(),
             outside: IndexMap::new(),
             scrolled: IndexMap::new(),
             frames: IndexMap::new(),
@@ -640,6 +646,7 @@ impl ScreenTextReader {
         self.polls += 1;
         self.message_lines.clear();
         self.hidden.clear();
+        self.away.clear();
         self.frames.clear();
         let outside = std::mem::take(&mut self.outside);
         let mut found: IndexMap<i64, ScreenText> = IndexMap::new();
@@ -717,6 +724,7 @@ impl ScreenTextReader {
                 !found.contains_key(r#box)
                     && !exclude.contains(r#box)
                     && !self.carried.contains(r#box)
+                    && !self.away.contains(&piece.root)
                     && !(self.hidden.contains(r#box)
                         && rewritten.iter().any(|other| {
                             // `max(other.glyph, piece.glyph)`: the first unless the second is
@@ -876,6 +884,11 @@ impl ScreenTextReader {
         let Some(placement) = placement.filter(|placement| placement.shown) else {
             if placement.is_some() {
                 self.hidden.insert(r#box);
+            }
+            if let Some(placement) = placement
+                && placement.put_away
+            {
+                self.away.insert(placement.root);
             }
             return Ok((None, false));
         };

@@ -438,6 +438,16 @@ fn test_words_missing_for_a_single_poll_are_taken_as_still_there() {
     assert_eq!(game.heard(), words(&[]));
 }
 
+/// The Move Reminder's page turned read the list just put away a poll more, "Thrash Normal PP
+/// 10/10 Toughness" then "Thrash Toughness" (or_move_reminder_bugs).
+#[test]
+fn test_words_of_a_layout_put_away_are_not_taken_as_still_there() {
+    let (mut game, work, _group, _value) = settled();
+    game.fake.layouts.put_away([work]);
+    game.heard();
+    assert_eq!(game.reader.on_screen(), vec![]);
+}
+
 /// The Mart's list, wrapping to its end, wrote "Quit" into a row and hid the row's price in
 /// one frame, and its cursor read "Quit $ 2,500", the price the row had (movie35).
 #[test]
