@@ -357,7 +357,6 @@ pub struct Gen6Profile {
     list_rows: RefCell<townmap::ListRows>,
     search_rows: RefCell<scrolled::Scrolled>,
     oras_list: RefCell<pokedex::OrasList>,
-    summary_shape: summary::Shape,
     screens: Option<RefCell<Box<dyn ScreensReader>>>,
     summary_pages: RefCell<summary::Pages>,
     /// The game's words for the contest categories, the conditions star's labels.
@@ -806,8 +805,6 @@ impl Gen6Profile {
                 Rc::new(move || apps.borrow().process)
             },
         ));
-        // The summary draws one page and keeps the rest as drawn: those not shown go unheard.
-        let summary_shape = game.summary;
         let screens = game.screens.map(|make| {
             RefCell::new(make(
                 memory.clone(),
@@ -816,8 +813,10 @@ impl Gen6Profile {
                 files.clone(),
             ))
         });
+        // The summary draws one page and keeps the rest as drawn: those not shown go unheard.
         let summary_pages = RefCell::new(summary::Pages::new(
             memory.clone(),
+            names.clone(),
             apps.clone(),
             layouts.clone(),
             files.clone(),
@@ -1564,7 +1563,6 @@ impl Gen6Profile {
             list_rows,
             search_rows,
             oras_list,
-            summary_shape,
             screens,
             summary_pages,
             contest_words,
@@ -2089,14 +2087,7 @@ impl Gen6Profile {
             if let Some(screens) = &self.screens {
                 put_away.extend(screens.borrow_mut().put_away()?);
             }
-            put_away.extend(summary::put_away(
-                &*self.memory,
-                &self.names,
-                &self.apps.borrow(),
-                &self.layouts,
-                &self.files,
-                &self.summary_shape,
-            )?);
+            put_away.extend(self.summary_pages.borrow().put_away()?);
             self.layouts.put_away(put_away);
             // The battle's layouts are built into a pool its message window leads to.
             let failed: RefCell<Option<Error>> = RefCell::new(None);
@@ -2352,80 +2343,10 @@ impl Gen6Profile {
             })
             .cloned()
             .collect();
-        let cursors = if unseen.is_empty() {
-            cursors
-        } else {
-            // Check Moves' cursors are over both pages' moves: each move in the shown one's words,
-            // with the rest of its row there. On the conditions page the cursor rests on the
-            // battle moves' row, and the contest list's word under it was the kind alone.
-            let items = cursors
-                .items
-                .iter()
-                .map(|item| {
-                    let shown: Vec<ScreenText> = item
-                        .pieces
-                        .iter()
-                        .filter(|p| !unseen.contains(&p.root))
-                        .cloned()
-                        .collect();
-                    CursorItem {
-                        pieces: rowed(shown, &heard),
-                        ..item.clone()
-                    }
-                })
-                .collect();
-            CursorPoll { items, ..cursors }
-        };
-        // A summary page turned to is said as it opened, its words as they stand, the first
-        // cutting off the page before (`lead`); the button under it a poll later, queued.
-        let turned = self.summary_pages.borrow().turned();
-        let mut back = turned.clone();
-        back.extend(self.summary_pages.borrow().button());
-        if !back.is_empty() {
-            let written: HashSet<i64> = texts.iter().map(|text| text.r#box).collect();
-            texts = texts
-                .into_iter()
-                .map(|text| {
-                    if back.contains(&text.root) {
-                        ScreenText {
-                            changed: false,
-                            returned: true,
-                            ..text
-                        }
-                    } else {
-                        text
-                    }
-                })
-                .collect();
-            texts.extend(
-                heard
-                    .iter()
-                    .filter(|piece| back.contains(&piece.root) && !written.contains(&piece.r#box))
-                    .map(|piece| ScreenText {
-                        changed: false,
-                        returned: true,
-                        ..piece.clone()
-                    }),
-            );
-        }
-        // A page changed with the Pokémon, an Egg's or the one after it, is said as a switch is:
-        // the name, then the rest, its layouts coming back to the screen part of it.
-        let switched = self.summary_pages.borrow().switched();
-        if !switched.is_empty() {
-            texts = texts
-                .into_iter()
-                .map(|text| {
-                    if switched.contains(&text.root) {
-                        ScreenText {
-                            changed: true,
-                            ..text
-                        }
-                    } else {
-                        text
-                    }
-                })
-                .collect();
-        }
+        let (cursors, texts, turned) = self
+            .summary_pages
+            .borrow()
+            .said(cursors, texts, &heard);
         if let Some(count) = &count {
             (self.log)(&format!("count: {count}"));
             self.speech.say(count, Category::Menu);
@@ -2440,14 +2361,7 @@ impl Gen6Profile {
             on_screen: heard,
             ..screen.clone()
         };
-        let subject = || {
-            summary::name(
-                &*self.memory,
-                &self.names,
-                &self.apps.borrow(),
-                &self.summary_shape,
-            )
-        };
+        let subject = || self.summary_pages.borrow().subject();
         self.screen_announcer.borrow_mut().say(
             &poll,
             &cursors,
@@ -3328,27 +3242,6 @@ fn in_a_heap(address: i64) -> bool {
     within(HEAP_SPAN, address) || within(LINEAR_SPAN, address)
 }
 
-/// The pieces with the rest of the pane their words hang from, in its order: a cursor's item
-/// whose other words lay under another layout's row. The contest moves' kind and name hang from
-/// one pane, a little apart in height.
-fn rowed(pieces: Vec<ScreenText>, on_screen: &[ScreenText]) -> Vec<ScreenText> {
-    if pieces.is_empty() {
-        return pieces;
-    }
-    let groups: HashSet<(i64, i64)> = pieces.iter().map(|p| (p.root, p.parent)).collect();
-    let boxes: HashSet<i64> = pieces.iter().map(|p| p.r#box).collect();
-    let mates: Vec<ScreenText> = on_screen
-        .iter()
-        .filter(|p| groups.contains(&(p.root, p.parent)) && !boxes.contains(&p.r#box))
-        .cloned()
-        .collect();
-    if mates.is_empty() {
-        return pieces;
-    }
-    let mut all: Vec<ScreenText> = pieces.into_iter().chain(mates).collect();
-    all.sort_by_key(|p| p.r#box);
-    all
-}
 
 impl Profile for Gen6Profile {
     fn track(&self, found: &Found) -> Result<()> {

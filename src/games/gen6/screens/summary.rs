@@ -23,10 +23,10 @@ use indexmap::IndexMap;
 use crate::core::binary::{u16, u32};
 use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
-use crate::games::common::cursors::shared::CursorPoll;
-use crate::games::common::layout::{Layouts, TrackedLayouts};
-use crate::games::common::layout_file::{FileMatching, LayoutFiles};
-use crate::games::common::pokemon;
+use crate::games::common::cursors::shared::{CursorItem, CursorPoll};
+use crate::games::common::layout::TrackedLayouts;
+use crate::games::common::layout_file::FileMatching;
+use crate::games::common::pokemon::{self, Pokemon};
 use crate::games::common::screen::ScreenText;
 use crate::games::gen6::anchors::Kept;
 use crate::games::gen6::apps::RunningApp;
@@ -154,46 +154,26 @@ pub fn shown(memory: &dyn Memory, apps: &RunningApp, shape: &Shape) -> Result<Op
     Ok(Some(u32(&memory.read(process + shape.shown, 4)?, 0)?))
 }
 
-/// The name of the Pokémon the summary shows, its nickname or its species', or None.
-pub fn name(
-    memory: &dyn Memory,
-    names: &ClassNames,
-    apps: &RunningApp,
-    shape: &Shape,
-) -> Result<Option<String>> {
-    let found = match shown(memory, apps, shape)? {
-        Some(param) if param != 0 => pokemon::read(memory, names, param, pokemon::SPECIES_MAX)?,
-        _ => None,
-    };
-    Ok(found.map(|found| found.nickname))
-}
-
-/// The works of the pages of a Pokémon's while the summary shows an Egg, else none.
-pub fn put_away(
-    memory: &dyn Memory,
-    names: &ClassNames,
-    apps: &RunningApp,
-    layouts: &Layouts,
-    files: &LayoutFiles,
-    shape: &Shape,
-) -> Result<HashSet<i64>> {
-    let mon = match shown(memory, apps, shape)? {
-        Some(param) if param != 0 => pokemon::read(memory, names, param, pokemon::SPECIES_MAX)?,
-        _ => None,
-    };
-    if !mon.is_some_and(|mon| mon.egg) {
-        return Ok(HashSet::new());
+/// The pieces with the rest of the pane their words hang from, in its order: a cursor's item
+/// whose other words lay under another layout's row. The contest moves' kind and name hang from
+/// one pane, a little apart in height.
+fn rowed(pieces: Vec<ScreenText>, on_screen: &[ScreenText]) -> Vec<ScreenText> {
+    if pieces.is_empty() {
+        return pieces;
     }
-    Ok(layouts
-        .works()
-        .into_iter()
-        .filter(|&(_work, root)| {
-            files
-                .matching(&layouts.pane_names(root))
-                .is_some_and(|file| POKEMON_PAGES.contains(&file.name.as_str()))
-        })
-        .map(|(work, _root)| work)
-        .collect())
+    let groups: HashSet<(i64, i64)> = pieces.iter().map(|p| (p.root, p.parent)).collect();
+    let boxes: HashSet<i64> = pieces.iter().map(|p| p.r#box).collect();
+    let mates: Vec<ScreenText> = on_screen
+        .iter()
+        .filter(|p| groups.contains(&(p.root, p.parent)) && !boxes.contains(&p.r#box))
+        .cloned()
+        .collect();
+    if mates.is_empty() {
+        return pieces;
+    }
+    let mut all: Vec<ScreenText> = pieces.into_iter().chain(mates).collect();
+    all.sort_by_key(|p| p.r#box);
+    all
 }
 
 /// Which of the summary's pages is shown, and the words of the others, which it does not draw.
@@ -216,6 +196,7 @@ pub fn put_away(
 /// Electric"; so a turn hears no page for a poll, and the page turned to whole after it.
 pub struct Pages {
     memory: Rc<dyn Memory>,
+    names: Rc<ClassNames>,
     shape: Shape,
     apps: Rc<RefCell<RunningApp>>,
     layouts: Rc<dyn TrackedLayouts>,
@@ -234,8 +215,10 @@ pub struct Pages {
 }
 
 impl Pages {
+    /// `names` names the Pokémon shown's record (`pokemon.read`).
     pub fn new(
         memory: Rc<dyn Memory>,
+        names: Rc<ClassNames>,
         apps: Rc<RefCell<RunningApp>>,
         layouts: Rc<dyn TrackedLayouts>,
         files: Rc<dyn FileMatching>,
@@ -254,6 +237,7 @@ impl Pages {
         );
         Pages {
             memory,
+            names,
             shape,
             apps,
             layouts,
@@ -306,6 +290,130 @@ impl Pages {
         self.page = page;
         self.shown = Some(mon);
         Ok(())
+    }
+
+    /// The works of the pages of a Pokémon's while the summary shows an Egg, else none.
+    pub fn put_away(&self) -> Result<HashSet<i64>> {
+        let mon = self.shown_pokemon()?;
+        if !mon.is_some_and(|mon| mon.egg) {
+            return Ok(HashSet::new());
+        }
+        Ok(self
+            .layouts
+            .works()
+            .into_iter()
+            .filter(|&(_work, root)| {
+                self.files
+                    .matching(&self.layouts.pane_names(root))
+                    .is_some_and(|file| POKEMON_PAGES.contains(&file.name.as_str()))
+            })
+            .map(|(work, _root)| work)
+            .collect())
+    }
+
+    /// The name of the Pokémon the summary shows, its nickname or its species', or None: a
+    /// rewrite's first row (`ScreenAnnouncer.say`'s `subject`).
+    pub fn subject(&self) -> Result<Option<String>> {
+        let mon = self.shown_pokemon()?;
+        Ok(mon.map(|mon| mon.nickname))
+    }
+
+    /// The poll's cursors and words as the summary's pages are heard, and the roots of the
+    /// page turned to, said as it opened, the first of its words cutting off the page before
+    /// (`ScreenAnnouncer.say`'s `lead`). `heard` is every word on screen to be heard.
+    pub fn said(
+        &self,
+        cursors: CursorPoll,
+        texts: Vec<ScreenText>,
+        heard: &[ScreenText],
+    ) -> (CursorPoll, Vec<ScreenText>, HashSet<i64>) {
+        let unseen = self.hidden();
+        let cursors = if unseen.is_empty() {
+            cursors
+        } else {
+            // Check Moves' cursors are over both pages' moves: each move in the shown one's
+            // words, with the rest of its row there. On the conditions page the cursor rests on
+            // the battle moves' row, and the contest list's word under it was the kind alone.
+            let items = cursors
+                .items
+                .iter()
+                .map(|item| {
+                    let shown: Vec<ScreenText> = item
+                        .pieces
+                        .iter()
+                        .filter(|p| !unseen.contains(&p.root))
+                        .cloned()
+                        .collect();
+                    CursorItem {
+                        pieces: rowed(shown, heard),
+                        ..item.clone()
+                    }
+                })
+                .collect();
+            CursorPoll { items, ..cursors }
+        };
+        // A page turned to is said as it opened, its words as they stand; the button under it a
+        // poll later, queued.
+        let turned = self.turned();
+        let mut out = texts;
+        let mut back = turned.clone();
+        back.extend(self.button());
+        if !back.is_empty() {
+            let written: HashSet<i64> = out.iter().map(|text| text.r#box).collect();
+            out = out
+                .into_iter()
+                .map(|text| {
+                    if back.contains(&text.root) {
+                        ScreenText {
+                            changed: false,
+                            returned: true,
+                            ..text
+                        }
+                    } else {
+                        text
+                    }
+                })
+                .collect();
+            out.extend(
+                heard
+                    .iter()
+                    .filter(|piece| back.contains(&piece.root) && !written.contains(&piece.r#box))
+                    .map(|piece| ScreenText {
+                        changed: false,
+                        returned: true,
+                        ..piece.clone()
+                    }),
+            );
+        }
+        // A page changed with the Pokémon, an Egg's or the one after it, is said as a switch is:
+        // the name, then the rest, its layouts coming back to the screen part of it.
+        let switched = self.switched();
+        if !switched.is_empty() {
+            out = out
+                .into_iter()
+                .map(|text| {
+                    if switched.contains(&text.root) {
+                        ScreenText {
+                            changed: true,
+                            ..text
+                        }
+                    } else {
+                        text
+                    }
+                })
+                .collect();
+        }
+        (cursors, out, turned)
+    }
+
+    fn shown_pokemon(&self) -> Result<Option<Pokemon>> {
+        let param = shown(&*self.memory, &self.apps.borrow(), &self.shape)?;
+        match param {
+            Some(param) if param != 0 => {
+                pokemon::read(&*self.memory, &self.names, param, pokemon::SPECIES_MAX)
+            }
+            _ => Ok(None),
+        }
     }
 
     /// The page whose list is flagged shown, or None while not one alone is.
