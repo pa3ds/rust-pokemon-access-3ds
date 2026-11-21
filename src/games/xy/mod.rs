@@ -25,7 +25,7 @@ use crate::games::gen6::field::landform::{
 use crate::games::gen6::field::{camera, mapblock, mmodel};
 use crate::games::gen6::game::{Data, FurnitureKind, Game};
 use crate::games::gen6::rom::layout::{RomLayout, TownFacilities, owned};
-use crate::games::gen6::screens::{bag, buttons, summary};
+use crate::games::gen6::screens::{bag, buttons, rows, summary};
 use crate::games::gen6::subscreen::{amie, berry_picker};
 use crate::games::xy::garden::FurfrouChase;
 use crate::games::xy::intro::IntroReader;
@@ -1007,6 +1007,8 @@ pub fn game() -> &'static Game {
         box_shown: Some((0x24, 0x24)),
         bag: Some(bag::XY),
         summary: summary::XY,
+        menu_row: Some(rows::XY_MENU_ROW),
+        options_row: Some(rows::OPTIONS_ROW),
         camera: camera::X,
         opening: Some(|memory, _language| Box::new(IntroReader::new(memory))),
         zone_record: 0xE4,

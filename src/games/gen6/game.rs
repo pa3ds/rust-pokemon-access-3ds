@@ -346,10 +346,10 @@ pub struct Game {
     /// (spike 228).
     pub field_menu: (i64, i64),
     /// Where the field menu keeps the X menu's button under the cursor, read every tick
-    /// (`screens.rows`): ORAS's +0x82 (spike J). None where it has not been measured.
+    /// (`screens.rows`): ORAS's +0x82, X's +0x76 (spike J). None where it has not been measured.
     pub menu_row: Option<i64>,
     /// Where the options screen's process keeps the row under its cursor, read every tick
-    /// (`screens.rows`): ORAS's +0x4C (spike B). None where it has not been measured.
+    /// (`screens.rows`): ORAS's and X's +0x4C (spike B). None where it has not been measured.
     pub options_row: Option<i64>,
     /// Where its field camera's block keeps where the camera looks (`camera.Shape`): ORAS's, or
     /// X's (spikes 230 and 239).

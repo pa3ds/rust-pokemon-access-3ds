@@ -12,11 +12,13 @@
 //!
 //! ```text
 //! field::subscreen::FieldMenu  +0x82  u8 the X menu's button, 0 POKÉMON to 5 OPTIONS (spike J)
-//! app::config::Process          +0x4C  u8 the options' row, 0 TEXT SPEED to 7 QUIT (spike B)
+//!                              +0x76  the same in X, 0xC earlier as its button manager is
+//! app::config::Process          +0x4C  u8 the options' row, 0 TEXT SPEED to 7 QUIT (spike B),
+//!                                      in X too, which has a row more and counts on past it
 //! ```
 //!
 //! The byte says when a row is chosen, never what: the words are still the screen's. Measured in
-//! Omega Ruby; a game whose offsets are not measured reads nothing here (`Game.menu_row`,
+//! Omega Ruby and X; a game whose offsets are not measured reads nothing here (`Game.menu_row`,
 //! `Game.options_row`).
 //!
 //! Bound by:
@@ -32,7 +34,9 @@ use crate::py::{Error, Result};
 pub const OPTIONS: &str = "N3app6config7ProcessE";
 /// The field menu -> the X menu's button under the cursor, in Omega Ruby (spike J).
 pub const MENU_ROW: i64 = 0x82;
-/// The options screen's process -> the row under its cursor, in Omega Ruby (spike B).
+/// The same in X (spike J on x_opening).
+pub const XY_MENU_ROW: i64 = 0x76;
+/// The options screen's process -> the row under its cursor, in Omega Ruby and X (spike B).
 pub const OPTIONS_ROW: i64 = 0x4C;
 /// Ticks a row's move is chased, the screen polled at each until the cursor's word is said: a
 /// screen poll's worth.
