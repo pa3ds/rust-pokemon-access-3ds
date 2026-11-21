@@ -1157,7 +1157,11 @@ fn test_a_layout_reread_is_heard_whole_and_one_rewritten_as_changed() {
         screen.say(args(&first, vec![], &first));
         screen.say(Args {
             rewritten: hint,
-            ..args(&switched, vec![], &cat(&[&[hp.clone()], &switched]))
+            ..args(
+                &switched,
+                vec![],
+                &cat(&[std::slice::from_ref(&hp), &switched]),
+            )
         });
         said.push(screen.backend.spoken()[1].clone());
     }
