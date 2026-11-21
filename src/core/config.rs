@@ -1137,7 +1137,19 @@ pub fn prepare(
             ));
         }
         if filled != text {
-            loaded = toml::parse(&filled).0;
+            let (refilled, broken) = toml::parse(&filled);
+            if !broken.is_empty() {
+                // `fill` and `tidy` go a line at a time, and know no dotted key: under
+                // `azahar.made_up = 1` the `[azahar]` added declares that table twice.
+                notes.push(format!(
+                    "{} is left as it was, as what pa3ds would add to it does not read back: \
+                     {broken}",
+                    py::path_str(&path)
+                ));
+                filled = text.clone();
+            } else {
+                loaded = refilled;
+            }
         }
     }
 
@@ -1254,11 +1266,15 @@ pub fn prepare(
             if !lacking.is_empty() && !filled.is_empty() && problem.is_empty() {
                 let removed;
                 (filled, removed) = tidy(&filled, &lacking);
-                notes.push(format!(
-                    "took out of {}, which Azahar has no setting for: {}",
-                    py::path_str(&path),
-                    removed.join(", ")
-                ));
+                // A dotted key (`azahar.made_up = 1`) is no line `tidy` takes out: noted only
+                // once gone, or it would be noted at every start.
+                if !removed.is_empty() {
+                    notes.push(format!(
+                        "took out of {}, which Azahar has no setting for: {}",
+                        py::path_str(&path),
+                        removed.join(", ")
+                    ));
+                }
                 wanted.retain(|name, _| !lacking.contains(name));
             }
             let (patched, changed) = keyfile::patch_settings(&emulated, &wanted);

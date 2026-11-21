@@ -459,6 +459,26 @@ fn test_azahar_s_settings_go_only_where_azahar_has_none_and_pa3ds_ships_none() {
     assert!(read(&ini).contains("region_value=1"));
 }
 
+/// `fill` would add an `[azahar]` declaring that table twice, so the file is left as it was,
+/// readable; and `tidy` takes out no dotted key's line, so it is not said to have gone.
+#[test]
+fn test_a_dotted_key_leaves_the_file_as_it_was() {
+    let tmp_path = TmpPath::new();
+    let home = tmp_path.join("home");
+    fs::create_dir(&home).unwrap();
+    fs::write(home.join("config.toml"), "azahar.made_up = 1\n").unwrap();
+    let ini = tmp_path.join("qt-config.ini");
+    fs::write(&ini, emulator_text()).unwrap();
+    for _start in 0..2 {
+        let settings = config::prepare(Some(&home), Some(&ini), true, false).unwrap();
+        let notes = &settings.notes;
+        assert!(!notes.iter().any(|note| note.contains("could not be read")));
+        assert!(notes.iter().any(|note| note.contains("left as it was")));
+        assert!(!notes.iter().any(|note| note.contains("Azahar has no setting")));
+    }
+    assert_eq!(read_text(&home.join("config.toml")), "azahar.made_up = 1\n");
+}
+
 #[test]
 fn test_a_file_already_tidy_is_left_as_it_is() {
     let render = config::render().unwrap();
