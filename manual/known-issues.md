@@ -92,8 +92,6 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
 - **The Pokédex's Start and Select** turn to the Central, Coastal and Mountain Pokédexes, and
   which one you turned to is not said: the game draws its name as a picture. The counts change
   with it, "SEEN 82".
-- **The Town Map in touch mode** names its places as party slots. Its cursor and the keys say
-  them right.
 - **A scene you skip** goes undescribed from there, and a description waits while the emulator is
   paused.
 - **Cyllage Gym's climbs** have been tried on one wall, the one nearest the entrance. On the walls

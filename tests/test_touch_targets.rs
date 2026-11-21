@@ -1262,9 +1262,18 @@ fn test_the_screens_bar_neither_names_a_button_nor_is_offered_over_one() {
 
 /// In the AreaNav a tap on a place on its map chooses it; its bar, drawn at the map's layer,
 /// takes a tap on a place under it, and a place off the screen is none (or_area_nav). On the
-/// field, where the map is a window, no place is offered.
+/// field, where the map is a window, no place is offered. X's Town Map is another picture.
 #[test]
 fn test_the_areanavs_places_are_offered_by_name_where_a_tap_reaches_them() {
+    let mut images = touch::MAPS.to_vec();
+    images.sort();
+    for image in images {
+        areanav_places(image);
+    }
+}
+
+/// One case of the test above: the map drawn as `image`.
+fn areanav_places(image: &'static str) {
     let memory = FakeMemory::new();
     let classes = FakeClasses::new(memory.clone());
     let fake = FakeLayouts::new(&memory, &classes);
@@ -1331,7 +1340,7 @@ fn test_the_areanavs_places_are_offered_by_name_where_a_tap_reaches_them() {
         fake.layouts.clone(),
         Rc::new(Vec::new),
         Rc::new(|_box| Ok(String::new())),
-        Rc::new(move |pane| Ok((pane == land).then(|| touch::MAP.to_string()))),
+        Rc::new(move |pane| Ok((pane == land).then(|| image.to_string()))),
         Rc::new(|_root| None),
         Rc::new(|_line: &str| {}),
         Options {

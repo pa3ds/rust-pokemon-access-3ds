@@ -68,8 +68,10 @@ pub const WIDTH: i64 = 320;
 pub const HEIGHT: i64 = 240;
 /// How far down the screen the top bar reaches, whose corners hold the page arrows (spike 198).
 pub const TOP_BAR: i64 = 30;
-/// The AreaNav's map, whose touch areas are places (spike 152).
-pub const MAP: &str = "poke_navi_map.bclim";
+/// The map pictures whose touch areas are places: Omega Ruby's AreaNav's (spike 152) and X's
+/// Town Map's. Not knowing X's, touch mode named its places as other buttons are, by its panes'
+/// groups, "Party 2" (x_townmap). A `frozenset`, sorted as the tests walk it.
+pub const MAPS: [&str; 2] = ["poke_navi_map.bclim", "townmap_bg1.bclim"];
 
 pub const ITEM_PREVIOUS: &str = "item previous";
 pub const ITEM_NEXT: &str = "item next";
@@ -898,7 +900,10 @@ impl TouchTargets {
                     drawn.insert(pane, (self.image_of)(pane)?);
                 }
             }
-            if drawn.values().any(|image| image.as_deref() == Some(MAP)) {
+            if drawn
+                .values()
+                .any(|image| image.as_deref().is_some_and(|image| MAPS.contains(&image)))
+            {
                 found.extend(self.map_places(root, &touches, layer, root_x, root_y)?);
                 continue;
             }

@@ -18,10 +18,9 @@ use indexmap::IndexMap;
 use crate::core::binary::{f32, u32};
 use crate::games::common::layout::Layouts;
 use crate::games::common::lyt;
+use crate::games::common::touch::MAPS;
 use crate::py::{self, Error, Kind, Result};
 
-/// A `frozenset` only tested.
-pub const MAPS: [&str; 2] = ["poke_navi_map.bclim", "townmap_bg1.bclim"];
 pub const CURSOR: &str = "cursol.bclim";
 pub const HALF_WIDTH: f64 = 160.0;
 /// Half the bottom screen, from its middle, where a layout places its panes.

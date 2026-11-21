@@ -162,6 +162,10 @@ pub const POCKET_NAMES: i64 = 139;
 /// The pockets' names drawn as the Bag's title, no label: said as the pocket changes, and left
 /// out of the item's details after it, as ORAS's (`oras.BAG_PLAIN`).
 pub const BAG_PLAIN: (i64, [i64; 5]) = (POCKET_NAMES, [0, 1, 2, 3, 4]);
+/// The Town Map, `townmap_lower`: its archive opens with its panes' names as Omega Ruby's map's
+/// does (`oras.MAP_PANES`), a touch area's index among them in base 36, Dendemille Town's 46 `1a`,
+/// and a row of the town list keeps it at +0x04.
+pub const MAP_PANES: (&str, i64, i64) = ("a/0/6/9", 0, 0x04);
 /// Search and sort's labels, ORDER, NAME, TYPE, COLOR and SHAPE, as Omega Ruby's
 /// (`oras.ZUKAN_SEARCH`).
 pub const ZUKAN_SEARCH: (i64, [i64; 5]) = (3, [29, 30, 31, 32, 33]);
@@ -326,6 +330,7 @@ pub fn rom() -> &'static RomLayout {
         pockets: Some((POCKET_NAMES, 0)),
         plain: vec![(BAG_PLAIN.0, BAG_PLAIN.1.to_vec())],
         search_labels: vec![(ZUKAN_SEARCH.0, ZUKAN_SEARCH.1.to_vec())],
+        map_panes: Some((MAP_PANES.0.to_string(), MAP_PANES.1, MAP_PANES.2)),
         sounds: Some(SOUND_ARCHIVE.to_string()),
         cries: Some(CRIES.to_string()),
         textures: TEXTURE_ARCHIVES
