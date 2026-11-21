@@ -283,6 +283,14 @@ pub const TEXTURE_ARCHIVES: [&str; 112] = [
 /// each tagged as its battle models in `a/0/0/7` are, Fletchling's `pm0753` (spike 218).
 /// "Affection", "Fullness" and "Enjoyment", in Pokémon-Amie's text (spike 287).
 pub const AMIE_NUMBERS: (i64, i64) = (93, 14);
+/// The types' names, Normal at 0, which a type's icon is said by (`games.oras.TYPE_NAMES`).
+pub const TYPE_NAMES: i64 = 17;
+/// STATUS, PHYSICAL, SPECIAL, the summary's words, in the category icons' order.
+pub const MOVE_CATEGORIES: (i64, i64) = (127, 17);
+/// English to Korean, the Pokédex's language tabs' words. Each of the three is the lines of Omega
+/// Ruby's file found in X's text and Y's, in every language alike (2026-11-18); unread until then,
+/// X said no type, category or language tab. X's text has no status conditions' words.
+pub const LANGUAGE_NAMES: (i64, i64) = (85, 6);
 pub fn rom() -> &'static RomLayout {
     static ROM: OnceLock<RomLayout> = OnceLock::new();
     ROM.get_or_init(|| RomLayout {
@@ -320,6 +328,9 @@ pub fn rom() -> &'static RomLayout {
             .iter()
             .map(|path| path.to_string())
             .collect(),
+        types: Some(TYPE_NAMES),
+        categories: Some(MOVE_CATEGORIES),
+        languages: Some(LANGUAGE_NAMES),
         touch_words: [
             training_bags(),
             training_regimens(),
