@@ -145,7 +145,8 @@ fn test_a_cursor_source_keeps_what_its_app_keeps_once_built() -> Result<()> {
     memory.u32(PROCESS + 0x24, &[WORK]);
     assert_eq!(kept.find(&[0x24], Some(POOLED), &[0x10])?, None); // not of its class yet
     memory.u32(WORK, &[classes.add(POOLED)]);
-    assert_eq!(kept.find(&[0x24], Some(POOLED), &[0x10])?, None); // what it leads on to is not built
+    // What it leads on to is not built.
+    assert_eq!(kept.find(&[0x24], Some(POOLED), &[0x10])?, None);
     memory.u32(WORK + 0x10, &[POOL]);
     assert_eq!(kept.find(&[0x24], Some(POOLED), &[0x10])?, Some(POOL));
     memory.u32(WORK + 0x10, &[ARRAY]);
