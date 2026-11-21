@@ -9,7 +9,9 @@
 //! ```text
 //! PokemonParam   +0x04 -> its record, which sits at +0x40    +0x08 -> its battle stats
 //! record         +0x00 u32 encryption constant    +0x06 u16 checksum of 0x08-0xE8, decrypted
-//!   decrypted    +0x08 u16 species    +0x1d u8 gender in bits 1-2: 0 male, 1 female, 2 neither,
+//!   decrypted    +0x08 u16 species    +0x0c u16 trainer ID    +0x0e u16 secret ID
+//!                +0x18 u32 PID: shiny where the four halves XOR under 16 (spike K)
+//!                +0x1d u8 gender in bits 1-2: 0 male, 1 female, 2 neither,
 //!                                             and the form from bit 3 (spike 256)
 //!                +0x24 u8 each the contest conditions, coolness to toughness, then sheen
 //!                +0x40 the nickname, UTF-16LE: a Pokémon never nicknamed carries its species name
@@ -38,6 +40,12 @@ pub const PLAIN: i64 = 0x08;
 pub const BLOCK: i64 = 56;
 pub const CHECKSUM: i64 = 0x06;
 pub const SPECIES: i64 = 0x08;
+pub const TRAINER_ID: i64 = 0x0C;
+pub const SECRET_ID: i64 = 0x0E;
+pub const PID: i64 = 0x18;
+/// A Pokémon is shiny where its trainer ID, secret ID and the PID's two halves XOR under this.
+/// A wild one carries the player's IDs (spike K).
+pub const SHINY_BELOW: i64 = 16;
 pub const GENDER: i64 = 0x1D;
 pub const NICKNAME: i64 = 0x40;
 pub const NICKNAME_SIZE: i64 = 0x1A;
@@ -79,6 +87,7 @@ pub struct Pokemon {
     pub nicknamed: bool,
     pub form: i64,
     pub egg: bool,
+    pub shiny: bool,
 }
 
 /// XOR each halfword with the next keystream word from `seed`. Its own inverse.
@@ -135,6 +144,8 @@ pub fn parse(plain: &[u8], species_max: i64) -> Result<Option<Pokemon>> {
     }
     let nickname = py::decode_utf16le(py::slice(plain, NICKNAME, NICKNAME + NICKNAME_SIZE));
     let nickname = nickname.split('\0').next().unwrap_or_default();
+    let pid = u32(plain, PID)?;
+    let shiny = u16(plain, TRAINER_ID)? ^ u16(plain, SECRET_ID)? ^ (pid >> 16) ^ (pid & 0xFFFF);
     let gender = match usize::try_from(GENDER).ok().and_then(|at| plain.get(at)) {
         Some(&byte) => i64::from(byte),
         None => return Err(Error::index("index out of range")),
@@ -147,6 +158,7 @@ pub fn parse(plain: &[u8], species_max: i64) -> Result<Option<Pokemon>> {
         nicknamed: flags & NICKNAMED != 0,
         form: gender >> 3,
         egg: flags & EGG != 0,
+        shiny: shiny < SHINY_BELOW,
     }))
 }
 

@@ -206,23 +206,9 @@ impl BattleBag {
         }
         let names = &self.names.as_ref().expect("named above").1;
         let memory = &*self.memory;
-        // A sweep can take a word equal to a gauge's vtable for a gauge: the first kept read
-        // 0xe58d8004 at +0x04 (spike I). The view is the one a gauge points at.
-        let mut view = None;
-        for gauge in (self.gauges)() {
-            let at = u32(&memory.read(gauge + VIEW, 4)?, 0)?;
-            if within(at) && names.of_object(at)?.as_deref() == Some(VIEW_CLASS) {
-                view = Some(at);
-                break;
-            }
-        }
-        let Some(view) = view else {
+        let Some(ui) = ui_block(memory, names, &(self.gauges)())? else {
             return Ok(None);
         };
-        let ui = u32(&memory.read(view + UI, 4)?, 0)?;
-        if !within(ui) {
-            return Ok(None);
-        }
         let mut bag = None;
         for at in BAGS {
             if names.of_object(ui + at)?.as_deref() == Some(BAG_CLASS) {
@@ -272,6 +258,25 @@ impl BattleBag {
         let [pocket, slash, pages] = TITLE.map(|r#box| named[r#box].clone());
         Ok(Some(format!("{pocket} {}{slash}{pages}", page + 1)))
     }
+}
+
+/// The battle view's block of its UI, through the view a gauge points at, or None.
+pub fn ui_block(memory: &dyn Memory, names: &ClassNames, gauges: &[i64]) -> Result<Option<i64>> {
+    // A sweep can take a word equal to a gauge's vtable for a gauge: the first kept read
+    // 0xe58d8004 at +0x04 (spike I). The view is the one a gauge points at.
+    let mut view = None;
+    for &gauge in gauges {
+        let at = u32(&memory.read(gauge + VIEW, 4)?, 0)?;
+        if within(at) && names.of_object(at)?.as_deref() == Some(VIEW_CLASS) {
+            view = Some(at);
+            break;
+        }
+    }
+    let Some(view) = view else {
+        return Ok(None);
+    };
+    let ui = u32(&memory.read(view + UI, 4)?, 0)?;
+    Ok(if within(ui) { Some(ui) } else { None })
 }
 
 /// What `list` found: Python's `tuple[int, int, int] | int`.

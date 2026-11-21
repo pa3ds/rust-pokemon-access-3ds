@@ -23,3 +23,5 @@ pub mod bag;
 pub mod battle_bag;
 pub mod counts;
 pub mod mart;
+
+pub mod shiny;

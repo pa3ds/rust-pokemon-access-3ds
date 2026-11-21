@@ -95,7 +95,7 @@ use crate::games::gen6::screens::partners::Partners;
 use crate::games::gen6::screens::partyicons::PartyIcons;
 use crate::games::gen6::screens::{
     bag, bag_sort, battle_bag, boxes, buttons, counts, distribution, mart, partners, partyicons,
-    registered, summary, townmap,
+    registered, shiny, summary, townmap,
 };
 use crate::games::gen6::subscreen::amie;
 use crate::games::gen6::subscreen::head_it::Cue;
@@ -335,6 +335,7 @@ pub struct Gen6Profile {
     pub standings: Option<Rc<RefCell<dyn StandingsReader>>>,
     pub counts: RefCell<counts::Counts>,
     battle_bag: RefCell<battle_bag::BattleBag>,
+    shiny: RefCell<shiny::Shiny>,
     mart: RefCell<mart::Jumps>,
     summary_shape: summary::Shape,
     summary_pages: RefCell<summary::Pages>,
@@ -675,6 +676,29 @@ impl Gen6Profile {
                 let gauges = gauges.clone();
                 Rc::new(move || gauges.kept())
             },
+        ));
+        // A shiny Pokémon under a battle's cursors said so (spike K).
+        let shiny = RefCell::new(shiny::Shiny::new(
+            memory.clone(),
+            names.clone(),
+            {
+                let apps = apps.clone();
+                Rc::new(move || apps.borrow().running.clone())
+            },
+            {
+                let apps = apps.clone();
+                Rc::new(move || apps.borrow().process)
+            },
+            {
+                let gauges = gauges.clone();
+                Rc::new(move || gauges.kept())
+            },
+            {
+                let party_icons = party_icons.clone();
+                Rc::new(move || party_icons.borrow().party)
+            },
+            layouts.clone(),
+            files.clone(),
         ));
         // A Poké Mart's list jumped a page is said where it lands, not where it passes.
         let mart = RefCell::new(mart::Jumps::new(
@@ -1382,6 +1406,7 @@ impl Gen6Profile {
             standings,
             counts,
             battle_bag,
+            shiny,
             mart,
             summary_shape,
             summary_pages,
@@ -1906,6 +1931,10 @@ impl Gen6Profile {
                 }
                 cursors = CursorPoll { items, ..cursors };
             }
+            let cursors =
+                self.shiny
+                    .borrow_mut()
+                    .poll(cursors, on_screen, &|| self.battle.borrow().shiny())?;
             let (chosen, pocket) = match &self.bag {
                 None => (IndexMap::new(), None),
                 Some(bag) => bag.borrow_mut().poll(&cursors)?,

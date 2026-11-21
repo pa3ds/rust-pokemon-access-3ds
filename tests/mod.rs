@@ -72,6 +72,7 @@ mod test_scenes;
 mod test_screen;
 mod test_script;
 mod test_settings_dialog;
+mod test_shiny;
 mod test_sky;
 mod test_sm;
 mod test_sm_battle;

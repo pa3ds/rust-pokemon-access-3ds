@@ -374,6 +374,8 @@ pub struct BattleReader {
     in_battle: bool,
     /// Roots of the layouts found to be an HP box.
     boxes: HashSet<i64>,
+    /// Battle position -> the Pokémon its gauge last showed there, this battle.
+    at: IndexMap<i64, pokemon::Pokemon>,
     /// The pane names of those layouts, which name the layout file: a box built again elsewhere
     /// for the next battle is known by them from its first piece on screen.
     box_layouts: HashSet<Vec<String>>,
@@ -394,6 +396,7 @@ impl BattleReader {
             enemy_waited: 0,
             in_battle: false,
             boxes: HashSet::new(),
+            at: IndexMap::new(),
             box_layouts: HashSet::new(),
         }
     }
@@ -431,8 +434,18 @@ impl BattleReader {
         self.pending.clear();
         self.said.clear();
         self.asked.clear();
+        self.at.clear();
         self.ours_said = false;
         self.enemy_waited = 0;
+    }
+
+    /// The shiny Pokémon in the battle by position, as their gauges last showed them.
+    pub fn shiny(&self) -> IndexMap<i64, pokemon::Pokemon> {
+        self.at
+            .iter()
+            .filter(|(_, mon)| mon.shiny)
+            .map(|(&position, mon)| (position, mon.clone()))
+            .collect()
     }
 
     /// Whether to sweep now rather than on schedule: a panel's gauge is not known, first when
@@ -459,6 +472,9 @@ impl BattleReader {
             on_screen.iter().map(|piece| (piece.r#box, piece)).collect();
         let levels: HashSet<i64> = pieces.keys().copied().collect();
         let shown = self.gauges.shown(&levels)?;
+        for gauge in &shown {
+            self.at.insert(gauge.position, gauge.pokemon.clone());
+        }
         for gauge in &shown {
             // Every layout a gauge's level is in is the HP box's, so its words are this reader's:
             // a double battle's second level of each side was said as screen text, "13, 9".

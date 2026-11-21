@@ -59,6 +59,7 @@ fn wurmple() -> Pokemon {
         nicknamed: false,
         form: 0,
         egg: false,
+        shiny: false,
     }
 }
 
@@ -94,6 +95,21 @@ fn test_an_egg_is_told_by_bit_30_of_its_flags() {
     assert!(mon.as_ref().is_some_and(|mon| mon.egg));
     let plain = decrypt(&first_wurmple()).unwrap_or_default();
     assert!(!parse(&plain, SPECIES_MAX).unwrap().or(mon).unwrap().egg);
+}
+
+#[test]
+fn test_a_pokemon_is_shiny_where_its_ids_and_pid_xor_under_16() {
+    let mut plain = decrypt(&first_wurmple()).unwrap_or_default();
+    let trainer = u16(&plain, pokemon::TRAINER_ID).unwrap();
+    let secret = u16(&plain, pokemon::SECRET_ID).unwrap();
+    for (low, shiny) in [(15, true), (16, false)] {
+        // The PID's high half XORs the IDs to `low`, its low half 0.
+        let at = pokemon::PID as usize;
+        let pid = ((trainer ^ secret ^ low) << 16) as u32;
+        plain[at..at + 4].copy_from_slice(&pid.to_le_bytes());
+        let mon = parse(&plain, SPECIES_MAX).unwrap();
+        assert!(mon.is_some_and(|mon| mon.shiny == shiny), "low {low}");
+    }
 }
 
 #[test]
