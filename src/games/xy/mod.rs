@@ -9,7 +9,7 @@
 
 use std::collections::HashSet;
 use std::path::PathBuf;
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, LazyLock, OnceLock};
 
 use indexmap::IndexMap;
 
@@ -25,7 +25,7 @@ use crate::games::gen6::field::landform::{
 use crate::games::gen6::field::{camera, mapblock, mmodel};
 use crate::games::gen6::game::{Data, FurnitureKind, Game};
 use crate::games::gen6::rom::layout::{RomLayout, TownFacilities, owned};
-use crate::games::gen6::screens::{bag, buttons, rows, summary, townmap};
+use crate::games::gen6::screens::{bag, buttons, pokedex, rows, summary, townmap};
 use crate::games::gen6::subscreen::{amie, berry_picker};
 use crate::games::xy::garden::FurfrouChase;
 use crate::games::xy::intro::IntroReader;
@@ -822,15 +822,19 @@ pub fn warps() -> &'static IndexMap<i64, String> {
 /// The Pokémon-Amie menu's PLAY, DECORATE and SWITCH, pictures of their words that X's text has no
 /// line for: named by `pictures.ftl` and offered beside the menu's close, as ORAS's text names them.
 /// Named only by a picture's words, they were taken for part of close and left out (spike 228,
-/// x_super_train3).
+/// x_super_train3). And search by shape's silhouettes, Omega Ruby's textures (spike O on
+/// x_pokedex_search_shapes).
 ///
 /// Python's is a frozenset of strings, which it iterates in an order of its own: an `IndexSet` here
-/// (`docs/porting.md`); it only adds to a dict looked up by image.
-pub const WORDED: [&str; 3] = [
-    "kwg_button01.bclim",
-    "kwg_button02.bclim",
-    "kwg_button03.bclim",
-];
+/// (`docs/porting.md`); it only adds to a dict looked up by image. A `LazyLock`, as a `const` cannot
+/// join the buttons to `pokedex::SHAPES`.
+pub static WORDED: LazyLock<Vec<&'static str>> = LazyLock::new(|| {
+    [
+        ["kwg_button01.bclim", "kwg_button02.bclim", "kwg_button03.bclim"].as_slice(),
+        pokedex::SHAPES.as_slice(),
+    ]
+    .concat()
+});
 /// Where X's Pokémon-Amie page, `FM_Kawaigari`, keeps its Pokémon's number: 0x28 before ORAS's,
 /// as its Super Training page is, Frogadier's 657 (spike 228, x_super_train2).
 pub const AMIE: i64 = 0x124;

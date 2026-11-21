@@ -401,6 +401,10 @@ fn test_a_blank_field_is_said_by_its_label() {
         right: -110.0,
         ..piece(2, "NAME", false, 38.0, -150.0, PANEL)
     };
+    let unset = ScreenText {
+        right: 30.0,
+        ..piece(3, "---", false, 38.0, 10.0, PANEL)
+    };
     let rect = Rect {
         top: false,
         left: 0.0,
@@ -411,7 +415,7 @@ fn test_a_blank_field_is_said_by_its_label() {
     let said = pokedex::blank(
         Some(pokedex::ORAS_APP),
         &rect,
-        &[label.clone(), other.clone()],
+        &[label.clone(), other.clone(), unset],
         &[],
         &labels(),
     );
@@ -442,6 +446,7 @@ fn test_a_picture_framed_takes_the_table_s_label_alone() {
         picture: true,
         ..ScreenText::new(4, "Finned", false)
     };
+    let red = at(5, "Red", 38.0, 10.0, 30.0, PANEL);
     let rect = Rect {
         top: false,
         left: 0.0,
@@ -454,7 +459,7 @@ fn test_a_picture_framed_takes_the_table_s_label_alone() {
         pokedex::blank(
             Some(pokedex::ORAS_APP),
             &rect,
-            &[shape.clone(), color],
+            &[shape.clone(), color, red],
             &framed,
             &labels()
         ),
@@ -480,4 +485,48 @@ fn test_a_picture_framed_takes_the_table_s_label_alone() {
         ),
         vec![picker]
     );
+}
+
+/// X draws its shapes in a column beside the table, level with its rows, and the cursor on
+/// them said "ORDER Bodiless" and "COLOR Finned" (x_pokedex_search_shapes): a picture is the
+/// value of a row with none in words, while the table shows its values.
+#[test]
+fn test_a_picture_beside_a_row_with_a_value_takes_no_label() {
+    let at = |r#box: i64, text: &str, row: f64, left: f64, right: f64| ScreenText {
+        right,
+        ..piece(r#box, text, false, row, left, PANEL)
+    };
+    let name = at(1, "NAME", 8.0, -150.0, -110.0);
+    let unset = at(3, "---", 8.0, 10.0, 30.0);
+    let color = at(2, "COLOR", 38.0, -150.0, -110.0);
+    let shape = [ScreenText {
+        root: PANEL,
+        picture: true,
+        ..ScreenText::new(4, "Finned", false)
+    }];
+    let rect = Rect {
+        top: false,
+        left: 40.0,
+        right: 120.0,
+        low: -5.0,
+        high: 20.0,
+    };
+    let red = at(5, "Red", 38.0, 10.0, 30.0);
+    let blank = |on_screen: &[ScreenText], framed: &[ScreenText]| {
+        pokedex::blank(Some(pokedex::APP), &rect, on_screen, framed, &labels())
+    };
+    assert_eq!(
+        blank(
+            &[name.clone(), unset, color.clone(), red.clone()],
+            &shape
+        ),
+        Vec::new()
+    );
+    assert_eq!(
+        blank(&[name.clone(), color.clone(), red], &shape),
+        vec![name.clone()]
+    );
+    // The picker shown, the table's values hidden: a label for no picture, nor its blank.
+    assert_eq!(blank(&[name.clone(), color.clone()], &shape), Vec::new());
+    assert_eq!(blank(&[name, color], &[]), Vec::new());
 }

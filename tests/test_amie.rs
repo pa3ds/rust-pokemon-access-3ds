@@ -172,10 +172,14 @@ fn test_xs_menu_buttons_have_a_word_in_every_language_x_is_played_in() {
         )
         .unwrap(),
     )));
-    let mut textures: Vec<&String> = xy::game().worded.iter().collect();
-    textures.sort();
+    let mut buttons: Vec<&String> = xy::game()
+        .worded
+        .iter()
+        .filter(|texture| texture.starts_with("kwg_button"))
+        .collect();
+    buttons.sort();
     assert_eq!(
-        textures
+        buttons
             .into_iter()
             .map(|texture| named(texture))
             .collect::<Vec<_>>(),

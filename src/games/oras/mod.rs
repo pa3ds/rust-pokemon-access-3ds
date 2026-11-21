@@ -27,7 +27,7 @@ use crate::games::gen6::field::{mapblock, mmodel};
 use crate::games::gen6::game::{Data, FurnitureKind, Game};
 use crate::games::gen6::rom::archives::{BOY, GIRL, GameText};
 use crate::games::gen6::rom::layout::{RomLayout, TownFacilities};
-use crate::games::gen6::screens::{bag, buttons, distribution, rows, townmap};
+use crate::games::gen6::screens::{bag, buttons, distribution, pokedex, rows, townmap};
 use crate::games::gen6::subscreen::{amie, berry_picker, super_training};
 use crate::games::oras::field::ash::{self, AshPiles};
 use crate::games::oras::field::berries::BerrySpots;
@@ -363,25 +363,8 @@ pub fn bag_pockets() -> &'static (i64, IndexMap<&'static str, i64>) {
 pub fn bag_plain() -> (i64, [i64; 5]) {
     (bag_pockets().0, [0, 1, 2, 3, 4])
 }
-/// The Pokédex's search by shape's fourteen silhouettes, which the game names in no word: named
-/// by `pictures.ftl`, they are said as the cursor comes onto them, and as SHAPE's value once one is
-/// chosen (spike O). A `frozenset` of `search_icon01.bclim` to `search_icon14.bclim`.
-pub const WORDED: [&str; 14] = [
-    "search_icon01.bclim",
-    "search_icon02.bclim",
-    "search_icon03.bclim",
-    "search_icon04.bclim",
-    "search_icon05.bclim",
-    "search_icon06.bclim",
-    "search_icon07.bclim",
-    "search_icon08.bclim",
-    "search_icon09.bclim",
-    "search_icon10.bclim",
-    "search_icon11.bclim",
-    "search_icon12.bclim",
-    "search_icon13.bclim",
-    "search_icon14.bclim",
-];
+/// Pictures of the game's that its text names in no word: search by shape's silhouettes.
+pub const WORDED: [&str; 14] = pokedex::SHAPES;
 /// The AreaNav's map, `map_lower`, which the Pokédex's habitat draws too: its archive opens
 /// with its panes' names, and an AreaNav row keeps its zone's touch area among them at +0x04
 /// (spike 152: Route 101 is `m`, Route 102 `1p`).

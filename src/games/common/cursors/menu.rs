@@ -337,6 +337,7 @@ impl MenuCursors {
                         top: rect.top,
                         root,
                         parent: self.panes.parent(pane)?,
+                        panel: shown.as_ref().map_or(0, |shown| shown.panel),
                         picture: true,
                         ..ScreenText::new(pane, words.clone(), false)
                     };

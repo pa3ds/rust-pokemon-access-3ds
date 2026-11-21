@@ -62,6 +62,26 @@ pub const SHOWN: i64 = ROWS + 3 * RECORD;
 /// Ticks the index holds before its entry is said: a jump of seven steps it on by one or two
 /// every tick or two (spike N), and a step holds from the first.
 pub const STILL_TICKS: i64 = 4;
+/// Search by shape's fourteen silhouettes, the same textures in Omega Ruby and X, which the game
+/// names in no word: named by `pictures.ftl`, said as the cursor comes onto them and as SHAPE's
+/// value once one is chosen (spike O). A `frozenset` of `search_icon01.bclim` to
+/// `search_icon14.bclim`.
+pub const SHAPES: [&str; 14] = [
+    "search_icon01.bclim",
+    "search_icon02.bclim",
+    "search_icon03.bclim",
+    "search_icon04.bclim",
+    "search_icon05.bclim",
+    "search_icon06.bclim",
+    "search_icon07.bclim",
+    "search_icon08.bclim",
+    "search_icon09.bclim",
+    "search_icon10.bclim",
+    "search_icon11.bclim",
+    "search_icon12.bclim",
+    "search_icon13.bclim",
+    "search_icon14.bclim",
+];
 /// Words with no letter or digit: a search field's or a picker's choice of none, its dashes.
 /// Anchored at both ends, as Python's `fullmatch` is.
 pub static WORDLESS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[^\w]+$").unwrap());
@@ -282,8 +302,12 @@ pub fn labelled(
 /// The label of the search field a menu cursor frames with no words in it (`menu.Blank`):
 /// TYPE's two and SHAPE's are blank until set, and the cursor on them said nothing
 /// (or_pokedex); SHAPE set, its shape alone, "Finned" (heard in play). Its label is left of it
-/// on its row: the table's for a picture `framed`, and for nothing framed a picker's too, its
-/// blank row beside its label, the choice of none.
+/// on its row: for a picture `framed`, the table's, of a row with no words for its value, which
+/// the picture is: X draws its shapes in a column beside the table, level with its rows, and
+/// "ORDER Bodiless" and "COLOR Finned" were said for them, the table's values hidden while
+/// they are shown, its labels not (x_pokedex_search_shapes), and its choice of none was said
+/// as COLOR; for nothing framed, a picker's too, its blank row beside its label, the choice of
+/// none.
 pub fn blank(
     running: Option<&str>,
     rect: &Rect,
@@ -294,7 +318,20 @@ pub fn blank(
     if running != Some(APP) && running != Some(ORAS_APP) {
         return Vec::new();
     }
-    let roots = (!framed.is_empty()).then(|| table_roots(on_screen, labels));
+    let roots = table_roots(on_screen, labels);
+    let valued = |label: &ScreenText| {
+        on_screen.iter().any(|q| {
+            q.root == label.root
+                && (q.row - label.row).abs() < ONE_LINE
+                && q.left > label.left
+                && !labels.contains(&q.text)
+                && !q.picture
+        })
+    };
+    // The table showing its values, not a picker over them.
+    let shown = on_screen
+        .iter()
+        .any(|p| labels.contains(&p.text) && roots.contains(&p.root) && valued(p));
     // `max(left, key=left)`: the first of equal bests, as Python's.
     let mut best: Option<&ScreenText> = None;
     for p in on_screen {
@@ -303,7 +340,8 @@ pub fn blank(
             && rect.low <= p.row
             && p.row <= rect.high
             && p.right <= rect.left
-            && roots.as_ref().is_none_or(|roots| roots.contains(&p.root))
+            && (shown || !roots.contains(&p.root))
+            && (framed.is_empty() || (roots.contains(&p.root) && !valued(p)))
             && best.is_none_or(|best| p.left > best.left)
         {
             best = Some(p);
