@@ -47,6 +47,8 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
 
 - **An empty Battle Box** reads as the box behind it.
 - **Turning to the Battle Box** can say "BATTLE BOX" twice.
+- **"Choose a mark."** is said again each time you move between CONFIRM and CANCEL on the marks
+  screen.
 - **Opening the Box** the first time after starting Azahar may say "Normal Pokérus Paralysis"
   before the first Pokémon: the empty summary the game shows for a moment, held on screen while
   Azahar loads what the Box needs for the first time.
