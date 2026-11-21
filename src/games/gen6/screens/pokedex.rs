@@ -8,8 +8,9 @@
 //! under it, and its item was said once it had read the same for two polls, 0.3 to 0.4 s after
 //! the index changed. The index is read every tick, and a move is said the poll it changes, in
 //! the words of the fourth record's panes (`OrasList`): no slide can put another row's words
-//! there. A page jumps seven, passing the entries between over 0.1 s: said once the index holds
-//! still, as the Mart's jumps are (`mart.Jumps`).
+//! there. A page jumps seven, passing the entries between over 0.1 s, by one or two a tick: every
+//! move is said once the index has held four ticks, as the Mart's jumps are once they hold
+//! (`mart.Jumps`).
 //!
 //! X's list is described below.
 //!
@@ -57,8 +58,9 @@ pub const RECORD: i64 = 0x44;
 pub const CHOSEN: i64 = ROWS + 4 * RECORD;
 /// The record whose panes show the entry chosen.
 pub const SHOWN: i64 = ROWS + 3 * RECORD;
-/// Ticks a jump's index holds before its entry is said.
-pub const STILL_TICKS: i64 = 2;
+/// Ticks the index holds before its entry is said: a jump of seven steps it on by one or two
+/// every tick or two (spike N), and a step holds from the first.
+pub const STILL_TICKS: i64 = 4;
 /// A cursor's words with no letter or digit: a search field not set, full-width dashes or "---".
 /// Anchored at both ends, as Python's `fullmatch` is.
 pub static WORDLESS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[^\w]+$").unwrap());
@@ -264,7 +266,6 @@ pub struct OrasList {
     index: Option<i64>,
     /// Ticks the index has held, after a step or a jump.
     still: i64,
-    jumped: bool,
     /// The entry last said, and its words, while the list is up.
     said: Option<(i64, String)>,
 }
@@ -283,7 +284,6 @@ impl OrasList {
             boxes: HashSet::new(),
             index: None,
             still: 0,
-            jumped: false,
             said: None,
         }
     }
@@ -298,21 +298,33 @@ impl OrasList {
             self.still += 1;
             return Ok(false);
         }
-        self.jumped = self.index.is_some_and(|before| (index - before).abs() > 1);
         (self.index, self.still) = (Some(index), 0);
         Ok(true)
     }
 
     /// The cursors' poll with the plate's items replaced by the entry chosen, said the poll
     /// it changes in its row's words, a jump once it holds still.
-    pub fn cursors(&mut self, cursors: CursorPoll, on_screen: &[ScreenText]) -> CursorPoll {
+    pub fn cursors(
+        &mut self,
+        cursors: CursorPoll,
+        on_screen: &[ScreenText],
+    ) -> Result<CursorPoll> {
         let launch = match self.launch {
             Some((_, Some(launch))) if (self.running)().as_deref() == Some(ORAS_APP) => launch,
             _ => {
                 self.said = None;
-                return cursors;
+                return Ok(cursors);
             }
         };
+        if !on_screen.iter().any(|p| self.boxes.contains(&p.r#box)) {
+            // Its panes are set once the list is built, after the Pokédex starts.
+            let record = self.memory.read(launch + SHOWN, RECORD)?;
+            let mut boxes = HashSet::new();
+            for at in (4..RECORD).step_by(4) {
+                boxes.insert(u32(&record, at)?);
+            }
+            self.boxes = boxes;
+        }
         let pieces: Vec<ScreenText> = py::sorted_by_lt(
             on_screen
                 .iter()
@@ -330,7 +342,7 @@ impl OrasList {
         }) else {
             // No plate over the list: its entry is said afresh when it comes back.
             self.said = None;
-            return cursors;
+            return Ok(cursors);
         };
         let plate: Vec<CursorItem> = cursors
             .items
@@ -350,29 +362,29 @@ impl OrasList {
                 .as_ref()
                 .is_none_or(|(said, _)| said != index)
         }) else {
-            return CursorPoll { items, ..cursors };
+            return Ok(CursorPoll { items, ..cursors });
         };
-        if self.jumped && self.still < STILL_TICKS {
-            return CursorPoll {
+        if self.still < STILL_TICKS {
+            return Ok(CursorPoll {
                 items,
                 chased: true,
                 ..cursors
-            };
+            });
         }
         if self.said.as_ref().is_some_and(|(_, said)| *said == words) {
             // The index has moved and its row's words not yet.
-            return CursorPoll {
+            return Ok(CursorPoll {
                 items,
                 chased: true,
                 ..cursors
-            };
+            });
         }
         let cursor = plate.first().map_or(launch, |item| item.cursor);
         let opened = self.said.is_none();
         self.said = Some((index, words));
         let mut items = items;
         items.push(CursorItem::new(cursor, pieces, opened));
-        CursorPoll { items, ..cursors }
+        Ok(CursorPoll { items, ..cursors })
     }
 
     /// The entry chosen, while the Pokédex runs and its list is built.
@@ -392,15 +404,8 @@ impl OrasList {
                 && ClassNames::new(self.memory.clone(), LOADED_CODE)
                     .of_object(found)?
                     .as_deref()
-                    == Some(LAUNCH_CLASS)
+                    != Some(LAUNCH_CLASS)
             {
-                let record = self.memory.read(found + SHOWN, RECORD)?;
-                let mut boxes = HashSet::new();
-                for at in (4..RECORD).step_by(4) {
-                    boxes.insert(u32(&record, at)?);
-                }
-                self.boxes = boxes;
-            } else {
                 launch = None;
             }
             self.launch = Some((process, launch));

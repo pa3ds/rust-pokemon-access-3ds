@@ -2160,7 +2160,7 @@ impl Gen6Profile {
             self.summary_pages.borrow_mut().poll()?;
             let cursors = self.summary_pages.borrow().cursors(cursors, on_screen)?;
             let cursors = self.reminder.borrow().cursors(cursors);
-            let cursors = self.oras_list.borrow_mut().cursors(cursors, on_screen);
+            let cursors = self.oras_list.borrow_mut().cursors(cursors, on_screen)?;
             let running = self.apps.borrow().running.clone();
             let cursors = self
                 .xy_list
