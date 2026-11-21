@@ -56,7 +56,8 @@ the Game Boy games. Nothing here is taken from its code.
   you gave it. The Pokédex's list says each entry as you move onto it, and a jump of a page only
   where it lands; X and Y's by its number and name, "004 Fennekin". In search and sort, each
   field is said with its name, "COLOR ---", "NAME A", and one left blank by its name alone,
-  "TYPE".
+  "TYPE". In Omega Ruby and Alpha Sapphire, search by shape says each body shape the game draws
+  as a silhouette in pa3ds's words, "Head and legs", "Two or more pairs of wings".
 - **The fitting room** in X and Y's boutiques: each category, and each item with its colour and
   price.
 - **A Poké Mart's count**, to buy or to sell, with its price, each time it changes: hold a key and

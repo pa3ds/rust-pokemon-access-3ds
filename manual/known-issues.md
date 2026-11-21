@@ -12,9 +12,8 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
   but not as fully as the official games, which pa3ds is built and checked on. Where a
   translation changed how the game keeps something in its memory, pa3ds may say less there, or
   now and then the wrong thing, such as the wrong box's name.
-- **The Pokédex's search by shape** says nothing of the shapes, the silhouettes of a body's
-  shape: the game draws each as a picture and names none of them. A shape chosen is not said
-  either.
+- **X and Y's Pokédex search by shape** says nothing of the shapes, the silhouettes of a body's
+  shape, which the game names in no word; Omega Ruby and Alpha Sapphire's are said.
 - **The Pokédex's type picker** is read whole as it opens, its first types before the one under
   the cursor.
 - **Switching two Pokémon in your party** can now and then say only part of a Pokémon's line as
