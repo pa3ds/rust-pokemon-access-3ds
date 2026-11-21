@@ -127,6 +127,39 @@ fn test_the_name_entrys_key_is_read_through_its_main_system() {
     assert!(keyboard.moved().unwrap());
 }
 
+/// ADR-0013: the PC's row says when a move is made, in whichever of its two menus is up; a menu
+/// opening in place of the other is no move (spike B on or_pc_organize and x_pc_mode_buttons).
+#[test]
+fn test_the_pcs_row_is_read_from_the_menu_up_now() {
+    let memory = FakeMemory::new();
+    let (first, second, holder) = (0x08600000, 0x08700000, 0x08800000);
+    let [process, work, other] = rows::PC_MENUS;
+    memory.u32(PROCESS + process, &[WORK]);
+    memory.u32(WORK + work, &[OTHER]);
+    memory.u32(OTHER + other, &[holder]);
+    let mut pc = rows::Rows::new(
+        memory.clone(),
+        Rc::new(|| Some(rows::PC_MENU.to_string())),
+        Rc::new(|| Some(PROCESS)),
+        Rc::new(|| Ok(Some(MENU))),
+        Rc::new(|| true),
+        Some(rows::MENU_ROW),
+        Some(rows::OPTIONS_ROW),
+        Some(rows::PARTY_SLOT),
+    );
+    assert!(!pc.moved().unwrap()); // no menu up yet
+    memory.u32(holder + rows::PC_MENU_SHOWN, &[first]);
+    assert!(!pc.moved().unwrap()); // "Which PC should be accessed?" just up
+    memory.u32(holder + rows::PC_MENU_SHOWN, &[second]);
+    assert!(!pc.moved().unwrap()); // Someone's PC opened, on its first row
+    memory.write(second + rows::PC_ROW, &[1]);
+    assert!(pc.moved().unwrap());
+    assert!(!pc.moved().unwrap());
+    memory.write(first + rows::PC_ROW, &[2]);
+    memory.u32(holder + rows::PC_MENU_SHOWN, &[first]);
+    assert!(!pc.moved().unwrap()); // back on the first menu, where its cursor was
+}
+
 #[test]
 fn test_a_game_not_measured_reads_nothing_nor_a_screen_with_no_cursor() {
     let memory = Counting::new(FakeMemory::new());

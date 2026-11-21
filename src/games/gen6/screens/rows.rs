@@ -1,11 +1,11 @@
 //! The row under a plain menu's cursor, or the key under the name entry's, read every tick, so
 //! that a move is heard the tick it is made (spikes B and J).
 //!
-//! The X menu, the options screen and the party are found from the layout, a window or a picture
-//! drawn round the row and its words under it, and pa3ds said each move the screen poll its row's
-//! byte changed: the layout is not behind the game (findings/cursors.md, spikes J and B). The name
-//! entry's key cursor is a picture moved from key to key (`common.cursors.key`). What was left is
-//! the screen poll, a fifth of a second. The byte is read every tick while the last screen poll
+//! The X menu, the options screen, the party and the PC are found from the layout, a window or a
+//! picture drawn round the row and its words under it, and pa3ds said each move the screen poll
+//! its row's byte changed: the layout is not behind the game (findings/cursors.md, spikes J and
+//! B). The name entry's key cursor is a picture moved from key to key (`common.cursors.key`). What
+//! was left is the screen poll, a fifth of a second. The byte is read every tick while the last screen poll
 //! found a cursor on screen, and when it changes the screen is polled at once, and again each tick
 //! until the cursor's word is said, a poll's worth of ticks at most (`Gen6Profile`'s
 //! `poll_menus`). Over or_menus's 36 moves the word came a median 0.017 s after its byte changed,
@@ -26,11 +26,17 @@
 //! app::strinput::MainSystem    +0x3E0  -> the keyboard's cursor, null until the keyboard is built
 //! the keyboard's cursor         +0x14  u8 the key under it, 0x0B Q to 0x2E return on the letters
 //!                                      (spike B on or_opening and x_opening); +0x15 the key before
+//! app::pc_menu::Proc   +0x24 +0x28 +0x4  -> what holds the PC's menus, through objects of no class
+//! what holds them               +0x1C  -> the menu up now, "Which PC should be accessed?"'s or
+//!                                         Someone's PC's, each built as it first opens
+//! the menu up                   +0x14  u8 the row under its cursor, 0 Deposit Pokémon to 4 Log
+//!                                      Out (spike B on or_pc_organize and x_pc_mode_buttons);
+//!                                      +0x15 the row before
 //! ```
 //!
 //! The byte says when a row is chosen, never what: the words are still the screen's. Measured in
 //! Omega Ruby and X; a game whose offsets are not measured reads nothing here (`Game.menu_row`,
-//! `Game.options_row`, `Game.party_slot`), but for the keyboard's, the same in both.
+//! `Game.options_row`, `Game.party_slot`), but for the keyboard's and the PC's, the same in both.
 //!
 //! Bound by:
 //! - ADR-0013: a cursor source says which item is under the cursor and when it moved, the words
@@ -67,12 +73,20 @@ pub const MAIN_SYSTEM: &str = "N3app8strinput10MainSystemE";
 pub const KEYS: i64 = 0x3E0;
 /// The keyboard's cursor -> the key under it, in Omega Ruby and X (spike B).
 pub const KEY: i64 = 0x14;
+pub const PC_MENU: &str = "N3app7pc_menu4ProcE";
+/// The PC's process -> what holds the menu up now, through objects of no class (spike B).
+pub const PC_MENUS: [i64; 3] = [0x24, 0x28, 0x4];
+/// What holds the PC's menus -> the menu up now, "Which PC should be accessed?"'s or Someone's
+/// PC's, each built as it first opens.
+pub const PC_MENU_SHOWN: i64 = 0x1C;
+/// The PC's menu up now -> the row under its cursor, in Omega Ruby and X (spike B).
+pub const PC_ROW: i64 = 0x14;
 /// Ticks a row's move is chased, the screen polled at each until the cursor's word is said: a
 /// screen poll's worth.
 pub const CHASE: i64 = 12;
 
-/// The row under the X menu's, the options screen's or the party's cursor, or the key under the
-/// name entry's, read every tick.
+/// The row under the X menu's, the options screen's, the party's or the PC's cursor, or the key
+/// under the name entry's, read every tick.
 pub struct Rows {
     memory: Rc<dyn Memory>,
     running: Rc<dyn Fn() -> Option<String>>,
@@ -84,8 +98,9 @@ pub struct Rows {
     party_slot: Option<i64>,
     /// Where the row was read last tick, and what it read.
     last: Option<(i64, i64)>,
-    /// The party's or the name entry's process and the object holding its byte, once found: its
-    /// class is checked once a screen, and only its byte read each tick after.
+    /// The party's, the name entry's or the PC's process and the object holding its byte or its
+    /// menus, once found: its class, where it has one, is checked once a screen, and only what it
+    /// holds read each tick after.
     work: Option<(i64, i64)>,
     names: Option<(i64, ClassNames)>,
 }
@@ -161,36 +176,47 @@ impl Rows {
             && let Some(party_slot) = self.party_slot
         {
             return Ok(self
-                .found(&[PARTY_WORK], STATIC_WORK)?
+                .found(&[PARTY_WORK], Some(STATIC_WORK))?
                 .map(|work| work + party_slot));
         }
         if running.as_deref() == Some(KEYBOARD) {
             return Ok(self
-                .found(&[KEYBOARD_SYSTEM, KEYS], MAIN_SYSTEM)?
+                .found(&[KEYBOARD_SYSTEM, KEYS], Some(MAIN_SYSTEM))?
                 .map(|keys| keys + KEY));
+        }
+        if running.as_deref() == Some(PC_MENU) {
+            let menus = self.found(&PC_MENUS, None)?;
+            // The menu up changes as the other opens, so this hop is followed every tick.
+            let shown = match menus {
+                None => None,
+                Some(menus) => follow(&*self.memory, menus, &[PC_MENU_SHOWN])?,
+            };
+            return Ok(shown.map(|shown| shown + PC_ROW));
         }
         Ok(None)
     }
 
     /// Where `hops` lead from the process, once the object its first hop leads to is of class
-    /// `name`.
-    fn found(&mut self, hops: &[i64], name: &str) -> Result<Option<i64>> {
+    /// `name`, where it has one.
+    fn found(&mut self, hops: &[i64], name: Option<&str>) -> Result<Option<i64>> {
         let Some(process) = (self.process)() else {
             return Ok(None);
         };
         if self.work.is_none_or(|work| work.0 != process) {
-            // Named afresh for each screen: its classes are in a module, whose memory is the
-            // next module's once it is unloaded (`apps.RunningApp.poll`).
-            if self.names.as_ref().is_none_or(|names| names.0 != process) {
-                self.names = Some((process, ClassNames::new(self.memory.clone(), LOADED_CODE)));
-            }
-            let first = follow(&*self.memory, process, py::slice(hops, 0, 1))?;
-            let names = &self.names.as_ref().expect("named above").1;
-            let Some(first) = first else {
+            let Some(first) = follow(&*self.memory, process, py::slice(hops, 0, 1))? else {
                 return Ok(None);
             };
-            if names.of_object(first)?.as_deref() != Some(name) {
-                return Ok(None);
+            if let Some(name) = name {
+                // Named afresh for each screen: its classes are in a module, whose memory is the
+                // next module's once it is unloaded (`apps.RunningApp.poll`).
+                if self.names.as_ref().is_none_or(|names| names.0 != process) {
+                    self.names =
+                        Some((process, ClassNames::new(self.memory.clone(), LOADED_CODE)));
+                }
+                let names = &self.names.as_ref().expect("named above").1;
+                if names.of_object(first)?.as_deref() != Some(name) {
+                    return Ok(None);
+                }
             }
             let Some(work) = follow(&*self.memory, first, py::slice_from(hops, 1))? else {
                 return Ok(None);
