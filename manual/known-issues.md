@@ -58,6 +58,8 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
 ## Omega Ruby and Alpha Sapphire
 
 - **In the Y button's menu**, what Select and Start do is not said.
+- **The Pokéblock Kit**: after you give a Pokéblock, turning back to the Pokéblock Case with L or R
+  says that Pokémon's contest moves and "You gave the Pokéblock to …!" again.
 - **A scene you skip** goes undescribed from there, and a description waits while the emulator is
   paused.
 - **A Pokémon met in seaweed under water** is said as one met walking, and as met in grass in the
@@ -87,6 +89,7 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
 
 - **A scene you skip** goes undescribed from there, and a description waits while the emulator is
   paused.
+- **Leaving the fitting room** with B, its question is not said, only its Yes and No.
 - **Cyllage Gym's climbs** have been tried on one wall, the one nearest the entrance. On the walls
   facing east or west, "north" and "south" along the wall may not be the keys that climb it.
 - **Slides** have been tried in Cyllage Gym only. `P` also slides down a few short drops outside
