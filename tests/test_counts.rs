@@ -35,7 +35,7 @@ impl TrackedLayouts for FakeLayouts {
         match pane {
             GROUP => Ok(b"2t\0".to_vec()),
             IN_BAG => Ok(b"2r\0".to_vec()),
-            _ => Err(Error::key(&pane.to_string())),
+            _ => Err(Error::key(pane.to_string())),
         }
     }
 }
