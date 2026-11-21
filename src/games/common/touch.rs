@@ -1136,6 +1136,7 @@ impl TouchTargets {
                         y,
                         &(self.on_screen)(),
                         None,
+                        None,
                     )?
                 } && slot.0 == touch
                 {

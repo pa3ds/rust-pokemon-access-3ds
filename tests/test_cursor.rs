@@ -4,7 +4,7 @@
 // and setting the reader last. Here a struct is built as soon as its fields exist and holds a
 // reader made the plain way until `__init__`'s own line replaces it.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::HashSet;
 use std::rc::Rc;
 
@@ -20,7 +20,7 @@ use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
 use crate::core::words::{self, ENGLISH, Words};
 use crate::games::common::cursors::reader::CursorReader;
-use crate::games::common::cursors::shared::{CursorItem, CursorPoll};
+use crate::games::common::cursors::shared::{CursorItem, CursorPoll, Slot};
 use crate::games::common::layout_file::LayoutFiles;
 use crate::games::common::screen::{Pictures, ScreenText, join};
 use crate::games::common::{lyt, slots};
@@ -2634,19 +2634,22 @@ struct BoxGrid {
     reader: Reader,
     title: ScreenText,
     files: Rc<LayoutFiles>,
+    slot: Rc<Cell<Option<i64>>>,
 }
 
 impl BoxGrid {
     fn new() -> BoxGrid {
-        BoxGrid::with(false, lyt::ORAS, false)
+        BoxGrid::with(false, lyt::ORAS, false, false)
     }
 
     /// `bar` adds the bottom bar many screens share, `touch_bar_lower`, holding a button
     /// `change_box.bclim` where the Box's own layout leaves an empty pane (spike 143, movie12).
     /// `shape` lays the panes out as that game's NintendoWare does. `battle` adds the Battle
     /// Box's six slots under the root, beside the grid in no row or column of it, as they stay
-    /// shown whichever is drawn (or_battle_box).
-    fn with(bar: bool, shape: lyt::PaneShape, battle: bool) -> BoxGrid {
+    /// shown whichever is drawn (or_battle_box). `full` draws the whole box, six columns of
+    /// five, and the party's six, as the game counts them (`slots.nth`); `slot` is the slot
+    /// the game says the pointer is going to.
+    fn with(bar: bool, shape: lyt::PaneShape, battle: bool, full: bool) -> BoxGrid {
         let memory = FakeMemory::new();
         let classes = FakeClasses::new(memory.clone());
         let picture = classes.add(lyt::PICTURE_CLASS);
@@ -2668,9 +2671,11 @@ impl BoxGrid {
             reader,
             title: ScreenText::new(0, "", false),
             files: Rc::new(LayoutFiles::new(memory_of_grid.clone())),
+            slot: Rc::new(Cell::new(None)),
         };
-        for row in 0..2 {
-            for column in 0..3 {
+        let (columns, rows, party) = if full { (6, 5, 6) } else { (3, 2, 4) };
+        for row in 0..rows {
+            for column in 0..columns {
                 grid.add(
                     &format!("s{row}{column}"),
                     root,
@@ -2695,18 +2700,15 @@ impl BoxGrid {
             110.0,
             160.0,
         );
-        for (slot, (x, y)) in [(80.0, 55.0), (130.0, 35.0), (80.0, 15.0), (130.0, -5.0)]
-            .into_iter()
-            .enumerate()
-        {
+        for slot in 0..party {
             grid.add(
                 &format!("p{slot}"),
                 panel,
                 Some(bounding),
                 b"bnd1",
                 0,
-                x,
-                y,
+                80.0 + 50.0 * (slot % 2) as f64,
+                55.0 - 20.0 * slot as f64,
                 50.0,
                 40.0,
             );
@@ -2901,7 +2903,19 @@ impl BoxGrid {
             grid.memory.write(BAR_FILE, &layout_archive(sections));
             files.add_archive(BAR_FILE).unwrap();
         }
-        grid.reader = reader_with_files(&grid.fake, &grid.memory, &files);
+        grid.reader = CursorReader::with_occupant(
+            grid.fake.layouts.clone(),
+            names_of(&grid.memory),
+            Some(files.clone()),
+            false,
+            None,
+            None,
+            Some({
+                let slot = grid.slot.clone();
+                Rc::new(move || Ok(slot.get())) as Slot
+            }),
+        )
+        .into();
         grid.files = files;
         grid.title = ScreenText {
             root: grid.root,
@@ -2994,7 +3008,7 @@ fn test_a_party_slot_is_said_by_its_number() {
 #[test]
 fn test_a_slot_is_read_through_its_game_s_pane_shape() {
     assert_eq!(
-        BoxGrid::with(false, SUN_SHAPE, false).rest(80.0, 55.0),
+        BoxGrid::with(false, SUN_SHAPE, false, false).rest(80.0, 55.0),
         said(&[(&["Party 1"], true)])
     );
 }
@@ -3090,7 +3104,7 @@ fn test_coming_back_to_the_slot_a_group_last_said_says_it_again() {
 /// a panel: they went unsaid, filled or empty (or_battle_box).
 #[test]
 fn test_the_battle_boxs_slots_are_said_by_the_name_above_them_and_their_number() {
-    let mut r#box = BoxGrid::with(false, lyt::ORAS, true);
+    let mut r#box = BoxGrid::with(false, lyt::ORAS, true, false);
     let icon = r#box
         .names
         .iter()
@@ -3117,6 +3131,7 @@ fn test_the_battle_boxs_slots_are_said_by_the_name_above_them_and_their_number()
         25.0,
         &[r#box.title.clone()],
         None,
+        None,
     )
     .unwrap();
     assert!(found.is_some_and(|found| found.1.is_empty()));
@@ -3125,7 +3140,7 @@ fn test_the_battle_boxs_slots_are_said_by_the_name_above_them_and_their_number()
 /// Under BOX 1 the Battle Box's slots stay shown, holding no icon.
 #[test]
 fn test_the_battle_boxs_slots_are_none_while_a_box_is_drawn() {
-    let mut r#box = BoxGrid::with(false, lyt::ORAS, true);
+    let mut r#box = BoxGrid::with(false, lyt::ORAS, true, false);
     r#box.rest(80.0, 55.0);
     assert_eq!(
         r#box.rest(-100.0, 25.0),
@@ -3142,6 +3157,7 @@ fn test_the_battle_boxs_slots_are_none_while_a_box_is_drawn() {
             -80.0,
             40.0,
             &[r#box.title.clone()],
+            None,
             None,
         )
         .unwrap(),
@@ -3214,6 +3230,7 @@ fn test_a_slot_under_a_pokemon_carried_says_who_is_in_it() {
             y,
             std::slice::from_ref(&r#box.title),
             Some(&occupant),
+            None,
         )
         .unwrap()
         .expect("a slot");
@@ -3238,6 +3255,7 @@ fn test_a_slot_under_a_pokemon_carried_says_who_is_in_it() {
         25.0,
         std::slice::from_ref(&r#box.title),
         Some(&occupant),
+        None,
     )
     .unwrap()
     .expect("a slot");
@@ -3283,6 +3301,123 @@ fn test_a_pointer_on_its_way_to_a_slot_is_moving_with_its_groups() {
     assert_eq!(r#box.reader.last.moving.clone(), HashSet::new());
 }
 
+/// The pointer glides over several frames and was said once at rest, 0.13 s after the game's
+/// byte named the slot (or_organize_boxes, x_pc_boxes): the slot it names is said at once, and
+/// not again once the pointer is there.
+#[test]
+fn test_a_slot_the_game_names_is_said_while_the_pointer_glides_to_it() {
+    let mut r#box = BoxGrid::with(false, lyt::ORAS, false, true);
+    r#box.rest(80.0, 55.0);
+    r#box.slot.set(Some(31)); // Party 2
+    put(&r#box.memory, r#box.cursor + lyt::X, &[105.0]);
+    put(&r#box.memory, r#box.cursor + lyt::Y, &[45.0]);
+    for _ in 0..2 {
+        r#box.reader.sample(&*r#box.memory).unwrap();
+    }
+    put(&r#box.memory, r#box.cursor + lyt::X, &[110.0]);
+    put(&r#box.memory, r#box.cursor + lyt::Y, &[40.0]);
+    let mut heard: Vec<String> = Vec::new();
+    for _ in 0..2 {
+        // read the same on two polls, as the game moves its icons
+        r#box.reader.sample(&*r#box.memory).unwrap();
+        r#box.fake.layouts.refresh();
+        heard.extend(
+            r#box
+                .reader
+                .poll(&[r#box.title.clone()])
+                .unwrap()
+                .items
+                .iter()
+                .map(|item| item.pieces[0].text.clone()),
+        );
+    }
+    assert_eq!(heard, vec!["Party 2, empty".to_string()]);
+    r#box.slot.set(Some(4));
+    assert_eq!(
+        r#box.rest(-10.0, 55.0),
+        said(&[(&["BOX 1, row 1, column 5, empty"], false)])
+    );
+    assert_eq!(r#box.rest(-10.0, 55.0), said(&[]));
+    // Past the party, the name bar's, the pointer is said once it rests, as before; leaving,
+    // still on the slot the game named, it is not said again (or_pc_organize).
+    r#box.slot.set(Some(36));
+    for _ in 0..3 {
+        r#box.reader.sample(&*r#box.memory).unwrap();
+    }
+    assert_eq!(r#box.rest(-10.0, 55.0), said(&[]));
+    put(&r#box.memory, r#box.cursor + lyt::X, &[80.0]);
+    put(&r#box.memory, r#box.cursor + lyt::Y, &[55.0]);
+    r#box.reader.sample(&*r#box.memory).unwrap();
+    r#box.fake.layouts.refresh();
+    assert_eq!(
+        r#box.reader.poll(&[r#box.title.clone()]).unwrap().items,
+        Vec::<CursorItem>::new()
+    );
+    for _ in 0..2 {
+        r#box.reader.sample(&*r#box.memory).unwrap();
+    }
+    assert_eq!(r#box.rest(80.0, 55.0), said(&[(&["Party 1"], false)]));
+}
+
+/// Carried, its icon rides 10 units above the pointer all the way (or_organize_boxes): the slot
+/// gone to says who is in it, without the carried one's summary.
+#[test]
+fn test_the_pokemon_carried_rides_with_the_pointer_to_the_slot_the_game_names() {
+    let mut r#box = BoxGrid::with(false, lyt::ORAS, false, true);
+    let carried = r#box
+        .names
+        .iter()
+        .find(|(name, _pane, _kind, _material)| name == "ih")
+        .unwrap()
+        .1;
+    r#box.rest(-130.0, 55.0);
+    r#box.slot.set(Some(7)); // row 2, column 2, where i1 is
+    let mut heard: Vec<(String, bool)> = Vec::new();
+    for (x, y) in [(-122.5, 47.5), (-115.0, 40.0)] {
+        put(&r#box.memory, r#box.cursor + lyt::X, &[x]);
+        put(&r#box.memory, r#box.cursor + lyt::Y, &[y]);
+        put(&r#box.memory, carried + lyt::X, &[x]);
+        put(&r#box.memory, carried + lyt::Y, &[y + slots::CARRIED]);
+        r#box.reader.sample(&*r#box.memory).unwrap();
+        r#box.fake.layouts.refresh();
+        heard.extend(
+            r#box
+                .reader
+                .poll(&[r#box.title.clone()])
+                .unwrap()
+                .items
+                .iter()
+                .map(|item| (item.pieces[0].text.clone(), item.quiet)),
+        );
+    }
+    assert_eq!(heard, lines(&[("BOX 1, row 2, column 2", true)]));
+}
+
+#[test]
+fn test_the_game_counts_the_box_row_by_row_then_the_party() {
+    let r#box = BoxGrid::with(false, lyt::ORAS, false, true);
+    let layouts = &r#box.fake.layouts;
+    let named: IndexMap<i64, &str> = r#box
+        .names
+        .iter()
+        .map(|(name, pane, _kind, _material)| (*pane, name.as_str()))
+        .collect();
+    let nth = |index: i64| -> &str {
+        named[&slots::nth(layouts, r#box.root, index).unwrap().unwrap_or(0)]
+    };
+    assert_eq!(nth(0), "s00");
+    assert_eq!(nth(7), "s11");
+    assert_eq!(nth(29), "s45");
+    assert_eq!(nth(30), "p0");
+    assert_eq!(nth(35), "p5");
+    assert_eq!(slots::nth(layouts, r#box.root, 36).unwrap(), None);
+    // A box drawn small is not the game's.
+    assert_eq!(
+        slots::nth(&BoxGrid::new().fake.layouts, BoxGrid::new().root, 0).unwrap(),
+        None
+    );
+}
+
 /// A mark not set is drawn half-transparent, and setting ▲ drew it solid
 /// (or/movie11_pokedex_and_box).
 #[test]
@@ -3300,7 +3435,7 @@ fn test_a_mark_is_said_by_its_sign_and_whether_it_is_set() {
 /// layout many screens share, where the Box's own leaves an empty pane (spike 143, movie12).
 #[test]
 fn test_the_bottom_bars_button_under_the_pointer_is_said_by_its_picture() {
-    let mut r#box = BoxGrid::with(true, lyt::ORAS, false);
+    let mut r#box = BoxGrid::with(true, lyt::ORAS, false, false);
     r#box.rest(80.0, 55.0);
     assert_eq!(
         r#box.rest(-110.0, -105.0),
@@ -3314,7 +3449,7 @@ fn test_the_bottom_bars_button_under_the_pointer_is_said_by_its_picture() {
 /// 143).
 #[test]
 fn test_with_the_boxs_words_hidden_its_pointer_says_only_another_layouts_button() {
-    let mut r#box = BoxGrid::with(true, lyt::ORAS, false);
+    let mut r#box = BoxGrid::with(true, lyt::ORAS, false, false);
     r#box.rest(80.0, 55.0);
     assert_eq!(r#box.rest_with(-100.0, 55.0, false), said(&[]));
     assert_eq!(

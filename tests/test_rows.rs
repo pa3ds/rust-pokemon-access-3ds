@@ -6,7 +6,7 @@ use std::rc::Rc;
 use super::fake_memory::{Counting, FakeClasses, FakeMemory};
 use crate::core::memory::Memory;
 use crate::games::gen6::apps::{BATTLE, FIELD};
-use crate::games::gen6::screens::rows;
+use crate::games::gen6::screens::{boxes, rows};
 
 const PROCESS: i64 = 0x08100000;
 const MENU: i64 = 0x08200000;
@@ -133,7 +133,7 @@ fn test_the_name_entrys_key_is_read_through_its_main_system() {
 fn test_the_pcs_row_is_read_from_the_menu_up_now() {
     let memory = FakeMemory::new();
     let (first, second, holder) = (0x08600000, 0x08700000, 0x08800000);
-    let [process, work, other] = rows::PC_MENUS;
+    let [process, work, other] = rows::controls(rows::PC_MENU).unwrap();
     memory.u32(PROCESS + process, &[WORK]);
     memory.u32(WORK + work, &[OTHER]);
     memory.u32(OTHER + other, &[holder]);
@@ -148,16 +148,54 @@ fn test_the_pcs_row_is_read_from_the_menu_up_now() {
         Some(rows::PARTY_SLOT),
     );
     assert!(!pc.moved().unwrap()); // no menu up yet
-    memory.u32(holder + rows::PC_MENU_SHOWN, &[first]);
+    memory.u32(holder + rows::IN_USE, &[first]);
     assert!(!pc.moved().unwrap()); // "Which PC should be accessed?" just up
-    memory.u32(holder + rows::PC_MENU_SHOWN, &[second]);
+    memory.u32(holder + rows::IN_USE, &[second]);
     assert!(!pc.moved().unwrap()); // Someone's PC opened, on its first row
-    memory.write(second + rows::PC_ROW, &[1]);
+    memory.write(second + rows::SLOT, &[1]);
     assert!(pc.moved().unwrap());
     assert!(!pc.moved().unwrap());
-    memory.write(first + rows::PC_ROW, &[2]);
-    memory.u32(holder + rows::PC_MENU_SHOWN, &[first]);
+    memory.write(first + rows::SLOT, &[2]);
+    memory.u32(holder + rows::IN_USE, &[first]);
     assert!(!pc.moved().unwrap()); // back on the first menu, where its cursor was
+}
+
+/// ADR-0013: the Box's slot says when a move is made, the grid's and its party's alike; a menu
+/// taking the input is no move (spike B on or_organize_boxes).
+#[test]
+fn test_the_boxs_slot_is_read_from_the_cursor_in_use() {
+    let memory = FakeMemory::new();
+    let (grid, menu, control) = (0x08600000, 0x08700000, 0x08800000);
+    let [process, work, other] = rows::controls(boxes::APP).unwrap();
+    memory.u32(PROCESS + process, &[WORK]);
+    memory.u32(WORK + work, &[OTHER]);
+    memory.u32(OTHER + other, &[control]);
+    memory.u32(control + rows::IN_USE, &[grid]);
+    memory.write(grid + rows::SLOTS, &[rows::GRID_SLOTS as u8]);
+    memory.write(menu + rows::SLOTS, &[6]);
+    let mut r#box = rows::Rows::new(
+        memory.clone(),
+        Rc::new(|| Some(boxes::APP.to_string())),
+        Rc::new(|| Some(PROCESS)),
+        Rc::new(|| Ok(Some(MENU))),
+        Rc::new(|| true),
+        Some(rows::MENU_ROW),
+        Some(rows::OPTIONS_ROW),
+        Some(rows::PARTY_SLOT),
+    );
+    assert!(!r#box.moved().unwrap());
+    assert_eq!(r#box.box_slot().unwrap(), None); // not moved yet
+    memory.write(grid + rows::SLOT, &[30]); // Party 1
+    assert!(r#box.moved().unwrap());
+    assert_eq!(r#box.box_slot().unwrap(), Some(30));
+    memory.u32(control + rows::IN_USE, &[menu]);
+    assert!(!r#box.moved().unwrap()); // its menu opened over the Pokémon chosen
+    memory.write(menu + rows::SLOT, &[1]);
+    assert!(r#box.moved().unwrap());
+    assert_eq!(r#box.box_slot().unwrap(), None); // a menu's row is no slot
+    memory.u32(control + rows::IN_USE, &[grid]);
+    assert!(!r#box.moved().unwrap());
+    assert_eq!(r#box.box_slot().unwrap(), None); // back from the menu, not moved since
 }
 
 #[test]

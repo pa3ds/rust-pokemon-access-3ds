@@ -58,8 +58,12 @@ pub const SET_ALPHA: i64 = 192;
 pub const ICON: &str = "poke_icon";
 /// Units within which a pointer rests on a touch area, and an icon sits on a slot: both exact.
 pub const SAME_SPOT: f64 = 1.0;
-/// How far above the slot the pointer rests on the icon of the Pokémon carried rides (spike 129).
+/// How far above the pointer the icon of the Pokémon carried rides, at rest on a slot (spike 129)
+/// and gliding between two (or_organize_boxes).
 pub const CARRIED: f64 = 10.0;
+pub const BOX_SLOTS: i64 = 30;
+/// The slots of a box and of the party, as the Box's grid cursor counts them (`nth`).
+pub const PARTY_SLOTS: i64 = 6;
 
 /// `list.index(item)`, raising `ValueError` where the item is not in the list.
 #[track_caller]
@@ -74,6 +78,11 @@ fn index_of(items: &[i64], item: i64) -> Result<usize> {
 /// alone, the summary left unsaid: an empty slot, or any while a Pokémon is carried, said with
 /// who is in it by `occupant`. None where it rests on no slot, as on a lone button's touch area;
 /// no words for a slot behind the Battle Box's, which nothing reaches.
+///
+/// Where the game says which slot the cursor is going to, `target`, its touch area (`nth`), that
+/// slot, the cursor at rest on it or still gliding there at (x, y): the Pokémon carried rides
+/// above the cursor all the way (or_organize_boxes).
+#[allow(clippy::too_many_arguments)]
 pub fn slot(
     layouts: &Layouts,
     file: Option<&LayoutFile>,
@@ -82,16 +91,19 @@ pub fn slot(
     y: f64,
     on_screen: &[ScreenText],
     occupant: Option<&Occupant>,
+    target: Option<i64>,
 ) -> Result<Option<(i64, String, bool)>> {
     let tree = layouts.tree(root);
-    let mut touch: Option<i64> = None;
-    for (pane, kind) in &tree {
-        if kind == lyt::BOUNDING_CLASS
-            && on(place(layouts, *pane)?, (x, y))
-            && shown(layouts, *pane)?
-        {
-            touch = Some(*pane);
-            break;
+    let mut touch: Option<i64> = target;
+    if touch.is_none() {
+        for (pane, kind) in &tree {
+            if kind == lyt::BOUNDING_CLASS
+                && on(place(layouts, *pane)?, (x, y))
+                && shown(layouts, *pane)?
+            {
+                touch = Some(*pane);
+                break;
+            }
         }
     }
     let Some(touch) = touch else {
@@ -201,7 +213,7 @@ pub fn slot(
     if !holds_icon(&icons, place) {
         return Ok(Some((touch, own(EMPTY_SLOT, &[("slot", &r#where)]), true)));
     }
-    if !holds_icon(&icons, (place.0, place.1 + CARRIED)) {
+    if !holds_icon(&icons, (x, y + CARRIED)) {
         return Ok(Some((touch, r#where, false)));
     }
     // The summary is the carried one's, so the Pokémon in the slot is named from the save.
@@ -313,6 +325,75 @@ fn in_grid(
         ),
         None => (own(GRID, &[("row", &row), ("column", &column)]), held),
     }))
+}
+
+/// The touch area of a slot as the game counts its Box's grid cursor's: 0 to 29 the box's thirty
+/// under the layout's root, row by row, and 30 to 35 the party's six, under a panel, in reading
+/// order (spike B on or_organize_boxes and x_pc_boxes). None for any after them, the box's name
+/// bar's, or where no such slots are shown.
+pub fn nth(layouts: &Layouts, root: i64, index: i64) -> Result<Option<i64>> {
+    let mut groups: IndexMap<(i64, (i64, i64)), Vec<i64>> = IndexMap::new();
+    for (pane, kind) in &layouts.tree(root) {
+        if kind == lyt::BOUNDING_CLASS && shown(layouts, *pane)? {
+            let (width, height) = size(layouts, *pane)?;
+            let parent = u32(&layouts.pane(*pane)?, lyt::PARENT)?;
+            groups
+                .entry((parent, (py::round(width)?, py::round(height)?)))
+                .or_default()
+                .push(*pane);
+        }
+    }
+    let party = index - BOX_SLOTS;
+    for ((parent, _), group) in &groups {
+        let mut places: IndexMap<i64, (f64, f64)> = IndexMap::new();
+        for &pane in group {
+            places.insert(pane, place(layouts, pane)?);
+        }
+        let grids = grids(&places)?;
+        let found: Option<Rc<PySet>> = if index < BOX_SLOTS && *parent == root {
+            // `grids.values()` in the order Python's dict holds them: each grid first met at
+            // its first member in `places`' order.
+            places
+                .keys()
+                .filter_map(|pane| grids[pane].clone())
+                .find(|grid| grid.len() as i64 == BOX_SLOTS)
+        } else if 0 <= party && party < PARTY_SLOTS && *parent != root {
+            // Two columns, the second lower: no grid. A Pokémon's six marks fill one, and a
+            // menu's buttons stand on one place, laid out as each opens.
+            let mut spots: HashSet<(i64, i64)> = HashSet::new();
+            for &(x, y) in places.values() {
+                spots.insert((py::round(x)?, py::round(y)?));
+            }
+            let spread = spots.len() as i64 == PARTY_SLOTS;
+            let whole = group.len() as i64 == PARTY_SLOTS
+                && spread
+                && !grids
+                    .values()
+                    .any(|grid| grid.as_ref().is_some_and(|grid| !grid.is_empty()));
+            whole.then(|| Rc::new(PySet::of(group.iter().copied())))
+        } else {
+            None
+        };
+        if let Some(found) = found.filter(|found| !found.is_empty()) {
+            let mut keyed: Vec<(i64, (i64, i64))> = Vec::new();
+            for pane in found.iter() {
+                keyed.push((
+                    pane,
+                    (-py::round(places[&pane].1)?, py::round(places[&pane].0)?),
+                ));
+            }
+            // The key is `(-y, x)`: a tuple is smaller by its first element that differs.
+            let order = sorted_by_lt(keyed, |a, b| a.1 < b.1);
+            let at = if index < BOX_SLOTS { index } else { party };
+            return Ok(Some(
+                order
+                    .get(at as usize)
+                    .ok_or_else(|| Error::index("list index out of range"))?
+                    .0,
+            ));
+        }
+    }
+    Ok(None)
 }
 
 /// Each touch area -> the touch areas sharing rows and columns with it, where they fill a grid

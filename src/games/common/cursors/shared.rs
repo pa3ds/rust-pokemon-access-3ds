@@ -123,6 +123,9 @@ pub struct Panes {
     pub pictures: Option<Pictures>,
     /// Who is in a PC Box's slot, said while a Pokémon is carried (`slots`), or None.
     pub occupant: Option<Occupant>,
+    /// The slot the PC Box's pointer is on or gliding to, as the game counts its grid's
+    /// (`slots.nth`), or None where the game does not say or is not read.
+    pub slot: Option<Slot>,
     /// Whether Sun's cursor pane and its boxes' pointers are read: ORAS and X have none.
     pub cursor_panes: bool,
     /// (root, group) -> the words of the group's first picture's texture, once known.
@@ -131,6 +134,9 @@ pub struct Panes {
     cursor_textures: RefCell<IndexMap<(i64, i64), bool>>,
 }
 
+/// `Callable[[], int | None]`: the slot the PC Box's pointer is going to (`Panes.slot`).
+pub type Slot = Rc<dyn Fn() -> Result<Option<i64>>>;
+
 impl Panes {
     pub fn new(
         layouts: Rc<Layouts>,
@@ -138,12 +144,14 @@ impl Panes {
         pictures: Option<Pictures>,
         cursor_panes: bool,
         occupant: Option<Occupant>,
+        slot: Option<Slot>,
     ) -> Self {
         Panes {
             layouts,
             files,
             pictures,
             occupant,
+            slot,
             cursor_panes,
             picture_words: RefCell::new(IndexMap::new()),
             cursor_textures: RefCell::new(IndexMap::new()),

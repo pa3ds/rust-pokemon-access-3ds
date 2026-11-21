@@ -48,6 +48,7 @@ use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
 use crate::games::gen6::anchors::follow;
 use crate::games::gen6::apps::{FIELD, LOADED_CODE};
+use crate::games::gen6::screens::boxes;
 use crate::py::{self, Error, Result};
 
 pub const OPTIONS: &str = "N3app6config7ProcessE";
@@ -74,16 +75,32 @@ pub const KEYS: i64 = 0x3E0;
 /// The keyboard's cursor -> the key under it, in Omega Ruby and X (spike B).
 pub const KEY: i64 = 0x14;
 pub const PC_MENU: &str = "N3app7pc_menu4ProcE";
-/// The PC's process -> what holds the menu up now, through objects of no class (spike B).
-pub const PC_MENUS: [i64; 3] = [0x24, 0x28, 0x4];
-/// What holds the PC's menus -> the menu up now, "Which PC should be accessed?"'s or Someone's
-/// PC's, each built as it first opens.
-pub const PC_MENU_SHOWN: i64 = 0x1C;
-/// The PC's menu up now -> the row under its cursor, in Omega Ruby and X (spike B).
-pub const PC_ROW: i64 = 0x14;
+/// The PC's and the Box's processes -> their control blocks, through objects of no class (spike
+/// B). A dict in the Python: `controls` looks an app up in it.
+pub const CONTROLS: [(&str, [i64; 3]); 2] =
+    [(PC_MENU, [0x24, 0x28, 0x4]), (boxes::APP, [0x24, 0x50, 0x4])];
+/// A control block -> the cursor that has the input: the PC's menu up now, "Which PC should be
+/// accessed?"'s or Someone's PC's, each built as it first opens; the Box's grid, with its party and
+/// its name bar, the Battle Box's, or a menu's.
+pub const IN_USE: i64 = 0x1C;
+/// The cursor in use -> the slot or row under it, in Omega Ruby and X (spike B).
+pub const SLOT: i64 = 0x14;
+/// The cursor in use -> how many slots it walks (spike B).
+pub const SLOTS: i64 = 0x10;
+/// The slots the Box's grid cursor walks: the box's 30, the party's 6, its name bar's and the
+/// bottom bar's (spike B on or_organize_boxes).
+pub const GRID_SLOTS: i64 = 48;
 /// Ticks a row's move is chased, the screen polled at each until the cursor's word is said: a
 /// screen poll's worth.
 pub const CHASE: i64 = 12;
+
+/// `CONTROLS[app]`: the hops to an app's control block, where it has one.
+pub fn controls(app: &str) -> Option<[i64; 3]> {
+    CONTROLS
+        .iter()
+        .find(|(each, _)| *each == app)
+        .map(|&(_, hops)| hops)
+}
 
 /// The row under the X menu's, the options screen's, the party's or the PC's cursor, or the key
 /// under the name entry's, read every tick.
@@ -98,6 +115,9 @@ pub struct Rows {
     party_slot: Option<i64>,
     /// Where the row was read last tick, and what it read.
     last: Option<(i64, i64)>,
+    /// Where the row was read and what it read as it last moved, while it is still that menu's:
+    /// none once another menu has taken the input.
+    moved_to: Option<(i64, i64)>,
     /// The party's, the name entry's or the PC's process and the object holding its byte or its
     /// menus, once found: its class, where it has one, is checked once a screen, and only what it
     /// holds read each tick after.
@@ -130,6 +150,7 @@ impl Rows {
             options_row,
             party_slot,
             last: None,
+            moved_to: None,
             work: None,
             names: None,
         }
@@ -150,10 +171,38 @@ impl Rows {
             )),
         };
         let last = std::mem::replace(&mut self.last, now);
-        Ok(match (now, last) {
-            (Some(now), Some(last)) => now.0 == last.0 && now.1 != last.1,
-            _ => false,
-        })
+        let (Some(now), Some(last)) = (now, last) else {
+            self.moved_to = None;
+            return Ok(false);
+        };
+        if now.0 != last.0 {
+            self.moved_to = None;
+            return Ok(false);
+        }
+        if now.1 == last.1 {
+            return Ok(false);
+        }
+        self.moved_to = Some(now);
+        Ok(true)
+    }
+
+    /// The slot the Box's pointer has been moved to, on it or gliding there, while its grid cursor
+    /// has the input, as the game counts them (`slots.nth`). None until it moves: back from a
+    /// menu, a Pokémon just picked up was said in its slot as its icon was yet to rise, then said
+    /// empty (or_organize_boxes). None anywhere else, the Battle Box and the Box's menus too.
+    pub fn box_slot(&self) -> Result<Option<i64>> {
+        if (self.running)().as_deref() != Some(boxes::APP) {
+            return Ok(None);
+        }
+        let Some((at, slot)) = self.moved_to else {
+            return Ok(None);
+        };
+        let slots = *self
+            .memory
+            .read(at - SLOT + SLOTS, 1)?
+            .first()
+            .ok_or_else(|| Error::index("index out of range"))? as i64;
+        Ok(if slots == GRID_SLOTS { Some(slot) } else { None })
     }
 
     /// Where the row of the menu up now is kept, or None.
@@ -184,14 +233,15 @@ impl Rows {
                 .found(&[KEYBOARD_SYSTEM, KEYS], Some(MAIN_SYSTEM))?
                 .map(|keys| keys + KEY));
         }
-        if running.as_deref() == Some(PC_MENU) {
-            let menus = self.found(&PC_MENUS, None)?;
-            // The menu up changes as the other opens, so this hop is followed every tick.
-            let shown = match menus {
+        if let Some(hops) = running.as_deref().and_then(controls) {
+            let control = self.found(&hops, None)?;
+            // The cursor in use changes as another takes the input, so this hop is followed
+            // every tick.
+            let cursor = match control {
                 None => None,
-                Some(menus) => follow(&*self.memory, menus, &[PC_MENU_SHOWN])?,
+                Some(control) => follow(&*self.memory, control, &[IN_USE])?,
             };
-            return Ok(shown.map(|shown| shown + PC_ROW));
+            return Ok(cursor.map(|cursor| cursor + SLOT));
         }
         Ok(None)
     }

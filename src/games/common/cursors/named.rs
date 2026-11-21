@@ -278,13 +278,27 @@ impl ListCursors {
                 let panel = placement.map_or(0, |placement| placement.panel);
                 inside = distinct(in_rows(beside(on_screen, &rect, root, panel)));
             }
-            let (mut at_slot, mut alone, mut reporter) = (false, false, holder);
-            if inside.is_empty()
+            let (mut at_slot, mut alone, mut reporter, mut heading) = (false, false, holder, false);
+            // Where the game says which slot the PC Box's pointer is going to (`Panes.slot`), a
+            // slot of the box or the party is said as soon as it says it, the pointer still over
+            // the name bar's words or gliding there.
+            let index = match &self.panes.slot {
+                Some(slot) if walks => slot()?,
+                _ => None,
+            };
+            let target = match index {
+                Some(index) if shown_roots.contains(&root) => {
+                    slots::nth(&self.layouts, root, index)?
+                }
+                _ => None,
+            };
+            if (inside.is_empty() || target.is_some())
                 && walks
                 && let Some(files) = self.panes.files.clone()
             {
                 // The PC Box's pointer over its grid of Pokémon and its party, where a slot holds
-                // an icon and no words: said by where it is (spike 129).
+                // an icon and no words: said by where it is (spike 129), or by the slot the game
+                // names.
                 let file = files.matching(&self.layouts.pane_names(root));
                 let (x, y) = ((rect.left + rect.right) / 2.0, (rect.low + rect.high) / 2.0);
                 // With its layout's words all hidden, as under the Box's box list, a cursor looks
@@ -301,11 +315,16 @@ impl ListCursors {
                         y,
                         on_screen,
                         self.panes.occupant.as_ref(),
+                        target,
                     )?
                 };
                 if found.as_ref().is_none_or(|found| found.1.is_empty()) {
                     found = slots::button(&self.layouts, &files, root, x, y, rect.top)?;
                 }
+                heading = target.is_some()
+                    && found
+                        .as_ref()
+                        .is_some_and(|found| Some(found.0) == target);
                 if let Some((touch, said, was_alone)) = found {
                     alone = was_alone;
                     inside = vec![ScreenText {
@@ -371,22 +390,39 @@ impl ListCursors {
                         .collect(),
                 ),
             );
-            let at = place_of(&rect)?;
-            if rows.len() > 1 || at_slot {
+            // A slot is its touch area, wherever the cursor is on its way to it: taken by the
+            // cursor's place, the slot it was leaving was said again as the game named the name
+            // bar (or_pc_organize).
+            let at = match inside.first() {
+                Some(first) if at_slot => Where::Pane(first.r#box),
+                _ => place_of(&rect)?,
+            };
+            let held = rows.len() > 1 || at_slot;
+            if held {
                 self.sampled.add(holder);
-                // The PC Box's cursor glides from row to row and slot to slot over several frames,
-                // through each one's own place, and a poll on the way said the rows it was leaving
-                // and passing (or/movie6_pc, 2026-09-27): what it is over is said once it is at
-                // rest, as the ticks between polls say (`sample`).
-                if !self.at_rest(holder, centre(&rect)) {
-                    self.moving.insert(holder);
-                    continue;
-                }
-                let held = self.said.said.borrow().get(&reporter).map(|said| said.1);
-                if held == Some(at) {
+            }
+            // The PC Box's cursor glides from row to row and slot to slot over several frames,
+            // through each one's own place, and a poll on the way said the rows it was leaving
+            // and passing (or/movie6_pc, 2026-09-27): what it is over is said once it is at rest,
+            // as the ticks between polls say (`sample`), but for a slot the game named. Where the
+            // game names another place, its name bar or the bottom bar, whatever the pointer
+            // passes waits too: leaving the name bar it said the box's name again, and the
+            // bottom bar's "change box" went unsaid behind it (or_pc_organize).
+            if !heading
+                && (held || index.is_some())
+                && !self.at_rest(holder, centre(&rect))
+            {
+                self.moving.insert(holder);
+                continue;
+            }
+            if held {
+                let said = self.said.said.borrow().get(&reporter).map(|said| said.1);
+                if heading || said == Some(at) {
                     // Words rewritten under a cursor that has not moved: a Secret Base's list
                     // writes the next list's words into its rows a poll before it hides the last
-                    // one's, and the category and the item were said together (spike 154).
+                    // one's, and the category and the item were said together (spike 154). And a
+                    // slot the game names, read as it moves the icons: carrying Lucario, Party 3
+                    // was said once without Greninja, who was in it (x_pc_boxes).
                     self.said.report_steady(reporter, inside, items, at, alone);
                 } else {
                     self.said.report(reporter, inside, items, at, alone);

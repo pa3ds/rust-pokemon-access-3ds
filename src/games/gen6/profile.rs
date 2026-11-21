@@ -41,7 +41,7 @@ use crate::core::touch::TouchScreen;
 use crate::core::words::{current, own};
 use crate::games::common::announce::{Announcements, Speaker};
 use crate::games::common::cursors::reader::CursorReader;
-use crate::games::common::cursors::shared::{CursorItem, CursorPoll};
+use crate::games::common::cursors::shared::{CursorItem, CursorPoll, Slot};
 use crate::games::common::dialogue::{DialogueReader, Shown};
 use crate::games::common::field::ground::Ground;
 use crate::games::common::field::guide::{FieldSource, Place};
@@ -338,7 +338,7 @@ pub struct Gen6Profile {
     pub counts: RefCell<counts::Counts>,
     battle_bag: RefCell<battle_bag::BattleBag>,
     shiny: RefCell<shiny::Shiny>,
-    rows: RefCell<rows::Rows>,
+    rows: Rc<RefCell<rows::Rows>>,
     /// Ticks left to poll the screen at, until a row's move is said (`rows.CHASE`).
     chasing: Cell<i64>,
     /// Whether the last screen poll said a cursor's move or opening.
@@ -707,7 +707,7 @@ impl Gen6Profile {
         // The X menu's, the options', the party's and the PC's rows and the name entry's key,
         // read every tick while a cursor is on screen: a move polls the screen at once.
         let cursor_shown = Rc::new(Cell::new(false));
-        let rows = RefCell::new(rows::Rows::new(
+        let rows = Rc::new(RefCell::new(rows::Rows::new(
             memory.clone(),
             {
                 let apps = apps.clone();
@@ -728,7 +728,7 @@ impl Gen6Profile {
             game.menu_row,
             game.options_row,
             game.party_slot,
-        ));
+        )));
         // A Poké Mart's list jumped a page is said where it lands, not where it passes.
         let mart = RefCell::new(mart::Jumps::new(
             memory.clone(),
@@ -930,6 +930,12 @@ impl Gen6Profile {
                     Rc::new(move |kind: &str, title: Option<&str>, index: i64| {
                         occupants.borrow().call(kind, title, index)
                     }) as Occupant
+                }),
+                // The Box's pointer is said on the slot the game sends it to, not once it rests
+                // there.
+                Some({
+                    let rows = rows.clone();
+                    Rc::new(move || rows.borrow().box_slot()) as Slot
                 }),
             )
         };
