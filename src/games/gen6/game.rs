@@ -354,6 +354,10 @@ pub struct Game {
     /// Where the PC Box's process keeps its mode, the pointer and the byte behind it
     /// (`boxes.Mode`, spike 288): the same in ORAS and X. None where it has not been measured.
     pub box_mode: Option<(i64, i64)>,
+    /// Where the PC Box's process keeps the box its grid shows, as `box_mode` (`boxes.shown`,
+    /// spike B): ORAS's work block +0x24. None where it has not been measured, X's: a box is then
+    /// the one named as the title is.
+    pub box_shown: Option<(i64, i64)>,
     /// Where the Bag keeps the item under its cursor, its cursor source (`screens.bag`, spike A):
     /// ORAS's. None where it has not been measured, X's so far.
     pub bag: Option<bag::Shape>,
@@ -436,6 +440,7 @@ impl Game {
             camera: camera::ORAS,
             registered: None,
             box_mode: None,
+            box_shown: None,
             bag: None,
             whole: HashSet::new(),
             items_at: IndexMap::new(),

@@ -125,3 +125,58 @@ fn test_a_slot_is_named_from_the_save_of_its_group() {
     assert_eq!(named(slots::PARTY, None, 1), None);
     assert_eq!(named(slots::GRID, None, 4), None);
 }
+
+#[test]
+fn test_the_boxs_own_byte_says_which_of_two_boxes_of_one_name_is_shown() {
+    let memory = FakeMemory::new();
+    let classes = FakeClasses::new(memory.clone());
+    memory.u32(BOXES, &[classes.add(boxes::BOXES)]);
+    memory.u32(NAMES, &[classes.add(boxes::NAMES)]);
+    for i in 0..3 {
+        let raw: Vec<u8> = "BOX".encode_utf16().flat_map(u16::to_le_bytes).collect();
+        memory.write(NAMES + partyicons::RECORDS + boxes::NAME * i, &raw);
+    }
+    memory.write(
+        BOXES + partyicons::RECORDS + pokemon::RECORD_SIZE * (2 * boxes::SLOTS + 4),
+        &second_wurmple(),
+    );
+    let (process, kept) = (0x08C652BC, 0x0821C560);
+    let running: Rc<Cell<Option<i64>>> = Rc::new(Cell::new(Some(process)));
+    memory.u32(process + 0x24, &[kept]);
+    let shown = boxes::shown(memory.clone(), Some((0x24, 0x24)), {
+        let running = running.clone();
+        Rc::new(move || running.get())
+    });
+    let mut occupants = boxes::Occupants::with(
+        memory.clone(),
+        Rc::new(ClassNames::new(memory.clone(), CODE)),
+        Rc::new(|| None),
+        Rc::new(|| None),
+        shown.clone(),
+    );
+    occupants.track(&IndexMap::from([
+        (BOXES, boxes::BOXES.to_string()),
+        (NAMES, boxes::NAMES.to_string()),
+    ]));
+    memory.write(kept + 0x24, &[2]);
+    assert_eq!(
+        occupants
+            .call(slots::TITLED_GRID, Some("BOX"), 4)
+            .unwrap()
+            .as_deref(),
+        Some("Wurmple")
+    );
+    memory.write(kept + 0x24, &[1]);
+    assert_eq!(
+        occupants.call(slots::TITLED_GRID, Some("BOX"), 4).unwrap(),
+        None
+    );
+    // The Battle Box reads 0xFF; out of the Box, the title alone names none of three.
+    memory.write(kept + 0x24, &[0xFF]);
+    assert_eq!(shown().unwrap(), None);
+    running.set(None);
+    assert_eq!(
+        occupants.call(slots::TITLED_GRID, Some("BOX"), 4).unwrap(),
+        None
+    );
+}

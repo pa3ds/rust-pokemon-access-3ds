@@ -93,8 +93,7 @@ use crate::games::gen6::screens::mapcursor::MapCursor;
 use crate::games::gen6::screens::partners::Partners;
 use crate::games::gen6::screens::partyicons::PartyIcons;
 use crate::games::gen6::screens::{
-    bag, bag_sort, boxes, buttons, distribution, partners, partyicons, registered, summary,
-    townmap,
+    bag, bag_sort, boxes, buttons, distribution, partners, partyicons, registered, summary, townmap,
 };
 use crate::games::gen6::subscreen::amie;
 use crate::games::gen6::subscreen::head_it::Cue;
@@ -157,9 +156,9 @@ pub const HEAP_CLASSES: [&str; 32] = [
 /// Without a message window class there is nothing to read: not this game, or not this version.
 pub const REQUIRED: [&str; 2] = msgwin::CLASSES;
 /// Seconds a cursor holds still before the heap's whole sweep, held while it moves, runs. A sweep
-/// reads 13 MB in one tick of 1.0 to 1.3 s with nothing else read, and the Bag's own, 1.5 s after it
-/// starts, came as the player began moving down its list: the first item of Medicine went without
-/// its details (findings/cursors.md, spike A).
+/// reads 13 MB in one tick of 1.0 to 1.3 s with nothing else read, and the Bag's own, 1.5 s after
+/// it starts, came as the player began moving down its list: the first item of Medicine went
+/// without its details (findings/cursors.md, spike A).
 pub const STILL: f64 = 1.0;
 /// The longest seconds a moving cursor holds the whole sweep off, so what only a sweep finds is
 /// never more than that late.
@@ -692,19 +691,22 @@ impl Gen6Profile {
             }
         }
 
-        let box_mode = game.box_mode.map(|r#where| {
+        let box_process: Rc<dyn Fn() -> Option<i64>> = {
             let apps = apps.clone();
+            Rc::new(move || {
+                let apps = apps.borrow();
+                if apps.running.as_deref() == Some(boxes::APP) {
+                    apps.process
+                } else {
+                    None
+                }
+            })
+        };
+        let box_mode = game.box_mode.map(|r#where| {
             RefCell::new(boxes::Mode::new(
                 memory.clone(),
                 r#where,
-                Rc::new(move || {
-                    let apps = apps.borrow();
-                    if apps.running.as_deref() == Some(boxes::APP) {
-                        apps.process
-                    } else {
-                        None
-                    }
-                }),
+                box_process.clone(),
             ))
         });
         let registered = game.registered.map(|slots| {
@@ -739,7 +741,7 @@ impl Gen6Profile {
         // Carrying a Pokémon in the PC Box, the slot it is over says who is in it, from the save.
         // Made before the block the cursors are made in, where Python makes it inside, just before
         // them; making it reads nothing.
-        let occupants = Rc::new(RefCell::new(boxes::Occupants::new(
+        let occupants = Rc::new(RefCell::new(boxes::Occupants::with(
             memory.clone(),
             names.clone(),
             {
@@ -750,6 +752,7 @@ impl Gen6Profile {
                 let party_icons = party_icons.clone();
                 Rc::new(move || party_icons.borrow().battle_box())
             },
+            boxes::shown(memory.clone(), game.box_shown, box_process.clone()),
         )));
         // Omega Ruby's boy and girl are portraits the game never names, said in pa3ds's words
         // (`pictures.named`).
@@ -1816,7 +1819,9 @@ impl Gen6Profile {
                 None => (IndexMap::new(), None),
                 Some(bag) => bag.borrow_mut().poll(&cursors)?,
             };
-            Ok((screen, sides, party, listed, cursors, played, chosen, pocket))
+            Ok((
+                screen, sides, party, listed, cursors, played, chosen, pocket,
+            ))
         })?;
         let (screen, sides, party, listed, cursors, played, chosen, pocket) = polled;
         self.moving

@@ -1075,6 +1075,7 @@ pub fn game() -> &'static Game {
         whole: HashSet::from(SAFARI_ZONE),
         anchors: anchors(),
         box_mode: Some((0x24, 0x21)),
+        box_shown: Some((0x24, 0x24)),
         bag: Some(bag::ORAS),
         registered: Some(0x0E),
         version_flags: Some(VERSION_FLAGS),

@@ -14,7 +14,10 @@
 //! BattleBox   +0x04  six records
 //! ```
 //!
-//! A box is the one whose name is the title above the grid, which the player can rename.
+//! A box is the one the Box's work block names, a byte beside its mode (`Game.box_shown`): from 0,
+//! and 0xFF on the Battle Box, written as the grid starts to turn, about 0.2 s before the title
+//! above it (spike B, or_pc_organize). Where that byte is not measured, it is the box whose name is
+//! the title, which the player can rename.
 
 use std::rc::Rc;
 
@@ -37,6 +40,35 @@ pub const NAME: i64 = 0x22;
 pub const APP: &str = "N3app3box4ProcE";
 /// The Box's modes as its tabs draw them (`pictures.TEXTURE`): normal, swap and multi-select.
 pub const MODE_WORDS: [&str; 3] = ["mode01", "mode02", "mode03"];
+
+/// A byte of the Box's work block: `where` is the pointer to it in the process, and the byte.
+pub fn work_byte(memory: &dyn Memory, r#where: (i64, i64), process: i64) -> Result<i64> {
+    let (pointer, byte) = r#where;
+    let at = u32(&memory.read(process + pointer, 4)?, 0)? + byte;
+    Ok(*memory
+        .read(at, 1)?
+        .first()
+        .ok_or_else(|| py::Error::index("index out of range"))? as i64)
+}
+
+/// `Callable[[], int | None]`: the box the grid shows. It reads the game, so it can raise.
+pub type Shown = Rc<dyn Fn() -> Result<Option<i64>>>;
+
+/// The box the grid shows, from 0: None in the Battle Box, out of the Box, or unmeasured.
+pub fn shown(
+    memory: Rc<dyn Memory>,
+    r#where: Option<(i64, i64)>,
+    process: Rc<dyn Fn() -> Option<i64>>,
+) -> Shown {
+    Rc::new(move || {
+        let running = process();
+        let (Some(r#where), Some(running)) = (r#where, running) else {
+            return Ok(None);
+        };
+        let number = work_byte(&*memory, r#where, running)?;
+        Ok((number < COUNT).then_some(number))
+    })
+}
 
 /// Says the PC Box's mode as Start and Select change it, and on opening where it is not
 /// normal: its three tabs only pulse as one is chosen and draw nothing to tell them apart
@@ -74,13 +106,7 @@ impl Mode {
             self.held = None;
             return Ok(None);
         };
-        let (pointer, byte) = self.r#where;
-        let at = u32(&self.memory.read(process + pointer, 4)?, 0)? + byte;
-        let mode = *self
-            .memory
-            .read(at, 1)?
-            .first()
-            .ok_or_else(|| py::Error::index("index out of range"))? as i64;
+        let mode = work_byte(&*self.memory, self.r#where, process)?;
         if Some(mode) == self.last || mode >= MODE_WORDS.len() as i64 {
             self.held = None;
             return Ok(None);
@@ -106,22 +132,35 @@ pub struct Occupants {
     names: Rc<ClassNames>,
     party: Rc<dyn Fn() -> Option<i64>>,
     battle_box: Rc<dyn Fn() -> Option<i64>>,
+    shown: Shown,
     /// Class -> the save's object of it, as last found.
     saves: IndexMap<String, i64>,
 }
 
 impl Occupants {
+    /// `Occupants(memory, names, party, battle_box)`: `shown` left to its default, no box.
     pub fn new(
         memory: Rc<dyn Memory>,
         names: Rc<ClassNames>,
         party: Rc<dyn Fn() -> Option<i64>>,
         battle_box: Rc<dyn Fn() -> Option<i64>>,
     ) -> Self {
+        Occupants::with(memory, names, party, battle_box, Rc::new(|| Ok(None)))
+    }
+
+    pub fn with(
+        memory: Rc<dyn Memory>,
+        names: Rc<ClassNames>,
+        party: Rc<dyn Fn() -> Option<i64>>,
+        battle_box: Rc<dyn Fn() -> Option<i64>>,
+        shown: Shown,
+    ) -> Self {
         Occupants {
             memory,
             names,
             party,
             battle_box,
+            shown,
             saves: IndexMap::new(),
         }
     }
@@ -180,8 +219,12 @@ impl Occupants {
         Ok(found.map(|found| found.nickname))
     }
 
-    /// The box whose name is this title, where only one is.
+    /// The box the Box's byte says is shown; unmeasured, the one whose name is this title, where
+    /// only one is.
     fn r#box(&self, title: Option<&str>) -> Result<Option<i64>> {
+        if let Some(r#box) = (self.shown)()? {
+            return Ok(Some(r#box));
+        }
         let names = self.valid(self.saves.get(NAMES).copied(), NAMES)?;
         let (Some(names), Some(title)) = (names, title.filter(|title| !title.is_empty())) else {
             return Ok(None);
