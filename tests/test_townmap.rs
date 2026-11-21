@@ -47,7 +47,10 @@ fn berry_list(shown: u8) -> (Rc<FakeMemory>, townmap::Views) {
 
 #[test]
 fn test_a_view_put_away_puts_its_layouts_away() {
-    assert_eq!(berry_list(0).1.put_away(&IndexMap::new()).unwrap(), HashSet::from([WORK]));
+    assert_eq!(
+        berry_list(0).1.put_away(&IndexMap::new()).unwrap(),
+        HashSet::from([WORK])
+    );
 }
 
 /// Its cursor's layout is none of its G2DUtil's: left drawn, Berry Trees' cursor read
@@ -69,7 +72,10 @@ fn test_a_list_put_away_puts_its_cursor_away() {
 
 #[test]
 fn test_a_view_drawn_puts_nothing_away() {
-    assert_eq!(berry_list(1).1.put_away(&IndexMap::new()).unwrap(), HashSet::new());
+    assert_eq!(
+        berry_list(1).1.put_away(&IndexMap::new()).unwrap(),
+        HashSet::new()
+    );
 }
 
 #[test]
@@ -135,7 +141,10 @@ fn test_the_place_the_cursor_comes_onto_is_said_by_its_name() {
     assert_eq!(places.poll(false).unwrap().as_deref(), Some("Route 111"));
     memory.u32(MAP + townmap::ORAS.place, &[0x1F]);
     assert!(places.turned().unwrap());
-    assert_eq!(places.poll(false).unwrap().as_deref(), Some("Mauville City"));
+    assert_eq!(
+        places.poll(false).unwrap().as_deref(),
+        Some("Mauville City")
+    );
     assert!(!places.turned().unwrap());
     assert_eq!(places.poll(false).unwrap(), None);
 }
@@ -147,7 +156,10 @@ fn test_a_place_moved_off_and_back_onto_is_said_again_but_not_over_a_list() {
     let (memory, _running, mut places) = fly_map(0x40);
     places.poll(false).unwrap();
     memory.u32(MAP + townmap::ORAS.place, &[0x1F]);
-    assert_eq!(places.poll(false).unwrap().as_deref(), Some("Mauville City"));
+    assert_eq!(
+        places.poll(false).unwrap().as_deref(),
+        Some("Mauville City")
+    );
     memory.u32(MAP + townmap::ORAS.place, &[townmap::NO_PLACE]);
     assert!(!places.turned().unwrap());
     assert_eq!(places.poll(false).unwrap(), None);
@@ -160,7 +172,10 @@ fn test_a_place_moved_off_and_back_onto_is_said_again_but_not_over_a_list() {
     places.poll(false).unwrap();
     places.poll(false).unwrap();
     memory.u32(MAP + townmap::ORAS.place, &[0x1F]);
-    assert_eq!(places.poll(false).unwrap().as_deref(), Some("Mauville City"));
+    assert_eq!(
+        places.poll(false).unwrap().as_deref(),
+        Some("Mauville City")
+    );
     memory.u32(MAP + townmap::ORAS.place, &[townmap::NO_PLACE]);
     places.poll(true).unwrap();
     memory.u32(MAP + townmap::ORAS.place, &[0x1F]);
@@ -178,7 +193,10 @@ fn test_another_app_reads_nothing_and_the_next_map_says_its_place() {
     assert!(!places.turned().unwrap());
     assert_eq!(places.poll(false).unwrap(), None);
     *running.borrow_mut() = Some(townmap::APP.to_string());
-    assert_eq!(places.poll(false).unwrap().as_deref(), Some("Mauville City"));
+    assert_eq!(
+        places.poll(false).unwrap().as_deref(),
+        Some("Mauville City")
+    );
 }
 
 /// Trainer's Eye moves the map to each trainer's place: said first, as the area switched to,

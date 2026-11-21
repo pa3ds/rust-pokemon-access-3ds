@@ -483,11 +483,7 @@ impl OrasList {
 
     /// The cursors' poll with the plate's items replaced by the entry chosen, said the poll
     /// it changes in its row's words, a jump once it holds still.
-    pub fn cursors(
-        &mut self,
-        cursors: CursorPoll,
-        on_screen: &[ScreenText],
-    ) -> Result<CursorPoll> {
+    pub fn cursors(&mut self, cursors: CursorPoll, on_screen: &[ScreenText]) -> Result<CursorPoll> {
         let launch = match self.launch {
             Some((_, Some(launch))) if (self.running)().as_deref() == Some(ORAS_APP) => launch,
             _ => {
@@ -536,11 +532,9 @@ impl OrasList {
             .cloned()
             .collect();
         let (index, words) = (self.index, join(&pieces, false));
-        let Some(index) = index.filter(|index| {
-            self.said
-                .as_ref()
-                .is_none_or(|(said, _)| said != index)
-        }) else {
+        let Some(index) =
+            index.filter(|index| self.said.as_ref().is_none_or(|(said, _)| said != index))
+        else {
             return Ok(CursorPoll { items, ..cursors });
         };
         if self.still < STILL_TICKS {
@@ -592,7 +586,6 @@ impl OrasList {
         let Some((_, Some(launch))) = self.launch else {
             return Ok(None);
         };
-        s32(&self.memory.read(launch + CHOSEN, 4)?, 0)
-            .map(Some)
+        s32(&self.memory.read(launch + CHOSEN, 4)?, 0).map(Some)
     }
 }

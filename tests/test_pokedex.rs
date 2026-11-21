@@ -78,7 +78,11 @@ fn test_a_move_waits_while_the_panel_names_the_entry_before() {
     assert!(cursors.items.is_empty());
     assert!(cursors.chased);
     let items = entries
-        .poll(Some(pokedex::APP), nothing(), &with_panel("004", "Fennekin"))
+        .poll(
+            Some(pokedex::APP),
+            nothing(),
+            &with_panel("004", "Fennekin"),
+        )
         .items;
     let [item] = &items[..] else {
         panic!("one item: {items:?}");
@@ -98,7 +102,9 @@ fn test_a_move_the_panel_never_names_is_said_by_its_number() {
                 .is_empty()
         );
     }
-    let items = entries.poll(Some(pokedex::APP), nothing(), &[list_row()]).items;
+    let items = entries
+        .poll(Some(pokedex::APP), nothing(), &[list_row()])
+        .items;
     let [item] = &items[..] else {
         panic!("one item: {items:?}");
     };
@@ -230,7 +236,10 @@ fn test_an_entry_is_said_in_its_row_s_words_once_the_index_holds() {
     memory.u32(LAUNCH + pokedex::CHOSEN, &[5]);
     assert!(entries.moved().unwrap());
     let held = entries
-        .cursors(plate(&row("005", "Combusken"), true), &row("006", "Blaziken"))
+        .cursors(
+            plate(&row("005", "Combusken"), true),
+            &row("006", "Blaziken"),
+        )
         .unwrap();
     assert!(held.items.is_empty() && held.chased);
     memory.u32(LAUNCH + pokedex::CHOSEN, &[10]);
@@ -239,7 +248,10 @@ fn test_an_entry_is_said_in_its_row_s_words_once_the_index_holds() {
         assert!(!entries.moved().unwrap());
     }
     let items = entries
-        .cursors(plate(&row("010", "Poochyena"), true), &row("011", "Mightyena"))
+        .cursors(
+            plate(&row("010", "Poochyena"), true),
+            &row("011", "Mightyena"),
+        )
         .unwrap()
         .items;
     let [item] = &items[..] else {
@@ -270,7 +282,10 @@ fn test_an_index_moved_with_its_row_s_words_not_yet_waits() {
             .is_empty()
     );
     let items = entries
-        .cursors(plate(&row("005", "Combusken"), true), &row("005", "Combusken"))
+        .cursors(
+            plate(&row("005", "Combusken"), true),
+            &row("005", "Combusken"),
+        )
         .unwrap()
         .items;
     let [item] = &items[..] else {
@@ -308,23 +323,11 @@ fn test_search_s_table_coming_on_screen_is_left_to_its_cursor() {
     let cursors = CursorPoll::default();
     let texts = [label, unset, color, picker, bar.clone()];
     assert_eq!(
-        pokedex::tabled(
-            Some(pokedex::ORAS_APP),
-            &texts,
-            &texts,
-            &cursors,
-            &labels()
-        ),
+        pokedex::tabled(Some(pokedex::ORAS_APP), &texts, &texts, &cursors, &labels()),
         HashSet::from([1, 2, 4, 5])
     );
     assert_eq!(
-        pokedex::tabled(
-            Some("N3app4bag4ProcE"),
-            &texts,
-            &texts,
-            &cursors,
-            &labels()
-        ),
+        pokedex::tabled(Some("N3app4bag4ProcE"), &texts, &texts, &cursors, &labels()),
         HashSet::new()
     );
     assert_eq!(
@@ -340,13 +343,7 @@ fn test_search_s_table_coming_on_screen_is_left_to_its_cursor() {
         bar,
     ];
     assert_eq!(
-        pokedex::tabled(
-            Some(pokedex::ORAS_APP),
-            &page,
-            &page,
-            &cursors,
-            &labels()
-        ),
+        pokedex::tabled(Some(pokedex::ORAS_APP), &page, &page, &cursors, &labels()),
         HashSet::new()
     );
 }
@@ -516,10 +513,7 @@ fn test_a_picture_beside_a_row_with_a_value_takes_no_label() {
         pokedex::blank(Some(pokedex::APP), &rect, on_screen, framed, &labels())
     };
     assert_eq!(
-        blank(
-            &[name.clone(), unset, color.clone(), red.clone()],
-            &shape
-        ),
+        blank(&[name.clone(), unset, color.clone(), red.clone()], &shape),
         Vec::new()
     );
     assert_eq!(

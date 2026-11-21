@@ -903,13 +903,7 @@ fn test_typing_restarted_under_another_tag_processor_is_not_heard_again() {
 #[test]
 fn test_text_written_where_none_of_the_windows_own_lines_are_left_is_the_screens() {
     let mut scene = described();
-    let objects = |scene: &Scene| {
-        scene
-            .reader
-            .line_objects()
-            .iter()
-            .collect::<HashSet<i64>>()
-    };
+    let objects = |scene: &Scene| scene.reader.line_objects().iter().collect::<HashSet<i64>>();
     assert_eq!(objects(&scene), HashSet::from(BOXES));
     scene.tag(1, SCREEN_TAG);
     scene.write_over("Something else\nentirely.");
@@ -932,11 +926,7 @@ fn test_a_windows_own_message_typed_under_another_tag_is_still_its_own() {
     scene.r#type(0, "Give a nick");
     assert_eq!(scene.said(), texts(&["Give a nickname?"]));
     assert_eq!(
-        scene
-            .reader
-            .line_objects()
-            .iter()
-            .collect::<HashSet<i64>>(),
+        scene.reader.line_objects().iter().collect::<HashSet<i64>>(),
         HashSet::from(BOXES)
     );
 }

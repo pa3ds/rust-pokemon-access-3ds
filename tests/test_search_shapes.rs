@@ -25,8 +25,10 @@ fn test_every_shape_has_words_and_each_its_own() {
             )
             .unwrap(),
         )));
-        let said: IndexMap<&str, Option<String>> =
-            SHAPES.iter().map(|&texture| (texture, named(texture))).collect();
+        let said: IndexMap<&str, Option<String>> = SHAPES
+            .iter()
+            .map(|&texture| (texture, named(texture)))
+            .collect();
         words::r#use(None);
         assert_eq!(said.len(), 14, "{game}");
         assert!(

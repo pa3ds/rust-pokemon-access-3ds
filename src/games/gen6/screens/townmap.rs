@@ -166,7 +166,10 @@ impl Views {
         };
         for (&view, name) in found {
             if let Some(&(class, drawn_at)) = VIEWS.iter().find(|(class, _)| class == name) {
-                views.insert(view, (u32(&self.memory.read(view, 4)?, 0)?, drawn_at, class));
+                views.insert(
+                    view,
+                    (u32(&self.memory.read(view, 4)?, 0)?, drawn_at, class),
+                );
             }
         }
         self.views = views;
@@ -177,7 +180,10 @@ impl Views {
     /// Distribution, Trainer's Eye's rows, the berry list. Then a tap on the map reaches the view's
     /// own buttons, not a place (or_area_nav).
     pub fn drawing(&self) -> Result<bool> {
-        Ok(self.read()?.iter().any(|(drawn, _util, _name, _head)| *drawn))
+        Ok(self
+            .read()?
+            .iter()
+            .any(|(drawn, _util, _name, _head)| *drawn))
     }
 
     /// Whether the AreaNav drew one of its lists over its map at the last `put_away`
@@ -490,7 +496,11 @@ impl ListRows {
 /// The boxes of Berry Trees' time since planting, said with its berry alone (`ListRows`).
 pub fn berry_times(on_screen: &[ScreenText], drawn: Option<&str>) -> HashSet<i64> {
     if drawn == Some(BERRIES) {
-        on_screen.iter().filter(|p| p.top).map(|p| p.r#box).collect()
+        on_screen
+            .iter()
+            .filter(|p| p.top)
+            .map(|p| p.r#box)
+            .collect()
     } else {
         HashSet::new()
     }

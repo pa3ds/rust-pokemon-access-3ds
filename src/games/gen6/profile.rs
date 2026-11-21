@@ -2144,9 +2144,7 @@ impl Gen6Profile {
             };
             place = match &self.places {
                 None => None,
-                Some(places) => places
-                    .borrow_mut()
-                    .poll(self.views.borrow().listing())?,
+                Some(places) => places.borrow_mut().poll(self.views.borrow().listing())?,
             };
             slots = match &self.registered {
                 None => None,

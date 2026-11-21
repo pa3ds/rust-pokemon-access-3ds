@@ -80,10 +80,7 @@ fn test_words_the_cursor_reader_held_back_are_no_move() {
     let list = HashSet::from([LIST]);
     let mut rows = Scrolled::new();
     rows.poll(
-        poll(
-            vec![CursorItem::new(7, unset.clone(), false)],
-            vec![unset],
-        ),
+        poll(vec![CursorItem::new(7, unset.clone(), false)], vec![unset]),
         &list,
     );
     for _ in 0..2 {

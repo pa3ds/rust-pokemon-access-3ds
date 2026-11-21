@@ -830,7 +830,12 @@ pub fn warps() -> &'static IndexMap<i64, String> {
 /// join the buttons to `pokedex::SHAPES`.
 pub static WORDED: LazyLock<Vec<&'static str>> = LazyLock::new(|| {
     [
-        ["kwg_button01.bclim", "kwg_button02.bclim", "kwg_button03.bclim"].as_slice(),
+        [
+            "kwg_button01.bclim",
+            "kwg_button02.bclim",
+            "kwg_button03.bclim",
+        ]
+        .as_slice(),
         pokedex::SHAPES.as_slice(),
     ]
     .concat()
