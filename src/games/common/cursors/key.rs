@@ -67,7 +67,7 @@ impl KeyCursors {
             if alone[&root] == 1 || self.moved_keys.contains(&picture) {
                 let item = self.key_item(root, plate, picture, on_screen)?;
                 self.said
-                    .report(picture, item, items, Where::Pane(plate), false);
+                    .report_in(picture, item, items, Where::Pane(plate), false, 0, true);
             }
         }
         Ok(keys)

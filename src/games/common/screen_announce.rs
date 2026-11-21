@@ -490,8 +490,11 @@ impl ScreenAnnouncer {
             // A count alone names nothing: the Pokéblock Kit's cursor sits on a picture of a
             // berry or a block and its count, and the screen writes what it is elsewhere, "16"
             // then "Cheri Berry Red" (movie30, spike 196). It is said after that, with it.
-            // A nameless item, a button of no words, is said by its details alone.
-            let held = (self::count(&text) || text.is_empty()) && !item.opened && !item.quiet;
+            // A nameless item, a button of no words, is said by its details alone. Not a key: the
+            // name entry's number row was said late, a digit at a time, as counts naming nothing.
+            let held = ((self::count(&text) && !item.key) || text.is_empty())
+                && !item.opened
+                && !item.quiet;
             if text.is_empty() && item.opened {
                 continue;
             }

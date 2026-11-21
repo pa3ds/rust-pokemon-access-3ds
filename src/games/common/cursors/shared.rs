@@ -43,11 +43,14 @@ pub struct CursorItem {
     /// A pane of the list of rows it is one of, where its cursor knows it (`MenuCursors`), or 0:
     /// the details kept from moves along one list are not another's.
     pub rows: i64,
+    /// A keyboard's key (`KeyCursors`): its words are all it is, a digit as much as a letter,
+    /// never a count of something the screen names elsewhere.
+    pub key: bool,
 }
 
 impl CursorItem {
-    /// `CursorItem(cursor, pieces, opened)`: `quiet` and `rows` left to their defaults, False
-    /// and 0.
+    /// `CursorItem(cursor, pieces, opened)`: `quiet`, `rows` and `key` left to their defaults,
+    /// False, 0 and False.
     pub fn new(cursor: i64, pieces: Vec<ScreenText>, opened: bool) -> Self {
         CursorItem {
             cursor,
@@ -55,6 +58,7 @@ impl CursorItem {
             opened,
             quiet: false,
             rows: 0,
+            key: false,
         }
     }
 }
@@ -423,10 +427,12 @@ impl Said {
         r#where: Where,
         quiet: bool,
     ) {
-        self.report_in(cursor, inside, items, r#where, quiet, 0);
+        self.report_in(cursor, inside, items, r#where, quiet, 0, false);
     }
 
-    /// `report(..., rows=rows)`: the item one of the list of rows `rows` is a pane of.
+    /// `report(..., rows=rows, key=key)`: the item one of the list of rows `rows` is a pane of,
+    /// or a keyboard's key.
+    #[allow(clippy::too_many_arguments)]
     pub fn report_in(
         &self,
         cursor: i64,
@@ -435,6 +441,7 @@ impl Said {
         r#where: Where,
         quiet: bool,
         rows: i64,
+        key: bool,
     ) {
         self.under.borrow_mut().insert(cursor, inside.clone());
         if inside.is_empty() {
@@ -452,6 +459,7 @@ impl Said {
                 opened: !held.contains_key(&cursor),
                 quiet,
                 rows,
+                key,
             });
             held.insert(cursor, said);
         }

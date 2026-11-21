@@ -4126,6 +4126,25 @@ fn test_a_cursor_sliding_into_place_as_it_opens_is_said_once() {
     );
 }
 
+/// The name entry's number row was said late, each digit held as a count naming nothing, in
+/// Omega Ruby and X alike (heard in play, 2026-11-17).
+#[test]
+fn test_a_keys_digit_is_said_as_the_cursor_moves_onto_it() {
+    let mut screen = Screen::new();
+    let five = vec![piece(1, "5", -40.0, 80.0, MENU)];
+    assert_eq!(
+        screen.say(args(
+            &[],
+            vec![CursorItem {
+                key: true,
+                ..CursorItem::new(0x0C, five.clone(), false)
+            }],
+            &five
+        )),
+        ["5"]
+    );
+}
+
 #[test]
 fn test_a_number_with_a_leading_zero_is_no_count() {
     // X's Pokédex numbers its rows "002", and taken for a count it was said after the entry's
