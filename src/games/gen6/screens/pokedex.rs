@@ -226,9 +226,28 @@ pub fn labelled(
     if running != Some(APP) && running != Some(ORAS_APP) {
         return cursors;
     }
+    let roots: HashSet<i64> = tables(on_screen, labels)
+        .iter()
+        .map(|&(root, _panel)| root)
+        .collect();
     let mut items: Vec<CursorItem> = Vec::new();
     for item in &cursors.items {
         let first = item.pieces.first();
+        if let Some(first) = first
+            && !roots.is_empty()
+            && !roots.contains(&first.root)
+            && item
+                .pieces
+                .iter()
+                .map(|p| p.parent)
+                .collect::<HashSet<i64>>()
+                .len()
+                > 1
+        {
+            // The cursor coming on screen frames the bar's buttons both, a poll before it is on
+            // the table: "Reset Confirm", then "SORT By Number" (or_pokedex).
+            continue;
+        }
         let Some(first) = first.filter(|first| !labels.contains(&first.text)) else {
             items.push(item.clone());
             continue;
@@ -286,12 +305,13 @@ pub fn blank(
     best.into_iter().cloned().collect()
 }
 
-/// The boxes of search and sort's table that come on screen with it or back to it, a menu
-/// the cursor says a field of at a time: opened before its cursor came, the table was read
-/// whole, "SORT By Number NAME", each field's dashes and on, then "Reset Confirm" (or_pokedex);
-/// back from a picker, it was the cursor's next field's details. The table is the panel
-/// holding two labels or more (`labelled`): an entry's page has TYPE alone, and a picker's
-/// panel its own label, left to say which picker opened.
+/// The boxes of search and sort's table, and of the bar under it, that come on screen with
+/// them or back to them, menus the cursor says an item of at a time: opened before its cursor
+/// came, the table was read whole, "SORT By Number NAME", each field's dashes and on, then
+/// "Reset Confirm" (or_pokedex); back from a picker, it was the cursor's next field's details,
+/// and the bar's "Reset Confirm" came back with each picker closed. The table is the panel
+/// holding two labels or more: an entry's page has TYPE alone, and a picker's panel its own
+/// label, left to say which picker opened.
 pub fn tabled(
     running: Option<&str>,
     texts: &[ScreenText],
@@ -302,6 +322,41 @@ pub fn tabled(
     if running != Some(APP) && running != Some(ORAS_APP) {
         return HashSet::new();
     }
+    let tables = tables(on_screen, labels);
+    if tables.is_empty() {
+        return HashSet::new();
+    }
+    let roots: HashSet<i64> = tables.iter().map(|&(root, _panel)| root).collect();
+    let under: HashSet<i64> = cursors.under.iter().flatten().map(|p| p.r#box).collect();
+    texts
+        .iter()
+        .filter(|p| {
+            !under.contains(&p.r#box)
+                && (p.with_layout || p.returned)
+                && (tables.contains(&(p.root, p.panel)) || (!p.top && !roots.contains(&p.root)))
+        })
+        .map(|p| p.r#box)
+        .collect()
+}
+
+/// The layouts of search and sort's table on screen, whose rows scroll under its cursor
+/// (`scrolled`): APPEARANCE's dashes scrolled away for ENCOUNTERS' were no move (or_pokedex).
+pub fn search_roots(
+    running: Option<&str>,
+    on_screen: &[ScreenText],
+    labels: &HashSet<String>,
+) -> HashSet<i64> {
+    if running != Some(APP) && running != Some(ORAS_APP) {
+        return HashSet::new();
+    }
+    tables(on_screen, labels)
+        .iter()
+        .map(|&(root, _panel)| root)
+        .collect()
+}
+
+/// The (layout, panel) of each panel holding two of search and sort's labels or more.
+fn tables(on_screen: &[ScreenText], labels: &HashSet<String>) -> HashSet<(i64, i64)> {
     let mut held: IndexMap<(i64, i64), HashSet<&str>> = IndexMap::new();
     for p in on_screen {
         if labels.contains(&p.text) {
@@ -310,20 +365,9 @@ pub fn tabled(
                 .insert(p.text.as_str());
         }
     }
-    let tables: HashSet<(i64, i64)> = held
-        .iter()
+    held.iter()
         .filter(|(_, words)| words.len() > 1)
         .map(|(&panel, _)| panel)
-        .collect();
-    let under: HashSet<i64> = cursors.under.iter().flatten().map(|p| p.r#box).collect();
-    texts
-        .iter()
-        .filter(|p| {
-            tables.contains(&(p.root, p.panel))
-                && !under.contains(&p.r#box)
-                && (p.with_layout || p.returned)
-        })
-        .map(|p| p.r#box)
         .collect()
 }
 

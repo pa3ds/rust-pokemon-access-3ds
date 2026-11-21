@@ -49,6 +49,7 @@ use crate::games::common::cursors::shared::{CursorItem, CursorPoll};
 use crate::games::common::screen::ScreenText;
 use crate::games::gen6::anchors::follow;
 use crate::games::gen6::apps::LOADED_CODE;
+use crate::games::gen6::screens::scrolled::{Row, Scrolled, row};
 use crate::py::Result;
 
 /// The AreaNav as an app of its own, opened from the PokéNav's window or the Bag's Town Map.
@@ -345,36 +346,28 @@ impl Places {
     }
 }
 
-/// A list over the map: its moves its cursor's reader cannot tell, its rows one list, and
-/// Berry Trees' time since planting said with each berry.
+/// A list over the map: its moves along rows reading alike (`scrolled`), its rows one list,
+/// and Berry Trees' time since planting said with each berry.
 ///
-/// The lists scroll under a cursor standing still, and a row reading as the row before was no
-/// move: Route 104 has three Lum Berry rows in a row, and moving down them said each one's time
-/// alone, or nothing where two were planted the same minute (or_areanav_berries, seen in its
-/// screenshots). A move is the words under the cursor coming from other boxes, or other words
-/// into the same ones, as a list turned to the next area writes its rows again: said once they
-/// hold still a poll, as a list sliding under the cursor caught two rows, "Lum Berry Lum
-/// Berry". Each row was its own list of rows, the panels its details are said from kept apart
-/// (`CursorItem.rows`); a list is one.
-///
-/// Berry Trees writes a berry's time on the top screen, the poll its row is under the cursor
-/// or the one after, and the same words for berries planted the same minute, which no change
-/// of the screen's said: a berry is said a poll late, with the time standing then, "Lum Berry,
-/// It has been 25 days…", and the time on its own never, as the minutes tick over too. The
-/// first of an area is queued behind its name: a poll late, it came as a move 0.3 s after
-/// "Route 104", cutting it off.
+/// Each row was its own list of rows, the panels its details are said from kept apart
+/// (`CursorItem.rows`); a list is one. Berry Trees writes a berry's time on the top screen, the
+/// poll its row is under the cursor or the one after, and the same words for berries planted
+/// the same minute, which no change of the screen's said: a berry is said a poll late, with
+/// the time standing then, "Lum Berry, It has been 25 days…", and the time on its own never,
+/// as the minutes tick over too. The first of an area is queued behind its name: a poll late,
+/// it came as a move 0.3 s after "Route 104", cutting it off (or_areanav_berries).
 #[derive(Default)]
 pub struct ListRows {
     /// The layouts of the list's rows, those naming the area.
     lists: HashSet<i64>,
-    /// A list -> the row under its cursor at the last screen poll.
+    scrolled: Scrolled,
+    /// A berry list -> the row under its cursor at the last screen poll.
     seen: IndexMap<i64, Row>,
-    /// A list -> the row last said.
+    /// A berry list -> the row last said.
     said: IndexMap<i64, Row>,
-    /// A list -> its cursor.
+    /// A berry list -> its cursor.
     cursors: IndexMap<i64, i64>,
-    /// A list -> the area its last row said was in: a row of another comes after the area's
-    /// name, said as it turns, and is queued behind it, not cutting it off.
+    /// A berry list -> the area its last row said was in.
     areas: IndexMap<i64, String>,
 }
 
@@ -397,7 +390,7 @@ impl ListRows {
             self.said.clear();
             self.cursors.clear();
             self.areas.clear();
-            return cursors;
+            return self.scrolled.poll(cursors, &HashSet::new());
         };
         let mut under: IndexMap<i64, &Vec<ScreenText>> = IndexMap::new();
         for pieces in &cursors.under {
@@ -410,44 +403,46 @@ impl ListRows {
                 self.lists.insert(root);
             }
         }
-        let berries = drawn == BERRIES;
+        if drawn != BERRIES {
+            let cursors = self.scrolled.poll(cursors, &self.lists);
+            let items = cursors
+                .items
+                .iter()
+                .map(|item| match item.pieces.first() {
+                    Some(first) if self.lists.contains(&first.root) => CursorItem {
+                        rows: first.root,
+                        ..item.clone()
+                    },
+                    _ => item.clone(),
+                })
+                .collect();
+            return CursorPoll { items, ..cursors };
+        }
         let mut items: Vec<CursorItem> = Vec::new();
         for item in &cursors.items {
-            let root = item.pieces.first().map(|first| first.root);
-            let Some(root) = root.filter(|root| self.lists.contains(root)) else {
-                items.push(item.clone());
-                continue;
-            };
-            self.cursors.insert(root, item.cursor);
-            if berries {
-                continue;
+            match item.pieces.first() {
+                Some(first) if self.lists.contains(&first.root) => {
+                    self.cursors.insert(first.root, item.cursor);
+                }
+                _ => items.push(item.clone()),
             }
-            self.said.insert(root, row_of(&item.pieces));
-            items.push(CursorItem {
-                rows: root,
-                ..item.clone()
-            });
         }
         let mut chased = cursors.chased;
         for (&root, pieces) in &under {
             if !self.lists.contains(&root) || !self.cursors.contains_key(&root) {
                 continue;
             }
-            let row = row_of(pieces);
-            let seen = self.seen.insert(root, row.clone());
-            if Some(&row) == self.said.get(&root) {
+            let now = row(pieces);
+            let seen = self.seen.insert(root, now.clone());
+            if Some(&now) == self.said.get(&root) {
                 continue;
             }
-            if Some(&row) != seen.as_ref() {
-                chased = chased || berries;
+            if Some(&now) != seen.as_ref() {
+                chased = true;
                 continue;
             }
-            self.said.insert(root, row);
-            let words: Vec<ScreenText> = if berries {
-                on_screen.iter().filter(|p| p.top).cloned().collect()
-            } else {
-                Vec::new()
-            };
+            self.said.insert(root, now);
+            let words: Vec<ScreenText> = on_screen.iter().filter(|p| p.top).cloned().collect();
             items.push(CursorItem {
                 rows: root,
                 ..CursorItem::new(
@@ -464,14 +459,6 @@ impl ListRows {
             ..cursors
         }
     }
-}
-
-/// A list's row: its boxes and their words. A `frozenset`, only compared.
-pub type Row = HashSet<(i64, String)>;
-
-/// Python's `_row`.
-fn row_of(pieces: &[ScreenText]) -> Row {
-    pieces.iter().map(|p| (p.r#box, p.text.clone())).collect()
 }
 
 /// The boxes of Berry Trees' time since planting, said with its berry alone (`ListRows`).

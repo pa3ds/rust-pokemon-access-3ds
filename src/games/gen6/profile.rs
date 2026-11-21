@@ -100,7 +100,7 @@ use crate::games::gen6::screens::partners::Partners;
 use crate::games::gen6::screens::partyicons::PartyIcons;
 use crate::games::gen6::screens::{
     bag, bag_sort, battle_bag, boxes, buttons, counts, distribution, mart, partners, partyicons,
-    pokedex, registered, reminder, rows, secret_base, shiny, summary, townmap,
+    pokedex, registered, reminder, rows, scrolled, secret_base, shiny, summary, townmap,
 };
 use crate::games::gen6::subscreen::amie;
 use crate::games::gen6::subscreen::head_it::Cue;
@@ -355,6 +355,7 @@ pub struct Gen6Profile {
     mart: RefCell<mart::Jumps>,
     xy_list: RefCell<pokedex::XyList>,
     list_rows: RefCell<townmap::ListRows>,
+    search_rows: RefCell<scrolled::Scrolled>,
     oras_list: RefCell<pokedex::OrasList>,
     summary_shape: summary::Shape,
     screens: Option<RefCell<Box<dyn ScreensReader>>>,
@@ -791,6 +792,8 @@ impl Gen6Profile {
         let xy_list = RefCell::new(pokedex::XyList::new());
         // The AreaNav's lists' moves along rows reading alike, Lum Berry after Lum Berry.
         let list_rows = RefCell::new(townmap::ListRows::new());
+        // And search and sort's, its dashes after another field's.
+        let search_rows = RefCell::new(scrolled::Scrolled::new());
         // Omega Ruby's says its entry from the list's own rows, the tick it is chosen (spike N).
         let oras_list = RefCell::new(pokedex::OrasList::new(
             memory.clone(),
@@ -1556,6 +1559,7 @@ impl Gen6Profile {
             mart,
             xy_list,
             list_rows,
+            search_rows,
             oras_list,
             summary_shape,
             screens,
@@ -2183,6 +2187,10 @@ impl Gen6Profile {
                 .xy_list
                 .borrow_mut()
                 .poll(running.as_deref(), cursors, on_screen);
+            let cursors = self.search_rows.borrow_mut().poll(
+                cursors,
+                &pokedex::search_roots(running.as_deref(), on_screen, &self.text.search_labels),
+            );
             let mut cursors = pokedex::labelled(
                 running.as_deref(),
                 cursors,

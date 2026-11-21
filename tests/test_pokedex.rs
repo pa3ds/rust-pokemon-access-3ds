@@ -267,8 +267,9 @@ fn test_an_index_moved_with_its_row_s_words_not_yet_waits() {
     assert_eq!(join(&item.pieces, false), "005 Combusken");
 }
 
-/// Opened before its cursor came, search and sort was read whole (or_pokedex); a picker's
-/// label coming back is said, and an entry's page, TYPE its one label, is no table.
+/// Opened before its cursor came, search and sort was read whole, and its bar's "Reset
+/// Confirm" came back with every picker closed (or_pokedex); a picker's label coming back is
+/// said, and an entry's page, TYPE its one label, is no table.
 #[test]
 fn test_search_s_table_coming_on_screen_is_left_to_its_cursor() {
     let label = ScreenText {
@@ -288,12 +289,12 @@ fn test_search_s_table_coming_on_screen_is_left_to_its_cursor() {
         returned: true,
         ..piece(3, "COLOR", true, 105.0, -160.0, PANEL)
     };
-    let entry = ScreenText {
-        with_layout: true,
-        ..piece(4, "NAME", true, -105.0, -125.0, LIST)
+    let bar = ScreenText {
+        returned: true,
+        ..piece(4, "Reset", false, -105.0, -125.0, LIST)
     };
     let cursors = CursorPoll::default();
-    let texts = [label, unset, color, picker, entry];
+    let texts = [label, unset, color, picker, bar.clone()];
     assert_eq!(
         pokedex::tabled(
             Some(pokedex::ORAS_APP),
@@ -302,7 +303,7 @@ fn test_search_s_table_coming_on_screen_is_left_to_its_cursor() {
             &cursors,
             &labels()
         ),
-        HashSet::from([1, 2, 5])
+        HashSet::from([1, 2, 4, 5])
     );
     assert_eq!(
         pokedex::tabled(
@@ -313,6 +314,67 @@ fn test_search_s_table_coming_on_screen_is_left_to_its_cursor() {
             &labels()
         ),
         HashSet::new()
+    );
+    assert_eq!(
+        pokedex::search_roots(Some(pokedex::ORAS_APP), &texts, &labels()),
+        HashSet::from([PANEL])
+    );
+    let page = [
+        ScreenText {
+            root: LIST,
+            with_layout: true,
+            ..ScreenText::new(6, "NAME", true)
+        },
+        bar,
+    ];
+    assert_eq!(
+        pokedex::tabled(
+            Some(pokedex::ORAS_APP),
+            &page,
+            &page,
+            &cursors,
+            &labels()
+        ),
+        HashSet::new()
+    );
+}
+
+/// Coming on screen, the cursor framed "Reset Confirm" a poll before the table.
+#[test]
+fn test_the_cursor_framing_the_bar_s_buttons_both_says_nothing() {
+    let at = |r#box: i64, text: &str, row: f64, left: f64, root: i64, parent: i64| ScreenText {
+        row,
+        left,
+        root,
+        parent,
+        ..ScreenText::new(r#box, text, false)
+    };
+    let label = at(1, "NAME", 68.0, -150.0, PANEL, 0);
+    let color = at(5, "COLOR", -22.0, -150.0, PANEL, 0);
+    let reset = at(7, "Reset", 0.0, 0.0, LIST, 0x10);
+    let confirm = at(8, "Confirm", 0.0, 0.0, LIST, 0x20);
+    let both = CursorPoll {
+        items: vec![CursorItem::new(
+            7,
+            vec![reset.clone(), confirm.clone()],
+            true,
+        )],
+        ..CursorPoll::default()
+    };
+    let on_screen = [label, color, reset, confirm.clone()];
+    assert!(
+        pokedex::labelled(Some(pokedex::ORAS_APP), both, &on_screen, &labels())
+            .items
+            .is_empty()
+    );
+    let one = CursorPoll {
+        items: vec![CursorItem::new(7, vec![confirm], false)],
+        ..CursorPoll::default()
+    };
+    assert!(
+        !pokedex::labelled(Some(pokedex::ORAS_APP), one, &on_screen, &labels())
+            .items
+            .is_empty()
     );
 }
 
