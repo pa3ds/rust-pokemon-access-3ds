@@ -31,6 +31,7 @@ fn rows_of(
         measured.then_some(rows::MENU_ROW),
         measured.then_some(rows::OPTIONS_ROW),
         None,
+        false,
     )
 }
 
@@ -79,6 +80,7 @@ fn test_the_partys_slot_is_read_from_its_static_work() {
         Some(rows::MENU_ROW),
         Some(rows::OPTIONS_ROW),
         Some(rows::PARTY_SLOT),
+        false,
     );
     assert!(!party.moved().unwrap());
     memory.write(WORK + rows::PARTY_SLOT, &[2]);
@@ -114,6 +116,7 @@ fn test_the_name_entrys_key_is_read_through_its_main_system() {
         Some(rows::MENU_ROW),
         Some(rows::OPTIONS_ROW),
         Some(rows::PARTY_SLOT),
+        false,
     );
     assert!(!keyboard.moved().unwrap()); // not its main system yet
     memory.u32(WORK, &[classes.add(rows::MAIN_SYSTEM)]);
@@ -146,6 +149,7 @@ fn test_the_pcs_row_is_read_from_the_menu_up_now() {
         Some(rows::MENU_ROW),
         Some(rows::OPTIONS_ROW),
         Some(rows::PARTY_SLOT),
+        false,
     );
     assert!(!pc.moved().unwrap()); // no menu up yet
     memory.u32(holder + rows::IN_USE, &[first]);
@@ -182,6 +186,7 @@ fn test_the_boxs_slot_is_read_from_the_cursor_in_use() {
         Some(rows::MENU_ROW),
         Some(rows::OPTIONS_ROW),
         Some(rows::PARTY_SLOT),
+        false,
     );
     assert!(!r#box.moved().unwrap());
     assert_eq!(r#box.box_slot().unwrap(), None); // not moved yet
@@ -196,6 +201,56 @@ fn test_the_boxs_slot_is_read_from_the_cursor_in_use() {
     memory.u32(control + rows::IN_USE, &[grid]);
     assert!(!r#box.moved().unwrap());
     assert_eq!(r#box.box_slot().unwrap(), None); // back from the menu, not moved since
+}
+
+/// ADR-0013: Move to forget's row and the Move Reminder's row and scroll say when a move is
+/// made, a move down a long list scrolling it alone; a list built again for the same process,
+/// after another app, is found again (spike B on or_move_reminder).
+#[test]
+fn test_the_move_screens_rows_are_read_through_their_views() {
+    let memory = FakeMemory::new();
+    let classes = FakeClasses::new(memory.clone());
+    let (lower, cursor) = (0x08600000, 0x08700000);
+    memory.u32(PROCESS + rows::FORGET_ROWS[0], &[lower]);
+    memory.u32(lower, &[classes.add(rows::LOWER)]);
+    memory.u32(lower + rows::FORGET_ROWS[1], &[cursor]);
+    let running = running(rows::FORGET);
+    let mut moves = rows::Rows::new(
+        memory.clone(),
+        {
+            let running = running.clone();
+            Rc::new(move || Some(running.borrow().clone()))
+        },
+        Rc::new(|| Some(PROCESS)),
+        Rc::new(|| Ok(Some(MENU))),
+        Rc::new(|| true),
+        None,
+        None,
+        None,
+        true,
+    );
+    assert!(!moves.moved().unwrap());
+    memory.write(cursor + rows::SLOT, &[4]); // the move to learn
+    assert!(moves.moved().unwrap());
+    let (parent, view, first, second) = (0x08800000, 0x08900000, 0x08A00000, 0x08B00000);
+    let [hop_parent, hop_view, hop_list] = rows::REMEMBER_LIST;
+    memory.u32(PROCESS + hop_parent, &[parent]);
+    memory.u32(parent, &[classes.add(rows::PARENT_VIEW)]);
+    memory.u32(parent + hop_view, &[view]);
+    memory.u32(view + hop_list, &[first]);
+    // Row 2, 1.0 scrolled away: the fourth move.
+    memory.write(first + rows::LIST_ROW, &[2, 0, 0, 0, 0x00, 0x00, 0x80, 0x3f]);
+    *running.borrow_mut() = rows::REMEMBER.to_string();
+    assert!(!moves.moved().unwrap());
+    memory.write(first + rows::LIST_ROW + 4, &[0x00, 0x00, 0x00, 0x40]); // 2.0: scrolled alone
+    assert!(moves.moved().unwrap());
+    *running.borrow_mut() = "N3app13wazaomoidashi4ProcE".to_string(); // the Reminder's own, between its lists
+    assert!(!moves.moved().unwrap());
+    memory.u32(view + hop_list, &[second]);
+    *running.borrow_mut() = rows::REMEMBER.to_string();
+    assert!(!moves.moved().unwrap());
+    memory.write(second + rows::LIST_ROW, &[1]);
+    assert!(moves.moved().unwrap());
 }
 
 #[test]

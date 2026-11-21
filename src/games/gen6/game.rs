@@ -355,6 +355,9 @@ pub struct Game {
     /// tick (`screens.rows`): ORAS's +0x1A8, X's and Y's +0x1B0 (spike B). None where it has not
     /// been measured.
     pub party_slot: Option<i64>,
+    /// Whether Move to forget's and the Move Reminder's rows are read every tick
+    /// (`screens.rows`): measured in ORAS (spike B), not yet in X.
+    pub move_rows: bool,
     /// Where its field camera's block keeps where the camera looks (`camera.Shape`): ORAS's, or
     /// X's (spikes 230 and 239).
     pub camera: camera::Shape,
@@ -453,6 +456,7 @@ impl Game {
             menu_row: None,
             options_row: None,
             party_slot: None,
+            move_rows: false,
             camera: camera::ORAS,
             registered: None,
             box_mode: None,

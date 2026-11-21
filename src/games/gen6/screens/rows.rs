@@ -32,11 +32,22 @@
 //! the menu up                   +0x14  u8 the row under its cursor, 0 Deposit Pokémon to 4 Log
 //!                                      Out (spike B on or_pc_organize and x_pc_mode_buttons);
 //!                                      +0x15 the row before
+//! app::wazaoboe::Process        +0x44  -> app::wazaoboe::Lower, Move to forget's moves
+//! app::wazaoboe::Lower          +0x54  -> its cursor, of no class, a PC menu's shape: +0x10 how
+//!                                         many moves, +0x14 u8 the move under it, 0 to 4, the
+//!                                         one to learn last (spike B on or_move_reminder)
+//! app::wazaomoidashi::SelectWazaProc  +0x40  -> app::wazaomoidashi::ParentView
+//! app::wazaomoidashi::ParentView      +0x7C  -> app::wazaomoidashi::LowerView
+//! app::wazaomoidashi::LowerView       +0x94  -> the Move Reminder's list, of no class
+//! the list                      +0x10  how many moves; +0x18 u32 the row the cursor is on, 0 to
+//!                                      3, and +0x1C f32 the rows scrolled away, their sum the
+//!                                      move (spike B on or_move_reminder, 16 moves)
 //! ```
 //!
 //! The byte says when a row is chosen, never what: the words are still the screen's. Measured in
 //! Omega Ruby and X; a game whose offsets are not measured reads nothing here (`Game.menu_row`,
-//! `Game.options_row`, `Game.party_slot`), but for the keyboard's and the PC's, the same in both.
+//! `Game.options_row`, `Game.party_slot`, `Game.move_rows`), but for the keyboard's and the PC's,
+//! the same in both. The move screens are measured in Omega Ruby alone: no X movie opens them.
 //!
 //! Bound by:
 //! - ADR-0013: a cursor source says which item is under the cursor and when it moved, the words
@@ -92,6 +103,17 @@ pub const SLOTS: i64 = 0x10;
 /// The slots the Box's grid cursor walks: the box's 30, the party's 6, its name bar's and the
 /// bottom bar's (spike B on or_organize_boxes).
 pub const GRID_SLOTS: i64 = 48;
+pub const FORGET: &str = "N3app8wazaoboe7ProcessE";
+/// Move to forget's process -> `app::wazaoboe::Lower` -> its cursor, whose row is at `SLOT`.
+pub const FORGET_ROWS: [i64; 2] = [0x44, 0x54];
+pub const LOWER: &str = "N3app8wazaoboe5LowerE";
+pub const REMEMBER: &str = "N3app13wazaomoidashi14SelectWazaProcE";
+/// The Move Reminder's process -> `ParentView` -> `LowerView` -> its list.
+pub const REMEMBER_LIST: [i64; 3] = [0x40, 0x7C, 0x94];
+pub const PARENT_VIEW: &str = "N3app13wazaomoidashi10ParentViewE";
+/// The Move Reminder's list -> the row the cursor is on, a u32, and after it the rows scrolled
+/// away, an f32: both read, as a move down a long list changes the scroll alone.
+pub const LIST_ROW: i64 = 0x18;
 /// Ticks a row's move is chased, the screen polled at each until the cursor's word is said: a
 /// screen poll's worth.
 pub const CHASE: i64 = 12;
@@ -104,8 +126,8 @@ pub fn controls(app: &str) -> Option<[i64; 3]> {
         .map(|&(_, hops)| hops)
 }
 
-/// The row under the X menu's, the options screen's, the party's or the PC's cursor, or the key
-/// under the name entry's, read every tick.
+/// The row under the X menu's, the options screen's, the party's, the PC's or the move screens'
+/// cursor, or the key under the name entry's, read every tick.
 pub struct Rows {
     memory: Rc<dyn Memory>,
     running: Rc<dyn Fn() -> Option<String>>,
@@ -115,14 +137,18 @@ pub struct Rows {
     menu_row: Option<i64>,
     options_row: Option<i64>,
     party_slot: Option<i64>,
+    move_rows: bool,
     /// Where the row was read last tick, and what it read.
-    last: Option<(i64, i64)>,
+    last: Option<(i64, Vec<u8>)>,
     /// Where the row was read and what it read as it last moved, while it is still that menu's:
     /// none once another menu has taken the input.
-    moved_to: Option<(i64, i64)>,
-    /// The party's, the name entry's or the PC's process and the object holding its byte or its
-    /// menus, once found: its class, where it has one, is checked once a screen, and only what it
-    /// holds read each tick after.
+    moved_to: Option<(i64, Vec<u8>)>,
+    /// The app running when the row was last looked for.
+    app: Option<String>,
+    /// The party's, the name entry's, the PC's or a move screen's process and the object holding
+    /// its byte or its menus, once found: its class, where it has one, is checked once a screen,
+    /// and only what it holds read each tick after. Dropped once another app runs, lest the next
+    /// of the same app be built at the same address round other objects.
     work: Option<(i64, i64)>,
     names: Option<(i64, ClassNames)>,
 }
@@ -130,7 +156,8 @@ pub struct Rows {
 impl Rows {
     /// `menu` is the field menu, `shown` whether a cursor is on screen, which the field's menu row
     /// is read only while it is; `menu_row`, `options_row` and `party_slot` where the game keeps
-    /// their rows, None where not measured. Python's default for `party_slot` is None.
+    /// their rows, None where not measured, and `move_rows` whether the move screens' are.
+    /// Python's defaults are None for `party_slot` and False for `move_rows`.
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         memory: Rc<dyn Memory>,
@@ -141,6 +168,7 @@ impl Rows {
         menu_row: Option<i64>,
         options_row: Option<i64>,
         party_slot: Option<i64>,
+        move_rows: bool,
     ) -> Self {
         Rows {
             memory,
@@ -151,8 +179,10 @@ impl Rows {
             menu_row,
             options_row,
             party_slot,
+            move_rows,
             last: None,
             moved_to: None,
+            app: None,
             work: None,
             names: None,
         }
@@ -163,16 +193,9 @@ impl Rows {
         let at = self.at()?;
         let now = match at {
             None => None,
-            Some(at) => Some((
-                at,
-                *self
-                    .memory
-                    .read(at, 1)?
-                    .first()
-                    .ok_or_else(|| Error::index("index out of range"))? as i64,
-            )),
+            Some((at, size)) => Some((at, self.memory.read(at, size)?)),
         };
-        let last = std::mem::replace(&mut self.last, now);
+        let last = std::mem::replace(&mut self.last, now.clone());
         let (Some(now), Some(last)) = (now, last) else {
             self.moved_to = None;
             return Ok(false);
@@ -196,7 +219,7 @@ impl Rows {
         if (self.running)().as_deref() != Some(boxes::APP) {
             return Ok(None);
         }
-        let Some((at, slot)) = self.moved_to else {
+        let Some((at, slot)) = &self.moved_to else {
             return Ok(None);
         };
         let slots = *self
@@ -205,39 +228,44 @@ impl Rows {
             .first()
             .ok_or_else(|| Error::index("index out of range"))? as i64;
         Ok(if slots == GRID_SLOTS {
-            Some(slot)
+            Some(*slot
+                .first()
+                .ok_or_else(|| Error::index("index out of range"))? as i64)
         } else {
             None
         })
     }
 
-    /// Where the row of the menu up now is kept, or None.
-    fn at(&mut self) -> Result<Option<i64>> {
+    /// Where the row of the menu up now is kept and how many bytes it takes, or None.
+    fn at(&mut self) -> Result<Option<(i64, i64)>> {
         let running = (self.running)();
+        if running != self.app {
+            (self.app, self.work) = (running.clone(), None);
+        }
         if !(self.shown)() {
             return Ok(None);
         }
         if running.as_deref() == Some(OPTIONS)
             && let Some(options_row) = self.options_row
         {
-            return Ok((self.process)().map(|process| process + options_row));
+            return Ok((self.process)().map(|process| (process + options_row, 1)));
         }
         if running.as_deref() == Some(FIELD)
             && let Some(menu_row) = self.menu_row
         {
-            return Ok((self.menu)()?.map(|menu| menu + menu_row));
+            return Ok((self.menu)()?.map(|menu| (menu + menu_row, 1)));
         }
         if running.as_deref() == Some(PARTY)
             && let Some(party_slot) = self.party_slot
         {
             return Ok(self
                 .found(&[PARTY_WORK], Some(STATIC_WORK))?
-                .map(|work| work + party_slot));
+                .map(|work| (work + party_slot, 1)));
         }
         if running.as_deref() == Some(KEYBOARD) {
             return Ok(self
                 .found(&[KEYBOARD_SYSTEM, KEYS], Some(MAIN_SYSTEM))?
-                .map(|keys| keys + KEY));
+                .map(|keys| (keys + KEY, 1)));
         }
         if let Some(hops) = running.as_deref().and_then(controls) {
             let control = self.found(&hops, None)?;
@@ -247,7 +275,15 @@ impl Rows {
                 None => None,
                 Some(control) => follow(&*self.memory, control, &[IN_USE])?,
             };
-            return Ok(cursor.map(|cursor| cursor + SLOT));
+            return Ok(cursor.map(|cursor| (cursor + SLOT, 1)));
+        }
+        if running.as_deref() == Some(FORGET) && self.move_rows {
+            let cursor = self.found(&FORGET_ROWS, Some(LOWER))?;
+            return Ok(cursor.map(|cursor| (cursor + SLOT, 1)));
+        }
+        if running.as_deref() == Some(REMEMBER) && self.move_rows {
+            let moves = self.found(&REMEMBER_LIST, Some(PARENT_VIEW))?;
+            return Ok(moves.map(|moves| (moves + LIST_ROW, 8)));
         }
         Ok(None)
     }
