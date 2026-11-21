@@ -97,7 +97,7 @@ use crate::games::gen6::screens::partners::Partners;
 use crate::games::gen6::screens::partyicons::PartyIcons;
 use crate::games::gen6::screens::{
     bag, bag_sort, battle_bag, boxes, buttons, counts, distribution, mart, partners, partyicons,
-    registered, rows, shiny, summary, townmap,
+    registered, reminder, rows, shiny, summary, townmap,
 };
 use crate::games::gen6::subscreen::amie;
 use crate::games::gen6::subscreen::head_it::Cue;
@@ -320,6 +320,7 @@ pub struct Gen6Profile {
     pub classes: Vec<String>,
     pub distribution: Rc<RefCell<Distribution>>,
     pub views: Rc<RefCell<townmap::Views>>,
+    reminder: RefCell<reminder::Pages>,
     /// The subscreens, Pokémon-Amie's and Super Training's and the apps they open, which name
     /// what they draw, offer what no touch area does, and answer keys of their own.
     pub subscreens: Rc<Subscreens>,
@@ -667,6 +668,18 @@ impl Gen6Profile {
             memory.clone(),
             names.clone(),
         )));
+        // So does the Move Reminder of the page of moves' effects it is not drawing.
+        let reminder = RefCell::new(reminder::Pages::new(
+            memory.clone(),
+            {
+                let apps = apps.clone();
+                Rc::new(move || apps.borrow().running.clone())
+            },
+            {
+                let apps = apps.clone();
+                Rc::new(move || apps.borrow().process)
+            },
+        ));
         // The game's button managers say whose buttons take taps (spike 189).
         let buttons = Rc::new(RefCell::new(buttons::Buttons::with_menu(
             memory.clone(),
@@ -1451,6 +1464,7 @@ impl Gen6Profile {
             classes: classes.into_iter().collect(),
             distribution,
             views,
+            reminder,
             subscreens,
             contexts,
             buttons,
@@ -1935,6 +1949,7 @@ impl Gen6Profile {
             // layout found before it was built is taken in once it is.
             let revived = self.layouts.revive()?;
             let mut put_away = self.views.borrow().put_away()?;
+            put_away.extend(self.reminder.borrow_mut().put_away()?);
             put_away.extend(summary::put_away(
                 &*self.memory,
                 &self.names,

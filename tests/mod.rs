@@ -64,6 +64,7 @@ mod test_profile;
 mod test_puzzle;
 mod test_rail;
 mod test_registered;
+mod test_reminder;
 mod test_rename;
 mod test_rom;
 mod test_rows;

@@ -45,6 +45,11 @@
 //! the list                      +0x10  how many moves; +0x18 u32 the row the cursor is on, 0 to
 //!                                      3, and +0x1C f32 the rows scrolled away, their sum the
 //!                                      move (spike B on or_move_reminder, 16 moves)
+//! app::wazaomoidashi::ParentView      +0x90  u8 the page shown, 1 the moves' contest effects
+//!                                            (Omega Ruby's), whose list is another's:
+//! app::wazaomoidashi::ParentView      +0x84  -> app::wazaomoidashi::LowerContestView
+//! app::wazaomoidashi::LowerContestView +0x98 -> its list, the same as the battle effects'
+//!                                            (spike B on or_move_reminder_bugs)
 //! app::title_menu::Proc         +0x24  -> app::title_menu::MainSystem
 //! app::title_menu::MainSystem  +0x1114 u8 the title menu's row, 0 CONTINUE, 1 MYSTERY GIFT, 2
 //!                                      LIVE COMPETITION (spike B on or_pokemon_center_pc)
@@ -135,6 +140,13 @@ pub const REMEMBER: &str = "N3app13wazaomoidashi14SelectWazaProcE";
 /// The Move Reminder's process -> `ParentView` -> `LowerView` -> its list.
 pub const REMEMBER_LIST: [i64; 3] = [0x40, 0x7C, 0x94];
 pub const PARENT_VIEW: &str = "N3app13wazaomoidashi10ParentViewE";
+/// `ParentView` -> the page shown, 1 the moves' contest effects (spike B).
+pub const PAGE: i64 = 0x90;
+/// `ParentView` -> `LowerContestView` -> the contest effects' list, read while they are shown.
+pub const CONTEST_LIST: [i64; 2] = [0x84, 0x98];
+/// X and Y have no contest effects: their `ParentView` holds other things there, and +0x90 read
+/// 100 (spike B on x_move_reminder).
+pub const LOWER_CONTEST_VIEW: &str = "N3app13wazaomoidashi16LowerContestViewE";
 pub const TITLE: &str = "N3app10title_menu4ProcE";
 /// The title menu's process -> its `app::title_menu::MainSystem`.
 pub const TITLE_SYSTEM: i64 = 0x24;
@@ -204,6 +216,8 @@ pub struct Rows {
     // each app change instead, the Box's path was found again after every summary, reads no
     // tape had (or_battle_box); key it by more than the process if that is ever met.
     names: Option<(i64, ClassNames)>,
+    /// The Move Reminder's process and its contest effects' lower view, or None for none.
+    contest: Option<(Option<i64>, Option<i64>)>,
 }
 
 impl Rows {
@@ -234,6 +248,7 @@ impl Rows {
             moved_to: None,
             work: None,
             names: None,
+            contest: None,
         }
     }
 
@@ -341,7 +356,25 @@ impl Rows {
             return Ok(main.map(|main| (main + TITLE_ROW, 1)));
         }
         if running.as_deref() == Some(REMEMBER) {
-            let moves = self.found(&REMEMBER_LIST, Some(PARENT_VIEW))?;
+            // The page shown is read each tick: its contest effects' list is another, and it
+            // moved while the battle effects' held still (or_move_reminder_bugs).
+            let Some(parent) = self.found(&REMEMBER_LIST[..1], Some(PARENT_VIEW))? else {
+                return Ok(None);
+            };
+            let contest = self.contest_view(parent)?;
+            let moves = match contest {
+                Some(contest)
+                    if *self
+                        .memory
+                        .read(parent + PAGE, 1)?
+                        .first()
+                        .ok_or_else(|| Error::index("index out of range"))?
+                        != 0 =>
+                {
+                    follow(&*self.memory, contest, &CONTEST_LIST[1..])?
+                }
+                _ => follow(&*self.memory, parent, &REMEMBER_LIST[1..])?,
+            };
             return Ok(moves.map(|moves| (moves + LIST_ROW, 8)));
         }
         if running.as_deref() == Some(CONTEST) {
@@ -349,6 +382,26 @@ impl Rows {
             return Ok(ui.map(|ui| (ui + PICKED, 1)));
         }
         Ok(None)
+    }
+
+    /// The Move Reminder's contest effects' lower view, checked by class once a screen, or None
+    /// in a game with none.
+    fn contest_view(&mut self, parent: i64) -> Result<Option<i64>> {
+        let process = (self.process)();
+        if self.contest.is_none_or(|contest| contest.0 != process) {
+            let view = follow(&*self.memory, parent, &CONTEST_LIST[..1])?;
+            let names = ClassNames::new(self.memory.clone(), LOADED_CODE);
+            let checked = match view {
+                Some(view) if names.of_object(view)?.as_deref() == Some(LOWER_CONTEST_VIEW) => {
+                    Some(view)
+                }
+                _ => None,
+            };
+            self.contest = Some((process, checked));
+        }
+        // ponytail: checked once a screen, the views built with it before any cursor shows;
+        // check again while None if one is ever met built later.
+        Ok(self.contest.expect("checked above").1)
     }
 
     /// Where `hops` lead from the process, once the object its first hop leads to is of class

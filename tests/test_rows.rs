@@ -237,6 +237,10 @@ fn test_the_move_screens_rows_are_read_through_their_views() {
     memory.u32(parent, &[classes.add(rows::PARENT_VIEW)]);
     memory.u32(parent + hop_view, &[view]);
     memory.u32(view + hop_list, &[first]);
+    let (contest_view, contest) = (0x08B00000, 0x08C00000);
+    memory.u32(parent + rows::CONTEST_LIST[0], &[contest_view]);
+    memory.u32(contest_view, &[classes.add(rows::LOWER_CONTEST_VIEW)]);
+    memory.u32(contest_view + rows::CONTEST_LIST[1], &[contest]);
     // Row 2, 1.0 scrolled away: the fourth move.
     memory.write(first + rows::LIST_ROW, &[2, 0, 0, 0, 0x00, 0x00, 0x80, 0x3f]);
     *running.borrow_mut() = rows::REMEMBER.to_string();
@@ -246,6 +250,14 @@ fn test_the_move_screens_rows_are_read_through_their_views() {
     assert!(moves.moved().unwrap());
     // Wrapped round to the first move: every row is rewritten after, so the screen poll says it.
     memory.write(first + rows::LIST_ROW, &[0, 0, 0, 0, 0, 0, 0, 0]);
+    assert!(!moves.moved().unwrap());
+    // The contest effects shown: their list is another, the battle effects' holding still
+    // (or_move_reminder_bugs). Turning the page is no move; a move on it is.
+    memory.write(parent + rows::PAGE, &[1]);
+    assert!(!moves.moved().unwrap());
+    memory.write(contest + rows::LIST_ROW, &[1, 0, 0, 0]);
+    assert!(moves.moved().unwrap());
+    memory.write(first + rows::LIST_ROW, &[3, 0, 0, 0]); // the page not shown
     assert!(!moves.moved().unwrap());
 }
 

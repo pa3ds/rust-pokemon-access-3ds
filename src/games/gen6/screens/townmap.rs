@@ -46,6 +46,27 @@ pub const ENTRY: i64 = 8;
 pub const WORK: i64 = 0x04;
 pub const MAX_LAYOUTS: i64 = 16;
 
+/// The works of the layouts a `G2DUtil` draws.
+pub fn util_works(memory: &dyn Memory, util: i64) -> Result<HashSet<i64>> {
+    let listed = memory.read(util + LAYOUTS, 8)?;
+    let (table, count) = (u32(&listed, 0)?, u32(&listed, 4)?);
+    if table == 0 || !(0 < count && count <= MAX_LAYOUTS) {
+        return Ok(HashSet::new());
+    }
+    let entries = memory.read(table, ENTRY * count)?;
+    let mut works: HashSet<i64> = HashSet::new();
+    for i in 0..count {
+        let handle = u32(&entries, ENTRY * i)?;
+        if handle != 0 {
+            let work = u32(&memory.read(handle + WORK, 4)?, 0)?;
+            if work != 0 {
+                works.insert(work);
+            }
+        }
+    }
+    Ok(works)
+}
+
 /// The AreaNav's views a sweep found, and the layouts of those it has put away.
 pub struct Views {
     memory: Rc<dyn Memory>,
@@ -88,26 +109,10 @@ impl Views {
 
     /// The works of the layouts of every view the AreaNav is not drawing now.
     pub fn put_away(&self) -> Result<HashSet<i64>> {
-        let memory = &self.memory;
         let mut works: HashSet<i64> = HashSet::new();
         for (drawn, util) in self.read()? {
-            if drawn {
-                continue;
-            }
-            let listed = memory.read(util + LAYOUTS, 8)?;
-            let (table, count) = (u32(&listed, 0)?, u32(&listed, 4)?);
-            if table == 0 || !(0 < count && count <= MAX_LAYOUTS) {
-                continue;
-            }
-            let entries = memory.read(table, ENTRY * count)?;
-            for i in 0..count {
-                let handle = u32(&entries, ENTRY * i)?;
-                if handle != 0 {
-                    let work = u32(&memory.read(handle + WORK, 4)?, 0)?;
-                    if work != 0 {
-                        works.insert(work);
-                    }
-                }
+            if !drawn {
+                works.extend(util_works(&*self.memory, util)?);
             }
         }
         Ok(works)
