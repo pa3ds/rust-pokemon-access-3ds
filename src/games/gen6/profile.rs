@@ -333,6 +333,7 @@ pub struct Gen6Profile {
     pub occupants: Rc<RefCell<boxes::Occupants>>,
     pub standings: Option<Rc<RefCell<dyn StandingsReader>>>,
     pub counts: RefCell<counts::Counts>,
+    summary_pages: RefCell<summary::Pages>,
     pub map_cursor: RefCell<MapCursor>,
     pub footsteps: Option<RefCell<Footsteps>>,
     /// Python's `self.touch` is the navigator's `touch`, which it owns here.
@@ -653,6 +654,13 @@ impl Gen6Profile {
         let pauses = ui.pauses;
         // A Poké Mart's count, said whole at each change where the screen held it to a pause.
         let counts = RefCell::new(counts::Counts::new(layouts.clone(), files.clone(), pauses));
+        // The summary draws one page and keeps the rest as drawn: those not shown go unheard.
+        let summary_pages = RefCell::new(summary::Pages::new(
+            memory.clone(),
+            apps.clone(),
+            layouts.clone(),
+            files.clone(),
+        ));
         let sides: Sides = {
             let (standings, announcements, apps) =
                 (standings.clone(), announcements.clone(), apps.clone());
@@ -1337,6 +1345,7 @@ impl Gen6Profile {
             occupants,
             standings,
             counts,
+            summary_pages,
             map_cursor: RefCell::new(map_cursor),
             footsteps,
             navigator: RefCell::new(navigator),
@@ -1843,6 +1852,8 @@ impl Gen6Profile {
                 None => (IndexMap::new(), None),
                 Some(bag) => bag.borrow_mut().poll(&cursors)?,
             };
+            let cursored: HashSet<i64> = cursors.under.iter().flatten().map(|p| p.root).collect();
+            self.summary_pages.borrow_mut().poll(on_screen, &cursored)?;
             Ok((
                 screen, sides, party, listed, cursors, played, chosen, pocket,
             ))
@@ -1876,12 +1887,15 @@ impl Gen6Profile {
         if with_choices {
             labels.extend(self.choices.borrow().labels());
         }
+        // The summary's pages it does not draw are not heard.
+        let unseen = self.summary_pages.borrow().hidden();
         let mut texts: Vec<ScreenText> = Vec::new();
         for text in &screen.texts {
             if !self.battle.borrow().owns(text)?
                 && !self.habitat.borrow().owns(text)
                 && !self.distribution_reader.borrow().owns(text)
                 && !counted.contains(&text.r#box)
+                && !unseen.contains(&text.root)
             {
                 texts.push(text.clone());
             }
@@ -1892,10 +1906,27 @@ impl Gen6Profile {
             .on_screen
             .iter()
             .filter(|piece| {
-                !self.distribution_reader.borrow().owns(piece) && !counted.contains(&piece.r#box)
+                !self.distribution_reader.borrow().owns(piece)
+                    && !counted.contains(&piece.r#box)
+                    && !unseen.contains(&piece.root)
             })
             .cloned()
             .collect();
+        // A summary page turned to is said as a screen rewritten, its words as they stand: its
+        // first row at once, the rest after it, cut off by the next turn.
+        let turned = self.summary_pages.borrow().turned();
+        if !turned.is_empty() {
+            let written: HashSet<i64> = texts.iter().map(|text| text.r#box).collect();
+            texts.extend(
+                heard
+                    .iter()
+                    .filter(|piece| turned.contains(&piece.root) && !written.contains(&piece.r#box))
+                    .map(|piece| ScreenText {
+                        changed: true,
+                        ..piece.clone()
+                    }),
+            );
+        }
         if let Some(count) = &count {
             (self.log)(&format!("count: {count}"));
             self.speech.say(count, Category::Menu);
@@ -1905,18 +1936,22 @@ impl Gen6Profile {
         // showed.
         let mut roots = self.layouts.roots();
         roots.extend(self.layouts.buried());
-        let subject = || summary::name(&*self.memory, &self.names, &self.apps.borrow());
+        let poll = ScreenPoll {
+            texts,
+            on_screen: heard,
+            ..screen.clone()
+        };
+        let subject = || {
+            let name = summary::name(&*self.memory, &self.names, &self.apps.borrow())?;
+            Ok(self.summary_pages.borrow().lead(&poll.on_screen, name))
+        };
         // `pocket or box_title`.
         let title = match pocket {
             Some(pocket) if !pocket.is_empty() => Some(pocket),
             _ => box_title,
         };
         self.screen_announcer.borrow_mut().say(
-            &ScreenPoll {
-                texts,
-                on_screen: heard,
-                ..screen.clone()
-            },
+            &poll,
             &cursors,
             &labels,
             Some(&roots),
