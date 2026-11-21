@@ -34,3 +34,5 @@ pub mod secret_base;
 
 pub mod pokedex;
 pub mod scrolled;
+
+pub mod sources;

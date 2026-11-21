@@ -90,6 +90,7 @@ mod test_sm_screen;
 mod test_sm_walls;
 mod test_sm_zones;
 mod test_snapshot;
+mod test_sources;
 mod test_speaker;
 mod test_speech;
 mod test_subscreen;

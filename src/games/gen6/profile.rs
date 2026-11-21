@@ -42,7 +42,7 @@ use crate::core::words::{current, own};
 use crate::games::common::announce::{Announcements, Speaker};
 use crate::games::common::cursors::menu::Blank;
 use crate::games::common::cursors::reader::CursorReader;
-use crate::games::common::cursors::shared::{CursorItem, CursorPoll, Rect, Slot};
+use crate::games::common::cursors::shared::{Rect, Slot};
 use crate::games::common::dialogue::{DialogueReader, ORAS_SHAPES, Shown};
 use crate::games::common::field::ground::Ground;
 use crate::games::common::field::guide::{FieldSource, Place};
@@ -80,7 +80,7 @@ use crate::games::gen6::field::speaker::SpeakerReader;
 use crate::games::gen6::field::{camera, mapblock, talk};
 use crate::games::gen6::game::MemoriesReader;
 use crate::games::gen6::game::{
-    ConditionsReader, Game, OpeningReader, OwnApp, ScreensReader, StandingsReader,
+    ConditionsReader, Game, OpeningReader, OwnApp, StandingsReader,
 };
 use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::rom::cries::Crier;
@@ -98,9 +98,10 @@ use crate::games::gen6::screens::lists::{CONTROLLER_CLASS, ListReader};
 use crate::games::gen6::screens::mapcursor::MapCursor;
 use crate::games::gen6::screens::partners::Partners;
 use crate::games::gen6::screens::partyicons::PartyIcons;
+use crate::games::gen6::screens::sources::{Chase, CursorSources};
 use crate::games::gen6::screens::{
-    bag, bag_sort, battle_bag, boxes, buttons, counts, distribution, mart, partners, partyicons,
-    pokedex, registered, reminder, rows, scrolled, secret_base, shiny, summary, townmap,
+    boxes, buttons, distribution, partners, partyicons, pokedex, registered, rows, secret_base,
+    townmap,
 };
 use crate::games::gen6::subscreen::amie;
 use crate::games::gen6::subscreen::head_it::Cue;
@@ -323,7 +324,6 @@ pub struct Gen6Profile {
     pub classes: Vec<String>,
     pub distribution: Rc<RefCell<Distribution>>,
     pub views: Rc<RefCell<townmap::Views>>,
-    reminder: RefCell<reminder::Pages>,
     /// The subscreens, Pokémon-Amie's and Super Training's and the apps they open, which name
     /// what they draw, offer what no touch area does, and answer keys of their own.
     pub subscreens: Rc<Subscreens>,
@@ -332,34 +332,17 @@ pub struct Gen6Profile {
     pub buttons: Rc<RefCell<buttons::Buttons>>,
     pub party_icons: Rc<RefCell<PartyIcons>>,
     pub partners: Rc<RefCell<Partners>>,
-    box_mode: Option<RefCell<boxes::Mode>>,
-    box_titles: Option<RefCell<boxes::Titles>>,
-    areanav: RefCell<townmap::AreaNav>,
-    registered: Option<RefCell<registered::Registered>>,
-    bag_sort: RefCell<bag_sort::BagSort>,
-    bag: Option<Rc<RefCell<bag::Chosen>>>,
+    registered: Option<Rc<RefCell<registered::Registered>>>,
     pub occupants: Rc<RefCell<boxes::Occupants>>,
     pub standings: Option<Rc<RefCell<dyn StandingsReader>>>,
-    pub counts: RefCell<counts::Counts>,
-    battle_bag: RefCell<battle_bag::BattleBag>,
-    shiny: RefCell<shiny::Shiny>,
-    rows: Rc<RefCell<rows::Rows>>,
+    /// What each screen's own objects say its cursor is on (ADR-0043).
+    pub sources: Rc<RefCell<CursorSources>>,
     /// Ticks left to poll the screen at, until a row's move is said (`rows.CHASE`).
     chasing: Cell<i64>,
-    /// Whether the move chased is said once its details are too (`Game.screens`).
+    /// Whether the move chased is said once its details are too (`Chase.DETAILS`).
     chasing_details: Cell<bool>,
     /// Whether the last screen poll said a cursor's move or opening.
     cursor_said: Cell<bool>,
-    /// Whether the last screen poll found a cursor on screen.
-    cursor_shown: Rc<Cell<bool>>,
-    mart: RefCell<mart::Jumps>,
-    xy_list: RefCell<pokedex::XyList>,
-    search_rows: RefCell<scrolled::Scrolled>,
-    oras_list: RefCell<pokedex::OrasList>,
-    screens: Option<RefCell<Box<dyn ScreensReader>>>,
-    summary_pages: RefCell<summary::Pages>,
-    /// The game's words for the contest categories, the conditions star's labels.
-    contest_words: HashSet<String>,
     pub map_cursor: RefCell<MapCursor>,
     pub footsteps: Option<RefCell<Footsteps>>,
     /// Python's `self.touch` is the navigator's `touch`, which it owns here.
@@ -680,35 +663,6 @@ impl Gen6Profile {
             memory.clone(),
             names.clone(),
         )));
-        // The place under its map cursor, said from its MapView before the top screen names it
-        // (spike 309), and the lists drawn over the map.
-        let sources = &game.cursors;
-        let areanav = RefCell::new(townmap::AreaNav::new(
-            views.clone(),
-            sources.map_view.map(|map_view| {
-                let map_areas = text.map_areas.clone();
-                let (running, process) = (apps.clone(), apps.clone());
-                townmap::Places::new(
-                    memory.clone(),
-                    Rc::new(move || running.borrow().running.clone()),
-                    Rc::new(move || process.borrow().process),
-                    Rc::new(move |index: i64| map_areas.get(&index).cloned()),
-                    map_view,
-                )
-            }),
-        ));
-        // So does the Move Reminder of the page of moves' effects it is not drawing.
-        let reminder = RefCell::new(reminder::Pages::new(
-            memory.clone(),
-            {
-                let apps = apps.clone();
-                Rc::new(move || apps.borrow().running.clone())
-            },
-            {
-                let apps = apps.clone();
-                Rc::new(move || apps.borrow().process)
-            },
-        ));
         // The game's button managers say whose buttons take taps (spike 189).
         let buttons = Rc::new(RefCell::new(buttons::Buttons::with_menu(
             memory.clone(),
@@ -733,108 +687,6 @@ impl Gen6Profile {
             )
         });
         let pauses = ui.pauses;
-        // A Poké Mart's count, said whole at each change where the screen held it to a pause.
-        let counts = RefCell::new(counts::Counts::new(layouts.clone(), files.clone(), pauses));
-        let battle_bag = RefCell::new(battle_bag::BattleBag::new(
-            memory.clone(),
-            {
-                let apps = apps.clone();
-                Rc::new(move || apps.borrow().process)
-            },
-            layouts.clone(),
-            files.clone(),
-            {
-                let gauges = gauges.clone();
-                Rc::new(move || gauges.kept())
-            },
-        ));
-        // A shiny Pokémon under a horde's target cursor said so (spike 307).
-        let shiny = RefCell::new(shiny::Shiny::new(
-            memory.clone(),
-            {
-                let apps = apps.clone();
-                Rc::new(move || apps.borrow().running.clone())
-            },
-            {
-                let apps = apps.clone();
-                Rc::new(move || apps.borrow().process)
-            },
-            {
-                let gauges = gauges.clone();
-                Rc::new(move || gauges.kept())
-            },
-            layouts.clone(),
-            files.clone(),
-        ));
-        // The X menu's, the options', the party's, the PC's, the move screens' and the title
-        // menu's rows and the name entry's key, read every tick while a cursor is on screen: a
-        // move polls the screen at once.
-        let cursor_shown = Rc::new(Cell::new(false));
-        let rows = Rc::new(RefCell::new(rows::Rows::new(
-            memory.clone(),
-            {
-                let apps = apps.clone();
-                Rc::new(move || apps.borrow().running.clone())
-            },
-            {
-                let apps = apps.clone();
-                Rc::new(move || apps.borrow().process)
-            },
-            {
-                let buttons = buttons.clone();
-                Rc::new(move || buttons.borrow().menu())
-            },
-            {
-                let cursor_shown = cursor_shown.clone();
-                Rc::new(move || cursor_shown.get())
-            },
-            sources.rows,
-        )));
-        // A Poké Mart's list jumped a page is said where it lands, not where it passes.
-        let mart = RefCell::new(mart::Jumps::new(
-            memory.clone(),
-            names.clone(),
-            {
-                let choices = choices.clone();
-                Rc::new(move || choices.borrow().boxes())
-            },
-            layouts.clone(),
-            files.clone(),
-        ));
-        // X's Pokédex list says an entry by its number alone; the top screen's panel names it.
-        let xy_list = RefCell::new(pokedex::XyList::new());
-        // Search and sort's moves along rows reading alike, its dashes after another field's.
-        let search_rows = RefCell::new(scrolled::Scrolled::new());
-        // Omega Ruby's says its entry from the list's own rows, the tick it is chosen (spike 310).
-        let oras_list = RefCell::new(pokedex::OrasList::new(
-            memory.clone(),
-            {
-                let apps = apps.clone();
-                Rc::new(move || apps.borrow().running.clone())
-            },
-            {
-                let apps = apps.clone();
-                Rc::new(move || apps.borrow().process)
-            },
-        ));
-        let screens = game.screens.map(|make| {
-            RefCell::new(make(
-                memory.clone(),
-                apps.clone(),
-                layouts.clone(),
-                files.clone(),
-            ))
-        });
-        // The summary draws one page and keeps the rest as drawn: those not shown go unheard.
-        let summary_pages = RefCell::new(summary::Pages::new(
-            memory.clone(),
-            names.clone(),
-            apps.clone(),
-            layouts.clone(),
-            files.clone(),
-            sources.summary,
-        ));
-        let contest_words: HashSet<String> = text.contest_categories.iter().cloned().collect();
         let sides: Sides = {
             let (standings, announcements, apps) =
                 (standings.clone(), announcements.clone(), apps.clone());
@@ -889,51 +741,20 @@ impl Gen6Profile {
                 }
             })
         };
-        let box_mode = sources.r#box.map(|r#box| {
-            RefCell::new(boxes::Mode::new(
-                memory.clone(),
-                r#box.mode,
-                box_process.clone(),
-            ))
-        });
         let registered = game.registered.map(|slots| {
-            RefCell::new(registered::Registered::new(
+            Rc::new(RefCell::new(registered::Registered::new(
                 memory.clone(),
                 slots,
                 text.items.clone(),
                 file_of.clone(),
-            ))
-        });
-        let bag = sources.bag.clone().map(|shape| {
-            let apps = apps.clone();
-            Rc::new(RefCell::new(bag::Chosen::new(
-                memory.clone(),
-                shape,
-                Rc::new(move || {
-                    let apps = apps.borrow();
-                    if apps.running.as_deref() == Some(partyicons::BAG) {
-                        apps.process
-                    } else {
-                        None
-                    }
-                }),
-                text.items.clone(),
-                text.pockets.clone(),
             )))
         });
-        let bag_sort = RefCell::new(bag_sort::BagSort::new({
-            let bag = bag.clone();
-            Rc::new(move || match &bag {
-                None => Ok(false),
-                Some(bag) => bag.borrow_mut().carrying(),
-            })
-        }));
         // Carrying a Pokémon in the PC Box, the slot it is over says who is in it, from the save.
         // Made before the block the cursors are made in, where Python makes it inside, just before
         // them; making it reads nothing.
         let box_shown = boxes::shown(
             memory.clone(),
-            sources.r#box.map(|r#box| r#box.shown),
+            game.cursors.r#box.map(|r#box| r#box.shown),
             box_process.clone(),
         );
         let occupants = Rc::new(RefCell::new(boxes::Occupants::with(
@@ -949,14 +770,37 @@ impl Gen6Profile {
             },
             box_shown.clone(),
         )));
-        // The box turned to, said from the Box's byte before its title is written (spike 298).
-        let box_titles = sources.r#box.map(|_| {
-            let occupants = occupants.clone();
-            RefCell::new(boxes::Titles::new(
-                box_shown.clone(),
-                Rc::new(move || occupants.borrow().names()),
-            ))
-        });
+        // What each screen's own objects say its cursor is on (ADR-0043). Made here, before the
+        // cursor reader that asks it the Box's slot, where Python makes it after and reaches it
+        // through `self`; making it reads nothing.
+        let sources = Rc::new(RefCell::new(CursorSources::new(
+            memory.clone(),
+            names.clone(),
+            apps.clone(),
+            layouts.clone(),
+            files.clone(),
+            &game.cursors,
+            &text,
+            pauses,
+            {
+                let buttons = buttons.clone();
+                Rc::new(move || buttons.borrow().menu())
+            },
+            {
+                let choices = choices.clone();
+                Rc::new(move || choices.borrow().boxes())
+            },
+            {
+                let gauges = gauges.clone();
+                Rc::new(move || gauges.kept())
+            },
+            occupants.clone(),
+            box_shown.clone(),
+            views.clone(),
+            registered.clone(),
+            standings.clone(),
+            game.screens,
+        )));
 
         // Omega Ruby's boy and girl are portraits the game never names, said in pa3ds's words
         // (`pictures.named`).
@@ -1024,8 +868,8 @@ impl Gen6Profile {
                 // The Box's pointer is said on the slot the game sends it to, not once it rests
                 // there.
                 Some({
-                    let rows = rows.clone();
-                    Rc::new(move || rows.borrow().box_slot()) as Slot
+                    let sources = sources.clone();
+                    Rc::new(move || sources.borrow().box_slot()) as Slot
                 }),
                 Some({
                     let (apps, labels) = (apps.clone(), text.search_labels.clone());
@@ -1540,35 +1384,18 @@ impl Gen6Profile {
             classes: classes.into_iter().collect(),
             distribution,
             views,
-            reminder,
             subscreens,
             contexts,
             buttons,
             party_icons,
             partners,
-            box_mode,
-            box_titles,
-            areanav,
             registered,
-            bag_sort,
-            bag,
             occupants,
             standings,
-            counts,
-            battle_bag,
-            shiny,
-            rows,
+            sources,
             chasing: Cell::new(0),
             chasing_details: Cell::new(false),
             cursor_said: Cell::new(false),
-            cursor_shown,
-            mart,
-            xy_list,
-            search_rows,
-            oras_list,
-            screens,
-            summary_pages,
-            contest_words,
             map_cursor: RefCell::new(map_cursor),
             footsteps,
             navigator: RefCell::new(navigator),
@@ -2006,32 +1833,20 @@ impl Gen6Profile {
                     .focus(&focus, "opening", false);
             }
         }
-        // A menu's row moved: the screen is polled now, and each tick until its word is said.
-        // The Box turned to another box: the screen is polled now, once, and the heap's whole
-        // sweep waits as it does for a cursor moving: one ran into a turn through the boxes, and
-        // BOX 4 and BOX 5 went unsaid (or_pc_box_bugs).
-        let turned = phase(&*self.memory, "rows", || {
-            if self.rows.borrow_mut().moved()? || self.oras_list.borrow_mut().moved()? {
-                self.chasing.set(rows::CHASE);
-            }
-            // The Pokéblock Kit keeps no index of what its cursor is over, and its cursor's place
-            // is read instead. The block's count is said with its name, which the game writes as
-            // the cursor moves: the screen is polled until both are said (or_pokeblock_kit).
-            if let Some(screens) = &self.screens
-                && screens
-                    .borrow_mut()
-                    .moved(&self.cursors.borrow().windows())?
-            {
-                self.chasing.set(rows::CHASE);
-                self.chasing_details.set(true);
-            }
-            let turned = match &self.box_titles {
-                None => false,
-                Some(titles) => titles.borrow().turned()?,
-            };
-            // The AreaNav's map cursor came onto another place: the screen is polled now, once.
-            Ok(turned || self.areanav.borrow_mut().turned()?)
+        // A cursor source moved: the screen is polled now, once or each tick until its word is
+        // said (`Chase`).
+        let chase = phase(&*self.memory, "rows", || {
+            self.sources
+                .borrow_mut()
+                .moved(&|| self.cursors.borrow().windows())
         })?;
+        if chase.any(Chase::ROW | Chase::DETAILS) {
+            self.chasing.set(rows::CHASE);
+        }
+        if chase.any(Chase::DETAILS) {
+            self.chasing_details.set(true);
+        }
+        let turned = chase.any(Chase::ONCE);
         self.moving.set(self.moving.get() || turned);
         if (self.chasing.get() != 0 || turned) && !screen_polled {
             let gathering = self.screen_announcer.borrow().gathering();
@@ -2060,16 +1875,6 @@ impl Gen6Profile {
     /// `poll_screen(hold, with_choices)`. Named apart from `poll_screen` because the runtime's
     /// `Profile::poll_screen` takes neither.
     pub fn poll_screen_with(&self, hold: bool, with_choices: bool) -> Result<()> {
-        // Set inside the phase, as Python's locals are.
-        let mut box_mode: Option<String> = None;
-        let mut entrant: Option<String> = None;
-        let mut box_title: Option<String> = None;
-        let mut place: Option<String> = None;
-        let mut slots: Option<String> = None;
-        let mut carried: Option<String> = None;
-        let mut count: Option<String> = None;
-        let mut counted: HashSet<i64> = HashSet::new();
-        let mut paged = battle_bag::nothing();
         let polled = phase(&*self.memory, "screen", || {
             // The field's layouts come back where they were when a menu screen closes, and a
             // layout found before it was built is taken in once it is.
@@ -2080,12 +1885,7 @@ impl Gen6Profile {
                 .into_iter()
                 .map(|(work, root)| (root, work))
                 .collect();
-            let mut put_away = self.views.borrow().put_away(&works_of)?;
-            put_away.extend(self.reminder.borrow_mut().put_away()?);
-            if let Some(screens) = &self.screens {
-                put_away.extend(screens.borrow_mut().put_away()?);
-            }
-            put_away.extend(self.summary_pages.borrow().put_away()?);
+            let put_away = self.sources.borrow_mut().put_away(&works_of)?;
             self.layouts.put_away(put_away);
             // The battle's layouts are built into a pool its message window leads to.
             let failed: RefCell<Option<Error>> = RefCell::new(None);
@@ -2111,31 +1911,12 @@ impl Gen6Profile {
                 Some(opponents) => opponents.borrow_mut().poll()?,
             };
             self.habitat.borrow_mut().poll(on_screen)?;
-            (count, counted) = self.counts.borrow_mut().poll(on_screen)?;
-            paged = self.battle_bag.borrow_mut().poll(on_screen)?;
             let in_townmap = self.apps.borrow().running.as_deref() == Some(townmap::APP);
             let listed = self
                 .distribution_reader
                 .borrow_mut()
                 .poll(on_screen, in_townmap)?;
-            entrant = match &self.standings {
-                None => None,
-                Some(standings) => standings.borrow_mut().poll(on_screen)?,
-            };
             self.map_cursor.borrow_mut().poll()?;
-            box_mode = match &self.box_mode {
-                None => None,
-                Some(reader) => reader.borrow_mut().poll()?,
-            };
-            box_title = match &self.box_titles {
-                None => None,
-                Some(titles) => titles.borrow_mut().poll()?,
-            };
-            place = self.areanav.borrow_mut().title()?;
-            slots = match &self.registered {
-                None => None,
-                Some(reader) => reader.borrow_mut().poll(self.layouts.roots())?,
-            };
             let running = self.apps.borrow().running.clone();
             let played = {
                 let mut navigator = self.navigator.borrow_mut();
@@ -2146,121 +1927,36 @@ impl Gen6Profile {
                 self.subscreens.poll(running.as_deref(), touch)?
             };
             let found = self.cursors.borrow_mut().poll(on_screen)?;
-            let cursors;
-            (carried, cursors) = self.bag_sort.borrow_mut().poll(found, on_screen)?;
-            let mut cursors = self.mart.borrow_mut().poll(cursors)?;
-            if !paged.pockets.is_empty() {
-                // The battle Bag's pockets' menu, behind an open pocket's list, is no cursor's.
-                let mut items: Vec<CursorItem> = Vec::new();
-                for item in &cursors.items {
-                    let first = item
-                        .pieces
-                        .first()
-                        .ok_or_else(|| Error::index("tuple index out of range"))?;
-                    if !paged.pockets.contains(&first.root) {
-                        items.push(item.clone());
-                    }
-                }
-                cursors = CursorPoll { items, ..cursors };
-            }
-            let cursors = self
-                .shiny
-                .borrow_mut()
-                .poll(cursors, on_screen, &|| self.battle.borrow().shiny())?;
-            let (chosen, pocket) = match &self.bag {
-                None => (IndexMap::new(), None),
-                Some(bag) => bag.borrow_mut().poll(&cursors)?,
-            };
-            self.summary_pages.borrow_mut().poll()?;
-            let cursors = self.summary_pages.borrow().cursors(cursors, on_screen)?;
-            let cursors = self.reminder.borrow().cursors(cursors);
-            let cursors = self.oras_list.borrow_mut().cursors(cursors, on_screen)?;
-            let running = self.apps.borrow().running.clone();
-            let cursors = self
-                .xy_list
-                .borrow_mut()
-                .poll(running.as_deref(), cursors, on_screen);
-            let cursors = self.search_rows.borrow_mut().poll(
-                cursors,
-                &pokedex::search_roots(running.as_deref(), on_screen, &self.text.search_labels),
-            );
-            let mut cursors = pokedex::labelled(
-                running.as_deref(),
-                cursors,
-                on_screen,
-                &self.text.search_labels,
-            );
-            cursors = self.areanav.borrow_mut().cursors(cursors, on_screen);
-            if self.chasing.get() != 0
-                && cursors.items.is_empty()
-                && self.apps.borrow().running.as_deref() == Some(boxes::APP)
-            {
-                // The Box's byte moved, and its pointer has yet to say where: what the screen
-                // changes meanwhile is that slot's.
-                cursors = CursorPoll {
-                    chased: true,
-                    ..cursors
-                };
-            }
-            Ok((
-                screen, sides, party, listed, cursors, played, chosen, pocket,
-            ))
+            let polled = self.sources.borrow_mut().poll(
+                &screen,
+                found,
+                self.chasing.get() != 0,
+                &|| self.battle.borrow().shiny(),
+            )?;
+            Ok((screen, sides, party, listed, played, polled))
         })?;
-        let (screen, sides, party, listed, cursors, played, chosen, pocket) = polled;
+        let (screen, sides, party, listed, played, polled) = polled;
+        let mut cursors = polled.cursors;
         self.moving
             .set(self.moving.get() || !cursors.items.is_empty());
         self.cursor_said.set(!cursors.items.is_empty());
-        self.cursor_shown.set(!cursors.under.is_empty());
         for (logged, line, category) in &played {
             (self.log)(&format!("{logged}: {line}"));
             if let Some(category) = category {
                 self.speech.say(line, *category);
             }
         }
-        if let Some(box_mode) = &box_mode {
-            (self.log)(&format!("box mode: {box_mode}"));
-            self.speech.say(box_mode, Category::Menu);
-        }
-        if let Some(entrant) = &entrant {
-            // A contest's portrait draws no words, and the panel names it a second and a half
-            // after the cursor comes onto it.
-            (self.log)(&format!("contest entrant: {entrant}"));
-            self.speech.say(entrant, Category::Menu);
-        }
-        if let Some(carried) = &carried {
-            (self.log)(&format!("bag sort: {carried}"));
-            self.speech.say(carried, Category::Menu);
-        }
-        if let Some(slots) = &slots {
-            (self.log)(&format!("registered items: {slots}"));
-            self.speech.say(slots, Category::Menu);
+        for (logged, line) in &polled.before {
+            (self.log)(&format!("{logged}: {line}"));
+            self.speech.say(line, Category::Menu);
         }
         let mut labels = self.lists.borrow().labels();
         labels.extend(self.announcements.borrow_mut().recent_labels());
-        if let Some(titles) = &self.box_titles {
-            labels.extend(titles.borrow().unsaid()?);
-        }
+        labels.extend(polled.labels);
         if with_choices {
             labels.extend(self.choices.borrow().labels());
         }
-        // The summary's pages it does not draw are not heard, nor its star's labels, which have
-        // no values: the conditions Extra says them with theirs.
-        let unseen = self.summary_pages.borrow().hidden();
-        let mut unsaid = counted.clone();
-        unsaid.extend(paged.unsaid.iter().copied());
-        unsaid.extend(
-            self.summary_pages
-                .borrow()
-                .star_labels(&screen.on_screen, &self.contest_words),
-        );
-        unsaid.extend(pokedex::tabled(
-            self.apps.borrow().running.as_deref(),
-            &screen.texts,
-            &screen.on_screen,
-            &cursors,
-            &self.text.search_labels,
-        ));
-        unsaid.extend(self.areanav.borrow().unsaid(&screen.on_screen));
+        let (unseen, unsaid) = (polled.unseen, polled.unsaid);
         let mut texts: Vec<ScreenText> = Vec::new();
         for text in &screen.texts {
             if !self.battle.borrow().owns(text)?
@@ -2272,27 +1968,7 @@ impl Gen6Profile {
                 texts.push(text.clone());
             }
         }
-        if self.apps.borrow().running.as_deref() == Some(rows::FITTING) {
-            // The fitting room's cursor walks its tabs, pictures, and on into the list and the
-            // buttons drawn in their layout, which open with it as a menu's do: owning the tab
-            // alone, as the AreaNav's cursor does, it read Change, Back and the cards as the
-            // room opened (x_cyllage_boutique_fitting_room). Their changes are still heard: the
-            // cards a move between categories shows are its details.
-            let walked: HashSet<i64> = cursors
-                .under
-                .iter()
-                .flatten()
-                .map(|piece| piece.root)
-                .collect();
-            texts.retain(|text| text.changed || !text.with_layout || !walked.contains(&text.root));
-        }
-        // `pocket or box_title or paged.turned or place`.
-        let mut title = [pocket, box_title, paged.turned.clone()]
-            .into_iter()
-            .flatten()
-            .find(|title| !title.is_empty())
-            .or(place);
-        let mut cursors = cursors;
+        let mut title = polled.title;
         if self.after_forget.get().is_some() {
             // Back from Move to forget, the Bag or the Move Reminder is built again as the player
             // left it, under the game's question or its news of the move, and its opening is
@@ -2315,14 +1991,7 @@ impl Gen6Profile {
             })
             .cloned()
             .collect();
-        let (cursors, texts, turned) = self
-            .summary_pages
-            .borrow()
-            .said(cursors, texts, &heard);
-        if let Some(count) = &count {
-            (self.log)(&format!("count: {count}"));
-            self.speech.say(count, Category::Menu);
-        }
+        let (cursors, texts, turned) = self.sources.borrow().said(cursors, texts, &heard);
         // A layout built again where it was is the one that was there, and a menu stays a menu:
         // the battle's move list, forgotten while it was gone, was read out whole the moment it
         // showed.
@@ -2333,21 +2002,20 @@ impl Gen6Profile {
             on_screen: heard,
             ..screen.clone()
         };
-        let subject = || self.summary_pages.borrow().subject();
+        let subject = || self.sources.borrow().subject();
         self.screen_announcer.borrow_mut().say(
             &poll,
             &cursors,
             &labels,
             Some(&roots),
             Some(&subject),
-            Some(&chosen),
+            Some(&polled.chosen),
             title.as_deref(),
             &turned,
         )?;
-        // A battle Bag's pocket just opened says its page after its first item.
-        if let Some(opened) = &paged.opened {
-            (self.log)(&format!("battle bag: {opened}"));
-            self.speech.say(opened, Category::Screen);
+        for (logged, line) in &polled.after {
+            (self.log)(&format!("{logged}: {line}"));
+            self.speech.say(line, Category::Screen);
         }
         // After the screen's words, which name the place first.
         for line in &listed {
