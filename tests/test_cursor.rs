@@ -3316,22 +3316,27 @@ fn test_a_slot_the_game_names_is_said_while_the_pointer_glides_to_it() {
     }
     put(&r#box.memory, r#box.cursor + lyt::X, &[110.0]);
     put(&r#box.memory, r#box.cursor + lyt::Y, &[40.0]);
-    let mut heard: Vec<String> = Vec::new();
-    for _ in 0..2 {
-        // read the same on two polls, as the game moves its icons
-        r#box.reader.sample(&*r#box.memory).unwrap();
-        r#box.fake.layouts.refresh();
-        heard.extend(
-            r#box
-                .reader
-                .poll(&[r#box.title.clone()])
-                .unwrap()
-                .items
-                .iter()
-                .map(|item| item.pieces[0].text.clone()),
-        );
-    }
+    // Read the same on two polls, as the game moves its icons, and on its way till then, so
+    // that the summary turning meanwhile is the slot's (heard in play, 2026-11-17).
+    r#box.reader.sample(&*r#box.memory).unwrap();
+    r#box.fake.layouts.refresh();
+    assert_eq!(
+        r#box.reader.poll(&[r#box.title.clone()]).unwrap().items,
+        Vec::<CursorItem>::new()
+    );
+    assert!(r#box.reader.last.moving.contains(&r#box.cursor));
+    r#box.reader.sample(&*r#box.memory).unwrap();
+    r#box.fake.layouts.refresh();
+    let heard: Vec<String> = r#box
+        .reader
+        .poll(&[r#box.title.clone()])
+        .unwrap()
+        .items
+        .iter()
+        .map(|item| item.pieces[0].text.clone())
+        .collect();
     assert_eq!(heard, vec!["Party 2, empty".to_string()]);
+    assert_eq!(r#box.reader.last.moving, HashSet::new());
     r#box.slot.set(Some(4));
     assert_eq!(
         r#box.rest(-10.0, 55.0),

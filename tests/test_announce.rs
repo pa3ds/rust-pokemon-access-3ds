@@ -98,6 +98,7 @@ struct Args {
     chosen: Option<IndexMap<i64, String>>,
     title: Option<String>,
     lead: HashSet<i64>,
+    chased: bool,
 }
 
 fn args(texts: &[ScreenText], items: Vec<CursorItem>, on_screen: &[ScreenText]) -> Args {
@@ -179,6 +180,7 @@ impl Screen {
                     lists: IndexMap::new(),
                     moving: given.moving.clone(),
                     rows: given.rows.clone(),
+                    chased: given.chased,
                 },
                 &given.labels,
                 given.roots.as_ref(),
@@ -1985,6 +1987,75 @@ fn test_a_cursor_on_its_way_elsewhere_drops_its_details_unsaid() {
     );
     assert_eq!(screen.on(&everything), NOTHING);
     assert_eq!(screen.on(&everything), NOTHING);
+}
+
+/// Polled every tick as the PC Box's pointer set off, the summary turned to the slot's Pokémon a
+/// poll before the slot was said, and was read first: "Windsong", then "Party 4" (heard in play,
+/// 2026-11-17).
+#[test]
+fn test_what_changes_while_a_cursor_is_on_its_way_is_said_after_its_item() {
+    let mut screen = Screen::new();
+    let slot = vec![piece(1, "Party 4", -120.0, 70.0, MENU)];
+    let in_panel = Kw {
+        parent: 0x200,
+        ..PLAIN
+    };
+    let name = piece_kw(2, "Windsong", -190.0, -35.0, PANEL, in_panel);
+    let level = piece_kw(3, "Lv.30", -100.0, -35.0, PANEL, in_panel);
+    let everything = cat(&[&slot, &[name.clone(), level.clone()]]);
+    let mut said = screen.say(Args {
+        moving: HashSet::from([0x0C]),
+        ..args(&[changed(&name), changed(&level)], vec![], &everything)
+    });
+    assert_eq!(said, NOTHING);
+    said.extend(screen.say(args(
+        &[],
+        vec![CursorItem::new(0x0C, slot.clone(), false)],
+        &everything,
+    )));
+    for _ in 0..DETAIL_POLLS {
+        said.extend(screen.on(&everything));
+    }
+    assert_eq!(said, ["Party 4", "Windsong Lv.30"]);
+}
+
+/// The Battle Box turned its summary to bubbles as its byte moved, the pointer not yet off the
+/// slot before, and "bubbles" was said before "BATTLE BOX 2", then again as its details
+/// (or_battle_box): the last slot's details are no longer its either.
+#[test]
+fn test_what_changes_as_a_cursors_source_moves_is_said_after_its_item() {
+    let mut screen = Screen::new();
+    let before = vec![piece(1, "BATTLE BOX 4, empty", -120.0, 70.0, MENU)];
+    let slot = vec![piece(1, "BATTLE BOX 2", -120.0, 70.0, MENU)];
+    let in_panel = Kw {
+        parent: 0x200,
+        ..PLAIN
+    };
+    let name = piece_kw(2, "bubbles", -190.0, -35.0, PANEL, in_panel);
+    let level = piece_kw(3, "Lv.33", -100.0, -35.0, PANEL, in_panel);
+    screen.say(args(
+        &[],
+        vec![CursorItem::new(0x0C, before.clone(), false)],
+        &before,
+    ));
+    let everything = cat(&[&slot, &[name.clone(), level.clone()]]);
+    let mut said = screen.say(Args {
+        chased: true,
+        ..args(&[name.clone(), level.clone()], vec![], &everything)
+    });
+    assert_eq!(said, NOTHING);
+    said.extend(screen.say(Args {
+        chased: true,
+        ..args(
+            &[],
+            vec![CursorItem::new(0x0C, slot.clone(), false)],
+            &everything,
+        )
+    }));
+    for _ in 0..DETAIL_POLLS {
+        said.extend(screen.on(&everything));
+    }
+    assert_eq!(said, ["BATTLE BOX 2", "bubbles Lv.33"]);
 }
 
 #[test]

@@ -119,6 +119,7 @@ fn moved(names: &[&str], root: i64) -> CursorPoll {
         lists: IndexMap::new(),
         moving: HashSet::new(),
         rows: HashSet::new(),
+        chased: false,
     }
 }
 

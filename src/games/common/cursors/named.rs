@@ -423,7 +423,13 @@ impl ListCursors {
                     // one's, and the category and the item were said together (spike 154). And a
                     // slot the game names, read as it moves the icons: carrying Lucario, Party 3
                     // was said once without Greninja, who was in it (x_pc_boxes).
+                    let words: Vec<String> = inside.iter().map(|piece| piece.text.clone()).collect();
                     self.said.report_steady(reporter, inside, items, at, alone);
+                    if heading && self.said.said.borrow().get(&reporter) != Some(&(words, at)) {
+                        // Not said yet: still on its way, so that what the screen changes
+                        // meanwhile is held for the slot (`ScreenAnnouncer`).
+                        self.moving.insert(holder);
+                    }
                 } else {
                     self.said.report(reporter, inside, items, at, alone);
                 }

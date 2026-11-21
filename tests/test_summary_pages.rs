@@ -317,6 +317,7 @@ fn test_a_moves_cursor_check_moves_left_set_is_no_cursor() {
         lists: IndexMap::from([(WAZA, HashSet::from([WAZA + 1]))]),
         moving: HashSet::new(),
         rows: HashSet::from([WAZA + 1]),
+        chased: false,
     };
     // In Check Moves, the shown page's list holding the move chosen: the cursor is the player's.
     poll_with(&memory, &mut pages, Some(MOVES), METAGROSS, (IRON_HEAD, 0));

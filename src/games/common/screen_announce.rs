@@ -236,6 +236,9 @@ pub struct ScreenAnnouncer {
     chosen: IndexMap<i64, String>,
     /// A screen rewritten with no cursor moving, gathered until it settles.
     rewrite: Option<Gathering>,
+    /// The panels changed, and come on screen, while a cursor was on its way to an item it had
+    /// not said yet: that item's details, once it is said.
+    held: (IndexSet<Panel>, IndexSet<Panel>),
     /// Cursor -> the words it opened on and the poll it did, for one that only slides into
     /// place the poll after: the Bag's said "Pokéblock Kit" as it opened and again 0.2 s later
     /// (movie30).
@@ -320,6 +323,7 @@ impl ScreenAnnouncer {
             gathering: None,
             chosen: IndexMap::new(),
             rewrite: None,
+            held: (IndexSet::new(), IndexSet::new()),
             opened: IndexMap::new(),
             detail_panels: IndexMap::new(),
             polls: 0,
@@ -456,6 +460,8 @@ impl ScreenAnnouncer {
             &cursors.moving,
             &cursors.rows,
         );
+        // A cursor whose source has moved, its item not yet said, is on its way all the same.
+        let chased = cursors.chased && items.is_empty();
         let mut cursored: HashSet<i64> = rows.clone();
         for pieces in under {
             if !pieces.iter().any(|p| labels.contains(&p.text)) {
@@ -771,7 +777,7 @@ impl ScreenAnnouncer {
         let mut gathering = self.gathering.take();
         if gathering
             .as_ref()
-            .is_some_and(|g| moving.contains(&g.cursor))
+            .is_some_and(|g| moving.contains(&g.cursor) || chased)
         {
             // The cursor is on its way elsewhere before its details settled: they are no longer
             // what it is over. The PC Box's pointer, held two polls on each slot, read Party 1's
@@ -782,6 +788,36 @@ impl ScreenAnnouncer {
                     .or_default()
                     .extend(moved.panels.iter().copied());
             }
+        }
+        if let Some(gathering) = &mut gathering {
+            let (held_changed, held_shown) = std::mem::take(&mut self.held);
+            gathering.panels.extend(held_changed);
+            gathering.joined.extend(held_shown);
+        } else if (!moving.is_empty() || chased) && self.rewrite.is_none() {
+            // What changes or comes on screen while a cursor is on its way to an item it has not
+            // said yet is that item's, said as its details once it is. Polled every tick as the
+            // PC Box's pointer set off, the summary turned to the slot's Pokémon a poll before
+            // the slot was said, and was read first: "Windsong", then "Party 4" (heard in play,
+            // 2026-11-17); and in the Battle Box, "bubbles", then "BATTLE BOX 2", the summary
+            // turned before the pointer had left the slot before (or_battle_box).
+            self.held.0.extend(changed.iter().map(ScreenText::group));
+            self.held.1.extend(shown.iter().map(ScreenText::group));
+            if !changed.is_empty() || !shown.is_empty() {
+                (self.log)(&format!(
+                    "screen held for a cursor on its way: {}",
+                    changed
+                        .iter()
+                        .chain(&shown)
+                        .map(|p| p.text.as_str())
+                        .collect::<Vec<&str>>()
+                        .join(", ")
+                ));
+            }
+            said.extend(changed.iter().chain(&shown).map(|p| p.r#box));
+            changed = Vec::new();
+            shown = Vec::new();
+        } else if !self.held.0.is_empty() || !self.held.1.is_empty() {
+            self.held = (IndexSet::new(), IndexSet::new());
         }
         if gathering.is_none() && self.rewrite.is_none() {
             let rewritten = self::rows(&changed, on_screen, labels);

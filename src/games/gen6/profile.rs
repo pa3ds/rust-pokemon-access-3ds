@@ -1998,10 +1998,21 @@ impl Gen6Profile {
                 Some(bag) => bag.borrow_mut().poll(&cursors)?,
             };
             self.summary_pages.borrow_mut().poll()?;
-            let cursors = self
+            let mut cursors = self
                 .summary_pages
                 .borrow()
                 .cursors(cursors, on_screen)?;
+            if self.chasing.get() != 0
+                && cursors.items.is_empty()
+                && self.apps.borrow().running.as_deref() == Some(boxes::APP)
+            {
+                // The Box's byte moved, and its pointer has yet to say where: what the screen
+                // changes meanwhile is that slot's.
+                cursors = CursorPoll {
+                    chased: true,
+                    ..cursors
+                };
+            }
             Ok((
                 screen, sides, party, listed, cursors, played, chosen, pocket,
             ))

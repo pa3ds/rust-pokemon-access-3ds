@@ -78,6 +78,9 @@ pub struct CursorPoll {
     /// The TextBoxes of the rows drawn like those an app menu's cursor is over
     /// (`MenuCursors.rows`): its list's, which are its to say.
     pub rows: HashSet<i64>,
+    /// A cursor's source has moved and no cursor has said its item since (`Gen6Profile`): the
+    /// PC Box turns its summary to the Pokémon as the byte moves, before its pointer sets off.
+    pub chased: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

@@ -89,6 +89,7 @@ fn test_a_jump_is_said_where_it_lands_and_a_step_at_once() {
             lists: IndexMap::new(),
             moving: HashSet::new(),
             rows: HashSet::new(),
+            chased: false,
         };
         jumps
             .poll(cursors)

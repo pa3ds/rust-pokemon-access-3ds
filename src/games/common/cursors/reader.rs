@@ -155,6 +155,7 @@ impl CursorReader {
             lists: self.lists.lists(),
             moving: self.lists.moving(),
             rows: self.menus.rows.clone(),
+            chased: false,
         })
     }
 }

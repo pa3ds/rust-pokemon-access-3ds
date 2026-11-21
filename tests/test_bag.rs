@@ -50,6 +50,7 @@ fn moved(cursor: i64, r#box: i64, rows: &[i64]) -> CursorPoll {
         lists: IndexMap::new(),
         moving: HashSet::new(),
         rows: rows.iter().copied().collect(),
+        chased: false,
     }
 }
 
