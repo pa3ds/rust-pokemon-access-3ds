@@ -68,12 +68,17 @@ struct FakeFiles;
 
 impl FileMatching for FakeFiles {
     fn matching(&self, panes: &[String]) -> Option<Rc<LayoutFile>> {
-        panes.first().map(|name| {
-            Rc::new(LayoutFile {
-                name: name.clone(),
-                ..LayoutFile::new(Vec::new(), IndexMap::new(), IndexMap::new())
-            })
-        })
+        let name = panes.first()?;
+        // The conditions page draws the star's outline.
+        let star: IndexMap<String, Vec<String>> = if name == FILES[2].1 {
+            IndexMap::from([("p_star".to_string(), vec![summary::STAR.to_string()])])
+        } else {
+            IndexMap::new()
+        };
+        Some(Rc::new(LayoutFile {
+            name: name.clone(),
+            ..LayoutFile::new(Vec::new(), star, IndexMap::new())
+        }))
     }
 }
 
@@ -221,7 +226,7 @@ fn test_the_page_shown_is_the_one_whose_list_is_flagged_and_the_others_are_unhea
     poll_with(&memory, pages, Some(MOVES), METAGROSS, (IRON_HEAD, 0));
     poll_with(&memory, pages, Some(MOVES), METAGROSS, (IRON_HEAD, 0));
     assert_eq!(pages.turned(), roots(&[PARAMS, WAZA]));
-    // The star's labels, on the conditions page alone.
+    // The star's labels, in a layout drawing the star alone.
     // A label drawn as a picture hangs from the root, as the Move Reminder's do; a move's
     // category icon beside the star hangs from its row.
     let star = [

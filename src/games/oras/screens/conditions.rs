@@ -39,8 +39,6 @@ use crate::py::{Log, Result};
 pub const CASE: &str = "N3app10poroc_case4ProcE";
 /// The Pokéblock Case's process -> the party's list, six `PokemonParam`s (spike 196).
 pub const PARTY: i64 = 0x130;
-/// The star's outline, drawn wherever the conditions are (spike 196).
-pub const STAR: &str = "star_base.bclim";
 
 /// The conditions as they are said: "Conditions Coolness 116 Beauty 70", or with pauses
 /// "Conditions: Coolness 116, Beauty 70".
@@ -237,7 +235,7 @@ impl Conditions {
                 let drawn = file
                     .textures
                     .values()
-                    .any(|drawn| drawn.iter().any(|texture| texture == STAR));
+                    .any(|drawn| drawn.iter().any(|texture| texture == summary::STAR));
                 self.stars.insert(names.clone(), drawn);
             }
             let placement = self.layouts.placement(root)?;

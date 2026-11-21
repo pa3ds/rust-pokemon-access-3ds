@@ -54,11 +54,13 @@ pub const PAGES: [&str; 6] = [
 pub const BUTTON: &str = "touch_bar_lower.bclyt";
 /// The Pokémon's name, level and item, on every page.
 pub const INFO: &str = "info.bclyt";
-/// The layouts drawing the conditions' star and its labels: the conditions page's, and the Move
-/// Reminder's contest effects' upper screen's, its moves' category icons beside the star. There the
-/// labels were read with what stood near them, "Black Glasses Coolness", "Beauty", "Cuteness
-/// Cleverness", "Toughness" (or_move_reminder_bugs). A `frozenset` only tested.
-pub const STARS: [&str; 2] = ["params_contest.bclyt", "waza_omoidashi2_upper.bclyt"];
+/// The conditions star's outline (spike 196). A layout drawing it draws the star's labels too: the
+/// conditions page's; the Move Reminder's contest effects' upper screen, its moves' category icons
+/// beside the star, where the labels were read with what stood near them, "Black Glasses
+/// Coolness", "Beauty", "Cuteness Cleverness", "Toughness" (or_move_reminder_bugs); and the
+/// Pokéblock Case's upper screen as it asks whom to give a block to, "Coolness", "Toughness,
+/// Beauty" (or_pokeblock_kit).
+pub const STAR: &str = "star_base.bclim";
 /// The pages' moves, which Check Moves' cursors go over. A `frozenset` only tested.
 pub const MOVES: [&str; 2] = ["waza.bclyt", "waza_contest.bclyt"];
 /// The summary's process -> the place of the Pokémon shown in its party or box, from 0: it
@@ -485,22 +487,25 @@ impl Pages {
     /// its layout's root, and each move's category icon beside the star, which hangs from its
     /// row, is no label.
     pub fn star_labels(&self, on_screen: &[ScreenText], words: &HashSet<String>) -> HashSet<i64> {
-        let mut files: IndexMap<i64, String> = IndexMap::new();
+        let mut stars: IndexMap<i64, bool> = IndexMap::new();
         let mut boxes: HashSet<i64> = HashSet::new();
         for piece in on_screen {
             if !words.contains(&piece.text) {
                 continue;
             }
-            if !files.contains_key(&piece.root) {
+            if !stars.contains_key(&piece.root) {
                 let found = self.files.matching(&self.layouts.pane_names(piece.root));
-                files.insert(
+                stars.insert(
                     piece.root,
-                    found.map(|found| found.name.clone()).unwrap_or_default(),
+                    found.is_some_and(|found| {
+                        found
+                            .textures
+                            .values()
+                            .any(|drawn| drawn.iter().any(|texture| texture == STAR))
+                    }),
                 );
             }
-            if STARS.contains(&files[&piece.root].as_str())
-                && !(piece.picture && piece.parent != piece.root)
-            {
+            if stars[&piece.root] && !(piece.picture && piece.parent != piece.root) {
                 boxes.insert(piece.r#box);
             }
         }
