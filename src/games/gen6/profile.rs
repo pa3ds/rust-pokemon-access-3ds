@@ -2075,7 +2075,13 @@ impl Gen6Profile {
             // The field's layouts come back where they were when a menu screen closes, and a
             // layout found before it was built is taken in once it is.
             let revived = self.layouts.revive()?;
-            let mut put_away = self.views.borrow().put_away()?;
+            let works_of: IndexMap<i64, i64> = self
+                .layouts
+                .works()
+                .into_iter()
+                .map(|(work, root)| (root, work))
+                .collect();
+            let mut put_away = self.views.borrow().put_away(&works_of)?;
             put_away.extend(self.reminder.borrow_mut().put_away()?);
             if let Some(screens) = &self.screens {
                 put_away.extend(screens.borrow_mut().put_away()?);

@@ -18,6 +18,9 @@ const UTIL: i64 = 0x08402324;
 const TABLE: i64 = 0x084022E4;
 const HANDLE: i64 = 0x082486EC;
 const WORK: i64 = 0x0820F000;
+const CURSOR: i64 = 0x08402CAC;
+const CURSOR_ROOT: i64 = 0x08402DC4;
+const CURSOR_WORK: i64 = 0x08248E08;
 
 /// The berry list's view, drawn while its byte at +0xAC is 1, its one layout's work at the
 /// handle its `G2DUtil` lists.
@@ -44,19 +47,36 @@ fn berry_list(shown: u8) -> (Rc<FakeMemory>, townmap::Views) {
 
 #[test]
 fn test_a_view_put_away_puts_its_layouts_away() {
-    assert_eq!(berry_list(0).1.put_away().unwrap(), HashSet::from([WORK]));
+    assert_eq!(berry_list(0).1.put_away(&IndexMap::new()).unwrap(), HashSet::from([WORK]));
+}
+
+/// Its cursor's layout is none of its G2DUtil's: left drawn, Berry Trees' cursor read
+/// Trainer's Eye's rows a move late (or_areanav_trainers_bug).
+#[test]
+fn test_a_list_put_away_puts_its_cursor_away() {
+    let (memory, views) = berry_list(0);
+    memory.u32(VIEW + townmap::CURSOR, &[CURSOR]);
+    memory.u32(CURSOR + townmap::CURSOR_ROOT, &[CURSOR_ROOT]);
+    let works_of = IndexMap::from([(CURSOR_ROOT, CURSOR_WORK)]);
+    assert_eq!(
+        views.put_away(&works_of).unwrap(),
+        HashSet::from([WORK, CURSOR_WORK])
+    );
+    let drawn_at = VIEWS.iter().find(|(class, _)| *class == NUTS).unwrap().1;
+    memory.write(VIEW + drawn_at, &[1]);
+    assert_eq!(views.put_away(&works_of).unwrap(), HashSet::new());
 }
 
 #[test]
 fn test_a_view_drawn_puts_nothing_away() {
-    assert_eq!(berry_list(1).1.put_away().unwrap(), HashSet::new());
+    assert_eq!(berry_list(1).1.put_away(&IndexMap::new()).unwrap(), HashSet::new());
 }
 
 #[test]
 fn test_a_view_whose_memory_is_taken_says_nothing() {
     let (memory, views) = berry_list(0);
     memory.u32(VIEW, &[0]);
-    assert_eq!(views.put_away().unwrap(), HashSet::new());
+    assert_eq!(views.put_away(&IndexMap::new()).unwrap(), HashSet::new());
     assert!(!views.drawing().unwrap());
 }
 
@@ -194,7 +214,7 @@ fn test_a_list_s_rows_leave_out_the_area_said() {
 fn test_the_berry_list_drawn_is_a_list_and_put_away_is_not() {
     for (shown, listing) in [(1, true), (0, false)] {
         let views = berry_list(shown).1;
-        views.put_away().unwrap();
+        views.put_away(&IndexMap::new()).unwrap();
         assert_eq!(views.listing(), listing);
     }
 }

@@ -4503,3 +4503,38 @@ fn test_each_side_is_kept_as_last_said_until_another_app_starts() {
     assert_eq!(announcements.sides(true), None);
     assert_eq!(announcements.sides(false), None);
 }
+
+/// Trainer's Eye's card, rewritten as the area turned, cut off the area's name under
+/// `interrupt`, "Route 114", then "Kindler Bernie" (or_areanav_trainers_bug, heard in play).
+#[test]
+fn test_a_rewrite_just_after_a_title_waits_behind_it() {
+    let mut screen = Screen::new();
+    screen.announcer = ScreenAnnouncer::new(
+        Rc::new(Speech::new(
+            screen.backend.clone(),
+            HashSet::from([Category::Key, Category::Menu]),
+            None,
+        )),
+        Rc::new(|_line: &str| {}),
+    );
+    let card = [
+        piece(1, "Kindler Bernie", -100.0, 100.0, PANEL),
+        piece(2, "Strategy", -100.0, 70.0, PANEL),
+        piece(3, "Burn it all down!", -100.0, 40.0, PANEL),
+    ];
+    screen.on(&card);
+    let rewritten: Vec<ScreenText> = card
+        .iter()
+        .map(|p| ScreenText {
+            changed: true,
+            with_layout: false,
+            ..p.clone()
+        })
+        .collect();
+    let said = screen.say(Args {
+        title: Some("Route 114".to_string()),
+        ..args(&rewritten, vec![], &card)
+    });
+    assert_eq!(said[..2], ["Route 114", "Kindler Bernie"]);
+    assert_eq!(screen.backend.interrupting(), ["Route 114"]);
+}

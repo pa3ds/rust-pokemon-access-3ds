@@ -1560,7 +1560,21 @@ impl ScreenAnnouncer {
         self.rewrite = Some(rewrite);
         if self.fresh(&text, root) {
             (self.log)(&format!("screen rewritten: {text}  [layout {root:#x}]"));
-            self.speech.say(&text, Category::Menu);
+            // Behind a title just said, as a cursor's item is: Trainer's Eye's card, rewritten
+            // as the area turned, cut off the area's name, "Route 114", then "Kindler Bernie"
+            // (or_areanav_trainers_bug, heard in play).
+            let titled = self
+                .title
+                .as_ref()
+                .is_some_and(|(_, at)| self.polls - at <= 1);
+            self.speech.say(
+                &text,
+                if titled {
+                    Category::Prompt
+                } else {
+                    Category::Menu
+                },
+            );
         } else {
             (self.log)(&format!(
                 "screen rewritten, just said elsewhere: {text}  [layout {root:#x}]"

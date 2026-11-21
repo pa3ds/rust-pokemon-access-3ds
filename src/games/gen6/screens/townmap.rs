@@ -73,6 +73,14 @@ pub const LISTS: [&str; 3] = [
 pub const TRAINERS: &str = "N3app7townmap14TrainerEyeViewE";
 pub const BERRIES: &str = "N3app7townmap8NutsViewE";
 pub const UTIL: i64 = 0x5C;
+/// A list view -> its list's cursor, whose +0x58 is the root of the cursor's layout: Berry
+/// Trees', Trainer's Eye's and Secret Bases' each (a probe on or_areanav_trainers_bug). The view's
+/// `G2DUtil` does not hold it, and put away with the rest of Berry Trees, its cursor stayed drawn
+/// where it last stood, over Trainer's Eye opened after it, reading each trainer a move late: the
+/// area's switch said the last area's trainer, "Edwin" as Mauville City opened (a player's report,
+/// or_areanav_trainers_bug).
+pub const CURSOR: i64 = 0x94;
+pub const CURSOR_ROOT: i64 = 0x58;
 pub const UTIL_CLASS: &str = "N3app4util7G2DUtilE";
 pub const LAYOUTS: i64 = 0x1C;
 pub const LAYOUT_COUNT: i64 = 0x20;
@@ -164,7 +172,7 @@ impl Views {
     /// Distribution, Trainer's Eye's rows, the berry list. Then a tap on the map reaches the view's
     /// own buttons, not a place (or_area_nav).
     pub fn drawing(&self) -> Result<bool> {
-        Ok(self.read()?.iter().any(|&(drawn, _util, _name)| drawn))
+        Ok(self.read()?.iter().any(|(drawn, _util, _name, _head)| *drawn))
     }
 
     /// Whether the AreaNav drew one of its lists over its map at the last `put_away`
@@ -178,29 +186,42 @@ impl Views {
         self.list.get()
     }
 
-    /// The works of the layouts of every view the AreaNav is not drawing now.
-    pub fn put_away(&self) -> Result<HashSet<i64>> {
+    /// The works of the layouts of every view the AreaNav is not drawing now, its list's
+    /// cursor's among them (`CURSOR`), by `works_of` a layout's root -> its work.
+    pub fn put_away(&self, works_of: &IndexMap<i64, i64>) -> Result<HashSet<i64>> {
         let mut works: HashSet<i64> = HashSet::new();
         let read = self.read()?;
         self.list.set(
             read.iter()
-                .find(|&&(drawn, _util, name)| drawn && LISTS.contains(&name))
-                .map(|&(_, _, name)| name),
+                .find(|(drawn, _util, name, _head)| *drawn && LISTS.contains(name))
+                .map(|&(_, _, name, _)| name),
         );
-        for (drawn, util, _name) in read {
-            if !drawn {
-                works.extend(util_works(&*self.memory, util)?);
+        for (drawn, util, name, head) in read {
+            if drawn {
+                continue;
+            }
+            works.extend(util_works(&*self.memory, util)?);
+            if LISTS.contains(&name) {
+                let cursor = u32(&head, CURSOR)?;
+                if cursor != 0 {
+                    let root = u32(&self.memory.read(cursor + CURSOR_ROOT, 4)?, 0)?;
+                    if let Some(&work) = works_of.get(&root) {
+                        works.insert(work);
+                    }
+                }
             }
         }
         Ok(works)
     }
 
-    /// Each view still one, whether it is drawn, its `G2DUtil` and its class.
-    fn read(&self) -> Result<Vec<(bool, i64, &'static str)>> {
+    /// Each view still one, whether it is drawn, its `G2DUtil`, its class and the head of it
+    /// read.
+    #[allow(clippy::type_complexity)]
+    fn read(&self) -> Result<Vec<(bool, i64, &'static str, Vec<u8>)>> {
         let memory = &self.memory;
-        let mut read: Vec<(bool, i64, &'static str)> = Vec::new();
+        let mut read: Vec<(bool, i64, &'static str, Vec<u8>)> = Vec::new();
         for (&view, &(vtable, drawn_at, name)) in &self.views {
-            let head = memory.read(view, drawn_at.max(UTIL) + 4)?;
+            let head = memory.read(view, drawn_at.max(UTIL).max(CURSOR) + 4)?;
             // A view freed and its memory taken by something else says nothing.
             if u32(&head, 0)? != vtable {
                 continue;
@@ -213,7 +234,7 @@ impl Views {
                     .as_deref()
                     == Some(UTIL_CLASS)
             {
-                read.push((head[drawn_at as usize] != 0, util, name));
+                read.push((head[drawn_at as usize] != 0, util, name, head));
             }
         }
         Ok(read)
