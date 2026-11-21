@@ -60,6 +60,7 @@ mod test_partyicons;
 mod test_pathfind;
 mod test_plates;
 mod test_pokeblock_kit;
+mod test_pokedex;
 mod test_pokemon;
 mod test_profile;
 mod test_puzzle;

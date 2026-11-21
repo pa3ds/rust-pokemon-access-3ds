@@ -99,7 +99,7 @@ use crate::games::gen6::screens::partners::Partners;
 use crate::games::gen6::screens::partyicons::PartyIcons;
 use crate::games::gen6::screens::{
     bag, bag_sort, battle_bag, boxes, buttons, counts, distribution, mart, partners, partyicons,
-    registered, reminder, rows, secret_base, shiny, summary, townmap,
+    pokedex, registered, reminder, rows, secret_base, shiny, summary, townmap,
 };
 use crate::games::gen6::subscreen::amie;
 use crate::games::gen6::subscreen::head_it::Cue;
@@ -352,6 +352,7 @@ pub struct Gen6Profile {
     /// Whether the last screen poll found a cursor on screen.
     cursor_shown: Rc<Cell<bool>>,
     mart: RefCell<mart::Jumps>,
+    xy_list: RefCell<pokedex::XyList>,
     summary_shape: summary::Shape,
     screens: Option<RefCell<Box<dyn ScreensReader>>>,
     summary_pages: RefCell<summary::Pages>,
@@ -783,6 +784,8 @@ impl Gen6Profile {
             layouts.clone(),
             files.clone(),
         ));
+        // X's Pokédex list says an entry by its number alone; the top screen's panel names it.
+        let xy_list = RefCell::new(pokedex::XyList::new());
         // The summary draws one page and keeps the rest as drawn: those not shown go unheard.
         let summary_shape = game.summary;
         let screens = game.screens.map(|make| {
@@ -1530,6 +1533,7 @@ impl Gen6Profile {
             cursor_said: Cell::new(false),
             cursor_shown,
             mart,
+            xy_list,
             summary_shape,
             screens,
             summary_pages,
@@ -2148,7 +2152,12 @@ impl Gen6Profile {
             };
             self.summary_pages.borrow_mut().poll()?;
             let cursors = self.summary_pages.borrow().cursors(cursors, on_screen)?;
-            let mut cursors = self.reminder.borrow().cursors(cursors);
+            let cursors = self.reminder.borrow().cursors(cursors);
+            let running = self.apps.borrow().running.clone();
+            let mut cursors =
+                self.xy_list
+                    .borrow_mut()
+                    .poll(running.as_deref(), cursors, on_screen);
             let area = match &self.places {
                 None => None,
                 Some(places) => places.borrow().current(),
