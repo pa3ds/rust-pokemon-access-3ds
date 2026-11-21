@@ -469,7 +469,7 @@ fn test_a_picture_framed_takes_the_table_s_label_alone() {
         pokedex::blank(
             Some(pokedex::ORAS_APP),
             &rect,
-            &[picker.clone()],
+            std::slice::from_ref(&picker),
             &framed,
             &labels()
         ),
@@ -479,7 +479,7 @@ fn test_a_picture_framed_takes_the_table_s_label_alone() {
         pokedex::blank(
             Some(pokedex::ORAS_APP),
             &rect,
-            &[picker.clone()],
+            std::slice::from_ref(&picker),
             &[],
             &labels()
         ),
