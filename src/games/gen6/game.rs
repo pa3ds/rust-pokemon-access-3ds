@@ -345,6 +345,12 @@ pub struct Game {
     /// set while an app has the input (`buttons`): ORAS's +0x7C and +0x9C, X's +0x70 and +0x90
     /// (spike 228).
     pub field_menu: (i64, i64),
+    /// Where the field menu keeps the X menu's button under the cursor, read every tick
+    /// (`screens.rows`): ORAS's +0x82 (spike J). None where it has not been measured.
+    pub menu_row: Option<i64>,
+    /// Where the options screen's process keeps the row under its cursor, read every tick
+    /// (`screens.rows`): ORAS's +0x4C (spike B). None where it has not been measured.
+    pub options_row: Option<i64>,
     /// Where its field camera's block keeps where the camera looks (`camera.Shape`): ORAS's, or
     /// X's (spikes 230 and 239).
     pub camera: camera::Shape,
@@ -440,6 +446,8 @@ impl Game {
             amie_player: ORAS_PLAYER,
             worded: IndexSet::new(),
             field_menu: MENU,
+            menu_row: None,
+            options_row: None,
             camera: camera::ORAS,
             registered: None,
             box_mode: None,

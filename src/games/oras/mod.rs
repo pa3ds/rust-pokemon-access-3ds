@@ -27,7 +27,7 @@ use crate::games::gen6::field::{mapblock, mmodel};
 use crate::games::gen6::game::{Data, FurnitureKind, Game};
 use crate::games::gen6::rom::archives::{BOY, GIRL, GameText};
 use crate::games::gen6::rom::layout::{RomLayout, TownFacilities};
-use crate::games::gen6::screens::{bag, buttons, distribution, townmap};
+use crate::games::gen6::screens::{bag, buttons, distribution, rows, townmap};
 use crate::games::gen6::subscreen::{amie, berry_picker, super_training};
 use crate::games::oras::field::ash::{self, AshPiles};
 use crate::games::oras::field::berries::BerrySpots;
@@ -1077,6 +1077,8 @@ pub fn game() -> &'static Game {
         box_mode: Some((0x24, 0x21)),
         box_shown: Some((0x24, 0x24)),
         bag: Some(bag::ORAS),
+        menu_row: Some(rows::MENU_ROW),
+        options_row: Some(rows::OPTIONS_ROW),
         registered: Some(0x0E),
         version_flags: Some(VERSION_FLAGS),
         models: Some(MODELS),

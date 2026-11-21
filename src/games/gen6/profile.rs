@@ -9,6 +9,8 @@
 //! Bound by:
 //! - ADR-0009: touch mode offers targets only in the apps that need a touch (`TOUCHED`, and the
 //!   subscreens' among them), and Shift alone drags only where the subscreens say.
+//! - ADR-0013: a menu's row read every tick polls the screen at once as it changes, and each tick
+//!   after until the cursor's word is said (`poll_menus`, `rows.CHASE`).
 //! - ADR-0025: the game's sounds play in both ears, but for Head It's cue, toward its Pokémon.
 //! - ADR-0034: a whole sweep waits while a cursor moves, until it is still `STILL`, at most
 //!   `HELD_MOST` (`sweep_held`).
@@ -95,7 +97,7 @@ use crate::games::gen6::screens::partners::Partners;
 use crate::games::gen6::screens::partyicons::PartyIcons;
 use crate::games::gen6::screens::{
     bag, bag_sort, battle_bag, boxes, buttons, counts, distribution, mart, partners, partyicons,
-    registered, shiny, summary, townmap,
+    registered, rows, shiny, summary, townmap,
 };
 use crate::games::gen6::subscreen::amie;
 use crate::games::gen6::subscreen::head_it::Cue;
@@ -336,6 +338,13 @@ pub struct Gen6Profile {
     pub counts: RefCell<counts::Counts>,
     battle_bag: RefCell<battle_bag::BattleBag>,
     shiny: RefCell<shiny::Shiny>,
+    rows: RefCell<rows::Rows>,
+    /// Ticks left to poll the screen at, until a row's move is said (`rows.CHASE`).
+    chasing: Cell<i64>,
+    /// Whether the last screen poll said a cursor's move or opening.
+    cursor_said: Cell<bool>,
+    /// Whether the last screen poll found a cursor on screen.
+    cursor_shown: Rc<Cell<bool>>,
     mart: RefCell<mart::Jumps>,
     summary_shape: summary::Shape,
     summary_pages: RefCell<summary::Pages>,
@@ -694,6 +703,30 @@ impl Gen6Profile {
             },
             layouts.clone(),
             files.clone(),
+        ));
+        // The X menu's and the options' rows, read every tick while a cursor is on screen: a move
+        // polls the screen at once.
+        let cursor_shown = Rc::new(Cell::new(false));
+        let rows = RefCell::new(rows::Rows::new(
+            memory.clone(),
+            {
+                let apps = apps.clone();
+                Rc::new(move || apps.borrow().running.clone())
+            },
+            {
+                let apps = apps.clone();
+                Rc::new(move || apps.borrow().process)
+            },
+            {
+                let buttons = buttons.clone();
+                Rc::new(move || buttons.borrow().menu())
+            },
+            {
+                let cursor_shown = cursor_shown.clone();
+                Rc::new(move || cursor_shown.get())
+            },
+            game.menu_row,
+            game.options_row,
         ));
         // A Poké Mart's list jumped a page is said where it lands, not where it passes.
         let mart = RefCell::new(mart::Jumps::new(
@@ -1402,6 +1435,10 @@ impl Gen6Profile {
             counts,
             battle_bag,
             shiny,
+            rows,
+            chasing: Cell::new(0),
+            cursor_said: Cell::new(false),
+            cursor_shown,
             mart,
             summary_shape,
             summary_pages,
@@ -1819,6 +1856,22 @@ impl Gen6Profile {
                     .focus(&focus, "opening", false);
             }
         }
+        // A menu's row moved: the screen is polled now, and each tick until its word is said.
+        phase(&*self.memory, "rows", || {
+            if self.rows.borrow_mut().moved()? {
+                self.chasing.set(rows::CHASE);
+            }
+            Ok(())
+        })?;
+        if self.chasing.get() != 0 && !screen_polled {
+            self.poll_screen()?;
+            self.chasing.set(if self.cursor_said.get() {
+                0
+            } else {
+                self.chasing.get() - 1
+            });
+            screen_polled = true;
+        }
         Ok(screen_polled)
     }
 
@@ -1946,6 +1999,8 @@ impl Gen6Profile {
         let (screen, sides, party, listed, cursors, played, chosen, pocket) = polled;
         self.moving
             .set(self.moving.get() || !cursors.items.is_empty());
+        self.cursor_said.set(!cursors.items.is_empty());
+        self.cursor_shown.set(!cursors.under.is_empty());
         for (logged, line, category) in &played {
             (self.log)(&format!("{logged}: {line}"));
             if let Some(category) = category {

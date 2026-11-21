@@ -66,6 +66,7 @@ mod test_rail;
 mod test_registered;
 mod test_rename;
 mod test_rom;
+mod test_rows;
 mod test_rpc;
 mod test_rtti;
 mod test_scenes;

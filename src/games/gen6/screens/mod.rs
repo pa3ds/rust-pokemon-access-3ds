@@ -25,3 +25,5 @@ pub mod counts;
 pub mod mart;
 
 pub mod shiny;
+
+pub mod rows;

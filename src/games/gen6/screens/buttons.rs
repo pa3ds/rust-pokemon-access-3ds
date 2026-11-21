@@ -216,6 +216,19 @@ impl Buttons {
             .collect())
     }
 
+    /// The field menu itself, of those the sweep found: the whole object, the one holding a
+    /// manager the sweep found where the menu's is (`idle`).
+    pub fn menu(&self) -> Result<Option<i64>> {
+        let (held, _busy) = self.menu;
+        for (&menu, &vtable) in &self.menus {
+            let head = self.memory.read(menu, held + 4)?;
+            if u32(&head, 0)? == vtable && self.managers.contains_key(&u32(&head, held)?) {
+                return Ok(Some(menu));
+            }
+        }
+        Ok(None)
+    }
+
     /// (work, pane name) of every touch area whose buttons are all switched off now: its
     /// layout's work and its name, or its picture's where it has none.
     pub fn off(&self) -> Result<HashSet<(i64, String)>> {
