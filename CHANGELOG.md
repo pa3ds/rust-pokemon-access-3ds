@@ -1,5 +1,67 @@
 # Changelog
 
+## [0.14.0] - 2026-11-21
+
+### Added
+
+- Menus are said the moment their cursor moves: the X menu, the options, the party, the name
+  entry's keyboard, the PC's menus, the move screens, the title menu and the starter's Poké
+  Balls. An option's value is said as you turn it.
+- The Bag says a pocket as you turn to it, before its item, and an item picked up with Y as you
+  pick it up. In battle, the Bag says each page as you turn to it, then the item.
+- Choosing a move's target in a horde, a shiny Pokémon is said so: "Shiny Zigzagoon".
+- A Pokémon's summary says each page as you turn to it, then the button under it if it has one,
+  and as you switch Pokémon their name, level and item and only the page you are on. In Check
+  Moves each move is said in the words of the page you are on.
+- The PC Box says each slot as soon as the pointer sets off, and each box's name as the box turns,
+  by the name you gave it.
+- A Poké Mart's count, to buy or to sell, is said with its price each time it changes, and a jump
+  of a page through its list says only the item it lands on.
+- In contests, the entrant whose portrait you move onto is said before their moves, and R and
+  Shift+R say each entrant's place as the game keeps it.
+- The AreaNav, the Town Map and the Fly map, X and Y's too, say each place as the cursor comes
+  onto it, even one it glides through, with a tone as the cursor moves. In Trainer's Eye, Berry
+  Trees and Secret Bases the area is said first as you switch to it, then each row: each berry
+  with its time since planting, each trainer with their card.
+- The Pokédex's list says each entry as you move onto it; X and Y's by its number and name, "004
+  Fennekin". Search and sort says each field with its name, "COLOR ---", and search by shape
+  says each body shape in words, "Quadruped".
+- The Move Reminder says each move's details as you move onto it: its description, category,
+  power and accuracy, or its appeal and jamming.
+- The Secret Base PC says a category of decorations you have none of empty.
+
+### Fixed
+
+- In X and Y, types, move categories and language tabs are said, where a type was said as
+  nothing.
+- X's Town Map in touch mode names its places, where it named them as party slots.
+- X's fitting room no longer reads its whole screen as it opens, and says "Do you want to quit
+  without changing clothes?" when you leave it with B.
+- Back from forgetting a move, the Bag or the Move Reminder is no longer read whole between the
+  game's messages.
+- The Pokéblock Case no longer says a Pokémon's moves and the block given again when you come back
+  from the Blender, and says a second block given to the same Pokémon.
+- TEXT SPEED's description is no longer said again each time you change the speed.
+- An item's menu over the battle Bag's list no longer reads the list whole.
+- Carrying a Pokémon in the PC Box, the slot it is over says who is in it, in a box with the same
+  name as another too.
+- A list such as YES and NO, the party's actions or the Bag's USE is said as it opens, without
+  the second or so it waited before, and pa3ds no longer falls silent for a second as you start
+  moving through a menu just opened.
+- A settings file pa3ds cannot add to safely is left as it was, where pa3ds could write one that
+  made the next start go back to every default.
+
+### Known issues
+
+- Games translated by fans, such as the Chinese Omega Ruby, are supported where possible, but not
+  as fully as the official games: pa3ds may say less there, or now and then the wrong thing.
+- The Pokédex's type picker is read whole as it opens, and which of the Central, Coastal and
+  Mountain Pokédexes Start and Select turn to is not said.
+- Switching two Pokémon in your party can now and then say only part of a Pokémon's line, such
+  as "L51" alone.
+- Turning to the Battle Box can say "BATTLE BOX" twice, and "Choose a mark." is said again each
+  time you move between CONFIRM and CANCEL on the marks screen.
+
 ## [0.13.0] - 2026-11-14
 
 ### Added
