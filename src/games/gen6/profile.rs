@@ -93,8 +93,8 @@ use crate::games::gen6::screens::mapcursor::MapCursor;
 use crate::games::gen6::screens::partners::Partners;
 use crate::games::gen6::screens::partyicons::PartyIcons;
 use crate::games::gen6::screens::{
-    bag, bag_sort, boxes, buttons, counts, distribution, partners, partyicons, registered, summary,
-    townmap,
+    bag, bag_sort, boxes, buttons, counts, distribution, mart, partners, partyicons, registered,
+    summary, townmap,
 };
 use crate::games::gen6::subscreen::amie;
 use crate::games::gen6::subscreen::head_it::Cue;
@@ -282,7 +282,7 @@ pub struct Gen6Profile {
     pub dialogue: RefCell<DialogueReader>,
     /// Shared with touch mode's `lists`, which the Python hands as a bound method.
     pub lists: Rc<RefCell<ListReader>>,
-    pub choices: RefCell<ChoiceReader>,
+    pub choices: Rc<RefCell<ChoiceReader>>,
     /// Shared with touch mode's `on_screen` and `text_of`, which the Python hands as bound
     /// methods.
     pub screen: Rc<RefCell<ScreenTextReader>>,
@@ -333,6 +333,7 @@ pub struct Gen6Profile {
     pub occupants: Rc<RefCell<boxes::Occupants>>,
     pub standings: Option<Rc<RefCell<dyn StandingsReader>>>,
     pub counts: RefCell<counts::Counts>,
+    mart: RefCell<mart::Jumps>,
     summary_pages: RefCell<summary::Pages>,
     pub map_cursor: RefCell<MapCursor>,
     pub footsteps: Option<RefCell<Footsteps>>,
@@ -473,7 +474,10 @@ impl Gen6Profile {
         let apps = Rc::new(RefCell::new(RunningApp::new(memory.clone(), names.clone())));
         let dialogue = DialogueReader::new(memory.clone(), names.clone(), Some(layouts.clone()));
         let lists = Rc::new(RefCell::new(ListReader::new(memory.clone(), names.clone())));
-        let choices = ChoiceReader::new(memory.clone(), names.clone());
+        let choices = Rc::new(RefCell::new(ChoiceReader::new(
+            memory.clone(),
+            names.clone(),
+        )));
         // A picture whose texture the game swaps as it runs is named by the image it draws: the
         // Pokédex's language tabs and its type (spike 147).
         let named_by_image: Option<Pictures> = pictures.map(|pictures| {
@@ -654,6 +658,17 @@ impl Gen6Profile {
         let pauses = ui.pauses;
         // A Poké Mart's count, said whole at each change where the screen held it to a pause.
         let counts = RefCell::new(counts::Counts::new(layouts.clone(), files.clone(), pauses));
+        // A Poké Mart's list jumped a page is said where it lands, not where it passes.
+        let mart = RefCell::new(mart::Jumps::new(
+            memory.clone(),
+            names.clone(),
+            {
+                let choices = choices.clone();
+                Rc::new(move || choices.borrow().boxes())
+            },
+            layouts.clone(),
+            files.clone(),
+        ));
         // The summary draws one page and keeps the rest as drawn: those not shown go unheard.
         let summary_pages = RefCell::new(summary::Pages::new(
             memory.clone(),
@@ -1316,7 +1331,7 @@ impl Gen6Profile {
             anchored: Cell::new(0.0),
             dialogue: RefCell::new(dialogue),
             lists,
-            choices: RefCell::new(choices),
+            choices,
             screen,
             files,
             cursors: RefCell::new(cursors),
@@ -1345,6 +1360,7 @@ impl Gen6Profile {
             occupants,
             standings,
             counts,
+            mart,
             summary_pages,
             map_cursor: RefCell::new(map_cursor),
             footsteps,
@@ -1848,6 +1864,7 @@ impl Gen6Profile {
             let found = self.cursors.borrow_mut().poll(on_screen)?;
             let cursors;
             (carried, cursors) = self.bag_sort.borrow_mut().poll(found, on_screen);
+            let cursors = self.mart.borrow_mut().poll(cursors)?;
             let (chosen, pocket) = match &self.bag {
                 None => (IndexMap::new(), None),
                 Some(bag) => bag.borrow_mut().poll(&cursors)?,

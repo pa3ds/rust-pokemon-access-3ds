@@ -74,6 +74,12 @@ impl ChoiceReader {
         }
     }
 
+    /// Every box found so far, up or not: the Poké Mart's Buy, Sell and Quit is one, inside
+    /// the shop's own object (`mart`).
+    pub fn boxes(&self) -> Vec<i64> {
+        self.active.clone()
+    }
+
     /// Every label of every box up at the last poll, for the screen text reader to leave out.
     pub fn labels(&self) -> HashSet<String> {
         self.labels.values().flatten().cloned().collect()
