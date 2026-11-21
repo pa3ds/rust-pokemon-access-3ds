@@ -111,3 +111,28 @@ fn test_another_app_is_left_as_it_is() {
         cursors
     );
 }
+
+/// Search and sort frames a field's value alone: one not set said only its dashes
+/// (or_pokedex); one set says what it is.
+#[test]
+fn test_a_search_field_not_set_is_said_by_its_label() {
+    let label = piece(1, "COLOR", false, -22.0, -150.0, PANEL);
+    let unset = piece(2, "---", false, -22.0, 35.6, PANEL);
+    let red = piece(3, "Red", false, -22.0, 35.6, PANEL);
+    for (value, said) in [(unset, "COLOR ---"), (red, "Red")] {
+        let cursors = CursorPoll {
+            items: vec![CursorItem::new(7, vec![value.clone()], false)],
+            ..CursorPoll::default()
+        };
+        let items = pokedex::labelled(
+            Some(pokedex::ORAS_APP),
+            cursors,
+            &[label.clone(), value.clone()],
+        )
+        .items;
+        let [item] = &items[..] else {
+            panic!("one item: {items:?}");
+        };
+        assert_eq!(join(&item.pieces, false), said);
+    }
+}

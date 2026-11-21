@@ -2154,10 +2154,11 @@ impl Gen6Profile {
             let cursors = self.summary_pages.borrow().cursors(cursors, on_screen)?;
             let cursors = self.reminder.borrow().cursors(cursors);
             let running = self.apps.borrow().running.clone();
-            let mut cursors =
-                self.xy_list
-                    .borrow_mut()
-                    .poll(running.as_deref(), cursors, on_screen);
+            let cursors = self
+                .xy_list
+                .borrow_mut()
+                .poll(running.as_deref(), cursors, on_screen);
+            let mut cursors = pokedex::labelled(running.as_deref(), cursors, on_screen);
             let area = match &self.places {
                 None => None,
                 Some(places) => places.borrow().current(),

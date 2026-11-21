@@ -27,6 +27,11 @@ use crate::py;
 
 /// X's and Y's Pokédex.
 pub const APP: &str = "N3app5zukan8MainProcE";
+/// Omega Ruby's and Alpha Sapphire's Pokédex.
+pub const ORAS_APP: &str = "N3app11sango_zukan9ZukanProcE";
+/// A cursor's words with no letter or digit: a search field not set, full-width dashes or "---".
+/// Anchored at both ends, as Python's `fullmatch` is.
+pub static WORDLESS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[^\w]+$").unwrap());
 /// A list row's words: the entry's number in the Pokédex shown, three digits. Anchored at both
 /// ends, as Python's `fullmatch` is.
 pub static NUMBER: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\d{3}$").unwrap());
@@ -172,4 +177,47 @@ fn line(
         }
     }
     None
+}
+
+/// The cursors' poll with a search field not set named by its label.
+///
+/// Search and sort in both games is a table, each field's name at its row's left and its value
+/// beside it, and the cursor frames the value alone: a field not set was its dashes alone, and
+/// which of NAME, COLOR, APPEARANCE or ENCOUNTERS it was went unsaid (or_pokedex, x_pokedex).
+/// Only words with no letter or digit: a value set says what it is, "Red", and the type grid's
+/// "Fighting" has "Normal" beside it, no label.
+pub fn labelled(running: Option<&str>, cursors: CursorPoll, on_screen: &[ScreenText]) -> CursorPoll {
+    if running != Some(APP) && running != Some(ORAS_APP) {
+        return cursors;
+    }
+    let mut items: Vec<CursorItem> = Vec::new();
+    for item in &cursors.items {
+        let first = item.pieces.first();
+        let Some(first) = first.filter(|_| WORDLESS.is_match(&join(&item.pieces, false))) else {
+            items.push(item.clone());
+            continue;
+        };
+        let boxes: HashSet<i64> = item.pieces.iter().map(|p| p.r#box).collect();
+        // `max(before, key=left)`: the first of equal bests, as Python's.
+        let mut label: Option<&ScreenText> = None;
+        for p in on_screen {
+            if p.root == first.root
+                && !boxes.contains(&p.r#box)
+                && (p.row - first.row).abs() < ONE_LINE
+                && p.left < first.left
+                && !WORDLESS.is_match(&p.text)
+                && label.is_none_or(|best| p.left > best.left)
+            {
+                label = Some(p);
+            }
+        }
+        items.push(match label {
+            None => item.clone(),
+            Some(label) => CursorItem {
+                pieces: [vec![label.clone()], item.pieces.clone()].concat(),
+                ..item.clone()
+            },
+        });
+    }
+    CursorPoll { items, ..cursors }
 }
