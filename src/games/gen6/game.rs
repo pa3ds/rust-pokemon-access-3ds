@@ -351,6 +351,10 @@ pub struct Game {
     /// Where the options screen's process keeps the row under its cursor, read every tick
     /// (`screens.rows`): ORAS's and X's +0x4C (spike B). None where it has not been measured.
     pub options_row: Option<i64>,
+    /// Where the party's `app::pokelist::StaticWork` keeps the slot under its cursor, read every
+    /// tick (`screens.rows`): ORAS's +0x1A8, X's and Y's +0x1B0 (spike B). None where it has not
+    /// been measured.
+    pub party_slot: Option<i64>,
     /// Where its field camera's block keeps where the camera looks (`camera.Shape`): ORAS's, or
     /// X's (spikes 230 and 239).
     pub camera: camera::Shape,
@@ -448,6 +452,7 @@ impl Game {
             field_menu: MENU,
             menu_row: None,
             options_row: None,
+            party_slot: None,
             camera: camera::ORAS,
             registered: None,
             box_mode: None,

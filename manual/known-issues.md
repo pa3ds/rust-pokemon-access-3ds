@@ -12,6 +12,8 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
   but not as fully as the official games, which pa3ds is built and checked on. Where a
   translation changed how the game keeps something in its memory, pa3ds may say less there, or
   now and then the wrong thing, such as the wrong box's name.
+- **Switching two Pokémon in your party** can now and then say only part of a Pokémon's line as
+  the two swap, such as "L51" alone.
 
 ## Pokémon-Amie
 

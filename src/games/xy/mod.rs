@@ -1009,6 +1009,7 @@ pub fn game() -> &'static Game {
         summary: summary::XY,
         menu_row: Some(rows::XY_MENU_ROW),
         options_row: Some(rows::OPTIONS_ROW),
+        party_slot: Some(rows::XY_PARTY_SLOT),
         camera: camera::X,
         opening: Some(|memory, _language| Box::new(IntroReader::new(memory))),
         zone_record: 0xE4,

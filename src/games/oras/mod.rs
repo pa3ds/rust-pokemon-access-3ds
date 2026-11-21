@@ -1079,6 +1079,7 @@ pub fn game() -> &'static Game {
         bag: Some(bag::ORAS),
         menu_row: Some(rows::MENU_ROW),
         options_row: Some(rows::OPTIONS_ROW),
+        party_slot: Some(rows::PARTY_SLOT),
         registered: Some(0x0E),
         version_flags: Some(VERSION_FLAGS),
         models: Some(MODELS),

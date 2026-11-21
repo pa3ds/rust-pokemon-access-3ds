@@ -704,8 +704,8 @@ impl Gen6Profile {
             layouts.clone(),
             files.clone(),
         ));
-        // The X menu's and the options' rows, read every tick while a cursor is on screen: a move
-        // polls the screen at once.
+        // The X menu's, the options' and the party's rows, read every tick while a cursor is on
+        // screen: a move polls the screen at once.
         let cursor_shown = Rc::new(Cell::new(false));
         let rows = RefCell::new(rows::Rows::new(
             memory.clone(),
@@ -727,6 +727,7 @@ impl Gen6Profile {
             },
             game.menu_row,
             game.options_row,
+            game.party_slot,
         ));
         // A Poké Mart's list jumped a page is said where it lands, not where it passes.
         let mart = RefCell::new(mart::Jumps::new(
