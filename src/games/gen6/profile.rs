@@ -40,8 +40,9 @@ use crate::core::tones::{Tones, beeps, ticking};
 use crate::core::touch::TouchScreen;
 use crate::core::words::{current, own};
 use crate::games::common::announce::{Announcements, Speaker};
+use crate::games::common::cursors::menu::Blank;
 use crate::games::common::cursors::reader::CursorReader;
-use crate::games::common::cursors::shared::{CursorItem, CursorPoll, Slot};
+use crate::games::common::cursors::shared::{CursorItem, CursorPoll, Rect, Slot};
 use crate::games::common::dialogue::{DialogueReader, ORAS_SHAPES, Shown};
 use crate::games::common::field::ground::Ground;
 use crate::games::common::field::guide::{FieldSource, Place};
@@ -1016,6 +1017,17 @@ impl Gen6Profile {
                 Some({
                     let rows = rows.clone();
                     Rc::new(move || rows.borrow().box_slot()) as Slot
+                }),
+                Some({
+                    let (apps, labels) = (apps.clone(), text.search_labels.clone());
+                    Rc::new(move |rect: &Rect, on_screen: &[ScreenText]| {
+                        pokedex::blank(
+                            apps.borrow().running.as_deref(),
+                            rect,
+                            on_screen,
+                            &labels,
+                        )
+                    }) as Blank
                 }),
             )
         };
@@ -2166,7 +2178,12 @@ impl Gen6Profile {
                 .xy_list
                 .borrow_mut()
                 .poll(running.as_deref(), cursors, on_screen);
-            let mut cursors = pokedex::labelled(running.as_deref(), cursors, on_screen);
+            let mut cursors = pokedex::labelled(
+                running.as_deref(),
+                cursors,
+                on_screen,
+                &self.text.search_labels,
+            );
             let area = match &self.places {
                 None => None,
                 Some(places) => places.borrow().current(),
@@ -2240,6 +2257,13 @@ impl Gen6Profile {
                 .borrow()
                 .star_labels(&screen.on_screen, &self.contest_words),
         );
+        unsaid.extend(pokedex::tabled(
+            self.apps.borrow().running.as_deref(),
+            &screen.texts,
+            &screen.on_screen,
+            &cursors,
+            &self.text.search_labels,
+        ));
         let mut texts: Vec<ScreenText> = Vec::new();
         for text in &screen.texts {
             if !self.battle.borrow().owns(text)?

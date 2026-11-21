@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use std::rc::Rc;
 
 use super::fake_memory::{FakeClasses, FakeMemory};
-use crate::games::common::cursors::shared::{CursorItem, CursorPoll};
+use crate::games::common::cursors::shared::{CursorItem, CursorPoll, Rect};
 use crate::games::common::screen::{ScreenText, join};
 use crate::games::gen6::screens::pokedex;
 
@@ -114,29 +114,41 @@ fn test_another_app_is_left_as_it_is() {
     );
 }
 
-/// Search and sort frames a field's value alone: one not set said only its dashes
-/// (or_pokedex); one set says what it is.
+/// `frozenset({"NAME", "COLOR"})`.
+fn labels() -> HashSet<String> {
+    HashSet::from(["NAME".to_string(), "COLOR".to_string()])
+}
+
+/// Search and sort frames a field's value alone: one not set said only its dashes, one set
+/// its letter alone (or_pokedex). A word beside it that is no label, as in the type grid, is
+/// left out.
 #[test]
-fn test_a_search_field_not_set_is_said_by_its_label() {
+fn test_a_search_field_is_said_with_its_label() {
     let label = piece(1, "COLOR", false, -22.0, -150.0, PANEL);
+    let normal = ScreenText {
+        picture: true,
+        ..piece(4, "Normal", false, -22.0, -60.0, PANEL)
+    };
     let unset = piece(2, "---", false, -22.0, 35.6, PANEL);
     let red = piece(3, "Red", false, -22.0, 35.6, PANEL);
-    for (value, said) in [(unset, "COLOR ---"), (red, "Red")] {
+    let one = |value: &ScreenText, on_screen: &[ScreenText]| -> String {
         let cursors = CursorPoll {
             items: vec![CursorItem::new(7, vec![value.clone()], false)],
             ..CursorPoll::default()
         };
-        let items = pokedex::labelled(
-            Some(pokedex::ORAS_APP),
-            cursors,
-            &[label.clone(), value.clone()],
-        )
-        .items;
+        let items = pokedex::labelled(Some(pokedex::ORAS_APP), cursors, on_screen, &labels()).items;
         let [item] = &items[..] else {
             panic!("one item: {items:?}");
         };
-        assert_eq!(join(&item.pieces, false), said);
+        join(&item.pieces, false)
+    };
+    for (value, said) in [(&unset, "COLOR ---"), (&red, "COLOR Red")] {
+        assert_eq!(
+            one(value, &[label.clone(), normal.clone(), value.clone()]),
+            said
+        );
     }
+    assert_eq!(one(&red, &[normal.clone(), red.clone()]), "Red");
 }
 
 const PROCESS: i64 = 0x08100000;
@@ -253,4 +265,88 @@ fn test_an_index_moved_with_its_row_s_words_not_yet_waits() {
         panic!("one item: {items:?}");
     };
     assert_eq!(join(&item.pieces, false), "005 Combusken");
+}
+
+/// Opened before its cursor came, search and sort was read whole (or_pokedex); a picker's
+/// label coming back is said, and an entry's page, TYPE its one label, is no table.
+#[test]
+fn test_search_s_table_coming_on_screen_is_left_to_its_cursor() {
+    let label = ScreenText {
+        with_layout: true,
+        ..piece(1, "NAME", true, 68.0, -150.0, PANEL)
+    };
+    let unset = ScreenText {
+        with_layout: true,
+        ..piece(2, "---", true, 68.0, 36.0, PANEL)
+    };
+    let color = ScreenText {
+        with_layout: true,
+        ..piece(5, "COLOR", true, -22.0, -150.0, PANEL)
+    };
+    let picker = ScreenText {
+        panel: 9,
+        returned: true,
+        ..piece(3, "COLOR", true, 105.0, -160.0, PANEL)
+    };
+    let entry = ScreenText {
+        with_layout: true,
+        ..piece(4, "NAME", true, -105.0, -125.0, LIST)
+    };
+    let cursors = CursorPoll::default();
+    let texts = [label, unset, color, picker, entry];
+    assert_eq!(
+        pokedex::tabled(
+            Some(pokedex::ORAS_APP),
+            &texts,
+            &texts,
+            &cursors,
+            &labels()
+        ),
+        HashSet::from([1, 2, 5])
+    );
+    assert_eq!(
+        pokedex::tabled(
+            Some("N3app4bag4ProcE"),
+            &texts,
+            &texts,
+            &cursors,
+            &labels()
+        ),
+        HashSet::new()
+    );
+}
+
+/// TYPE and SHAPE are blank until set, and the cursor framing them said nothing.
+#[test]
+fn test_a_blank_field_is_said_by_its_label() {
+    let label = ScreenText {
+        right: -110.0,
+        ..piece(1, "COLOR", false, 8.0, -150.0, PANEL)
+    };
+    let other = ScreenText {
+        right: -110.0,
+        ..piece(2, "NAME", false, 38.0, -150.0, PANEL)
+    };
+    let rect = Rect {
+        top: false,
+        left: 0.0,
+        right: 120.0,
+        low: -5.0,
+        high: 20.0,
+    };
+    let said = pokedex::blank(
+        Some(pokedex::ORAS_APP),
+        &rect,
+        &[label.clone(), other.clone()],
+        &labels(),
+    );
+    assert_eq!(said, vec![label.clone()]);
+    assert_eq!(
+        pokedex::blank(Some(pokedex::ORAS_APP), &rect, &[other], &labels()),
+        Vec::new()
+    );
+    assert_eq!(
+        pokedex::blank(Some("N3app4bag4ProcE"), &rect, &[label], &labels()),
+        Vec::new()
+    );
 }

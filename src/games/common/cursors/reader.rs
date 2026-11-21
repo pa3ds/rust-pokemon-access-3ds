@@ -9,7 +9,7 @@ use crate::core::rtti::ClassNames;
 use crate::games::common::cursors::choice::ChoiceFrames;
 use crate::games::common::cursors::frame::MovedFrames;
 use crate::games::common::cursors::key::KeyCursors;
-use crate::games::common::cursors::menu::MenuCursors;
+use crate::games::common::cursors::menu::{Blank, MenuCursors};
 use crate::games::common::cursors::named::ListCursors;
 use crate::games::common::cursors::pane::CursorPanes;
 use crate::games::common::cursors::picture::PictureCursors;
@@ -59,7 +59,16 @@ impl CursorReader {
         cursor_panes: bool,
         pictures: Option<Pictures>,
     ) -> Self {
-        CursorReader::with_occupant(layouts, names, files, cursor_panes, pictures, None, None)
+        CursorReader::with_occupant(
+            layouts,
+            names,
+            files,
+            cursor_panes,
+            pictures,
+            None,
+            None,
+            None,
+        )
     }
 
     /// `cursor_panes` reads Sun's cursor pane and its boxes' pointers, which ORAS and X have
@@ -67,7 +76,9 @@ impl CursorReader {
     /// (`gen6.rom.textures`), or None. What pa3ds calls a picture the game never names, the
     /// passport's photos and Omega Ruby's boy and girl, is its own (`pictures`). `occupant`
     /// names who is in a PC Box's slot while a Pokémon is carried (`slots`), and `slot` the
-    /// slot its pointer is going to, as the game counts them (`slots.nth`).
+    /// slot its pointer is going to, as the game counts them (`slots.nth`). `blank` says what
+    /// a menu cursor framing nothing is on, where its screen names it (`menu.Blank`).
+    #[allow(clippy::too_many_arguments)]
     pub fn with_occupant(
         layouts: Rc<Layouts>,
         names: Rc<ClassNames>,
@@ -76,6 +87,7 @@ impl CursorReader {
         pictures: Option<Pictures>,
         occupant: Option<Occupant>,
         slot: Option<Slot>,
+        blank: Option<Blank>,
     ) -> Self {
         let panes = Rc::new(Panes::new(
             layouts,
@@ -87,7 +99,7 @@ impl CursorReader {
         ));
         let said = Rc::new(Said::default());
         CursorReader {
-            menus: MenuCursors::new(panes.clone(), said.clone(), names),
+            menus: MenuCursors::new(panes.clone(), said.clone(), names, blank),
             pictures: PictureCursors::new(panes.clone(), said.clone()),
             cursor_panes: CursorPanes::new(panes.clone(), said.clone()),
             keys: KeyCursors::new(panes.clone(), said.clone()),

@@ -2914,6 +2914,7 @@ impl BoxGrid {
                 let slot = grid.slot.clone();
                 Rc::new(move || Ok(slot.get())) as Slot
             }),
+            None,
         )
         .into();
         grid.files = files;

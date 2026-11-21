@@ -318,6 +318,8 @@ pub struct GameText {
     pub labels: IndexMap<String, String>,
     /// Words a screen draws as no label (`RomLayout.plain`).
     pub plain: HashSet<String>,
+    /// The Pokédex's search and sort's labels of its fields (`RomLayout.search_labels`).
+    pub search_labels: HashSet<String>,
     /// Images a button draws only while what it shows is caught (`RomLayout.caught`).
     pub caught: HashSet<String>,
     /// A touch area of the map, by its pane's name -> what the game calls the place, in the
@@ -435,6 +437,7 @@ impl PartialEq for GameText {
             && self.touch_words == other.touch_words
             && self.labels == other.labels
             && self.plain == other.plain
+            && self.search_labels == other.search_labels
             && self.caught == other.caught
             && self.map_places == other.map_places
             && self.map_areas == other.map_areas
@@ -485,6 +488,7 @@ impl Default for GameText {
             touch_words: IndexMap::new(),
             labels: IndexMap::new(),
             plain: HashSet::new(),
+            search_labels: HashSet::new(),
             caught: HashSet::new(),
             map_places: IndexMap::new(),
             map_areas: IndexMap::new(),
@@ -892,6 +896,18 @@ impl GameText {
                     }
                 }
                 plain
+            },
+            search_labels: {
+                let mut labels: HashSet<String> = HashSet::new();
+                for (file, lines) in &layout.search_labels {
+                    let said = lines_of_file(&files, *file)?;
+                    for &line in lines {
+                        if line < said.len() as i64 && !said[line as usize].is_empty() {
+                            labels.insert(said[line as usize].clone());
+                        }
+                    }
+                }
+                labels
             },
             caught: layout.caught.clone(),
             contest_categories: py::slice(&lines_from(layout.contest_categories)?, 0, 5).to_vec(),

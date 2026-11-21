@@ -34,12 +34,13 @@ use std::collections::HashSet;
 use std::rc::Rc;
 use std::sync::LazyLock;
 
+use indexmap::IndexMap;
 use regex::Regex;
 
 use crate::core::binary::{s32, u32};
 use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
-use crate::games::common::cursors::shared::{CursorItem, CursorPoll};
+use crate::games::common::cursors::shared::{CursorItem, CursorPoll, Rect};
 use crate::games::common::screen::{ScreenText, join};
 use crate::games::gen6::anchors::follow;
 use crate::games::gen6::apps::LOADED_CODE;
@@ -61,9 +62,6 @@ pub const SHOWN: i64 = ROWS + 3 * RECORD;
 /// Ticks the index holds before its entry is said: a jump of seven steps it on by one or two
 /// every tick or two (spike N), and a step holds from the first.
 pub const STILL_TICKS: i64 = 4;
-/// A cursor's words with no letter or digit: a search field not set, full-width dashes or "---".
-/// Anchored at both ends, as Python's `fullmatch` is.
-pub static WORDLESS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[^\w]+$").unwrap());
 /// A list row's words: the entry's number in the Pokédex shown, three digits. Anchored at both
 /// ends, as Python's `fullmatch` is.
 pub static NUMBER: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\d{3}$").unwrap());
@@ -211,21 +209,27 @@ fn line(
     None
 }
 
-/// The cursors' poll with a search field not set named by its label.
+/// The cursors' poll with a search field named by its label, one of `labels`.
 ///
 /// Search and sort in both games is a table, each field's name at its row's left and its value
 /// beside it, and the cursor frames the value alone: a field not set was its dashes alone, and
-/// which of NAME, COLOR, APPEARANCE or ENCOUNTERS it was went unsaid (or_pokedex, x_pokedex).
-/// Only words with no letter or digit: a value set says what it is, "Red", and the type grid's
-/// "Fighting" has "Normal" beside it, no label.
-pub fn labelled(running: Option<&str>, cursors: CursorPoll, on_screen: &[ScreenText]) -> CursorPoll {
+/// which of NAME, COLOR, APPEARANCE or ENCOUNTERS it was went unsaid (or_pokedex, x_pokedex);
+/// one set, its letter alone, "A". The labels are the game's text's (`GameText.search_labels`):
+/// the type grid's "Fighting" has "Normal" beside it, no label, and a picker's choices are on
+/// rows under its label's.
+pub fn labelled(
+    running: Option<&str>,
+    cursors: CursorPoll,
+    on_screen: &[ScreenText],
+    labels: &HashSet<String>,
+) -> CursorPoll {
     if running != Some(APP) && running != Some(ORAS_APP) {
         return cursors;
     }
     let mut items: Vec<CursorItem> = Vec::new();
     for item in &cursors.items {
         let first = item.pieces.first();
-        let Some(first) = first.filter(|_| WORDLESS.is_match(&join(&item.pieces, false))) else {
+        let Some(first) = first.filter(|first| !labels.contains(&first.text)) else {
             items.push(item.clone());
             continue;
         };
@@ -237,7 +241,7 @@ pub fn labelled(running: Option<&str>, cursors: CursorPoll, on_screen: &[ScreenT
                 && !boxes.contains(&p.r#box)
                 && (p.row - first.row).abs() < ONE_LINE
                 && p.left < first.left
-                && !WORDLESS.is_match(&p.text)
+                && labels.contains(&p.text)
                 && label.is_none_or(|best| p.left > best.left)
             {
                 label = Some(p);
@@ -252,6 +256,75 @@ pub fn labelled(running: Option<&str>, cursors: CursorPoll, on_screen: &[ScreenT
         });
     }
     CursorPoll { items, ..cursors }
+}
+
+/// The label of the search field a menu cursor frames with nothing in it (`menu.Blank`):
+/// TYPE's two and SHAPE's are blank until set, and the cursor on them said nothing
+/// (or_pokedex). Its label is left of it on its row.
+pub fn blank(
+    running: Option<&str>,
+    rect: &Rect,
+    on_screen: &[ScreenText],
+    labels: &HashSet<String>,
+) -> Vec<ScreenText> {
+    if running != Some(APP) && running != Some(ORAS_APP) {
+        return Vec::new();
+    }
+    // `max(left, key=left)`: the first of equal bests, as Python's.
+    let mut best: Option<&ScreenText> = None;
+    for p in on_screen {
+        if labels.contains(&p.text)
+            && p.top == rect.top
+            && rect.low <= p.row
+            && p.row <= rect.high
+            && p.right <= rect.left
+            && best.is_none_or(|best| p.left > best.left)
+        {
+            best = Some(p);
+        }
+    }
+    best.into_iter().cloned().collect()
+}
+
+/// The boxes of search and sort's table that come on screen with it or back to it, a menu
+/// the cursor says a field of at a time: opened before its cursor came, the table was read
+/// whole, "SORT By Number NAME", each field's dashes and on, then "Reset Confirm" (or_pokedex);
+/// back from a picker, it was the cursor's next field's details. The table is the panel
+/// holding two labels or more (`labelled`): an entry's page has TYPE alone, and a picker's
+/// panel its own label, left to say which picker opened.
+pub fn tabled(
+    running: Option<&str>,
+    texts: &[ScreenText],
+    on_screen: &[ScreenText],
+    cursors: &CursorPoll,
+    labels: &HashSet<String>,
+) -> HashSet<i64> {
+    if running != Some(APP) && running != Some(ORAS_APP) {
+        return HashSet::new();
+    }
+    let mut held: IndexMap<(i64, i64), HashSet<&str>> = IndexMap::new();
+    for p in on_screen {
+        if labels.contains(&p.text) {
+            held.entry((p.root, p.panel))
+                .or_default()
+                .insert(p.text.as_str());
+        }
+    }
+    let tables: HashSet<(i64, i64)> = held
+        .iter()
+        .filter(|(_, words)| words.len() > 1)
+        .map(|(&panel, _)| panel)
+        .collect();
+    let under: HashSet<i64> = cursors.under.iter().flatten().map(|p| p.r#box).collect();
+    texts
+        .iter()
+        .filter(|p| {
+            tables.contains(&(p.root, p.panel))
+                && !under.contains(&p.r#box)
+                && (p.with_layout || p.returned)
+        })
+        .map(|p| p.r#box)
+        .collect()
 }
 
 /// Omega Ruby's Pokédex list's entry, said the tick it is chosen in its row's own words.

@@ -328,6 +328,9 @@ pub fn zukan_labels() -> (i64, IndexMap<i64, String>) {
             .collect(),
     )
 }
+/// Search and sort's labels, SORT, NAME, TYPE, COLOR, SHAPE, ENCOUNTERS and APPEARANCE, each at
+/// its row's left, said with the field the cursor is on (`pokedex.labelled`).
+pub const ZUKAN_SEARCH: (i64, [i64; 7]) = (3, [32, 33, 34, 35, 36, 102, 105]);
 /// The DexNav's titles and buttons, no label of what follows: Nearby, Found, Last seen and Hidden
 /// Pokémon, SEARCH, Pokédex. "Found Pokémon: Search Level" and "Pokédex: SEARCH" were said under
 /// `pauses` (spike 195).
@@ -564,6 +567,7 @@ pub fn rom() -> &'static RomLayout {
             (DEXNAV_PLAIN.0, DEXNAV_PLAIN.1.to_vec()),
             (bag_plain().0, bag_plain().1.to_vec()),
         ],
+        search_labels: vec![(ZUKAN_SEARCH.0, ZUKAN_SEARCH.1.to_vec())],
         ..RomLayout::new(
             "ORAS",
             text_archives(),

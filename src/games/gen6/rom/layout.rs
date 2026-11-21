@@ -147,6 +147,9 @@ pub struct RomLayout {
     pub labels: Vec<(i64, IndexMap<i64, String>)>,
     /// Text files, and the lines of each a screen draws as no label: a title, a button.
     pub plain: Vec<(i64, Vec<i64>)>,
+    /// Text files, and the lines of each the Pokédex's search and sort draws at its rows' left,
+    /// naming the field beside each (`pokedex.labelled`).
+    pub search_labels: Vec<(i64, Vec<i64>)>,
     /// Images a button draws only while the Pokémon it shows is caught (`pictures.CAUGHT`).
     pub caught: HashSet<String>,
     /// The map's archive and file, which opens with the names of its layout's panes, and where a
@@ -249,6 +252,7 @@ impl RomLayout {
             touch_words: Vec::new(),
             labels: Vec::new(),
             plain: Vec::new(),
+            search_labels: Vec::new(),
             caught: HashSet::new(),
             map_panes: None,
             decorations: None,

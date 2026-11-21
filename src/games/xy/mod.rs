@@ -162,6 +162,9 @@ pub const POCKET_NAMES: i64 = 139;
 /// The pockets' names drawn as the Bag's title, no label: said as the pocket changes, and left
 /// out of the item's details after it, as ORAS's (`oras.BAG_PLAIN`).
 pub const BAG_PLAIN: (i64, [i64; 5]) = (POCKET_NAMES, [0, 1, 2, 3, 4]);
+/// Search and sort's labels, ORDER, NAME, TYPE, COLOR and SHAPE, as Omega Ruby's
+/// (`oras.ZUKAN_SEARCH`).
+pub const ZUKAN_SEARCH: (i64, [i64; 5]) = (3, [29, 30, 31, 32, 33]);
 /// Pokémon-Amie's Berry Picker's berries, as ORAS's (`oras.BERRY_PICKER`); not seen in X.
 pub fn berry_picker() -> &'static (i64, IndexMap<&'static str, i64>) {
     static BERRY_PICKER: OnceLock<(i64, IndexMap<&'static str, i64>)> = OnceLock::new();
@@ -322,6 +325,7 @@ pub fn rom() -> &'static RomLayout {
         items: Some(ITEM_NAMES),
         pockets: Some((POCKET_NAMES, 0)),
         plain: vec![(BAG_PLAIN.0, BAG_PLAIN.1.to_vec())],
+        search_labels: vec![(ZUKAN_SEARCH.0, ZUKAN_SEARCH.1.to_vec())],
         sounds: Some(SOUND_ARCHIVE.to_string()),
         cries: Some(CRIES.to_string()),
         textures: TEXTURE_ARCHIVES

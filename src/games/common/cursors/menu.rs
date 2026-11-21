@@ -31,10 +31,14 @@ use crate::py::{self, Result};
 /// Units a cursor's width or height may differ from the pane it sits on: the Bag's is 157 by 42
 /// on rows of 150 by 30, the Pokéblock Case's 52 by 52 on cells of 50 by 50 (spike 196).
 pub const ON_PANE: f64 = 16.0;
+/// What a menu cursor framing no words and no named picture is on, from its rectangle and the
+/// words of its layout on screen, or none: the screen's own knowledge of a field left blank.
+pub type Blank = Rc<dyn Fn(&Rect, &[ScreenText]) -> Vec<ScreenText>>;
 
 /// The windows that are an app menu's cursor, each read on every poll once found.
 pub struct MenuCursors {
     panes: Rc<Panes>,
+    blank: Option<Blank>,
     layouts: Rc<Layouts>,
     said: Rc<Said>,
     names: Rc<ClassNames>,
@@ -49,8 +53,14 @@ pub struct MenuCursors {
 }
 
 impl MenuCursors {
-    pub fn new(panes: Rc<Panes>, said: Rc<Said>, names: Rc<ClassNames>) -> Self {
+    pub fn new(
+        panes: Rc<Panes>,
+        said: Rc<Said>,
+        names: Rc<ClassNames>,
+        blank: Option<Blank>,
+    ) -> Self {
         MenuCursors {
+            blank,
             layouts: panes.layouts.clone(),
             panes,
             said,
@@ -117,6 +127,14 @@ impl MenuCursors {
                     })
                     .map(|piece| piece.r#box),
             );
+            if inside.is_empty()
+                && let Some(blank) = &self.blank
+            {
+                // A field with nothing in it, said by what its screen names it: the Pokédex's
+                // search and sort frames TYPE's and SHAPE's values alone, blank until set, and
+                // the cursor on them said nothing (or_pokedex). Words beside it, no row of its.
+                inside = blank(&rect, &theirs);
+            }
             let at = place_of(&rect)?;
             let said = self.said.said.borrow().get(&cursor).cloned();
             let before: HashSet<i64> = match self.said.under.borrow().get(&cursor) {
