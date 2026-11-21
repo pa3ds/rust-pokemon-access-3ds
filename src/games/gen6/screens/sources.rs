@@ -18,6 +18,8 @@
 //! - ADR-0013: a cursor source says which item is under the cursor and when it moved, the words
 //!   still the screen's; a title is said before its item.
 //! - ADR-0043: a row, key or ball is read every tick, a change polling the screen at once.
+//! - ADR-0044: every cursor source is built and asked here, in the order written above, and the
+//!   profile asks this module alone.
 
 use std::cell::{Cell, RefCell};
 use std::collections::HashSet;

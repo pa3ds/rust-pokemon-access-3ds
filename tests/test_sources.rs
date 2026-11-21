@@ -142,7 +142,8 @@ fn test_a_box_slot_chased_owns_what_the_screen_changes_meanwhile() {
     );
 }
 
-/// Its tabs, list and buttons open with it as a menu's do: only their changes are heard.
+/// ADR-0044: the fitting room's filter is the module's, tested without the profile: its tabs,
+/// list and buttons open with it as a menu's do, only their changes heard.
 #[test]
 fn test_the_fitting_rooms_cursor_owns_the_layouts_it_walks_as_they_open() {
     let tab = ScreenText {

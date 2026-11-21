@@ -18,6 +18,8 @@
 //!   replay P's ways at each listing (`ways`).
 //! - ADR-0042: a part of a place in parts is said walking into it, every time, and an exit or a leg
 //!   into it says it (`part`, `arrive`, `leads_to`, `place_of`).
+//! - ADR-0044: the screen poll asks the cursor sources through `sources.CursorSources` alone, and
+//!   wires none itself (`poll_menus`, `poll_screen`).
 
 use std::cell::{Cell, RefCell};
 use std::collections::HashSet;
