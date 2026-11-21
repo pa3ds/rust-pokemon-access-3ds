@@ -357,7 +357,7 @@ pub fn nth(layouts: &Layouts, root: i64, index: i64) -> Result<Option<i64>> {
                 .keys()
                 .filter_map(|pane| grids[pane].clone())
                 .find(|grid| grid.len() as i64 == BOX_SLOTS)
-        } else if 0 <= party && party < PARTY_SLOTS && *parent != root {
+        } else if (0..PARTY_SLOTS).contains(&party) && *parent != root {
             // Two columns, the second lower: no grid. A Pokémon's six marks fill one, and a
             // menu's buttons stand on one place, laid out as each opens.
             let mut spots: HashSet<(i64, i64)> = HashSet::new();

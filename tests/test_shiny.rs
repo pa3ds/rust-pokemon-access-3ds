@@ -108,7 +108,7 @@ fn moved(names: &[&str], root: i64) -> CursorPoll {
         .map(|(index, name)| {
             let piece = ScreenText {
                 root,
-                ..ScreenText::new(0x100 + index as i64, &format!("{name} "), false)
+                ..ScreenText::new(0x100 + index as i64, format!("{name} "), false)
             };
             CursorItem::new(0x0C, vec![piece], false)
         })
