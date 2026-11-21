@@ -1991,14 +1991,15 @@ impl Gen6Profile {
             })
             .cloned()
             .collect();
-        let (cursors, texts, turned) = self.sources.borrow().said(cursors, texts, &heard);
+        let said = self.sources.borrow().said(cursors, texts, &heard);
+        let cursors = said.cursors;
         // A layout built again where it was is the one that was there, and a menu stays a menu:
         // the battle's move list, forgotten while it was gone, was read out whole the moment it
         // showed.
         let mut roots = self.layouts.roots();
         roots.extend(self.layouts.buried());
         let poll = ScreenPoll {
-            texts,
+            texts: said.texts,
             on_screen: heard,
             ..screen.clone()
         };
@@ -2011,7 +2012,9 @@ impl Gen6Profile {
             Some(&subject),
             Some(&polled.chosen),
             title.as_deref(),
-            &turned,
+            &said.lead,
+            &said.reread,
+            &said.rewritten,
         )?;
         for (logged, line) in &polled.after {
             (self.log)(&format!("{logged}: {line}"));

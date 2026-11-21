@@ -298,68 +298,6 @@ fn test_an_egg_and_the_pokemon_after_it_are_switches_not_turns() {
     assert_eq!(pages.hidden(), roots(&[CONTEST, MEMO]));
 }
 
-/// ADR-0043: a page is said as it is turned to, its words as they stand, the button after
-/// it; a page changed with the Pokémon is said as a switch.
-#[test]
-fn test_a_page_turned_to_is_said_as_it_opened_and_a_switch_as_a_change() {
-    let (memory, _, mut pages) = summary_of();
-    let pages = &mut pages;
-    let stats = piece(PARAMS, "HP 199/227", 1);
-    let kind = ScreenText {
-        changed: true,
-        ..piece(CONTEST, "Toughness", 2)
-    };
-    let button = piece(BUTTON, "Check Moves", 3);
-    poll(&memory, pages, Some(MOVES));
-    poll(&memory, pages, Some(CONTEST_MOVES));
-    poll(&memory, pages, Some(CONTEST_MOVES));
-    // The page turned to a poll ago: its words heard as standing, whether written again or not,
-    // and its roots lead what is said.
-    let (_, texts, lead) = pages.said(
-        cursors_of(Vec::new()),
-        vec![kind.clone()],
-        &[kind.clone(), stats],
-    );
-    assert_eq!(lead, roots(&[CONTEST]));
-    assert_eq!(
-        texts,
-        vec![ScreenText {
-            changed: false,
-            returned: true,
-            ..kind.clone()
-        }]
-    );
-    poll(&memory, pages, Some(CONTEST_MOVES));
-    let (_, texts, lead) = pages.said(
-        cursors_of(Vec::new()),
-        Vec::new(),
-        &[kind, button.clone()],
-    );
-    assert_eq!(lead, roots(&[]));
-    assert_eq!(
-        texts,
-        vec![ScreenText {
-            returned: true,
-            ..button
-        }]
-    );
-    // An Egg: the memo said as a switch, as changed.
-    let memo = piece(MEMO, "A mysterious Egg", 4);
-    poll_with(&memory, pages, Some(RIBBONS), EGG, (0, 0));
-    assert_eq!(
-        pages
-            .said(
-                cursors_of(Vec::new()),
-                vec![memo.clone()],
-                std::slice::from_ref(&memo)
-            )
-            .1,
-        vec![ScreenText {
-            changed: true,
-            ..memo
-        }]
-    );
-}
 
 #[test]
 fn test_check_moves_says_each_move_in_the_shown_pages_words_with_its_row() {
@@ -378,9 +316,10 @@ fn test_check_moves_says_each_move_in_the_shown_pages_words_with_its_row() {
         ..piece(CONTEST, "Toughness", 3)
     };
     let cursors = cursors_of(vec![CursorItem::new(0x1, vec![battle, kind.clone()], false)]);
-    let (said, _, _) = pages.said(cursors, Vec::new(), &[name.clone(), kind.clone()]);
+    let rowed = pages.rowed(cursors, &[name.clone(), kind.clone()]);
     assert_eq!(
-        said.items
+        rowed
+            .items
             .iter()
             .map(|item| item.pieces.clone())
             .collect::<Vec<_>>(),

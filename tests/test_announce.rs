@@ -98,6 +98,8 @@ struct Args {
     chosen: Option<IndexMap<i64, String>>,
     title: Option<String>,
     lead: HashSet<i64>,
+    reread: HashSet<i64>,
+    rewritten: HashSet<i64>,
     chased: bool,
 }
 
@@ -188,6 +190,8 @@ impl Screen {
                 given.chosen.as_ref(),
                 given.title.as_deref(),
                 &given.lead,
+                &given.reread,
+                &given.rewritten,
             )
             .unwrap();
         self.backend.spoken()[before..].to_vec()
@@ -1119,6 +1123,45 @@ fn test_part_of_a_screen_coming_back_brings_back_the_rest_of_it() {
         screen.say(args(&back, vec![], &cat(&[&stats, &back]))),
         ["HP 20 OT wee"]
     );
+}
+
+/// ADR-0043: a summary page turned to is said as it opened, its words as they stand though
+/// none was written again (`reread`); a page changed with the Pokémon is said as a switch, its
+/// words as changed (`rewritten`).
+#[test]
+fn test_a_layout_reread_is_heard_whole_and_one_rewritten_as_changed() {
+    let (hp, value) = (
+        piece(1, "HP", 50.0, 85.0, SUMMARY),
+        piece(2, "20", 110.0, 85.0, SUMMARY),
+    );
+    let mut screen = Screen::new();
+    let shown = [hp.clone(), value.clone()];
+    screen.say(args(&[], vec![], &shown));
+    assert_eq!(screen.backend.spoken(), NOTHING);
+    screen.say(Args {
+        reread: HashSet::from([SUMMARY]),
+        ..args(&[], vec![], &shown)
+    });
+    assert_eq!(screen.backend.spoken(), ["HP 20"]);
+    // A switch: the first row said at once, the rest gathered, where words new to a screen up
+    // are said together.
+    let name = piece(3, "Mario", -150.0, -40.0, SUMMARY);
+    let switched = [
+        piece(2, "21", 110.0, 85.0, SUMMARY),
+        piece(3, "Luigi", -150.0, -40.0, SUMMARY),
+    ];
+    let mut said: Vec<String> = Vec::new();
+    for hint in [HashSet::new(), HashSet::from([SUMMARY])] {
+        let mut screen = Screen::new();
+        let first = [hp.clone(), value.clone(), name.clone()];
+        screen.say(args(&first, vec![], &first));
+        screen.say(Args {
+            rewritten: hint,
+            ..args(&switched, vec![], &cat(&[&[hp.clone()], &switched]))
+        });
+        said.push(screen.backend.spoken()[1].clone());
+    }
+    assert_eq!(said, ["HP 21 Luigi", "HP 21"]);
 }
 
 #[test]
@@ -3123,6 +3166,8 @@ fn test_words_under_a_cursor_that_settle_after_it_spoke_are_not_said_again() {
             None,
             None,
             &HashSet::new(),
+            &HashSet::new(),
+            &HashSet::new(),
         )
         .unwrap();
     assert_eq!(screen.backend.spoken()[before..], NOTHING);
@@ -3499,6 +3544,8 @@ fn listed(
             None,
             None,
             None,
+            &HashSet::new(),
+            &HashSet::new(),
             &HashSet::new(),
         )
         .unwrap();

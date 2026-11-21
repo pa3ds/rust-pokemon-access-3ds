@@ -101,6 +101,20 @@ pub struct Polled {
 }
 
 
+/// The poll's cursors and words as the sources leave them, and how the announcer is to hear
+/// them (`ScreenAnnouncer.say`).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Said {
+    pub cursors: CursorPoll,
+    pub texts: Vec<ScreenText>,
+    /// The roots whose first word said cuts off what was said before.
+    pub lead: HashSet<i64>,
+    /// The roots heard as a screen coming back, whole and as they stand.
+    pub reread: HashSet<i64>,
+    /// The roots heard as changed, a rewrite.
+    pub rewritten: HashSet<i64>,
+}
+
 /// Every screen's cursor source a gen 6 game has, asked in their order.
 ///
 /// The Python's `windows`, the menu cursors on screen, and `targets`, the battle's shiny
@@ -486,14 +500,8 @@ impl CursorSources {
     }
 
     /// The poll's cursors and words, filtered, as the sources have the last word on them, and
-    /// the roots leading what is said (`ScreenAnnouncer.say`'s `lead`). `heard` is every word on
-    /// screen to be heard.
-    pub fn said(
-        &self,
-        cursors: CursorPoll,
-        texts: Vec<ScreenText>,
-        heard: &[ScreenText],
-    ) -> (CursorPoll, Vec<ScreenText>, HashSet<i64>) {
+    /// how the announcer is to hear them. `heard` is every word on screen to be heard.
+    pub fn said(&self, cursors: CursorPoll, texts: Vec<ScreenText>, heard: &[ScreenText]) -> Said {
         let mut out = texts;
         if self.apps.borrow().running.as_deref() == Some(rows::FITTING) {
             // The fitting room's cursor walks its tabs, pictures, and on into the list and the
@@ -509,7 +517,21 @@ impl CursorSources {
                 .collect();
             out.retain(|text| text.changed || !text.with_layout || !walked.contains(&text.root));
         }
-        self.summary.said(cursors, out, heard)
+        // A summary page turned to is said as it opened, its words as they stand, the first
+        // cutting off the page before; the button under it a poll later, queued. A page changed
+        // with the Pokémon, an Egg's or the one after it, is said as a switch is: the name, then
+        // the rest, its layouts coming back to the screen part of it.
+        let turned = self.summary.turned();
+        let cursors = self.summary.rowed(cursors, heard);
+        let mut reread = turned.clone();
+        reread.extend(self.summary.button());
+        Said {
+            cursors,
+            texts: out,
+            lead: turned,
+            reread,
+            rewritten: self.summary.switched(),
+        }
     }
 
     /// The name of what a rewrite shows, where a source knows it: the summary's Pokémon.

@@ -413,7 +413,13 @@ impl ScreenAnnouncer {
     /// was queued behind the last page's rest, and turning on through the pages heard each page
     /// whole (`summary.Pages`).
     ///
-    /// Python's `roots`, `subject`, `chosen` and `title` default to None, and `lead` to none.
+    /// `reread` is the roots of layouts whose words are heard as a screen coming back is, whole
+    /// and as they stand, written again or not: a summary page turned to, and the button under
+    /// it a poll later. `rewritten` is the roots whose words are heard as changed, a rewrite: a
+    /// summary page changed with the Pokémon, an Egg's memo or the stats after it.
+    ///
+    /// Python's `roots`, `subject`, `chosen` and `title` default to None, and `lead`, `reread`
+    /// and `rewritten` to none.
     #[allow(clippy::too_many_arguments)]
     pub fn say(
         &mut self,
@@ -425,6 +431,8 @@ impl ScreenAnnouncer {
         chosen: Option<&IndexMap<i64, String>>,
         title: Option<&str>,
         lead: &HashSet<i64>,
+        reread: &HashSet<i64>,
+        rewritten: &HashSet<i64>,
     ) -> Result<()> {
         self.polls += 1;
         self.lead = lead.clone();
@@ -435,6 +443,7 @@ impl ScreenAnnouncer {
             &screen.settling,
             &screen.left,
         );
+        let texts = &hinted(texts, on_screen, reread, rewritten);
         for piece in texts.iter().chain(left.iter()) {
             self.words_said.shift_remove(&piece.r#box);
         }
@@ -840,9 +849,9 @@ impl ScreenAnnouncer {
             self.held = (IndexSet::new(), IndexSet::new());
         }
         if gathering.is_none() && self.rewrite.is_none() {
-            let rewritten = self::rows(&changed, on_screen, labels);
-            if rewritten.len() as i64 >= REWRITE_ROWS {
-                said.extend(self.start_rewrite(&rewritten, subject)?);
+            let changed_rows = self::rows(&changed, on_screen, labels);
+            if changed_rows.len() as i64 >= REWRITE_ROWS {
+                said.extend(self.start_rewrite(&changed_rows, subject)?);
             }
         } else if let Some(rewrite) = &mut self.rewrite {
             // A first row written again before the rest is said is said again with it: the Sell
@@ -1704,6 +1713,60 @@ impl ScreenAnnouncer {
         let all: Vec<ScreenText> = shown.iter().chain(stayed).cloned().collect();
         py::sorted_by_lt(all, |a, b| (!a.top, a.r#box) < (!b.top, b.r#box))
     }
+}
+
+/// The poll's words with the layouts `reread` heard as a screen coming back, every word on
+/// screen in them whether written again or not, and those `rewritten` as changed (`say`).
+fn hinted(
+    texts: &[ScreenText],
+    on_screen: &[ScreenText],
+    reread: &HashSet<i64>,
+    rewritten: &HashSet<i64>,
+) -> Vec<ScreenText> {
+    let mut out = texts.to_vec();
+    if !reread.is_empty() {
+        let written: HashSet<i64> = out.iter().map(|text| text.r#box).collect();
+        out = out
+            .into_iter()
+            .map(|text| {
+                if reread.contains(&text.root) {
+                    ScreenText {
+                        changed: false,
+                        returned: true,
+                        ..text
+                    }
+                } else {
+                    text
+                }
+            })
+            .collect();
+        out.extend(
+            on_screen
+                .iter()
+                .filter(|piece| reread.contains(&piece.root) && !written.contains(&piece.r#box))
+                .map(|piece| ScreenText {
+                    changed: false,
+                    returned: true,
+                    ..piece.clone()
+                }),
+        );
+    }
+    if !rewritten.is_empty() {
+        out = out
+            .into_iter()
+            .map(|text| {
+                if rewritten.contains(&text.root) {
+                    ScreenText {
+                        changed: true,
+                        ..text
+                    }
+                } else {
+                    text
+                }
+            })
+            .collect();
+    }
+    out
 }
 
 /// Panels said as one line, a comma between two where the first ends no sentence, for the pause

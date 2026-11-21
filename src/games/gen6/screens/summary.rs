@@ -322,92 +322,33 @@ impl Pages {
         Ok(mon.map(|mon| mon.nickname))
     }
 
-    /// The poll's cursors and words as the summary's pages are heard, and the roots of the
-    /// page turned to, said as it opened, the first of its words cutting off the page before
-    /// (`ScreenAnnouncer.say`'s `lead`). `heard` is every word on screen to be heard.
-    pub fn said(
-        &self,
-        cursors: CursorPoll,
-        texts: Vec<ScreenText>,
-        heard: &[ScreenText],
-    ) -> (CursorPoll, Vec<ScreenText>, HashSet<i64>) {
+    /// The cursors, each over Check Moves' moves in the shown page's words with the rest of
+    /// its row. `heard` is every word on screen to be heard.
+    pub fn rowed(&self, cursors: CursorPoll, heard: &[ScreenText]) -> CursorPoll {
         let unseen = self.hidden();
-        let cursors = if unseen.is_empty() {
-            cursors
-        } else {
-            // Check Moves' cursors are over both pages' moves: each move in the shown one's
-            // words, with the rest of its row there. On the conditions page the cursor rests on
-            // the battle moves' row, and the contest list's word under it was the kind alone.
-            let items = cursors
-                .items
-                .iter()
-                .map(|item| {
-                    let shown: Vec<ScreenText> = item
-                        .pieces
-                        .iter()
-                        .filter(|p| !unseen.contains(&p.root))
-                        .cloned()
-                        .collect();
-                    CursorItem {
-                        pieces: rowed(shown, heard),
-                        ..item.clone()
-                    }
-                })
-                .collect();
-            CursorPoll { items, ..cursors }
-        };
-        // A page turned to is said as it opened, its words as they stand; the button under it a
-        // poll later, queued.
-        let turned = self.turned();
-        let mut out = texts;
-        let mut back = turned.clone();
-        back.extend(self.button());
-        if !back.is_empty() {
-            let written: HashSet<i64> = out.iter().map(|text| text.r#box).collect();
-            out = out
-                .into_iter()
-                .map(|text| {
-                    if back.contains(&text.root) {
-                        ScreenText {
-                            changed: false,
-                            returned: true,
-                            ..text
-                        }
-                    } else {
-                        text
-                    }
-                })
-                .collect();
-            out.extend(
-                heard
+        if unseen.is_empty() {
+            return cursors;
+        }
+        // Check Moves' cursors are over both pages' moves: each move in the shown one's words,
+        // with the rest of its row there. On the conditions page the cursor rests on the battle
+        // moves' row, and the contest list's word under it was the kind alone.
+        let items = cursors
+            .items
+            .iter()
+            .map(|item| {
+                let shown: Vec<ScreenText> = item
+                    .pieces
                     .iter()
-                    .filter(|piece| back.contains(&piece.root) && !written.contains(&piece.r#box))
-                    .map(|piece| ScreenText {
-                        changed: false,
-                        returned: true,
-                        ..piece.clone()
-                    }),
-            );
-        }
-        // A page changed with the Pokémon, an Egg's or the one after it, is said as a switch is:
-        // the name, then the rest, its layouts coming back to the screen part of it.
-        let switched = self.switched();
-        if !switched.is_empty() {
-            out = out
-                .into_iter()
-                .map(|text| {
-                    if switched.contains(&text.root) {
-                        ScreenText {
-                            changed: true,
-                            ..text
-                        }
-                    } else {
-                        text
-                    }
-                })
-                .collect();
-        }
-        (cursors, out, turned)
+                    .filter(|p| !unseen.contains(&p.root))
+                    .cloned()
+                    .collect();
+                CursorItem {
+                    pieces: rowed(shown, heard),
+                    ..item.clone()
+                }
+            })
+            .collect();
+        CursorPoll { items, ..cursors }
     }
 
     fn shown_pokemon(&self) -> Result<Option<Pokemon>> {

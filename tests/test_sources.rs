@@ -169,13 +169,15 @@ fn test_the_fitting_rooms_cursor_owns_the_layouts_it_walks_as_they_open() {
         std::slice::from_ref(&tab),
     );
     let fitting = sources_of(rows::FITTING, Rc::new(Cell::new(None)));
-    let (_, texts, lead) = fitting.said(
+    let said = fitting.said(
         cursors.clone(),
         vec![card.clone(), changed.clone(), other.clone()],
         &[],
     );
-    assert_eq!(texts, vec![changed.clone(), other.clone()]);
-    assert_eq!(lead, HashSet::new());
+    assert_eq!(said.texts, vec![changed.clone(), other.clone()]);
+    assert!(
+        said.lead == said.reread && said.reread == said.rewritten && said.rewritten.is_empty()
+    );
     let elsewhere = sources_of(rows::OPTIONS, Rc::new(Cell::new(None)));
     assert_eq!(
         elsewhere
@@ -184,7 +186,7 @@ fn test_the_fitting_rooms_cursor_owns_the_layouts_it_walks_as_they_open() {
                 vec![card.clone(), changed.clone(), other.clone()],
                 &[]
             )
-            .1,
+            .texts,
         vec![card, changed, other]
     );
 }
