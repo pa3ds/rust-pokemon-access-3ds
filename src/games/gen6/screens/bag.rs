@@ -108,7 +108,10 @@ impl Chosen {
     /// The list's cursor -> the name of the item the Bag has chosen, nothing while the Bag is
     /// not running, a pocket is empty, or its objects are not yet built; and the pocket's name
     /// where it has changed, from the poll the list's cursor first shows, the Bag built.
-    pub fn poll(&mut self, cursors: &CursorPoll) -> Result<(IndexMap<i64, String>, Option<String>)> {
+    pub fn poll(
+        &mut self,
+        cursors: &CursorPoll,
+    ) -> Result<(IndexMap<i64, String>, Option<String>)> {
         let process = (self.process)();
         let Some(process) = process else {
             self.names = None;

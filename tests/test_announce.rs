@@ -2194,7 +2194,14 @@ fn test_a_title_from_the_screens_objects_comes_before_its_item_and_is_said_once(
         },
         ScreenText {
             changed: true,
-            ..piece_kw(22, "A spray for wounds.", -150.0, -15.0, PANEL, in_panel(22))
+            ..piece_kw(
+                22,
+                "A spray for wounds.",
+                -150.0,
+                -15.0,
+                PANEL,
+                in_panel(22),
+            )
         },
     ];
     let everything = cat(&[&potion, &top]);
@@ -2605,17 +2612,7 @@ fn test_an_item_of_another_list_keeps_no_details_from_this_ones_moves() {
 fn bag_top(name: &str, count: &str, about: &str, changed: bool) -> Vec<ScreenText> {
     let at = |r#box, text, x, y, parent| ScreenText {
         changed,
-        ..piece_kw(
-            r#box,
-            text,
-            x,
-            y,
-            PANEL,
-            Kw {
-                parent,
-                ..PLAIN
-            },
-        )
+        ..piece_kw(r#box, text, x, y, PANEL, Kw { parent, ..PLAIN })
     };
     vec![
         at(30, name, -150.0, 60.0, 20),
@@ -2644,7 +2641,11 @@ fn test_a_cursor_sources_details_come_the_poll_after_the_screen_names_its_item()
     assert_eq!(
         screen.say(Args {
             chosen: chosen_0c("Potion"),
-            ..args(&top, vec![CursorItem::new(0x0C, potion, false)], &everything)
+            ..args(
+                &top,
+                vec![CursorItem::new(0x0C, potion, false)],
+                &everything
+            )
         }),
         ["Potion"]
     );
@@ -2667,12 +2668,21 @@ fn test_a_cursor_sources_details_wait_while_the_screen_names_another_item() {
         piece(2, "Potion", -120.0, 50.0, MENU),
     ];
     let potion = vec![rows[1].clone()];
-    let stale = bag_top("Poké Ball", "7", "A device for catching wild Pokémon.", true);
+    let stale = bag_top(
+        "Poké Ball",
+        "7",
+        "A device for catching wild Pokémon.",
+        true,
+    );
     let everything = cat(&[&rows, &stale]);
     assert_eq!(
         screen.say(Args {
             chosen: chosen_0c("Potion"),
-            ..args(&stale, vec![CursorItem::new(0x0C, potion, false)], &everything)
+            ..args(
+                &stale,
+                vec![CursorItem::new(0x0C, potion, false)],
+                &everything
+            )
         }),
         ["Potion"]
     );
@@ -2713,10 +2723,7 @@ fn test_a_cursor_sources_item_is_named_among_the_words_written() {
             -150.0,
             y,
             PANEL,
-            Kw {
-                parent,
-                ..PLAIN
-            },
+            Kw { parent, ..PLAIN },
         ))
     };
     let top = [

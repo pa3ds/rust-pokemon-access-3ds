@@ -81,7 +81,11 @@ fn test_the_lists_cursor_is_on_the_item_the_bags_objects_say() {
     assert_eq!(chosen.poll(&moved(0x0C, 5, &[5])).unwrap().0, ultra_ball());
     assert_eq!(chosen.poll(&none()).unwrap().0, ultra_ball());
     memory.u16(DRAW + 0x10, 0);
-    assert_eq!(chosen.poll(&none()).unwrap().0, nothing(), "an empty pocket");
+    assert_eq!(
+        chosen.poll(&none()).unwrap().0,
+        nothing(),
+        "an empty pocket"
+    );
     running.set(None);
     assert_eq!(
         chosen.poll(&moved(0x0C, 5, &[5])).unwrap(),

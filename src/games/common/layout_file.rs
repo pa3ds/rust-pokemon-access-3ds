@@ -368,7 +368,9 @@ impl LayoutFiles {
         };
         for (name, start, file_size) in entries {
             if name.ends_with(TEXTURE) {
-                self.images.borrow_mut().insert(address + start, name.clone());
+                self.images
+                    .borrow_mut()
+                    .insert(address + start, name.clone());
             }
             if !name.ends_with(LAYOUT)
                 || !(0 < file_size && file_size <= MAX_FILE.min(size - start))

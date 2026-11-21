@@ -474,7 +474,11 @@ fn test_a_dotted_key_leaves_the_file_as_it_was() {
         let notes = &settings.notes;
         assert!(!notes.iter().any(|note| note.contains("could not be read")));
         assert!(notes.iter().any(|note| note.contains("left as it was")));
-        assert!(!notes.iter().any(|note| note.contains("Azahar has no setting")));
+        assert!(
+            !notes
+                .iter()
+                .any(|note| note.contains("Azahar has no setting"))
+        );
     }
     assert_eq!(read_text(&home.join("config.toml")), "azahar.made_up = 1\n");
 }
