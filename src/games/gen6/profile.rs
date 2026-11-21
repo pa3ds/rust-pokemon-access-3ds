@@ -1785,7 +1785,7 @@ impl Gen6Profile {
                     Shown::Text(_) => None,
                 })
                 .collect();
-            standings.borrow_mut().heard(&texts);
+            standings.borrow_mut().heard(&texts)?;
         }
         let said = self.announcements.borrow_mut().pages(&shown)?;
         if said && let Some(opponents) = &self.opponents {

@@ -69,7 +69,7 @@ pub trait OwnApp {
 /// sides: ORAS's contests (`oras.screens.contest`).
 pub trait StandingsReader {
     /// The dialogue pages just said, which name whose turn it is.
-    fn heard(&mut self, texts: &[&str]);
+    fn heard(&mut self, texts: &[&str]) -> Result<()>;
 
     /// Every screen poll, with every piece of screen text on screen: the entrant the cursor
     /// has just come onto, to say, or None.

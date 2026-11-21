@@ -1,74 +1,65 @@
-//! A contest's standings, from its portraits as spike 196 read them (movie33).
+//! A contest's standings, from the game's own record of its appeals (spike B on
+//! or_toughness_contest): its four entrants' blocks, the player's Metagross first, then Seedottie,
+//! Visikoth and Poochin.
 
-use crate::games::oras::screens::contest::{Portrait, by_turn, entrant, named_in, standings};
-use crate::py::Result;
+use crate::games::oras::screens::contest::{
+    BLOCK, BLOCKS, ENTRANTS, PLACE, ROUNDS, by_turn, entrant, named_in, standing, standings,
+};
 
-/// The images the portraits' backgrounds draw: the player's is unlike the others'.
-const THEIRS: i64 = 0x15681D80;
-const MINE: i64 = 0x15679D00;
+/// Each block's place before the first appeal: the first round's turn order.
+const BEFORE: [i64; 4] = [4, 2, 1, 3];
+/// Each block's place at the end: Asher & Visikoth first place, Seedottie fourth.
+const RESULTS: [i64; 4] = [3, 4, 1, 2];
 
-fn portrait(x: f64, appeal: f64, icon: i64, background: i64) -> Portrait {
-    Portrait {
-        x,
-        y: 76.0,
-        appeal,
-        icon,
-        background: Some(background),
+/// `NAMES.get(block)`.
+fn names(block: i64) -> Option<String> {
+    match block {
+        0 => Some("Brendan & Metagross".to_string()),
+        2 => Some("Asher & Visikoth".to_string()),
+        1 => Some("Jordyn & Seedottie".to_string()),
+        _ => None,
     }
 }
 
-/// Round 4's portraits left to right, sorted by appeal, the player's first.
-fn round_four() -> Vec<Portrait> {
-    vec![
-        portrait(-120.0, 63.0, 1, MINE),
-        portrait(-40.0, 47.0, 2, THEIRS),
-        portrait(40.0, 24.0, 3, THEIRS),
-        portrait(120.0, 20.0, 4, THEIRS),
-    ]
-}
-
-/// `NAMES.get(p.icon)`.
-fn names(portrait: &Portrait) -> Result<Option<String>> {
-    Ok(match portrait.icon {
-        1 => Some("Brendan & Pikachu".to_string()),
-        2 => Some("Molly & Ronnie".to_string()),
-        4 => Some("Camden & Bolt".to_string()),
-        _ => None,
-    })
+/// The appeals' bytes as the game keeps them, to the end of the last block.
+fn appeals(rounds: u8, places: [u8; 4]) -> Vec<u8> {
+    let mut memory = vec![0u8; (BLOCKS + BLOCK * ENTRANTS) as usize];
+    memory[ROUNDS as usize] = rounds;
+    for (at, place) in places.into_iter().enumerate() {
+        memory[(BLOCKS + BLOCK * at as i64 + PLACE) as usize] = place;
+    }
+    memory
 }
 
 #[test]
-fn test_the_players_place_is_their_portraits_by_the_bars() {
+fn test_the_places_and_rounds_are_read_as_the_game_keeps_them() {
+    let now = standing(&appeals(5, RESULTS.map(|place| place as u8))).unwrap().unwrap();
+    assert!(now.rounds == 5 && now.places == RESULTS);
+    // Not yet written, or not the appeals: no place is each of 1 to 4.
+    assert_eq!(standing(&appeals(0, [0, 0, 0, 0])).unwrap(), None);
+    assert_eq!(standing(&appeals(0, [1, 1, 3, 4])).unwrap(), None);
+}
+
+#[test]
+fn test_the_players_place_is_their_blocks() {
     assert_eq!(
-        standings(&round_four(), &names, true, false).unwrap(),
-        Some("Brendan & Pikachu first place".to_string())
+        standings(&RESULTS, &names, true, false),
+        Some("Brendan & Metagross third place".to_string())
     );
     assert_eq!(
-        standings(&round_four(), &names, true, true).unwrap(),
-        Some("Brendan & Pikachu: first place".to_string())
+        standings(&RESULTS, &names, true, true),
+        Some("Brendan & Metagross: third place".to_string())
     );
 }
 
 #[test]
 fn test_the_others_are_said_in_order_unnamed_until_learned() {
     assert_eq!(
-        standings(&round_four(), &names, false, false).unwrap(),
-        Some("Molly & Ronnie second place, third place, Camden & Bolt fourth place".to_string())
-    );
-}
-
-/// At 428 s the bars were 29, 26, 12, 14, the fourth ahead of the third (movie33).
-#[test]
-fn test_bars_caught_mid_turn_are_ranked_by_their_widths() {
-    let mid = vec![
-        portrait(-120.0, 29.0, 1, THEIRS),
-        portrait(-40.0, 26.0, 2, MINE),
-        portrait(40.0, 12.0, 3, THEIRS),
-        portrait(120.0, 14.0, 4, THEIRS),
-    ];
-    assert_eq!(
-        standings(&mid, &|_p| Ok(None), false, false).unwrap(),
-        Some("first place, third place, fourth place".to_string())
+        standings(&RESULTS, &names, false, false),
+        Some(
+            "Asher & Visikoth first place, second place, Jordyn & Seedottie fourth place"
+                .to_string()
+        )
     );
 }
 
@@ -119,24 +110,16 @@ fn test_a_name_inside_another_word_is_no_name() {
     );
 }
 
-/// Movie33's first round: Pikachu (the player's), Bolt, Tailster, Ronnie.
+/// Visikoth, Seedottie, Poochin, then the player's Metagross appealed, as the places stood
+/// before the first appeal.
 #[test]
-fn test_the_first_rounds_appeals_name_its_portraits_left_to_right_but_the_players() {
-    let turns: Vec<(String, bool)> = [
-        ("pikachu", true),
-        ("bolt", false),
-        ("tailster", false),
-        ("ronnie", false),
-    ]
-    .iter()
-    .map(|&(icon, mine)| (icon.to_string(), mine))
-    .collect();
-    let appealed = [rival("Camden", "Bolt"), rival("Gianna", "Tailster")];
+fn test_the_first_rounds_appeals_name_the_computers_entrants_in_place_order() {
+    let appealed = [rival("Asher", "Visikoth"), rival("Jordyn", "Seedottie")];
     assert_eq!(
-        by_turn(&turns, &appealed),
+        by_turn(&BEFORE, &appealed),
         indexmap::IndexMap::from([
-            ("bolt".to_string(), rival("Camden", "Bolt")),
-            ("tailster".to_string(), rival("Gianna", "Tailster")),
+            (2, rival("Asher", "Visikoth")),
+            (1, rival("Jordyn", "Seedottie")),
         ])
     );
 }

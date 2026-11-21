@@ -2,30 +2,36 @@
 //!
 //! The appeals draw the four entrants as portraits along the bottom screen's top (spike 196,
 //! movie33): each a pane holding its background, `contest_player_bg_01.bclim`, its appeal so far
-//! as a bar, `appeal_bar_filler.bclim`, as wide as the appeal, and the Pokémon's icon,
-//! `poke_icon.bclim`. The game keeps them sorted by appeal, the leader on the left, moving the
-//! icons from portrait to portrait as the order changes, and draws the player's portrait on a
-//! background image of its own. No word names an entrant but on the panel under the move list,
-//! "Pokémon: Pikachu, Trainer: Brendan", for the portrait the cursor is on; each name is learned
-//! so, by the image of the icon in that portrait, and said as the entry cards wrote it,
-//! "Brendan & Pikachu", where they did. The computer's entrants are learned before that, in the
-//! first round: its portraits stand in its turn order and hold still until all four have
-//! appealed, and each appeal's message names the Pokémon whose turn it is, "Bolt tried to show
-//! its appeal with Light Screen!", one of the contests' own entrants (`GameText.contest_rivals`).
-//!
-//! The panel names a portrait a second and a half after the cursor comes onto it, and before the
-//! first round's messages the computer's entrants are not yet learned, so the cursor coming onto a
-//! portrait said nothing. The game writes the Pokémon there the moment the cursor picks it (spike
-//! B on or_toughness_contest), and with the entrants and their entry cards that names it at once,
-//! "Jordyn & Seedottie", before its moves:
+//! as a bar, `appeal_bar_filler.bclim`, and the Pokémon's icon, `poke_icon.bclim`, sorted by
+//! appeal, the leader on the left. The places were once read from the bars and the entrants told
+//! apart by their icons' images; the game keeps both itself (spike B on or_toughness_contest):
 //!
 //! ```text
-//! contest::MainProc  +0x30  -> contest::Main
-//! contest::Main     +0x260  -> a gfl::str::StrBuf, the Pokémon of the entrant the cursor has
-//!                              picked: a portrait's, or the entrant's whose moves it walks
+//! contest::MainProc   +0x30  -> contest::Main
+//! contest::Main       +0x24  -> the appeals, of no class
+//! the appeals          +0x1  u8 the rounds done
+//!                     +0xF8  a 0x10-byte block an entrant, the player's first, then the
+//!                            computer's from the last entry number to the first:
+//!                              +0x4 u16 its appeal so far, written as a round ends
+//!                              +0xD u8 its place, 1 to 4: before the appeals the first round's
+//!                                   turn order, after each round the next's, at the end the
+//!                                   results'
+//! contest::Main       +0x30  -> contest::AppealUi
+//! contest::AppealUi  +0x24C  u8 the entrant the cursor has picked, its portrait 4 to 7 left to
+//!                            right, which stand in place order as a move is chosen
+//! contest::Main      +0x260  -> a gfl::str::StrBuf, the Pokémon of the entrant picked
 //! ```
+//!
+//! No word names an entrant but the panel under the move list, "Pokémon: Pikachu, Trainer:
+//! Brendan", a second and a half after the cursor comes onto a portrait. The Pokémon the game
+//! picked names it at once: its trainer from the contests' own entrants
+//! (`GameText.contest_rivals`), the two said as the entry cards wrote them, "Jordyn & Seedottie",
+//! the player's by their card alone. The computer's entrants are learned before that too, in the
+//! first round, which appeals in place order: each appeal's message names the Pokémon whose turn
+//! it is, "Bolt tried to show its appeal with Light Screen!". Each name is kept for its entrant's
+//! block.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 use indexmap::{IndexMap, IndexSet};
@@ -43,15 +49,28 @@ use crate::games::gen6::anchors::follow;
 use crate::games::gen6::apps::LOADED_CODE;
 use crate::games::gen6::game::StandingsReader;
 use crate::games::gen6::rom::archives::GameText;
-use crate::games::gen6::rom::textures;
-use crate::py::{self, Result};
+use crate::games::gen6::screens::rows::{CONTEST_MAIN, CONTEST_UI, PICKED};
+use crate::py::{self, Error, Result};
 
 /// The entry cards' app, then the appeals' (spike 196). The appeals were taken for the cards'
 /// until a new app built where the last ran was noticed (2026-10-09, or_broken_contest).
 pub const APPS: [&str; 2] = ["N7contest11OhiromeProcE", "N7contest8MainProcE"];
-/// The appeals' process -> its `contest::Main` (spike B).
-pub const MAIN: i64 = 0x30;
-pub const MAIN_CLASS: &str = "N7contest4MainE";
+/// The appeals' process -> its `contest::Main` -> its `contest::AppealUi` (spike B).
+pub const MAIN: i64 = CONTEST_UI[0];
+pub const APPEAL_UI: i64 = CONTEST_UI[1];
+/// `contest::Main` -> the appeals: each entrant's appeal and place (spike B).
+pub const APPEALS: i64 = 0x24;
+/// The appeals -> the rounds done.
+pub const ROUNDS: i64 = 0x1;
+/// The appeals -> the first entrant's block, the player's.
+pub const BLOCKS: i64 = 0xF8;
+pub const BLOCK: i64 = 0x10;
+/// An entrant's block -> its place, 1 to 4.
+pub const PLACE: i64 = 0xD;
+/// The player's entrant, the first block.
+pub const PLAYER: i64 = 0;
+/// The pick of the leftmost portrait, first place's.
+pub const FIRST_PICK: i64 = 4;
 /// `contest::Main` -> the Pokémon of the entrant the cursor has picked (spike B).
 pub const PICKED_NAME: i64 = 0x260;
 /// Halfwords past which a Pokémon's name is no name: a nickname is twelve at most.
@@ -60,7 +79,7 @@ pub const BACKGROUND: &str = "contest_player_bg_01.bclim";
 pub const BAR: &str = "appeal_bar_filler.bclim";
 pub const ICON: &str = "poke_icon.bclim";
 pub const CURSOR: &str = "cursor.bclim";
-pub const ENTRANTS: usize = 4;
+pub const ENTRANTS: i64 = 4;
 /// Where the cursor stands on a portrait from its middle: on an empty pane at its top right
 /// (spike 196).
 pub const CURSOR_AT: (f64, f64) = (10.0, 20.0);
@@ -110,19 +129,17 @@ pub fn named_in(text: &str, rivals: &[(String, String)]) -> Vec<(String, String)
     found.into_iter().map(|(_, rival)| rival).collect()
 }
 
-/// Each icon of the first round's portraits, left to right with whether it is the
-/// player's, -> the entrant whose appeal came in its turn: the first round appeals left to
-/// right and nothing moves until all four have (spike 196, movie33). The player's turn names
-/// no entrant of `appealed`, which holds the computer's alone.
-pub fn by_turn(
-    turns: &[(String, bool)],
-    appealed: &[(String, String)],
-) -> IndexMap<String, (String, String)> {
-    let theirs = turns
-        .iter()
-        .filter(|(_icon, mine)| !mine)
-        .map(|(icon, _mine)| icon.clone());
-    theirs.zip(appealed.iter().cloned()).collect()
+/// Each of the computer's entrants, by its block, -> the entrant whose appeal came in its
+/// turn: until the first round ends the places are its turn order (spike B). The player's turn
+/// names no entrant of `appealed`, which holds the computer's alone.
+pub fn by_turn(places: &[i64], appealed: &[(String, String)]) -> IndexMap<i64, (String, String)> {
+    let theirs = py::sorted_by_lt(
+        (0..places.len() as i64)
+            .filter(|&entrant| entrant != PLAYER)
+            .collect(),
+        |&a, &b| places[a as usize] < places[b as usize],
+    );
+    theirs.into_iter().zip(appealed.iter().cloned()).collect()
 }
 
 /// The computer's entrant whose Pokémon this is, as its entry card wrote them, "Jordyn &
@@ -152,48 +169,31 @@ pub fn entrant(
     }
 }
 
-/// The player's place, or each other entrant's in order, by the bars, the player's being
-/// the portrait whose background is unlike the others': "Brendan & Pikachu first place".
+/// The player's place, or each other entrant's in order, `places` each entrant's by its
+/// block, the player's first: "Brendan & Pikachu first place".
 ///
-/// Python's `pauses` defaults to False. `name` returns `Result`, as Python's raises where it
-/// reads the icon's image.
+/// Python's `pauses` defaults to False.
 pub fn standings(
-    portraits: &[Portrait],
-    name: &dyn Fn(&Portrait) -> Result<Option<String>>,
+    places: &[i64],
+    name: &dyn Fn(i64) -> Option<String>,
     player: bool,
     pauses: bool,
-) -> Result<Option<String>> {
-    let backgrounds: Vec<Option<i64>> = portraits.iter().map(|p| p.background).collect();
-    let mine = portraits.iter().position(|p| {
-        backgrounds
-            .iter()
-            .filter(|&&background| background == p.background)
-            .count()
-            == 1
-    });
-    // `sorted(portraits, key=lambda p: (-p.appeal, p.x))`, kept with each one's index so that
-    // `portrait is mine` is asked of the same one.
-    let ranked = py::sorted_by_lt(
-        portraits.iter().enumerate().collect::<Vec<_>>(),
-        |(_, a), (_, b)| {
-            if -a.appeal != -b.appeal {
-                return -a.appeal < -b.appeal;
-            }
-            a.x < b.x
-        },
-    );
-    let places: Vec<String> = PLACES.iter().map(|&(_, place)| own(place, &[])).collect();
+) -> Option<String> {
+    let words: Vec<String> = PLACES.iter().map(|&(_, place)| own(place, &[])).collect();
     let mut lines: Vec<String> = Vec::new();
-    for (at, (index, portrait)) in ranked.into_iter().enumerate() {
-        if (Some(index) == mine) != player {
+    for entrant in py::sorted_by_lt((0..places.len() as i64).collect(), |&a, &b| {
+        places[a as usize] < places[b as usize]
+    }) {
+        if (entrant == PLAYER) != player {
             continue;
         }
-        let place = if at < places.len() {
-            places[at].to_string()
+        let at = places[entrant as usize];
+        let place = if 0 < at && at <= words.len() as i64 {
+            words[(at - 1) as usize].clone()
         } else {
-            (at + 1).to_string()
+            at.to_string()
         };
-        let named = name(portrait)?;
+        let named = name(entrant);
         lines.push(match named {
             Some(named) if !named.is_empty() => {
                 format!("{named}{}{place}", if pauses { ": " } else { " " })
@@ -202,41 +202,70 @@ pub fn standings(
         });
     }
     let joined = lines.join(", ");
-    Ok(if joined.is_empty() {
+    if joined.is_empty() {
         None
     } else {
         Some(joined)
-    })
+    }
+}
+
+/// The appeals as the game keeps them.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Standing {
+    /// The rounds done.
+    pub rounds: i64,
+    /// Each entrant's place, by its block, the player's first.
+    pub places: Vec<i64>,
+}
+
+/// The rounds done and each entrant's place, from the appeals' bytes up to the end of the
+/// last block, or None where the places are not each of 1 to 4.
+pub fn standing(appeals: &[u8]) -> Result<Option<Standing>> {
+    let mut places: Vec<i64> = Vec::new();
+    for at in 0..ENTRANTS {
+        let byte = appeals
+            .get((BLOCKS + BLOCK * at + PLACE) as usize)
+            .ok_or_else(|| Error::index("index out of range"))?;
+        places.push(*byte as i64);
+    }
+    let mut sorted = places.clone();
+    sorted.sort();
+    if sorted != (1..ENTRANTS + 1).collect::<Vec<i64>>() {
+        return Ok(None);
+    }
+    let rounds = appeals
+        .get(ROUNDS as usize)
+        .ok_or_else(|| Error::index("index out of range"))?;
+    Ok(Some(Standing {
+        rounds: *rounds as i64,
+        places,
+    }))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Portrait {
     pub x: f64,
     pub y: f64,
-    /// The bar's width: the appeal so far.
-    pub appeal: f64,
-    /// The picture of the Pokémon's icon.
-    pub icon: i64,
-    /// The image the background draws: the player's is the one unlike the others'.
-    pub background: Option<i64>,
 }
 
 /// The four portraits, and where the cursor stands.
 type Found = (Vec<Portrait>, Option<(f64, f64)>);
 
-/// Who stands where in a contest's appeals, from its portraits.
+/// Who stands where in a contest's appeals, from the game's own record of them.
 pub struct Standings {
     memory: Rc<dyn Memory>,
     process: Rc<dyn Fn() -> Option<i64>>,
     /// The appeals' `contest::Main`, once its class is checked.
-    main: Option<i64>,
+    ///
+    /// A `Cell`: `said` takes `&self` and checks it, as the Python's does.
+    main: Cell<Option<i64>>,
     layouts: Rc<Layouts>,
     files: Rc<LayoutFiles>,
     /// The game's "Pokémon:" and "Trainer:".
     labels: Vec<String>,
     running: Rc<dyn Fn() -> Option<String>>,
-    /// Icon image digest -> the entrant it is, learned from the panel.
-    names: IndexMap<String, String>,
+    /// Each entrant learned, by its block.
+    names: IndexMap<i64, String>,
     /// Words the contest has shown, to say an entrant as its entry card did.
     ///
     /// Python's is a set of strings, which it iterates in an order that changes every run: kept
@@ -250,11 +279,7 @@ pub struct Standings {
     last: Option<String>,
     /// The computer's entrants, each trainer with their Pokémon (`GameText.contest_rivals`).
     rivals: Vec<(String, String)>,
-    /// The first round's portraits' icons, left to right, and whether each is the player's.
-    turns: Vec<(String, bool)>,
-    /// Whether no bar has filled yet: the first round's appeals are still to come or going.
-    first_round: bool,
-    /// The computer's entrants the first round's messages have named, in the order named.
+    /// The computer's entrants the messages have named, in the order first named.
     appealed: Vec<(String, String)>,
     /// The app running at the last poll.
     app_before: Option<String>,
@@ -274,7 +299,7 @@ impl Standings {
         Standings {
             memory,
             process,
-            main: None,
+            main: Cell::new(None),
             layouts,
             files,
             labels,
@@ -285,8 +310,6 @@ impl Standings {
             arrived_with: None,
             last: None,
             rivals,
-            turns: Vec::new(),
-            first_round: true,
             appealed: Vec::new(),
             app_before: None,
         }
@@ -315,8 +338,8 @@ impl Standings {
 }
 
 impl StandingsReader for Standings {
-    /// Learn the entrant the panel names, by the icon in the portrait the cursor is on, and
-    /// the entrant of a portrait the cursor has just come onto, to say.
+    /// Learn the entrant the panel names for the portrait the cursor is on, and the entrant
+    /// of a portrait the cursor has just come onto, to say.
     fn poll(&mut self, on_screen: &[ScreenText]) -> Result<Option<String>> {
         let running = (self.running)();
         if running.as_deref() == Some(APPS[0]) && self.app_before.as_deref() != Some(APPS[0]) {
@@ -325,9 +348,7 @@ impl StandingsReader for Standings {
             // cards were forgotten with it (or_toughness_contest).
             self.names.clear();
             self.written.clear();
-            self.turns.clear();
             self.appealed.clear();
-            self.first_round = true;
         }
         self.app_before = running.clone();
         if !running.is_some_and(|app| APPS.contains(&app.as_str())) {
@@ -337,29 +358,6 @@ impl StandingsReader for Standings {
             .extend(on_screen.iter().map(|piece| piece.text.clone()));
         let named = self.named(on_screen);
         let found = self.portraits()?;
-        if let Some((portraits, _at)) = &found
-            && self.first_round
-        {
-            if portraits.iter().any(|p| p.appeal > 0.0) {
-                self.first_round = false;
-            } else {
-                let backgrounds: Vec<Option<i64>> =
-                    portraits.iter().map(|p| p.background).collect();
-                let mut turns: Vec<(Option<String>, bool)> = Vec::new();
-                for p in py::sorted_by_lt(portraits.iter().collect(), |a, b| a.x < b.x) {
-                    let mine = backgrounds
-                        .iter()
-                        .filter(|&&background| background == p.background)
-                        .count()
-                        == 1;
-                    turns.push((self.icon(p)?, mine));
-                }
-                self.turns = turns
-                    .into_iter()
-                    .filter_map(|(icon, mine)| icon.map(|icon| (icon, mine)))
-                    .collect();
-            }
-        }
         let mut on: Vec<Portrait> = Vec::new();
         if let Some((portraits, Some((x, y)))) = &found {
             on = portraits
@@ -383,7 +381,7 @@ impl StandingsReader for Standings {
             };
             self.at = at;
             if at.is_some() {
-                arrived = self.entrant(&on[0])?;
+                arrived = self.entrant()?;
             }
         }
         // Read the same on two polls: caught as the panel is rewritten, the player's portrait
@@ -391,8 +389,8 @@ impl StandingsReader for Standings {
         let steady = named == self.last;
         self.last = named.clone();
         if at.is_some() && named.is_some() && named != self.arrived_with && steady {
-            if let Some(icon) = self.icon(&on[0])? {
-                self.names.insert(icon, named.clone().unwrap_or_default());
+            if let Some(picked) = self.picked()? {
+                self.names.insert(picked, named.clone().unwrap_or_default());
             }
             self.arrived_with = named;
         }
@@ -400,14 +398,11 @@ impl StandingsReader for Standings {
     }
 
     /// Learn the computer's entrants from the first round's messages: "Bolt tried to show
-    /// its appeal" is the portrait whose turn it is, and the first round appeals left to right.
+    /// its appeal" is the entrant whose turn it is, and the first round appeals in place order.
     /// Only entrants whose entry cards were shown are looked for; the panel's names win.
-    fn heard(&mut self, texts: &[&str]) {
-        if !(self.running)().is_some_and(|app| APPS.contains(&app.as_str()))
-            || !self.first_round
-            || self.turns.len() != ENTRANTS
-        {
-            return;
+    fn heard(&mut self, texts: &[&str]) -> Result<()> {
+        if (self.running)().as_deref() != Some(APPS[1]) {
+            return Ok(());
         }
         let carded: Vec<(String, String)> = self
             .rivals
@@ -415,6 +410,7 @@ impl StandingsReader for Standings {
             .filter(|(trainer, pokemon)| self.card(trainer, pokemon).is_some())
             .cloned()
             .collect();
+        let before = self.appealed.len();
         for text in texts {
             for rival in named_in(text, &carded) {
                 if !self.appealed.contains(&rival) {
@@ -422,44 +418,60 @@ impl StandingsReader for Standings {
                 }
             }
         }
-        for (icon, (trainer, pokemon)) in by_turn(&self.turns, &self.appealed) {
-            let card = self.card(&trainer, &pokemon).unwrap_or_default();
-            self.names.entry(icon).or_insert(card);
+        if self.appealed.len() == before {
+            return Ok(());
         }
+        let Some(now) = self.standing()? else {
+            return Ok(());
+        };
+        if now.rounds != 0 {
+            return Ok(());
+        }
+        for (block, (trainer, pokemon)) in by_turn(&now.places, &self.appealed) {
+            let card = self.card(&trainer, &pokemon).unwrap_or_default();
+            self.names.entry(block).or_insert(card);
+        }
+        Ok(())
     }
 
     /// The player's place, or each other entrant's in order, "Brendan & Pikachu first place";
-    /// None outside the appeals or where the portraits are not found.
+    /// None outside the appeals or where they are not found.
     ///
     /// Python's `pauses` defaults to False.
     fn said(&self, player: bool, pauses: bool) -> Result<Option<String>> {
-        if !(self.running)().is_some_and(|app| APPS.contains(&app.as_str())) {
-            return Ok(None);
-        }
-        let Some((portraits, _at)) = self.portraits()? else {
+        let now = if (self.running)().as_deref() == Some(APPS[1]) {
+            self.standing()?
+        } else {
+            None
+        };
+        let Some(now) = now else {
             return Ok(None);
         };
-        let name = |portrait: &Portrait| -> Result<Option<String>> {
-            let icon = self.icon(portrait)?.unwrap_or_default();
-            Ok(self.names.get(&icon).cloned())
+        let name = |block: i64| -> Option<String> {
+            self.names
+                .get(&block)
+                .filter(|name| !name.is_empty())
+                .cloned()
         };
-        standings(&portraits, &name, player, pauses)
+        Ok(standings(&now.places, &name, player, pauses))
     }
 }
 
 impl Standings {
-    /// The entrant of the portrait the cursor has just come onto, by the Pokémon the game
-    /// picked with it, learned for its icon; the player's own as the panel taught it, else as
-    /// their entry card wrote it, else their Pokémon; or None where no name is read or
-    /// learned.
-    fn entrant(&mut self, portrait: &Portrait) -> Result<Option<String>> {
-        let icon = self.icon(portrait)?;
-        let learned = self
-            .names
-            .get(icon.as_deref().unwrap_or(""))
-            .filter(|learned| !learned.is_empty())
-            .cloned();
-        let Some(pokemon) = self.picked()? else {
+    /// The entrant the cursor has picked, by its Pokémon, learned for its block; the player's
+    /// own as the panel taught it, else as their entry card wrote it, else their Pokémon; or
+    /// None where no name is read or learned.
+    fn entrant(&mut self) -> Result<Option<String>> {
+        let block = self.picked()?;
+        let learned = match block {
+            None => None,
+            Some(block) => self
+                .names
+                .get(&block)
+                .filter(|learned| !learned.is_empty())
+                .cloned(),
+        };
+        let Some(pokemon) = self.pokemon()? else {
             return Ok(learned);
         };
         // The player's own came as their Pokémon alone until the panel had named it as their
@@ -472,17 +484,15 @@ impl Standings {
         let Some(named) = named else {
             return Ok(Some(pokemon));
         };
-        if let Some(icon) = icon {
-            self.names.insert(icon, named.clone());
+        if let Some(block) = block {
+            self.names.insert(block, named.clone());
         }
         Ok(Some(named))
     }
 
-    /// The Pokémon of the entrant the cursor has picked, as the game wrote it for its panel,
-    /// or None out of the appeals.
-    fn picked(&mut self) -> Result<Option<String>> {
-        let process = (self.process)();
-        let Some(process) = process else {
+    /// The appeals' `contest::Main`, its class checked once, or None out of the appeals.
+    fn contest(&self) -> Result<Option<i64>> {
+        let Some(process) = (self.process)() else {
             return Ok(None);
         };
         if (self.running)().as_deref() != Some(APPS[1]) {
@@ -491,29 +501,70 @@ impl Standings {
         let Some(main) = follow(&*self.memory, process, &[MAIN])? else {
             return Ok(None);
         };
-        if Some(main) != self.main {
+        if Some(main) != self.main.get() {
             if ClassNames::new(self.memory.clone(), LOADED_CODE)
                 .of_object(main)?
                 .as_deref()
-                != Some(MAIN_CLASS)
+                != Some(CONTEST_MAIN)
             {
                 return Ok(None);
             }
-            self.main = Some(main);
+            self.main.set(Some(main));
         }
-        let buffer = follow(&*self.memory, main, &[PICKED_NAME])?;
+        Ok(Some(main))
+    }
+
+    /// The appeals as the game keeps them, or None out of them.
+    fn standing(&self) -> Result<Option<Standing>> {
+        let appeals = match self.contest()? {
+            None => None,
+            Some(main) => follow(&*self.memory, main, &[APPEALS])?,
+        };
+        let Some(appeals) = appeals else {
+            return Ok(None);
+        };
+        standing(&self.memory.read(appeals, BLOCKS + BLOCK * ENTRANTS)?)
+    }
+
+    /// The block of the entrant the cursor has picked: the portraits stand in place order as
+    /// a move is chosen, the only time the cursor is on them. None out of the appeals.
+    fn picked(&self) -> Result<Option<i64>> {
+        let ui = match self.contest()? {
+            None => None,
+            Some(main) => follow(&*self.memory, main, &[APPEAL_UI])?,
+        };
+        let now = match ui {
+            None => None,
+            Some(_) => self.standing()?,
+        };
+        let (Some(ui), Some(now)) = (ui, now) else {
+            return Ok(None);
+        };
+        let place = *self
+            .memory
+            .read(ui + PICKED, 1)?
+            .first()
+            .ok_or_else(|| Error::index("index out of range"))? as i64
+            - FIRST_PICK
+            + 1;
+        Ok(now
+            .places
+            .iter()
+            .position(|&each| each == place)
+            .map(|at| at as i64))
+    }
+
+    /// The Pokémon of the entrant the cursor has picked, as the game wrote it for its panel,
+    /// or None out of the appeals.
+    fn pokemon(&self) -> Result<Option<String>> {
+        let buffer = match self.contest()? {
+            None => None,
+            Some(main) => follow(&*self.memory, main, &[PICKED_NAME])?,
+        };
         match buffer {
             None => Ok(None),
             Some(buffer) => strbuf::label_with(&*self.memory, buffer, NAME_LIMIT),
         }
-    }
-
-    /// The digest of the image the portrait's icon draws, or None.
-    fn icon(&self, portrait: &Portrait) -> Result<Option<String>> {
-        let image = textures::image(&*self.memory, portrait.icon)?;
-        Ok(image
-            .filter(|image| !image.is_empty())
-            .map(|image| textures::digest(&image)))
     }
 
     /// The entrant the panel names now, as its entry card wrote it, or None.
@@ -582,19 +633,15 @@ impl Standings {
             let texture = |pane: i64| texture_of(layouts, &file.textures, pane);
             let mut portraits: Vec<Portrait> = Vec::new();
             for panel in layouts.children(root, root) {
-                let Some((bar, icon, background)) = self.parts(root, panel, &texture)? else {
-                    continue;
-                };
-                let (head, place) = (layouts.pane(bar)?, layouts.pane(panel)?);
-                portraits.push(Portrait {
-                    x: f32(&place, shape.x)?,
-                    y: f32(&place, shape.y)?,
-                    appeal: f32(&head, shape.width)? * f32(&head, shape.scale_x)?,
-                    icon,
-                    background: textures::drawn_at(&*self.memory, background)?,
-                });
+                if self.is_portrait(root, panel, &texture)? {
+                    let head = layouts.pane(panel)?;
+                    portraits.push(Portrait {
+                        x: f32(&head, shape.x)?,
+                        y: f32(&head, shape.y)?,
+                    });
+                }
             }
-            if portraits.len() != ENTRANTS {
+            if portraits.len() as i64 != ENTRANTS {
                 continue;
             }
             let mut cursor = None;
@@ -614,31 +661,25 @@ impl Standings {
         Ok(None)
     }
 
-    /// A portrait's bar, icon and background, or None for a pane that is no portrait.
-    fn parts(
+    /// Whether a pane is a portrait: its bar, its icon and its background under it, the bar
+    /// its own child.
+    fn is_portrait(
         &self,
         root: i64,
         panel: i64,
         texture: &dyn Fn(i64) -> Result<Option<String>>,
-    ) -> Result<Option<(i64, i64, i64)>> {
-        let (mut bar, mut icon, mut background) = (None, None, None);
+    ) -> Result<bool> {
+        let mut found: IndexMap<String, i64> = IndexMap::new();
         let mut stack: Vec<i64> = self.layouts.children(root, panel);
         while let Some(pane) = stack.pop() {
             let kind = texture(pane)?;
-            match kind.as_deref() {
-                Some(BAR) => bar = Some(pane),
-                Some(ICON) => icon = Some(pane),
-                Some(BACKGROUND) => background = Some(pane),
-                _ => {}
+            if let Some(kind) = kind
+                && [BAR, ICON, BACKGROUND].contains(&kind.as_str())
+            {
+                found.insert(kind, pane);
             }
             stack.extend(self.layouts.children(root, pane));
         }
-        let (Some(bar), Some(icon), Some(background)) = (bar, icon, background) else {
-            return Ok(None);
-        };
-        if u32(&self.layouts.pane(bar)?, lyt::PARENT)? != panel {
-            return Ok(None);
-        }
-        Ok(Some((bar, icon, background)))
+        Ok(found.len() == 3 && u32(&self.layouts.pane(found[BAR])?, lyt::PARENT)? == panel)
     }
 }
