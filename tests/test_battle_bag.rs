@@ -19,6 +19,7 @@ const VIEW: i64 = 0x08220000;
 const UI: i64 = 0x14230000;
 const ITEMS: i64 = 0x14240000;
 const POCKETS_MENU: i64 = 0x14250000;
+const INFO: i64 = 0x14260000;
 const LIST_ROOT: i64 = 0x1468E494;
 const POCKETS_ROOT: i64 = 0x1460C294;
 const TITLE_PANES: [(i64, &str); 5] = [
@@ -82,6 +83,7 @@ fn bag_at(at: i64) -> (Rc<FakeMemory>, battle_bag::BattleBag) {
     memory.u32(UI + at + battle_bag::LIST, &[ITEMS]);
     memory.u32(ITEMS, &[classes.add(battle_bag::LIST_CLASS)]);
     memory.u32(POCKETS_MENU, &[classes.add("N3btl3app12ItemCategoryE")]);
+    memory.u32(INFO, &[classes.add(battle_bag::INFO_CLASS)]);
     let bag = battle_bag::BattleBag::new(
         memory.clone(),
         Rc::new(|| Some(PROCESS)),
@@ -173,6 +175,32 @@ fn test_with_no_pocket_open_nothing_is_the_bags() {
     // Nor with its list off screen, where no memory is read.
     memory.u32(UI + battle_bag::BAGS[0] + battle_bag::LIST, &[ITEMS]);
     assert_eq!(bag.poll(&[]).unwrap(), battle_bag::nothing());
+}
+
+#[test]
+fn test_an_items_menu_leaves_the_list_as_it_was() {
+    let (memory, mut bag) = bag();
+    page(&memory, 0, 0);
+    let heard = bag.poll(&screen("HP/PP RESTORE", "1", "Potion")).unwrap();
+    // USE open over the list: its words still unsaid, and no page said.
+    memory.u32(UI + battle_bag::BAGS[0] + battle_bag::LIST, &[INFO]);
+    assert_eq!(
+        bag.poll(&screen("HP/PP RESTORE", "1", "Potion")).unwrap(),
+        battle_bag::Heard {
+            turned: None,
+            opened: None,
+            unsaid: heard.unsaid.clone(),
+            pockets: heard.pockets.clone(),
+        }
+    );
+    // Backed out of it, the pocket is not opened again.
+    memory.u32(UI + battle_bag::BAGS[0] + battle_bag::LIST, &[ITEMS]);
+    assert_eq!(
+        bag.poll(&screen("HP/PP RESTORE", "1", "Potion"))
+            .unwrap()
+            .opened,
+        None
+    );
 }
 
 #[test]

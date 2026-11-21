@@ -25,7 +25,9 @@
 //! first item, as it was. The list's words are its cursor's alone. Turning to a page with fewer
 //! items put the cursor for a poll over the pockets' menu behind the list, all its buttons one
 //! line, "HP/PP RESTORE POKÉ BALLS STATUS RESTORE BATTLE ITEMS LAST USED ITEM": while a pocket is
-//! open, the menu is no cursor's.
+//! open, the menu is no cursor's. An item's menu open over the list (`btl::app::ItemInfo` at the
+//! Bag's +0x18) leaves the list as it was: its words the cursor's still, and backing out of it no
+//! pocket opened.
 //!
 //! Bound by:
 //! - ADR-0013: a cursor source says which item and page are shown, the words still the screen's;
@@ -54,6 +56,8 @@ pub const BAGS: [i64; 2] = [0x1D8, 0x1D4];
 pub const BAG_CLASS: &str = "N3btl9BtlvUiBagE";
 pub const LIST: i64 = 0x18;
 pub const LIST_CLASS: &str = "N3btl3app8ItemListE";
+/// What the Bag's +0x18 is while an item's menu, USE, is open over the list (spike I).
+pub const INFO_CLASS: &str = "N3btl3app8ItemInfoE";
 pub const POCKET: i64 = 0xD4;
 pub const PAGE: i64 = 0x30C;
 /// Where the battle's objects are: its UI's lie past the application heap (spike I).
@@ -140,12 +144,34 @@ impl BattleBag {
             self.shown = None;
             return Ok(nothing());
         };
-        let last = self.shown.replace(shown);
         let words: Vec<ScreenText> = on_screen
             .iter()
             .filter(|piece| lists.contains(&piece.root))
             .cloned()
             .collect();
+        let unsaid: HashSet<i64> = words.iter().map(|piece| piece.r#box).collect();
+        let pockets: HashSet<i64> = self
+            .file
+            .iter()
+            .filter(|(_, name)| *name == POCKETS_FILE)
+            .map(|(&root, _)| root)
+            .collect();
+        let shown = match shown {
+            Listed::List(shown) => shown,
+            Listed::Info => {
+                // An item's menu open over the list: its words are still the cursor's, and the
+                // menu no turn. An item chosen the poll its list showed read the whole list as
+                // the menu opened, "Super Potion", a row of empty slots, and its page
+                // (x_route_9_rhyhorn).
+                return Ok(Heard {
+                    turned: None,
+                    opened: None,
+                    unsaid,
+                    pockets,
+                });
+            }
+        };
+        let last = self.shown.replace(shown);
         let title = self.title(&words, shown.2)?;
         let (mut turned, mut opened) = (None, None);
         if let Some(last) = last
@@ -161,18 +187,14 @@ impl BattleBag {
         Ok(Heard {
             turned,
             opened,
-            unsaid: words.iter().map(|piece| piece.r#box).collect(),
-            pockets: self
-                .file
-                .iter()
-                .filter(|(_, name)| *name == POCKETS_FILE)
-                .map(|(&root, _)| root)
-                .collect(),
+            unsaid,
+            pockets,
         })
     }
 
-    /// The open pocket's list, its pocket and its page, or None while none is open.
-    fn list(&mut self) -> Result<Option<(i64, i64, i64)>> {
+    /// The open pocket's list, its pocket and its page; the item's menu open over it, its
+    /// address alone; or None while neither is.
+    fn list(&mut self) -> Result<Option<Listed>> {
         let process = (self.process)();
         let Some(process) = process else {
             return Ok(None);
@@ -212,7 +234,15 @@ impl BattleBag {
             return Ok(None);
         };
         let items = u32(&memory.read(bag + LIST, 4)?, 0)?;
-        if !within(items) || names.of_object(items)?.as_deref() != Some(LIST_CLASS) {
+        let kind = if within(items) {
+            names.of_object(items)?
+        } else {
+            None
+        };
+        if kind.as_deref() == Some(INFO_CLASS) {
+            return Ok(Some(Listed::Info));
+        }
+        if kind.as_deref() != Some(LIST_CLASS) {
             return Ok(None);
         }
         let byte = |at: i64| -> Result<i64> {
@@ -223,7 +253,7 @@ impl BattleBag {
         };
         let pocket = byte(items + POCKET)?;
         let page = byte(items + PAGE)?;
-        Ok(Some((items, pocket, page)))
+        Ok(Some(Listed::List((items, pocket, page))))
     }
 
     /// The pocket and the page, "HP/PP RESTORE 2/2", or None while its words are not all on
@@ -242,6 +272,14 @@ impl BattleBag {
         let [pocket, slash, pages] = TITLE.map(|r#box| named[r#box].clone());
         Ok(Some(format!("{pocket} {}{slash}{pages}", page + 1)))
     }
+}
+
+/// What `list` found: Python's `tuple[int, int, int] | int`.
+enum Listed {
+    /// The open pocket's list, its pocket and its page.
+    List((i64, i64, i64)),
+    /// The item's menu open over the list (the Python returns its address, which nothing reads).
+    Info,
 }
 
 fn within(address: i64) -> bool {
