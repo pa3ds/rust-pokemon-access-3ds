@@ -134,6 +134,12 @@ fn test_a_place_moved_off_and_back_onto_is_said_again_but_not_over_a_list() {
     assert_eq!(places.current().as_deref(), Some("Mauville City"));
     memory.u32(MAP + townmap::ORAS.place, &[0x1F]);
     assert!(places.turned().unwrap());
+    // Off it a poll alone: a flicker on its edge.
+    assert_eq!(places.poll(false).unwrap(), None);
+    memory.u32(MAP + townmap::ORAS.place, &[townmap::NO_PLACE]);
+    places.poll(false).unwrap();
+    places.poll(false).unwrap();
+    memory.u32(MAP + townmap::ORAS.place, &[0x1F]);
     assert_eq!(places.poll(false).unwrap().as_deref(), Some("Mauville City"));
     memory.u32(MAP + townmap::ORAS.place, &[townmap::NO_PLACE]);
     places.poll(true).unwrap();
@@ -191,4 +197,227 @@ fn test_the_berry_list_drawn_is_a_list_and_put_away_is_not() {
         views.put_away().unwrap();
         assert_eq!(views.listing(), listing);
     }
+}
+
+fn poll_of(items: Vec<CursorItem>, under: Vec<Vec<ScreenText>>) -> CursorPoll {
+    CursorPoll {
+        items,
+        under,
+        ..CursorPoll::default()
+    }
+}
+
+/// `ScreenText(box, text, changed, root=ROOT)`.
+fn at_root(r#box: i64, text: &str, changed: bool) -> ScreenText {
+    ScreenText {
+        root: ROOT,
+        ..ScreenText::new(r#box, text, changed)
+    }
+}
+
+/// Route 104's three Lum Berry rows scroll under a cursor standing still: the boxes under it
+/// change, the words do not; the time since planting is said with each (or_areanav_berries).
+#[test]
+fn test_a_berry_is_said_with_its_time_once_its_row_holds_still() {
+    let first = vec![
+        at_root(1, "Lum Berry", false),
+        at_root(2, "Route 104", false),
+    ];
+    let second = vec![
+        at_root(5, "Lum Berry", false),
+        at_root(6, "Route 104", false),
+    ];
+    let time = ScreenText {
+        root: 0x900,
+        top: true,
+        ..ScreenText::new(9, "It has been 25 days", false)
+    };
+    let with_time = |row: &[ScreenText]| [row.to_vec(), vec![time.clone()]].concat();
+    let mut rows = townmap::ListRows::new();
+    let berries = Some(townmap::BERRIES);
+    let held = rows.poll(
+        poll_of(
+            vec![CursorItem::new(7, first.clone(), true)],
+            vec![first.clone()],
+        ),
+        berries,
+        Some("Route 104"),
+        &with_time(&first),
+    );
+    assert!(held.items.is_empty() && held.chased);
+    let items = rows
+        .poll(
+            poll_of(vec![], vec![first.clone()]),
+            berries,
+            Some("Route 104"),
+            &with_time(&first),
+        )
+        .items;
+    let [opened] = &items[..] else {
+        panic!("one item: {items:?}");
+    };
+    assert_eq!(
+        (
+            opened.cursor,
+            opened.pieces.clone(),
+            opened.opened,
+            opened.rows
+        ),
+        (7, with_time(&first), true, ROOT)
+    );
+    assert!(
+        rows.poll(
+            poll_of(vec![], vec![first.clone()]),
+            berries,
+            Some("Route 104"),
+            &with_time(&first)
+        )
+        .items
+        .is_empty()
+    );
+    assert!(
+        rows.poll(
+            poll_of(vec![], vec![second.clone()]),
+            berries,
+            Some("Route 104"),
+            &with_time(&second)
+        )
+        .chased
+    );
+    let items = rows
+        .poll(
+            poll_of(vec![], vec![second.clone()]),
+            berries,
+            Some("Route 104"),
+            &with_time(&second),
+        )
+        .items;
+    let [moved] = &items[..] else {
+        panic!("one item: {items:?}");
+    };
+    assert_eq!(
+        (moved.pieces.clone(), moved.opened),
+        (with_time(&second), false)
+    );
+    // The next area's rows are written into the same boxes.
+    let other = vec![
+        at_root(5, "Razz Berry", true),
+        at_root(6, "Route 110", true),
+    ];
+    rows.poll(
+        poll_of(
+            vec![CursorItem::new(7, other.clone(), false)],
+            vec![other.clone()],
+        ),
+        berries,
+        Some("Route 110"),
+        &with_time(&other),
+    );
+    let items = rows
+        .poll(
+            poll_of(vec![], vec![other.clone()]),
+            berries,
+            Some("Route 110"),
+            &with_time(&other),
+        )
+        .items;
+    let [turned] = &items[..] else {
+        panic!("one item: {items:?}");
+    };
+    assert_eq!(
+        (turned.pieces.clone(), turned.opened),
+        (with_time(&other), true)
+    );
+    assert_eq!(
+        townmap::berry_times(&with_time(&second), berries),
+        HashSet::from([9])
+    );
+    assert_eq!(
+        townmap::berry_times(&with_time(&second), Some(townmap::TRAINERS)),
+        HashSet::new()
+    );
+}
+
+#[test]
+fn test_trainer_s_eye_s_moves_are_said_at_once_and_a_row_reading_alike_once_still() {
+    let first = vec![
+        at_root(1, "Madeline", false),
+        at_root(2, "Route 113", false),
+    ];
+    let second = vec![
+        at_root(5, "Madeline", false),
+        at_root(6, "Route 113", false),
+    ];
+    let mut rows = townmap::ListRows::new();
+    let trainers = Some(townmap::TRAINERS);
+    let items = rows
+        .poll(
+            poll_of(
+                vec![CursorItem {
+                    rows: 3,
+                    ..CursorItem::new(7, first.clone(), false)
+                }],
+                vec![first.clone()],
+            ),
+            trainers,
+            Some("Route 113"),
+            &first,
+        )
+        .items;
+    let [said] = &items[..] else {
+        panic!("one item: {items:?}");
+    };
+    assert_eq!((said.pieces.clone(), said.rows), (first.clone(), ROOT));
+    assert!(
+        rows.poll(
+            poll_of(vec![], vec![second.clone()]),
+            trainers,
+            Some("Route 113"),
+            &second
+        )
+        .items
+        .is_empty()
+    );
+    let items = rows
+        .poll(
+            poll_of(vec![], vec![second.clone()]),
+            trainers,
+            Some("Route 113"),
+            &second,
+        )
+        .items;
+    let [moved] = &items[..] else {
+        panic!("one item: {items:?}");
+    };
+    assert_eq!(moved.pieces, second);
+    assert!(
+        rows.poll(
+            poll_of(vec![], vec![second.clone()]),
+            None,
+            Some("Route 113"),
+            &second
+        )
+        .items
+        .is_empty()
+    );
+}
+
+#[test]
+fn test_trainer_s_eye_s_place_block_is_the_layout_naming_the_area() {
+    let top = |r#box: i64, text: &str, root: i64| ScreenText {
+        root,
+        top: true,
+        ..ScreenText::new(r#box, text, false)
+    };
+    let name = top(1, "Route 104", ROOT);
+    let told = top(2, "This path, rich with water", ROOT);
+    let card = top(3, "Haley", ROOT + 0x100);
+    let row = ScreenText {
+        root: ROOT + 0x200,
+        ..ScreenText::new(4, "Route 104", false)
+    };
+    assert_eq!(
+        townmap::place_block(&[name, told, card, row], "Route 104"),
+        HashSet::from([1, 2])
+    );
 }

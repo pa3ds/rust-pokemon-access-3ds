@@ -69,6 +69,8 @@ pub const LISTS: [&str; 3] = [
     "N3app7townmap14TrainerEyeViewE",
     "N3app7townmap14SecretBaseViewE",
 ];
+pub const TRAINERS: &str = "N3app7townmap14TrainerEyeViewE";
+pub const BERRIES: &str = "N3app7townmap8NutsViewE";
 pub const UTIL: i64 = 0x5C;
 pub const UTIL_CLASS: &str = "N3app4util7G2DUtilE";
 pub const LAYOUTS: i64 = 0x1C;
@@ -128,7 +130,7 @@ pub struct Views {
     /// class.
     views: IndexMap<i64, (i64, i64, &'static str)>,
     /// A `Cell`, as `put_away` sets it through `&self`.
-    listing: Cell<bool>,
+    list: Cell<Option<&'static str>>,
 }
 
 impl Views {
@@ -137,7 +139,7 @@ impl Views {
             memory,
             names,
             views: IndexMap::new(),
-            listing: Cell::new(false),
+            list: Cell::new(None),
         }
     }
 
@@ -167,16 +169,22 @@ impl Views {
     /// Whether the AreaNav drew one of its lists over its map at the last `put_away`
     /// (`LISTS`): read again, its reads were new to the screen poll's tapes.
     pub fn listing(&self) -> bool {
-        self.listing.get()
+        self.list.get().is_some()
+    }
+
+    /// The class of the list the AreaNav drew over its map at the last `put_away`, or None.
+    pub fn list_drawn(&self) -> Option<&'static str> {
+        self.list.get()
     }
 
     /// The works of the layouts of every view the AreaNav is not drawing now.
     pub fn put_away(&self) -> Result<HashSet<i64>> {
         let mut works: HashSet<i64> = HashSet::new();
         let read = self.read()?;
-        self.listing.set(
+        self.list.set(
             read.iter()
-                .any(|&(drawn, _util, name)| drawn && LISTS.contains(&name)),
+                .find(|&&(drawn, _util, name)| drawn && LISTS.contains(&name))
+                .map(|&(_, _, name)| name),
         );
         for (drawn, util, _name) in read {
             if !drawn {
@@ -217,7 +225,8 @@ impl Views {
 /// `title`).
 ///
 /// A place is said each time the cursor comes onto it, back from no place too, with its words:
-/// a player moving off a place and back onto it hears it again. A list drawn over the map,
+/// a player moving off a place and back onto it hears it again, unless it was off for a poll
+/// alone, a flicker on its edge. A list drawn over the map,
 /// Trainer's Eye, Berry Trees or Secret Bases, moves the map to its row's place: that place is
 /// said first, as the area switched to, and only as it changes, and its rows say it no more
 /// (`current`): Berry Trees said "Roseli Berry: Route 123", then "Lum Berry: Route 123".
@@ -235,6 +244,9 @@ pub struct Places {
     /// The last place the cursor was on, said or the one the map opened on: not
     /// `NO_PLACE`.
     place: Option<i64>,
+    polls: i64,
+    /// The screen poll the cursor went onto no place.
+    off: i64,
 }
 
 impl Places {
@@ -256,6 +268,8 @@ impl Places {
             view: None,
             last: None,
             place: None,
+            polls: 0,
+            off: -2,
         }
     }
 
@@ -272,6 +286,7 @@ impl Places {
     /// before its name, and said as they came the Town Map opened on "A rural town where
     /// Pokémon and windmills…", then "Dendemille Town" (x_townmap).
     pub fn poll(&mut self, listing: bool) -> Result<Option<String>> {
+        self.polls += 1;
         let Some(place) = self.read()? else {
             (self.last, self.place) = (None, None);
             return Ok(None);
@@ -280,7 +295,13 @@ impl Places {
             return Ok(None);
         }
         self.last = Some(place);
-        if place == NO_PLACE || (listing && Some(place) == self.place) {
+        if place == NO_PLACE {
+            self.off = self.polls;
+            return Ok(None);
+        }
+        if Some(place) == self.place && (listing || self.polls - self.off <= 1) {
+            // Off it for a poll and back, a flicker on its edge: the cursor said Route 116 three
+            // times in a second, its description once (or_bag_and_battle_bag).
             return Ok(None);
         }
         self.place = Some(place);
@@ -322,6 +343,161 @@ impl Places {
             0,
         )?))
     }
+}
+
+/// A list over the map: its moves its cursor's reader cannot tell, its rows one list, and
+/// Berry Trees' time since planting said with each berry.
+///
+/// The lists scroll under a cursor standing still, and a row reading as the row before was no
+/// move: Route 104 has three Lum Berry rows in a row, and moving down them said each one's time
+/// alone, or nothing where two were planted the same minute (or_areanav_berries, seen in its
+/// screenshots). A move is the words under the cursor coming from other boxes, or other words
+/// into the same ones, as a list turned to the next area writes its rows again: said once they
+/// hold still a poll, as a list sliding under the cursor caught two rows, "Lum Berry Lum
+/// Berry". Each row was its own list of rows, the panels its details are said from kept apart
+/// (`CursorItem.rows`); a list is one.
+///
+/// Berry Trees writes a berry's time on the top screen, the poll its row is under the cursor
+/// or the one after, and the same words for berries planted the same minute, which no change
+/// of the screen's said: a berry is said a poll late, with the time standing then, "Lum Berry,
+/// It has been 25 days…", and the time on its own never, as the minutes tick over too. The
+/// first of an area is queued behind its name: a poll late, it came as a move 0.3 s after
+/// "Route 104", cutting it off.
+#[derive(Default)]
+pub struct ListRows {
+    /// The layouts of the list's rows, those naming the area.
+    lists: HashSet<i64>,
+    /// A list -> the row under its cursor at the last screen poll.
+    seen: IndexMap<i64, Row>,
+    /// A list -> the row last said.
+    said: IndexMap<i64, Row>,
+    /// A list -> its cursor.
+    cursors: IndexMap<i64, i64>,
+    /// A list -> the area its last row said was in: a row of another comes after the area's
+    /// name, said as it turns, and is queued behind it, not cutting it off.
+    areas: IndexMap<i64, String>,
+}
+
+impl ListRows {
+    pub fn new() -> Self {
+        ListRows::default()
+    }
+
+    /// The cursors' poll with the list `drawn` over the map read so (`Views.list_drawn`).
+    pub fn poll(
+        &mut self,
+        cursors: CursorPoll,
+        drawn: Option<&str>,
+        area: Option<&str>,
+        on_screen: &[ScreenText],
+    ) -> CursorPoll {
+        let (Some(drawn), Some(area)) = (drawn, area) else {
+            self.lists.clear();
+            self.seen.clear();
+            self.said.clear();
+            self.cursors.clear();
+            self.areas.clear();
+            return cursors;
+        };
+        let mut under: IndexMap<i64, &Vec<ScreenText>> = IndexMap::new();
+        for pieces in &cursors.under {
+            if let Some(first) = pieces.first() {
+                under.insert(first.root, pieces);
+            }
+        }
+        for (&root, pieces) in &under {
+            if pieces.iter().any(|p| p.text == area) {
+                self.lists.insert(root);
+            }
+        }
+        let berries = drawn == BERRIES;
+        let mut items: Vec<CursorItem> = Vec::new();
+        for item in &cursors.items {
+            let root = item.pieces.first().map(|first| first.root);
+            let Some(root) = root.filter(|root| self.lists.contains(root)) else {
+                items.push(item.clone());
+                continue;
+            };
+            self.cursors.insert(root, item.cursor);
+            if berries {
+                continue;
+            }
+            self.said.insert(root, row_of(&item.pieces));
+            items.push(CursorItem {
+                rows: root,
+                ..item.clone()
+            });
+        }
+        let mut chased = cursors.chased;
+        for (&root, pieces) in &under {
+            if !self.lists.contains(&root) || !self.cursors.contains_key(&root) {
+                continue;
+            }
+            let row = row_of(pieces);
+            let seen = self.seen.insert(root, row.clone());
+            if Some(&row) == self.said.get(&root) {
+                continue;
+            }
+            if Some(&row) != seen.as_ref() {
+                chased = chased || berries;
+                continue;
+            }
+            self.said.insert(root, row);
+            let words: Vec<ScreenText> = if berries {
+                on_screen.iter().filter(|p| p.top).cloned().collect()
+            } else {
+                Vec::new()
+            };
+            items.push(CursorItem {
+                rows: root,
+                ..CursorItem::new(
+                    self.cursors[&root],
+                    [pieces.to_vec(), words].concat(),
+                    self.areas.get(&root).map(String::as_str) != Some(area),
+                )
+            });
+            self.areas.insert(root, area.to_string());
+        }
+        CursorPoll {
+            items,
+            chased,
+            ..cursors
+        }
+    }
+}
+
+/// A list's row: its boxes and their words. A `frozenset`, only compared.
+pub type Row = HashSet<(i64, String)>;
+
+/// Python's `_row`.
+fn row_of(pieces: &[ScreenText]) -> Row {
+    pieces.iter().map(|p| (p.r#box, p.text.clone())).collect()
+}
+
+/// The boxes of Berry Trees' time since planting, said with its berry alone (`ListRows`).
+pub fn berry_times(on_screen: &[ScreenText], drawn: Option<&str>) -> HashSet<i64> {
+    if drawn == Some(BERRIES) {
+        on_screen.iter().filter(|p| p.top).map(|p| p.r#box).collect()
+    } else {
+        HashSet::new()
+    }
+}
+
+/// The boxes of the top screen's layout naming the area: its name, its facilities and its
+/// description, which Trainer's Eye draws above each trainer's card. The area is said as it
+/// changes (`Places`), and its words were said again with every trainer once the card was
+/// hidden, "Route 104, This path, rich with water…" (or_areanav_trainers).
+pub fn place_block(on_screen: &[ScreenText], area: &str) -> HashSet<i64> {
+    let roots: HashSet<i64> = on_screen
+        .iter()
+        .filter(|p| p.top && p.text == area)
+        .map(|p| p.root)
+        .collect();
+    on_screen
+        .iter()
+        .filter(|p| roots.contains(&p.root))
+        .map(|p| p.r#box)
+        .collect()
 }
 
 /// The cursors' poll with the area said already taken out of each item's words, where more

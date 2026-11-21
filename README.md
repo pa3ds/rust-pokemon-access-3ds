@@ -83,7 +83,8 @@ the Game Boy games. Nothing here is taken from its code.
   one it glides straight through, then what is there and what it is like, with a tone as the
   cursor moves. In the AreaNav, the Pokémon
   seen there, as the DexNav says them, and in Trainer's Eye, Berry Trees and Secret Bases the
-  area first as you switch to it, then each row without it.
+  area first as you switch to it, then each row without it: each berry with its time since
+  planting, each trainer with their card.
 - **The DexNav**: the area's Pokémon, which are met on the water or by fishing, and which you
   have caught, searching, and a hidden Pokémon's details.
 - **The Dowsing Machine**, **soaring** on Latios or Latias, and **Secret Bases**, decorating

@@ -354,6 +354,7 @@ pub struct Gen6Profile {
     cursor_shown: Rc<Cell<bool>>,
     mart: RefCell<mart::Jumps>,
     xy_list: RefCell<pokedex::XyList>,
+    list_rows: RefCell<townmap::ListRows>,
     oras_list: RefCell<pokedex::OrasList>,
     summary_shape: summary::Shape,
     screens: Option<RefCell<Box<dyn ScreensReader>>>,
@@ -788,6 +789,8 @@ impl Gen6Profile {
         ));
         // X's Pokédex list says an entry by its number alone; the top screen's panel names it.
         let xy_list = RefCell::new(pokedex::XyList::new());
+        // The AreaNav's lists' moves along rows reading alike, Lum Berry after Lum Berry.
+        let list_rows = RefCell::new(townmap::ListRows::new());
         // Omega Ruby's says its entry from the list's own rows, the tick it is chosen (spike N).
         let oras_list = RefCell::new(pokedex::OrasList::new(
             memory.clone(),
@@ -1552,6 +1555,7 @@ impl Gen6Profile {
             cursor_shown,
             mart,
             xy_list,
+            list_rows,
             oras_list,
             summary_shape,
             screens,
@@ -2057,6 +2061,7 @@ impl Gen6Profile {
         let mut entrant: Option<String> = None;
         let mut box_title: Option<String> = None;
         let mut place: Option<String> = None;
+        let mut area: Option<String> = None;
         let mut slots: Option<String> = None;
         let mut carried: Option<String> = None;
         let mut count: Option<String> = None;
@@ -2184,10 +2189,16 @@ impl Gen6Profile {
                 on_screen,
                 &self.text.search_labels,
             );
-            let area = match &self.places {
+            area = match &self.places {
                 None => None,
                 Some(places) => places.borrow().current(),
             };
+            cursors = self.list_rows.borrow_mut().poll(
+                cursors,
+                self.views.borrow().list_drawn(),
+                area.as_deref(),
+                on_screen,
+            );
             if let Some(area) = &area
                 && self.views.borrow().listing()
             {
@@ -2264,6 +2275,14 @@ impl Gen6Profile {
             &cursors,
             &self.text.search_labels,
         ));
+        let drawn = self.views.borrow().list_drawn();
+        if let Some(area) = &area
+            && drawn == Some(townmap::TRAINERS)
+        {
+            // Trainer's Eye's area is said as it changes, its words above the card no more.
+            unsaid.extend(townmap::place_block(&screen.on_screen, area));
+        }
+        unsaid.extend(townmap::berry_times(&screen.on_screen, drawn));
         let mut texts: Vec<ScreenText> = Vec::new();
         for text in &screen.texts {
             if !self.battle.borrow().owns(text)?
