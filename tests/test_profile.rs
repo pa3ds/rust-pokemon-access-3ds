@@ -6,7 +6,7 @@ use std::rc::Rc;
 
 use indexmap::IndexMap;
 
-use super::fake_memory::{CODE, FakeMemory};
+use super::fake_memory::{CODE, FakeClasses, FakeMemory};
 use super::fake_rom::TmpDir;
 use super::fake_speech::Recorder;
 use super::fake_words::words_in;
@@ -26,17 +26,18 @@ use crate::games::common::field::keys::{ENEMY_SIDE, ITEM_NEXT, MODE_TOGGLE, OUR_
 use crate::games::common::field::things::{Interactable, WARP_SOURCE};
 use crate::games::common::session::Ways;
 use crate::games::common::touch::Target;
-use crate::games::gen6::apps::{BATTLE, DEMO, FIELD};
+use crate::games::gen6::apps::{BATTLE, DEMO, FIELD, MANAGER_CLASS};
 use crate::games::gen6::field::mapblock;
 use crate::games::gen6::field::mmodel::PLAYER_INDEX;
 use crate::games::gen6::field::zonetable::{INFO_NAME, INFO_SIZE};
 use crate::games::gen6::game::{Game, OwnApp};
 use crate::games::gen6::profile::{CUE_SOUND, Gen6Profile, Options};
 use crate::games::gen6::rom::archives::{GameText, no_text};
+use crate::games::gen6::screens::summary::SUMMARY;
 use crate::games::oras::field::hidden::PLAYER_WORK_CLASS;
 use crate::games::{gen6::gflheap, oras::field::sky};
 use crate::games::{oras, xy};
-use crate::py::{Log, Result};
+use crate::py::{Log, PySet, Result};
 
 const WORK_OBJECT: i64 = 0x7A;
 const MAY: i64 = 0x13A;
@@ -409,6 +410,26 @@ fn test_r_in_a_battle_before_its_sides_are_drawn_says_so_and_not_no_battle() {
         backend.spoken(),
         ["no battle", "nothing shown yet", "nothing shown yet"]
     );
+}
+
+/// The summary's Exp. Points, a number beside a bar on the top screen, were taken for an
+/// enemy's level whose gauge no sweep finds, and a whole sweep was asked for every poll, each
+/// 1.1 s with nothing read meanwhile: 25 in 27 s (or_menus).
+#[test]
+fn test_the_battle_reader_asks_for_a_sweep_only_while_a_battle_runs() {
+    let town = Town::new();
+    let (made, _) = profile(&town, no_text(), None, no_log());
+    // Python monkeypatches the battle reader to want a sweep, and the apps' to want none: here
+    // the reader waits for a level's gauge, and the apps know their manager.
+    made.battle.borrow_mut().wanted = PySet::of([0x100]);
+    let manager = 0x08F00000;
+    let classes = FakeClasses::starting(town.memory.clone(), 0x00180000);
+    town.memory.u32(manager, &[classes.add(MANAGER_CLASS)]);
+    made.apps.borrow_mut().track([manager]).unwrap();
+    made.apps.borrow_mut().running = Some(SUMMARY.to_string());
+    assert!(!made.sweep_wanted().unwrap());
+    made.apps.borrow_mut().running = Some(BATTLE.to_string());
+    assert!(made.sweep_wanted().unwrap());
 }
 
 /// AreaNav's words still say it, a moment later, as they always have.

@@ -1461,7 +1461,11 @@ impl Gen6Profile {
 
     /// Whether a reader needs something only a sweep finds, sooner than the schedule has it.
     pub fn sweep_wanted(&self) -> Result<bool> {
-        let battle = self.battle.borrow_mut().sweep_wanted();
+        // A number beside a bar on the top screen is an enemy's level only in a battle: the
+        // summary's Exp. Points were taken for one whose gauge no sweep finds, and a whole sweep
+        // was asked for every poll, 1.1 s each with nothing read meanwhile, 25 in 27 s (or_menus).
+        let battle = self.apps.borrow().running.as_deref() == Some(BATTLE)
+            && self.battle.borrow_mut().sweep_wanted();
         let running = self.apps.borrow().running.clone();
         let field = self
             .field()

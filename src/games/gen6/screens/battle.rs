@@ -353,7 +353,7 @@ pub struct BattleReader {
     battlers: Rc<Battlers>,
     gauges: Rc<Gauges>,
     /// Level TextBoxes of the HP box at the last poll whose gauge is not known.
-    wanted: PySet,
+    pub(crate) wanted: PySet,
     /// Level TextBox a sweep has been asked for, this battle -> the asks since.
     asked: IndexMap<i64, i64>,
     /// Bar pane -> the widest it has been, taken for a full bar.
