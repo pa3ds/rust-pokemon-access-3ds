@@ -15,7 +15,7 @@ use std::rc::Rc;
 
 use crate::core::clips::Clips;
 use crate::core::config::Tables;
-use crate::core::discovery::{Discovery, Found, Walk};
+use crate::core::discovery::{Found, Walk};
 use crate::core::heaps::{Block, Heaps};
 use crate::core::memory::{Cache, PageCache};
 use crate::core::rom::Rom;
@@ -29,9 +29,9 @@ use crate::py::{self, Error, Kind, Log, Result};
 /// What the schedule asks of a game's readers, poll by poll (`gen6.profile`, `sm.profile`).
 ///
 /// Every method takes `&self`, and an implementor keeps what it changes in cells, where Python's
-/// profile is one object the runtime calls from several places at once: `poll_menus` sweeps, a
-/// sweep calls back to the runtime's `between`, and that polls the dialogue and answers keys on
-/// the same profile, from inside the call that began it.
+/// profile is one object the runtime calls from several places at once: a sweep calls back to
+/// the runtime's `between`, and that polls the dialogue and answers keys on the same profile,
+/// from inside the call that began it.
 pub trait Profile {
     fn track(&self, found: &Found) -> Result<()>;
 
@@ -41,7 +41,7 @@ pub trait Profile {
 
     fn poll_dialogue(&self) -> Result<bool>;
 
-    fn poll_menus(&self, discovery: &mut Discovery) -> Result<bool>;
+    fn poll_menus(&self) -> Result<bool>;
 
     fn poll_screen(&self) -> Result<()>;
 

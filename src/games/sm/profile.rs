@@ -21,7 +21,7 @@ use std::rc::Rc;
 use indexmap::IndexMap;
 
 use crate::core::config::{Navigation, Ui};
-use crate::core::discovery::{Discovery, Found};
+use crate::core::discovery::Found;
 use crate::core::heaps::ReadEach;
 use crate::core::memory::{self, Cache, Memory};
 use crate::core::names::Names;
@@ -602,7 +602,7 @@ impl Profile for SunProfile {
     }
 
     /// Poll the language choice. Returns whether it said anything.
-    fn poll_menus(&self, _discovery: &mut Discovery) -> Result<bool> {
+    fn poll_menus(&self) -> Result<bool> {
         let shown = self.phase("menus", || self.langselect.borrow_mut().poll())?;
         let Some(shown) = shown else {
             return Ok(false);

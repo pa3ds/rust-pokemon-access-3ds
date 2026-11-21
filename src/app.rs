@@ -1042,7 +1042,7 @@ fn session(
             profile.poll_footsteps()?;
             profile.poll_guidance()?;
             profile.poll_pointers()?;
-            if profile.poll_menus(&mut discovery)? {
+            if profile.poll_menus()? {
                 screen.wait(time::monotonic());
             }
             poll_screen()

@@ -757,8 +757,8 @@ impl Profile for Patched {
     fn poll_dialogue(&self) -> Result<bool> {
         (self.poll)(&*self.real)
     }
-    fn poll_menus(&self, discovery: &mut crate::core::discovery::Discovery) -> Result<bool> {
-        self.real.poll_menus(discovery)
+    fn poll_menus(&self) -> Result<bool> {
+        self.real.poll_menus()
     }
     fn poll_screen(&self) -> Result<()> {
         self.real.poll_screen()

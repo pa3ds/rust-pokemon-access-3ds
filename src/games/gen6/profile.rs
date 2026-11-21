@@ -27,7 +27,7 @@ use crate::app::most_common;
 use crate::core::binary::u32;
 use crate::core::clips::Clips;
 use crate::core::config::{CUE_AS_SOUND, CUE_OFF, DRAG_TOGGLE, PARTY_BEEPS, PARTY_OFF, Tables};
-use crate::core::discovery::{Discovery, Found, HEAP_SPAN, LINEAR_SPAN, within};
+use crate::core::discovery::{Found, HEAP_SPAN, LINEAR_SPAN, within};
 use crate::core::keys::shifted;
 use crate::core::memory::{Cache, Memory, phase};
 use crate::core::names::{FURNITURE, GamePlace, GameSprite, Names, TILES};
@@ -1677,15 +1677,14 @@ impl Gen6Profile {
     }
 
     /// Poll lists and choice boxes. Returns whether screen text was polled along the way.
-    pub fn poll_menus(&self, discovery: &mut Discovery) -> Result<bool> {
+    pub fn poll_menus(&self) -> Result<bool> {
         let focuses = phase(&*self.memory, "lists", || self.lists.borrow_mut().poll())?;
         let mut screen_polled = false;
         if focuses.iter().any(|focus| focus.opened) {
-            // The question comes before its prompt, but its window can be new and not yet swept:
-            // at real speed "YES, 1 of 2" was heard 1.6 s before "So you're wee?". Sweep now and
-            // say the question first.
-            let swept = discovery.sweep_for(&msgwin::CLASSES)?;
-            self.dialogue.borrow_mut().track(&swept, false);
+            // The question comes before its prompt: "YES, 1 of 2" was heard 1.6 s before "So
+            // you're wee?" while a new window waited for a sweep. One is found by its lines as it
+            // types now (spike 60), and a sweep of the heap here held every other reader up a
+            // second at each list and found no window the dialogue reader lacked (spike D).
             self.poll_dialogue()?;
             // A question the screen draws itself, such as "Would you like to make these changes?",
             // comes first too, without waiting for it to hold.
@@ -2762,8 +2761,8 @@ impl Profile for Gen6Profile {
         Gen6Profile::poll_dialogue(self)
     }
 
-    fn poll_menus(&self, discovery: &mut Discovery) -> Result<bool> {
-        Gen6Profile::poll_menus(self, discovery)
+    fn poll_menus(&self) -> Result<bool> {
+        Gen6Profile::poll_menus(self)
     }
 
     fn poll_screen(&self) -> Result<()> {

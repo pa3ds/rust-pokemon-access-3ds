@@ -433,7 +433,7 @@ impl Discovery {
         Ok(pages)
     }
 
-    /// Sweep the heap whole for these classes alone, at once, as a list opening needs.
+    /// Sweep the heap whole for these classes alone, at once: spikes' (150, 293).
     pub fn sweep_for(&mut self, classes: &[&str]) -> Result<Vec<i64>> {
         // A set comprehension, whose order is the order of the objects returned.
         let vtables: Vec<i64> = PySet::of(
