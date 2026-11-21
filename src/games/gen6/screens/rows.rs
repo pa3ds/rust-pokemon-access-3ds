@@ -77,8 +77,10 @@ pub const KEY: i64 = 0x14;
 pub const PC_MENU: &str = "N3app7pc_menu4ProcE";
 /// The PC's and the Box's processes -> their control blocks, through objects of no class (spike
 /// B). A dict in the Python: `controls` looks an app up in it.
-pub const CONTROLS: [(&str, [i64; 3]); 2] =
-    [(PC_MENU, [0x24, 0x28, 0x4]), (boxes::APP, [0x24, 0x50, 0x4])];
+pub const CONTROLS: [(&str, [i64; 3]); 2] = [
+    (PC_MENU, [0x24, 0x28, 0x4]),
+    (boxes::APP, [0x24, 0x50, 0x4]),
+];
 /// A control block -> the cursor that has the input: the PC's menu up now, "Which PC should be
 /// accessed?"'s or Someone's PC's, each built as it first opens; the Box's grid, with its party and
 /// its name bar, the Battle Box's, or a menu's.
@@ -202,7 +204,11 @@ impl Rows {
             .read(at - SLOT + SLOTS, 1)?
             .first()
             .ok_or_else(|| Error::index("index out of range"))? as i64;
-        Ok(if slots == GRID_SLOTS { Some(slot) } else { None })
+        Ok(if slots == GRID_SLOTS {
+            Some(slot)
+        } else {
+            None
+        })
     }
 
     /// Where the row of the menu up now is kept, or None.
@@ -260,8 +266,7 @@ impl Rows {
                 // Named afresh for each screen: its classes are in a module, whose memory is the
                 // next module's once it is unloaded (`apps.RunningApp.poll`).
                 if self.names.as_ref().is_none_or(|names| names.0 != process) {
-                    self.names =
-                        Some((process, ClassNames::new(self.memory.clone(), LOADED_CODE)));
+                    self.names = Some((process, ClassNames::new(self.memory.clone(), LOADED_CODE)));
                 }
                 let names = &self.names.as_ref().expect("named above").1;
                 if names.of_object(first)?.as_deref() != Some(name) {

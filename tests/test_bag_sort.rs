@@ -194,7 +194,11 @@ fn test_the_drop_says_nothing_and_the_list_is_the_cursors_again() {
     );
     bag.carrying.set(false);
     assert_eq!(
-        bag.poll_under(&["Amulet Coin", "Pearl", "Macho Brace"], "Macho Brace", true),
+        bag.poll_under(
+            &["Amulet Coin", "Pearl", "Macho Brace"],
+            "Macho Brace",
+            true
+        ),
         (None, 1)
     );
     bag.carrying.set(true);

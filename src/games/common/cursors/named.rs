@@ -321,10 +321,8 @@ impl ListCursors {
                 if found.as_ref().is_none_or(|found| found.1.is_empty()) {
                     found = slots::button(&self.layouts, &files, root, x, y, rect.top)?;
                 }
-                heading = target.is_some()
-                    && found
-                        .as_ref()
-                        .is_some_and(|found| Some(found.0) == target);
+                heading =
+                    target.is_some() && found.as_ref().is_some_and(|found| Some(found.0) == target);
                 if let Some((touch, said, was_alone)) = found {
                     alone = was_alone;
                     inside = vec![ScreenText {
@@ -408,10 +406,7 @@ impl ListCursors {
             // game names another place, its name bar or the bottom bar, whatever the pointer
             // passes waits too: leaving the name bar it said the box's name again, and the
             // bottom bar's "change box" went unsaid behind it (or_pc_organize).
-            if !heading
-                && (held || index.is_some())
-                && !self.at_rest(holder, centre(&rect))
-            {
+            if !heading && (held || index.is_some()) && !self.at_rest(holder, centre(&rect)) {
                 self.moving.insert(holder);
                 continue;
             }
@@ -423,7 +418,8 @@ impl ListCursors {
                     // one's, and the category and the item were said together (spike 154). And a
                     // slot the game names, read as it moves the icons: carrying Lucario, Party 3
                     // was said once without Greninja, who was in it (x_pc_boxes).
-                    let words: Vec<String> = inside.iter().map(|piece| piece.text.clone()).collect();
+                    let words: Vec<String> =
+                        inside.iter().map(|piece| piece.text.clone()).collect();
                     self.said.report_steady(reporter, inside, items, at, alone);
                     if heading && self.said.said.borrow().get(&reporter) != Some(&(words, at)) {
                         // Not said yet: still on its way, so that what the screen changes

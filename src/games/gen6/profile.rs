@@ -1996,19 +1996,16 @@ impl Gen6Profile {
                 }
                 cursors = CursorPoll { items, ..cursors };
             }
-            let cursors =
-                self.shiny
-                    .borrow_mut()
-                    .poll(cursors, on_screen, &|| self.battle.borrow().shiny())?;
+            let cursors = self
+                .shiny
+                .borrow_mut()
+                .poll(cursors, on_screen, &|| self.battle.borrow().shiny())?;
             let (chosen, pocket) = match &self.bag {
                 None => (IndexMap::new(), None),
                 Some(bag) => bag.borrow_mut().poll(&cursors)?,
             };
             self.summary_pages.borrow_mut().poll()?;
-            let mut cursors = self
-                .summary_pages
-                .borrow()
-                .cursors(cursors, on_screen)?;
+            let mut cursors = self.summary_pages.borrow().cursors(cursors, on_screen)?;
             if self.chasing.get() != 0
                 && cursors.items.is_empty()
                 && self.apps.borrow().running.as_deref() == Some(boxes::APP)

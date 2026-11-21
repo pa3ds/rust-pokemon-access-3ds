@@ -136,7 +136,8 @@ impl MenuCursors {
                 self.said.under.borrow_mut().insert(cursor, inside);
             } else {
                 let rows = rows.iter().map(|&(_root, row)| row).min().unwrap_or(0);
-                self.said.report_in(cursor, inside, items, at, false, rows, false);
+                self.said
+                    .report_in(cursor, inside, items, at, false, rows, false);
             }
         }
         Ok(())
