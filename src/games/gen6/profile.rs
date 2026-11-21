@@ -1874,8 +1874,7 @@ impl Gen6Profile {
                 None => (IndexMap::new(), None),
                 Some(bag) => bag.borrow_mut().poll(&cursors)?,
             };
-            let cursored: HashSet<i64> = cursors.under.iter().flatten().map(|p| p.root).collect();
-            self.summary_pages.borrow_mut().poll(on_screen, &cursored)?;
+            self.summary_pages.borrow_mut().poll()?;
             Ok((
                 screen, sides, party, listed, cursors, played, chosen, pocket,
             ))
@@ -1966,14 +1965,16 @@ impl Gen6Profile {
             CursorPoll { items, ..cursors }
         };
         // A summary page turned to is said as it opened, its words as they stand, the first
-        // cutting off the page before (`lead`).
+        // cutting off the page before (`lead`); the button under it a poll later, queued.
         let turned = self.summary_pages.borrow().turned();
-        if !turned.is_empty() {
+        let mut back = turned.clone();
+        back.extend(self.summary_pages.borrow().button());
+        if !back.is_empty() {
             let written: HashSet<i64> = texts.iter().map(|text| text.r#box).collect();
             texts = texts
                 .into_iter()
                 .map(|text| {
-                    if turned.contains(&text.root) {
+                    if back.contains(&text.root) {
                         ScreenText {
                             changed: false,
                             returned: true,
@@ -1987,7 +1988,7 @@ impl Gen6Profile {
             texts.extend(
                 heard
                     .iter()
-                    .filter(|piece| turned.contains(&piece.root) && !written.contains(&piece.r#box))
+                    .filter(|piece| back.contains(&piece.root) && !written.contains(&piece.r#box))
                     .map(|piece| ScreenText {
                         changed: false,
                         returned: true,

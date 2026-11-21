@@ -51,6 +51,13 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
   before the first Pokémon: the empty summary the game shows for a moment, held on screen while
   Azahar loads what the Box needs for the first time.
 
+## A Pokémon's summary
+
+- **Switching Pokémon in Check Moves** says the move under the cursor, then the new Pokémon's
+  stats as its details, where its name alone should be said.
+- **After Check Moves ends on the conditions page**, turning back to that page leaves its moves
+  unsaid, and switching Pokémon there says a move first, then the Pokémon's name as details.
+
 ## Omega Ruby and Alpha Sapphire
 
 - **Sorting the Bag with Y**: picking an item up is said only at your first step, as "moving"

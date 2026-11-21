@@ -16,7 +16,7 @@ use std::rc::Rc;
 
 use indexmap::IndexMap;
 
-use crate::core::binary::u32;
+use crate::core::binary::{u16, u32};
 use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
 use crate::games::common::layout::{Layouts, TrackedLayouts};
@@ -24,7 +24,7 @@ use crate::games::common::layout_file::{FileMatching, LayoutFiles};
 use crate::games::common::pokemon;
 use crate::games::common::screen::ScreenText;
 use crate::games::gen6::apps::{LOADED_CODE, RunningApp};
-use crate::py::Result;
+use crate::py::{Error, Result};
 
 pub const SUMMARY: &str = "N3app6status7ProcessE";
 /// The summary's process -> the `PokemonParam` it shows, a copy of the party member's record
@@ -58,9 +58,40 @@ pub const STAR_PAGE: &str = "params_contest.bclyt";
 /// The summary's process -> the place of the Pokémon shown in its party or box, from 0: it
 /// changes at every switch, where `SHOWN` points at one copy of each in turn (spike G).
 pub const PLACE: i64 = 0x7C;
-/// The summary's process -> the code drawing the page shown: one value a page, changed at every
-/// turn (spike B, or_summary_screen_weirdness).
-pub const PAGE: i64 = 0x80;
+/// One of `LISTS`: where the summary's process keeps a page's list, the list's class, the layout
+/// files of its page, and whether it is a list of moves.
+pub type PageList = (i64, &'static str, &'static [&'static str], bool);
+
+/// The summary's process -> each page's list, of the Pokémon's moves, their contest kinds or its
+/// ribbons, by its class; the layout files of that page, the stats page, the conditions page and
+/// the memo; and whether it is a list of moves, which Check Moves chooses from (spike H).
+pub const LISTS: [PageList; 3] = [
+    (
+        0x5C,
+        "N3app6status8WazaListE",
+        &["params.bclyt", "waza.bclyt"],
+        true,
+    ),
+    (
+        0x64,
+        "N3app6status15ContestWazaListE",
+        &["params_contest.bclyt", "waza_contest.bclyt"],
+        true,
+    ),
+    (
+        0x60,
+        "N3app6status10RibbonListE",
+        &["memo.bclyt", "ribbon.bclyt"],
+        false,
+    ),
+];
+/// A page's list -> 1 while its page is shown, else 0 (spike H).
+pub const SHOWING: i64 = 0x4;
+/// A list of moves -> the move under the Check Moves cursor, by its number, or 0. Check Moves ended
+/// clears it in the shown page's list alone: ended on the conditions page, the stats page's list
+/// keeps its last move. Turning the page in Check Moves gives the move to the other page's list, so
+/// both hold it (spike H).
+pub const CHOSEN: i64 = 0x22;
 
 /// The `PokemonParam` the summary shows, or None while no summary runs.
 pub fn shown(memory: &dyn Memory, apps: &RunningApp) -> Result<Option<i64>> {
@@ -114,27 +145,29 @@ pub fn put_away(
 /// The summary keeps every page it has drawn on screen, every flag and place of it as when it
 /// was drawn, and draws one: turned back to, a page said only its button, "Check Moves", its words
 /// said once already, and switching Pokémon read every page's words, on the memo page too
-/// (or_summary_screen_weirdness). Its process's `PAGE` changes at every turn, an address in the
-/// code at another place each time the summary opens, never compared with one: each page's
-/// layouts are those first on screen while it is shown (spike G). The other pages' words are
-/// then left unheard (`hidden`), and a turn says the page turned to as a screen opening is read
-/// (`turned`). Their layouts stay read as ever: put away, they left and came back, and the stats
-/// came back into Check Moves' details with each move's. Check Moves, a cursor on a page's moves,
-/// flips the page under the player between the moves and their contest kinds (spike B): each
-/// move is heard with the page shown's words, and no flip is a turn. Nor is a page changed with
-/// the Pokémon: an Egg turns the summary to its memo, and the next Pokémon back to its stats,
-/// and the Pokémon is said as a switch is. A page is drawn afresh as it is turned to, a poll on:
-/// read at once, Pikachu's turned to after a switch said "Type: Steel", the Pokémon's before,
-/// then "Type: Electric"; so a turn hears no page for a poll, and the page turned to whole after
-/// it.
+/// (or_summary_screen_weirdness). Each page has a list, of the moves, their contest kinds or the
+/// ribbons, flagged while its page is shown (`LISTS`, spike H): the other pages' layouts are left
+/// unheard (`hidden`), and a turn says the page turned to as a screen opening is read (`turned`).
+/// Their layouts stay read as ever: put away, they left and came back, and the stats came back
+/// into Check Moves' details with each move's. Check Moves flips the page under the player
+/// between the moves and their contest kinds (spike B): each move is heard in the shown page's
+/// words, and no flip is a turn, told by the move both pages' lists hold (`CHOSEN`). A cursor
+/// over the moves told it before, and stayed over them once Check Moves had ended on the
+/// conditions page: the turns after it went unsaid (spike H). Nor is a page changed with the
+/// Pokémon: an Egg turns the summary to its memo, and the next Pokémon back to its stats, and the
+/// Pokémon is said as a switch is. A page is drawn afresh as it is turned to, a poll on: read at
+/// once, Pikachu's turned to after a switch said "Type: Steel", the Pokémon's before, then "Type:
+/// Electric"; so a turn hears no page for a poll, and the page turned to whole after it.
 pub struct Pages {
     memory: Rc<dyn Memory>,
     apps: Rc<RefCell<RunningApp>>,
     layouts: Rc<dyn TrackedLayouts>,
     files: Rc<dyn FileMatching>,
-    /// Page value -> the works of its layouts.
-    pages: IndexMap<i64, HashSet<i64>>,
-    page: Option<i64>,
+    names: Option<(i64, ClassNames)>,
+    /// The process, and its pages' lists in `LISTS`'s order once each is of its class.
+    lists: Option<(i64, Vec<i64>)>,
+    /// The page shown, its place in `LISTS`.
+    page: Option<usize>,
     /// The place of the Pokémon shown at the last poll (`PLACE`).
     shown: Option<i64>,
     /// Polls since the page last turned.
@@ -155,7 +188,8 @@ impl Pages {
             apps,
             layouts,
             files,
-            pages: IndexMap::new(),
+            names: None,
+            lists: None,
             page: None,
             shown: None,
             since: 2,
@@ -163,9 +197,8 @@ impl Pages {
         }
     }
 
-    /// Read the page shown, and take page layouts on screen for the first time as its.
-    /// `cursored` is the roots of the layouts a cursor is over: a page's, Check Moves is on.
-    pub fn poll(&mut self, on_screen: &[ScreenText], cursored: &HashSet<i64>) -> Result<()> {
+    /// Read the page shown.
+    pub fn poll(&mut self) -> Result<()> {
         let process = {
             let apps = self.apps.borrow();
             if apps.running.as_deref() == Some(SUMMARY) {
@@ -177,93 +210,125 @@ impl Pages {
         self.since += 1;
         self.paged += 1;
         let Some(process) = process else {
-            self.pages = IndexMap::new();
+            self.lists = None;
             self.page = None;
             self.shown = None;
             return Ok(());
         };
-        let word = u32(&self.memory.read(process + PAGE, 4)?, 0)?;
-        if !(LOADED_CODE.0 <= word && word < LOADED_CODE.1) {
-            return Ok(());
-        }
+        // As the summary opens no list is flagged for a poll, and the page before holds.
+        let page = self.flagged(process)?.or(self.page);
         let mon = u32(&self.memory.read(process + PLACE, 4)?, 0)?;
-        let works = self.layouts.works();
-        let moves = self
-            .pages
-            .values()
-            .flatten()
-            .any(|work| works.get(work).is_some_and(|root| cursored.contains(root)));
-        if Some(word) != self.page
-            && !moves
-            && Some(mon) == self.shown
-            && self.page.is_some_and(|page| self.pages.contains_key(&page))
-            && self.pages.contains_key(&word)
+        if let (Some(page), Some(before)) = (page, self.page)
+            && page != before
         {
-            self.since = 0;
-        }
-        if Some(word) != self.page && Some(mon) != self.shown && self.shown.is_some() {
+            if Some(mon) != self.shown {
+                self.paged = 0;
+            } else if !self.flipped(before, page)? {
+                self.since = 0;
+            }
+        } else if self.since == 1 && Some(mon) != self.shown {
+            // Leaving an Egg, the stats page's list was flagged a poll before the place changed
+            // (spike H): a switch, not a turn, and no button said after it.
+            self.since = 3;
             self.paged = 0;
         }
-        self.page = Some(word);
+        self.page = page;
         self.shown = Some(mon);
-        let known: HashSet<i64> = self.pages.values().flatten().copied().collect();
-        let roots: HashSet<i64> = on_screen.iter().map(|piece| piece.root).collect();
-        for (&work, &root) in &works {
-            if known.contains(&work) || !roots.contains(&root) {
-                continue;
-            }
-            let file = self.files.matching(&self.layouts.pane_names(root));
-            if file.is_some_and(|file| PAGES.contains(&file.name.as_str())) {
-                self.pages.entry(word).or_default().insert(work);
-            }
-        }
         Ok(())
     }
 
-    /// The roots of the pages not shown, whose words are not heard; none while the page shown
-    /// has no layouts of its own, and every page's the poll it turns, as it is drawn afresh.
+    /// The page whose list is flagged shown, or None while not one alone is.
+    fn flagged(&mut self, process: i64) -> Result<Option<usize>> {
+        if self.lists.as_ref().is_none_or(|lists| lists.0 != process) {
+            // Named afresh for each summary: its classes are in a module, whose memory is the
+            // next module's once it is unloaded (`apps.RunningApp.poll`).
+            if self.names.as_ref().is_none_or(|names| names.0 != process) {
+                self.names = Some((process, ClassNames::new(self.memory.clone(), LOADED_CODE)));
+            }
+            let mut lists: Vec<i64> = Vec::new();
+            for (at, _, _, _) in LISTS {
+                lists.push(u32(&self.memory.read(process + at, 4)?, 0)?);
+            }
+            let names = &self.names.as_ref().expect("named above").1;
+            for (&each, &(_, name, _, _)) in lists.iter().zip(LISTS.iter()) {
+                if each == 0 || names.of_object(each)?.as_deref() != Some(name) {
+                    return Ok(None);
+                }
+            }
+            self.lists = Some((process, lists));
+        }
+        let lists = &self.lists.as_ref().expect("found above").1;
+        let mut flags: Vec<bool> = Vec::new();
+        for &each in lists {
+            let flag = *self
+                .memory
+                .read(each + SHOWING, 1)?
+                .first()
+                .ok_or_else(|| Error::index("index out of range"))?;
+            flags.push(flag != 0);
+        }
+        Ok(if flags.iter().filter(|&&flag| flag).count() == 1 {
+            flags.iter().position(|&flag| flag)
+        } else {
+            None
+        })
+    }
+
+    /// Whether Check Moves turned the page: both pages' lists of moves hold the move chosen.
+    fn flipped(&self, before: usize, after: usize) -> Result<bool> {
+        let Some((_, lists)) = &self.lists else {
+            return Ok(false);
+        };
+        if !(LISTS[before].3 && LISTS[after].3) {
+            return Ok(false);
+        }
+        let mut chosen: HashSet<i64> = HashSet::new();
+        for page in [before, after] {
+            chosen.insert(u16(&self.memory.read(lists[page] + CHOSEN, 2)?, 0)?);
+        }
+        Ok(chosen.len() == 1 && !chosen.contains(&0))
+    }
+
+    /// The roots of the pages not shown, whose words are not heard; none before a page is
+    /// known, every page's the poll it turns, as it is drawn afresh, and the button's until it
+    /// is said (`button`).
     pub fn hidden(&self) -> HashSet<i64> {
-        let mine = self.page.and_then(|page| self.pages.get(&page));
-        let Some(mine) = mine.filter(|mine| !mine.is_empty()) else {
+        let Some(page) = self.page else {
             return HashSet::new();
         };
-        let works = self.layouts.works();
+        let others: Vec<&str> = PAGES
+            .iter()
+            .copied()
+            .filter(|name| !LISTS[page].2.contains(name))
+            .collect();
         if self.since == 0 {
-            // The button too, said after the page once it is drawn.
-            let mut roots: HashSet<i64> = self
-                .pages
-                .values()
-                .flatten()
-                .filter_map(|work| works.get(work).copied())
-                .collect();
-            roots.extend(self.of(BUTTON));
-            return roots;
+            return self.roots(&[&PAGES[..], &[BUTTON]].concat());
         }
-        self.pages
-            .values()
-            .flatten()
-            .filter(|work| !mine.contains(work))
-            .filter_map(|work| works.get(work).copied())
-            .collect()
+        if self.since == 1 {
+            return self.roots(&[&others[..], &[BUTTON]].concat());
+        }
+        self.roots(&others)
     }
 
     /// The roots of the page turned to a poll ago, drawn afresh since, or none: its words are
     /// said as a screen opening's are, the first cutting off the page before
     /// (`ScreenAnnouncer.say`'s `lead`).
     pub fn turned(&self) -> HashSet<i64> {
-        let Some(page) = self.page.filter(|_| self.since == 1) else {
-            return HashSet::new();
-        };
-        let works = self.layouts.works();
-        let mut roots: HashSet<i64> = self
-            .pages
-            .get(&page)
-            .into_iter()
-            .flatten()
-            .filter_map(|work| works.get(work).copied())
-            .collect();
-        roots.extend(self.of(BUTTON));
-        roots
+        match self.page {
+            Some(page) if self.since == 1 => self.roots(LISTS[page].2),
+            _ => HashSet::new(),
+        }
+    }
+
+    /// The roots of the button under the page turned to two polls ago, or none: said after
+    /// the page, queued behind it, if it is still there. A Pokémon with no ribbons has none on
+    /// its memo, and the game hides the button left from the page before a poll after the turn:
+    /// said with the page, the memo was followed by "Check Moves" (spike H).
+    pub fn button(&self) -> HashSet<i64> {
+        match self.page {
+            Some(_) if self.since == 2 => self.roots(&[BUTTON]),
+            _ => HashSet::new(),
+        }
     }
 
     /// The roots of the page shown and the Pokémon's name where the page changed with the
@@ -272,24 +337,14 @@ impl Pages {
     /// is, the name first. Leaving an Egg said the stats page, then "Mario, Lv.66, None", the name
     /// twice.
     pub fn switched(&self) -> HashSet<i64> {
-        let Some(page) = self.page.filter(|_| self.paged <= 1) else {
-            return HashSet::new();
-        };
-        let works = self.layouts.works();
-        let mut roots: HashSet<i64> = self
-            .pages
-            .get(&page)
-            .into_iter()
-            .flatten()
-            .filter_map(|work| works.get(work).copied())
-            .collect();
-        roots.extend(self.of(INFO));
-        roots.extend(self.of(BUTTON));
-        roots
+        match self.page {
+            Some(page) if self.paged <= 1 => self.roots(&[LISTS[page].2, &[INFO, BUTTON]].concat()),
+            _ => HashSet::new(),
+        }
     }
 
-    /// The roots of the layouts of this file.
-    fn of(&self, name: &str) -> HashSet<i64> {
+    /// The roots of the layouts of these files.
+    fn roots(&self, names: &[&str]) -> HashSet<i64> {
         self.layouts
             .works()
             .values()
@@ -297,7 +352,7 @@ impl Pages {
             .filter(|&root| {
                 self.files
                     .matching(&self.layouts.pane_names(root))
-                    .is_some_and(|found| found.name == name)
+                    .is_some_and(|found| names.contains(&found.name.as_str()))
             })
             .collect()
     }
