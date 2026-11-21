@@ -65,7 +65,12 @@ impl FileMatching for FakeFiles {
     }
 }
 
+/// `_bag()`: the Bag where Omega Ruby keeps it.
 fn bag() -> (Rc<FakeMemory>, battle_bag::BattleBag) {
+    bag_at(battle_bag::BAGS[0])
+}
+
+fn bag_at(at: i64) -> (Rc<FakeMemory>, battle_bag::BattleBag) {
     let memory = FakeMemory::new();
     let classes = FakeClasses::starting(memory.clone(), CODE.0 + 0x8000);
     // A word a sweep took for a gauge points nowhere; the real gauge points at the view.
@@ -73,8 +78,8 @@ fn bag() -> (Rc<FakeMemory>, battle_bag::BattleBag) {
     memory.u32(GAUGE + battle_bag::VIEW, &[VIEW]);
     memory.u32(VIEW, &[classes.add(battle_bag::VIEW_CLASS)]);
     memory.u32(VIEW + battle_bag::UI, &[UI]);
-    memory.u32(UI + battle_bag::BAG, &[classes.add(battle_bag::BAG_CLASS)]);
-    memory.u32(UI + battle_bag::BAG + battle_bag::LIST, &[ITEMS]);
+    memory.u32(UI + at, &[classes.add(battle_bag::BAG_CLASS)]);
+    memory.u32(UI + at + battle_bag::LIST, &[ITEMS]);
     memory.u32(ITEMS, &[classes.add(battle_bag::LIST_CLASS)]);
     memory.u32(POCKETS_MENU, &[classes.add("N3btl3app12ItemCategoryE")]);
     let bag = battle_bag::BattleBag::new(
@@ -160,12 +165,25 @@ fn test_a_page_is_said_as_it_turns_and_the_title_never_by_the_screen() {
 #[test]
 fn test_with_no_pocket_open_nothing_is_the_bags() {
     let (memory, mut bag) = bag();
-    memory.u32(UI + battle_bag::BAG + battle_bag::LIST, &[POCKETS_MENU]);
+    memory.u32(UI + battle_bag::BAGS[0] + battle_bag::LIST, &[POCKETS_MENU]);
     assert_eq!(
         bag.poll(&screen("HP/PP RESTORE", "1", "Ether")).unwrap(),
         battle_bag::nothing()
     );
     // Nor with its list off screen, where no memory is read.
-    memory.u32(UI + battle_bag::BAG + battle_bag::LIST, &[ITEMS]);
+    memory.u32(UI + battle_bag::BAGS[0] + battle_bag::LIST, &[ITEMS]);
     assert_eq!(bag.poll(&[]).unwrap(), battle_bag::nothing());
+}
+
+#[test]
+fn test_x_and_y_keep_the_bag_four_bytes_sooner() {
+    let (memory, mut bag) = bag_at(battle_bag::BAGS[1]);
+    page(&memory, 1, 2);
+    assert_eq!(
+        bag.poll(&screen("POKÉ BALLS", "2", "Master Ball"))
+            .unwrap()
+            .opened
+            .as_deref(),
+        Some("POKÉ BALLS 2/2")
+    );
 }

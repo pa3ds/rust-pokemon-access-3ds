@@ -9,7 +9,8 @@
 //! ```text
 //! a gauge                  +0x04  -> btl::BattleViewSystem (spike B)
 //! btl::BattleViewSystem   +0x190  -> a block of its UI, whose
-//!                         +0x1D8  is btl::BtlvUiBag, inside it (spike E)
+//!                         +0x1D8  is btl::BtlvUiBag, inside it (spike E); +0x1D4 in
+//!                                    X and Y (spike I)
 //! btl::BtlvUiBag           +0x18  -> btl::app::ItemList while a pocket is open, its
 //!                                    pockets' menu (btl::app::ItemCategory) before
 //! btl::app::ItemList       +0xD4  u8 the pocket: 0 HP/PP RESTORE, 1 STATUS RESTORE,
@@ -48,7 +49,8 @@ use crate::py::{self, Error, Result};
 pub const VIEW: i64 = 0x04;
 pub const VIEW_CLASS: &str = "N3btl16BattleViewSystemE";
 pub const UI: i64 = 0x190;
-pub const BAG: i64 = 0x1D8;
+/// Where in the UI block the Bag is: Omega Ruby and Alpha Sapphire's, then X and Y's.
+pub const BAGS: [i64; 2] = [0x1D8, 0x1D4];
 pub const BAG_CLASS: &str = "N3btl9BtlvUiBagE";
 pub const LIST: i64 = 0x18;
 pub const LIST_CLASS: &str = "N3btl3app8ItemListE";
@@ -196,10 +198,20 @@ impl BattleBag {
             return Ok(None);
         };
         let ui = u32(&memory.read(view + UI, 4)?, 0)?;
-        if !within(ui) || names.of_object(ui + BAG)?.as_deref() != Some(BAG_CLASS) {
+        if !within(ui) {
             return Ok(None);
         }
-        let items = u32(&memory.read(ui + BAG + LIST, 4)?, 0)?;
+        let mut bag = None;
+        for at in BAGS {
+            if names.of_object(ui + at)?.as_deref() == Some(BAG_CLASS) {
+                bag = Some(ui + at);
+                break;
+            }
+        }
+        let Some(bag) = bag else {
+            return Ok(None);
+        };
+        let items = u32(&memory.read(bag + LIST, 4)?, 0)?;
         if !within(items) || names.of_object(items)?.as_deref() != Some(LIST_CLASS) {
             return Ok(None);
         }
