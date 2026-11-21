@@ -1327,6 +1327,11 @@ fn test_the_maps_touch_areas_are_named_by_the_areanav_row_pointing_at_them() {
             ("m".to_string(), "Route 101".to_string())
         ])
     );
+    // The AreaNav's MapView keeps a touch area by that index (spike M).
+    assert_eq!(
+        archives::map_pane_names(&head).unwrap(),
+        vec!["l".to_string(), "m".to_string(), "n".to_string()]
+    );
     assert!(
         archives::map_places(&head[..40], &nav, towns, 0x04, &place)
             .unwrap_err()

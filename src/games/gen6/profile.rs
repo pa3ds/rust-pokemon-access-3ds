@@ -333,6 +333,7 @@ pub struct Gen6Profile {
     pub partners: Rc<RefCell<Partners>>,
     box_mode: Option<RefCell<boxes::Mode>>,
     box_titles: Option<RefCell<boxes::Titles>>,
+    places: Option<RefCell<townmap::Places>>,
     registered: Option<RefCell<registered::Registered>>,
     bag_sort: RefCell<bag_sort::BagSort>,
     bag: Option<Rc<RefCell<bag::Chosen>>>,
@@ -918,6 +919,26 @@ impl Gen6Profile {
                 Rc::new(move || occupants.borrow().names()),
             ))
         });
+        // The place under the AreaNav's map cursor, said from its MapView before the top screen
+        // names it (spike M).
+        let places = game.map_view.map(|map_view| {
+            let panes = text.map_pane_names.clone();
+            let map_places = text.map_places.clone();
+            let (running, process) = (apps.clone(), apps.clone());
+            RefCell::new(townmap::Places::new(
+                memory.clone(),
+                Rc::new(move || running.borrow().running.clone()),
+                Rc::new(move || process.borrow().process),
+                Rc::new(move |index: i64| {
+                    if index < panes.len() as i64 {
+                        map_places.get(&panes[index as usize]).cloned()
+                    } else {
+                        None
+                    }
+                }),
+                map_view,
+            ))
+        });
         // Omega Ruby's boy and girl are portraits the game never names, said in pa3ds's words
         // (`pictures.named`).
         // A cursor over pictures alone says what the game calls them, by the image or by the
@@ -1494,6 +1515,7 @@ impl Gen6Profile {
             partners,
             box_mode,
             box_titles,
+            places,
             registered,
             bag_sort,
             bag,
@@ -1968,10 +1990,16 @@ impl Gen6Profile {
                 self.chasing.set(rows::CHASE);
                 self.chasing_details.set(true);
             }
-            Ok(match &self.box_titles {
+            let turned = match &self.box_titles {
                 None => false,
                 Some(titles) => titles.borrow().turned()?,
-            })
+            };
+            // The AreaNav's map cursor came onto another place: the screen is polled now, once.
+            Ok(turned
+                || match &self.places {
+                    None => false,
+                    Some(places) => places.borrow_mut().turned()?,
+                })
         })?;
         self.moving.set(self.moving.get() || turned);
         if (self.chasing.get() != 0 || turned) && !screen_polled {
@@ -2005,6 +2033,7 @@ impl Gen6Profile {
         let mut box_mode: Option<String> = None;
         let mut entrant: Option<String> = None;
         let mut box_title: Option<String> = None;
+        let mut place: Option<String> = None;
         let mut slots: Option<String> = None;
         let mut carried: Option<String> = None;
         let mut count: Option<String> = None;
@@ -2072,6 +2101,12 @@ impl Gen6Profile {
                 None => None,
                 Some(titles) => titles.borrow_mut().poll()?,
             };
+            place = match &self.places {
+                None => None,
+                Some(places) => places
+                    .borrow_mut()
+                    .poll(self.views.borrow().listing())?,
+            };
             slots = match &self.registered {
                 None => None,
                 Some(reader) => reader.borrow_mut().poll(self.layouts.roots())?,
@@ -2114,6 +2149,17 @@ impl Gen6Profile {
             self.summary_pages.borrow_mut().poll()?;
             let cursors = self.summary_pages.borrow().cursors(cursors, on_screen)?;
             let mut cursors = self.reminder.borrow().cursors(cursors);
+            let area = match &self.places {
+                None => None,
+                Some(places) => places.borrow().current(),
+            };
+            if let Some(area) = &area
+                && self.views.borrow().listing()
+            {
+                // A list over the AreaNav's map says each row's place: said as the area as the
+                // map moves to it, and not again with its rows.
+                cursors = townmap::unplaced(cursors, area);
+            }
             if self.chasing.get() != 0
                 && cursors.items.is_empty()
                 && self.apps.borrow().running.as_deref() == Some(boxes::APP)
@@ -2201,12 +2247,12 @@ impl Gen6Profile {
                 .collect();
             texts.retain(|text| text.changed || !text.with_layout || !walked.contains(&text.root));
         }
-        // `pocket or box_title or paged.turned`.
-        let mut title = [pocket, box_title]
+        // `pocket or box_title or paged.turned or place`.
+        let mut title = [pocket, box_title, paged.turned.clone()]
             .into_iter()
             .flatten()
             .find(|title| !title.is_empty())
-            .or(paged.turned.clone());
+            .or(place);
         let mut cursors = cursors;
         if self.after_forget.get().is_some() {
             // Back from Move to forget, the Bag or the Move Reminder is built again as the player

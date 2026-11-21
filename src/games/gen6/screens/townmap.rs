@@ -17,7 +17,26 @@
 //! G2DUtil  +0x1C  -> its layouts, 8 bytes each: a handle, then flags; +0x20 how many
 //! handle   +0x04  the layout's work, as a layout pool's table keeps it
 //! ```
+//!
+//! The place under the map's cursor is the AreaNav's cursor source (`Places`, spike M): the Fly
+//! map's, the Town Map's, and the place a View Details pages to. Its `MapView` keeps the touch
+//! area the top screen tells of, and the module's code sets it before writing the place's words:
+//!
+//! ```text
+//! app::townmap::Proc         +0x24  -> app::townmap::MainSystem
+//! app::townmap::MainSystem   +0x18  -> app::townmap::GraphicWork
+//! app::townmap::GraphicWork  +0xA4  -> app::townmap::MapView
+//!                            +0xCC  u8 the view drawn over the map: 0 none, 2 the Pokémon
+//!                                   Distribution, 3 Trainer's Eye, 4 Secret Bases, 5 Berry Trees
+//! app::townmap::MapView      +0xEC  u32 the touch area, its index among the map's panes'
+//!                                   names (`GameText.map_pane_names`), 0xFFFFFFFF over none
+//! ```
+//!
+//! It changes a screen poll before the top screen's words are read, and a place crossed in less
+//! than a poll's rewrite, as the Fly map's cursor glides, was heard only inside the next one's
+//! details, "Mauville City", then "Route 110, Cycling Road Trick House, …" (or_bag_and_battle_bag).
 
+use std::cell::Cell;
 use std::collections::HashSet;
 use std::rc::Rc;
 
@@ -26,6 +45,10 @@ use indexmap::IndexMap;
 use crate::core::binary::u32;
 use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
+use crate::games::common::cursors::shared::{CursorItem, CursorPoll};
+use crate::games::common::screen::ScreenText;
+use crate::games::gen6::anchors::follow;
+use crate::games::gen6::apps::LOADED_CODE;
 use crate::py::Result;
 
 /// The AreaNav as an app of its own, opened from the PokéNav's window or the Bag's Town Map.
@@ -38,6 +61,14 @@ pub const VIEWS: [(&str, i64); 5] = [
     ("N3app7townmap9ZukanViewE", 0x7C),
     ("N3app7townmap11MessageViewE", 0x7C),
 ];
+/// The views drawn as lists whose rows name their places, the map following the row under their
+/// cursor: Berry Trees, Trainer's Eye and Secret Bases (or_areanav_by_touch). A `frozenset` only
+/// tested.
+pub const LISTS: [&str; 3] = [
+    "N3app7townmap8NutsViewE",
+    "N3app7townmap14TrainerEyeViewE",
+    "N3app7townmap14SecretBaseViewE",
+];
 pub const UTIL: i64 = 0x5C;
 pub const UTIL_CLASS: &str = "N3app4util7G2DUtilE";
 pub const LAYOUTS: i64 = 0x1C;
@@ -45,6 +76,12 @@ pub const LAYOUT_COUNT: i64 = 0x20;
 pub const ENTRY: i64 = 8;
 pub const WORK: i64 = 0x04;
 pub const MAX_LAYOUTS: i64 = 16;
+/// The AreaNav's process -> `MainSystem` -> `GraphicWork` -> `MapView`, in Omega Ruby (spike M).
+pub const MAP_VIEW: [i64; 3] = [0x24, 0x18, 0xA4];
+pub const MAP_VIEW_CLASS: &str = "N3app7townmap7MapViewE";
+/// `MapView` -> the touch area under the map's cursor, by its index among the map's panes.
+pub const PLACE: i64 = 0xEC;
+pub const NO_PLACE: i64 = 0xFFFFFFFF;
 
 /// The works of the layouts a `G2DUtil` draws.
 pub fn util_works(memory: &dyn Memory, util: i64) -> Result<HashSet<i64>> {
@@ -71,8 +108,11 @@ pub fn util_works(memory: &dyn Memory, util: i64) -> Result<HashSet<i64>> {
 pub struct Views {
     memory: Rc<dyn Memory>,
     names: Rc<ClassNames>,
-    /// View -> the vtable it was found with, and where its byte saying it is drawn is.
-    views: IndexMap<i64, (i64, i64)>,
+    /// View -> the vtable it was found with, where its byte saying it is drawn is, and its
+    /// class.
+    views: IndexMap<i64, (i64, i64, &'static str)>,
+    /// A `Cell`, as `put_away` sets it through `&self`.
+    listing: Cell<bool>,
 }
 
 impl Views {
@@ -81,6 +121,7 @@ impl Views {
             memory,
             names,
             views: IndexMap::new(),
+            listing: Cell::new(false),
         }
     }
 
@@ -92,8 +133,8 @@ impl Views {
             self.views.clone()
         };
         for (&view, name) in found {
-            if let Some(&(_, drawn_at)) = VIEWS.iter().find(|(class, _)| class == name) {
-                views.insert(view, (u32(&self.memory.read(view, 4)?, 0)?, drawn_at));
+            if let Some(&(class, drawn_at)) = VIEWS.iter().find(|(class, _)| class == name) {
+                views.insert(view, (u32(&self.memory.read(view, 4)?, 0)?, drawn_at, class));
             }
         }
         self.views = views;
@@ -104,13 +145,24 @@ impl Views {
     /// Distribution, Trainer's Eye's rows, the berry list. Then a tap on the map reaches the view's
     /// own buttons, not a place (or_area_nav).
     pub fn drawing(&self) -> Result<bool> {
-        Ok(self.read()?.iter().any(|&(drawn, _util)| drawn))
+        Ok(self.read()?.iter().any(|&(drawn, _util, _name)| drawn))
+    }
+
+    /// Whether the AreaNav drew one of its lists over its map at the last `put_away`
+    /// (`LISTS`): read again, its reads were new to the screen poll's tapes.
+    pub fn listing(&self) -> bool {
+        self.listing.get()
     }
 
     /// The works of the layouts of every view the AreaNav is not drawing now.
     pub fn put_away(&self) -> Result<HashSet<i64>> {
         let mut works: HashSet<i64> = HashSet::new();
-        for (drawn, util) in self.read()? {
+        let read = self.read()?;
+        self.listing.set(
+            read.iter()
+                .any(|&(drawn, _util, name)| drawn && LISTS.contains(&name)),
+        );
+        for (drawn, util, _name) in read {
             if !drawn {
                 works.extend(util_works(&*self.memory, util)?);
             }
@@ -118,11 +170,11 @@ impl Views {
         Ok(works)
     }
 
-    /// Each view still one, whether it is drawn and its `G2DUtil`.
-    fn read(&self) -> Result<Vec<(bool, i64)>> {
+    /// Each view still one, whether it is drawn, its `G2DUtil` and its class.
+    fn read(&self) -> Result<Vec<(bool, i64, &'static str)>> {
         let memory = &self.memory;
-        let mut read: Vec<(bool, i64)> = Vec::new();
-        for (&view, &(vtable, drawn_at)) in &self.views {
+        let mut read: Vec<(bool, i64, &'static str)> = Vec::new();
+        for (&view, &(vtable, drawn_at, name)) in &self.views {
             let head = memory.read(view, drawn_at.max(UTIL) + 4)?;
             // A view freed and its memory taken by something else says nothing.
             if u32(&head, 0)? != vtable {
@@ -136,9 +188,145 @@ impl Views {
                     .as_deref()
                     == Some(UTIL_CLASS)
             {
-                read.push((head[drawn_at as usize] != 0, util));
+                read.push((head[drawn_at as usize] != 0, util, name));
             }
         }
         Ok(read)
     }
+}
+
+/// The place under the AreaNav's map cursor, read every tick from its `MapView` (module
+/// docstring), said by the ROM's name for it as it changes: the screen's same words are then
+/// a title already said, and its facilities and description that place's (`ScreenAnnouncer`'s
+/// `title`).
+///
+/// A place is said each time the cursor comes onto it, back from no place too, with its words:
+/// a player moving off a place and back onto it hears it again. A list drawn over the map,
+/// Trainer's Eye, Berry Trees or Secret Bases, moves the map to its row's place: that place is
+/// said first, as the area switched to, and only as it changes, and its rows say it no more
+/// (`current`): Berry Trees said "Roseli Berry: Route 123", then "Lum Berry: Route 123".
+pub struct Places {
+    memory: Rc<dyn Memory>,
+    chain: &'static [i64],
+    running: Rc<dyn Fn() -> Option<String>>,
+    process: Rc<dyn Fn() -> Option<i64>>,
+    name: Rc<dyn Fn(i64) -> Option<String>>,
+    /// The process and its `MapView`, once found and checked by its class, or None for one
+    /// not built yet.
+    view: Option<(i64, Option<i64>)>,
+    /// The touch area at the last screen poll, None before the map's first.
+    last: Option<i64>,
+    /// The last place the cursor was on, said or the one the map opened on: not
+    /// `NO_PLACE`.
+    place: Option<i64>,
+}
+
+impl Places {
+    /// `name` is what the game calls the place of a touch area, by its index, or None;
+    /// `view` the chain from the process to the `MapView` (Python's default `MAP_VIEW`).
+    pub fn new(
+        memory: Rc<dyn Memory>,
+        running: Rc<dyn Fn() -> Option<String>>,
+        process: Rc<dyn Fn() -> Option<i64>>,
+        name: Rc<dyn Fn(i64) -> Option<String>>,
+        view: &'static [i64],
+    ) -> Self {
+        Places {
+            memory,
+            chain: view,
+            running,
+            process,
+            name,
+            view: None,
+            last: None,
+            place: None,
+        }
+    }
+
+    /// Has the cursor come onto another place since the last screen poll? Asked every tick,
+    /// one read, so that a screen poll comes as it does.
+    pub fn turned(&mut self) -> Result<bool> {
+        let place = self.read()?;
+        Ok(place.is_some_and(|place| Some(place) != self.last && place != NO_PLACE))
+    }
+
+    /// The name of the place the cursor has just come onto, or None: nothing as the map
+    /// opens, where the screen says the place the player is in, nor over no place, where the
+    /// game writes nothing, nor, while a list is drawn over the map (`listing`), the area it
+    /// was already in.
+    pub fn poll(&mut self, listing: bool) -> Result<Option<String>> {
+        let Some(place) = self.read()? else {
+            (self.last, self.place) = (None, None);
+            return Ok(None);
+        };
+        let opening = self.last.is_none();
+        if Some(place) == self.last {
+            return Ok(None);
+        }
+        self.last = Some(place);
+        if place == NO_PLACE || (listing && Some(place) == self.place) {
+            return Ok(None);
+        }
+        self.place = Some(place);
+        Ok(if opening { None } else { (self.name)(place) })
+    }
+
+    /// The name of the place the cursor is on or last was, as of the last screen poll.
+    pub fn current(&self) -> Option<String> {
+        self.place.and_then(|place| (self.name)(place))
+    }
+
+    /// The touch area under the cursor, while the AreaNav runs and its `MapView` is built.
+    fn read(&mut self) -> Result<Option<i64>> {
+        let process = (self.process)();
+        let Some(process) = process.filter(|_| (self.running)().as_deref() == Some(APP)) else {
+            self.view = None;
+            return Ok(None);
+        };
+        if self
+            .view
+            .is_none_or(|(found, view)| found != process || view.is_none())
+        {
+            let view = follow(&*self.memory, process, self.chain)?;
+            let names = ClassNames::new(self.memory.clone(), LOADED_CODE);
+            // Its class is the module's, named while it is loaded.
+            let checked = match view {
+                Some(view) if names.of_object(view)?.as_deref() == Some(MAP_VIEW_CLASS) => {
+                    Some(view)
+                }
+                _ => None,
+            };
+            self.view = Some((process, checked));
+        }
+        let Some((_, Some(view))) = self.view else {
+            return Ok(None);
+        };
+        Ok(Some(u32(&self.memory.read(view + PLACE, 4)?, 0)?))
+    }
+}
+
+/// The cursors' poll with the area said already taken out of each item's words, where more
+/// are left: a list over the map names each row's place.
+pub fn unplaced(cursors: CursorPoll, area: &str) -> CursorPoll {
+    let items = cursors
+        .items
+        .iter()
+        .map(|item| {
+            let kept: Vec<ScreenText> = item
+                .pieces
+                .iter()
+                .filter(|p| p.text != area)
+                .cloned()
+                .collect();
+            if !kept.is_empty() && kept.len() < item.pieces.len() {
+                CursorItem {
+                    pieces: kept,
+                    ..item.clone()
+                }
+            } else {
+                item.clone()
+            }
+        })
+        .collect();
+    CursorPoll { items, ..cursors }
 }

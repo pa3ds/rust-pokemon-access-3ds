@@ -391,6 +391,10 @@ pub struct Game {
     /// spike B): the work block's +0x24, in ORAS and X. None where it has not been measured: a box
     /// is then the one named as the title is.
     pub box_shown: Option<(i64, i64)>,
+    /// The chain from the AreaNav's process to its `app::townmap::MapView`, which keeps the place
+    /// under the map's cursor (`townmap.Places`, spike M): ORAS's. None where it has not been
+    /// measured: the place is then the screen's alone.
+    pub map_view: Option<&'static [i64]>,
     /// Where the Bag keeps the item under its cursor, its cursor source (`screens.bag`, spike A):
     /// ORAS's, or X's. None where it has not been measured.
     pub bag: Option<bag::Shape>,
@@ -481,6 +485,7 @@ impl Game {
             registered: None,
             box_mode: None,
             box_shown: None,
+            map_view: None,
             bag: None,
             summary: summary::ORAS,
             whole: HashSet::new(),

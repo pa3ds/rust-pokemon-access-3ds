@@ -1079,6 +1079,7 @@ pub fn game() -> &'static Game {
         box_mode: Some((0x24, 0x21)),
         box_shown: Some((0x24, 0x24)),
         bag: Some(bag::ORAS),
+        map_view: Some(&townmap::MAP_VIEW),
         menu_row: Some(rows::MENU_ROW),
         options_row: Some(rows::OPTIONS_ROW),
         party_slot: Some(rows::PARTY_SLOT),

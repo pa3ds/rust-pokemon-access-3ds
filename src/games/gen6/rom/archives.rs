@@ -323,6 +323,9 @@ pub struct GameText {
     /// A touch area of the map, by its pane's name -> what the game calls the place, in the
     /// order the AreaNav lists them (`map_places`); none where the map is not read.
     pub map_places: IndexMap<String, String>,
+    /// The map's panes' names by their index, as the AreaNav's `MapView` keeps the touch area
+    /// under its cursor (`map_pane_names`, `townmap.Places`); none where the map is not read.
+    pub map_pane_names: Vec<String>,
     /// What the game calls each Secret Base decoration, by its number (`RomLayout.decorations`).
     pub decorations: Vec<String>,
     /// What the game calls the six stats on Super Training's screens, "HP" to "Speed"
@@ -433,6 +436,7 @@ impl PartialEq for GameText {
             && self.plain == other.plain
             && self.caught == other.caught
             && self.map_places == other.map_places
+            && self.map_pane_names == other.map_pane_names
             && self.decorations == other.decorations
             && self.training_stats == other.training_stats
             && self.training_gains == other.training_gains
@@ -482,6 +486,7 @@ impl Default for GameText {
             plain: HashSet::new(),
             caught: HashSet::new(),
             map_places: IndexMap::new(),
+            map_pane_names: Vec::new(),
             decorations: Vec::new(),
             training_stats: Vec::new(),
             training_gains: Vec::new(),
@@ -831,6 +836,7 @@ impl GameText {
             .keys()
             .filter_map(|zone| read.get(zone).map(|held| (*zone, held.0.clone())))
             .collect();
+        let (map_places, map_panes) = map_places_of(rom, layout, &table, &places)?;
         let text = GameText {
             places: places.clone(),
             trainers,
@@ -859,7 +865,8 @@ impl GameText {
             types,
             categories,
             conditions,
-            map_places: map_places_of(rom, layout, &table, &places)?,
+            map_places,
+            map_pane_names: map_panes,
             touch_words: touch_words(&files, layout)?,
             labels: {
                 let mut labels: IndexMap<String, String> = IndexMap::new();
@@ -1102,19 +1109,11 @@ pub fn no_text() -> GameText {
     GameText::new(Vec::new(), Vec::new())
 }
 
-/// A touch area of the map, by its pane's name -> what the game calls its place.
+/// The map's layout's panes' names, in the order a touch area's index counts them.
 ///
 /// The map's archive opens with a u32 count of its files and their names, 64 bytes each, then a
-/// u32 count of its layout's panes and their names, 32 bytes each; a row of the list of what
-/// each town has keeps its zone's touch area as an index into those (spike 152). Rows sharing a
-/// touch area, as a cave's floors do, name it by the first.
-pub fn map_places(
-    head: &[u8],
-    nav: &[u8],
-    towns: &TownFacilities,
-    pane_at: i64,
-    place: &dyn Fn(i64) -> Option<String>,
-) -> Result<IndexMap<String, String>> {
+/// u32 count of its layout's panes and their names, 32 bytes each (spike 152).
+pub fn map_pane_names(head: &[u8]) -> Result<Vec<String>> {
     let files = u32(head, 0)?;
     let at = 4 + 64 * files;
     let count = if at + 4 <= head.len() as i64 {
@@ -1128,7 +1127,7 @@ pub fn map_places(
             "the map's archive does not open with its panes' names",
         ));
     }
-    let names: Vec<String> = (0..count)
+    Ok((0..count)
         .map(|i| {
             let name = py::slice(head, at + 4 + 32 * i, at + 36 + 32 * i);
             let end = name
@@ -1137,13 +1136,28 @@ pub fn map_places(
                 .unwrap_or(name.len());
             py::decode_ascii(&name[..end])
         })
-        .collect();
+        .collect())
+}
+
+/// A touch area of the map, by its pane's name -> what the game calls its place.
+///
+/// A row of the list of what each town has keeps its zone's touch area as an index into the
+/// map's panes' names (`map_pane_names`, spike 152). Rows sharing a touch area, as a cave's
+/// floors do, name it by the first.
+pub fn map_places(
+    head: &[u8],
+    nav: &[u8],
+    towns: &TownFacilities,
+    pane_at: i64,
+    place: &dyn Fn(i64) -> Option<String>,
+) -> Result<IndexMap<String, String>> {
+    let names = map_pane_names(head)?;
     let mut out: IndexMap<String, String> = IndexMap::new();
     let mut row = 0;
     while row < nav.len() as i64 - towns.row + 1 {
         let zone = u16(nav, row + towns.zone)?;
         let pane = u16(nav, row + pane_at)?;
-        if pane < count
+        if pane < names.len() as i64
             && let Some(name) = place(zone).filter(|name| !name.is_empty())
         {
             out.entry(names[pane as usize].clone()).or_insert(name);
@@ -1175,19 +1189,20 @@ fn place_of<'a>(table: &'a [u8], places: &'a [String]) -> impl Fn(i64) -> Option
     }
 }
 
-/// `map_places` out of the ROM, or none where the game's map is not read.
+/// `map_places` and `map_pane_names` out of the ROM, or none where the game's map is not
+/// read.
 fn map_places_of(
     rom: &Rom,
     layout: &RomLayout,
     table: &[u8],
     places: &[String],
-) -> Result<IndexMap<String, String>> {
+) -> Result<(IndexMap<String, String>, Vec<String>)> {
     let (Some((archive, file, pane_at)), Some(towns)) = (&layout.map_panes, &layout.towns) else {
-        return Ok(IndexMap::new());
+        return Ok((IndexMap::new(), Vec::new()));
     };
     let place = place_of(table, places);
 
-    let loaded = (|| -> Result<IndexMap<String, String>> {
+    let loaded = (|| -> Result<(IndexMap<String, String>, Vec<String>)> {
         let map_files = garc_files(&rom.read(archive)?)?;
         let head = item(&map_files, *file)?.clone();
         let nav_files = garc_files(&rom.read(&towns.archive)?)?;
@@ -1197,7 +1212,10 @@ fn map_places_of(
         } else {
             head
         };
-        map_places(&head, &nav, towns, *pane_at, &place)
+        Ok((
+            map_places(&head, &nav, towns, *pane_at, &place)?,
+            map_pane_names(&head)?,
+        ))
     })();
     match loaded {
         Ok(places) => Ok(places),
@@ -1206,7 +1224,7 @@ fn map_places_of(
                 || error.is(Kind::IndexError)
                 || error.is(Kind::StructError) =>
         {
-            Ok(IndexMap::new())
+            Ok((IndexMap::new(), Vec::new()))
         }
         Err(error) => Err(error),
     }

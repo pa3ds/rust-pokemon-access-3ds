@@ -442,6 +442,17 @@ impl ScreenAnnouncer {
             self.title = Some((title.to_string(), self.polls));
             (self.log)(&format!("title: {title}"));
             self.speech.say(title, Category::Menu);
+            if let Some(rewrite) = self.rewrite.take() {
+                // A title turned before the rest of a rewrite is said drops it, as a cursor's
+                // move does: the Fly map's cursor glided on through a place and said the next
+                // one's words as the rest, "Mauville City", then "Route 110, Cycling Road…"
+                // (or_bag_and_battle_bag).
+                self.detail_panels
+                    .entry((0, 0, 0))
+                    .or_default()
+                    .extend(rewrite.panels.iter().copied());
+                (self.log)("screen rewritten, rest unsaid: the title turned");
+            }
         }
         if let Some((title, at)) = &self.title
             && self.polls - at <= REPEAT_POLLS
