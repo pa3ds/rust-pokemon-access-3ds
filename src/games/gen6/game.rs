@@ -106,6 +106,13 @@ pub trait ConditionsReader {
     ) -> Result<()>;
 }
 
+/// Which of an app's screens kept on screen it does not draw now, where only one game's app
+/// keeps two: ORAS's Pokéblock Kit (`oras.screens.pokeblock_kit`).
+pub trait ScreensReader {
+    /// Every screen poll: the works of the layouts not drawn now (`Layouts.put_away`).
+    fn put_away(&mut self) -> Result<HashSet<i64>>;
+}
+
 /// The Pokémon one game's save keeps for its credits' moments, which scenes name as
 /// `{memory:N}`: ORAS's (`oras.memories`).
 pub trait MemoriesReader {
@@ -174,6 +181,13 @@ pub type ConditionsFactory = fn(
     Log,
     bool,
 ) -> Box<dyn ConditionsReader>;
+/// `Callable[[Memory, RunningApp, Layouts, LayoutFiles], ScreensReader]`.
+pub type ScreensFactory = fn(
+    Rc<dyn Memory>,
+    Rc<RefCell<RunningApp>>,
+    Rc<Layouts>,
+    Rc<LayoutFiles>,
+) -> Box<dyn ScreensReader>;
 /// `Callable[[Memory, str], OpeningReader]`.
 pub type OpeningFactory = fn(Rc<dyn Memory>, &str) -> Box<dyn OpeningReader>;
 
@@ -309,6 +323,9 @@ pub struct Game {
     /// The reader of a Pokémon's contest conditions, built as the Extra is turned on, or None in
     /// a game that draws none: ORAS's (`oras.screens.conditions`).
     pub conditions: Option<ConditionsFactory>,
+    /// The reader of which screen its apps that keep two on screen draw, or None in a game with
+    /// none: ORAS's Pokéblock Kit, the Case or the Berry Blender (`oras.screens.pokeblock_kit`).
+    pub screens: Option<ScreensFactory>,
     /// The reader of the choices its opening draws without a layout, built from the memory and
     /// the player's language, or None where the opening's choices are layouts, as ORAS's are: X's
     /// (`xy.intro`).
@@ -441,6 +458,7 @@ impl Game {
             armed_warps: IndexMap::new(),
             standings: None,
             conditions: None,
+            screens: None,
             opening: None,
             memories: None,
             teleporting: IndexMap::new(),

@@ -78,7 +78,9 @@ use crate::games::gen6::field::reader::{FieldReader, MOVE_MODEL_CLASS};
 use crate::games::gen6::field::speaker::SpeakerReader;
 use crate::games::gen6::field::{camera, mapblock, talk};
 use crate::games::gen6::game::MemoriesReader;
-use crate::games::gen6::game::{ConditionsReader, Game, OpeningReader, OwnApp, StandingsReader};
+use crate::games::gen6::game::{
+    ConditionsReader, Game, OpeningReader, OwnApp, ScreensReader, StandingsReader,
+};
 use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::rom::cries::Crier;
 use crate::games::gen6::rom::textures;
@@ -348,6 +350,7 @@ pub struct Gen6Profile {
     cursor_shown: Rc<Cell<bool>>,
     mart: RefCell<mart::Jumps>,
     summary_shape: summary::Shape,
+    screens: Option<RefCell<Box<dyn ScreensReader>>>,
     summary_pages: RefCell<summary::Pages>,
     /// The game's words for the contest categories, the conditions star's labels.
     contest_words: HashSet<String>,
@@ -776,6 +779,14 @@ impl Gen6Profile {
         ));
         // The summary draws one page and keeps the rest as drawn: those not shown go unheard.
         let summary_shape = game.summary;
+        let screens = game.screens.map(|make| {
+            RefCell::new(make(
+                memory.clone(),
+                apps.clone(),
+                layouts.clone(),
+                files.clone(),
+            ))
+        });
         let summary_pages = RefCell::new(summary::Pages::new(
             memory.clone(),
             apps.clone(),
@@ -1492,6 +1503,7 @@ impl Gen6Profile {
             cursor_shown,
             mart,
             summary_shape,
+            screens,
             summary_pages,
             contest_words,
             map_cursor: RefCell::new(map_cursor),
@@ -1956,6 +1968,9 @@ impl Gen6Profile {
             let revived = self.layouts.revive()?;
             let mut put_away = self.views.borrow().put_away()?;
             put_away.extend(self.reminder.borrow_mut().put_away()?);
+            if let Some(screens) = &self.screens {
+                put_away.extend(screens.borrow_mut().put_away()?);
+            }
             put_away.extend(summary::put_away(
                 &*self.memory,
                 &self.names,

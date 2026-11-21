@@ -4,3 +4,5 @@
 
 pub mod conditions;
 pub mod contest;
+
+pub mod pokeblock_kit;

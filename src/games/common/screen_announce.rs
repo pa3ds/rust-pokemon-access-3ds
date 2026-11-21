@@ -498,8 +498,17 @@ impl ScreenAnnouncer {
             // then "Cheri Berry Red" (movie30, spike 196). It is said after that, with it.
             // A nameless item, a button of no words, is said by its details alone. Not a key: the
             // name entry's number row was said late, a digit at a time, as counts naming nothing.
-            let held = ((self::count(&text) && !item.key) || text.is_empty())
-                && !item.opened
+            // A count coming back on screen is said with what names it too, where its moves
+            // have shown which panel does: L and R turn the Pokéblock Kit between the Case and
+            // the Blender, each with the item it was left on, and "15" was all that was said
+            // (or_pokeblock_kit).
+            let counted = self::count(&text)
+                && !item.key
+                && self
+                    .detail_panels
+                    .contains_key(&(item.cursor, item.pieces[0].root, item.rows));
+            let held = ((((self::count(&text) && !item.key) || text.is_empty()) && !item.opened)
+                || (item.opened && counted))
                 && !item.quiet;
             if text.is_empty() && item.opened {
                 continue;
@@ -574,7 +583,7 @@ impl ScreenAnnouncer {
             // the key changed: the bag's cursor came back with the pocket name, and "MEDICINE"
             // was read as the details of the Potion under it. A move drops the details of the
             // item before it unsaid, as the player has moved on, but not the panels they were in.
-            if !item.opened {
+            if !item.opened || held {
                 if let Some(gathering) = &self.gathering {
                     self.detail_panels
                         .entry(gathering.kept())
@@ -831,6 +840,14 @@ impl ScreenAnnouncer {
                 rewrite.said.remove(&p.r#box);
             }
         }
+        let ours: IndexSet<Panel> = match &gathering {
+            Some(gathering) if !gathering.count.is_empty() => self
+                .detail_panels
+                .get(&gathering.kept())
+                .cloned()
+                .unwrap_or_default(),
+            _ => IndexSet::new(),
+        };
         // `gathered = gathering or self._rewrite`, taken out of its place while it is worked on
         // and put back where it was if it has not settled.
         let is_gathering = gathering.is_some();
@@ -843,10 +860,16 @@ impl ScreenAnnouncer {
             // Words coming on screen meanwhile are part of it: the Mart's count and description
             // coming back as its cursor leaves Quit were two lines, and a contest's move panel,
             // shown afresh for each move, half of one (the audit, 2026-10-10). Not a layout
-            // opening, which is a screen of its own, nor words new to a menu, as a question is.
+            // opening, which is a screen of its own, nor words new to a menu, as a question is;
+            // but a panel the cursor's moves have shown names a count held for it, coming back
+            // with its screen: L and R turn the Pokéblock Kit to the Blender, and its berry was
+            // said apart from the count it named, "Cheri Berry Red, A Berry…", "Berry Blender",
+            // "15" (or_pokeblock_kit). A cursor saying a name of its own does not wait for it:
+            // the Box's summary came half a second after "BOX 1, row 1, column 1"
+            // (or_organize_boxes).
             let joining: Vec<ScreenText> = shown
                 .iter()
-                .filter(|p| !p.with_layout && !menus(p))
+                .filter(|p| (!p.with_layout && !menus(p)) || ours.contains(&p.group()))
                 .cloned()
                 .collect();
             gathered
@@ -864,6 +887,9 @@ impl ScreenAnnouncer {
             );
             let joined: HashSet<i64> = joining.iter().map(|p| p.r#box).collect();
             shown.retain(|p| !joined.contains(&p.r#box));
+            // Nor taken back in as what stayed beside the rest: the Blender's title came with its
+            // berry and brought it back, said twice.
+            said.extend(joined.iter().copied());
             gathered.said.extend(shown.iter().map(|p| p.r#box));
             changed = Vec::new();
             if !self.settled(&gathered, settling, on_screen) {
@@ -1297,7 +1323,17 @@ impl ScreenAnnouncer {
             if gathering.polls < 1 || !words.iter().any(|text| names(text, named)) {
                 return false;
             }
-        } else if gathering.polls < DETAIL_POLLS {
+        } else if gathering.polls < DETAIL_POLLS
+            && !(!gathering.count.is_empty()
+                && gathering.polls >= 1
+                && self
+                    .detail_panels
+                    .get(&gathering.kept())
+                    .is_some_and(|known| gathering.panels.iter().any(|p| known.contains(p))))
+        {
+            // A count waits only for the panel its moves have shown names it: the Pokéblock
+            // Case writes the block's name as its cursor moves, read the poll after, and the
+            // count was said a poll later still (or_pokeblock_kit).
             return false;
         }
         let mut panels: IndexSet<Panel> = IndexSet::new();

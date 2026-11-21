@@ -1964,6 +1964,66 @@ fn test_a_count_alone_under_a_cursor_is_said_after_what_names_it() {
     );
 }
 
+/// The Berry Blender writes the berry's name as its cursor moves, read the poll after, and the
+/// count waited a poll more; L and R turn the Pokéblock Kit between the Case and the Blender, and
+/// the count it was left on came back alone, "15" (or_pokeblock_kit).
+#[test]
+fn test_a_count_is_said_once_its_panel_names_it_and_with_it_as_it_comes_back() {
+    let mut screen = Screen::new();
+    let grouped = Kw {
+        parent: 0x200,
+        ..PLAIN
+    };
+    let cheri = vec![piece(1, "15", -118.0, 45.0, MENU)];
+    let name = piece_kw(2, "Cheri Berry", -190.0, -35.0, PANEL, grouped);
+    let words = piece_kw(
+        4,
+        "A Berry to be consumed by Pokémon.",
+        -180.0,
+        -83.0,
+        PANEL,
+        grouped,
+    );
+    let mut said = screen.say(args(
+        &[changed(&name)],
+        vec![CursorItem::new(0x0C, cheri.clone(), false)],
+        &cat(&[&cheri, &[name.clone(), words.clone()]]),
+    ));
+    for _ in 0..DETAIL_POLLS {
+        said.extend(screen.on(&cat(&[&cheri, &[name.clone(), words.clone()]])));
+    }
+    assert_eq!(said, ["Cheri Berry 15, A Berry to be consumed by Pokémon."]);
+    // The next berry's name is read the poll after the move, and said with it.
+    let figy = vec![piece(5, "15", -90.0, 45.0, MENU)];
+    let figy_name = ScreenText {
+        text: "Figy Berry".to_string(),
+        changed: true,
+        ..name.clone()
+    };
+    let mut said = screen.say(args(
+        &[],
+        vec![CursorItem::new(0x0C, figy.clone(), false)],
+        &cat(&[&figy, &[name.clone(), words.clone()]]),
+    ));
+    said.extend(screen.say(args(
+        &[figy_name.clone()],
+        vec![],
+        &cat(&[&figy, &[figy_name.clone(), words.clone()]]),
+    )));
+    assert_eq!(said, ["Figy Berry 15, A Berry to be consumed by Pokémon."]);
+    // Turned away and back, its cursor opens on the berry it was left on, its panel unchanged.
+    let mut said = screen.on(&[figy_name.clone(), words.clone()]);
+    said.extend(screen.say(args(
+        &[],
+        vec![CursorItem::new(0x0C, figy.clone(), true)],
+        &cat(&[&figy, &[figy_name.clone(), words.clone()]]),
+    )));
+    for _ in 0..DETAIL_POLLS {
+        said.extend(screen.on(&cat(&[&figy, &[figy_name.clone(), words.clone()]])));
+    }
+    assert_eq!(said, ["Figy Berry 15, A Berry to be consumed by Pokémon."]);
+}
+
 #[test]
 fn test_a_cursor_on_its_way_elsewhere_drops_its_details_unsaid() {
     // The Box's pointer is held two polls on each slot before it is said, and Party 1's details

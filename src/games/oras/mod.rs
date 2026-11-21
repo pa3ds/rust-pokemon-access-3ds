@@ -39,6 +39,7 @@ use crate::games::oras::field::sky;
 use crate::games::oras::field::sky::Soaring;
 use crate::games::oras::memories::Memories;
 use crate::games::oras::screens::conditions::Conditions;
+use crate::games::oras::screens::pokeblock_kit::Kit;
 use crate::games::oras::screens::contest::Standings;
 
 /// ORAS's own words, for what the game does not say itself (ADR-0040): its scenes' timing, and a
@@ -1070,6 +1071,7 @@ pub fn game() -> &'static Game {
         warps: warps().clone(),
         standings: Some(Standings::of),
         conditions: Some(Conditions::of),
+        screens: Some(Kit::of),
         memories: Some(Memories::of),
         form: Some(mmodel::FORM),
         whole: HashSet::from(SAFARI_ZONE),
