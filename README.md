@@ -47,7 +47,7 @@ the Game Boy games. Nothing here is taken from its code.
   percentage, because a bar is all the game shows. A move's category, power, accuracy and
   description on the move info screen, where the four moves are said by number, and when a move
   is to be forgotten. In the Bag, a pocket's page as you turn to it, then the item. Choosing a
-  move's target or a member of your party, a shiny Pokémon is said so: "Shiny Zigzagoon".
+  move's target in a horde, a shiny Pokémon is said so: "Shiny Zigzagoon".
 - **The PC Box, the party, the Bag and the Pokédex**, the habitat map included. A Pokémon's
   summary says each page as you turn to it, then the button under it if it has one, and as you
   switch Pokémon its name, level and item and only the page you are on. In Check Moves each move

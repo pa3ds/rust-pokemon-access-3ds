@@ -1,24 +1,25 @@
-//! A shiny Pokémon said so under a battle's cursors: a move's target, and the party (spike K).
+//! A shiny Pokémon said so under a horde's target cursor (spike K).
 //!
 //! A battle says a move's target by the name its button shows, a horde's five "Zigzagoon" alike
-//! (or_horde_battle), and the party by each member's row, "Groudon L45 156/156", the shiny ones
-//! among them too, which the game draws sparkling and never names. The battle keeps the target
-//! under the cursor as a mask of battle positions, and each HP gauge its position and its Pokémon,
-//! whose record says whether it is shiny:
+//! (or_horde_battle), the shiny one among them, which the game draws sparkling and never names. The
+//! battle keeps the target under the cursor as a mask of battle positions, and each HP gauge its
+//! position and its Pokémon, whose record says whether it is shiny:
 //!
 //! ```text
 //! btl::BattleViewSystem  +0x190 -> a block of its UI (`battle_bag.ui_block`)
 //! the block               +0x54  u8 a bit a battle position the cursor is on, 0 on "return"
+//! the block               +0x84  -> the target screen, `btl::app::TargetSelect1vs5` a horde's
 //! a gauge                 +0x14  u32 its position (`battle.GAUGE_SIDE`), the player's 0
 //! ```
 //!
 //! The battle reader keeps the Pokémon each gauge last showed (`BattleReader.shiny`). Only where a
 //! target cursor moves onto the name of a shiny one is the mask read, so that of five alike the one
-//! under the cursor is said "Shiny Zigzagoon", and the others by their names. The party's list in
-//! battle, `poke_list.bclyt`, says a row by its member's name first: while it shows, the party's
-//! records are read once, through the party's own list (`partyicons`), and a shiny member's row is
-//! said "Shiny Groudon L45 156/156". "Shiny" is a word of pa3ds's own, for what the game draws and
-//! never names, a message in `data/` (`shiny-pokemon`).
+//! under the cursor is said "Shiny Zigzagoon", and the others by their names. Only in a horde: the
+//! word is for telling its one shiny from the rest, which a double or triple battle's few foes do
+//! not need, and the player knows their own, which sparkles as it is sent out. The party's list in
+//! battle, `poke_list.bclyt`, says a row by its member's name first, so its rows are never taken
+//! for targets. "Shiny" is a word of pa3ds's own, for what the game draws and never names, a
+//! message in `data/` (`shiny-pokemon`).
 //!
 //! Bound by:
 //! - ADR-0013: a cursor source says which item is under the cursor, the words still the screen's;
@@ -41,58 +42,50 @@ use crate::games::common::pokemon;
 use crate::games::common::screen::ScreenText;
 use crate::games::gen6::apps::{BATTLE, LOADED_CODE};
 use crate::games::gen6::screens::battle_bag::ui_block;
-use crate::games::gen6::screens::partyicons;
 use crate::py::{self, Error, Result};
 
 /// The view's UI block -> a mask of the battle positions the target cursor is on (spike K).
 pub const TARGETS: i64 = 0x54;
+/// The view's UI block -> the target screen shown (spike K).
+pub const SCREEN: i64 = 0x84;
+/// A horde's target screen, the player's one Pokémon against five (spike K).
+pub const HORDE_CLASS: &str = "N3btl3app16TargetSelect1vs5E";
 /// The party's list in battle, a row a member, its name the row's first words (spike K).
 pub const PARTY_FILE: &str = "poke_list.bclyt";
 
-/// A battle's cursor items said "Shiny" where the Pokémon under them is.
+/// A horde's target cursor said "Shiny" where the Pokémon under it is.
 pub struct Shiny {
     memory: Rc<dyn Memory>,
-    names: Rc<ClassNames>,
     running: Rc<dyn Fn() -> Option<String>>,
     process: Rc<dyn Fn() -> Option<i64>>,
     gauges: Rc<dyn Fn() -> Vec<i64>>,
-    party: Rc<dyn Fn() -> Option<i64>>,
     layouts: Rc<dyn TrackedLayouts>,
     files: Rc<dyn FileMatching>,
     battle_names: Option<(i64, ClassNames)>,
     /// Layout root -> its file's name, for the roots on screen in a battle.
     file: IndexMap<i64, String>,
-    /// The party's shiny members' names, read as the party's list showed, until it goes.
-    shiny_party: Option<HashSet<String>>,
 }
 
 impl Shiny {
     /// `targets`, the battle's shiny Pokémon by position, is handed to `poll`, as the battle
-    /// reader is the profile's; `gauges` is its HP gauges kept, `party` the party's own list,
-    /// `names` the executable's classes, the records' too.
-    #[allow(clippy::too_many_arguments)]
+    /// reader is the profile's; `gauges` is its HP gauges kept.
     pub fn new(
         memory: Rc<dyn Memory>,
-        names: Rc<ClassNames>,
         running: Rc<dyn Fn() -> Option<String>>,
         process: Rc<dyn Fn() -> Option<i64>>,
         gauges: Rc<dyn Fn() -> Vec<i64>>,
-        party: Rc<dyn Fn() -> Option<i64>>,
         layouts: Rc<dyn TrackedLayouts>,
         files: Rc<dyn FileMatching>,
     ) -> Self {
         Shiny {
             memory,
-            names,
             running,
             process,
             gauges,
-            party,
             layouts,
             files,
             battle_names: None,
             file: IndexMap::new(),
-            shiny_party: None,
         }
     }
 
@@ -105,66 +98,39 @@ impl Shiny {
     ) -> Result<CursorPoll> {
         if (self.running)().as_deref() != Some(BATTLE) {
             self.file = IndexMap::new();
-            self.shiny_party = None;
             return Ok(cursors);
         }
-        let lists = self.party_lists(on_screen);
-        if lists.is_empty() {
-            self.shiny_party = None;
-        } else if self.shiny_party.is_none() {
-            self.shiny_party = Some(self.read_party()?);
-        }
-        if cursors.items.is_empty() {
-            return Ok(cursors);
-        }
-        let party = self.shiny_party.clone().unwrap_or_default();
         let targets = targets();
-        let mut items: Vec<CursorItem> = cursors
-            .items
-            .iter()
-            .map(|item| {
-                if item
-                    .pieces
-                    .first()
-                    .is_some_and(|first| lists.contains(&first.root))
-                    && party.contains(&name(item))
-                {
-                    shiny(item)
-                } else {
-                    item.clone()
-                }
-            })
-            .collect();
+        if cursors.items.is_empty() || targets.is_empty() {
+            return Ok(cursors);
+        }
         let names: HashSet<String> = targets.values().map(|mon| mon.nickname.clone()).collect();
+        let lists = self.party_lists(on_screen);
         let mut any = false;
-        for item in &items {
+        for item in &cursors.items {
             if names.contains(&name(item)) && !lists.contains(&first(item)?.root) {
                 any = true;
                 break;
             }
         }
-        if any {
-            let position = self.position()?;
-            let mon = position.and_then(|position| targets.get(&position));
-            if let Some(mon) = mon {
-                let mut shown: Vec<CursorItem> = Vec::new();
-                for item in &items {
-                    shown.push(
-                        if name(item) == mon.nickname && !lists.contains(&first(item)?.root) {
-                            shiny(item)
-                        } else {
-                            item.clone()
-                        },
-                    );
-                }
-                items = shown;
-            }
+        if !any {
+            return Ok(cursors);
         }
-        Ok(if items == cursors.items {
-            cursors
-        } else {
-            CursorPoll { items, ..cursors }
-        })
+        let position = self.position()?;
+        let Some(mon) = position.and_then(|position| targets.get(&position)) else {
+            return Ok(cursors);
+        };
+        let mut items: Vec<CursorItem> = Vec::new();
+        for item in &cursors.items {
+            items.push(
+                if name(item) == mon.nickname && !lists.contains(&first(item)?.root) {
+                    shiny(item)
+                } else {
+                    item.clone()
+                },
+            );
+        }
+        Ok(CursorPoll { items, ..cursors })
     }
 
     /// The roots of the party's list on screen.
@@ -188,30 +154,7 @@ impl Shiny {
             .collect()
     }
 
-    /// The names of the party's shiny members.
-    fn read_party(&self) -> Result<HashSet<String>> {
-        let Some(party) = (self.party)() else {
-            return Ok(HashSet::new());
-        };
-        let count = *self
-            .memory
-            .read(party, partyicons::COUNT + 1)?
-            .last()
-            .ok_or_else(|| Error::index("index out of range"))? as i64;
-        let mut shiny: HashSet<String> = HashSet::new();
-        for i in 0..count.min(partyicons::SLOTS) {
-            let param = u32(&self.memory.read(party + 4 * i, 4)?, 0)?;
-            let mon = pokemon::read(&*self.memory, &self.names, param, pokemon::SPECIES_MAX)?;
-            if let Some(mon) = mon
-                && mon.shiny
-            {
-                shiny.insert(mon.nickname);
-            }
-        }
-        Ok(shiny)
-    }
-
-    /// The one battle position the target cursor is on, or None.
+    /// The one battle position a horde's target cursor is on, or None.
     fn position(&mut self) -> Result<Option<i64>> {
         let Some(process) = (self.process)() else {
             return Ok(None);
@@ -229,6 +172,10 @@ impl Shiny {
         let Some(ui) = ui_block(&*self.memory, names, &(self.gauges)())? else {
             return Ok(None);
         };
+        let screen = u32(&self.memory.read(ui + SCREEN, 4)?, 0)?;
+        if names.of_object(screen)?.as_deref() != Some(HORDE_CLASS) {
+            return Ok(None);
+        }
         let mask = *self
             .memory
             .read(ui + TARGETS, 1)?

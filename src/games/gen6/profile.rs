@@ -677,10 +677,9 @@ impl Gen6Profile {
                 Rc::new(move || gauges.kept())
             },
         ));
-        // A shiny Pokémon under a battle's cursors said so (spike K).
+        // A shiny Pokémon under a horde's target cursor said so (spike K).
         let shiny = RefCell::new(shiny::Shiny::new(
             memory.clone(),
-            names.clone(),
             {
                 let apps = apps.clone();
                 Rc::new(move || apps.borrow().running.clone())
@@ -692,10 +691,6 @@ impl Gen6Profile {
             {
                 let gauges = gauges.clone();
                 Rc::new(move || gauges.kept())
-            },
-            {
-                let party_icons = party_icons.clone();
-                Rc::new(move || party_icons.borrow().party)
             },
             layouts.clone(),
             files.clone(),
