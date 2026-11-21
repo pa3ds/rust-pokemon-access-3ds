@@ -119,6 +119,29 @@ fn byte(head: &[u8], at: i64) -> Result<i64> {
     }
 }
 
+/// What a reader asks of `Layouts` where Python's tests hand it a stand-in of their own
+/// (`gen6.screens.counts`, `gen6.screens.summary`): every tracked layout's work with its root,
+/// the names of a layout's panes, and a pane's name.
+pub trait TrackedLayouts {
+    fn works(&self) -> IndexMap<i64, i64>;
+    fn pane_names(&self, root: i64) -> Vec<String>;
+    fn name(&self, pane: i64) -> Result<Vec<u8>>;
+}
+
+impl TrackedLayouts for Layouts {
+    fn works(&self) -> IndexMap<i64, i64> {
+        Layouts::works(self)
+    }
+
+    fn pane_names(&self, root: i64) -> Vec<String> {
+        Layouts::pane_names(self, root)
+    }
+
+    fn name(&self, pane: i64) -> Result<Vec<u8>> {
+        Layouts::name(self, pane)
+    }
+}
+
 /// Tracks layout works and answers whether panes under them are being drawn.
 ///
 /// Reads are cached until `refresh`, so a reader that asks about many panes sharing ancestors

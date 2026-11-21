@@ -93,7 +93,8 @@ use crate::games::gen6::screens::mapcursor::MapCursor;
 use crate::games::gen6::screens::partners::Partners;
 use crate::games::gen6::screens::partyicons::PartyIcons;
 use crate::games::gen6::screens::{
-    bag, bag_sort, boxes, buttons, distribution, partners, partyicons, registered, summary, townmap,
+    bag, bag_sort, boxes, buttons, counts, distribution, partners, partyicons, registered, summary,
+    townmap,
 };
 use crate::games::gen6::subscreen::amie;
 use crate::games::gen6::subscreen::head_it::Cue;
@@ -331,6 +332,7 @@ pub struct Gen6Profile {
     bag: Option<RefCell<bag::Chosen>>,
     pub occupants: Rc<RefCell<boxes::Occupants>>,
     pub standings: Option<Rc<RefCell<dyn StandingsReader>>>,
+    pub counts: RefCell<counts::Counts>,
     pub map_cursor: RefCell<MapCursor>,
     pub footsteps: Option<RefCell<Footsteps>>,
     /// Python's `self.touch` is the navigator's `touch`, which it owns here.
@@ -649,6 +651,8 @@ impl Gen6Profile {
             })
         });
         let pauses = ui.pauses;
+        // A Poké Mart's count, said whole at each change where the screen held it to a pause.
+        let counts = RefCell::new(counts::Counts::new(layouts.clone(), files.clone(), pauses));
         let sides: Sides = {
             let (standings, announcements, apps) =
                 (standings.clone(), announcements.clone(), apps.clone());
@@ -1332,6 +1336,7 @@ impl Gen6Profile {
             bag,
             occupants,
             standings,
+            counts,
             map_cursor: RefCell::new(map_cursor),
             footsteps,
             navigator: RefCell::new(navigator),
@@ -1761,6 +1766,8 @@ impl Gen6Profile {
         let mut box_title: Option<String> = None;
         let mut slots: Option<String> = None;
         let mut carried: Option<String> = None;
+        let mut count: Option<String> = None;
+        let mut counted: HashSet<i64> = HashSet::new();
         let polled = phase(&*self.memory, "screen", || {
             // The field's layouts come back where they were when a menu screen closes, and a
             // layout found before it was built is taken in once it is.
@@ -1798,6 +1805,7 @@ impl Gen6Profile {
                 Some(opponents) => opponents.borrow_mut().poll()?,
             };
             self.habitat.borrow_mut().poll(on_screen)?;
+            (count, counted) = self.counts.borrow_mut().poll(on_screen)?;
             let in_townmap = self.apps.borrow().running.as_deref() == Some(townmap::APP);
             let listed = self
                 .distribution_reader
@@ -1873,6 +1881,7 @@ impl Gen6Profile {
             if !self.battle.borrow().owns(text)?
                 && !self.habitat.borrow().owns(text)
                 && !self.distribution_reader.borrow().owns(text)
+                && !counted.contains(&text.r#box)
             {
                 texts.push(text.clone());
             }
@@ -1882,9 +1891,15 @@ impl Gen6Profile {
         let heard: Vec<ScreenText> = screen
             .on_screen
             .iter()
-            .filter(|piece| !self.distribution_reader.borrow().owns(piece))
+            .filter(|piece| {
+                !self.distribution_reader.borrow().owns(piece) && !counted.contains(&piece.r#box)
+            })
             .cloned()
             .collect();
+        if let Some(count) = &count {
+            (self.log)(&format!("count: {count}"));
+            self.speech.say(count, Category::Menu);
+        }
         // A layout built again where it was is the one that was there, and a menu stays a menu:
         // the battle's move list, forgotten while it was gone, was read out whole the moment it
         // showed.

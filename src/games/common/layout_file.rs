@@ -289,6 +289,18 @@ pub fn darc_entries(data: &[u8]) -> Result<Vec<(String, i64, i64)>> {
     Ok(out)
 }
 
+/// What a reader asks of `LayoutFiles` where Python's tests hand it a stand-in of their own
+/// (`gen6.screens.counts`): the file whose panes are these.
+pub trait FileMatching {
+    fn matching(&self, panes: &[String]) -> Option<Rc<LayoutFile>>;
+}
+
+impl FileMatching for LayoutFiles {
+    fn matching(&self, panes: &[String]) -> Option<Rc<LayoutFile>> {
+        LayoutFiles::matching(self, panes)
+    }
+}
+
 /// Layout files found in memory, matched to layouts by the names of their panes.
 ///
 /// A layout builds its panes in the order its file lists them (spike 50), so the names of its

@@ -26,6 +26,7 @@ mod test_clips;
 mod test_conditions;
 mod test_config;
 mod test_contest;
+mod test_counts;
 mod test_cries;
 mod test_cursor;
 mod test_dialogue;
