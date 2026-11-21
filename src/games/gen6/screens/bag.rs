@@ -11,12 +11,15 @@
 //! app::bag::Proc         +0x24 -> app::bag::MainSystem
 //! app::bag::MainSystem   +0x3C  u8 the pocket: 0 Items, 1 Medicine, 2 TMs & HMs, 3 Berries,
 //!                               4 Key Items, the order of the ROM's names for them
+//! app::bag::MainSystem   +0x40  u8 the Bag's mode: 6 the list, 7 an item carried with Y,
+//!                               12 an item's action list, 13 and 17 the party for a TM and
+//!                               for Give (spike B; `carrying`, for `bag_sort`)
 //! app::bag::MainSystem   +0x58 -> a block of no class of its own, whose +0x00 ->
 //! app::bag::GraphicWork  +0x10  u16 the item under the cursor, 0 in an empty pocket
 //! ```
 //!
-//! X keeps the pocket at +0x30 and the block at +0x4C, 12 bytes sooner, numbered and laid out
-//! the same (spike A on x_field_bag).
+//! X keeps the pocket at +0x30, the mode at +0x34 and the block at +0x4C, 12 bytes sooner,
+//! numbered and laid out the same (spike A on x_field_bag, spike B on x_bag_manual_sorting).
 //!
 //! The pocket's name is said the poll its number changes, before the item. The top screen's title,
 //! written with the item's details a poll or two later, said them as "Potion", then "MEDICINE" with
@@ -57,6 +60,8 @@ pub struct Shape {
     pub main: i64,
     /// `MainSystem`'s byte numbering the pocket open.
     pub pocket: i64,
+    /// `MainSystem`'s byte numbering what the Bag is doing, `CARRYING` an item carried.
+    pub mode: i64,
     /// The pointers from there to `app::bag::GraphicWork`.
     pub draw: &'static [i64],
     /// `GraphicWork`'s u16 item number.
@@ -66,15 +71,21 @@ pub struct Shape {
 pub const ORAS: Shape = Shape {
     main: 0x24,
     pocket: 0x3C,
+    mode: 0x40,
     draw: &[0x58, 0x00],
     item: 0x10,
 };
 pub const XY: Shape = Shape {
     main: 0x24,
     pocket: 0x30,
+    mode: 0x34,
     draw: &[0x4C, 0x00],
     item: 0x10,
 };
+/// The Bag's mode while an item is carried with Y, from its pick-up to its drop (spike B on
+/// or_bag_manual_sorting and x_bag_manual_sorting): no other mode of the list, its menus or its
+/// party read 7.
+pub const CARRYING: i64 = 7;
 
 /// The name of the item the Bag's own objects say its list's cursor is on, and of its pocket
 /// as it changes, while it runs.
@@ -164,6 +175,24 @@ impl Chosen {
             IndexMap::from([(cursor, self.items[number as usize].clone())]),
             pocket,
         ))
+    }
+
+    /// Whether an item is picked up with Y, from the Bag's mode.
+    pub fn carrying(&mut self) -> Result<bool> {
+        let process = (self.process)();
+        let main = match process {
+            None => None,
+            Some(process) => self.main(process)?,
+        };
+        let Some(main) = main else {
+            return Ok(false);
+        };
+        let mode = *self
+            .memory
+            .read(main + self.shape.mode, 1)?
+            .first()
+            .ok_or_else(|| Error::index("index out of range"))? as i64;
+        Ok(mode == CARRYING)
     }
 
     fn main(&mut self, process: i64) -> Result<Option<i64>> {

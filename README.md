@@ -61,7 +61,8 @@ the Game Boy games. Nothing here is taken from its code.
   Mart's list with left or right says only the item it lands on.
 - **Contests and the Pokéblock Kit**: each move with its appeal and jamming, each entrant's
   place, and your berries and blocks with how many you have.
-- **The Bag's own sort**: an item carried with Y, and the two it would land between.
+- **The Bag's own sort**: an item picked up with Y, said as you pick it up, and at each step the
+  two it would land between.
 - **The Y button's menu**: each registered key item with the way that uses it, "up Mach Bike".
 - **Where you are**: the place name when you arrive somewhere new.
 - **The map**: exits, interactables (signs and the like), people, items, berry spots, obstacles

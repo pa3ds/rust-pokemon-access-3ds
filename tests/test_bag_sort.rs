@@ -1,5 +1,6 @@
-//! An item carried in the Bag, told by a cursor staying on it while the rows beside it change.
+//! An item carried in the Bag, told by the Bag's mode, its steps by the rows beside it.
 
+use std::cell::Cell;
 use std::rc::Rc;
 
 use crate::games::common::cursors::shared::{CursorItem, CursorPoll};
@@ -42,16 +43,33 @@ fn poll_of(screen: &[ScreenText], word: &str, moved: bool) -> CursorPoll {
     }
 }
 
-fn carry(sort: &mut BagSort, names: &[&str], moved: bool) -> (Option<String>, usize) {
-    let screen = rows(names);
-    let (line, poll) = sort.poll(poll_of(&screen, "Pearl", moved), &screen);
-    (line, poll.items.len())
+struct Bag {
+    carrying: Rc<Cell<bool>>,
+    sort: BagSort,
 }
 
-/// The cursor comes to rest on the item, and the rows round it finish being drawn.
-fn landed(sort: &mut BagSort, names: &[&str]) {
-    for _ in 0..3 {
-        carry(sort, names, false);
+impl Bag {
+    fn new() -> Self {
+        let carrying = Rc::new(Cell::new(false));
+        let sort = BagSort::new({
+            let carrying = carrying.clone();
+            Rc::new(move || Ok(carrying.get()))
+        });
+        Bag { carrying, sort }
+    }
+
+    /// `poll(*names, under="Pearl", moved=False)`.
+    fn poll(&mut self, names: &[&str]) -> (Option<String>, usize) {
+        self.poll_under(names, "Pearl", false)
+    }
+
+    fn poll_under(&mut self, names: &[&str], under: &str, moved: bool) -> (Option<String>, usize) {
+        let screen = rows(names);
+        let (line, poll) = self
+            .sort
+            .poll(poll_of(&screen, under, moved), &screen)
+            .unwrap();
+        (line, poll.items.len())
     }
 }
 
@@ -59,154 +77,142 @@ fn said(line: &str) -> Option<String> {
     Some(line.to_string())
 }
 
+/// or_bag_manual_sorting: the mode turned at 30.5 s, the first step at 33.2 s.
 #[test]
-fn test_a_step_says_between_what_once_it_has_held_a_poll() {
-    let mut sort = BagSort::new(Rc::new(|| true));
-    landed(
-        &mut sort,
-        &["Amulet Coin", "Pearl", "Macho Brace", "Icy Rock"],
+fn test_the_pick_up_is_said_as_it_is_made() {
+    let mut bag = Bag::new();
+    assert_eq!(
+        bag.poll_under(&["Amulet Coin", "Pearl", "Macho Brace"], "Pearl", true),
+        (None, 1)
+    );
+    bag.carrying.set(true);
+    assert_eq!(
+        bag.poll(&["Amulet Coin", "Pearl", "Macho Brace"]),
+        (said("moving Pearl"), 0)
     );
     assert_eq!(
-        carry(
-            &mut sort,
-            &["Amulet Coin", "Pearl", "Macho Brace", "Icy Rock"],
-            false
-        ),
+        bag.poll(&["Amulet Coin", "Pearl", "Macho Brace"]),
         (None, 0)
     );
+}
+
+#[test]
+fn test_a_step_says_between_what_once_it_has_held_a_poll() {
+    let mut bag = Bag::new();
+    bag.carrying.set(true);
+    bag.poll(&["Amulet Coin", "Pearl", "Macho Brace", "Icy Rock"]);
     // The cursor's move comes first and is not said: the same item again.
     assert_eq!(
-        carry(
-            &mut sort,
+        bag.poll_under(
             &["Amulet Coin", "Pearl", "Macho Brace", "Icy Rock"],
+            "Pearl",
             true
         ),
         (None, 0)
     );
     assert_eq!(
-        carry(
-            &mut sort,
-            &["Amulet Coin", "Macho Brace", "Pearl", "Icy Rock"],
-            false
-        ),
+        bag.poll(&["Amulet Coin", "Macho Brace", "Pearl", "Icy Rock"]),
         (None, 0)
     );
     assert_eq!(
-        carry(
-            &mut sort,
-            &["Amulet Coin", "Macho Brace", "Pearl", "Icy Rock"],
-            false
-        ),
-        (said("moving Pearl, between Macho Brace and Icy Rock"), 0)
+        bag.poll(&["Amulet Coin", "Macho Brace", "Pearl", "Icy Rock"]),
+        (said("between Macho Brace and Icy Rock"), 0)
     );
     assert_eq!(
-        carry(
-            &mut sort,
-            &["Macho Brace", "Icy Rock", "Pearl", "Shell Bell"],
-            false
-        ),
+        bag.poll(&["Macho Brace", "Icy Rock", "Pearl", "Shell Bell"]),
         (None, 0)
     );
     assert_eq!(
-        carry(
-            &mut sort,
-            &["Macho Brace", "Icy Rock", "Pearl", "Shell Bell"],
-            false
-        ),
+        bag.poll(&["Macho Brace", "Icy Rock", "Pearl", "Shell Bell"]),
         (said("between Icy Rock and Shell Bell"), 0)
     );
 }
 
 #[test]
 fn test_at_the_ends_of_the_list_it_says_the_one_beside_it() {
-    let mut sort = BagSort::new(Rc::new(|| true));
-    landed(
-        &mut sort,
-        &["Amulet Coin", "Pearl", "Macho Brace", "Icy Rock"],
-    );
-    carry(
-        &mut sort,
-        &["Pearl", "Amulet Coin", "Macho Brace", "Icy Rock"],
-        false,
-    );
+    let mut bag = Bag::new();
+    bag.carrying.set(true);
+    bag.poll(&["Amulet Coin", "Pearl", "Macho Brace", "Icy Rock"]);
+    bag.poll(&["Pearl", "Amulet Coin", "Macho Brace", "Icy Rock"]);
     assert_eq!(
-        carry(
-            &mut sort,
-            &["Pearl", "Amulet Coin", "Macho Brace", "Icy Rock"],
-            false
-        )
-        .0,
-        said("moving Pearl, above Amulet Coin")
+        bag.poll(&["Pearl", "Amulet Coin", "Macho Brace", "Icy Rock"])
+            .0,
+        said("above Amulet Coin")
     );
-    carry(
-        &mut sort,
-        &["Amulet Coin", "Macho Brace", "Icy Rock", "Pearl"],
-        false,
-    );
+    bag.poll(&["Amulet Coin", "Macho Brace", "Icy Rock", "Pearl"]);
     assert_eq!(
-        carry(
-            &mut sort,
-            &["Amulet Coin", "Macho Brace", "Icy Rock", "Pearl"],
-            false
-        )
-        .0,
+        bag.poll(&["Amulet Coin", "Macho Brace", "Icy Rock", "Pearl"])
+            .0,
         said("below Icy Rock")
     );
 }
 
 #[test]
-fn test_walking_the_list_says_nothing_and_leaves_the_cursor_its_line() {
-    let mut sort = BagSort::new(Rc::new(|| true));
-    for word in ORDER {
-        let screen = rows(&ORDER);
-        let (line, poll) = sort.poll(poll_of(&screen, word, true), &screen);
-        assert!(line.is_none() && poll.items.len() == 1, "{word}");
-    }
-}
-
-/// or_bag_and_battle_bag: on turning to a pocket whose first row reads as the cursor's did.
-#[test]
-fn test_another_pockets_rows_round_the_same_name_are_no_step() {
-    let mut sort = BagSort::new(Rc::new(|| true));
-    landed(
-        &mut sort,
-        &["Amulet Coin", "Pearl", "Macho Brace", "Icy Rock"],
-    );
+fn test_the_cursor_off_the_carried_item_is_no_step() {
+    let mut bag = Bag::new();
+    bag.carrying.set(true);
+    bag.poll(&["Amulet Coin", "Pearl", "Macho Brace", "Icy Rock"]);
     assert_eq!(
-        carry(&mut sort, &["Pearl", "Max Repel", "Repel"], false),
+        bag.poll_under(
+            &["Amulet Coin", "Pearl", "Macho Brace", "Icy Rock"],
+            "Macho Brace",
+            true
+        ),
         (None, 0)
     );
     assert_eq!(
-        carry(&mut sort, &["Pearl", "Max Repel", "Repel"], false),
+        bag.poll_under(
+            &["Amulet Coin", "Pearl", "Macho Brace", "Icy Rock"],
+            "Pearl",
+            true
+        ),
         (None, 0)
     );
-}
-
-/// or_bag_and_battle_bag: a pocket's second row arrived a poll after its cursor.
-#[test]
-fn test_rows_still_being_drawn_as_the_cursor_lands_are_no_step() {
-    let mut sort = BagSort::new(Rc::new(|| true));
+    bag.poll(&["Amulet Coin", "Macho Brace", "Pearl", "Icy Rock"]);
     assert_eq!(
-        carry(&mut sort, &["Pearl", "X Defense", "Repel"], false),
-        (None, 0)
-    );
-    assert_eq!(
-        carry(&mut sort, &["Pearl", "Max Repel", "Repel"], false),
-        (None, 0)
-    );
-    assert_eq!(
-        carry(&mut sort, &["Pearl", "Max Repel", "Repel"], false),
-        (None, 0)
+        bag.poll(&["Amulet Coin", "Macho Brace", "Pearl", "Icy Rock"])
+            .0,
+        said("between Macho Brace and Icy Rock")
     );
 }
 
 #[test]
-fn test_outside_the_bag_nothing_is_taken_from_a_cursor() {
-    let mut sort = BagSort::new(Rc::new(|| false));
-    let screen = rows(&["Amulet Coin", "Pearl", "Macho Brace"]);
+fn test_the_drop_says_nothing_and_the_list_is_the_cursors_again() {
+    let mut bag = Bag::new();
+    bag.carrying.set(true);
+    bag.poll(&["Amulet Coin", "Pearl", "Macho Brace"]);
+    bag.carrying.set(false);
     assert_eq!(
-        carry(&mut sort, &["Amulet Coin", "Pearl", "Macho Brace"], true),
+        bag.poll(&["Amulet Coin", "Pearl", "Macho Brace"]),
+        (None, 0)
+    );
+    bag.carrying.set(true);
+    assert_eq!(
+        bag.poll(&["Amulet Coin", "Pearl", "Macho Brace"]).0,
+        said("moving Pearl"),
+        "or_bag_manual_sorting: dropped and picked straight back up, the mode 6 for a poll"
+    );
+    bag.carrying.set(false);
+    assert_eq!(
+        bag.poll_under(&["Amulet Coin", "Pearl", "Macho Brace"], "Macho Brace", true),
         (None, 1)
     );
-    assert_eq!(sort.poll(poll_of(&screen, "Pearl", false), &screen).0, None);
+    bag.carrying.set(true);
+    assert_eq!(
+        bag.poll_under(
+            &["Amulet Coin", "Pearl", "Macho Brace"],
+            "Macho Brace",
+            false
+        )
+        .0,
+        said("moving Macho Brace")
+    );
+}
+
+#[test]
+fn test_walking_the_list_says_nothing_and_leaves_the_cursor_its_line() {
+    let mut bag = Bag::new();
+    for word in ORDER {
+        assert_eq!(bag.poll_under(&ORDER, word, true), (None, 1), "{word}");
+    }
 }

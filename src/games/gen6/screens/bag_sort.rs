@@ -6,52 +6,55 @@
 //! said the item again and again, or, as the list scrolled under a cursor that did not move,
 //! nothing.
 //!
-//! Nothing in the layout says an item is being carried, and the words "moving" come from the first
-//! step after it is picked up: a cursor that stays on the same item while the items beside it
-//! change is carrying it. Item names are unique in a pocket, as each stack is one row.
+//! Nothing in the layout says an item is being carried. The Bag's own mode does, from the pick-up
+//! to the drop (`bag.Chosen.carrying`, spike B). pa3ds had told it from the steps, a cursor staying
+//! on one item while the items beside it changed: a pick-up was said only once a step had settled,
+//! the first steps missed (or_bag_manual_sorting, "moving Venusaurite, between Shell Bell and Float
+//! Stone", two steps in), and a drop and pick-up again said the cursor's lines, "Soothe Bell",
+//! "Venusaurite", before "moving" at the next step.
 //!
-//! Said: the first step, "moving Venusaurite, between Metronome and Soothe Bell"; every other step
-//! "between Soothe Bell and Rocky Helmet", or at an end of the list "above Metronome".
+//! Said: the pick-up, "moving Venusaurite", again if the item is dropped and picked straight back
+//! up; each step "between Soothe Bell and Rocky Helmet", or at an end of the list "above
+//! Metronome". The drop says nothing: the last step said where it lands. While carried, the list's
+//! cursor says nothing of its own: it is on the carried item.
+//!
+//! Bound by:
+//! - ADR-0013: a cursor source says when the item under the cursor changes, the words still the
+//!   screen's.
 
-use std::collections::HashSet;
 use std::rc::Rc;
 
 use crate::core::words::own;
 use crate::games::common::cursors::shared::CursorPoll;
 use crate::games::common::screen::ScreenText;
+use crate::py::Result;
 
 /// The fewest rows a column of words has to have to be a list: the Bag's draws up to nine.
 pub const ROWS: usize = 3;
 /// Units a row's words can start from the cursor's, for the two to be one column.
 pub const SAME_COLUMN: f64 = 1.0;
-/// Polls after a cursor lands on an item in which the rows round it are still being drawn.
-pub const SETTLE: i64 = 2;
 
-/// The item under a cursor, the words on the rows above and below it, and every row's.
-type Placed = (ScreenText, String, String, HashSet<String>);
+/// The item under a cursor, and the words on the rows above and below it.
+type Placed = (ScreenText, String, String);
 
-/// Says an item carried in the Bag, and takes the cursor's repeats of it out of a poll.
+/// Says an item carried in the Bag, and takes the cursor's lines out of a poll while it is.
 pub struct BagSort {
-    running: Rc<dyn Fn() -> bool>,
-    said: Option<(String, String, String)>,
-    /// The rows drawn when `said` was: a step keeps most of them, another pocket none.
-    ///
-    /// A `frozenset` only tested.
-    column: HashSet<String>,
-    held: Option<(String, String, String)>,
-    carrying: bool,
-    settling: i64,
+    carrying: Rc<dyn Fn() -> Result<bool>>,
+    /// The item carried, once said.
+    item: Option<String>,
+    /// The rows above and below it when last said.
+    said: (String, String),
+    held: Option<(String, String)>,
 }
 
 impl BagSort {
-    pub fn new(running: Rc<dyn Fn() -> bool>) -> Self {
+    /// `carrying` is whether the Bag has an item picked up with Y.
+    pub fn new(carrying: Rc<dyn Fn() -> Result<bool>>) -> Self {
         BagSort {
-            running,
-            said: None,
-            column: HashSet::new(),
+            carrying,
+            item: None,
+            said: (String::new(), String::new()),
             held: None,
-            carrying: false,
-            settling: 0,
         }
     }
 
@@ -61,79 +64,45 @@ impl BagSort {
         &mut self,
         poll: CursorPoll,
         on_screen: &[ScreenText],
-    ) -> (Option<String>, CursorPoll) {
-        let placed = if !(self.running)() {
-            None
-        } else {
-            poll.under.iter().find_map(|under| placed(under, on_screen))
-        };
-        let Some((item, above, below, column)) = placed else {
-            self.said = None;
+    ) -> Result<(Option<String>, CursorPoll)> {
+        if !(self.carrying)()? {
+            self.item = None;
             self.held = None;
-            self.carrying = false;
-            return (None, poll);
-        };
-        let now = (item.text.clone(), above.clone(), below.clone());
-        if self.settling != 0
-            && let Some(said) = &self.said
-            && now.0 == said.0
-        {
-            // A pocket turned to is still being drawn for a poll or two after its cursor lands.
-            self.settling -= 1;
-            self.said = Some(now);
-            self.column = column;
-            return (None, poll);
+            return Ok((None, poll));
         }
-        let another = match &self.said {
-            None => true,
-            Some(said) => now.0 != said.0,
+        let placed = poll.under.iter().find_map(|under| placed(under, on_screen));
+        let quiet = CursorPoll {
+            items: Vec::new(),
+            ..poll
         };
-        if another
-            || (self.said.as_ref() != Some(&now)
-                && ![&above, &below]
-                    .into_iter()
-                    .any(|row| !row.is_empty() && self.column.contains(row)))
-        {
-            // A new item under the cursor, or the same words on the first row of another pocket,
-            // whose rows are none of the last's: "moving Amulet Coin, below Max Repel"
-            // (or_bag_and_battle_bag). An item still carried past the list's end stays carried.
-            self.carrying = self.carrying && !another;
-            self.settling = if another { SETTLE } else { 0 };
-            self.said = Some(now);
-            self.column = column;
+        let Some((item, above, below)) = placed else {
+            return Ok((None, quiet));
+        };
+        let Some(carried) = &self.item else {
+            self.item = Some(item.text.clone());
+            self.said = (above, below);
             self.held = None;
-            return (None, poll);
-        }
-        let items = poll
-            .items
-            .iter()
-            .filter(|one| one.opened || !one.pieces.iter().any(|p| p.r#box == item.r#box))
-            .cloned()
-            .collect();
-        let same = CursorPoll { items, ..poll };
-        if self.said.as_ref() == Some(&now) {
+            return Ok((Some(own("bag-moving", &[("item", &item.text)])), quiet));
+        };
+        let now = (above, below);
+        if item.text != *carried || now == self.said {
             self.held = None;
-            return (None, same);
+            return Ok((None, quiet));
         }
         if self.held.as_ref() != Some(&now) {
             // A list being drawn is half old and half new for a poll.
             self.held = Some(now);
-            return (None, same);
+            return Ok((None, quiet));
         }
-        self.said = Some(now);
-        self.column = column;
+        let line = between(&now.0, &now.1);
+        self.said = now;
         self.held = None;
-        let mut line = between(&above, &below);
-        if !self.carrying {
-            self.carrying = true;
-            line = format!("{}, {line}", own("bag-moving", &[("item", &item.text)]));
-        }
-        (Some(line), same)
+        Ok((Some(line), quiet))
     }
 }
 
 /// The one piece a cursor is over, if it is a row of a list, with the words on the rows above
-/// and below it, "" where it has none, and every row's.
+/// and below it, "" where it has none.
 fn placed(under: &[ScreenText], on_screen: &[ScreenText]) -> Option<Placed> {
     if under.len() != 1 || under[0].glyph <= 0.0 {
         return None;
@@ -167,7 +136,6 @@ fn placed(under: &[ScreenText], on_screen: &[ScreenText]) -> Option<Placed> {
         item.clone(),
         above.map_or(String::new(), |p| p.text.clone()),
         below.map_or(String::new(), |p| p.text.clone()),
-        column.iter().map(|piece| piece.text.clone()).collect(),
     ))
 }
 

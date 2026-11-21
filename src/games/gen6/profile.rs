@@ -332,7 +332,7 @@ pub struct Gen6Profile {
     box_titles: Option<RefCell<boxes::Titles>>,
     registered: Option<RefCell<registered::Registered>>,
     bag_sort: RefCell<bag_sort::BagSort>,
-    bag: Option<RefCell<bag::Chosen>>,
+    bag: Option<Rc<RefCell<bag::Chosen>>>,
     pub occupants: Rc<RefCell<boxes::Occupants>>,
     pub standings: Option<Rc<RefCell<dyn StandingsReader>>>,
     pub counts: RefCell<counts::Counts>,
@@ -818,13 +818,9 @@ impl Gen6Profile {
                 file_of.clone(),
             ))
         });
-        let bag_sort = RefCell::new(bag_sort::BagSort::new({
-            let apps = apps.clone();
-            Rc::new(move || apps.borrow().running.as_deref() == Some(partyicons::BAG))
-        }));
         let bag = game.bag.clone().map(|shape| {
             let apps = apps.clone();
-            RefCell::new(bag::Chosen::new(
+            Rc::new(RefCell::new(bag::Chosen::new(
                 memory.clone(),
                 shape,
                 Rc::new(move || {
@@ -837,8 +833,15 @@ impl Gen6Profile {
                 }),
                 text.items.clone(),
                 text.pockets.clone(),
-            ))
+            )))
         });
+        let bag_sort = RefCell::new(bag_sort::BagSort::new({
+            let bag = bag.clone();
+            Rc::new(move || match &bag {
+                None => Ok(false),
+                Some(bag) => bag.borrow_mut().carrying(),
+            })
+        }));
         // Carrying a Pokémon in the PC Box, the slot it is over says who is in it, from the save.
         // Made before the block the cursors are made in, where Python makes it inside, just before
         // them; making it reads nothing.
@@ -1963,7 +1966,7 @@ impl Gen6Profile {
             };
             let found = self.cursors.borrow_mut().poll(on_screen)?;
             let cursors;
-            (carried, cursors) = self.bag_sort.borrow_mut().poll(found, on_screen);
+            (carried, cursors) = self.bag_sort.borrow_mut().poll(found, on_screen)?;
             let mut cursors = self.mart.borrow_mut().poll(cursors)?;
             if !paged.pockets.is_empty() {
                 // The battle Bag's pockets' menu, behind an open pocket's list, is no cursor's.

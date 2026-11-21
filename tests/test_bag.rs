@@ -151,6 +151,26 @@ fn test_objects_of_other_classes_say_nothing() {
     assert_eq!(chosen.poll(&moved(0x0C, 5, &[5])).unwrap().0, nothing());
 }
 
+/// or_bag_manual_sorting: 6 the list, 7 from Y's pick-up to the drop; or_nickname_reading_
+/// regression: 12 GIVE's list, 17 its party.
+#[test]
+fn test_an_item_is_carried_while_the_bags_mode_says_so() {
+    let memory = FakeMemory::new();
+    bag_objects(&memory, 2);
+    let running: Rc<Cell<Option<i64>>> = Rc::new(Cell::new(Some(PROCESS)));
+    let mut chosen = chosen_at(&memory, {
+        let running = running.clone();
+        Rc::new(move || running.get())
+    });
+    for (mode, carrying) in [(6, false), (7, true), (12, false), (17, false)] {
+        memory.write(MAIN + 0x40, &[mode]);
+        assert_eq!(chosen.carrying().unwrap(), carrying, "mode {mode}");
+    }
+    memory.write(MAIN + 0x40, &[7]);
+    running.set(None);
+    assert!(!chosen.carrying().unwrap());
+}
+
 #[test]
 fn test_x_keeps_the_pocket_and_the_draw_object_12_bytes_sooner() {
     let memory = FakeMemory::new();

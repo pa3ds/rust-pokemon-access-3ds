@@ -53,8 +53,6 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
 
 ## Omega Ruby and Alpha Sapphire
 
-- **Sorting the Bag with Y**: picking an item up is said only at your first step, as "moving"
-  and the item.
 - **In the Y button's menu**, what Select and Start do is not said.
 - **A scene you skip** goes undescribed from there, and a description waits while the emulator is
   paused.
