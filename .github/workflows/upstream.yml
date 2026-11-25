@@ -40,16 +40,47 @@ jobs:
           PA3DS_PYTHON: upstream
           UPSTREAM_REPO: ${{ github.repository_owner }}/pokemon-access-3ds
         run: |
+          # `gh issue` goes through GitHub's GraphQL API, which once refused every edit of an
+          # issue, even a title alone, while the REST API took the same edit: each call falls
+          # back to REST (`gh api`) where `gh issue` fails, so either one working is enough.
+          # The REST payloads are built by Python, as body.md would not survive a shell quote.
+          issues="repos/$GITHUB_REPOSITORY/issues"
+          payload() {  # title, body file, labels (comma-separated, may be empty)
+            python -c 'import json, sys
+          title, body, labels = sys.argv[1:4]
+          fields = {"title": title, "body": open(body, encoding="utf-8").read()}
+          if labels:
+              fields["labels"] = labels.split(",")
+          print(json.dumps(fields))' "$1" "$2" "$3"
+          }
+          list_issues() {
+            # Oldest first: each issue's commit is the last word of its title.
+            local each='"\(.number) \(.title | split(" ") | last) \(any(.labels[]; .name == "in progress"))"'
+            gh issue list --label upstream --state open --json number,title,labels \
+                --jq "sort_by(.number)[] | $each" ||
+              gh api "$issues?labels=upstream&state=open&per_page=100" \
+                --jq "[.[] | select(.pull_request == null)] | sort_by(.number)[] | $each"
+          }
+          close_issue() {  # number, comment
+            gh issue close "$1" --comment "$2" </dev/null ||
+              { gh api -X POST "$issues/$1/comments" -f body="$2" >/dev/null &&
+                gh api -X PATCH "$issues/$1" -f state=closed -f state_reason=completed >/dev/null; }
+          }
+          edit_issue() {  # number, title, body file
+            gh issue edit "$1" --title "$2" --body-file "$3" ||
+              payload "$2" "$3" "" | gh api -X PATCH "$issues/$1" --input - >/dev/null
+          }
+          open_issue() {  # title, body file
+            gh issue create --label upstream --title "$1" --body-file "$2" ||
+              payload "$1" "$2" upstream | gh api -X POST "$issues" --input - >/dev/null
+          }
           pinned=$(python -c "import tomllib; print(tomllib.load(open('port.toml', 'rb'))['upstream'])")
           head=$(git -C upstream rev-parse HEAD)
           from=$pinned claimed="" free=""
-          # Oldest first: each issue's commit is the last word of its title.
-          gh issue list --label upstream --state open --json number,title,labels --jq \
-            'sort_by(.number)[] | "\(.number) \(.title | split(" ") | last) \(any(.labels[]; .name == "in progress"))"' \
-            > issues.txt
+          list_issues > issues.txt
           while read -r number commit taken; do
             if git -C upstream merge-base --is-ancestor "$commit" "$pinned" 2>/dev/null; then
-              gh issue close "$number" --comment "port.toml now matches upstream ${pinned:0:7}." </dev/null
+              close_issue "$number" "port.toml now matches upstream ${pinned:0:7}."
             elif [ "$taken" = true ]; then
               from=$(git -C upstream rev-parse "$commit") claimed=$number
             else
@@ -76,7 +107,7 @@ jobs:
           } > body.md
           title="Port upstream up to ${head:0:7}"
           if [ -n "$free" ]; then
-            gh issue edit "$free" --title "$title" --body-file body.md
+            edit_issue "$free" "$title" body.md
           else
-            gh issue create --label upstream --title "$title" --body-file body.md
+            open_issue "$title" body.md
           fi
