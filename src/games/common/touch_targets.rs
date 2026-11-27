@@ -511,14 +511,18 @@ impl TouchTargets {
             let offered = pictured()?;
             found.extend(self.pictures(&offered, &works, &idle, &off)?);
         }
+        // A window covers the draw list whatever its layers: another player's challenge over
+        // X's PSS hides the bars above and below the page, at layer 10 to its 1, and touch mode
+        // offered the bar's POKÉMON to OPTIONS around its Yes and No, which nothing locked
+        // (the PSS's multiplayer). Another window it covers only at its layer or under.
         if !covering.is_empty() {
             let mut kept: Vec<Target> = Vec::new();
             'found: for target in found {
                 for &(root, layer) in &covering {
                     if root != target.root
-                        && layer >= target.layer
                         && (listed.contains(&target.root)
-                            || layouts.order(root) > layouts.order(target.root))
+                            || (layer >= target.layer
+                                && layouts.order(root) > layouts.order(target.root)))
                     {
                         continue 'found;
                     }

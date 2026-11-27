@@ -2295,7 +2295,9 @@ fn test_a_window_holding_its_words_that_is_a_button_switched_on_is_a_touch_area(
 /// The PSS draws its menu, its Yes and No and its other windows itself, each over a picture as
 /// big as the screen, at the layer of its page on the field's draw list: the page's Friends was
 /// offered under each, and a tap on it did nothing (or_pss_singleplayer). The field menu, at a
-/// higher layer, is drawn over them; with no window up the page is offered.
+/// higher layer, is drawn under them too: another player's challenge hid its bars, and the bars'
+/// buttons, which nothing locked, were offered around its Yes and No (the PSS's multiplayer).
+/// With no window up the page is offered.
 #[test]
 fn test_a_window_drawn_off_the_draw_list_over_a_backdrop_covers_the_page_under_it() {
     let memory = FakeMemory::new();
@@ -2415,7 +2417,7 @@ fn test_a_window_drawn_off_the_draw_list_over_a_backdrop_covers_the_page_under_i
             .map(|t| t.name)
             .collect()
     };
-    assert_eq!(names(&mut targets), ["Yes", "POKÉMON"]);
+    assert_eq!(names(&mut targets), ["Yes"]);
     // A window built after it covers it too: the Shout-Out's Yes and No over the menu.
     let (later_work, later) = fake.screen_with(0x08500000, false, false);
     memory.write(later_work + lyt::WORK_LAYER, &1u16.to_le_bytes());
@@ -2455,7 +2457,7 @@ fn test_a_window_drawn_off_the_draw_list_over_a_backdrop_covers_the_page_under_i
         .borrow_mut()
         .push(text_in(later + 0x2200, "No", later));
     fake.layouts.refresh();
-    assert_eq!(names(&mut targets), ["No", "POKÉMON"]);
+    assert_eq!(names(&mut targets), ["No"]);
     fake.visible(later + 0x1000, false);
     fake.visible(window + 0x1000, false);
     fake.layouts.refresh();
