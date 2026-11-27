@@ -100,6 +100,8 @@ pub struct Spot {
     pub y: f64,
     pub anchor: i64,
     pub root: i64,
+    /// Its button had words of its own on screen as it was found (`PictureCursors`).
+    pub worded: bool,
 }
 
 /// What the Python keeps as `where: object`: where a cursor was when it last said an item, a place

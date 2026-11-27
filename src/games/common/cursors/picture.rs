@@ -29,6 +29,8 @@ pub struct PictureCursors {
     spots: IndexMap<i64, Spot>,
     /// Cursor picture -> polls in a row it has not been found on a pane.
     missed: IndexMap<i64, i64>,
+    /// Cursor picture -> the worded button it stayed on as that went (`_held`).
+    holding: IndexMap<i64, Spot>,
 }
 
 impl PictureCursors {
@@ -39,6 +41,7 @@ impl PictureCursors {
             said,
             spots: IndexMap::new(),
             missed: IndexMap::new(),
+            holding: IndexMap::new(),
         }
     }
 
@@ -59,9 +62,11 @@ impl PictureCursors {
         for marker in gone {
             self.spots.shift_remove(&marker);
             self.missed.shift_remove(&marker);
+            self.holding.shift_remove(&marker);
             self.said.forget(marker);
         }
         for (&marker, &top) in &markers {
+            let last = self.spots.get(&marker).copied();
             let Some(spot) = self.spot(marker, top, on_screen)? else {
                 // A pane read mid-update can sit 1,000 units off for one poll (spike 50): a
                 // cursor lost for one poll is not taken for one gone, and said again.
@@ -73,11 +78,34 @@ impl PictureCursors {
                 continue;
             };
             self.missed.insert(marker, 0);
-            let item = self.item(&spot, top, on_screen)?;
-            self.said
-                .report(marker, item, items, Where::Pane(spot.anchor), false);
+            if !self.held(marker, &spot, last) {
+                let item = self.item(&spot, top, on_screen)?;
+                self.said
+                    .report(marker, item, items, Where::Pane(spot.anchor), false);
+            }
         }
         Ok(markers)
+    }
+
+    /// Whether a cursor is kept unsaid on a button of no words found under it where a worded
+    /// one of another layout went, until it moves or finds words. Answered, X's forfeit
+    /// question went from over the command menu, and the cursor left on YES was said "poke" on
+    /// the menu's button there, a poll before it moved back to RUN, or as the last word before
+    /// the match was forfeited (the PSS's multiplayer).
+    fn held(&mut self, marker: i64, spot: &Spot, last: Option<Spot>) -> bool {
+        let held = self.holding.get(&marker).copied().or(last);
+        let Some(held) = held.filter(|held| {
+            !spot.worded
+                && held.worded
+                && held.root != spot.root
+                && near(held.x, spot.x)
+                && near(held.y, spot.y)
+        }) else {
+            self.holding.shift_remove(&marker);
+            return false;
+        };
+        self.holding.insert(marker, held);
+        true
     }
 
     /// Cursor picture -> on the top screen, for every small picture alone in a layout shown.
@@ -166,6 +194,7 @@ impl PictureCursors {
                         y,
                         anchor: pane,
                         root,
+                        worded: false,
                     });
                     break;
                 }
@@ -180,13 +209,20 @@ impl PictureCursors {
         // the cursor on YES was said "poke" whenever the menu came first (the PSS's multiplayer).
         // Taking the layout drawn over instead flipped the move-learning screen's return between
         // two layouts as they were taken in again, its details said again at each.
-        let mut taken = found[0];
+        let mut worded: Option<Spot> = None;
         for &spot in &found {
             if self.worded(&spot, on_screen)? {
-                taken = spot;
+                worded = Some(spot);
                 break;
             }
         }
+        let taken = match worded {
+            None => found[0],
+            Some(worded) => Spot {
+                worded: true,
+                ..worded
+            },
+        };
         self.spots.insert(marker, taken);
         Ok(Some(taken))
     }

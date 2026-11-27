@@ -1013,13 +1013,9 @@ fn test_a_picture_cursor_on_a_buttons_pane_says_the_words_of_its_picture() {
     assert_eq!(Battle::new().heard(), said(&[(&["fight"], true)]));
 }
 
-/// X's forfeit question puts YES and NO over the command menu, and the cursor on YES was said
-/// "poke" a second after "YES", or at once: its spot was looked for in whichever layout came
-/// first, and the menu has a button's pane there too (the PSS's multiplayer). The button with
-/// words of its own is the one the cursor is on.
-#[test]
-fn test_a_picture_cursor_on_a_question_over_its_menu_says_the_questions_answer() {
-    let mut battle = Battle::new();
+/// X's forfeit question over the command menu, its YES's pane where FIGHT's is: its work, and
+/// YES's words.
+fn forfeit(battle: &Battle) -> (i64, ScreenText) {
     let question = 0x14700000;
     let (work, root) = battle.fake.screen_with(question, false, false);
     battle.fake.project(work, 320.0);
@@ -1033,11 +1029,42 @@ fn test_a_picture_cursor_on_a_question_over_its_menu_says_the_questions_answer()
     battle.fake.pane(group + 0x400, group);
     battle.name(group + 0x400, "6");
     battle.fake.track().unwrap();
-    let yes = ScreenText {
-        root,
-        ..ScreenText::placed(group + 0x400, "YES", false, 20.0, 60.0, 12.0, 12.5)
-    };
+    (
+        work,
+        ScreenText {
+            root,
+            ..ScreenText::placed(group + 0x400, "YES", false, 20.0, 60.0, 12.0, 12.5)
+        },
+    )
+}
+
+/// X's forfeit question puts YES and NO over the command menu, and the cursor on YES was said
+/// "poke" a second after "YES", or at once: its spot was looked for in whichever layout came
+/// first, and the menu has a button's pane there too (the PSS's multiplayer). The button with
+/// words of its own is the one the cursor is on.
+#[test]
+fn test_a_picture_cursor_on_a_question_over_its_menu_says_the_questions_answer() {
+    let mut battle = Battle::new();
+    let (_, yes) = forfeit(&battle);
     assert_eq!(battle.heard_with(&[yes]), said(&[(&["YES"], true)]));
+}
+
+/// Answered, the forfeit question went from over the command menu, and the cursor left on
+/// YES was said "poke" on the menu's button there, a poll before it moved back to RUN, or as
+/// the last word before the match was forfeited (the PSS's multiplayer). A cursor that has not
+/// moved is not said on a button of no words where another layout's words went; moved, it is.
+#[test]
+fn test_a_cursor_left_where_the_answer_went_is_not_said_on_the_menu_under_it() {
+    let mut battle = Battle::new();
+    let (work, yes) = forfeit(&battle);
+    assert_eq!(battle.heard_with(&[yes]), said(&[(&["YES"], true)]));
+    battle.fake.draw_with(work, false, true);
+    assert!(battle.heard().is_empty());
+    assert!(battle.heard().is_empty());
+    battle.r#move(-128.0, -70.0);
+    assert_eq!(battle.heard(), said(&[(&["bag"], false)]));
+    battle.r#move(39.0, 12.0);
+    assert_eq!(battle.heard(), said(&[(&["fight"], false)]));
 }
 
 #[test]

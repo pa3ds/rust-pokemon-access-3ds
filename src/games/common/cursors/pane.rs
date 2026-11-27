@@ -221,6 +221,7 @@ impl CursorPanes {
                             y,
                             anchor: pane,
                             root,
+                            worded: false,
                         },
                     ));
                 }
@@ -232,6 +233,7 @@ impl CursorPanes {
                 y,
                 anchor: 0,
                 root: 0,
+                worded: false,
             });
         };
         // `min(fits, key=...)`: the first of the least.
