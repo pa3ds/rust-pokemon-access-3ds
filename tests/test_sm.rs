@@ -20,11 +20,11 @@ use crate::core::words::{self, ENGLISH, Words};
 use crate::games::common::announce::{Focus, SPEAKER_POLLS};
 use crate::games::common::msgwin as common_msgwin;
 use crate::games::common::screen::ScreenText;
-use crate::games::common::screen_order::join;
+use crate::games::common::screen_order::{in_rows, join};
 use crate::games::common::session::Profile;
 use crate::games::sm::heaps::{self, Blocks, Heaps};
 use crate::games::sm::langselect::{self, LangSelectReader, Shown};
-use crate::games::sm::profile::{SunProfile, counted_rows, words_apart};
+use crate::games::sm::profile::{SunProfile, counted_rows, labelled_rows, words_apart};
 use crate::games::sm::shop::{self, ShopReader};
 use crate::games::sm::text::SunText;
 use crate::games::sm::{SUN_LAYOUT, ULTRA_LAYOUT, VersionLayout, apps, field, msgwin, talk};
@@ -663,6 +663,47 @@ fn test_a_word_and_a_number_drawn_touching_are_said_apart_and_a_level_mark_is_no
     assert_eq!(
         joined,
         ["Height 1'00\"", "Weight 3.3 lbs.", "001 Rowlet", "L5"]
+    );
+}
+
+/// The PC Box's summary as Route 1's Center drew it (spike Q): labels built first, values
+/// after, two stat columns on one set of rows, HP's 15/33 a group of its own, the moves a group
+/// each beside the values of Nature and Ability.
+#[test]
+fn test_the_pc_box_summary_reads_each_value_after_its_label() {
+    let (stats, hp, moves) = (0x1338, 0xE530, 0x1B510);
+    let pieces: [(&str, i64, f64, f64); 14] = [
+        ("Name", stats, -198.0, 64.0),
+        ("HP", stats, -198.0, -1.0),
+        ("Attack", stats, -198.0, -21.0),
+        ("Sp. Atk", stats, -77.0, -1.0),
+        ("Nature", stats, -198.0, -66.0),
+        ("/", stats, -128.0, -1.0),
+        ("15", hp, -143.0, -1.0),
+        ("33", hp, -107.0, -1.0),
+        ("13", stats, -107.0, -21.0),
+        ("16", stats, 3.0, -1.0),
+        ("Rowlet", stats, -27.0, 64.0),
+        ("Timid", stats, -20.0, -66.0),
+        ("Moves Learned", stats, 54.0, -25.0),
+        ("Leafage", moves, 146.0, -66.0),
+    ];
+    let texts: Vec<ScreenText> = pieces
+        .iter()
+        .enumerate()
+        .map(|(n, &(text, parent, left, row))| ScreenText {
+            left,
+            right: left + 6.0 * text.chars().count() as f64,
+            row,
+            glyph: 12.0,
+            root: 0x30AECA7C,
+            parent,
+            ..ScreenText::new(n as i64 + 1, text, false)
+        })
+        .collect();
+    assert_eq!(
+        join(&in_rows(labelled_rows(&texts)), false),
+        "Name Rowlet HP 15/33 Attack 13 Sp. Atk 16 Nature Timid Moves Learned Leafage"
     );
 }
 

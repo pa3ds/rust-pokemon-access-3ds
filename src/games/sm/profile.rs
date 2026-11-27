@@ -92,6 +92,8 @@ pub const REQUIRED: [&str; 2] = msgwin::CLASSES;
 pub const POKEDEX: &str = "N3app5zukan9ZukanProcE";
 /// The battle's app, as `apps` names it: the moment a trainer's tray is looked for from.
 pub const BATTLE: &str = "N3btl10BattleProcE";
+/// The PC Box's app, as `apps` names it.
+pub const BOX_APP: &str = "N3App3Box4ProcE";
 /// Polls a Pokédex cursor's item must stand with no newer one before it is said.
 pub const SETTLE: i64 = 3;
 /// The most pieces one Pokédex item holds: its first menu's, "Alola Pokédex 3 9", three.
@@ -572,8 +574,11 @@ impl SunProfile {
                 })
                 .cloned()
                 .collect();
-            let texts = if self.app.borrow().as_deref() == Some(POKEDEX) {
+            let app = self.app.borrow().clone();
+            let texts = if app.as_deref() == Some(POKEDEX) {
                 counted_rows(&texts)?
+            } else if app.as_deref() == Some(BOX_APP) {
+                labelled_rows(&texts)
             } else {
                 texts
             };
@@ -726,6 +731,53 @@ pub fn words_apart(found: IndexMap<i64, ScreenText>) -> IndexMap<i64, ScreenText
                 ..second.clone()
             },
         );
+    }
+    out
+}
+
+/// Each piece read straight after the one left of it on its row (`ScreenText.follows`): the
+/// PC Box's summary builds its labels first and its values after, and read them so, "Name Type OT
+/// Rowlet rewq HP Attack ... 15/33 13 14" (spike Q).
+pub fn labelled_rows(texts: &[ScreenText]) -> Vec<ScreenText> {
+    let left_of = |piece: &ScreenText| -> Option<&ScreenText> {
+        // `max(row, key=left, default=None)`: the first of equals.
+        let mut best: Option<&ScreenText> = None;
+        for other in texts {
+            if other.root == piece.root
+                && other.glyph > 0.0
+                && piece.glyph > 0.0
+                && other.left < piece.left
+                && (other.row - piece.row).abs() < piece.glyph / 2.0
+                && best.is_none_or(|best| other.left > best.left)
+            {
+                best = Some(other);
+            }
+        }
+        best
+    };
+    let worded = |piece: &ScreenText| piece.text.chars().any(py::is_alpha);
+
+    // A value follows its label, a word of its own group, and a number or a "/" whatever is left
+    // of it: HP's 15 and 33 are a group of their own. The moves, a group each, beside Timid and
+    // Overgrow, and Sp. Atk right of Defense's 14, are read where they were built.
+    let mut out: Vec<ScreenText> = Vec::new();
+    for piece in texts {
+        let before = if piece.follows != 0 {
+            None
+        } else {
+            left_of(piece)
+        };
+        match before {
+            Some(before)
+                if (worded(before) && before.parent == piece.parent) || !worded(piece) =>
+            {
+                out.push(ScreenText {
+                    follows: before.r#box,
+                    ..piece.clone()
+                });
+            }
+            _ => out.push(piece.clone()),
+        }
     }
     out
 }
