@@ -1090,6 +1090,7 @@ impl TouchTargets {
                 let group = &groups[&touch];
                 let pane = layouts.pane(touch)?;
                 let (x, y) = pixel(&pane, &shape, root_x, root_y)?;
+                let on_screen = (0..WIDTH).contains(&x) && (0..HEIGHT).contains(&y);
                 // A button with words of its own is named by them or not at all: the Bag's rows
                 // all draw `bar1.bclim`, and an empty row was said by the one row's item
                 // (movie21).
@@ -1154,10 +1155,14 @@ impl TouchTargets {
                         continue;
                     }
                     names.insert(touch, slot.1);
-                } else if !worded && u32(&layouts.pane(touch)?, lyt::PARENT)? != root {
+                } else if !worded && on_screen && u32(&layouts.pane(touch)?, lyt::PARENT)? != root
+                {
                     // A touch area hanging straight from the root has no button of its own, and
                     // the pictures over it are the screen's: the Battle Box's slots, left on
-                    // under BOX 1, were said by its wallpaper, "line pattern" (movie22).
+                    // under BOX 1, were said by its wallpaper, "line pattern" (movie22). One off
+                    // the screen is not offered, so not guessed at: X's field menu keeps a
+                    // button at (340, 70) until it slides in, and every run logged a word made
+                    // for its `shadow.bclim`.
                     // Python's `next` over a generator: the first picture's texture ends the look,
                     // and no picture after it has its name read.
                     let mut texture: Option<String> = None;
@@ -1203,7 +1208,7 @@ impl TouchTargets {
                         names.insert(touch, picture);
                     }
                 }
-                if !((0..WIDTH).contains(&x) && (0..HEIGHT).contains(&y)) {
+                if !on_screen {
                     continue;
                 }
                 let (width, height) = (f32(&pane, shape.width)?, f32(&pane, shape.height)?);
