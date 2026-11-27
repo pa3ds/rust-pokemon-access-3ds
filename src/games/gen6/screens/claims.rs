@@ -14,11 +14,12 @@
 //! - **A button's words** are left to whoever says them as the player meets the button, on the
 //!   screens whose rule says so (`ButtonRule`, `RULES`): on the field's bottom screen and the PSS's
 //!   own apps, touch mode, which says each as its target (`buttons`); in the Pokédex, its cursors,
-//!   which say each as a menu's item, its registration's captions going with them. They are left out
-//!   as they come on screen and kept out of a screen coming back (`Heard.quiet`); words changing in
-//!   one button are still said, "Game Chat: Disabled", unless a page of them turns. Only as they
-//!   come: they are still heard on the screen, and Amie's Switch screen reads each Pokémon's
-//!   Fullness and Enjoyment from them, as details.
+//!   which say each as a menu's item, its registration's captions going with them, but for X's
+//!   regions, which no cursor says (`ButtonRule.said`). They are left out as they come on screen
+//!   and kept out of a screen coming back (`Heard.quiet`); words changing in one button are still
+//!   said, "Game Chat: Disabled", unless a page of them turns. Only as they come: they are still
+//!   heard on the screen, and Amie's Switch screen reads each Pokémon's Fullness and Enjoyment from
+//!   them, as details.
 //!
 //! What is left is a `Heard`, which the announcer says (`ScreenAnnouncer.say`), once the cursor
 //! sources have had the last word on it (`CursorSources.said`). The claims are a union, so their
@@ -29,7 +30,8 @@
 //! - ADR-0013: on the field's bottom screen and the PSS's apps a button's words are touch mode's,
 //!   but for words changing in one button, a layout a cursor is over on the field, and a large touch
 //!   area, a window onto the screen; a page turned is left to touch mode too. The Pokédex's are its
-//!   cursors', the registration's "Rotate" and "Zoom" with them (amended 2026-11-24).
+//!   cursors', the registration's "Rotate" and "Zoom" with them, and X's regions screen text's
+//!   until a cursor of theirs is found (amended 2026-11-24).
 
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
@@ -61,6 +63,9 @@ pub struct ButtonRule {
     /// (layout file, pane name) of words no button's that are left unsaid with them, as captions
     /// of the pictures over its buttons.
     pub unsaid: &'static [(&'static str, &'static str)],
+    /// Layout files whose buttons' words stay screen text's, where no cursor says them: a cursor
+    /// leaves a menu unsaid only while it speaks the item under it.
+    pub said: &'static [&'static str],
 }
 
 impl Default for ButtonRule {
@@ -83,21 +88,23 @@ pub const RULES: [(&str, ButtonRule); 3] = [
     ),
     // The Pokédex's buttons are menu items its cursors say: the choices read
     // "HOENN POKÉDEX Number caught: 36 Number seen: 181 NATIONAL POKÉDEX…" as it opened, and the
-    // cursor the first again (or_pokedex), X its three regions' counts (x_pokedex). Its
-    // registration's Next, and "Rotate" and "Zoom" over the model's four arrows, followed the
-    // entry (or_groudon_master_ball).
+    // cursor the first again (or_pokedex), and X its list's numbers before its cursor said the
+    // entry (x_pokedex). Its registration's Next, and "Rotate" and "Zoom" over the model's four
+    // arrows, followed the entry (or_groudon_master_ball). X's regions, with their counts, have
+    // no cursor found, and stay screen text's.
     (
         pokedex::ORAS_APP,
         ButtonRule {
             cursor_keeps: true,
-            pages: true,
             unsaid: &pokedex::CAPTIONS,
+            ..PSS
         },
     ),
     (
         pokedex::APP,
         ButtonRule {
             cursor_keeps: true,
+            said: &[pokedex::REGIONS],
             ..PSS
         },
     ),
@@ -111,6 +118,7 @@ pub const PSS: ButtonRule = ButtonRule {
     cursor_keeps: false,
     pages: true,
     unsaid: &[],
+    said: &[],
 };
 
 /// The rule of the app running, or None where its buttons' words are screen text's.
@@ -202,6 +210,15 @@ impl Claims {
                         && rule.unsaid.iter().any(|&(f, p)| f == file && p == pane)
                     {
                         buttons.insert(piece.r#box);
+                    }
+                }
+            }
+            if !rule.said.is_empty() {
+                for piece in &screen.on_screen {
+                    if let Some((file, _pane)) = (self.named)(piece)
+                        && rule.said.iter().any(|said| *said == file)
+                    {
+                        buttons.remove(&piece.r#box);
                     }
                 }
             }

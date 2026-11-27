@@ -339,6 +339,43 @@ fn test_the_pokedexs_buttons_words_are_left_to_its_cursors() -> Result<()> {
     Ok(())
 }
 
+/// ADR-0013, amended 2026-11-24: the Pokédex's choices may go unsaid only as long as the item
+/// under its cursor is said, and X's regions have no cursor found: "CENTRAL KALOS POKÉDEX 14
+/// COASTAL KALOS POKÉDEX 5…" is still said as the Pokédex opens (x_pokedex). Its list's numbers,
+/// which its cursor says, still go.
+#[test]
+fn test_xs_regions_stay_screen_text_while_no_cursor_says_them() -> Result<()> {
+    let central = shown(1, "CENTRAL KALOS POKÉDEX", MENU);
+    let coastal = bottom(2, "COASTAL KALOS POKÉDEX", MENU, 100.0, false);
+    let number = shown(3, "001", PAGE);
+    let rule = claims::rule(Some(pokedex::APP), &|| false);
+    let pane = |file: &str, name: &str| (file.to_string(), name.to_string());
+    let named = HashMap::from([
+        (1, pane(pokedex::REGIONS, "f")),
+        (2, pane(pokedex::REGIONS, "r")),
+        (3, pane("list_lower.bclyt", "a")),
+    ]);
+    let heard = field_named(&Buttons::new(&[1, 2, 3]), rule, named.clone()).poll(
+        &poll(&[central.clone(), coastal.clone(), number]),
+        &polled(&[]),
+        &no_labels(),
+    )?;
+    assert_eq!(heard.texts, [central.clone(), coastal.clone()]);
+    assert_eq!(heard.quiet, HashSet::from([3]));
+    let ruled = field_named(
+        &Buttons::new(&[1, 2]),
+        claims::rule(Some(pokedex::ORAS_APP), &|| false),
+        named,
+    );
+    assert!(
+        ruled
+            .poll(&poll(&[central, coastal]), &polled(&[]), &no_labels())?
+            .texts
+            .is_empty()
+    );
+    Ok(())
+}
+
 /// The registration said "Rotate Zoom Next" after each entry (or_groudon_master_ball): Next is
 /// a button, and "Rotate" and "Zoom" hang from pictures over the model's four arrows, touch areas
 /// with no words of their own. The entry beside them is still said.

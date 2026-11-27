@@ -60,6 +60,10 @@ pub const REGISTRATION: &str = "description_lower.bclyt";
 /// arrows, touch areas with no words of their own: no button's words, but said as they came with
 /// Next's as "Rotate Zoom Next" (`claims.RULES`).
 pub const CAPTIONS: [(&str, &str); 2] = [(REGISTRATION, "3s"), (REGISTRATION, "3w")];
+/// X's choice of the Central, Coastal and Mountain Pokédex, each with its count, as its Pokédex
+/// opens: buttons, but no cursor of theirs is found, so their words stay screen text's
+/// (`claims.RULES`; x_pokedex).
+pub const REGIONS: &str = "top_lower.bclyt";
 /// The Pokédex's process -> `app::sango_zukan::ZukanLaunch`, its list.
 pub const LAUNCH: i64 = 0xC8;
 pub const LAUNCH_CLASS: &str = "N3app11sango_zukan11ZukanLaunchE";
