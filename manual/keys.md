@@ -102,6 +102,11 @@ Super Training, the PSS's profile, and the screen after a trade or battle online
 whether to register someone as a friend. Elsewhere, in the Bag, the PC or a battle, the game's
 own buttons do everything a touch does, and touch mode says "nothing to touch".
 
+On the map, the words on the bottom screen's buttons are not read out as they appear, as the
+PlayNav's three choices or the PSS's Friends, Acquaintances and Passersby were: touch mode says
+each button as you come to it. A question, a description or a count is still read, and so is a
+button whose words change, as "Game Chat: Disabled" after you change it.
+
 | Key | What it does |
 |---|---|
 | `J` and `L` | Previous and next button. |

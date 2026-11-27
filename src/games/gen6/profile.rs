@@ -349,6 +349,8 @@ pub struct Gen6Profile {
     pub footsteps: Option<RefCell<Footsteps>>,
     /// Python's `self.touch` is the navigator's `touch`, which it owns here.
     pub navigator: RefCell<Navigator>,
+    /// The touch targets touch mode walks, asked which words name a button (`button_words`).
+    touch_targets: Rc<RefCell<TouchTargets>>,
     log: Log,
     speech: Rc<Speech>,
     /// The Dowsing Machine's lights, in a game where they have been measured.
@@ -1145,6 +1147,7 @@ impl Gen6Profile {
                 }),
             },
         )));
+        let touch_targets = targets.clone();
         let touch = TouchMode::new(
             Rc::new(move || targets.borrow_mut().targets()),
             log.clone(),
@@ -1406,6 +1409,7 @@ impl Gen6Profile {
             map_cursor: RefCell::new(map_cursor),
             footsteps,
             navigator: RefCell::new(navigator),
+            touch_targets,
             log,
             speech,
             dowsing,
@@ -1974,6 +1978,29 @@ impl Gen6Profile {
             {
                 texts.push(text.clone());
             }
+        }
+        // The field's bottom screen is touched, never walked with a cursor: a button's words are
+        // touch mode's, which says them as each target. Read as they came, the PSS said "Friends
+        // Acquaintances Passersby" each time it came back, and its menu "Battle Trade Battle Spot"
+        // (or_pss_singleplayer). Words changing in a button are still said: "Game Chat:
+        // Disabled". Not a cursor's: the X menu's are its items. Only as they come: what the
+        // screen announcer hears whole, Amie's Switch screen read each Pokémon's Fullness and
+        // Enjoyment from, as details.
+        let on_field = self.apps.borrow().running.as_deref() == Some(FIELD);
+        if on_field && texts.iter().any(|t| !t.top && !t.changed) {
+            let buttons = self.touch_targets.borrow_mut().button_words()?;
+            let cursored: HashSet<i64> = cursors
+                .under
+                .iter()
+                .flatten()
+                .map(|piece| piece.root)
+                .collect();
+            texts.retain(|text| {
+                text.top
+                    || text.changed
+                    || !buttons.contains(&text.r#box)
+                    || cursored.contains(&text.root)
+            });
         }
         let mut title = polled.title;
         if self.after_forget.get().is_some() {
