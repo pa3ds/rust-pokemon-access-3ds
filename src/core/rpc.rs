@@ -42,7 +42,7 @@ pub const DEFAULT_PORT: u16 = 45987;
 /// The environment variable an `Rpc` given no port takes its port from, before `DEFAULT_PORT`.
 /// The replay rig sets it to its own port as it is imported (`spikes/rig.py`), so a spike that boots
 /// the rig reads the rig and never the player's own Azahar beside it. The runtime always names its
-/// port (`--port`), so this never reaches a player.
+/// port (`--rpc-port`), so this never reaches a player.
 pub const PORT_VARIABLE: &str = "PA3DS_RPC_PORT";
 pub const MAX_PROCESSES: i64 = (MAX_READ - 4) / PROCESS_INFO_SIZE as i64;
 /// Windows in a row that may go unanswered before `read_many` gives up on the emulator.

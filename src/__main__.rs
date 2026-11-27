@@ -57,7 +57,7 @@ fn describe(text: &str) {
 struct Args {
     silent: bool,
     seconds: Option<f64>,
-    port: u16,
+    rpc_port: u16,
     no_keys: bool,
     rom: Option<PathBuf>,
     no_log: bool,
@@ -65,8 +65,8 @@ struct Args {
 }
 
 fn usage() -> String {
-    "usage: pa3ds [-h] [--silent] [--seconds SECONDS] [--port PORT] [--no-keys] [--rom PATH]\n\
-     \x20            [--no-log | --log-path PATH]"
+    "usage: pa3ds [-h] [--silent] [--seconds SECONDS] [--rpc-port RPC_PORT]\n\
+     \x20            [--no-keys] [--rom PATH] [--no-log | --log-path PATH]"
         .to_string()
 }
 
@@ -78,7 +78,8 @@ fn help() -> Result<String, String> {
          \x20 --silent         log what would be said, say nothing\n\
          \x20 --seconds SECONDS\n\
          \x20                  stop after this many seconds\n\
-         \x20 --port PORT      the emulator's RPC port\n\
+         \x20 --rpc-port RPC_PORT\n\
+         \x20                  the emulator's RPC port\n\
          \x20 --no-keys        answer no keys and patch no buttons, whatever the settings say\n\
          \x20 --rom PATH       your decrypted ROM, for the game's own names of places and the\n\
          \x20                  rival; by default pa3ds finds it among the ROMs Azahar has opened\n\
@@ -100,7 +101,7 @@ fn help() -> Result<String, String> {
 
 fn parse(argv: &[String]) -> Result<Args, String> {
     let mut args = Args {
-        port: DEFAULT_PORT,
+        rpc_port: DEFAULT_PORT,
         ..Args::default()
     };
     let mut at = 0;
@@ -132,12 +133,12 @@ fn parse(argv: &[String]) -> Result<Args, String> {
                         format!("argument --seconds: invalid float value: '{text}'")
                     })?);
             }
-            "--port" => {
+            "--rpc-port" => {
                 let text = take(&mut at)?;
-                args.port = text
+                args.rpc_port = text
                     .trim()
                     .parse()
-                    .map_err(|_| format!("argument --port: invalid int value: '{text}'"))?;
+                    .map_err(|_| format!("argument --rpc-port: invalid int value: '{text}'"))?;
             }
             "--rom" => args.rom = Some(PathBuf::from(take(&mut at)?)),
             "--log-path" => args.log_path = Some(PathBuf::from(take(&mut at)?)),
@@ -291,7 +292,7 @@ fn run(args: Args, hooks: &Hooks) -> py::Result<()> {
     };
     let started = time::monotonic();
     let deadline = args.seconds.map(|seconds| started + seconds);
-    let rpc: Rc<dyn Rpc> = Rc::new(UdpRpc::connect(args.port)?);
+    let rpc: Rc<dyn Rpc> = Rc::new(UdpRpc::connect(args.rpc_port)?);
 
     let log: Log = {
         let log_file = log_file.clone();
