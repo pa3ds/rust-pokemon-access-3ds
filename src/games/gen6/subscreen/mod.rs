@@ -1061,7 +1061,7 @@ impl Subscreens {
     }
 
     /// Whether one of Amie's games runs, each timing the player, whose clock is said only at
-    /// its marks (`screen_announce`).
+    /// its marks (`common.clocks`).
     pub fn timed(&self) -> bool {
         self.running()
             .as_deref()
@@ -1069,13 +1069,13 @@ impl Subscreens {
     }
 
     /// Whether one of Amie's games is mid-play, its numbers the play's and left unsaid
-    /// (`screen_announce`): a Tile Puzzle with a piece away from home.
+    /// (`common.clocks`): a Tile Puzzle with a piece away from home.
     pub fn playing(&self) -> Result<bool> {
         Ok(self.running().as_deref() == Some(puzzle::APP) && self.puzzle.borrow().playing()?)
     }
 
     /// Whether words on the screen are a game's score, what comes at every hit or miss, left
-    /// unsaid unless the player asks and never a clock (`screen_announce`): Head It's score, its
+    /// unsaid unless the player asks and never a clock (`common.clocks`): Head It's score, its
     /// "79-HIT COMBO" and its "MISS!", which at a long Unlimited round's pace, a ball a second,
     /// queued up behind the balls' names, so that the names came later and later (players,
     /// 2026-11-04; spike 273's `--again`). Not its chances left, "Chances:2", nor its clock.

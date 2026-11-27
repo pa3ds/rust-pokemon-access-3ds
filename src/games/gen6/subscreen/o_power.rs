@@ -17,7 +17,7 @@
 //! The powers running are words of the top screen's Active panel, `assist_power_upper.bclyt`, up
 //! while the PSS is: "Active", the kind of power, and a row for each, "Hatching Power", "Lv. 1",
 //! "02:58", its time left ticking each second, left unsaid as a clock's tick
-//! (`common.screen_announce`). With field and battle powers both running, the panel turns between
+//! (`common.clocks`). With field and battle powers both running, the panel turns between
 //! a page of each every six seconds by itself, its rows written again into the same TextBoxes
 //! (or_pss_o_power_2): each page is kept as it shows (`poll`). R says the energy and then each page
 //! while O-Power's list or the panel is up, the energy first, a page not showing as it last showed,
@@ -36,7 +36,7 @@ use crate::core::binary::u32;
 use crate::core::memory::Memory;
 use crate::core::words::own;
 use crate::games::common::screen::{ScreenText, distinct, in_rows, join};
-use crate::games::common::screen_announce::CLOCK;
+use crate::games::common::clocks::CLOCK;
 use crate::games::common::touch::{FileOf, OnScreen};
 use crate::py::{self, Result};
 

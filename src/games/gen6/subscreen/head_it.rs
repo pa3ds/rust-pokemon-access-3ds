@@ -575,7 +575,7 @@ impl HeadIt {
     }
 
     /// Whether words on the screen are the round's score, its combo or a "MISS!": what comes
-    /// at every ball (`screen_announce`).
+    /// at every ball (`common.clocks`).
     pub fn scored(&self, piece: &ScreenText, running: Option<&str>) -> Result<bool> {
         if running != Some(APP) {
             return Ok(false);

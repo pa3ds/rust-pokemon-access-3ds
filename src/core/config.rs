@@ -172,7 +172,7 @@ pub struct Audio {
     pub tones: f64,
     pub footsteps: f64,
     /// A tone at each tick of a game's clock, which is said only at its marks
-    /// (`screen_announce`, `tones.ticking`); off until a player asks.
+    /// (`common.clocks`, `tones.ticking`); off until a player asks.
     pub ticks: f64,
     /// The game's own sounds for what a key has done: its touch sounds as a drag is picked up and
     /// let go of, in place of "holding" and "let go on", which slowed a timed game,

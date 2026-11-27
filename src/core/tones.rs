@@ -216,7 +216,7 @@ fn locked(voice: &Mutex<Voice>) -> MutexGuard<'_, Voice> {
     voice.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
-/// A game's clock's tick as a tone in the middle, 440 Hz (`ScreenAnnouncer`): the lowest,
+/// A game's clock's tick as a tone in the middle, 440 Hz (`Clocks`): the lowest,
 /// an octave under it, was hard to hear even at 1.5.
 pub fn ticking(tones: Option<Rc<Tones>>) -> Option<Rc<dyn Fn()>> {
     let tones = tones?;

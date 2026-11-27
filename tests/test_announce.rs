@@ -11,11 +11,12 @@ use crate::core::speech::{Category, Speech};
 use crate::games::common::announce::{Announcements, FOCUS_HEARD_POLLS, Focus, SPEAKER_POLLS};
 use crate::games::common::battle::Battler;
 use crate::games::common::cursors::shared::{CursorItem, CursorPoll};
+use crate::games::common::clocks::{CLOCK_POLLS, Clocks, Scored};
 use crate::games::common::dialogue::{PageShown, Shown};
 use crate::games::common::screen::{ScreenPoll, ScreenText};
 use crate::games::common::screen_announce::{
-    ARRIVAL_MAX_POLLS, CLOCK_POLLS, CURSOR_HEARD_POLLS, DETAIL_MAX_POLLS, DETAIL_POLLS,
-    Heard, LABEL_POLLS, PLACE_POLLS, REPEAT_POLLS, Scored, ScreenAnnouncer,
+    ARRIVAL_MAX_POLLS, CURSOR_HEARD_POLLS, DETAIL_MAX_POLLS, DETAIL_POLLS, Heard, LABEL_POLLS,
+    PLACE_POLLS, REPEAT_POLLS, ScreenAnnouncer,
 };
 use crate::py::{Log, Result};
 
@@ -179,15 +180,18 @@ impl Screen {
         score_said: bool,
     ) -> Self {
         let backend = Recorder::new();
-        let announcer = ScreenAnnouncer::with_clock(
+        let announcer = ScreenAnnouncer::with_clocks(
             Rc::new(Speech::plain(backend.clone())),
             Rc::new(|_line: &str| {}),
             pauses,
-            tick,
-            Some(Rc::new(move || timed)),
-            playing,
-            scored,
-            score_said,
+            Some(Clocks::with(
+                Rc::new(|_line: &str| {}),
+                tick,
+                Some(Rc::new(move || timed)),
+                playing,
+                scored,
+                score_said,
+            )),
         );
         Screen { backend, announcer }
     }

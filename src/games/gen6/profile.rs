@@ -42,6 +42,7 @@ use crate::core::tones::{Tones, beeps, ticking};
 use crate::core::touch::TouchScreen;
 use crate::core::words::{current, own};
 use crate::games::common::announce::{Announcements, Speaker};
+use crate::games::common::clocks::Clocks;
 use crate::games::common::cursors::menu::Blank;
 use crate::games::common::cursors::reader::CursorReader;
 use crate::games::common::cursors::shared::{Rect, Slot};
@@ -1217,24 +1218,27 @@ impl Gen6Profile {
                 ]
             }
         };
-        let screen_announcer = ScreenAnnouncer::with_clock(
+        let screen_announcer = ScreenAnnouncer::with_clocks(
             speech.clone(),
             log.clone(),
             ui.pauses,
-            ticking(ticks),
-            Some({
-                let subscreens = subscreens.clone();
-                Rc::new(move || subscreens.timed())
-            }),
-            Some({
-                let subscreens = subscreens.clone();
-                Rc::new(move || subscreens.playing())
-            }),
-            Some({
-                let subscreens = subscreens.clone();
-                Rc::new(move |piece: &ScreenText| subscreens.scored(piece))
-            }),
-            tables.amie.head_it_score,
+            Some(Clocks::with(
+                log.clone(),
+                ticking(ticks),
+                Some({
+                    let subscreens = subscreens.clone();
+                    Rc::new(move || subscreens.timed())
+                }),
+                Some({
+                    let subscreens = subscreens.clone();
+                    Rc::new(move || subscreens.playing())
+                }),
+                Some({
+                    let subscreens = subscreens.clone();
+                    Rc::new(move |piece: &ScreenText| subscreens.scored(piece))
+                }),
+                tables.amie.head_it_score,
+            )),
         );
         // The scenes the game shows without words, described where the player asks and the game
         // has descriptions in their language (ADR-0038), those of the other version left out.
