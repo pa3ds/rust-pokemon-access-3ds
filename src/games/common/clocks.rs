@@ -23,6 +23,11 @@
 //! They are asked in one order, each of the words the one before leaves (`Clocks.unsaid`): what is
 //! a game's score, a clock's ticks, a clock alone settling, a row turned, the numbers of play, and
 //! the score left unsaid.
+//!
+//! Bound by:
+//! - ADR-0013: a timed game's clock is said only at its marks, a clock alone ticks unsaid outside
+//!   one, a row the PSS turns by itself is said once each way, and Head It's score is left unsaid
+//!   unless the player asks; each from live play: replay the tapes before and after changing one.
 
 use std::collections::HashSet;
 use std::ops::Range;
