@@ -257,7 +257,8 @@ pub type Word = Rc<dyn Fn(&str, i64) -> Option<String>>;
 /// `trigger = 0`, or as its demo starts, `demo = 6`, where the game numbers them, or as the app
 /// that plays it starts, `app = "movie::MovieProc"`. A scene whose lines or names the ROM does not
 /// have is left out, and logged. A scene with a `title` is the running `title`'s alone: one
-/// version's, said at a line in a zone the other version shares.
+/// version's, said at a line in a zone the other version shares; a list of titles is those
+/// versions', Sun's and Moon's intro beside the Ultra games' own.
 pub fn load(
     text: &str,
     line: Line,
@@ -267,8 +268,24 @@ pub fn load(
 ) -> Result<Vec<Scene>> {
     let mut scenes: Vec<Scene> = Vec::new();
     for table in tables(toml::parse(text).0.get("scene")) {
-        // `isinstance(only, int)`, a bool among them, as `int_of` reads it.
-        if title.is_some_and(|title| int_of(table.get("title")).is_some_and(|only| only != title)) {
+        // `[only] if isinstance(only, int) else only if isinstance(only, list) else []`, a bool
+        // an int as `int_of` reads it.
+        let titles: Vec<Value> = match table.get("title") {
+            Some(only @ (Value::Integer(_) | Value::Boolean(_))) => vec![only.clone()],
+            Some(Value::Array(items)) => items.clone(),
+            _ => Vec::new(),
+        };
+        // `title not in titles`: a list's `==`, which an int keeps with a bool or a float of its
+        // value.
+        let among = |title: i64| {
+            titles.iter().any(|one| match one {
+                Value::Integer(number) => *number == title,
+                Value::Boolean(truth) => *truth as i64 == title,
+                Value::Float(number) => *number == title as f64,
+                _ => false,
+            })
+        };
+        if title.is_some_and(|title| !titles.is_empty() && !among(title)) {
             continue;
         }
         // `[after] if isinstance(after, str) else after if isinstance(after, list) else []`.

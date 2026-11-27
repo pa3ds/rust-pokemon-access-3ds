@@ -503,6 +503,35 @@ id = "off-1"
     Ok(())
 }
 
+/// Sun's and Moon's intro is theirs, and the Ultra games number their demos otherwise: a list
+/// of titles is those versions' alone (spike P).
+#[test]
+fn test_a_scene_of_several_versions_is_said_in_each_and_no_other() -> Result<()> {
+    let tmp_path = TmpDir::new();
+    let timing = "[[scene]]\nzone = 0x76\ntitle = [0x0004000000164800, 0x0004000000175E00]\n\
+                  [[scene.beat]]\nid = \"glow-1\"\n";
+    let said_in = |title: i64| -> Result<Vec<String>> {
+        let (log, _logged) = logging();
+        let (scenes, _words) = described(
+            tmp_path.path(),
+            timing,
+            "glow-1 = Magma glows to the north.\n",
+            &[],
+            &[],
+            None,
+            &log,
+            Some(title),
+        )?;
+        Ok(scenes
+            .iter()
+            .flat_map(|scene| scene.beats.iter().map(|beat| beat.message.clone()))
+            .collect())
+    };
+    assert_eq!(said_in(0x0004000000175E00)?, ["glow-1"]);
+    assert!(said_in(0x00040000001B5000)?.is_empty());
+    Ok(())
+}
+
 /// The Cave of Origin's deepest room, `0x76`: nothing shows the way on but the room itself,
 /// so it is described each time the player comes down into it.
 #[test]

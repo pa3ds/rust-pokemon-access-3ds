@@ -24,7 +24,7 @@ use crate::games::sm::profile::{Options, REQUIRED, SunProfile, heap_classes};
 use crate::games::sm::text::SunText;
 use crate::games::sm::walls::SunWalls;
 use crate::games::sm::zones::SunZones;
-use crate::games::sm::{SUN_LAYOUT, SunMoon, apps, field, heaps, langselect, lyt};
+use crate::games::sm::{SunMoon, apps, field, heaps, langselect, lyt};
 use crate::py::{PySet, Result};
 
 /// Sun, read to the byte, never a page around what is asked for: in Sun the byte after an
@@ -158,9 +158,9 @@ pub fn start(
         None,
     )?);
     // Sun's scenes are found by their demo's number, so none follows a line and none names a
-    // thing the game does (ADR-0038). The Ultra games' demos are unread and may number otherwise,
-    // so Sun's are not said over them.
-    let loaded = if setup.tables.ui.descriptions && game.layout == SUN_LAYOUT {
+    // thing the game does (ADR-0038). Each version's scenes are its own titles', the Ultra games
+    // numbering their demos otherwise.
+    let loaded = if setup.tables.ui.descriptions {
         let known = {
             let described = described.clone();
             move |message: &str| described.known(message)

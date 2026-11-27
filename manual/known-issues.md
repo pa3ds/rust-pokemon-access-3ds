@@ -166,8 +166,6 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
   first Pokémon, a wild battle and Hau's: dialogue, choices, the map and pathfinding, the menu,
   the Options screen, the Bag, the party, the summary and battles. The Pokémon Center, shops
   and the other menus are read as in Sun and Moon but not yet checked.
-- **Pathfinding can walk you into boulders** on Route 1 before Iki Town, a pile the story
-  clears later: walk round them to the west.
 - **Ultra Moon** has not been tried at all: it is read as Ultra Sun.
-- **Cutscenes are not described**, as Sun's are with `descriptions` on.
+- **Only the opening cutscene is described** with `descriptions` on, in English.
 - Everything listed for Sun and Moon above applies too.
