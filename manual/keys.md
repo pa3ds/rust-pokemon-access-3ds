@@ -75,8 +75,8 @@ The battle's keys work throughout.
 | `Alt+P` | Stop guiding. |
 | `Ctrl+P` | Leave out of the list everything `Shift+P` finds no way to from where you stand, or put it back. Everything is listed each time pa3ds starts. |
 | `,` and `.` (comma and period) | Previous and next way to the chosen thing, where there is more than one, such as which way to push a big boulder. |
-| `R` | Say your side of the battle again. In a contest, your place. In Pokémon-Amie, your Pokémon's numbers, and in Head It, the score. On Super Training's page, your Pokémon's base stats and the kind of shot it fires, and in a regimen, the score, the time left and how full the energy meter is. On the PSS's O-Power screens, the energy left, on the O-Power list its regen rate, which goes up with the steps your 3DS counted that day, and each O-Power running with its time left. |
-| `Shift+R` | Say the enemy's side of the battle again. In a contest, everyone else's place. |
+| `R` | Say your side of the battle again. In a contest, your place. In Pokémon-Amie, your Pokémon's numbers, and in Head It, the score. On Super Training's page, your Pokémon's base stats and the kind of shot it fires, and in a regimen, the score, the time left and how full the energy meter is. On the PSS's O-Power screens, the energy left, on the O-Power list its regen rate, which goes up with the steps your 3DS counted that day, and each O-Power running with its time left. In a trade with another player, the Pokémon you have offered. |
+| `Shift+R` | Say the enemy's side of the battle again. In a contest, everyone else's place. In a trade with another player, the Pokémon they have offered, and choosing your team before a battle with one, the team they chose: each Pokémon's gender and level, not yet its name. |
 | `Shift+K` | Give the chosen thing a name of your own. |
 | `Shift+J` | Give whoever spoke last a name of your own. |
 | `C` | Say the square you are standing on, as x and z: x grows going east, z going south. In a Super Training regimen, where your Pokémon stands, as below. |
@@ -357,6 +357,8 @@ front of its line: a line you delete is put back the next time pa3ds starts.
   [Changing Amie's keys](amie.md#changing-amies-keys).
 - `[pa3ds.training.page]` and `[pa3ds.training.round]` hold the keys of Super Training's page and
   of its regimens, taken only while each is up.
+- `[pa3ds.pss.trade]` and `[pa3ds.pss.colosseum]` hold the keys of a trade with another player
+  and of choosing your team before a battle with one, taken only while each is up.
 - `[azahar]` rebinds Azahar's own buttons, and `[azahar.circle_pad]` and `[azahar.c_stick]` its
   two sticks. Changes apply the next time pa3ds starts with Azahar closed.
 

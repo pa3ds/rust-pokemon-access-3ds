@@ -79,6 +79,7 @@ pub mod berry_picker;
 pub mod head_it;
 pub mod o_power;
 pub mod pss;
+pub mod pss_keys;
 pub mod puzzle;
 pub mod super_training;
 
@@ -111,6 +112,7 @@ use berry_picker::{BerryKeys, BerryPicker, Process, Touching};
 use head_it::{Cue, Frames, HeadIt, HeadItKeys};
 use o_power::OPower;
 use pss::{COLOSSEUM, DIALOG, FRIEND_ENTRY};
+use pss_keys::PssKeys;
 use puzzle::TilePuzzle;
 use super_training::{
     Bags, CoreTraining, Gains, Goals, Medals, Round, RoundOptions, TrainingKeys, TrainingPage,
@@ -297,6 +299,21 @@ impl Keyed for HeadItKeys {
         touch: &mut dyn Touching,
     ) -> Result<String> {
         HeadItKeys::press(self, action, running, touch)
+    }
+}
+
+impl Keyed for PssKeys {
+    fn context(&self, running: Option<&str>) -> Result<Option<&'static str>> {
+        Ok(PssKeys::context(self, running))
+    }
+
+    fn press(
+        &self,
+        action: &str,
+        running: Option<&str>,
+        _touch: &mut dyn Touching,
+    ) -> Result<String> {
+        Ok(PssKeys::press(self, action, running))
     }
 }
 
@@ -519,8 +536,8 @@ pub struct Subscreens {
     apps: Rc<RefCell<RunningApp>>,
     /// The app running, as of the last `started`.
     now: RefCell<Option<String>>,
-    /// The app that ran before it.
-    before: RefCell<Option<String>>,
+    /// The app that ran before it, shared with `PssKeys`, which asks for it.
+    before: Rc<RefCell<Option<String>>>,
     image_of: ImageOf,
     pub(crate) puzzle: Rc<RefCell<TilePuzzle>>,
     pub(crate) o_power: Rc<RefCell<OPower>>,
@@ -847,6 +864,7 @@ impl Subscreens {
             })
         };
 
+        let (on_screen_kept, file_of_kept) = (on_screen.clone(), file_of.clone());
         let o_power = Rc::new(RefCell::new(OPower::new(
             memory_kept,
             on_screen,
@@ -893,10 +911,20 @@ impl Subscreens {
                 settings.fidgets,
             ))));
         }
+        let before: Rc<RefCell<Option<String>>> = Rc::new(RefCell::new(None));
+        let pss_keys = Rc::new(PssKeys::new(
+            on_screen_kept,
+            file_of_kept,
+            {
+                let before = before.clone();
+                Rc::new(move || before.borrow().clone())
+            },
+            tables.ui.pauses,
+        ));
         Subscreens {
             apps,
             now: RefCell::new(None),
-            before: RefCell::new(None),
+            before,
             image_of: image_of_kept,
             classes: classes.into_iter().collect(),
             tracked,
@@ -912,7 +940,7 @@ impl Subscreens {
             pictured: vec![waiting, bags],
             polled,
             described: vec![puzzle.clone()],
-            keyed: vec![berry_keys, head_keys, stylus_keys, training_keys],
+            keyed: vec![berry_keys, head_keys, stylus_keys, training_keys, pss_keys],
             ticked: vec![head_it.clone(), sparring.clone()],
             holding: vec![head_it.clone(), sparring.clone()],
             rewording: vec![switch, head_it.clone(), medals, gains],

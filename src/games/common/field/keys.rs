@@ -145,6 +145,13 @@ pub const ROUND_NUMBERS: &str = "round numbers";
 /// Says where a Super Training round's Pokémon stands, in steps up and across from where it
 /// started, as the map's list says a thing's bearing (`super_training.Round`).
 pub const ROUND_PLACE: &str = "round place";
+pub const YOUR_OFFER: &str = "your offer";
+/// Say a trade's offers, the player's and the other player's, as its top screen writes them
+/// (`pss_keys.PssKeys`).
+pub const THEIR_OFFER: &str = "their offer";
+/// Say the team the other player chose for a battle chosen in the PSS, as the team choice's top
+/// screen draws it (`pss_keys.PssKeys`).
+pub const THEIR_TEAM: &str = "their team";
 /// Amie's stylus moved a step over the Pokémon, which way across and down the screen each goes
 /// (`amie.StylusKeys`).
 pub const STYLUS_MOVES: [(&str, (i64, i64)); 4] = [
@@ -162,7 +169,7 @@ pub const STYLUS_JUMPS: [(&str, (i64, i64)); 4] = [
     ("stylus jump right", (1, 0)),
 ];
 
-pub const EXPLAINED: [(&str, &str); 15] = [
+pub const EXPLAINED: [(&str, &str); 18] = [
     (
         ENEMY_SIDE,
         "The enemy's Pokémon are said in the order the battle places them. In a horde of five that \
@@ -232,6 +239,19 @@ pub const EXPLAINED: [(&str, &str); 15] = [
         STYLUS_NUMBERS,
         "In Pokémon-Amie, says your Pokémon's Affection, Fullness and Enjoyment, as its Switch \
          screen shows them.",
+    ),
+    (
+        YOUR_OFFER,
+        "In a trade, says the Pokémon you have offered, as the top screen shows it.",
+    ),
+    (
+        THEIR_OFFER,
+        "In a trade, says the Pokémon the other player has offered, as the top screen shows it.",
+    ),
+    (
+        THEIR_TEAM,
+        "Choosing your team for a battle with another player, says the team they chose, as the \
+         top screen shows it.",
     ),
 ];
 
@@ -378,6 +398,11 @@ pub const STYLUS: &str = "amie.stylus";
 pub const TRAINING_PAGE: &str = "training.page";
 /// A round of Super Training while it runs: `[pa3ds.training.round]` in the keys file.
 pub const TRAINING_ROUND: &str = "training.round";
+/// A trade with another player while its lists are up: `[pa3ds.pss.trade]` in the keys file.
+pub const PSS_TRADE: &str = "pss.trade";
+/// The team choice before a battle chosen in the PSS: `[pa3ds.pss.colosseum]` in the keys
+/// file.
+pub const PSS_COLOSSEUM: &str = "pss.colosseum";
 
 /// Context -> key -> action: keys that mean something only while one screen runs, in every mode,
 /// and are taken from the emulator only then, so a key that is a button of Azahar's elsewhere stays
@@ -393,7 +418,9 @@ pub type Contexts = IndexMap<String, IndexMap<String, String>>;
 /// arrows move the stylus over the Pokémon: they are the circle pad as a player may bind it,
 /// and Amie's script reads no stick, only that some button is pressed. R says what a screen draws
 /// and does not say, on down that line: Super Training's chart on its page, and a round's numbers.
-/// C, the map's coordinates elsewhere, says where a round's Pokémon stands.
+/// C, the map's coordinates elsewhere, says where a round's Pokémon stands. In a trade with another
+/// player R says the player's offer and Shift and R the other player's, and choosing a team before a
+/// battle with one Shift and R says theirs: what the top screen draws there, as R is elsewhere.
 pub static DEFAULT_CONTEXTS: LazyLock<Contexts> = LazyLock::new(|| {
     let mut keys: IndexMap<String, String> = BERRIES
         .iter()
@@ -438,6 +465,17 @@ pub static DEFAULT_CONTEXTS: LazyLock<Contexts> = LazyLock::new(|| {
                 ("r".to_string(), ROUND_NUMBERS.to_string()),
                 ("c".to_string(), ROUND_PLACE.to_string()),
             ]),
+        ),
+        (
+            PSS_TRADE.to_string(),
+            IndexMap::from([
+                ("r".to_string(), YOUR_OFFER.to_string()),
+                ("shift+r".to_string(), THEIR_OFFER.to_string()),
+            ]),
+        ),
+        (
+            PSS_COLOSSEUM.to_string(),
+            IndexMap::from([("shift+r".to_string(), THEIR_TEAM.to_string())]),
         ),
     ])
 });
