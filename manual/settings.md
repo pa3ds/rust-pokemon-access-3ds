@@ -88,7 +88,6 @@ Run `pa3ds.exe --help` for the full list. The ones a player may want:
 
 - `--rom PATH`: your decrypted ROM, if pa3ds does not find it among the ones Azahar has opened.
 - `--no-keys`: answer no keys and rebind no buttons.
-- `--port PORT`: Azahar's RPC port, if you changed it from 45987.
 
 ## Azahar settings pa3ds needs
 
