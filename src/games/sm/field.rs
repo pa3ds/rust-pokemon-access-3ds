@@ -451,8 +451,28 @@ impl SunFieldReader {
             .into_iter()
             .map(|cell| turned(cell, turn))
             .collect();
+        // A story's barrier holds while someone stands in it or beside it, and is open ground
+        // once the story has moved them (`walls.BARRIERS`).
+        let mut people: HashSet<(i64, i64)> = HashSet::new();
+        for &(x, z) in &drawn {
+            let (x, z) = cell(x, z)?;
+            for dx in [-1, 0, 1] {
+                for dz in [-1, 0, 1] {
+                    people.insert((x + dx, z + dz));
+                }
+            }
+        }
+        let held: IndexSet<(i64, i64)> = walls
+            .barriers
+            .iter()
+            .filter(|r#box| !r#box.is_disjoint(&people))
+            .flat_map(|r#box| r#box.iter().copied())
+            .filter(|&cell| cell != standing)
+            .map(|cell| turned(cell, turn))
+            .collect();
         let mut closed = ground.standing.clone();
         closed.extend(props);
+        closed.extend(held);
         Ok(Ground {
             standing: closed,
             reach: REACH,

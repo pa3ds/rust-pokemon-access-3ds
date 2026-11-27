@@ -1,7 +1,7 @@
 //! Sun's walls: an area's map blocks read from its block table, their floor and walls turned into
 //! cells, in small fakes laid out as spike 114 read the ROM.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
@@ -121,12 +121,17 @@ fn wall_over(
     ]
 }
 
-/// A map block's file: its model, five empty entries, the floor and a pack of four wall
-/// meshes.
+/// `block(floor_, walls_)`: no barriers.
 fn block(floor_: &[Tri], walls_: &[Tri]) -> Vec<u8> {
+    block_with(floor_, walls_, &[])
+}
+
+/// A map block's file: its model, five empty entries, the floor and a pack of four wall
+/// meshes, the third the story's barriers.
+fn block_with(floor_: &[Tri], walls_: &[Tri], barriers: &[Tri]) -> Vec<u8> {
     let wall_meshes = pack(
         walls::PACK,
-        &[mesh(walls_), mesh(&[]), mesh(&[]), mesh(&[])],
+        &[mesh(walls_), mesh(&[]), mesh(barriers), mesh(&[])],
     );
     pack(
         walls::PACK,
@@ -320,6 +325,31 @@ fn test_a_wall_on_the_line_between_two_cells_closes_the_one_behind_it() {
         "in front of the wall, which faces south"
     );
     assert_eq!(ground.open((4, 3)), Some(false), "behind it");
+}
+
+/// Route 1's barrier beside the house was walked through once the story had moved on, and
+/// taken as a wall P said there was no way out of the cell before it (spike P).
+#[test]
+fn test_a_barrier_leaves_its_cells_open_and_is_kept_apart_as_a_box() {
+    let size = SIZE as f64;
+    let r#box = [
+        wall((200.0, 200.0), (300.0, 200.0), NORTH),
+        wall((300.0, 200.0), (300.0, 300.0), EAST),
+        wall((300.0, 300.0), (200.0, 300.0), SOUTH),
+        wall((200.0, 300.0), (200.0, 200.0), WEST),
+    ]
+    .concat();
+    let ground = area(&places(vec![(
+        (0, 0),
+        block_with(&floor(0.0, 0.0, size, size), &[], &r#box),
+    )]));
+
+    assert_eq!(ground.open((5, 5)), Some(true), "inside the box");
+    assert_eq!(ground.open((3, 5)), Some(true), "beside it");
+    assert_eq!(
+        ground.barriers,
+        [HashSet::from([(4, 4), (4, 5), (5, 4), (5, 5)])]
+    );
 }
 
 #[test]

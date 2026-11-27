@@ -954,6 +954,7 @@ impl TestWalls {
                 side as i64,
                 IndexMap::from([((0, 0), cells)]),
                 None,
+                Vec::new(),
             )),
         })
     }
@@ -976,6 +977,46 @@ fn test_p_finds_the_way_round_the_walls_out_of_the_rom() {
     let spoken = Bedroom::new().keys(&["l", "l", "p"], Some(TestWalls::walls()), None, None, None);
     assert_eq!(spoken[2], "person, 3 of 3, 4 west");
     assert_eq!(spoken[3..], ["3 north, 4 west, 2 south"]);
+}
+
+/// A story's barrier holds while someone stands in it, as one across Iki Town's way does,
+/// and is walked through once the story has moved them (spike P).
+#[test]
+fn test_a_barrier_is_closed_while_a_person_stands_beside_it_and_open_once_they_are_gone() {
+    let bedroom = Bedroom::new();
+    let side = 84;
+    let beside: HashSet<(i64, i64)> = HashSet::from([(47, 60), (47, 61)]);
+    let apart: HashSet<(i64, i64)> = HashSet::from([(52, 70), (53, 70)]);
+    let rooms: Rc<dyn Walls> = Rc::new(TestWalls {
+        walls: Arc::new(AreaWalls::new(
+            side,
+            IndexMap::from([((0, 0), vec![1u8; (side * side) as usize])]),
+            None,
+            vec![beside.clone(), apart.clone()],
+        )),
+    });
+    let emu = FakeEmulator::new(served(&bedroom.memory));
+    let memory: Rc<dyn Memory> = Rc::new(RpcMemory::new(connect(&emu)));
+    let reader = SunFieldReader::with(
+        memory.clone(),
+        names(&memory),
+        Some(Rc::new(rom())),
+        None,
+        Some(rooms),
+        None,
+        bedroom.layout,
+    );
+    reader.track(&bedroom.found);
+    let at = reader.poll().unwrap().expect("the player placed");
+    let standing = reader
+        .ground(&reader.interactables(&at).unwrap())
+        .unwrap()
+        .standing;
+    assert!(
+        beside.iter().all(|cell| standing.contains(cell)),
+        "Meowth stands at (46, 60), beside it"
+    );
+    assert!(!apart.iter().any(|cell| standing.contains(cell)));
 }
 
 /// Walking out of the house, every person stood at the world's corner for a listing, as

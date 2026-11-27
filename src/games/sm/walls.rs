@@ -22,8 +22,15 @@
 //!
 //! **Map block** — a file of `a/0/8/6`, a 'BG' pack of eight: 0 the block's model (`gfmodel`), 1 to
 //! 5 empty, 6 the floor mesh, 7 a 'BG' pack of four wall meshes. Wall mesh 0 is every wall, fence
-//! and cliff; 1 runs along the edge of the sea; 2 is short boxes with lids, one of them round a
-//! warp a person stands in the way of; 3 was empty in every block read.
+//! and cliff; 1 runs along the edge of the sea; 2 is short boxes with lids, the story's barriers,
+//! one of them round a warp a person stands in the way of; 3 was empty in every block read.
+//!
+//! A **barrier** (mesh 2) is not a wall: it holds while the story keeps someone standing in it,
+//! and then the player walks through it as through open ground. Route 1's beside the house, from
+//! (584, 336) to (588, 339) with nobody in it, was walked through from north to south in Sun after
+//! Iki Town's festival, and taken as a wall P said there was no way out of the cell before it
+//! (spike P). So an area keeps each barrier's cells apart (`AreaWalls.barriers`), and the field
+//! closes those of a barrier a person stands in (`field`).
 //!
 //! **Mesh** — `00 05 12 14`, u32 count, then that many triangles of 0x48 bytes: three corners (f32
 //! x, y, z, 1), the normal (f32 x, y, z, 0), u32 the ground's kind (tall grass 31 and the open sea
@@ -78,6 +85,10 @@ pub const NO_FILE: i64 = 0xFFFF;
 pub const PACK: &[u8] = b"BG";
 pub const FLOOR: i64 = 6;
 pub const WALLS: i64 = 7;
+/// The wall mesh of the story's barriers, kept apart from the walls.
+pub const BARRIERS: usize = 2;
+/// Cells within which two of a barrier's triangles touch and are one box.
+pub const TOUCH: f64 = 0.01;
 pub const MESH: &[u8] = b"\x00\x05\x12\x14";
 pub const TRIANGLE: i64 = 0x48;
 pub const KIND: i64 = 0x40;
@@ -317,16 +328,26 @@ pub struct AreaWalls {
     /// The tiles made, by the pockets they leave open (None for all) and the quarter they are
     /// turned by, the last used kept.
     tile_sets: Mutex<TileSets>,
+    /// The cells of each of the story's barriers. Python's are `frozenset`s, only tested and
+    /// gathered into another set.
+    pub barriers: Vec<HashSet<Cell>>,
 }
 
 impl AreaWalls {
     /// `side` cells to a block's side; `cells` each block's cells, a byte each, a row at a
     /// time from the north-west, 1 where open; `floors` the heights of the open cells' floors,
-    /// or None for one floor a cell, every one at the same height.
-    pub fn new(side: i64, cells: IndexMap<Block, Vec<u8>>, floors: Option<Floors>) -> AreaWalls {
+    /// or None for one floor a cell, every one at the same height; `barriers` the cells of each
+    /// of the story's barriers, which `cells` leaves open.
+    pub fn new(
+        side: i64,
+        cells: IndexMap<Block, Vec<u8>>,
+        floors: Option<Floors>,
+        barriers: Vec<HashSet<Cell>>,
+    ) -> AreaWalls {
         let floors = floors.unwrap_or_default();
         let (labels, more, seams) = label(&cells, &floors, side);
         AreaWalls {
+            barriers,
             floors,
             labels,
             more,
@@ -675,6 +696,7 @@ pub fn rasterize(
     }
     let mut raster = Raster::new(py::int(side)?, heights);
     let mut meshes: IndexMap<Block, Meshes> = IndexMap::new();
+    let mut barriers: Vec<HashSet<Cell>> = Vec::new();
     for (&block, data) in blocks {
         let data = unpacked(data)?;
         if !data.is_empty() {
@@ -691,7 +713,11 @@ pub fn rasterize(
                 (c.0 / cell, c.1, c.2 / cell),
             ])?;
         }
-        for wall in walls {
+        for (index, wall) in walls.iter().enumerate() {
+            if index == BARRIERS {
+                barriers.extend(boxes(wall, cell)?);
+                continue;
+            }
             for triangle in wall {
                 let ys = [
                     triangle.corners[0].1,
@@ -707,7 +733,65 @@ pub fn rasterize(
         }
     }
     let (cells, floors) = raster.cells()?;
-    Ok(AreaWalls::new(raster.side, cells, Some(floors)))
+    Ok(AreaWalls::new(raster.side, cells, Some(floors), barriers))
+}
+
+/// The cells of each box a mesh's triangles make: triangles whose bounds touch are one box,
+/// and a cell is in it where its centre lies within the box's bounds.
+fn boxes(triangles: &[Triangle], cell: f64) -> Result<Vec<HashSet<Cell>>> {
+    let mut bounds: Vec<[f64; 4]> = Vec::new();
+    for triangle in triangles {
+        let xs = triangle.corners.map(|(x, _y, _z)| x / cell);
+        let zs = triangle.corners.map(|(_x, _y, z)| z / cell);
+        let mut new = [
+            least_of(&xs),
+            greatest_of(&xs),
+            least_of(&zs),
+            greatest_of(&zs),
+        ];
+        let touching: Vec<usize> = bounds
+            .iter()
+            .enumerate()
+            .filter(|(_at, r#box)| {
+                new[0] <= r#box[1] + TOUCH
+                    && new[1] >= r#box[0] - TOUCH
+                    && new[2] <= r#box[3] + TOUCH
+                    && new[3] >= r#box[2] - TOUCH
+            })
+            .map(|(at, _box)| at)
+            .collect();
+        for &at in &touching {
+            let r#box = bounds[at];
+            new = [
+                least(new[0], r#box[0]),
+                greatest(new[1], r#box[1]),
+                least(new[2], r#box[2]),
+                greatest(new[3], r#box[3]),
+            ];
+        }
+        // Removed from the last, so the places of those before it hold.
+        for &at in touching.iter().rev() {
+            bounds.remove(at);
+        }
+        bounds.push(new);
+    }
+    let mut out: Vec<HashSet<Cell>> = Vec::new();
+    for [west, east, north, south] in bounds {
+        let mut cells: HashSet<Cell> = HashSet::new();
+        for x in py::floor(west)?..py::ceil(east)? {
+            for z in py::floor(north)?..py::ceil(south)? {
+                if west <= x as f64 + 0.5
+                    && x as f64 + 0.5 <= east
+                    && north <= z as f64 + 0.5
+                    && z as f64 + 0.5 <= south
+                {
+                    cells.insert((x, z));
+                }
+            }
+        }
+        out.push(cells);
+    }
+    Ok(out)
 }
 
 /// Files of one archive of the ROM, by their numbers, in the order asked.
