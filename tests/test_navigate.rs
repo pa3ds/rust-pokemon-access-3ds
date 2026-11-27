@@ -1735,6 +1735,31 @@ fn test_a_scene_spot_over_the_only_way_is_crossed_and_one_with_a_way_round_is_no
     assert!(!spoken[0].contains("can't continue") && spoken[0] != "10 north");
 }
 
+/// On Route 1 Kukui's scene spot lay under the player after it turned them back, and P to
+/// Iki Town said "no path to path" until they stepped off it.
+#[test]
+fn test_a_scene_spot_under_the_player_is_walked_off() {
+    let door = Interactable {
+        zone: Some(0xDF),
+        source: place_source(WARP_SOURCE, 0).unwrap(),
+        ..Interactable::new("exits", "door", (90, 170))
+    };
+    let spot = Interactable {
+        size: (5, 5),
+        source: place_source(TRIGGER_SOURCE, 0).unwrap(),
+        ..Interactable::new("signs", "scene spot", (88, 178))
+    };
+    let mut rig = navigator(Want {
+        exits: true,
+        ..on(Field {
+            interactables: vec![door, spot],
+            ..Field::new(0x6, (90, 180))
+        })
+    });
+    rig.press(PATHFIND);
+    assert_eq!(said(&rig.backend), ["10 north"]);
+}
+
 /// Sun's lottery clerk in Festival Plaza stands in her stall, walled in, and P said "no
 /// path"; the game speaks to her from where the range it gives her reaches over the counter,
 /// and P now leads there and no further (spike Q).
