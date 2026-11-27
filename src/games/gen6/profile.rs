@@ -2106,6 +2106,7 @@ impl Gen6Profile {
             ..screen.clone()
         };
         let subject = || self.sources.borrow().subject();
+        let turns = subscreen::pss(self.apps.borrow().running.as_deref());
         self.screen_announcer.borrow_mut().say(
             &poll,
             &cursors,
@@ -2118,6 +2119,7 @@ impl Gen6Profile {
             &said.reread,
             &said.rewritten,
             &quiet,
+            turns,
         )?;
         for (logged, line) in &polled.after {
             (self.log)(&format!("{logged}: {line}"));

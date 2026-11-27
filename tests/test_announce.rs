@@ -101,6 +101,7 @@ struct Args {
     reread: HashSet<i64>,
     rewritten: HashSet<i64>,
     chased: bool,
+    turns: bool,
 }
 
 fn args(texts: &[ScreenText], items: Vec<CursorItem>, on_screen: &[ScreenText]) -> Args {
@@ -193,6 +194,7 @@ impl Screen {
                 &given.reread,
                 &given.rewritten,
                 &HashSet::new(),
+                given.turns,
             )
             .unwrap();
         self.backend.spoken()[before..].to_vec()
@@ -1940,6 +1942,77 @@ fn test_a_clock_alone_outside_a_game_is_said_only_as_its_layout_comes() {
     );
 }
 
+/// The PSS's profile turns between "Total number of people met: 4" and "Number of people met
+/// today: 0" every 3.4 s, its count a poll or two after its label, and each turn was read
+/// (or_pss_singleplayer_2). A row turned back off that pace is said: a summary turned back to a
+/// Pokémon by the player.
+#[test]
+fn test_a_row_turned_back_and_forth_by_itself_is_said_once_each_way() {
+    fn turn(turns: bool, polls: &[i64]) -> Vec<String> {
+        let mut screen = Screen::new();
+        let row = Kw { parent: 5, ..PLAIN };
+        let mut rows = vec![
+            piece_kw(1, "Total number of people met:", -150.0, 0.0, PANEL, row),
+            piece_kw(2, "4", 50.0, 0.0, PANEL, row),
+        ];
+        let mut said = screen.say(Args {
+            turns,
+            ..args(&rows, vec![], &rows)
+        });
+        let words = [
+            "Total number of people met:",
+            "4",
+            "Number of people met today:",
+            "0",
+        ];
+        for (i, &gap) in polls.iter().enumerate() {
+            let i = i + 1;
+            let mut gap = gap;
+            for r#box in [0, 1] {
+                for _ in 0..gap - 1 {
+                    said.extend(screen.say(Args {
+                        turns,
+                        on_screen: rows.clone(),
+                        ..Args::default()
+                    }));
+                }
+                rows[r#box] = ScreenText {
+                    text: words[2 * (i % 2) + r#box].to_string(),
+                    changed: true,
+                    with_layout: false,
+                    ..rows[r#box].clone()
+                };
+                said.extend(screen.say(Args {
+                    turns,
+                    ..args(&one(&rows[r#box]), vec![], &rows)
+                }));
+                gap = 2;
+            }
+        }
+        for _ in 0..DETAIL_MAX_POLLS {
+            said.extend(screen.say(Args {
+                turns,
+                on_screen: rows.clone(),
+                ..Args::default()
+            }));
+        }
+        said
+    }
+
+    let once = [
+        "Total number of people met: 4",
+        "Number of people met today:",
+        "Number of people met today: 0",
+    ];
+    let again = [
+        "Total number of people met:",
+        "Total number of people met: 4",
+    ];
+    assert_eq!(turn(true, &[17, 16, 17, 16]), once);
+    assert_eq!(turn(false, &[17, 16]), [&once[..], &again[..]].concat());
+    assert_eq!(turn(true, &[17, 30]), [&once[..], &again[..]].concat());
+}
+
 #[test]
 fn test_a_number_changing_by_one_off_a_seconds_beat_is_said() {
     // A score going up by one a poll after it came, or a play time a minute after, is no clock.
@@ -3258,6 +3331,7 @@ fn test_words_under_a_cursor_that_settle_after_it_spoke_are_not_said_again() {
             &HashSet::new(),
             &HashSet::new(),
             &HashSet::new(),
+            false,
         )
         .unwrap();
     assert_eq!(screen.backend.spoken()[before..], NOTHING);
@@ -3638,6 +3712,7 @@ fn listed(
             &HashSet::new(),
             &HashSet::new(),
             &HashSet::new(),
+            false,
         )
         .unwrap();
     screen.backend.spoken()[before..].to_vec()

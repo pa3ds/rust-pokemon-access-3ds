@@ -43,6 +43,9 @@
 //! - **A clock alone is said as its layout comes**: outside such a game, words that are minutes and
 //!   seconds alone, O-Power's "02:58", are left unsaid as they tick and as they settle in their
 //!   layout's first second.
+//! - **A row a screen turns back and forth by itself is said once each way**, where the screen is
+//!   known to: the PSS's profile turns between its counts of people met every 3.4 s (`say`'s
+//!   `turns`).
 //! - **A game's score is the player's to ask for** (players, 2026-11-04): Head It's
 //!   score, combo and "MISS!", which come at every ball, faster than they can be said, are left
 //!   unsaid and never taken for a clock, its combo one up a second apart; where the player asks to
@@ -135,6 +138,13 @@ pub const CLOCK_POLLS: Range<i64> = 3..9;
 /// anchored at both ends.
 static CLOCK: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^(?:\d+:\d\d)$").expect("a fixed pattern"));
+
+/// The most polls between two turns of a row a screen turns by itself: the PSS's profile turns
+/// between "Total number of people met" and "Number of people met today" every 3.2 to 3.8 s.
+pub const TURN_MAX_POLLS: i64 = 50;
+/// Polls a turn may come early or late on the turn before, at least: a quarter of the turn
+/// before where that is more. The profile's count turned 19 polls, then 16, after the one before.
+pub const TURN_SLACK_POLLS: i64 = 2;
 
 static NUMBERS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\d+").expect("a fixed pattern"));
 /// Polls, three seconds, within which a score heard again higher is left unsaid, where the player
@@ -235,6 +245,9 @@ pub struct ScreenAnnouncer {
     set: IndexMap<i64, (String, i64)>,
     /// TextBoxes that have ticked, for as long as they keep being set.
     clocks: HashSet<i64>,
+    /// TextBox -> the last two words it came on screen with or changed to, each with its poll,
+    /// while a screen may turn its rows by itself (`_turned`).
+    writes: IndexMap<i64, Vec<(String, i64)>>,
     /// Roots of the layouts a cursor has been over, for as long as those layouts live.
     menus: HashSet<i64>,
     gathering: Option<Gathering>,
@@ -326,6 +339,7 @@ impl ScreenAnnouncer {
             marks: IndexMap::new(),
             set: IndexMap::new(),
             clocks: HashSet::new(),
+            writes: IndexMap::new(),
             menus: HashSet::new(),
             gathering: None,
             chosen: IndexMap::new(),
@@ -429,8 +443,15 @@ impl ScreenAnnouncer {
     /// (ADR-0013): never brought back with a screen coming back to their layout. The PSS's profile,
     /// back from its messages, read its Message and its card again with its History.
     ///
-    /// Python's `roots`, `subject`, `chosen` and `title` default to None, and `lead`, `reread`,
-    /// `rewritten` and `quiet` to none.
+    /// `turns` says the screen may turn rows back and forth by itself: a row back to the words
+    /// it had before its last change, about as long after it as that change came after the one
+    /// before, is left unsaid. The PSS's profile turns "Total number of people met: 4" and
+    /// "Number of people met today: 0" every 3.4 s, and each turn was read
+    /// (or_pss_singleplayer_2). Not everywhere: the summary turned back to a Pokémon at a
+    /// player's steady pace would go unsaid.
+    ///
+    /// Python's `roots`, `subject`, `chosen` and `title` default to None, `lead`, `reread`,
+    /// `rewritten` and `quiet` to none, and `turns` to False.
     #[allow(clippy::too_many_arguments)]
     pub fn say(
         &mut self,
@@ -445,6 +466,7 @@ impl ScreenAnnouncer {
         reread: &HashSet<i64>,
         rewritten: &HashSet<i64>,
         quiet: &HashSet<i64>,
+        turns: bool,
     ) -> Result<()> {
         self.polls += 1;
         self.lead = lead.clone();
@@ -756,6 +778,17 @@ impl ScreenAnnouncer {
         heard.retain(|p| !settled.contains(&p.r#box));
         ticks.extend(settled.iter().copied());
         self.clocks.extend(settled.iter().copied());
+        let turned = self.turned(texts, turns);
+        for p in &heard {
+            if turned.contains(&p.r#box) {
+                (self.log)(&format!(
+                    "screen turned: {}  [layout {:#x}]",
+                    p.text, p.root
+                ));
+            }
+        }
+        heard.retain(|p| !turned.contains(&p.r#box));
+        ticks.extend(turned.iter().copied());
         // Kept for two beats, so a clock whose second the reader missed still ticks.
         let polls = self.polls;
         self.set
@@ -1026,6 +1059,35 @@ impl ScreenAnnouncer {
 
         self.say_shown(&ready, on_screen, &mut said, labels, &cursored, left);
         self.say_what_is_left(left, on_screen, &mut said)
+    }
+
+    /// The boxes of `texts` back to the words they had before their last change, about as
+    /// long after it as it came after the one before (`say`'s `turns`).
+    fn turned(&mut self, texts: &[ScreenText], turns: bool) -> HashSet<i64> {
+        if !turns {
+            self.writes.clear();
+            return HashSet::new();
+        }
+        let polls = self.polls;
+        self.writes.retain(|_box, writes| {
+            polls - writes.last().expect("a write each").1 <= TURN_MAX_POLLS
+        });
+        let mut turned: HashSet<i64> = HashSet::new();
+        for piece in texts {
+            let writes = self.writes.get(&piece.r#box).cloned().unwrap_or_default();
+            if let [(words, at), (_, last)] = writes.as_slice() {
+                let (pace, gap) = (last - at, self.polls - last);
+                if *words == piece.text
+                    && (gap - pace).abs() <= TURN_SLACK_POLLS.max(py::floordiv(pace, 4))
+                {
+                    turned.insert(piece.r#box);
+                }
+            }
+            let mut kept: Vec<(String, i64)> = writes.last().cloned().into_iter().collect();
+            kept.push((piece.text.clone(), self.polls));
+            self.writes.insert(piece.r#box, kept);
+        }
+        turned
     }
 
     /// Is a changed piece a clock's tick, left unsaid (True), or one at a mark, said
