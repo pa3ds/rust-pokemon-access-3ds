@@ -127,7 +127,7 @@ pub struct RomLayout {
     pub conditions: Option<(i64, i64)>,
     /// Text files, and the line of each that names what each of the game's pictures that no word
     /// on screen names is a button for, by the image's file: the PokéNav's app buttons, the Bag's
-    /// pockets (`games.common.touch`); none in a game whose are not read.
+    /// pockets (`games.common.touch_targets`); none in a game whose are not read.
     pub touch_words: Vec<(i64, IndexMap<String, i64>)>,
     /// Text files, and the line of each that names what a picture draws, by its texture's name,
     /// where no rule of gen 6's names it (`textures.said`): ORAS's contest move icons, in its

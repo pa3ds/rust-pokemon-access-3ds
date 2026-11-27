@@ -1139,7 +1139,7 @@ impl ScreenTextReader {
     }
 
     /// A TextBox's words whether or not it is on screen, where code wrote them: the X menu keeps
-    /// its words hidden under the shortcut bar's icons (`games.common.touch`). A designer's words,
+    /// its words hidden under the shortcut bar's icons (`games.common.touch_targets`). A designer's words,
     /// a placeholder of full-width digits left as the layout file has it, are "": the AreaNav's
     /// tabs were named with them (movie17).
     pub fn text_of(&self, r#box: i64) -> Result<String> {

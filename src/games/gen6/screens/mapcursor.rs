@@ -18,7 +18,7 @@ use indexmap::IndexMap;
 use crate::core::binary::{f32, u32};
 use crate::games::common::layout::Layouts;
 use crate::games::common::lyt;
-use crate::games::common::touch::MAPS;
+use crate::games::common::touch_targets::MAPS;
 use crate::py::{self, Error, Kind, Result};
 
 pub const CURSOR: &str = "cursol.bclim";

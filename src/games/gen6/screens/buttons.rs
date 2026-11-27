@@ -10,7 +10,7 @@
 //! `app::ui::UITouchBarView`: it updates the manager at its +0x10 only while its byte +0x2d is set,
 //! which the party clears under its menu too, the manager's own lock left open. The field's PokéNav
 //! has no manager at all, and the PC Box keeps its grid's open under "Continue operations?": a list
-//! window is answered first (`touch.answered_first`).
+//! window is answered first (`touch_targets.answered_first`).
 //!
 //! ```text
 //! manager    +0x10  its buttons, a pointer each; +0x14 how many

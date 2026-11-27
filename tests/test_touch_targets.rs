@@ -1,4 +1,5 @@
-//! Touch mode's walk over the bottom screen's targets (`games.common.touch`).
+//! Touch mode's walk over the bottom screen's targets (`games.common.touch`), and the targets
+//! (`games.common.touch_targets`).
 //!
 //! What a touch area is called is measured against the game (spike 171); what is tested here is
 //! the walk: reading order row by row, the keys' moves, and that a tap only ever reaches the target
@@ -18,7 +19,8 @@ use crate::games::common::layout::{BUILT_POLLS, Layouts};
 use crate::games::common::layout_file::LayoutFile;
 use crate::games::common::lyt;
 use crate::games::common::screen::ScreenText;
-use crate::games::common::touch::{self, ModeOptions, Options, Target, TouchMode, TouchTargets};
+use crate::games::common::touch::{self, ModeOptions, Target, TouchMode};
+use crate::games::common::touch_targets::{self, Options, TouchTargets};
 
 fn dexnav() -> Target {
     Target::new(1, "DexNav", 285, 53, 67.0, 30.0)
@@ -398,14 +400,14 @@ fn test_a_target_under_a_layout_drawn_over_it_is_left_out() {
     };
     let areas = [(10, 240, 60, 160.0, 40.0), (1, 285, 53, 30.0, 30.0)];
     assert_eq!(
-        touch::uncovered(
+        touch_targets::uncovered(
             &[vec![pokedex.clone(), dexnav.clone()], bar()].concat(),
             &areas
         ),
         [vec![pokedex], bar()].concat()
     );
     assert_eq!(
-        touch::uncovered(std::slice::from_ref(&dexnav), &[(1, 240, 60, 160.0, 40.0)]),
+        touch_targets::uncovered(std::slice::from_ref(&dexnav), &[(1, 240, 60, 160.0, 40.0)]),
         [dexnav]
     );
 }
@@ -432,10 +434,10 @@ fn test_a_touch_area_inside_another_is_part_of_its_button() {
         (other, words(&["Beldum"])),
     ]);
     let none = HashSet::new();
-    assert!(touch::within_another(corner, &placed, &own, &none));
-    assert!(!touch::within_another(plate, &placed, &own, &none));
+    assert!(touch_targets::within_another(corner, &placed, &own, &none));
+    assert!(!touch_targets::within_another(plate, &placed, &own, &none));
     own.insert(corner, words(&["ITEM"]));
-    assert!(!touch::within_another(corner, &placed, &own, &none));
+    assert!(!touch_targets::within_another(corner, &placed, &own, &none));
 }
 
 /// The BuzzNav's NEXT lies within a touch area over its whole panel, hanging from the root, whose
@@ -451,8 +453,13 @@ fn test_a_button_inside_the_screens_own_touch_area_is_its_own() {
         (panel, words(&["NEXT", "Welcome to BuzzNav!"])),
         (next, words(&["NEXT"])),
     ]);
-    assert!(touch::within_another(next, &placed, &own, &HashSet::new()));
-    assert!(!touch::within_another(
+    assert!(touch_targets::within_another(
+        next,
+        &placed,
+        &own,
+        &HashSet::new()
+    ));
+    assert!(!touch_targets::within_another(
         next,
         &placed,
         &own,
@@ -477,12 +484,15 @@ fn test_while_a_list_window_is_up_only_its_buttons_are_offered() {
     let over = placed(5, "zoom in", 20, 20, 100.0, 2, above);
     let found = vec![slot, exit, yes.clone(), no.clone(), over.clone()];
     assert_eq!(
-        touch::answered_first(&found, &words(&["YES", "NO"])),
+        touch_targets::answered_first(&found, &words(&["YES", "NO"])),
         [yes, no, over]
     );
-    assert_eq!(touch::answered_first(&found, &HashSet::new()), found);
     assert_eq!(
-        touch::answered_first(&found, &words(&["Buy", "Sell"])),
+        touch_targets::answered_first(&found, &HashSet::new()),
+        found
+    );
+    assert_eq!(
+        touch_targets::answered_first(&found, &words(&["Buy", "Sell"])),
         found
     );
 }
@@ -1266,7 +1276,7 @@ fn test_the_screens_bar_neither_names_a_button_nor_is_offered_over_one() {
 /// field, where the map is a window, no place is offered. X's Town Map is another picture.
 #[test]
 fn test_the_areanavs_places_are_offered_by_name_where_a_tap_reaches_them() {
-    let mut images = touch::MAPS.to_vec();
+    let mut images = touch_targets::MAPS.to_vec();
     images.sort();
     for image in images {
         areanav_places(image);

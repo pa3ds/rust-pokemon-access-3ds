@@ -61,9 +61,9 @@ use crate::games::common::screen::{Pictures, ScreenText, ScreenTextReader};
 use crate::games::common::screen_announce::{Heard, ScreenAnnouncer};
 use crate::games::common::session::{Profile, Ways};
 use crate::games::common::slots::Occupant;
-use crate::games::common::touch::{
-    self, FileOf, Idle, ImageOf, Lists, OnScreen, PictureName, TextOf, TouchMode, TouchTargets,
-    drawn_with,
+use crate::games::common::touch::{self, FileOf, ImageOf, OnScreen, TextOf, TouchMode};
+use crate::games::common::touch_targets::{
+    self, Idle, Lists, PictureName, TouchTargets, drawn_with,
 };
 use crate::games::common::{lyt, msgwin, pokemon, strbuf};
 use crate::games::gen6::anchors::Anchors;
@@ -809,15 +809,15 @@ impl Gen6Profile {
                 }),
             )
         };
-        let off: touch::Off = {
+        let off: touch_targets::Off = {
             let buttons = buttons.clone();
             Rc::new(move || buttons.borrow().off())
         };
-        let on: touch::Off = {
+        let on: touch_targets::Off = {
             let buttons = buttons.clone();
             Rc::new(move || buttons.borrow().on())
         };
-        let greyed: touch::Off = {
+        let greyed: touch_targets::Off = {
             let buttons = buttons.clone();
             Rc::new(move || buttons.borrow().greyed())
         };
@@ -917,7 +917,7 @@ impl Gen6Profile {
             image_of.clone(),
             file_of,
             log.clone(),
-            touch::Options {
+            touch_targets::Options {
                 images: Some(images.clone()),
                 picture_name: Some(picture_name),
                 caught: text.caught.clone(),

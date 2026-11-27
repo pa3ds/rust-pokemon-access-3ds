@@ -58,7 +58,7 @@ pub const PREVIOUS: &str = "top-bar-previous";
 /// What the ◀ and ▶ in the top bar's corners do: the PlayNav's pages and the sub-screen
 /// tutorial's. Both draw `button.bclim`, a ◀, and the right one is mirrored by its material, not
 /// by any pane float (spike 198, omega_ruby_bottom-screen1), so the picture's words are `BUTTON` for
-/// both and only its side of the screen tells them apart (`common.touch`). The ROM's other
+/// both and only its side of the screen tells them apart (`common.touch_targets`). The ROM's other
 /// `button.bclim` are plates, a battle's 250 by 40 and a rounded corner in Super Training's
 /// archive, and a `button` anywhere but that bar stays one.
 pub const NEXT: &str = "top-bar-next";
