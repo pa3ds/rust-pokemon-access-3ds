@@ -37,9 +37,14 @@
 //! `Graphics` and its view of the screen up now (spike A on x_pokedex: seven of seven against the
 //! screenshots). It is read every tick, and said in its row's words, "CENTRAL KALOS POKÉDEX 14",
 //! once the view has built as many rows as the screen shows (`XyRegions`): as the screen comes up
-//! its words are there a poll or more before any row is lit.
+//! its words are there a poll or more before any row is lit. They come 3.1 s after the app starts,
+//! once the Pokédex's case has opened on the screen, long after the app's whole sweep (spike B).
+//!
+//! Omega Ruby's Pokédex opens on the Hoenn and National Pokédex, its cursor coming on screen just
+//! as the app's whole sweep comes due: the sweep waits for it (`OrasOpening`).
 //!
 //! Bound by:
+//! - ADR-0034: the heap's whole sweep waits for Omega Ruby's choice's cursor as the Pokédex opens.
 //! - ADR-0043: the list's entry once its index holds, a jump where it lands; X's regions by the
 //!   row under the cursor, as they open and as it moves; search's fields with their labels, the
 //!   shapes in pa3ds's words.
@@ -71,6 +76,10 @@ pub const REGISTRATION: &str = "description_lower.bclyt";
 /// arrows, touch areas with no words of their own: no button's words, but said as they came with
 /// Next's as "Rotate Zoom Next" (`claims.RULES`).
 pub const CAPTIONS: [(&str, &str); 2] = [(REGISTRATION, "3s"), (REGISTRATION, "3w")];
+/// Omega Ruby's choice of the Hoenn and National Pokédex, each with its counts, as its Pokédex
+/// opens: its words come 1.1 to 1.2 s after the app starts, and its cursor a quarter to a third of
+/// a second after them, just as the app's whole sweep comes due (`OrasOpening`, spike B).
+pub const CHOICE: &str = "start_lower.bclyt";
 /// X's choice of the Central, Coastal and Mountain Pokédex, each with its count, as its Pokédex
 /// opens: buttons, whose words are said a row at a time as the cursor comes onto them
 /// (`XyRegions`).
@@ -570,6 +579,61 @@ impl XyRegions {
         };
         let state = self.memory.read(view + BUILT, REGION + 4 - BUILT)?;
         Ok(Some((view, state[0] as i64, u32(&state, REGION - BUILT)?)))
+    }
+}
+
+/// Whether Omega Ruby's Pokédex is opening on its choice, its cursor yet to come: the heap's
+/// whole sweep waits meanwhile, as it does for a cursor moving (ADR-0034, amended 2026-11-25).
+///
+/// The app's own sweep comes due 1.5 s after it starts, and the choice's cursor came on screen
+/// 1.45 to 1.5 s after: the screen poll waited the sweep out, 0.5 to 0.6 s live and 1.1 s on the
+/// tapes, and the first choice was said that late (spike B, or_pokedex and or_menus). The wait
+/// starts as the app does, before the choice's words come, and ends with a cursor on screen or
+/// words of another layout, the registration's after a catch, whose sweep is as it was.
+pub struct OrasOpening {
+    running: Rc<dyn Fn() -> Option<String>>,
+    files: Files,
+    /// Whether the Pokédex is still opening, since it started; None while it does not run.
+    waiting: Option<bool>,
+}
+
+impl OrasOpening {
+    /// `files` gives the layouts on screen the file each was built from
+    /// (`layout_file.FilesOnScreen.poll`).
+    pub fn new(running: Rc<dyn Fn() -> Option<String>>, files: Files) -> Self {
+        OrasOpening {
+            running,
+            files,
+            waiting: None,
+        }
+    }
+
+    /// Every tick: is the Pokédex opening, its cursor yet to come?
+    pub fn waiting(&mut self) -> bool {
+        if (self.running)().as_deref() != Some(ORAS_APP) {
+            self.waiting = None;
+        } else if self.waiting.is_none() {
+            self.waiting = Some(true);
+        }
+        self.waiting == Some(true)
+    }
+
+    /// Every screen poll: a cursor on screen, or words not the choice's, end the wait. A
+    /// layout whose file is not known yet is taken for the choice's.
+    pub fn poll(&mut self, cursors: &CursorPoll, on_screen: &[ScreenText]) {
+        if self.waiting != Some(true) {
+            return;
+        }
+        // A set Python iterates: what is done for each root reads nothing.
+        let roots: IndexSet<i64> = on_screen.iter().map(|p| p.root).collect();
+        let files = (self.files)(roots.into_iter().collect());
+        if !cursors.under.is_empty()
+            || on_screen
+                .iter()
+                .any(|p| files.get(&p.root).map_or(CHOICE, String::as_str) != CHOICE)
+        {
+            self.waiting = Some(false);
+        }
     }
 }
 

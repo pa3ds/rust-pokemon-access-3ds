@@ -1,5 +1,6 @@
 //! X's Pokédex list names each entry by the top screen's panel (x_pokedex).
 
+use std::cell::RefCell;
 use std::collections::HashSet;
 use std::rc::Rc;
 
@@ -663,4 +664,69 @@ fn test_the_regions_are_read_in_x_s_pokedex_alone() -> Result<()> {
     assert!(!source.moved()?);
     assert_eq!(source.cursors(cursors.clone(), &screen()), cursors);
     Ok(())
+}
+
+const CHOICE_ROOT: i64 = 0x082EA34C;
+const REGISTRATION_ROOT: i64 = 0x082E83EC;
+
+/// Omega Ruby's opening, its choice's layout and the registration's known by their files.
+fn opening(running: Rc<RefCell<String>>) -> pokedex::OrasOpening {
+    pokedex::OrasOpening::new(
+        Rc::new(move || Some(running.borrow().clone())),
+        Box::new(|_roots| {
+            [
+                (CHOICE_ROOT, pokedex::CHOICE.to_string()),
+                (REGISTRATION_ROOT, pokedex::REGISTRATION.to_string()),
+            ]
+            .into()
+        }),
+    )
+}
+
+/// The choice's cursor came as the app's whole sweep came due, and its first choice was said
+/// after the sweep (spike B): the opening waits from the app's start, through the choice's words
+/// coming, until a cursor is on screen, and not again until the Pokédex starts again.
+#[test]
+fn test_the_sweep_waits_for_omega_ruby_s_choice_s_cursor() {
+    let running = Rc::new(RefCell::new(pokedex::ORAS_APP.to_string()));
+    let mut source = opening(running.clone());
+    assert!(source.waiting());
+    source.poll(&no_cursors(), &[]);
+    let hoenn = ScreenText {
+        root: CHOICE_ROOT,
+        ..ScreenText::new(0x100, "HOENN POKÉDEX", false)
+    };
+    source.poll(&no_cursors(), std::slice::from_ref(&hoenn));
+    assert!(source.waiting());
+    source.poll(
+        &CursorPoll {
+            items: vec![CursorItem::new(0x08331B94, vec![hoenn.clone()], true)],
+            under: vec![vec![hoenn.clone()]],
+            ..CursorPoll::default()
+        },
+        std::slice::from_ref(&hoenn),
+    );
+    assert!(!source.waiting());
+    *running.borrow_mut() = "N5field14FieldmapProcE".to_string();
+    assert!(!source.waiting());
+    *running.borrow_mut() = pokedex::ORAS_APP.to_string();
+    assert!(source.waiting());
+}
+
+/// The registration is the same app, with no cursor until its nickname's YES and NO: its
+/// words end the wait, so its sweep comes as it did (or_groudon_master_ball).
+#[test]
+fn test_the_registration_after_a_catch_does_not_wait() {
+    let mut source = opening(Rc::new(RefCell::new(pokedex::ORAS_APP.to_string())));
+    assert!(source.waiting());
+    source.poll(
+        &no_cursors(),
+        &[ScreenText {
+            root: REGISTRATION_ROOT,
+            top: true,
+            ..ScreenText::new(0x100, "Registration completed!", false)
+        }],
+    );
+    assert!(!source.waiting());
+    assert!(!opening(Rc::new(RefCell::new(pokedex::APP.to_string()))).waiting());
 }

@@ -3,11 +3,13 @@
 //!
 //! A source is read in one of two rhythms. Every tick, `moved` asks each whether its word has
 //! changed, a row, a key, a box, a place, and says how the screen poll should follow: once, or
-//! each tick until the cursor's word is said (`Chase`). Every screen poll, `put_away` gives the
-//! layouts of the views not drawn before the screen is read, and `poll` takes what the cursor
-//! reader found and hands back, in one `Polled`, the cursors as each screen's source has them,
-//! the title said before the item, the lines said beside the screen's words, and the words left
-//! unsaid or unheard. `said` has the last word on the poll's words, once they are filtered.
+//! each tick until the cursor's word is said (`Chase`); and whether the heap's whole sweep should
+//! wait for a cursor yet to come, Omega Ruby's Pokédex's as it opens. Every screen poll,
+//! `put_away` gives the layouts of the views not drawn before the screen is read, and `poll` takes
+//! what the cursor reader found and hands back, in one `Polled`, the cursors as each screen's
+//! source has them, the title said before the item, the lines said beside the screen's words, and
+//! the words left unsaid or unheard. `said` has the last word on the poll's words, once they are
+//! filtered.
 //!
 //! The order the sources are asked in is theirs and is kept here: the Bag's pick-up is taken out
 //! before the Mart's jumps, the battle Bag's pockets, a shiny target and the Bag's item see the
@@ -19,6 +21,7 @@
 //! lines before the screen's words after the Box's mode, and its words unsaid last.
 //!
 //! Bound by:
+//! - ADR-0034: the heap's whole sweep waits for Omega Ruby's Pokédex's first cursor as it opens.
 //! - ADR-0013: a cursor source says which item is under the cursor and when it moved, the words
 //!   still the screen's; a title is said before its item.
 //! - ADR-0043: a row, key or ball is read every tick, a change polling the screen at once.
@@ -66,6 +69,9 @@ impl Chase {
     /// As `ROW`, until the item's details are said too: the Pokéblock Kit's block with its
     /// count.
     pub const DETAILS: Chase = Chase(4);
+    /// No poll: a cursor yet to come as its screen opens, Omega Ruby's Pokédex's choice's, which
+    /// the heap's whole sweep waits for (`pokedex.OrasOpening`).
+    pub const WAIT: Chase = Chase(8);
 
     /// `bool(self & other)`: whether any of `other`'s flags are set.
     pub fn any(self, other: Chase) -> bool {
@@ -164,6 +170,7 @@ pub struct CursorSources {
     xy_list: pokedex::XyList,
     search_rows: scrolled::Scrolled,
     oras_list: pokedex::OrasList,
+    oras_opening: pokedex::OrasOpening,
     xy_regions: pokedex::XyRegions,
     summary: summary::Pages,
 }
@@ -302,6 +309,14 @@ impl CursorSources {
         );
         // Omega Ruby's says its entry from the list's own rows, the tick it is chosen (spike 310).
         let oras_list = pokedex::OrasList::new(memory.clone(), running.clone(), process.clone());
+        // Its choice's cursor comes as the app's whole sweep comes due, which waits for it.
+        let oras_opening = {
+            let mut on_screen = FilesOnScreen::new(layouts.clone(), files.clone());
+            pokedex::OrasOpening::new(
+                running.clone(),
+                Box::new(move |roots| on_screen.poll(roots).clone()),
+            )
+        };
         // X's regions say the row under the cursor, which no cursor of the layout's marks.
         let xy_regions = {
             let mut on_screen = FilesOnScreen::new(layouts.clone(), files.clone());
@@ -345,6 +360,7 @@ impl CursorSources {
             // Search and sort's moves along rows reading alike, its dashes after another field's.
             search_rows: scrolled::Scrolled::new(),
             oras_list,
+            oras_opening,
             xy_regions,
             summary,
         }
@@ -357,6 +373,9 @@ impl CursorSources {
         // A menu's row moved: the screen is polled now, and each tick until its word is said.
         if self.rows.moved()? || self.oras_list.moved()? || self.xy_regions.moved()? {
             chase |= Chase::ROW;
+        }
+        if self.oras_opening.waiting() {
+            chase |= Chase::WAIT;
         }
         // A game's own screens' cursors: ORAS's Pokéblock Kit's.
         chase |= self.own.moved(&windows(), self.cursor_shown.get())?;
@@ -395,6 +414,7 @@ impl CursorSources {
     ) -> Result<Polled> {
         let on_screen = &screen.on_screen;
         let running = self.apps.borrow().running.clone();
+        self.oras_opening.poll(&cursors, on_screen);
         let (count, counted) = self.counts.poll(on_screen)?;
         let paged = self.battle_bag.poll(on_screen)?;
         let own = self.own.before(on_screen)?;

@@ -20,7 +20,7 @@ use crate::games::gen6::game::CursorShapes;
 use crate::games::gen6::own::Nothing;
 use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::screens::sources::{Chase, CursorSources};
-use crate::games::gen6::screens::{boxes, rows};
+use crate::games::gen6::screens::{boxes, pokedex, rows};
 
 const ROOT: i64 = 0x08300400;
 const OTHER: i64 = 0x08310400;
@@ -187,4 +187,28 @@ fn test_the_fitting_rooms_cursor_owns_the_layouts_it_walks_as_they_open() {
             .texts,
         vec![card, changed, other]
     );
+}
+
+/// ADR-0034, amended 2026-11-25: no poll, but the whole sweep waits for the choice's cursor,
+/// and stops waiting once a cursor is on screen.
+#[test]
+fn test_omega_ruby_s_pokedex_opening_asks_the_sweep_to_wait() {
+    let mut sources = sources_of(pokedex::ORAS_APP, Rc::new(Cell::new(None)));
+    assert_eq!(sources.moved(&windows).unwrap(), Chase::WAIT);
+    let hoenn = ScreenText {
+        root: ROOT,
+        ..ScreenText::new(ROOT + 1, "HOENN POKÉDEX", false)
+    };
+    sources
+        .poll(
+            &screen(std::slice::from_ref(&hoenn)),
+            cursors_of(
+                vec![CursorItem::new(1, vec![hoenn.clone()], true)],
+                std::slice::from_ref(&hoenn),
+            ),
+            false,
+            &targets,
+        )
+        .unwrap();
+    assert_eq!(sources.moved(&windows).unwrap(), Chase::NONE);
 }

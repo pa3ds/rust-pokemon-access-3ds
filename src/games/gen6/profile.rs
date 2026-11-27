@@ -12,7 +12,8 @@
 //! - ADR-0013: a menu's row read every tick polls the screen at once as it changes, and each tick
 //!   after until the cursor's word is said (`poll_menus`, `rows.CHASE`).
 //! - ADR-0034: a whole sweep waits while a cursor moves, until it is still `STILL`, at most
-//!   `HELD_MOST` (`sweep_held`).
+//!   `HELD_MOST`, and for a cursor yet to come as its screen opens, at most `HELD_MOST` too
+//!   (`sweep_held`, `Chase.WAIT`).
 //! - ADR-0041: a replay logs touch mode's targets as they change, so a tape holds them, and a tape
 //!   replay P's ways at each listing (`ways`).
 //! - ADR-0044: the screen poll asks the cursor sources through `sources.CursorSources` alone, and
@@ -351,6 +352,11 @@ pub struct Gen6Profile {
     moved: Cell<Option<f64>>,
     /// The tick a moving cursor began holding the whole sweep off at, while it does.
     holding: Cell<Option<f64>>,
+    /// Whether a cursor source said at the last tick that a cursor is yet to come
+    /// (`Chase.WAIT`).
+    waiting: Cell<bool>,
+    /// The tick a cursor yet to come began holding the whole sweep off at, while one is.
+    waited: Cell<Option<f64>>,
     /// Every device manager a sweep has found. It lives all session, so a choice box built
     /// later is found in the blocks just allocated by the manager it holds. Iterated by
     /// `Found.holders`, whose result follows its order, so a `PySet`. Shared with the scenes'
@@ -1284,6 +1290,8 @@ impl Gen6Profile {
             moving: Cell::new(false),
             moved: Cell::new(None),
             holding: Cell::new(None),
+            waiting: Cell::new(false),
+            waited: Cell::new(None),
             managers,
         }
     }
@@ -1424,14 +1432,25 @@ impl Gen6Profile {
     }
 
     /// Whether the heap's whole sweep waits: while a subscreen's round would lose a ball to
-    /// the second it takes (`Subscreens.holding`), and while a cursor moves, until it has held
-    /// still `STILL` or held the sweep off `HELD_MOST`.
+    /// the second it takes (`Subscreens.holding`), while a cursor moves, until it has held
+    /// still `STILL` or held the sweep off `HELD_MOST`, and for a cursor yet to come as its
+    /// screen opens, `HELD_MOST` at most, counted from its app's start: a cursor that moved
+    /// just before had begun the other count already (or_menus).
     pub fn sweep_held(&self, now: f64) -> bool {
         if self.moving.get() {
             self.moved.set(Some(now));
             self.moving.set(false);
         }
-        let held = self.subscreens.holding();
+        if !self.waiting.get() {
+            self.waited.set(None);
+        } else if self.waited.get().is_none() {
+            self.waited.set(Some(now));
+        }
+        let held = self.subscreens.holding()
+            || self
+                .waited
+                .get()
+                .is_some_and(|waited| now - waited < HELD_MOST);
         if self.moved.get().is_none_or(|moved| now - moved >= STILL) {
             self.holding.set(None);
             return held;
@@ -1660,6 +1679,7 @@ impl Gen6Profile {
         }
         let turned = chase.any(Chase::ONCE);
         self.moving.set(self.moving.get() || turned);
+        self.waiting.set(chase.any(Chase::WAIT));
         if (self.chasing.get() != 0 || turned) && !screen_polled {
             let gathering = self.screen_announcer.borrow().gathering();
             self.poll_screen()?;
