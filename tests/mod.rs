@@ -73,6 +73,7 @@ mod test_pokemon;
 mod test_profile;
 mod test_puzzle;
 mod test_rail;
+mod test_records;
 mod test_registered;
 mod test_reminder;
 mod test_rename;
