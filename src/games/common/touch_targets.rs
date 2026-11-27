@@ -2,7 +2,7 @@
 //! reading order, on the screens that need a touch (`offered`), for touch mode to walk
 //! (`common.touch`).
 //!
-//! A touch area is named by, in this order (spike 171):
+//! A touch area is named by, in this order (spike 171; `TouchTargets._names`):
 //!
 //! 1. **the words in its button**: the screen text inside the pane it hangs from, as the AreaNav's
 //!    window onto the map is said by the place it shows;
@@ -64,6 +64,7 @@ use indexmap::{IndexMap, IndexSet};
 use crate::core::binary::{f32, u32};
 use crate::core::words::own;
 use crate::games::common::layout::Layouts;
+use crate::games::common::layout_file::LayoutFile;
 use crate::games::common::screen::{ScreenText, distinct, in_rows, join};
 use crate::games::common::touch::{
     After, FileOf, HEIGHT, ImageOf, OnScreen, Target, TextOf, WIDTH, rows,
@@ -268,7 +269,8 @@ impl TouchTargets {
 
     /// Every touch area drawn on the bottom screen that can be named, in reading order; a
     /// layout's root -> the TextBoxes whose words named its buttons; and the touch areas shown
-    /// and left out as switched off (`button_words`).
+    /// and left out as switched off (`button_words`). What is offered is decided here, where each
+    /// lies and what lies over it, and each is called what `_names` calls it.
     #[allow(clippy::type_complexity)]
     fn walk(&mut self) -> Result<(Vec<Target>, IndexMap<i64, HashSet<i64>>, HashSet<i64>)> {
         let layouts = self.layouts.clone();
@@ -391,8 +393,6 @@ impl TouchTargets {
             let head = layouts.pane(root)?;
             let (root_x, root_y) = (f32(&head, shape.x)?, f32(&head, shape.y)?);
             let file = (self.file_of)(root);
-            let empty = IndexMap::new();
-            let textures = file.as_ref().map_or(&empty, |file| &file.textures);
             let mut drawn: IndexMap<i64, Option<String>> = IndexMap::new();
             for (&pane, kind) in &tree {
                 if kind == lyt::PICTURE_CLASS && shown(&layouts, pane)? {
@@ -406,198 +406,11 @@ impl TouchTargets {
                 found.extend(self.map_places(root, &touches, layer, root_x, root_y)?);
                 continue;
             }
-            let mut names: IndexMap<i64, String> = IndexMap::new();
             let mut groups: IndexMap<i64, Vec<i64>> = IndexMap::new();
             for &touch in &touches {
                 let group = self.group(root, touch, &tree)?;
                 groups.insert(touch, group);
             }
-            let owned = own_parts(&groups);
-            let mut filled: Option<IndexMap<i64, String>> = None;
-            // Touch area -> the words on screen in its button, or with none the game's word for
-            // its picture: the Pokémon-Amie page's PLAY, DECORATE and SWITCH lie within the touch
-            // area behind its menu, and are buttons of their own (spike 198). A button with words
-            // keeps to them: the Secret Base's DexNav panel, words and an app's icon, was offered
-            // as well as the window it lies in.
-            let mut spoken: IndexMap<i64, HashSet<String>> = IndexMap::new();
-            for &touch in &touches {
-                let group = &groups[&touch];
-                // As a cursor reads its item: the X menu's words drawn twice in one place once,
-                // "BAG BAG" (movie20), and a row left to right, so a move's PP is "35/35" where
-                // each word once and in build order made "PP / 35" (movie22).
-                let mut said = join(
-                    &distinct(in_rows(group.iter().filter_map(|p| words.get(p)).cloned())),
-                    false,
-                );
-                spoken.insert(
-                    touch,
-                    group
-                        .iter()
-                        .filter_map(|p| words.get(p))
-                        .map(|piece| piece.text.clone())
-                        .collect(),
-                );
-                // A button's words, however it is named: the O-Power panel's Use, Give and Cancel
-                // came on screen as their buttons were named as they had been, and were said
-                // (or_pss_singleplayer).
-                if self.button(touch)? {
-                    boxes.entry(root).or_default().extend(
-                        group.iter().copied().filter(|p| {
-                            tree.get(p).map(String::as_str) == Some(lyt::TEXTBOX_CLASS)
-                        }),
-                    );
-                }
-                let mut image: Option<String> = None;
-                for i in drawn_with(
-                    owned[&touch].iter().copied(),
-                    &|p| Ok(drawn.get(&p).cloned().flatten()),
-                    textures,
-                    &|p| self.layouts.pane_name(p),
-                ) {
-                    if let Some(word) = self.images.get(&i?) {
-                        image = Some(word.clone());
-                        break;
-                    }
-                }
-                if let Some(shown_image) = image.clone()
-                    && !shown_image.is_empty()
-                    && said.is_empty()
-                {
-                    spoken
-                        .get_mut(&touch)
-                        .expect("inserted above")
-                        .insert(shown_image.clone());
-                    // By what it draws now, never its layout file's texture: the ball is there,
-                    // hidden, over a Pokémon not caught.
-                    if let Some(said_caught) = &self.said_caught
-                        && owned[&touch].iter().any(|p| {
-                            drawn
-                                .get(p)
-                                .and_then(Option::as_deref)
-                                .is_some_and(|i| self.caught.contains(i))
-                        })
-                    {
-                        image = Some(said_caught(&shown_image));
-                    }
-                }
-                if let Some(picture_name) = self.picture_name.clone() {
-                    // What the game fills a picture with comes first, as it is drawn: the Bag's
-                    // party slot is its Pokémon's icon, then its level (movie21). Not a picture of
-                    // a button inside it, shown or not: Amie's strip across its top bar took the
-                    // Sweet Poké Puff of the bar of puffs inside it for its name, each puff a
-                    // button of its own, and kept it with the bar hidden (or_amie_pokepuffs).
-                    let inner = self.inner(root, touch, &tree)?;
-                    let mut named: Vec<i64> = Vec::new();
-                    for &p in group {
-                        if tree.get(&p).map(String::as_str) == Some(lyt::PICTURE_CLASS)
-                            && !inner.contains(&p)
-                            && picture_name(p)?.is_some_and(|word| !word.is_empty())
-                        {
-                            named.push(p);
-                        }
-                    }
-                    let parent = u32(&layouts.pane(touch)?, lyt::PARENT)?;
-                    let mut beside = said.is_empty() && image.as_deref().is_none_or(str::is_empty);
-                    if beside {
-                        for &p in &named {
-                            if self.lies_in(p, touch)? {
-                                beside = false;
-                                break;
-                            }
-                        }
-                    }
-                    if beside {
-                        beside = false;
-                        for p in layouts.children(root, parent) {
-                            if tree.get(&p).map(String::as_str) == Some(lyt::PICTURE_CLASS)
-                                && picture_name(p)?.is_some_and(|word| !word.is_empty())
-                            {
-                                beside = true;
-                                break;
-                            }
-                        }
-                    }
-                    if beside {
-                        // Super Training's carousel moves its party's pictures between touch
-                        // areas that stay put, so a tap selects what is drawn at the place, not
-                        // the picture the area's own pane holds (2026-10-10, live from
-                        // omega_ruby_bottom-screen5's end). Only an area whose own pane holds such
-                        // a picture beside it: the Amie menu's backdrop, holding none, took the
-                        // Pokémon lying within it for its name, not "close". And only where none
-                        // of its own pictures lies in it: the big slot's own, the row's icon 53
-                        // off its middle, still fell in its group, and the slot took its name over
-                        // the Pokémon drawn big in it every second or so; the
-                        // DexNav's icons each lie in their own, and naming every picture of its
-                        // panel cost 180 reads a poll. The picture nearest its middle, its own or
-                        // not.
-                        if filled.is_none() {
-                            let mut found: IndexMap<i64, String> = IndexMap::new();
-                            for (&p, kind) in &tree {
-                                if kind == lyt::PICTURE_CLASS
-                                    && shown(&layouts, p)?
-                                    && let Some(word) = picture_name(p)?
-                                    && !word.is_empty()
-                                {
-                                    found.insert(p, word);
-                                }
-                            }
-                            filled = Some(found);
-                        }
-                        let mut lying: Vec<i64> = Vec::new();
-                        for &p in filled.as_ref().expect("filled above").keys() {
-                            if !inner.contains(&p) && self.lies_in(p, touch)? {
-                                lying.push(p);
-                            }
-                        }
-                        // `sorted(dict.fromkeys([*named, *lying]), key=...)`: each key found
-                        // once, in order, before the sort.
-                        let mut keyed: Vec<(i64, f64)> = Vec::new();
-                        for p in named
-                            .iter()
-                            .chain(&lying)
-                            .copied()
-                            .collect::<IndexSet<i64>>()
-                        {
-                            keyed.push((p, self.off_middle(p, touch)?));
-                        }
-                        named = py::sorted_by_lt(keyed, |a, b| a.1 < b.1)
-                            .into_iter()
-                            .map(|(p, _key)| p)
-                            .collect();
-                    }
-                    let pictured = match named.first() {
-                        Some(&first) => picture_name(first)?,
-                        None => None,
-                    };
-                    // Screen text names the picture too where it names pictures: the Bag's party
-                    // slots were "Torchic Torchic L14", the AreaNav's Pokémon "Surskit Surskit"
-                    // and the Battle Maison's partners "May May" (or_multi_battle_partners).
-                    if let Some(pictured) = pictured
-                        && !pictured.is_empty()
-                        && !spoken[&touch].contains(&pictured)
-                    {
-                        said = if said.is_empty() {
-                            pictured
-                        } else {
-                            format!("{pictured} {said}")
-                        };
-                    }
-                }
-                if !said.is_empty() || image.as_deref().is_some_and(|image| !image.is_empty()) {
-                    names.insert(
-                        touch,
-                        if !said.is_empty() {
-                            said
-                        } else {
-                            image.unwrap_or_default()
-                        },
-                    );
-                }
-            }
-            let mut by_picture: Option<IndexMap<String, String>> = None;
-            // Touch area -> its middle in pixels and its size.
-            let mut placed: IndexMap<i64, (i64, i64, f64, f64)> = IndexMap::new();
-            let first = found.len();
             let bars = self.bars(root, &tree, root_x, root_y)?;
             let order: IndexMap<i64, i64> = if bars.is_empty() {
                 IndexMap::new()
@@ -607,205 +420,64 @@ impl TouchTargets {
                     .map(|(at, &pane)| (pane, at as i64))
                     .collect()
             };
+            // Touch area -> its middle in pixels, where no bar hides it.
+            let mut seen: IndexMap<i64, (i64, i64)> = IndexMap::new();
             for &touch in &touches {
-                let group = &groups[&touch];
-                let pane = layouts.pane(touch)?;
-                let (x, y) = pixel(&pane, &shape, root_x, root_y)?;
+                let (x, y) = pixel(&layouts.pane(touch)?, &shape, root_x, root_y)?;
                 // A bar drawn over a touch area's middle hides it: the O-Power list's seventh row
                 // lies under its gauge until the list scrolls, and a tap on it did nothing
                 // (or_pss_singleplayer_2).
-                if bars.iter().any(|&(bar, at, top, bottom)| {
+                if !bars.iter().any(|&(bar, at, top, bottom)| {
                     at > order[&touch]
                         && top <= y as f64
                         && y as f64 <= bottom
-                        && !group.contains(&bar)
+                        && !groups[&touch].contains(&bar)
                 }) {
+                    seen.insert(touch, (x, y));
+                }
+            }
+            let (names, spoken) = self.names(
+                root,
+                &tree,
+                &touches,
+                &groups,
+                &seen,
+                &words,
+                &drawn,
+                file.as_deref(),
+                &greyed,
+                &mut boxes,
+            )?;
+            // Touch area -> its middle in pixels and its size.
+            let mut placed: IndexMap<i64, (i64, i64, f64, f64)> = IndexMap::new();
+            let first = found.len();
+            for (touch, name) in names {
+                let (x, y) = seen[&touch];
+                if !((0..WIDTH).contains(&x) && (0..HEIGHT).contains(&y)) {
                     continue;
                 }
-                let on_screen = (0..WIDTH).contains(&x) && (0..HEIGHT).contains(&y);
-                // A button with words of its own is named by them or not at all: the Bag's rows
-                // all draw `bar1.bclim`, and an empty row was said by the one row's item
-                // (movie21).
-                let worded = group
-                    .iter()
-                    .any(|p| tree.get(p).map(String::as_str) == Some(lyt::TEXTBOX_CLASS));
-                if !names.contains_key(&touch) && !worded {
-                    if by_picture.is_none() {
-                        by_picture = Some(self.by_picture(root, &tree, textures)?);
-                    }
-                    let table = by_picture.as_ref().expect("made just above");
-                    let mut alike: Option<String> = None;
-                    for i in drawn_with(
-                        group.iter().copied().filter(|p| {
-                            tree.get(p).map(String::as_str) == Some(lyt::PICTURE_CLASS)
-                        }),
-                        &|p| Ok(drawn.get(&p).cloned().flatten()),
-                        textures,
-                        &|p| self.layouts.pane_name(p),
-                    ) {
-                        if let Some(word) = table.get(&i?) {
-                            alike = Some(word.clone());
-                            break;
-                        }
-                    }
-                    if let Some(alike) = alike
-                        && !alike.is_empty()
-                    {
-                        names.insert(touch, alike);
-                    }
-                }
-                let panes: HashSet<i64> = group.iter().copied().collect();
-                if let Some(name) = names.get(&touch) {
-                    // Remembered only from the rules above: a picture's own words are a guess.
-                    self.named.insert(touch, (name.clone(), panes));
-                } else if let Some((name, held)) = self.named.get(&touch)
-                    && *held == panes
-                {
-                    // And only while its button holds what it held: Amie's Interior Items move
-                    // each page's pictures under touch areas that stay put, and a slot empty on
-                    // the next page was still said by the item it had held (spike 228,
-                    // or_pokemon_me2).
-                    names.insert(touch, name.clone());
-                } else if let Some(slot) = {
-                    let (x, y) = place(&layouts, touch)?;
-                    slots::slot(
-                        &layouts,
-                        file.as_deref(),
-                        root,
-                        x,
-                        y,
-                        &(self.on_screen)(),
-                        None,
-                        None,
-                    )?
-                } && slot.0 == touch
-                {
-                    // A slot is said as the Box's pointer says it, by its place in the grid, its
-                    // number in the party or the mark it shows: by its pictures, the Box's grid
-                    // was its wallpaper's, "wave pattern", and a mark "box mark 01". Two of the
-                    // grid's slots lie under a placeholder TextBox of another panel (movie22).
-                    if slot.1.is_empty() {
-                        // Behind the Battle Box's, and in the way of its taps (or_battle_box).
-                        continue;
-                    }
-                    names.insert(touch, slot.1);
-                } else if !worded && on_screen && u32(&layouts.pane(touch)?, lyt::PARENT)? != root {
-                    // A touch area hanging straight from the root has no button of its own, and
-                    // the pictures over it are the screen's: the Battle Box's slots, left on
-                    // under BOX 1, were said by its wallpaper, "line pattern" (movie22). One off
-                    // the screen is not offered, so not guessed at: X's field menu keeps a
-                    // button at (340, 70) until it slides in, and every run logged a word made
-                    // for its `shadow.bclim`.
-                    // The picture lying in it first: the PSS's Favorites List hangs its return
-                    // from the bar along the bottom, and was said "touch bar" (or_pss_singleplayer).
-                    let mut drawn_in: Vec<i64> = Vec::new();
-                    for &p in &owned[&touch] {
-                        if tree.get(&p).map(String::as_str) == Some(lyt::PICTURE_CLASS)
-                            && shown(&layouts, p)?
-                        {
-                            drawn_in.push(p);
-                        }
-                    }
-                    // `sorted(..., key=lambda p: not self._lies_in(p, touch))`: every key found
-                    // first, in order, then a stable sort, False first.
-                    let mut keyed: Vec<(i64, bool)> = Vec::new();
-                    for p in drawn_in {
-                        keyed.push((p, !self.lies_in(p, touch)?));
-                    }
-                    keyed.sort_by_key(|&(_p, key)| key);
-                    // Python's `next` over a generator: the first picture's texture ends the look,
-                    // and no picture after it has its name read.
-                    let mut texture: Option<String> = None;
-                    for (p, _key) in keyed {
-                        let image = drawn.get(&p).cloned().flatten();
-                        let t = match image {
-                            Some(image) if !image.is_empty() => Some(image),
-                            _ => textures
-                                .get(&self.layouts.pane_name(p)?)
-                                .and_then(|textures| textures.first().cloned()),
-                        };
-                        if let Some(t) = t.filter(|t| !t.is_empty()) {
-                            texture = Some(t);
-                            break;
-                        }
-                    }
-                    let stem = texture
-                        .as_deref()
-                        .map(|texture| texture.split('.').next().unwrap_or_default());
-                    let layout_name = file.as_ref().map_or("", |file| file.name.as_str());
-                    let mut picture: Option<String> = None;
-                    if stem == Some(pictures::ARROW)
-                        || (stem == Some(pictures::BUTTON) && y < TOP_BAR)
-                    {
-                        picture = Some(own(
-                            if (x as f64) < WIDTH as f64 / 2.0 {
-                                pictures::PREVIOUS
-                            } else {
-                                pictures::NEXT
-                            },
-                            &[],
-                        ));
-                    } else if let Some(named) = texture
-                        .as_deref()
-                        .and_then(|texture| pictures::named_in(texture, layout_name))
-                    {
-                        picture = Some(named);
-                    } else {
-                        // Where the data has no word for the picture, the game's own written
-                        // under it: the PSS's menu draws Battle, Trade and the rest as icons,
-                        // each with its word below its touch area, said "pss taisen".
-                        let label = self.label(root, touch, &words, &groups)?;
-                        if let Some(label) = label {
-                            picture = Some(label.text.clone());
-                            boxes.entry(root).or_default().insert(label.r#box);
-                        } else if let Some(texture) = &texture {
-                            picture = Some(pictures::words_in(texture, layout_name));
-                        }
-                    }
-                    if let Some(picture) = picture
-                        && !picture.is_empty()
-                    {
-                        names.insert(touch, picture);
-                    }
-                }
-                if !on_screen {
-                    continue;
-                }
+                let pane = layouts.pane(touch)?;
                 let (width, height) = (f32(&pane, shape.width)?, f32(&pane, shape.height)?);
                 areas.push((layer, x, y, width, height));
                 placed.insert(touch, (x, y, width, height));
-                let name = names.get(&touch).filter(|name| !name.is_empty()).cloned();
-                let Some(mut name) = name else {
-                    if !self.unnamed.contains(&touch) {
-                        self.unnamed.insert(touch);
-                        (self.log)(&format!(
-                            "touch: {} of layout {root:#x} has no name",
-                            self.layouts.pane_name(touch)?
-                        ));
-                    }
-                    continue;
-                };
-                if greyed.contains(&touch)
-                    && let Some(said_unavailable) = &self.said_unavailable
-                {
-                    name = said_unavailable(&name);
+                if let Some(name) = name.filter(|name| !name.is_empty()) {
+                    found.push(Target {
+                        pane: touch,
+                        name,
+                        x,
+                        y,
+                        row: f32(&pane, shape.y)? - root_y,
+                        height,
+                        layer,
+                        root,
+                        path: Vec::new(),
+                        seconds: 0.0,
+                        drop: None,
+                        rub: None,
+                        held: false,
+                        after: After::default(),
+                    });
                 }
-                found.push(Target {
-                    pane: touch,
-                    name,
-                    x,
-                    y,
-                    row: f32(&pane, shape.y)? - root_y,
-                    height,
-                    layer,
-                    root,
-                    path: Vec::new(),
-                    seconds: 0.0,
-                    drop: None,
-                    rub: None,
-                    held: false,
-                    after: After::default(),
-                });
             }
             // A touch area hanging straight from the root is the screen's, and the buttons inside
             // it are their own: the BuzzNav's NEXT lies within one over its whole panel
@@ -873,6 +545,379 @@ impl TouchTargets {
             boxes,
             unoffered,
         ))
+    }
+
+    /// What each of a layout's touch areas is called, by the rules in their order (the
+    /// module's): the words in its button and the game's word for its picture, for every one;
+    /// then for each `seen`, no bar over it, the words of the button drawing the same picture,
+    /// what it was last called, its place as a slot, and its picture's own words or the label
+    /// under it. Gives each of those left in the walk, a slot behind another's not, by what it
+    /// is called, None where nothing names it, which the log says once; and the words on screen
+    /// in each button (`_within_another`). The TextBoxes whose words name a button go into
+    /// `boxes` (`button_words`).
+    #[allow(clippy::too_many_arguments, clippy::type_complexity)]
+    fn names(
+        &mut self,
+        root: i64,
+        tree: &IndexMap<i64, String>,
+        touches: &[i64],
+        groups: &IndexMap<i64, Vec<i64>>,
+        seen: &IndexMap<i64, (i64, i64)>,
+        words: &IndexMap<i64, ScreenText>,
+        drawn: &IndexMap<i64, Option<String>>,
+        file: Option<&LayoutFile>,
+        greyed: &HashSet<i64>,
+        boxes: &mut IndexMap<i64, HashSet<i64>>,
+    ) -> Result<(
+        IndexMap<i64, Option<String>>,
+        IndexMap<i64, HashSet<String>>,
+    )> {
+        let layouts = self.layouts.clone();
+        let empty = IndexMap::new();
+        let textures = file.map_or(&empty, |file| &file.textures);
+        let mut names: IndexMap<i64, String> = IndexMap::new();
+        let owned = own_parts(groups);
+        let mut filled: Option<IndexMap<i64, String>> = None;
+        // Touch area -> the words on screen in its button, or with none the game's word for
+        // its picture: the Pokémon-Amie page's PLAY, DECORATE and SWITCH lie within the touch
+        // area behind its menu, and are buttons of their own (spike 198). A button with words
+        // keeps to them: the Secret Base's DexNav panel, words and an app's icon, was offered
+        // as well as the window it lies in.
+        let mut spoken: IndexMap<i64, HashSet<String>> = IndexMap::new();
+        for &touch in touches {
+            let group = &groups[&touch];
+            // As a cursor reads its item: the X menu's words drawn twice in one place once,
+            // "BAG BAG" (movie20), and a row left to right, so a move's PP is "35/35" where
+            // each word once and in build order made "PP / 35" (movie22).
+            let mut said = join(
+                &distinct(in_rows(group.iter().filter_map(|p| words.get(p)).cloned())),
+                false,
+            );
+            spoken.insert(
+                touch,
+                group
+                    .iter()
+                    .filter_map(|p| words.get(p))
+                    .map(|piece| piece.text.clone())
+                    .collect(),
+            );
+            // A button's words, however it is named: the O-Power panel's Use, Give and Cancel
+            // came on screen as their buttons were named as they had been, and were said
+            // (or_pss_singleplayer).
+            if self.button(touch)? {
+                boxes.entry(root).or_default().extend(
+                    group
+                        .iter()
+                        .copied()
+                        .filter(|p| tree.get(p).map(String::as_str) == Some(lyt::TEXTBOX_CLASS)),
+                );
+            }
+            let mut image: Option<String> = None;
+            for i in drawn_with(
+                owned[&touch].iter().copied(),
+                &|p| Ok(drawn.get(&p).cloned().flatten()),
+                textures,
+                &|p| self.layouts.pane_name(p),
+            ) {
+                if let Some(word) = self.images.get(&i?) {
+                    image = Some(word.clone());
+                    break;
+                }
+            }
+            if let Some(shown_image) = image.clone()
+                && !shown_image.is_empty()
+                && said.is_empty()
+            {
+                spoken
+                    .get_mut(&touch)
+                    .expect("inserted above")
+                    .insert(shown_image.clone());
+                // By what it draws now, never its layout file's texture: the ball is there,
+                // hidden, over a Pokémon not caught.
+                if let Some(said_caught) = &self.said_caught
+                    && owned[&touch].iter().any(|p| {
+                        drawn
+                            .get(p)
+                            .and_then(Option::as_deref)
+                            .is_some_and(|i| self.caught.contains(i))
+                    })
+                {
+                    image = Some(said_caught(&shown_image));
+                }
+            }
+            if let Some(picture_name) = self.picture_name.clone() {
+                // What the game fills a picture with comes first, as it is drawn: the Bag's
+                // party slot is its Pokémon's icon, then its level (movie21). Not a picture of
+                // a button inside it, shown or not: Amie's strip across its top bar took the
+                // Sweet Poké Puff of the bar of puffs inside it for its name, each puff a
+                // button of its own, and kept it with the bar hidden (or_amie_pokepuffs).
+                let inner = self.inner(root, touch, tree)?;
+                let mut named: Vec<i64> = Vec::new();
+                for &p in group {
+                    if tree.get(&p).map(String::as_str) == Some(lyt::PICTURE_CLASS)
+                        && !inner.contains(&p)
+                        && picture_name(p)?.is_some_and(|word| !word.is_empty())
+                    {
+                        named.push(p);
+                    }
+                }
+                let parent = u32(&layouts.pane(touch)?, lyt::PARENT)?;
+                let mut beside = said.is_empty() && image.as_deref().is_none_or(str::is_empty);
+                if beside {
+                    for &p in &named {
+                        if self.lies_in(p, touch)? {
+                            beside = false;
+                            break;
+                        }
+                    }
+                }
+                if beside {
+                    beside = false;
+                    for p in layouts.children(root, parent) {
+                        if tree.get(&p).map(String::as_str) == Some(lyt::PICTURE_CLASS)
+                            && picture_name(p)?.is_some_and(|word| !word.is_empty())
+                        {
+                            beside = true;
+                            break;
+                        }
+                    }
+                }
+                if beside {
+                    // Super Training's carousel moves its party's pictures between touch
+                    // areas that stay put, so a tap selects what is drawn at the place, not
+                    // the picture the area's own pane holds (2026-10-10, live from
+                    // omega_ruby_bottom-screen5's end). Only an area whose own pane holds such
+                    // a picture beside it: the Amie menu's backdrop, holding none, took the
+                    // Pokémon lying within it for its name, not "close". And only where none
+                    // of its own pictures lies in it: the big slot's own, the row's icon 53
+                    // off its middle, still fell in its group, and the slot took its name over
+                    // the Pokémon drawn big in it every second or so; the
+                    // DexNav's icons each lie in their own, and naming every picture of its
+                    // panel cost 180 reads a poll. The picture nearest its middle, its own or
+                    // not.
+                    if filled.is_none() {
+                        let mut found: IndexMap<i64, String> = IndexMap::new();
+                        for (&p, kind) in tree {
+                            if kind == lyt::PICTURE_CLASS
+                                && shown(&layouts, p)?
+                                && let Some(word) = picture_name(p)?
+                                && !word.is_empty()
+                            {
+                                found.insert(p, word);
+                            }
+                        }
+                        filled = Some(found);
+                    }
+                    let mut lying: Vec<i64> = Vec::new();
+                    for &p in filled.as_ref().expect("filled above").keys() {
+                        if !inner.contains(&p) && self.lies_in(p, touch)? {
+                            lying.push(p);
+                        }
+                    }
+                    // `sorted(dict.fromkeys([*named, *lying]), key=...)`: each key found
+                    // once, in order, before the sort.
+                    let mut keyed: Vec<(i64, f64)> = Vec::new();
+                    for p in named
+                        .iter()
+                        .chain(&lying)
+                        .copied()
+                        .collect::<IndexSet<i64>>()
+                    {
+                        keyed.push((p, self.off_middle(p, touch)?));
+                    }
+                    named = py::sorted_by_lt(keyed, |a, b| a.1 < b.1)
+                        .into_iter()
+                        .map(|(p, _key)| p)
+                        .collect();
+                }
+                let pictured = match named.first() {
+                    Some(&first) => picture_name(first)?,
+                    None => None,
+                };
+                // Screen text names the picture too where it names pictures: the Bag's party
+                // slots were "Torchic Torchic L14", the AreaNav's Pokémon "Surskit Surskit"
+                // and the Battle Maison's partners "May May" (or_multi_battle_partners).
+                if let Some(pictured) = pictured
+                    && !pictured.is_empty()
+                    && !spoken[&touch].contains(&pictured)
+                {
+                    said = if said.is_empty() {
+                        pictured
+                    } else {
+                        format!("{pictured} {said}")
+                    };
+                }
+            }
+            if !said.is_empty() || image.as_deref().is_some_and(|image| !image.is_empty()) {
+                names.insert(
+                    touch,
+                    if !said.is_empty() {
+                        said
+                    } else {
+                        image.unwrap_or_default()
+                    },
+                );
+            }
+        }
+        let mut by_picture: Option<IndexMap<String, String>> = None;
+        let mut called: IndexMap<i64, Option<String>> = IndexMap::new();
+        for (&touch, &(x, y)) in seen {
+            let group = &groups[&touch];
+            let on_screen = (0..WIDTH).contains(&x) && (0..HEIGHT).contains(&y);
+            // A button with words of its own is named by them or not at all: the Bag's rows
+            // all draw `bar1.bclim`, and an empty row was said by the one row's item
+            // (movie21).
+            let worded = group
+                .iter()
+                .any(|p| tree.get(p).map(String::as_str) == Some(lyt::TEXTBOX_CLASS));
+            if !names.contains_key(&touch) && !worded {
+                if by_picture.is_none() {
+                    by_picture = Some(self.by_picture(root, tree, textures)?);
+                }
+                let table = by_picture.as_ref().expect("made just above");
+                let mut alike: Option<String> = None;
+                for i in drawn_with(
+                    group
+                        .iter()
+                        .copied()
+                        .filter(|p| tree.get(p).map(String::as_str) == Some(lyt::PICTURE_CLASS)),
+                    &|p| Ok(drawn.get(&p).cloned().flatten()),
+                    textures,
+                    &|p| self.layouts.pane_name(p),
+                ) {
+                    if let Some(word) = table.get(&i?) {
+                        alike = Some(word.clone());
+                        break;
+                    }
+                }
+                if let Some(alike) = alike
+                    && !alike.is_empty()
+                {
+                    names.insert(touch, alike);
+                }
+            }
+            let panes: HashSet<i64> = group.iter().copied().collect();
+            if let Some(name) = names.get(&touch) {
+                // Remembered only from the rules above: a picture's own words are a guess.
+                self.named.insert(touch, (name.clone(), panes));
+            } else if let Some((name, held)) = self.named.get(&touch)
+                && *held == panes
+            {
+                // And only while its button holds what it held: Amie's Interior Items move
+                // each page's pictures under touch areas that stay put, and a slot empty on
+                // the next page was still said by the item it had held (spike 228,
+                // or_pokemon_me2).
+                names.insert(touch, name.clone());
+            } else if let Some(slot) = {
+                let (x, y) = place(&layouts, touch)?;
+                slots::slot(&layouts, file, root, x, y, &(self.on_screen)(), None, None)?
+            } && slot.0 == touch
+            {
+                // A slot is said as the Box's pointer says it, by its place in the grid, its
+                // number in the party or the mark it shows: by its pictures, the Box's grid
+                // was its wallpaper's, "wave pattern", and a mark "box mark 01". Two of the
+                // grid's slots lie under a placeholder TextBox of another panel (movie22).
+                if slot.1.is_empty() {
+                    // Behind the Battle Box's, and in the way of its taps (or_battle_box).
+                    continue;
+                }
+                names.insert(touch, slot.1);
+            } else if !worded && on_screen && u32(&layouts.pane(touch)?, lyt::PARENT)? != root {
+                // A touch area hanging straight from the root has no button of its own, and
+                // the pictures over it are the screen's: the Battle Box's slots, left on
+                // under BOX 1, were said by its wallpaper, "line pattern" (movie22). One off
+                // the screen is not offered, so not guessed at: X's field menu keeps a
+                // button at (340, 70) until it slides in, and every run logged a word made
+                // for its `shadow.bclim`.
+                // The picture lying in it first: the PSS's Favorites List hangs its return
+                // from the bar along the bottom, and was said "touch bar" (or_pss_singleplayer).
+                let mut drawn_in: Vec<i64> = Vec::new();
+                for &p in &owned[&touch] {
+                    if tree.get(&p).map(String::as_str) == Some(lyt::PICTURE_CLASS)
+                        && shown(&layouts, p)?
+                    {
+                        drawn_in.push(p);
+                    }
+                }
+                // `sorted(..., key=lambda p: not self._lies_in(p, touch))`: every key found
+                // first, in order, then a stable sort, False first.
+                let mut keyed: Vec<(i64, bool)> = Vec::new();
+                for p in drawn_in {
+                    keyed.push((p, !self.lies_in(p, touch)?));
+                }
+                keyed.sort_by_key(|&(_p, key)| key);
+                // Python's `next` over a generator: the first picture's texture ends the look,
+                // and no picture after it has its name read.
+                let mut texture: Option<String> = None;
+                for (p, _key) in keyed {
+                    let image = drawn.get(&p).cloned().flatten();
+                    let t = match image {
+                        Some(image) if !image.is_empty() => Some(image),
+                        _ => textures
+                            .get(&self.layouts.pane_name(p)?)
+                            .and_then(|textures| textures.first().cloned()),
+                    };
+                    if let Some(t) = t.filter(|t| !t.is_empty()) {
+                        texture = Some(t);
+                        break;
+                    }
+                }
+                let stem = texture
+                    .as_deref()
+                    .map(|texture| texture.split('.').next().unwrap_or_default());
+                let layout_name = file.map_or("", |file| file.name.as_str());
+                let mut picture: Option<String> = None;
+                if stem == Some(pictures::ARROW) || (stem == Some(pictures::BUTTON) && y < TOP_BAR)
+                {
+                    picture = Some(own(
+                        if (x as f64) < WIDTH as f64 / 2.0 {
+                            pictures::PREVIOUS
+                        } else {
+                            pictures::NEXT
+                        },
+                        &[],
+                    ));
+                } else if let Some(named) = texture
+                    .as_deref()
+                    .and_then(|texture| pictures::named_in(texture, layout_name))
+                {
+                    picture = Some(named);
+                } else {
+                    // Where the data has no word for the picture, the game's own written
+                    // under it: the PSS's menu draws Battle, Trade and the rest as icons,
+                    // each with its word below its touch area, said "pss taisen".
+                    let label = self.label(root, touch, words, groups)?;
+                    if let Some(label) = label {
+                        picture = Some(label.text.clone());
+                        boxes.entry(root).or_default().insert(label.r#box);
+                    } else if let Some(texture) = &texture {
+                        picture = Some(pictures::words_in(texture, layout_name));
+                    }
+                }
+                if let Some(picture) = picture
+                    && !picture.is_empty()
+                {
+                    names.insert(touch, picture);
+                }
+            }
+            let mut name = names.get(&touch).filter(|name| !name.is_empty()).cloned();
+            if on_screen && name.is_none() && !self.unnamed.contains(&touch) {
+                self.unnamed.insert(touch);
+                (self.log)(&format!(
+                    "touch: {} of layout {root:#x} has no name",
+                    self.layouts.pane_name(touch)?
+                ));
+            }
+            if on_screen
+                && greyed.contains(&touch)
+                && let Some(said) = &name
+                && let Some(said_unavailable) = &self.said_unavailable
+            {
+                name = Some(said_unavailable(said));
+            }
+            called.insert(touch, name);
+        }
+        Ok((called, spoken))
     }
 
     /// The TextBoxes whose words name a button on the bottom screen now, a button's own words
