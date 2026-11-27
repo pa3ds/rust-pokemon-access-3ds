@@ -2,7 +2,7 @@
 //! shows Battle Time, the minutes and seconds the battle has left, and Command Time, the seconds
 //! left to choose, on the top screen, `btl_time.bclyt`. Each digit is a picture of its own showing
 //! its part of one image of all ten, `battle_timer.bclim`, so no TextBox says either: Command Time
-//! counted down unheard (the PSS's multiplayer, spike A).
+//! counted down unheard (the PSS's multiplayer, spike 319).
 //!
 //! - **C says Command Time and Shift and C Battle Time** (`[pa3ds.pss.battle]` in the keys file),
 //!   in any battle: "no timer" where none is shown, a battle with no time limit, or Command Time
@@ -41,7 +41,7 @@ use crate::py::{self, Result, sorted_by_lt};
 
 pub const FILE: &str = "btl_time.bclyt";
 /// Each digit by its top left corner's place in `battle_timer.bclim`, u and v, 0 to 4 along one
-/// row and 5 to 9 along the other: Y's link battle counted each down through all ten (spike A).
+/// row and 5 to 9 along the other: Y's link battle counted each down through all ten (spike 319).
 pub const DIGITS: [((f64, f64), i64); 10] = [
     ((0.075, 0.518), 0),
     ((0.215, 0.518), 1),

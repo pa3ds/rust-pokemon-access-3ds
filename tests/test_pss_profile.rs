@@ -1,4 +1,4 @@
-//! A PSS profile's values, drawn into a picture a row (spike A).
+//! A PSS profile's values, drawn into a picture a row (spike 319).
 
 use std::rc::Rc;
 
@@ -17,7 +17,7 @@ const ROWS: i64 = 0x08660000;
 /// "District of Columbia" a picture a row, in five frames under the layout's root, its rows at
 /// 45, -5, -55 and -105 down the list: the n-th frame is the n-th row down, scrolled or not, and
 /// the texture drawn in a frame elsewhere, hidden at 0, is none of the list's. History's row of
-/// icons names nothing (Y, spike A).
+/// icons names nothing (Y, spike 319).
 #[test]
 fn test_a_profiles_rows_are_said_in_their_pictures_by_their_order() {
     let memory = FakeMemory::new();

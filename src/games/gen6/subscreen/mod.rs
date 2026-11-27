@@ -1229,7 +1229,7 @@ impl Subscreens {
     /// Whether a screen that times the player runs, whose clock is said only at its marks
     /// (`common.clocks`): one of Amie's games, or the team choice before a battle chosen in the
     /// PSS, the party opened from the Colosseum, counting down from 1:39, which was said once
-    /// and never ticked (the PSS's multiplayer, spike A).
+    /// and never ticked (the PSS's multiplayer, spike 319).
     pub fn timed(&self) -> bool {
         let running = self.running();
         running

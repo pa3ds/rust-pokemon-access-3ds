@@ -25,7 +25,7 @@ pub const TRADE_LIST: &str = "N6netapp9tradelist4ProcE";
 pub const VS_DEMO: &str = "N3app7vs_demo4ProcE";
 /// After a trade or a battle in the PSS, "Would you like to do something else with" the other
 /// player, Yes or No: only a tap answers Yes, B alone answering No, and both players had nothing to
-/// touch there (the PSS's multiplayer, spike A).
+/// touch there (the PSS's multiplayer, spike 319).
 pub const DIALOG: &str = "N3app6dialog4ProcE";
 
 /// Is the app one of the PSS's own (`PSS`)?

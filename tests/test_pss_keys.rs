@@ -1,4 +1,4 @@
-//! The keys of the screens two players meet on through the PSS (spike A).
+//! The keys of the screens two players meet on through the PSS (spike 319).
 
 use std::rc::Rc;
 
@@ -47,7 +47,7 @@ fn keys(drawn: Vec<ScreenText>, before: Option<&str>) -> pss_keys::PssKeys {
     )
 }
 
-/// The other player's Treecko written on the right half (spike A).
+/// The other player's Treecko written on the right half (spike 319).
 #[test]
 fn test_a_trades_keys_say_each_offer_by_its_half_of_the_top_screen() {
     let theirs = vec![
@@ -72,7 +72,7 @@ fn test_a_trades_keys_say_each_offer_by_its_half_of_the_top_screen() {
 }
 
 /// The party opened from the Colosseum draws the other player's team on the top screen, and
-/// its clock under it (spike A).
+/// its clock under it (spike 319).
 #[test]
 fn test_the_team_choice_says_the_other_players_team_but_its_clock() {
     let drawn = vec![

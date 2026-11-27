@@ -169,7 +169,7 @@ fn test_touch_mode_in_the_subscreens_apps_is_as_they_say() {
 
 /// ADR-0013: a clock is said at its marks while a screen that times the player runs. The
 /// party opened from the Colosseum before a battle with another player counts down from 1:39,
-/// and was said once and never ticked (spike A); the party opened from the field is not.
+/// and was said once and never ticked (spike 319); the party opened from the field is not.
 #[test]
 fn test_the_team_choice_of_a_battle_in_the_pss_is_timed() {
     let apps = running(pss::COLOSSEUM);

@@ -4,13 +4,13 @@
 //! - **A trade** (`pss.TRADE_LIST`): R says the Pokémon the player has offered and Shift and R the
 //!   other player's, as its top screen writes each, `trade_upper.bclyt`: a name, its gender sign,
 //!   "Lv.", the level and the held item in five boxes, the player's on the left half and the other
-//!   player's on the right (spike A: the other player's Treecko at x 70 to 170, and the
+//!   player's on the right (spike 319: the other player's Treecko at x 70 to 170, and the
 //!   player's five boxes hidden while nothing was offered; the left half unchecked live).
 //! - **The team choice before a battle chosen in the PSS** (the party opened from
 //!   `pss.COLOSSEUM`): Shift and R says the team the other player chose, as its top screen draws
 //!   it, `pokelist_uppwer.bclyt`: their name, then each Pokémon's gender sign and level, but for
-//!   its icon, which nothing names yet (spike A); its "TIME REMAINING" row is the clock's, said at
-//!   its marks (`Subscreens.timed`), and left out: C says it.
+//!   its icon, which nothing names yet (spike 319); its "TIME REMAINING" row is the clock's, said
+//!   at its marks (`Subscreens.timed`), and left out: C says it.
 //!
 //! A key with nothing drawn to say says so.
 

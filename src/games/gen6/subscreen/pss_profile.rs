@@ -2,7 +2,7 @@
 //! own, which the profile draws into a picture a row, `prof_text.bclim`, and writes in no TextBox:
 //! its rows' boxes hold placeholders, and another player's "Nice to meet ya!", "United States"
 //! and "District of Columbia" went unsaid beside "Message", "Location 1" and "Location 2"
-//! (spike A).
+//! (spike 319).
 //!
 //! The rows are the profile app's objects, one a row, each holding its place down the list, and a
 //! row of words its words:
@@ -18,7 +18,7 @@
 //! frame's by the n-th row down, of any kind. Each frame sits at its row's place less the list's
 //! scroll, which the rows' places never take up: scrolled, the frames moved 25, 46 and then 6
 //! units up together and kept their order, while the places stayed (another player's profile in
-//! Y, spike A). Sorting the pictures by height instead put the frames the texture draws in
+//! Y, spike 319). Sorting the pictures by height instead put the frames the texture draws in
 //! elsewhere, hidden at 0, among the list's, and named only Message. History's row is a
 //! `PssProfileHistoryCategory` of icons, unread; two totals and a time follow Location 2.
 

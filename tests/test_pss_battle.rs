@@ -1,4 +1,4 @@
-//! A link battle's timers, drawn a digit a picture (the PSS's multiplayer, spike A).
+//! A link battle's timers, drawn a digit a picture (the PSS's multiplayer, spike 319).
 
 use std::cell::Cell;
 use std::rc::Rc;

@@ -78,8 +78,8 @@ pub const HEAD: i64 = 0x100;
 
 // nw::lyt::Picture and its nw::lyt::Material (spikes 128 and 198)
 /// f32 u, f32 v: where in its image a picture's top left corner is, which the game moves to draw
-/// one part of it: a link battle's timers show each digit's part of one image of them all (spike
-/// A).
+/// one part of it: a link battle's timers show each digit's part of one image of them all
+/// (spike 319).
 pub const PICTURE_UV: i64 = 0xDC;
 /// -> the picture's material, which says what it draws now, whatever its layout file says.
 pub const PICTURE_MATERIAL: i64 = 0x13C;
