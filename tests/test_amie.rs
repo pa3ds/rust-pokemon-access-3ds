@@ -20,6 +20,7 @@ use crate::games::common::screen::ScreenText;
 use crate::games::common::touch::{ImageOf, Target};
 use crate::games::common::{lyt, pokemon};
 use crate::games::gen6::apps::FIELD;
+use crate::games::gen6::g2d::UTIL_CLASS;
 use crate::games::gen6::pokeicon;
 use crate::games::gen6::screens::partyicons::COUNT;
 use crate::games::gen6::subscreen::berry_picker::{Name, Touching};
@@ -1750,7 +1751,7 @@ fn test_an_interior_item_is_named_by_its_slot_on_the_page_shown() {
     let classes = FakeClasses::new(memory.clone());
     let (g2d, between, block, system, picture) =
         (0x08C10030, 0x08C08000, 0x08C00030, 0x08C20000, 0x08C30000);
-    memory.u32(g2d, &[classes.add(amie::G2D_CLASS)]);
+    memory.u32(g2d, &[classes.add(UTIL_CLASS)]);
     memory.u32(g2d - 0x30 + amie::PREVIOUS, &[between]);
     memory.u32(between + amie::PREVIOUS, &[block - 0x30]);
     let (puffs, replace) = (0x08C40000, classes.add(pokeicon::REPLACE_CLASS));
@@ -1777,7 +1778,7 @@ fn test_an_interior_item_is_named_by_its_slot_on_the_page_shown() {
     goods
         .track(
             &IndexMap::from([
-                (g2d, amie::G2D_CLASS.to_string()),
+                (g2d, UTIL_CLASS.to_string()),
                 (puffs, pokeicon::REPLACE_CLASS.to_string()),
                 (system, pokeicon::REPLACE_CLASS.to_string()),
             ]),

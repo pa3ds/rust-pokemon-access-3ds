@@ -10,7 +10,8 @@ use indexmap::IndexMap;
 use super::fake_memory::{FakeClasses, FakeMemory};
 use crate::games::common::cursors::shared::CursorPoll;
 use crate::games::common::screen::ScreenText;
-use crate::games::gen6::screens::{reminder, rows, townmap};
+use crate::games::gen6::g2d;
+use crate::games::gen6::screens::{reminder, rows};
 
 const PROCESS: i64 = 0x08100000;
 const PARENT: i64 = 0x08200000;
@@ -53,7 +54,7 @@ fn move_reminder(contest_shown: bool) -> (Rc<FakeMemory>, FakeClasses, reminder:
     let classes = FakeClasses::new(memory.clone());
     memory.u32(PROCESS + reminder::REMEMBER_LIST[0], &[PARENT]);
     memory.u32(PARENT, &[classes.add(reminder::PARENT_VIEW)]);
-    let util_class = classes.add(townmap::UTIL_CLASS);
+    let util_class = classes.add(g2d::UTIL_CLASS);
     let cursor_class = classes.add(reminder::CURSOR_CLASS);
     for (at, view, util, drawn, name) in [
         (
@@ -74,16 +75,16 @@ fn move_reminder(contest_shown: bool) -> (Rc<FakeMemory>, FakeClasses, reminder:
         memory.u32(PARENT + at, &[view]);
         memory.u32(view, &[classes.add(name)]);
         memory.write(view + reminder::DRAWN, &[drawn as u8]);
-        memory.u32(view + townmap::UTIL, &[util]);
+        memory.u32(view + g2d::UTIL, &[util]);
         memory.u32(util, &[util_class]);
-        memory.u32(util + townmap::LAYOUTS, &[tables(util), 1]);
+        memory.u32(util + g2d::LAYOUTS, &[tables(util), 1]);
         memory.u32(tables(util), &[tables(util) + 0x100, 0x101]);
-        memory.u32(tables(util) + 0x100 + townmap::WORK, &[works(util)]);
+        memory.u32(tables(util) + 0x100 + g2d::WORK, &[works(util)]);
         let (cursor, handle) = (tables(util) + 0x200, tables(util) + 0x300);
         memory.u32(view + reminder::cursors(at).unwrap(), &[cursor]);
         memory.u32(cursor, &[cursor_class]);
         memory.u32(cursor + reminder::CURSOR_LAYOUT, &[handle]);
-        memory.u32(handle + townmap::WORK, &[cursor_works(util)]);
+        memory.u32(handle + g2d::WORK, &[cursor_works(util)]);
     }
     memory.write(PARENT + reminder::PAGE, &[contest_shown as u8]);
     let running = Rc::new(RefCell::new(reminder::REMEMBER.to_string()));

@@ -3,7 +3,7 @@
 //!
 //! Each page is a pair of views, its upper screen's and its lower's, and a view draws the layouts
 //! of the `G2DUtil` at its +0x5C only while a byte of its own is 1, as the AreaNav's do
-//! (`townmap`). The page not shown keeps every flag of its layouts as when it was last drawn, its
+//! (`gen6.g2d`). The page not shown keeps every flag of its layouts as when it was last drawn, its
 //! list's cursor parked on the row it was left on: read as shown, the contest page's cursor said
 //! that row as the battle page's list scrolled under it, a move ahead of the cursor, and its
 //! details said Hyper Beam's appeal for every move after (or_move_reminder_bugs). The layouts of
@@ -32,7 +32,7 @@ use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
 use crate::games::common::cursors::shared::CursorPoll;
 use crate::games::gen6::anchors::{Kept, follow};
-use crate::games::gen6::screens::townmap::{UTIL, UTIL_CLASS, WORK, util_works};
+use crate::games::gen6::g2d::{UTIL, UTIL_CLASS, WORK, util_works};
 use crate::py::{Error, Result};
 
 pub const REMEMBER: &str = "N3app13wazaomoidashi14SelectWazaProcE";
@@ -61,7 +61,7 @@ pub const DRAWN: i64 = 0x68;
 /// in the Python: `cursors` looks a view up in it.
 pub const CURSORS: [(i64, i64); 2] = [(0x7C, 0xA4), (0x84, 0xA8)];
 pub const CURSOR_CLASS: &str = "N3app4tool10MenuCursorE";
-/// A `MenuCursor` -> its layout's handle, as a `G2DUtil` lists one (`townmap.WORK`).
+/// A `MenuCursor` -> its layout's handle, as a `G2DUtil` lists one (`g2d.WORK`).
 pub const CURSOR_LAYOUT: i64 = 0x10;
 
 /// `CURSORS[at]`: where a lower view keeps its list's cursor.

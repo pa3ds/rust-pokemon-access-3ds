@@ -1,6 +1,4 @@
-//! The town map, ORAS's AreaNav and X's Town Map: the place under its map's cursor (spike 309),
-//! and the layouts a `G2DUtil` draws, by which ORAS's AreaNav's views and the Move Reminder's pages
-//! are put away (spikes 181 and 183).
+//! The town map, ORAS's AreaNav and X's Town Map: the place under its map's cursor (spike 309).
 //!
 //! The place under the map's cursor is the town map's cursor source (`Places`, spike 309): the Fly
 //! map's, the Town Map's, and the place a View Details pages to. Its `MapView` keeps the touch
@@ -24,19 +22,12 @@
 //! Eye's and Secret Bases' lists and the Pokémon Distribution. They are ORAS's own
 //! (`oras.subscreen.areanav`), and what its lists make of the cursors comes in through its `Own`
 //! (`AreaNav`, `OwnLists`, `gen6.own`). A view draws the layouts of Game Freak's layout helper,
-//! `app::util::G2DUtil`, as the Move Reminder's pages do (`reminder`):
-//!
-//! ```text
-//! view     +0x5C  -> app::util::G2DUtil
-//! G2DUtil  +0x1C  -> its layouts, 8 bytes each: a handle, then flags; +0x20 how many
-//! handle   +0x04  the layout's work, as a layout pool's table keeps it
-//! ```
+//! `app::util::G2DUtil`, as the Move Reminder's pages do (`gen6.g2d`).
 //!
 //! Bound by:
 //! - ADR-0043: the place under the map's cursor is said as it changes, the area over a list
 //!   only as it changes.
 
-use std::collections::HashSet;
 use std::rc::Rc;
 
 use crate::core::binary::u32;
@@ -48,13 +39,6 @@ use crate::py::Result;
 
 /// The AreaNav as an app of its own, opened from the PokéNav's window or the Bag's Town Map.
 pub const APP: &str = "N3app7townmap4ProcE";
-pub const UTIL: i64 = 0x5C;
-pub const UTIL_CLASS: &str = "N3app4util7G2DUtilE";
-pub const LAYOUTS: i64 = 0x1C;
-pub const LAYOUT_COUNT: i64 = 0x20;
-pub const ENTRY: i64 = 8;
-pub const WORK: i64 = 0x04;
-pub const MAX_LAYOUTS: i64 = 16;
 pub const MAP_VIEW_CLASS: &str = "N3app7townmap7MapViewE";
 
 /// Where a game's town map keeps the place under its cursor (module docstring).
@@ -77,27 +61,6 @@ pub const XY: Shape = Shape {
     place: 0xF0,
 };
 pub const NO_PLACE: i64 = 0xFFFFFFFF;
-
-/// The works of the layouts a `G2DUtil` draws.
-pub fn util_works(memory: &dyn Memory, util: i64) -> Result<HashSet<i64>> {
-    let listed = memory.read(util + LAYOUTS, 8)?;
-    let (table, count) = (u32(&listed, 0)?, u32(&listed, 4)?);
-    if table == 0 || !(0 < count && count <= MAX_LAYOUTS) {
-        return Ok(HashSet::new());
-    }
-    let entries = memory.read(table, ENTRY * count)?;
-    let mut works: HashSet<i64> = HashSet::new();
-    for i in 0..count {
-        let handle = u32(&entries, ENTRY * i)?;
-        if handle != 0 {
-            let work = u32(&memory.read(handle + WORK, 4)?, 0)?;
-            if work != 0 {
-                works.insert(work);
-            }
-        }
-    }
-    Ok(works)
-}
 
 /// The place under the AreaNav's map cursor, read every tick from its `MapView` (module
 /// docstring), said by the ROM's name for it as it changes: the screen's same words are then

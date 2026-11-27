@@ -12,7 +12,7 @@
 //! layouts of the `G2DUtil` at its +0x5C (spike 183, the byte 1 while the list is up and 0 once it
 //! is gone). Which byte is each class's own: the offsets in `VIEWS` are where each class's draw
 //! reads it. `MapView` and `GraphicWork` draw whenever the AreaNav does, and are not listed. The
-//! `G2DUtil`'s layouts are read as the Move Reminder's are (`townmap.util_works`).
+//! `G2DUtil`'s layouts are read as the Move Reminder's are (`g2d.util_works`).
 //!
 //! X's Town Map is the same app, `app::townmap`, and has none of these views, none of their
 //! classes' names in the memory x_townmap's tape read: the place under the map's cursor is gen
@@ -34,8 +34,8 @@ use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
 use crate::games::common::cursors::shared::{CursorItem, CursorPoll};
 use crate::games::common::screen::ScreenText;
+use crate::games::gen6::g2d::{UTIL, UTIL_CLASS, util_works};
 use crate::games::gen6::screens::scrolled::{Row, Scrolled, row};
-use crate::games::gen6::screens::townmap::{UTIL, UTIL_CLASS, util_works};
 use crate::py::Result;
 
 /// Each view class whose draw is skipped while a byte of it is 0, by where that byte is.

@@ -31,3 +31,5 @@ pub mod session;
 pub mod subscreen;
 
 pub mod feedback;
+
+pub mod g2d;

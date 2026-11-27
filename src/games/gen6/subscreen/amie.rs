@@ -93,6 +93,7 @@ use crate::games::common::field::keys::{STYLUS, STYLUS_JUMPS, STYLUS_MOVES, STYL
 use crate::games::common::touch::{After, Target};
 use crate::games::common::{lyt, pokemon, touch};
 use crate::games::gen6::apps::FIELD;
+use crate::games::gen6::g2d::UTIL_CLASS;
 use crate::games::gen6::screens::townmap;
 use crate::games::gen6::subscreen::berry_picker::{Name, Touching};
 use crate::games::gen6::{gflheap, pokeicon};
@@ -459,8 +460,6 @@ pub const VISITOR: &str = "amie-visitor";
 /// Seconds before a replace system's textures are read again for an image not among them.
 pub const REREAD: f64 = 1.0;
 
-/// A screen's layout helper, which the decorate screen's item pages point at (`Goods`).
-pub const G2D_CLASS: &str = "N3app4util7G2DUtilE";
 /// A page of Interior Items' slots, and textures in its replace system.
 pub const SLOTS: i64 = 15;
 pub const G2D: i64 = 0x04;
@@ -2064,7 +2063,7 @@ pub struct Goods {
 impl Goods {
     /// What the heap is swept for: the texture systems the items are drawn from, and the
     /// layout helpers the pages' block points at.
-    pub const CLASSES: [&'static str; 2] = [pokeicon::REPLACE_CLASS, G2D_CLASS];
+    pub const CLASSES: [&'static str; 2] = [pokeicon::REPLACE_CLASS, UTIL_CLASS];
 
     pub fn new(memory: Rc<dyn Memory>, names: Rc<ClassNames>, goods: Vec<String>) -> Self {
         Goods {
@@ -2083,7 +2082,7 @@ impl Goods {
             IndexMap::new()
         };
         for (&g2d, name) in found {
-            if name == G2D_CLASS {
+            if name == UTIL_CLASS {
                 g2ds.insert(g2d, u32(&self.replaced.memory.read(g2d, 4)?, 0)?);
             }
         }

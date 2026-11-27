@@ -12,6 +12,7 @@ use crate::core::discovery::Found;
 use crate::core::rtti::ClassNames;
 use crate::games::common::cursors::shared::{CursorItem, CursorPoll};
 use crate::games::common::screen::ScreenText;
+use crate::games::gen6::g2d;
 use crate::games::gen6::own::Own;
 use crate::games::gen6::screens::sources::OwnSources;
 use crate::games::gen6::screens::townmap;
@@ -36,11 +37,11 @@ fn berry_list(shown: u8) -> (Rc<FakeMemory>, areanav::Views) {
     memory.u32(VIEW, &[classes.add(NUTS)]);
     let drawn_at = VIEWS.iter().find(|(class, _)| *class == NUTS).unwrap().1;
     memory.write(VIEW + drawn_at, &[shown]);
-    memory.u32(VIEW + townmap::UTIL, &[UTIL]);
-    memory.u32(UTIL, &[classes.add(townmap::UTIL_CLASS)]);
-    memory.u32(UTIL + townmap::LAYOUTS, &[TABLE, 1]);
+    memory.u32(VIEW + g2d::UTIL, &[UTIL]);
+    memory.u32(UTIL, &[classes.add(g2d::UTIL_CLASS)]);
+    memory.u32(UTIL + g2d::LAYOUTS, &[TABLE, 1]);
     memory.u32(TABLE, &[HANDLE, 0x101]);
-    memory.u32(HANDLE + townmap::WORK, &[WORK]);
+    memory.u32(HANDLE + g2d::WORK, &[WORK]);
     let mut views = areanav::Views::new(
         memory.clone(),
         Rc::new(ClassNames::new(memory.clone(), CODE)),
