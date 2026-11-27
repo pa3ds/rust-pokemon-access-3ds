@@ -106,7 +106,7 @@ use crate::games::gen6::screens::{
 use crate::games::gen6::subscreen::amie;
 use crate::games::gen6::subscreen::head_it::Cue;
 use crate::games::gen6::subscreen::{self, Subscreens};
-use crate::games::gen6::{frames, gflheap, mystatus};
+use crate::games::gen6::{frames, gflheap, mystatus, o_power};
 use crate::py::{self, Error, Kind, Log, PySet, Result};
 
 /// What the heap is swept for: message windows, list controllers, the device manager a choice box
@@ -125,7 +125,7 @@ use crate::py::{self, Error, Kind, Log, PySet, Result};
 /// Not TextBoxes or cursor windows: walking each layout's tree finds every one that can be placed on
 /// screen (spike 62). And the linear heap is not swept: the battle builds its layouts there, and its
 /// message window leads to their pool (spike 64).
-pub const HEAP_CLASSES: [&str; 32] = [
+pub const HEAP_CLASSES: [&str; 33] = [
     msgwin::CLASSES[0],
     msgwin::CLASSES[1],
     talk::CLASSES[0],
@@ -159,6 +159,7 @@ pub const HEAP_CLASSES: [&str; 32] = [
     buttons::BAR_CLASS,
     buttons::MENU_CLASS,
     mystatus::CLASS,
+    o_power::CLASS,
 ];
 
 /// Without a message window class there is nothing to read: not this game, or not this version.
@@ -324,6 +325,8 @@ pub struct Gen6Profile {
     /// What the heap is swept for in this game: `HEAP_CLASSES`, the subscreens' classes, and
     /// what the game's own readers find their objects by.
     pub classes: Vec<String>,
+    /// The O-Power list's energy and the powers running, which R says on their screens.
+    pub o_power: Rc<RefCell<o_power::OPower>>,
     pub distribution: Rc<RefCell<Distribution>>,
     pub views: Rc<RefCell<townmap::Views>>,
     /// The subscreens, Pokémon-Amie's and Super Training's and the apps they open, which name
@@ -662,6 +665,34 @@ impl Gen6Profile {
             })
         };
 
+        let shown_roots: o_power::Shown = {
+            let layouts = layouts.clone();
+            Rc::new(move || {
+                let mut shown: Vec<i64> = Vec::new();
+                for root in layouts.roots() {
+                    if layouts
+                        .placement(root)?
+                        .is_some_and(|placement| placement.shown)
+                    {
+                        shown.push(root);
+                    }
+                }
+                Ok(shown)
+            })
+        };
+
+        // The O-Power list's energy and the powers running, which R says on their screens.
+        let o_power = Rc::new(RefCell::new(o_power::OPower::new(
+            memory.clone(),
+            {
+                let screen = screen.clone();
+                Rc::new(move || screen.borrow().on_screen())
+            },
+            file_of.clone(),
+            shown_roots,
+            ui.pauses,
+        )));
+
         // The AreaNav keeps the layouts of a screen it has left as they were; its views say.
         let views = Rc::new(RefCell::new(townmap::Views::new(
             memory.clone(),
@@ -692,8 +723,12 @@ impl Gen6Profile {
         });
         let pauses = ui.pauses;
         let sides: Sides = {
-            let (standings, announcements, apps) =
-                (standings.clone(), announcements.clone(), apps.clone());
+            let (standings, announcements, apps, o_power) = (
+                standings.clone(),
+                announcements.clone(),
+                apps.clone(),
+                o_power.clone(),
+            );
             Rc::new(move |player: bool| {
                 let standing = match &standings {
                     None => None,
@@ -708,6 +743,10 @@ impl Gen6Profile {
                 // seconds before "Go!".
                 if said.is_none() && apps.borrow().running.as_deref() == Some(BATTLE) {
                     return Ok(Some(own("key-battle-not-shown", &[])));
+                }
+                // On O-Power's screens, the energy and the powers running (spike Q).
+                if said.is_none() && player {
+                    return o_power.borrow().said();
                 }
                 Ok(said)
             })
@@ -1402,6 +1441,7 @@ impl Gen6Profile {
             field,
             memories,
             classes: classes.into_iter().collect(),
+            o_power,
             distribution,
             views,
             subscreens,
@@ -1485,6 +1525,7 @@ impl Gen6Profile {
         self.apps.borrow_mut().track(found.of(&[MANAGER_CLASS]))?;
         // A talk object's class is a DLL's while a talk runs, so every one found is kept.
         self.speaker.track(found.of(&talk::CLASSES));
+        self.o_power.borrow_mut().track(found);
         self.distribution
             .borrow_mut()
             .track(found.of(&[distribution::CLASS]), adding);

@@ -54,6 +54,7 @@ mod test_modules;
 mod test_mystatus;
 mod test_names;
 mod test_navigate;
+mod test_o_power;
 mod test_oras_text;
 mod test_own_window;
 mod test_partners;

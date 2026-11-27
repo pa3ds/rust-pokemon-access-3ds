@@ -13,7 +13,8 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
   Favorites List with people in it, have been checked only from a player's log, so some of
   their buttons may still be said by the name of their picture. "Yes" may be said on its own as
   the question about connecting to the Internet opens or closes. The O-Power list shows six
-  powers at once: touch mode offers only those six, and the rest need the list scrolled. In X
+  powers at once, and touch mode offers only those six: the 3DS's L and R buttons turn its page
+  to the rest, whose names are read as it turns. In X
   and Y, touch mode can still offer the PSS's Friends, Acquaintances and Passersby for a few
   seconds after the O-Power list opens. Your profile's History and Locations are read as screen
   text with nothing after them: the icons of History and the place under each Location are not
