@@ -28,7 +28,7 @@ use crate::app::most_common;
 use crate::core::binary::u32;
 use crate::core::clips::Clips;
 use crate::core::config::{DRAG_TOGGLE, PARTY_BEEPS, PARTY_OFF, Tables};
-use crate::core::discovery::{Found, HEAP_SPAN, LINEAR_SPAN, within};
+use crate::core::discovery::{Found, LINEAR_SPAN, within};
 use crate::core::keys::shifted;
 use crate::core::memory::{Cache, Memory, phase};
 use crate::core::names::{FURNITURE, GamePlace, GameSprite, Names, TILES};
@@ -63,6 +63,7 @@ use crate::games::common::session::{Profile, Ways};
 use crate::games::common::slots::Occupant;
 use crate::games::common::touch::{
     self, FileOf, Idle, ImageOf, Lists, OnScreen, PictureName, TextOf, TouchMode, TouchTargets,
+    drawn_with,
 };
 use crate::games::common::{lyt, msgwin, pokemon, strbuf};
 use crate::games::gen6::anchors::Anchors;
@@ -336,8 +337,6 @@ pub struct Gen6Profile {
     pub habitat: Rc<RefCell<HabitatReader>>,
     /// Whose words (`gen6.screens.claims`).
     pub claims: Claims,
-    /// (work, root) of every layout whose files have been looked for since an app started.
-    archived: RefCell<HashSet<(i64, i64)>>,
     /// The zone the player was last polled in.
     zone: Cell<Option<i64>>,
     /// Message windows the field has shown a page in that no talk object kept was showing,
@@ -345,9 +344,7 @@ pub struct Gen6Profile {
     unheard: RefCell<HashSet<i64>>,
     /// Whether a sweep is wanted for the talk object showing a page.
     speaker_wanted: Cell<bool>,
-    /// Pages the game has said since Move to forget gave way to the screen it was opened from,
-    /// while that screen opening again is left unsaid (`poll_screen`); None otherwise.
-    after_forget: Cell<Option<i64>>,
+    after_forget: AfterForget,
     /// Whether a cursor has moved or opened since `sweep_held` last asked.
     pub(crate) moving: Cell<bool>,
     /// The tick a cursor was last seen to move or open at.
@@ -746,16 +743,16 @@ impl Gen6Profile {
                 Rc::new(move |pane: i64| {
                     let placement = layouts.placement(pane)?;
                     let file = placement.and_then(|placement| file_of(placement.root));
-                    let name = layouts.pane_name(pane)?;
-                    let filed: Vec<String> = file
-                        .and_then(|file| file.textures.get(&name).cloned())
-                        .unwrap_or_default();
-                    let mut drawn: Vec<String> = image_of(pane)?.into_iter().collect();
-                    drawn.extend(filed);
-                    Ok(drawn
-                        .iter()
-                        .find(|image| !image.is_empty() && images.contains_key(*image))
-                        .map(|image| images[image].clone()))
+                    let none = IndexMap::new();
+                    let textures = file.as_ref().map_or(&none, |file| &file.textures);
+                    for image in drawn_with([pane], &*image_of, textures, &|pane| {
+                        layouts.pane_name(pane)
+                    }) {
+                        if let Some(word) = images.get(&image?) {
+                            return Ok(Some(word.clone()));
+                        }
+                    }
+                    Ok(None)
                 })
             };
             let partners = partners.clone();
@@ -1279,11 +1276,10 @@ impl Gen6Profile {
             scenes,
             habitat,
             claims,
-            archived: RefCell::new(HashSet::new()),
             zone: Cell::new(None),
             unheard: RefCell::new(HashSet::new()),
             speaker_wanted: Cell::new(false),
-            after_forget: Cell::new(None),
+            after_forget: AfterForget::default(),
             moving: Cell::new(false),
             moved: Cell::new(None),
             holding: Cell::new(None),
@@ -1455,17 +1451,13 @@ impl Gen6Profile {
             return Ok(false);
         };
         (self.log)(&format!("app: {}", demangle(&started)));
-        if was.as_deref() == Some(rows::FORGET) && started != FIELD {
-            self.after_forget.set(Some(0));
-        } else if started == FIELD || started == rows::FORGET {
-            self.after_forget.set(None);
-        }
+        self.after_forget.started(was.as_deref(), &started);
         self.anchors.borrow_mut().started();
         self.anchor(true)?;
         self.dialogue.borrow_mut().forget_hosts();
         // A screen built again where it was may load its archive elsewhere: the PokéNav's came
         // back from the PlayNav's tutorial in another, and its pictures went unnamed (movie24).
-        self.archived.borrow_mut().clear();
+        self.files.look_again();
         // A battle's sides are said again on a key only while it lasts.
         self.announcements.borrow_mut().forget_sides();
         self.subscreens.started();
@@ -1554,18 +1546,7 @@ impl Gen6Profile {
             })
             .collect();
         self.own.heard(&texts)?;
-        if let Some(after_forget) = self.after_forget.get() {
-            // The question or the news of the move is the first page, and a page after it is
-            // said once the screen behind is up (`poll_screen`).
-            let pages = shown
-                .iter()
-                .filter(|page| matches!(page, Shown::Page(_)))
-                .count() as i64;
-            self.after_forget.set(Some(after_forget + pages));
-            if after_forget + pages > 1 {
-                self.after_forget.set(None);
-            }
-        }
+        self.after_forget.paged(&shown);
         let said = self.announcements.borrow_mut().pages(&shown)?;
         if said && let Some(opponents) = &self.opponents {
             opponents.borrow_mut().paged();
@@ -1626,7 +1607,7 @@ impl Gen6Profile {
             self.poll_screen_with(false, false)?;
             screen_polled = true;
             // The answer is the player's to give now, and the screen behind is up.
-            self.after_forget.set(None);
+            self.after_forget.answered();
         }
         for focus in &focuses {
             // The save's YES was read by the cursor over it before a sweep found its list, and
@@ -1655,7 +1636,7 @@ impl Gen6Profile {
                 .focus(focus, "choice", heard);
         }
         if chosen.iter().any(|focus| focus.opened) {
-            self.after_forget.set(None);
+            self.after_forget.answered();
         }
         // X's opening draws its boy or girl and their looks as models, with no word.
         if let Some(opening) = self.own.focus()? {
@@ -1782,7 +1763,7 @@ impl Gen6Profile {
         let mut heard = self.claims.poll(&screen, &polled, &labels)?;
         let mut cursors = polled.cursors;
         let mut title = polled.title;
-        if self.after_forget.get().is_some() {
+        if self.after_forget.back() {
             // Back from Move to forget, the Bag or the Move Reminder is built again as the player
             // left it, under the game's question or its news of the move, and its opening is
             // left unsaid: its stats, moves and pocket were read between "Give up trying to make
@@ -2233,44 +2214,10 @@ impl Gen6Profile {
         })
     }
 
-    /// Find the layout files of every layout tracked since the last look, in its own archive.
-    ///
-    /// Read outside any phase, since each archive is read once.
+    /// Find the layout files of every layout tracked since the last look, outside any phase,
+    /// since each archive is read once (`LayoutFiles.read_archives`).
     fn read_archives(&self) -> Result<()> {
-        let mut walked: HashSet<i64> = HashSet::new();
-        for (work, root) in self.layouts.works() {
-            if self.archived.borrow().contains(&(work, root)) {
-                continue;
-            }
-            self.archived.borrow_mut().insert((work, root));
-            let resource = u32(&self.memory.read(work + lyt::WORK_RESOURCE, 4)?, 0)?;
-            if !in_a_heap(resource) || walked.contains(&resource) {
-                continue;
-            }
-            walked.insert(resource);
-            let archive = u32(&self.memory.read(resource + lyt::RESOURCE_ARCHIVE, 4)?, 0)?;
-            if in_a_heap(archive) {
-                self.files.add_archive(archive)?;
-            }
-            for step in [lyt::RESOURCE_SIZE, -lyt::RESOURCE_SIZE] {
-                for count in 1..lyt::MAX_RESOURCES {
-                    let beside = resource + step * count;
-                    let head = self.memory.read(beside, lyt::RESOURCE_ACCESSOR + 4)?;
-                    let accessor = u32(&head, lyt::RESOURCE_ACCESSOR)?;
-                    if !in_a_heap(accessor)
-                        || self.names.of_object(accessor)?.as_deref() != Some(lyt::ACCESSOR_CLASS)
-                    {
-                        break;
-                    }
-                    walked.insert(beside);
-                    let archive = u32(&head, lyt::RESOURCE_ARCHIVE)?;
-                    if in_a_heap(archive) {
-                        self.files.add_archive(archive)?;
-                    }
-                }
-            }
-        }
-        Ok(())
+        self.files.read_archives(&self.layouts.works(), &self.names)
     }
 }
 
@@ -2316,6 +2263,53 @@ fn own_running(
         .iter()
         .find(|app| apps.running.as_deref() == Some(app.app()))?;
     Some((app.clone(), process?))
+}
+
+/// Back from Move to forget: the pages the game has said since Move to forget gave way to the
+/// screen it was opened from, the Bag or the Move Reminder, while that screen opening again is
+/// left unsaid (`Gen6Profile.poll_screen`). The question or the news of the move is the first
+/// page, and a page after it is said once the screen behind is up; so is a list or a choice
+/// opening, the player's to answer.
+#[derive(Default)]
+struct AfterForget {
+    /// The pages said since, or None when not back from Move to forget.
+    pages: Cell<Option<i64>>,
+}
+
+impl AfterForget {
+    /// Is the screen Move to forget was opened from opening again?
+    fn back(&self) -> bool {
+        self.pages.get().is_some()
+    }
+
+    /// Another app has started after `was`.
+    fn started(&self, was: Option<&str>, started: &str) {
+        if was == Some(rows::FORGET) && started != FIELD {
+            self.pages.set(Some(0));
+        } else if started == FIELD || started == rows::FORGET {
+            self.pages.set(None);
+        }
+    }
+
+    /// The dialogue reader has read these.
+    fn paged(&self, shown: &[Shown]) {
+        if let Some(pages) = self.pages.get() {
+            let pages = pages
+                + shown
+                    .iter()
+                    .filter(|page| matches!(page, Shown::Page(_)))
+                    .count() as i64;
+            self.pages.set(Some(pages));
+            if pages > 1 {
+                self.pages.set(None);
+            }
+        }
+    }
+
+    /// A list or a choice has opened: the answer is the player's, and the screen is up.
+    fn answered(&self) {
+        self.pages.set(None);
+    }
 }
 
 /// What the navigator reads the map through: what one of the game's own apps lists while it
@@ -2455,11 +2449,6 @@ fn name_for(speaker: &Rc<SpeakerReader>) -> Speaker {
 /// sprite a work object was filled with (spike 89).
 fn game_word(text: &GameText, character: i64) -> Option<String> {
     text.character(character)
-}
-
-/// Is this in the heap or the linear heap, where a work's resource and archive have been?
-fn in_a_heap(address: i64) -> bool {
-    within(HEAP_SPAN, address) || within(LINEAR_SPAN, address)
 }
 
 impl Profile for Gen6Profile {

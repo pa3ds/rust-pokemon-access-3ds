@@ -1058,12 +1058,15 @@ impl TouchTargets {
                     );
                 }
                 let mut image: Option<String> = None;
-                'image: for &p in &owned[&touch] {
-                    for i in self.drawn_or_textured(p, &drawn, textures)? {
-                        if let Some(word) = self.images.get(&i) {
-                            image = Some(word.clone());
-                            break 'image;
-                        }
+                for i in drawn_with(
+                    owned[&touch].iter().copied(),
+                    &|p| Ok(drawn.get(&p).cloned().flatten()),
+                    textures,
+                    &|p| self.layouts.pane_name(p),
+                ) {
+                    if let Some(word) = self.images.get(&i?) {
+                        image = Some(word.clone());
+                        break;
                     }
                 }
                 if let Some(shown_image) = image.clone()
@@ -1242,15 +1245,17 @@ impl TouchTargets {
                     }
                     let table = by_picture.as_ref().expect("made just above");
                     let mut alike: Option<String> = None;
-                    'alike: for &p in group {
-                        if tree.get(&p).map(String::as_str) != Some(lyt::PICTURE_CLASS) {
-                            continue;
-                        }
-                        for i in self.drawn_or_textured(p, &drawn, textures)? {
-                            if let Some(word) = table.get(&i) {
-                                alike = Some(word.clone());
-                                break 'alike;
-                            }
+                    for i in drawn_with(
+                        group.iter().copied().filter(|p| {
+                            tree.get(p).map(String::as_str) == Some(lyt::PICTURE_CLASS)
+                        }),
+                        &|p| Ok(drawn.get(&p).cloned().flatten()),
+                        textures,
+                        &|p| self.layouts.pane_name(p),
+                    ) {
+                        if let Some(word) = table.get(&i?) {
+                            alike = Some(word.clone());
+                            break;
                         }
                     }
                     if let Some(alike) = alike
@@ -1827,20 +1832,6 @@ impl TouchTargets {
         Ok(found)
     }
 
-    /// `(drawn.get(p), *textures.get(self._name(p), ()))`, the images a pane draws now or its
-    /// layout file gives it, less the empty: what the first rules look a button's pictures up by.
-    fn drawn_or_textured(
-        &self,
-        p: i64,
-        drawn: &IndexMap<i64, Option<String>>,
-        textures: &IndexMap<String, Vec<String>>,
-    ) -> Result<Vec<String>> {
-        let mut out: Vec<String> = drawn.get(&p).cloned().flatten().into_iter().collect();
-        out.extend(textures.get(&self.layouts.pane_name(p)?).cloned().unwrap_or_default());
-        out.retain(|image| !image.is_empty());
-        Ok(out)
-    }
-
     /// Rule 3's table: an image -> the words of the one button of the layout, shown or not, whose
     /// words are written beside a picture drawing it. The X menu's six buttons each draw their
     /// icon beside their word, and the shortcut bar under the AreaNav draws the same icons alone
@@ -1869,16 +1860,16 @@ impl TouchTargets {
             if said.is_empty() {
                 continue;
             }
-            for &pane in &group {
-                if tree.get(&pane).map(String::as_str) == Some(lyt::PICTURE_CLASS) {
-                    let mut images: Vec<String> = (self.image_of)(pane)?.into_iter().collect();
-                    images.extend(textures.get(&self.layouts.pane_name(pane)?).cloned().unwrap_or_default());
-                    for image in images {
-                        if !image.is_empty() {
-                            named.entry(image).or_default().insert(said.clone());
-                        }
-                    }
-                }
+            for image in drawn_with(
+                group
+                    .iter()
+                    .copied()
+                    .filter(|p| tree.get(p).map(String::as_str) == Some(lyt::PICTURE_CLASS)),
+                &*self.image_of,
+                textures,
+                &|p| self.layouts.pane_name(p),
+            ) {
+                named.entry(image?).or_default().insert(said.clone());
             }
         }
         Ok(named
@@ -2092,6 +2083,37 @@ impl TouchTargets {
         }
         Ok(found)
     }
+}
+
+/// The images pictures are drawn with, a picture at a time: the one it draws now, then those
+/// its layout file's `textures` give its pane by name. A table of the game's words by image
+/// names a picture by the first of them it has: touch mode's buttons, and the profile's
+/// pictures under a cursor.
+///
+/// Python's generator asks `image_of` and `name_of` of a picture as it comes to it; so does this
+/// iterator, each picture's images handed out before the next is asked of.
+pub fn drawn_with<'a>(
+    panes: impl IntoIterator<Item = i64> + 'a,
+    image_of: &'a dyn Fn(i64) -> Result<Option<String>>,
+    textures: &'a IndexMap<String, Vec<String>>,
+    name_of: &'a dyn Fn(i64) -> Result<String>,
+) -> impl Iterator<Item = Result<String>> + 'a {
+    panes.into_iter().flat_map(move |pane| {
+        let images = image_of(pane).and_then(|drawn| {
+            let mut images: Vec<String> = drawn.into_iter().collect();
+            images.extend(textures.get(&name_of(pane)?).cloned().unwrap_or_default());
+            Ok(images)
+        });
+        let out: Vec<Result<String>> = match images {
+            Err(error) => vec![Err(error)],
+            Ok(images) => images
+                .into_iter()
+                .filter(|image| !image.is_empty())
+                .map(Ok)
+                .collect(),
+        };
+        out
+    })
 }
 
 /// The touch screen's pixel a pane's place is, from its root's middle, y down.

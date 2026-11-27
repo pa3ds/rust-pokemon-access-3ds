@@ -27,8 +27,11 @@ use std::rc::Rc;
 use indexmap::{IndexMap, IndexSet};
 
 use crate::core::binary::{u16, u32};
+use crate::core::discovery::{HEAP_SPAN, LINEAR_SPAN, within};
 use crate::core::memory::Memory;
+use crate::core::rtti::ClassNames;
 use crate::games::common::layout::TrackedLayouts;
+use crate::games::common::lyt;
 use crate::py::{self, Error, Kind, Result};
 
 pub const MAGIC: &[u8] = b"CLYT";
@@ -355,6 +358,9 @@ pub struct LayoutFiles {
     by_names: RefCell<IndexMap<Vec<String>, Vec<Rc<LayoutFile>>>>,
     /// Where each texture file of the archives read starts -> its name (`image_at`).
     images: RefCell<IndexMap<i64, String>>,
+    /// (work, root) of every layout whose files have been looked for (`read_archives`) since
+    /// `look_again`. A set only tested.
+    looked: RefCell<HashSet<(i64, i64)>>,
 }
 
 impl LayoutFiles {
@@ -365,6 +371,7 @@ impl LayoutFiles {
             by_panes: RefCell::new(IndexMap::new()),
             by_names: RefCell::new(IndexMap::new()),
             images: RefCell::new(IndexMap::new()),
+            looked: RefCell::new(HashSet::new()),
         }
     }
 
@@ -455,6 +462,56 @@ impl LayoutFiles {
         Ok(())
     }
 
+    /// Find the layout files of every layout of `works`, work -> root, not looked for yet, in
+    /// its own archive.
+    ///
+    /// The resources beside a work's are read too, each known by its accessor's class: a screen
+    /// can draw images from an archive no work points at, as the Pokémon-Amie page draws its
+    /// PLAY, DECORATE and SWITCH (spike 198).
+    pub fn read_archives(&self, works: &IndexMap<i64, i64>, names: &ClassNames) -> Result<()> {
+        // A set only tested.
+        let mut walked: HashSet<i64> = HashSet::new();
+        for (&work, &root) in works {
+            if self.looked.borrow().contains(&(work, root)) {
+                continue;
+            }
+            self.looked.borrow_mut().insert((work, root));
+            let resource = u32(&self.memory.read(work + lyt::WORK_RESOURCE, 4)?, 0)?;
+            if !in_a_heap(resource) || walked.contains(&resource) {
+                continue;
+            }
+            walked.insert(resource);
+            let archive = u32(&self.memory.read(resource + lyt::RESOURCE_ARCHIVE, 4)?, 0)?;
+            if in_a_heap(archive) {
+                self.add_archive(archive)?;
+            }
+            for step in [lyt::RESOURCE_SIZE, -lyt::RESOURCE_SIZE] {
+                for count in 1..lyt::MAX_RESOURCES {
+                    let beside = resource + step * count;
+                    let head = self.memory.read(beside, lyt::RESOURCE_ACCESSOR + 4)?;
+                    let accessor = u32(&head, lyt::RESOURCE_ACCESSOR)?;
+                    if !in_a_heap(accessor)
+                        || names.of_object(accessor)?.as_deref() != Some(lyt::ACCESSOR_CLASS)
+                    {
+                        break;
+                    }
+                    walked.insert(beside);
+                    let archive = u32(&head, lyt::RESOURCE_ARCHIVE)?;
+                    if in_a_heap(archive) {
+                        self.add_archive(archive)?;
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Look for every layout's files again: a screen built again where it was may load its
+    /// archive elsewhere.
+    pub fn look_again(&self) {
+        self.looked.borrow_mut().clear();
+    }
+
     /// The file whose panes have exactly these names in this order, or None.
     ///
     /// A layout can move a pane: the name entry's keyboard carries its cursor from key to key, so
@@ -473,6 +530,11 @@ impl LayoutFiles {
             _ => None,
         }
     }
+}
+
+/// Is this in the heap or the linear heap, where a work's resource and archive have been?
+fn in_a_heap(address: i64) -> bool {
+    within(HEAP_SPAN, address) || within(LINEAR_SPAN, address)
 }
 
 fn name(blob: &[u8], start: i64, limit: i64) -> String {
