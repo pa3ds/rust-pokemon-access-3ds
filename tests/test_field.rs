@@ -30,7 +30,7 @@ use crate::games::common::field::things::{
 };
 use crate::games::common::field::traversal::Traversal;
 use crate::games::gen6::field::features::SecretBaseReader;
-use crate::games::gen6::field::features::{Feature, HiddenReader, Tracked, ZoneAt};
+use crate::games::gen6::field::features::{Feature, Sighting, Tracked, Watched, ZoneAt};
 use crate::games::gen6::field::fieldmap::{
     MAP_BLOCK_SIZE, MAP_CHUNK_FILES, MAP_CHUNKS_TALL, MAP_CHUNKS_WIDE, MAP_GRID, MAP_KIND, MAP_MARK,
 };
@@ -170,7 +170,7 @@ fn given_bases(bases: Rc<dyn SecretBaseReader>) -> SecretBaseFactory {
 }
 
 /// `DexNav`, as the factory `Game.hidden` holds.
-pub(crate) fn dex_nav(memory: Rc<dyn Memory>) -> Rc<dyn HiddenReader> {
+pub(crate) fn dex_nav(memory: Rc<dyn Memory>) -> Rc<dyn Watched> {
     Rc::new(DexNav::new(memory))
 }
 
@@ -1562,6 +1562,15 @@ fn test_the_zone_table_says_which_zones_are_outdoors() -> Result<()> {
     Ok(())
 }
 
+/// The DexNav's find up in `zone` now, as the field watches it.
+fn up(town: &Town, zone: i64) -> Result<Option<Interactable>> {
+    let seen = town.reader.watch(zone)?;
+    let [seen] = &seen[..] else {
+        panic!("one watched: {seen:?}");
+    };
+    Ok(seen.up.clone())
+}
+
 /// The lesson's Poochyena, 5 west 1 north of the sneaking spot (spike 80).
 #[test]
 fn test_a_hidden_pokemon_is_listed_under_its_own_category_by_species() -> Result<()> {
@@ -1605,11 +1614,11 @@ fn test_the_species_is_a_halfword_whatever_follows_it() -> Result<()> {
 fn test_a_record_from_another_zone_is_stale_and_not_listed() -> Result<()> {
     let town = Town::new();
     town.hide(POOCHYENA, 5, (94, 129));
-    assert!(town.reader.hidden(TOWN)?.is_none());
-    assert!(town.reader.hidden(ROUTE)?.is_none());
+    assert!(up(&town, TOWN)?.is_none());
+    assert!(up(&town, ROUTE)?.is_none());
     town.reader.track(&town.found())?;
-    assert!(town.reader.hidden(TOWN)?.is_none());
-    assert!(town.reader.hidden(ROUTE)?.is_some());
+    assert!(up(&town, TOWN)?.is_none());
+    assert!(up(&town, ROUTE)?.is_some());
     assert!(!town.listing()?.iter().any(|line| line.starts_with("pok")));
     Ok(())
 }
@@ -1651,7 +1660,7 @@ fn test_a_record_whose_pokemon_has_gone_lists_none() -> Result<()> {
     let town = Town::new();
     town.hide_with(POOCHYENA, 5, (94, 129), false);
     town.reader.track(&town.found())?;
-    assert!(town.reader.hidden(ROUTE)?.is_none());
+    assert!(up(&town, ROUTE)?.is_none());
     Ok(())
 }
 
@@ -1663,28 +1672,52 @@ fn test_a_pokemon_that_fainted_or_a_search_under_way_lists_none() -> Result<()> 
     for (state, listed) in [(0x0D, false), (0x0E, false), (0x08, true), (0x0A, true)] {
         town.hide_state(POOCHYENA, 5, (94, 129), state);
         town.reader.track(&town.found())?;
-        assert_eq!(town.reader.hidden(ROUTE)?.is_some(), listed, "{state:#x}");
+        assert_eq!(up(&town, ROUTE)?.is_some(), listed, "{state:#x}");
     }
     Ok(())
 }
 
 /// A Zigzagoon read at level 50331650, 0x03000002, went unlisted (movie27); and +0xc9
 /// is 3 for a search's find, 1 for the detector's with the DexNav open, 2 with the AreaNav
-/// (spike 194).
+/// (spike 194). ADR-0037: a search's find is the one to guide to, and so is the detector's with
+/// the DexNav open; what the detector turns up with the AreaNav open never is.
 #[test]
 fn test_the_level_is_one_byte_and_how_it_was_found_is_another() -> Result<()> {
     let town = Town::new();
     town.reader.track(&town.found())?;
-    for (found_by, searched, on_dexnav) in [(3, true, false), (1, false, true), (2, false, false)] {
+    for (found_by, guided, searched) in [(3, true, true), (1, true, false), (2, false, false)] {
         town.hide_found(POOCHYENA, 0x03000002, (94, 129), 0x08, found_by);
         town.reader.track(&town.found())?;
-        assert!(town.reader.hidden(ROUTE)?.is_some());
-        let hiding = town.reader.hiding();
-        assert!(
-            hiding
-                .is_some_and(|hiding| (hiding.searched, hiding.on_dexnav) == (searched, on_dexnav))
-        );
+        let seen = town.reader.watch(ROUTE)?;
+        let [seen] = &seen[..] else {
+            panic!("one watched: {seen:?}");
+        };
+        assert!(seen.up.is_some());
+        let wanted = if guided { seen.up.clone() } else { None };
+        assert_eq!((seen.find.clone(), seen.searched), (wanted, searched));
     }
+    Ok(())
+}
+
+/// A rustle was heard that the list did not have: the record's words, with the zone its cell
+/// is in, are there for the log though they pass as no Pokémon; and nothing before a sweep has
+/// found the record.
+#[test]
+fn test_the_records_words_are_watched_whether_or_not_a_pokemon_is_up() -> Result<()> {
+    let town = Town::new();
+    town.hide_with(POOCHYENA, 5, (94, 129), false);
+    assert_eq!(town.reader.watch(ROUTE)?, [Sighting::default()]);
+    town.reader.track(&town.found())?;
+    assert_eq!(
+        town.reader.watch(ROUTE)?,
+        [Sighting {
+            record: Some(
+                "hidden record: species 261 level 5 slot 0xff by 1 at (94, 129) zone 0x17"
+                    .to_string()
+            ),
+            ..Sighting::default()
+        }]
+    );
     Ok(())
 }
 
@@ -1695,7 +1728,7 @@ fn test_the_record_is_told_by_the_heap_it_holds_first() -> Result<()> {
     town.hide(POOCHYENA, 5, (94, 129));
     town.memory.u32(HIDDEN + hidden::HEAP, &[0]);
     town.reader.track(&town.found())?;
-    assert!(town.reader.hidden(ROUTE)?.is_none());
+    assert!(up(&town, ROUTE)?.is_none());
     Ok(())
 }
 
@@ -1722,9 +1755,9 @@ fn test_a_species_or_level_off_the_scale_is_not_a_pokemon() -> Result<()> {
     let town = Town::new();
     town.hide(0x2000, 5, (94, 129));
     town.reader.track(&town.found())?;
-    assert!(town.reader.hidden(ROUTE)?.is_none());
+    assert!(up(&town, ROUTE)?.is_none());
     town.hide(POOCHYENA, 200, (94, 129));
-    assert!(town.reader.hidden(ROUTE)?.is_none());
+    assert!(up(&town, ROUTE)?.is_none());
     Ok(())
 }
 

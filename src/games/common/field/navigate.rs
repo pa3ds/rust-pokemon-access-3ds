@@ -1014,7 +1014,7 @@ impl Navigator {
     /// search, the game asked for it by the player, or by its detector with the DexNav open,
     /// which is taken only while the player is in touch mode, at the DexNav, and not at an
     /// AreaNav they forgot to bring back; what the detector turns up with
-    /// the AreaNav open never comes here (`gen6.profile`). With
+    /// the AreaNav open never comes here (`oras.field.hidden`). With
     /// `[pa3ds.navigation] guide_to_hidden`, P is on it from now, in the category of all where
     /// the one chosen does not hold it, and the way to it is found as P finds it, said after what
     /// it leads to and queued, since no key asked for it: getting out of touch mode, where the

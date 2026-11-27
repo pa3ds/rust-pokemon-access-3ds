@@ -21,7 +21,7 @@ use crate::games::common::pictures;
 use crate::games::gen6::anchors::Chain;
 use crate::games::gen6::apps::FIELD;
 use crate::games::gen6::field::features::{
-    DoorReader, Feature, HiddenReader, IceReader, SecretBaseReader,
+    DoorReader, Feature, IceReader, SecretBaseReader, Watched,
 };
 use crate::games::gen6::field::landform::{Belts, Landform, gen6};
 use crate::games::gen6::field::reader::{FLAG, PC_TILE};
@@ -926,7 +926,7 @@ pub fn furniture() -> &'static IndexMap<(i64, i64), FurnitureKind> {
 }
 
 /// `DexNav`, as the factory `Game.hidden` holds.
-fn dex_nav(memory: Rc<dyn Memory>) -> Rc<dyn HiddenReader> {
+fn dex_nav(memory: Rc<dyn Memory>) -> Rc<dyn Watched> {
     Rc::new(DexNav::new(memory))
 }
 

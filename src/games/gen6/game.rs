@@ -20,7 +20,7 @@ use crate::core::memory::Memory;
 use crate::games::gen6::anchors::Chain;
 use crate::games::gen6::field::camera;
 use crate::games::gen6::field::features::{
-    DoorReader, Feature, HiddenReader, IceReader, SecretBaseReader,
+    DoorReader, Feature, IceReader, SecretBaseReader, Watched,
 };
 use crate::games::gen6::field::footsteps::{ORAS, Steps};
 use crate::games::gen6::field::landform::{Landform, gen6};
@@ -66,9 +66,9 @@ pub enum FurnitureKind {
 /// made as the module loads; a `Game` lives in a `static`, so here it is the function making it.
 pub type Data = fn() -> PathBuf;
 
-/// `Callable[[Memory], HiddenReader]`: a plain `fn`, since a `Game` is built once and kept in a
+/// `Callable[[Memory], Watched]`: a plain `fn`, since a `Game` is built once and kept in a
 /// `static`, where an `Rc<dyn Fn>` cannot be.
-pub type HiddenFactory = fn(Rc<dyn Memory>) -> Rc<dyn HiddenReader>;
+pub type HiddenFactory = fn(Rc<dyn Memory>) -> Rc<dyn Watched>;
 /// `Callable[[Memory, bytes, GameText], SecretBaseReader]`.
 pub type SecretBaseFactory = fn(Rc<dyn Memory>, &[u8], &GameText) -> Rc<dyn SecretBaseReader>;
 /// `Callable[[Memory, GameText], Feature]`.

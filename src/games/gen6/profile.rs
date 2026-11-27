@@ -76,6 +76,7 @@ use crate::games::common::{lyt, msgwin, pokemon, strbuf};
 use crate::games::gen6::anchors::Anchors;
 use crate::games::gen6::apps::{BATTLE, DEMOS, FIELD, MANAGER_CLASS, RunningApp, TUTORIAL};
 use crate::games::gen6::field::dowsing::Lights;
+use crate::games::gen6::field::features::Sighting;
 use crate::games::gen6::field::footsteps::Footsteps;
 use crate::games::gen6::field::reader::{FieldReader, MOVE_MODEL_CLASS};
 use crate::games::gen6::field::speaker::SpeakerReader;
@@ -347,12 +348,11 @@ pub struct Gen6Profile {
     relist: Cell<bool>,
     /// The chunks the last listing was narrowed by, as logged.
     chunks: RefCell<Vec<(i64, i64)>>,
-    /// The hidden Pokémon last seen, species and cell, to list again when one comes or goes
-    /// between sweeps.
-    hiding: Cell<Option<(i64, (i64, i64))>>,
-    /// The record's raw words as last logged, so a change is logged whether or not it
-    /// passes as a Pokémon: a rustle was heard that the list did not have.
-    hidden_words: RefCell<Option<String>>,
+    /// What each watched feature showed at the last poll (`FieldReader.watch`): what was up,
+    /// to list again when one comes or goes between sweeps, and its record as last logged, so a
+    /// change is logged whether or not it passes as what it is: a rustle was heard that the
+    /// list did not have.
+    seen: RefCell<Vec<Sighting>>,
     /// Whether the player was riding the bike at the last field poll, to log each change.
     on_bike: Cell<bool>,
     /// The quarters from north up walks the player, as the compass was last turned.
@@ -1339,8 +1339,7 @@ impl Gen6Profile {
             listed: RefCell::new(None),
             relist: Cell::new(false),
             chunks: RefCell::new(Vec::new()),
-            hiding: Cell::new(None),
-            hidden_words: RefCell::new(None),
+            seen: RefCell::new(Vec::new()),
             on_bike: Cell::new(false),
             turn: Cell::new(0),
             facing: Cell::new(None),
@@ -2230,30 +2229,40 @@ impl Gen6Profile {
                 }
             }
             self.poll_decorating(&at)?;
-            // A hidden Pokémon shows and goes between sweeps, so its record is read every poll.
-            let hiding = field.hidden(at.zone)?;
-            let key = hiding.as_ref().map(|hiding| (hiding.code, hiding.cell));
-            let words = field.hidden_words()?;
-            if words != *self.hidden_words.borrow() {
-                (self.log)(&format!(
-                    "field hidden record: {}",
-                    words.as_deref().unwrap_or("None")
-                ));
-                *self.hidden_words.borrow_mut() = words;
+            // A watched feature, as ORAS's DexNav's find, shows and goes between sweeps, so it is
+            // read every poll: its record logged as it changes, the field listed again as what is
+            // up does, and a find the player went looking for guided to as it first shows. The
+            // navigator knows whether touch mode is on.
+            let seen = field.watch(at.zone)?;
+            // `zip_longest(seen, self._seen, fillvalue=Sighting())`.
+            let pairs: Vec<(Sighting, Sighting)> = {
+                let was = self.seen.borrow();
+                (0..seen.len().max(was.len()))
+                    .map(|i| {
+                        (
+                            seen.get(i).cloned().unwrap_or_default(),
+                            was.get(i).cloned().unwrap_or_default(),
+                        )
+                    })
+                    .collect()
+            };
+            for (now, was) in &pairs {
+                if now.record != was.record {
+                    (self.log)(&format!(
+                        "field {}",
+                        now.record.as_deref().unwrap_or("None")
+                    ));
+                }
             }
-            // Found by a search, or by the detector with the DexNav open: never one it turns up
-            // while the AreaNav is, "I'm looking for the youngster there, not a random Poochyena!"
-            // (2026-10-06 and 07). The navigator knows whether touch mode is on.
-            let found = field.hiding();
-            let appeared = hiding.is_some()
-                && self.hiding.get().is_none()
-                && found
-                    .as_ref()
-                    .is_some_and(|found| found.searched || found.on_dexnav);
-            if key != self.hiding.get() {
-                self.hiding.set(key);
+            let finds: Vec<(Interactable, bool)> = pairs
+                .iter()
+                .filter(|(now, was)| now.find.is_some() && was.up.is_none())
+                .filter_map(|(now, _)| now.find.clone().map(|find| (find, now.searched)))
+                .collect();
+            if pairs.iter().any(|(now, was)| now.up != was.up) {
                 self.relist.set(true);
             }
+            *self.seen.borrow_mut() = seen;
             if !self.relist.get()
                 && let Some(listed) = &*self.listed.borrow()
                 && listed.0 == at.zone
@@ -2261,13 +2270,8 @@ impl Gen6Profile {
                 return Ok(None);
             }
             at = field.interactables(&at)?;
-            if appeared
-                && let Some(hiding) = &hiding
-                && let Some(found) = &found
-            {
-                self.navigator
-                    .borrow_mut()
-                    .found(&at, hiding, found.searched)?;
+            for (find, searched) in &finds {
+                self.navigator.borrow_mut().found(&at, find, *searched)?;
             }
             // Which chunks the edges were narrowed by, for the log: the blocks come and go
             // with the map, and a border listed whole is a border no chunk covers.

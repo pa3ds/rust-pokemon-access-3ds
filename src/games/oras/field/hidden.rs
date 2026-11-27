@@ -49,9 +49,10 @@
 //!
 //! Bound by:
 //! - ADR-0037: a hidden Pokémon is up while its state is below 0xd, and +0xc9 says a search's find
-//!   from the detector's.
+//!   from the detector's; a search's find, or the detector's with the DexNav open, is the one to
+//!   guide to, never what the detector turns up with the AreaNav open (`DexNav.watch`).
 
-use std::cell::{Cell as Slot, RefCell};
+use std::cell::Cell as Slot;
 use std::collections::HashSet;
 use std::fmt;
 use std::rc::Rc;
@@ -59,9 +60,8 @@ use std::rc::Rc;
 use crate::core::binary::{f32, u16, u32};
 use crate::core::discovery::Found;
 use crate::core::memory::Memory;
-use crate::core::pathfind::Cell;
 use crate::games::common::field::things::{Interactable, POKEMON};
-use crate::games::gen6::field::features::{Feature, HiddenReader, Hiding, Tracked, ZoneAt};
+use crate::games::gen6::field::features::{Feature, Sighting, Tracked, Watched, ZoneAt};
 use crate::games::gen6::gflheap;
 use crate::py::{self, Result};
 
@@ -162,35 +162,37 @@ pub fn words(memory: &dyn Memory, record: i64) -> Result<Words> {
 /// What the record holds, or None while no tail is up, or the bytes are not a record's: a
 /// species out of the Pokédex or a level over 100.
 pub fn read(memory: &dyn Memory, record: i64) -> Result<Option<HiddenPokemon>> {
-    let held = words(memory, record)?;
+    Ok(pokemon(&words(memory, record)?))
+}
+
+/// The Pokémon up in the record's words `held`, or None (`read`).
+pub fn pokemon(held: &Words) -> Option<HiddenPokemon> {
     if !(1 <= held.species && held.species <= MAX_SPECIES)
         || !(1 <= held.level && held.level <= MAX_LEVEL)
     {
-        return Ok(None);
+        return None;
     }
     if held.slot >= GONE {
-        return Ok(None);
+        return None;
     }
-    Ok(Some(HiddenPokemon {
+    Some(HiddenPokemon {
         species: held.species,
         level: held.level,
         cell: held.cell,
         searched: held.found_by == SEARCH,
         on_dexnav: held.found_by == ON_DEXNAV,
-    }))
+    })
 }
 
 /// What a DexNav find is called: the game shows a tail and never names it (the
 /// shaking-tail Pokémon was asked for under a category of its own).
 pub const HIDDEN_POKEMON: &str = "hidden Pokémon";
 
-/// The record, for the gen 6 field to list (`gen6.field.HiddenReader`): found by a sweep and
-/// kept, since it lives all session.
+/// The record, for the gen 6 field to list and watch (`gen6.field.features.Watched`): found
+/// by a sweep and kept, since it lives all session.
 pub struct DexNav {
     memory: Rc<dyn Memory>,
     record: Slot<Option<i64>>,
-    /// The hidden Pokémon `listed` last listed, which says how the DexNav found it.
-    last: RefCell<Option<Hiding>>,
 }
 
 impl DexNav {
@@ -198,7 +200,6 @@ impl DexNav {
         DexNav {
             memory,
             record: Slot::new(None),
-            last: RefCell::new(None),
         }
     }
 
@@ -212,49 +213,74 @@ impl DexNav {
         Ok(())
     }
 
-    pub fn read(&self) -> Result<Option<Hiding>> {
-        let Some(record) = self.record.get() else {
-            return Ok(None);
-        };
-        let held = read(&*self.memory, record)?;
-        Ok(held.map(|held| Hiding {
-            record,
-            species: held.species,
-            cell: held.cell,
-            searched: held.searched,
-            on_dexnav: held.on_dexnav,
-        }))
+    pub fn read(&self) -> Result<Option<HiddenPokemon>> {
+        match self.record.get() {
+            None => Ok(None),
+            Some(record) => read(&*self.memory, record),
+        }
     }
 
-    /// The hidden Pokémon, while one is up in `zone`: one read of its record, cheap enough for
-    /// every poll, since it comes and goes between sweeps.
-    ///
-    /// The record outlives its zone: walking onto Route 102 listed Route 101's Poochyena at 105
-    /// west until the next find replaced it (spike 80's replay). So one is listed only where the
-    /// field map puts its cell in the player's own zone.
+    /// The hidden Pokémon, while one is up in `zone`: one read of its record, cheap enough
+    /// for every poll, since it comes and goes between sweeps.
     pub fn listed(&self, zone: i64, zone_at: ZoneAt) -> Result<Vec<Interactable>> {
-        let found = self.read()?;
-        let last = match found {
-            Some(found) if zone_at(found.cell)? == Some(zone) => Some(found),
-            _ => None,
-        };
-        *self.last.borrow_mut() = last.clone();
-        let Some(last) = last else {
-            return Ok(Vec::new());
-        };
-        Ok(vec![Interactable {
-            code: last.species,
-            source: last.record,
-            ..Interactable::new(POKEMON, HIDDEN_POKEMON, last.cell)
-        }])
+        let up = self.up(self.read()?, zone, zone_at)?;
+        Ok(up.into_iter().collect())
     }
 
-    pub fn words(&self) -> Result<Option<(String, Cell)>> {
+    /// The hidden Pokémon up in `zone`, the record's words with the zone its cell is in, and
+    /// the find to guide to: a search's, or the detector's with the DexNav open, never one it
+    /// turns up while the AreaNav is, "I'm looking for the youngster there, not a random
+    /// Poochyena!" (ADR-0037).
+    pub fn watch(&self, zone: i64, zone_at: ZoneAt) -> Result<Sighting> {
         let Some(record) = self.record.get() else {
-            return Ok(None);
+            return Ok(Sighting::default());
         };
         let held = words(&*self.memory, record)?;
-        Ok(Some((held.to_string(), held.cell)))
+        let found = pokemon(&held);
+        let up = self.up(found.clone(), zone, zone_at)?;
+        let at = zone_at(held.cell)?;
+        let record = format!(
+            "hidden record: {held} zone {}",
+            match at {
+                None => "none".to_string(),
+                Some(at) => format!("{at:#x}"),
+            }
+        );
+        match (&up, &found) {
+            (Some(_), Some(found)) if found.searched || found.on_dexnav => Ok(Sighting {
+                up: up.clone(),
+                record: Some(record),
+                find: up,
+                searched: found.searched,
+            }),
+            _ => Ok(Sighting {
+                up,
+                record: Some(record),
+                ..Sighting::default()
+            }),
+        }
+    }
+
+    /// `found` as listed, where the field map puts its cell in `zone`. The record outlives its
+    /// zone: walking onto Route 102 listed Route 101's Poochyena at 105 west until the next find
+    /// replaced it (spike 80's replay).
+    fn up(
+        &self,
+        found: Option<HiddenPokemon>,
+        zone: i64,
+        zone_at: ZoneAt,
+    ) -> Result<Option<Interactable>> {
+        let (Some(found), Some(record)) = (found, self.record.get()) else {
+            return Ok(None);
+        };
+        if zone_at(found.cell)? != Some(zone) {
+            return Ok(None);
+        }
+        Ok(Some(Interactable {
+            code: found.species,
+            source: record,
+            ..Interactable::new(POKEMON, HIDDEN_POKEMON, found.cell)
+        }))
     }
 }
 
@@ -274,13 +300,9 @@ impl Feature for DexNav {
     }
 }
 
-impl HiddenReader for DexNav {
-    fn last(&self) -> Option<Hiding> {
-        self.last.borrow().clone()
-    }
-
-    fn words(&self) -> Result<Option<(String, Cell)>> {
-        DexNav::words(self)
+impl Watched for DexNav {
+    fn watch(&self, zone: i64, zone_at: ZoneAt) -> Result<Sighting> {
+        DexNav::watch(self, zone, zone_at)
     }
 }
 

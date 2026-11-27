@@ -11,20 +11,6 @@ use crate::games::common::field::rotating::RotatingDoor;
 use crate::games::common::field::things::Interactable;
 use crate::py::Result;
 
-/// A hidden Pokémon up in the grass, as the field lists it.
-#[derive(Debug, Clone, PartialEq)]
-pub struct Hiding {
-    /// Where the game keeps it, which tells it apart from one poll to the next
-    /// (`Interactable.source`).
-    pub record: i64,
-    pub species: i64,
-    pub cell: Cell,
-    /// Whether the DexNav's search found it, rather than its detector.
-    pub searched: bool,
-    /// Whether its detector found it with the DexNav open, rather than the AreaNav.
-    pub on_dexnav: bool,
-}
-
 /// `Callable[[Cell], int | None]`: the zone the field map puts a cell in.
 pub type ZoneAt<'a> = &'a dyn Fn(Cell) -> Result<Option<i64>>;
 
@@ -45,15 +31,28 @@ pub trait Feature: Tracked {
     fn listed(&self, zone: i64, zone_at: ZoneAt) -> Result<Vec<Interactable>>;
 }
 
-/// A game's hidden Pokémon, where it has one: ORAS's DexNav (`games.oras.field.hidden`). Read at
-/// every poll, since a tail shows and goes between sweeps.
-pub trait HiddenReader: Feature {
-    /// The one `listed` last listed, which says how it was found.
-    fn last(&self) -> Option<Hiding>;
+/// What a watched feature shows now (`Watched.watch`).
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Sighting {
+    /// What is up in the zone asked about, as `listed` lists it: the field is listed again as it
+    /// changes.
+    pub up: Option<Interactable>,
+    /// What the game holds for it before any check, for the log as it changes; None before a
+    /// sweep has found where.
+    pub record: Option<String>,
+    /// `up`, where the player went looking for it, to be guided to as it first shows.
+    pub find: Option<Interactable>,
+    /// Whether the player's own search found `find`, which is guided to in any mode, where any
+    /// other find is only in touch mode (`Navigator.found`).
+    pub searched: bool,
+}
 
-    /// What its record holds before any check, for the log, and the cell it says; None
-    /// before a sweep has found it.
-    fn words(&self) -> Result<Option<(String, Cell)>>;
+/// A feature that shows and goes between sweeps, and so is read at every poll: ORAS's DexNav's
+/// find (`games.oras.field.hidden`), which decides itself which of its finds the player went
+/// looking for.
+pub trait Watched: Feature {
+    /// What it shows in `zone` now, `zone_at` as `listed` takes it.
+    fn watch(&self, zone: i64, zone_at: ZoneAt) -> Result<Sighting>;
 }
 
 /// A game's rotating doors, where it has them: Fortree Gym's (`games.oras.field.doors`). Read

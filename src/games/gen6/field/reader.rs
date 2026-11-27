@@ -54,7 +54,7 @@ use crate::games::common::field::things::{
 use crate::games::gen6::anchors::follow;
 use crate::games::gen6::field::conveyors::{GymFloor, Switches};
 use crate::games::gen6::field::features::{
-    DoorReader, Feature, HiddenReader, Hiding, IceReader, SecretBaseReader, Tracked,
+    DoorReader, Feature, IceReader, SecretBaseReader, Sighting, Tracked, Watched,
 };
 use crate::games::gen6::field::hidden_items::{HIDDEN_ITEM, HiddenItems, Only};
 use crate::games::gen6::field::landform::{
@@ -403,7 +403,7 @@ pub struct FieldReader {
     /// The field map's grid as last read: a sweep ago, or when the player's model changed.
     grid: RefCell<Option<Grid>>,
     /// The game's hidden Pokémon, or None in a game without one.
-    hidden: Option<Rc<dyn HiddenReader>>,
+    hidden: Option<Rc<dyn Watched>>,
     /// The map blocks, once a sweep has found them.
     blocks: RefCell<Vec<i64>>,
     /// Every chunk's cell table read so far, by where its file sat: a block's file is read once,
@@ -658,11 +658,6 @@ impl FieldReader {
             out.push(switches);
         }
         out
-    }
-
-    /// The hidden Pokémon last listed, which says how the DexNav found it.
-    pub fn hiding(&self) -> Option<Hiding> {
-        self.hidden.as_ref().and_then(|hidden| hidden.last())
     }
 
     /// Take in what a sweep found: the model pool, the zone data and its holder, the field map and
@@ -1863,31 +1858,13 @@ impl FieldReader {
         Ok(None)
     }
 
-    /// The record's words as they are, with the zone the matrix puts its cell in, for the log; None
-    /// before a sweep has found the record, and in a game without one.
-    pub fn hidden_words(&self) -> Result<Option<String>> {
-        let held = match &self.hidden {
-            None => None,
-            Some(hidden) => hidden.words()?,
-        };
-        let Some((words, cell)) = held else {
-            return Ok(None);
-        };
-        let zone = match self.zone_at(cell)? {
-            None => "none".to_string(),
-            Some(zone) => format!("{zone:#x}"),
-        };
-        Ok(Some(format!("{words} zone {zone}")))
-    }
-
-    /// The game's hidden Pokémon, while one is up in `zone`: read at every poll, since it comes and
-    /// goes between sweeps.
-    pub fn hidden(&self, zone: i64) -> Result<Option<Interactable>> {
-        let listed = match &self.hidden {
+    /// What each watched feature shows in `zone` now (`features.Watched`): read at every
+    /// poll, since it shows and goes between sweeps.
+    pub fn watch(&self, zone: i64) -> Result<Vec<Sighting>> {
+        Ok(match &self.hidden {
             None => Vec::new(),
-            Some(hidden) => hidden.listed(zone, &|cell| self.zone_at(cell))?,
-        };
-        Ok(listed.into_iter().next())
+            Some(hidden) => vec![hidden.watch(zone, &|cell| self.zone_at(cell))?],
+        })
     }
 
     /// Which of the zone's triggers, by its place in the zone's table, the cell is inside, of
