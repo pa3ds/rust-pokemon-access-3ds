@@ -1,0 +1,240 @@
+# pa3ds's settings, read as pa3ds starts. This file is yours: pa3ds adds the settings it
+# gains later, takes out the ones it no longer has, and changes no other line you have.
+# To turn a line off, put a # in front of it rather than deleting it, or pa3ds adds it
+# back.
+
+[pa3ds]
+
+# Answer pa3ds's keys and bind Azahar's buttons, as keys.toml says.
+keys = true
+
+# How many times a second to read the game: 60, the game's own frame rate; 30 for a slower
+# machine.
+poll_rate = 60
+
+# The folder a portable Azahar is in, the one with azahar.exe and a user folder; empty for an
+# Azahar installed in the usual way, whose settings are in AppData. pa3ds fills it in when you
+# choose the folder it asks for.
+azahar_folder = ""
+
+# Hide pa3ds's window, the one a double-clicked pa3ds opens, while Azahar is open, so nothing of
+# pa3ds's sits in Alt+Tab between you and the game; false keeps it in sight, for OBS to record
+# pa3ds's sounds through it.
+hide_window = true
+
+[pa3ds.ui]
+
+# Put pauses between pieces of screen text said together: a colon after a label, as in "OT:
+# Brendan", and a comma between the rest.
+pauses = false
+
+# Cut off speech when a menu's cursor moves, instead of queueing; pa3ds's own keys always do.
+interrupt = false
+
+# Keep saying what the game shows while another window is in front; otherwise pa3ds is quiet
+# then, but for its own keys and messages.
+unfocused = false
+
+# Describe the scenes the game shows without words, such as Groudon waking. Each description is
+# said after the line of text the scene follows. Only some scenes are described so far.
+descriptions = true
+
+# The language pa3ds says its own words in, as the name of a folder of its data: en, fr, de, es,
+# it, ja, ko, zh-CN or zh-TW. Empty follows the game's own language, which pa3ds reads from the
+# save; set it where that is wrong, as for a fan translation over another language, and in Sun
+# and Moon, whose save pa3ds cannot read, where it is the game's language too.
+language = ""
+
+# As a trainer's battle opens, after "You are challenged by", say how many Pokémon the trainer
+# has ("text"), play a beep for each ("beeps"), or neither ("off"). The beeps are as loud as the
+# tones under [pa3ds.audio].
+trainer_party = "text"
+
+[pa3ds.audio]
+
+# How loud the short tone is as a map's cursor or touch mode moves, higher the further up and
+# panned the further right, to say where the cursor is: 1 as loud as the game, 0.5 half as loud,
+# 1.5 louder, 0 none; in the settings dialog, in percent, 100 as loud as the game.
+tones = 1
+
+# How loud pa3ds's own footsteps are on the ground where the game plays none, as streets, floors
+# and caves: 1 as loud as the game would play them, 0.5 half as loud, 1.5 louder, 0 none; in the
+# settings dialog, in percent, 100 as loud as the game.
+footsteps = 1
+
+# How loud a short tone is at each second of a game's clock, as in Pokémon-Amie's games; the
+# clock itself is said each half minute and in its last seconds: 1 as loud as the game, 0.5 half
+# as loud, 1.5 louder, 0 none, as it ships; in the settings dialog, in percent, 100 as loud as
+# the game.
+ticks = 0
+
+# How loud the game's own short sounds are for what a key has done: the PC Box's sounds for
+# picking up and putting down a Pokémon, as touch mode picks up a drag and lets go of it, and
+# the game's error sound for a key with nothing to do, as a berry Berry Picker's round does not
+# have; and Head It's cue. At 0 pa3ds says them instead, and plays no cue, "holding", "let go
+# on" and why: 1 as loud as the game, 0.5 half as loud, 1.5 louder; in the settings dialog, in
+# percent, 100 as loud as the game.
+feedback_sounds = 1
+
+[pa3ds.navigation]
+
+# Say where a thing is in the list, as in "door, 1 of 3".
+positions = true
+
+# Say the place in the list before the way to it, "door, 1 of 3, 1 north"; false says "door, 1
+# north, 1 of 3".
+position_first = true
+
+# Once P has found the way, say each turn as it is reached; false says the way once, and P again
+# says it from where you stand.
+turn_by_turn = true
+
+# When a DexNav search finds the Pokémon searched for, or the DexNav finds one by itself while
+# it is open and you are in touch mode, find the way to it as P does and keep P on it, whatever
+# the list was on; one found while the AreaNav is open is left alone.
+guide_to_hidden = true
+
+# Say how far a big boulder has moved from where its room starts it, as in "big boulder, 2 east,
+# moved 1 north", so you know which you have pushed; the game shows where each boulder is, never
+# where it started.
+track_boulders = false
+
+# Leave a sign out of the list when all it says is the name of a door beside it, as Mauville
+# Hills' "Apt. 13 Wattson's Home"; a sign that says more, as a Gym's does, stays.
+hide_door_signs = true
+
+# Say how high as well, as y after x and z, when C says where you stand and shift and C where
+# the thing chosen is: "x 71, z 35, y 20"; in the game's own units, 18 to a square's width, and
+# left out where pa3ds does not know it, as in Sun and Moon.
+show_y = false
+
+# List mode's list nearest first, which changes as you walk; false keeps each thing in one place
+# in it, the order the game's own tables have, so you can tell which house you have been in by
+# where it is; direction mode is nearest first either way.
+sort_by_distance = true
+
+[pa3ds.touch]
+
+# In touch mode, go from the last button back to the first, and from the bottom row back to the
+# top; false stops at the ends, so pressing O a few times always ends on the bottom row.
+wrap = true
+
+# In touch mode, J and L go on into the row above or below at a row's end; false keeps them in
+# their row, so pressing L a few times always ends at its right.
+next_row = true
+
+# Drag with Shift held, or a key of your own bound to drag in keys.toml, letting go of the touch
+# as it comes up ("hold"), or tap it to pick up and tap it again to let go ("toggle"). Only
+# Pokémon-Amie drags.
+drag = "hold"
+
+[pa3ds.amie]
+
+# In Pokémon-Amie, say what your Pokémon is seen doing as it starts and stops: looking around,
+# watching your hand, eating, holding up its hand for a high five. Each of its animations is
+# described as it plays, in a sentence of that Pokémon's own. It also says the hearts a pet
+# brings, and when a high five lands.
+descriptions = false
+
+# With Pokémon-Amie's descriptions on, also say the small movements your Pokémon makes by itself
+# every few seconds. Off, only what it does in reaction to you is said.
+fidgets = false
+
+# Say each Pokémon wanting a berry in the order you give it, the berry and then the Pokémon,
+# "Pinap Berry for Pikachu"; false says the Pokémon first, "Pikachu wants Pinap Berry".
+berry_first = true
+
+# Say one Pokémon wanting a berry at a time, and the next once you have given a berry or the one
+# said has gone; false says each as it comes.
+one_at_a_time = true
+
+# In Berry Picker, say a Pokémon by its name ("name"), by its own cry ("cry"), or both ("both").
+# The cry comes from its place in the round's lineup, wherever it pops up: the first in the left
+# ear, the second in both, the third in the right. The cry needs feedback sounds on; where it
+# cannot play, the name is said.
+berry_picker_style = "name"
+
+# In Head It, play the game's own "!" sound as the moment to tap a ball comes, as long before
+# the ball reaches its Pokémon as the lead below says, in the ear on that Pokémon's side and
+# both ears for the middle; it needs feedback sounds on.
+head_it_cue = false
+
+# How many seconds before a ball reaches its Pokémon the cue sounds: about how long you take
+# from hearing it to pressing the Pokémon's key. At each round's results pa3ds says its estimate
+# of yours, to put here. Raise it if your taps come too late, lower it if they come too early.
+head_it_lead = 0.4
+
+# In Head It, say the Pokémon a ball falls at by its name ("name"), by its own cry ("cry"), both
+# ("both"), or neither ("none"), for the cue alone. The cry comes from its place in the round's
+# lineup: the first in the left ear, the second in both, the third in the right. The cry needs
+# feedback sounds on; where it cannot play, the name is said.
+head_it_style = "name"
+
+# In Head It, say the score, the combo and each miss as they come, the score and the combo once
+# while they keep going up; false leaves them to Head It's score key (R), which says them with
+# the time or the chances left whenever you press it.
+head_it_score = false
+
+[pa3ds.training]
+
+# In a Super Training regimen, how you hear a Balloon Bot's shot being fired: the game's alert
+# sound, the words "shot coming", or nothing. With feedback sounds off, the sound is said in
+# words.
+shot_cue = "sound"
+
+# In a Super Training regimen, how you hear that a shot is about to arrive: the game's "!"
+# sound, the word "now", or nothing. With feedback sounds off, the sound is said in words.
+block_cue = "sound"
+
+# How many seconds before a shot arrives the block cue comes. A barrier lasts under a second
+# from when you press L.
+block_lead = 0.6
+
+[pa3ds.extras]
+
+# Say a Pokémon's contest conditions as numbers where the game draws them as a star, on the
+# summary and in the Pokéblock Case: the star is shown to everyone but pa3ds cannot read it, so
+# its numbers are all it can give, and they are more exact than the star.
+conditions = false
+
+# Have R on Super Training's page say each stat's points where the game draws them as a chart,
+# rather than a rough share of each.
+base_stats = false
+
+# List the hidden items still to be found, as "hidden item", among the items: under the sea
+# alone ("underwater"), where the Dowsing Machine cannot be used and a sighted player may see a
+# glint among the rocks and the weed, or everywhere ("all"), which tells what the game keeps
+# from everyone; "off" lists none.
+hidden_items = "off"
+
+[azahar]
+
+# Azahar's own settings, written into its qt-config.ini whenever pa3ds starts while
+# Azahar is closed. Azahar saves its own over them when it closes, so close it before
+# starting pa3ds after a change here. A line commented out leaves Azahar's own value
+# alone.
+
+# The RPC server is how pa3ds reads the game: without it pa3ds hears nothing.
+enable_rpc_server = true
+
+# Keep the RPC server out of Azahar's log, which it would fill at a megabyte a second.
+log_filter = "*:Info RPC_Server:Error"
+
+# Vulkan (2) rather than OpenGL (1): on OpenGL Azahar's window is slow to answer the screen
+# reader.
+graphics_api = 2
+
+# Build shaders beside the game instead of pausing it for each new one.
+async_shader_compilation = true
+
+# Faster shaders, at the cost of a rare wrong pixel.
+shaders_accurate_mul = false
+
+# Do not wait for the monitor between frames.
+use_vsync = false
+
+# Take touches from a second device beside the mouse: pa3ds's taps in touch mode.
+use_touchpad = true
+
+# That second device: pa3ds itself, in the touch screen's own pixels.
+controller_touch_device = "engine:cemuhookudp,max_x:320,max_y:240,min_x:0,min_y:0"

@@ -154,6 +154,110 @@ fn test_the_first_run_writes_every_default_and_reads_them_back() {
     );
 }
 
+/// The file a new player's first run writes, in English. A setting gained, or its words changed,
+/// changes it: `config.render()` writes it again.
+const AS_WRITTEN: &str = include_str!("config_as_written.toml");
+
+/// Every table in its place, each setting at its default with its words, and read back as the
+/// defaults, nothing added or taken out of the file.
+#[test]
+fn test_a_new_player_s_file_is_written_whole_and_read_back_unchanged() {
+    let tmp_path = TmpPath::new();
+    let home = tmp_path.join("home");
+    prepare(&home, &tmp_path.join("none.ini"), false);
+    let path = home.join("config.toml");
+    let written = AS_WRITTEN.replace("\r\n", "\n").replace('\r', "\n");
+    assert_eq!(read_text(&path), written);
+    let again = prepare(&home, &tmp_path.join("none.ini"), false);
+    assert_eq!(read_text(&path), written);
+    assert_eq!(again.tables, config::Tables::default());
+    let path = py::path_str(&path);
+    assert!(!again.notes.iter().any(|note| note.contains(&path)));
+}
+
+/// A setting of each table read into that table, and one of the wrong kind in each noted in
+/// the order they have always come, `[pa3ds.extras]` before `[pa3ds.training]` though the file
+/// has them the other way round.
+#[test]
+fn test_each_table_is_read_into_its_own_place_and_noted_in_its_turn() {
+    let tmp_path = TmpPath::new();
+    let home = tmp_path.join("home");
+    fs::create_dir(&home).unwrap();
+    fs::write(
+        home.join("config.toml"),
+        "[pa3ds]\nkeys = false\npoll_rate = \"x\"\n\n[pa3ds.ui]\npauses = true\ninterrupt = 1\n\n\
+         [pa3ds.audio]\nticks = 0.5\ntones = \"x\"\n\n[pa3ds.navigation]\nshow_y = true\n\
+         positions = 1\n\n[pa3ds.touch]\nwrap = false\nnext_row = 1\n\n[pa3ds.amie]\n\
+         fidgets = true\nberry_first = 1\n\n[pa3ds.training]\nblock_lead = 0.3\nshot_cue = 1\n\n\
+         [pa3ds.extras]\nconditions = true\nbase_stats = 1\n",
+    )
+    .unwrap();
+    let settings = prepare(&home, &tmp_path.join("none.ini"), false);
+    assert_eq!(
+        settings.tables,
+        config::Tables {
+            general: General {
+                keys: false,
+                ..General::default()
+            },
+            ui: Ui {
+                pauses: true,
+                ..Ui::default()
+            },
+            audio: config::Audio {
+                ticks: 0.5,
+                ..config::Audio::default()
+            },
+            navigation: Navigation {
+                show_y: true,
+                ..Navigation::default()
+            },
+            touch: config::Touch {
+                wrap: false,
+                ..config::Touch::default()
+            },
+            amie: config::Amie {
+                fidgets: true,
+                ..config::Amie::default()
+            },
+            extras: config::Extras {
+                conditions: true,
+                ..config::Extras::default()
+            },
+            training: config::Training {
+                block_lead: 0.3,
+                ..config::Training::default()
+            },
+        }
+    );
+    let noted: Vec<&str> = settings
+        .notes
+        .iter()
+        .filter(|note| note.ends_with("is not a setting it can take"))
+        .map(|note| {
+            note.split_once(": ")
+                .expect("a note names its file")
+                .1
+                .split(" =")
+                .next()
+                .unwrap_or("")
+        })
+        .collect();
+    assert_eq!(
+        noted,
+        [
+            "[pa3ds] poll_rate",
+            "[pa3ds.ui] interrupt",
+            "[pa3ds.audio] tones",
+            "[pa3ds.navigation] positions",
+            "[pa3ds.touch] next_row",
+            "[pa3ds.amie] berry_first",
+            "[pa3ds.extras] base_stats",
+            "[pa3ds.training] shot_cue",
+        ]
+    );
+}
+
 /// The RPC server above all: Azahar ships it off, and without it pa3ds hears nothing.
 #[test]
 fn test_a_fresh_azahar_gets_pa3ds_s_settings_with_their_flags_off() {

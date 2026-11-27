@@ -31,7 +31,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PYTHON = Path(os.environ.get("PA3DS_PYTHON", ROOT.parent / "pokemon-access-3ds"))
 MANIFEST = ROOT / "port.toml"
 
-MIRRORED = ("LICENSE", "tests/fake_qt_config.ini", "data/")
+MIRRORED = ("LICENSE", "tests/fake_qt_config.ini", "tests/config_as_written.toml", "data/")
 """Carried over byte for byte. `data/` is pa3ds's own words, which ship beside pa3ds.exe as they
 ship beside the Python's checkout (ADR-0040): `mirror` makes the port's folder upstream's, file
 for file."""
