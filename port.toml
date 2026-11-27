@@ -7,3 +7,4 @@ upstream = "e68f4178ea33d76ac5a0b312f1c514e03e3888b1"
 [untestable]
 "test_adr_links::test_each_adr_and_the_modules_it_binds_name_each_other" = "It checks upstream's ADRs' Code lines against upstream's Python docstrings, neither of which is in this repository; the port's module docs copy their Bound by lists from those docstrings."
 "test_anonymous::test_nothing_shipped_names_a_developer" = "It holds the developers' names, which this public repository does not; `python tools/sync.py anonymous` runs it on every file here."
+"test_spike_letters::test_no_spike_is_cited_by_a_letter_it_no_longer_has" = "It checks the letters spikes are cited by against upstream's own spikes/, docs/findings/ and the regression notes, none of which this repository carries; the port's comments are copied from upstream's source, which it checks there."
