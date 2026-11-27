@@ -258,7 +258,12 @@ impl SunProfile {
                 said.unwrap_or_else(|| Rc::new(|_message: &str| None)),
             ))
         });
-        let langselect = LangSelectReader::new(memory.clone(), names.clone(), text.clone());
+        let langselect = LangSelectReader::new(
+            memory.clone(),
+            names.clone(),
+            text.clone(),
+            layout.unwrap_or(SUN_LAYOUT),
+        );
         // The HP box is the battle reader's to say, from the gauges behind its panels, and a
         // gauge's pointers are followed only inside the blocks the last walk found (spike 124).
         let battle = SunBattleReader::new(panes, names.clone(), layouts.clone());

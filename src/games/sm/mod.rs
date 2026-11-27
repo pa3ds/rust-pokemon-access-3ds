@@ -38,6 +38,8 @@ pub struct VersionLayout {
     pub field_models: &'static str,
     /// The Town Map's archive, whose marks name doors (`gametext`).
     pub town_map: &'static str,
+    /// The language choice's language under the cursor, the choice after it (`langselect`).
+    pub chosen_language: i64,
 }
 
 impl VersionLayout {
@@ -70,13 +72,15 @@ pub const SUN_LAYOUT: VersionLayout = VersionLayout {
     area_number: 0x00,
     field_models: "a/1/9/6",
     town_map: "a/2/4/1",
+    chosen_language: 0x12C,
 };
 /// Ultra Sun's, read against Sun's in its ROM and its bedroom (spike P, 2026-11-23): every class
 /// the readers find has Sun's name, and every field of each is where Sun's is but a move model's,
 /// eight bytes on from +0x2f4 and twelve by its place, and the area loaded's, its number at +0x04
-/// with a pointer before it. The archives are at Sun's paths but the trainers', one on, the field's
-/// models' at `a/2/0/0` (whose 316 models with a name keep Sun's numbers) and the Town Map's at
-/// `a/2/4/5`, where Sun's paths hold others. System text files from 51 on are four or five on, the
+/// with a pointer before it, and the language choice's, its language and choice four bytes on.
+/// The archives are at Sun's paths but the trainers', one on, the field's models' at `a/2/0/0`
+/// (whose 316 models with a name keep Sun's numbers) and the Town Map's at `a/2/4/5`, where Sun's
+/// paths hold others. System text files from 51 on are four or five on, the
 /// language choice's 51 at 55 and the place names' 67 at 72.
 pub const ULTRA_LAYOUT: VersionLayout = VersionLayout {
     system_files: &[
@@ -95,6 +99,7 @@ pub const ULTRA_LAYOUT: VersionLayout = VersionLayout {
     area_number: 0x04,
     field_models: "a/2/0/0",
     town_map: "a/2/4/5",
+    chosen_language: 0x130,
 };
 
 /// `GAME`: a function, since a `String` and a `HashSet` cannot be built in a constant.

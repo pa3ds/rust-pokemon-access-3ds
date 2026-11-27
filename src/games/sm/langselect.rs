@@ -3,8 +3,10 @@
 //! ```text
 //! App::LangSelect::LangSelectUpperDraw
 //!     +0xb4  u8 the screen: 0 the list of languages, 1 "Selected language" and its two choices
-//!     +0x12c u8 the language under the cursor, in the list's order, 0 to 8
-//!     +0x12d u8 the choice under the cursor: 0 "Begin game", 1 "Select language"
+//!     +0x12c u8 the language under the cursor, in the list's order, 0 to 8 (+0x130 in the Ultra
+//!            games, `sm.VersionLayout`)
+//!     +0x12d u8 the choice under the cursor: 0 "Begin game", 1 "Select language", the byte
+//!            after the language
 //! ```
 //!
 //! Read in spike 111 over sun_2.ctm, a picture taken each time the word changed: every press moved
@@ -22,12 +24,14 @@ use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
 use crate::games::common::announce::Focus;
 use crate::games::sm::text::SunText;
+use crate::games::sm::{SUN_LAYOUT, VersionLayout};
 use crate::py::Result;
 
 pub const CLASS: &str = "N3App10LangSelect19LangSelectUpperDrawE";
 pub const SCREEN: i64 = 0xB4;
-pub const LANGUAGE: i64 = 0x12C;
-pub const CHOICE: i64 = 0x12D;
+pub const LANGUAGE: i64 = SUN_LAYOUT.chosen_language;
+/// The choice's byte, after the language's.
+pub const CHOICE: i64 = 1;
 pub const LIST: i64 = 0;
 pub const CONFIRM: i64 = 1;
 
@@ -59,6 +63,7 @@ pub struct Shown {
 /// Says the language choice and its confirmation, a screen at a time and an item a move.
 pub struct LangSelectReader {
     memory: Rc<dyn Memory>,
+    language: i64,
     names: Rc<ClassNames>,
     text: Option<Rc<SunText>>,
     draws: Vec<i64>,
@@ -70,9 +75,17 @@ pub struct LangSelectReader {
 impl LangSelectReader {
     /// `memory` should read exactly what it is asked for (`heaps`); `text` is file 51 of the
     /// system text, and without it nothing is said, since the words are all the ROM's.
-    pub fn new(memory: Rc<dyn Memory>, names: Rc<ClassNames>, text: Option<Rc<SunText>>) -> Self {
+    ///
+    /// Python's `layout` defaults to `SUN_LAYOUT`.
+    pub fn new(
+        memory: Rc<dyn Memory>,
+        names: Rc<ClassNames>,
+        text: Option<Rc<SunText>>,
+        layout: VersionLayout,
+    ) -> Self {
         LangSelectReader {
             memory,
+            language: layout.chosen_language,
             names,
             text,
             draws: Vec::new(),
@@ -118,8 +131,10 @@ impl LangSelectReader {
         }
         let (first, count) = ITEMS[screen as usize];
         let index = i64::from(
-            self.memory
-                .read(draw + if screen == LIST { LANGUAGE } else { CHOICE }, 1)?[0],
+            self.memory.read(
+                draw + self.language + if screen == LIST { 0 } else { CHOICE },
+                1,
+            )?[0],
         );
         if index >= count {
             return Ok(None);
@@ -151,7 +166,7 @@ impl LangSelectReader {
         if screen == CONFIRM
             && let Some(said) = title.clone()
         {
-            let chosen = i64::from(self.memory.read(draw + LANGUAGE, 1)?[0]);
+            let chosen = i64::from(self.memory.read(draw + self.language, 1)?[0]);
             let language = text.line(TEXT_FILE, ITEMS[LIST as usize].0 + chosen);
             if let Some(language) = language {
                 title = Some(format!("{said}: {language}"));

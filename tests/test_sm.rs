@@ -23,7 +23,7 @@ use crate::games::sm::heaps::{self, Blocks, Heaps};
 use crate::games::sm::langselect::{self, LangSelectReader, Shown};
 use crate::games::sm::profile::SunProfile;
 use crate::games::sm::text::SunText;
-use crate::games::sm::{apps, msgwin, talk};
+use crate::games::sm::{SUN_LAYOUT, ULTRA_LAYOUT, VersionLayout, apps, msgwin, talk};
 use crate::py::Result;
 
 const TABLE: i64 = 0x08000000;
@@ -438,11 +438,17 @@ const DRAW: i64 = 0x302EF5B0;
 /// The language choice's upper screen, and a reader of it with file 51's words.
 struct Choosing {
     memory: Rc<FakeMemory>,
+    language: i64,
     reader: LangSelectReader,
 }
 
 impl Choosing {
     fn new() -> Choosing {
+        Choosing::laid_out(SUN_LAYOUT)
+    }
+
+    /// `Choosing(layout)`.
+    fn laid_out(layout: VersionLayout) -> Choosing {
         let memory = FakeMemory::new();
         let draw_class = FakeClasses::new(memory.clone()).add(langselect::CLASS);
         memory.u32(DRAW, &[draw_class]);
@@ -456,16 +462,21 @@ impl Choosing {
             memory.clone(),
             Rc::new(ClassNames::new(memory.clone(), CODE)),
             Some(Rc::new(text)),
+            layout,
         );
         reader.track([DRAW], false);
-        Choosing { memory, reader }
+        Choosing {
+            memory,
+            language: layout.chosen_language,
+            reader,
+        }
     }
 
     fn show(&mut self, screen: i64, language: i64, choice: i64) -> Option<Shown> {
         self.memory
             .write(DRAW + langselect::SCREEN, &[screen as u8]);
         self.memory
-            .write(DRAW + langselect::LANGUAGE, &[language as u8, choice as u8]);
+            .write(DRAW + self.language, &[language as u8, choice as u8]);
         self.reader.poll().unwrap()
     }
 }
@@ -501,6 +512,13 @@ fn test_the_language_list_says_its_title_the_language_under_its_cursor_and_its_h
             help: None,
         })
     );
+}
+
+#[test]
+fn test_ultra_sun_s_language_choice_keeps_its_language_four_bytes_on() {
+    let mut choosing = Choosing::laid_out(ULTRA_LAYOUT);
+    let shown = choosing.show(langselect::LIST, 2, 0);
+    assert!(shown.is_some_and(|shown| shown.focus.label == "French"));
 }
 
 #[test]
