@@ -77,3 +77,22 @@ fn test_a_slot_is_not_said_until_the_panel_has_caught_up_with_the_cursor() {
     );
     assert_eq!(shown.at(31, Some("Wingull")), ["Party 2, Wingull"]);
 }
+
+/// Carrying Rowlet over the box, the panel showed Rowlet on every slot and each was said as
+/// Rowlet's (spike Q). A slot passed before says what it held, one never passed its place, and
+/// a turn of the box forgets them.
+#[test]
+fn test_while_carrying_a_slot_says_what_it_held_when_last_passed() {
+    let mut shown = Box::new();
+    shown.at(5, None);
+    shown.at(4, Some("Slowpoke"));
+    shown.at(30, Some("Rowlet"));
+    shown.memory.write(FRAME + r#box::STATE, &[r#box::CARRYING]);
+    assert_eq!(shown.at(5, Some("Rowlet")), ["row 1, column 6, empty"]);
+    assert_eq!(shown.at(4, Some("Rowlet")), ["row 1, column 5, Slowpoke"]);
+    assert_eq!(shown.at(3, Some("Rowlet")), ["row 1, column 4"]);
+    shown.memory.write(FRAME + r#box::STATE, &[r#box::TURNING]);
+    shown.reader.poll().unwrap();
+    shown.memory.write(FRAME + r#box::STATE, &[r#box::CARRYING]);
+    assert_eq!(shown.at(5, Some("Rowlet")), ["row 1, column 6"]);
+}

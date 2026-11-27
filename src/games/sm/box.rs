@@ -22,13 +22,15 @@
 
 use std::rc::Rc;
 
+use indexmap::IndexMap;
+
 use crate::core::binary::u32;
 use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
 use crate::core::words::own;
 use crate::games::common::announce::Focus;
 use crate::games::common::{pokemon, slots};
-use crate::py::Result;
+use crate::py::{Error, Result};
 
 pub const FRAME: &str = "N3App3Box13BoxLowBgFrameE";
 pub const STATUS: &str = "N3App3Box21BoxUppPokeStatusFrameE";
@@ -37,6 +39,13 @@ pub const SLOT: i64 = 0x108;
 pub const PANEL: i64 = 0x30;
 pub const BOX_SLOTS: i64 = 30;
 pub const COLUMNS: i64 = 6;
+/// The frame's u8 state: 3 browsing, 7 a Pokémon's menu open, 9 carrying one, 0x2f for the few
+/// polls a box turns (Sun's Route 1 Center, spike Q).
+pub const STATE: i64 = 0x04;
+pub const CARRYING: u8 = 9;
+pub const TURNING: u8 = 0x2F;
+/// A slot not passed since the box was turned to: said by its place alone while carrying.
+pub const UNKNOWN: &str = "\0unknown";
 /// Polls running that must read the same slot and Pokémon before it is said.
 pub const STEADY: i64 = 3;
 /// The Ultra games' last species.
@@ -50,6 +59,11 @@ pub struct BoxReader {
     memory: Rc<dyn Memory>,
     names: Rc<ClassNames>,
     found: Vec<i64>,
+    /// Each slot's Pokémon as last read with none carried, None for an empty one: what a
+    /// slot is said to hold while one is carried, when the panel shows the carried one.
+    known: IndexMap<i64, Option<String>>,
+    carried: Option<String>,
+    frame: Option<i64>,
     said: Option<Key>,
     /// What the last poll read, and how many polls running have read it.
     seen: Option<Key>,
@@ -62,6 +76,9 @@ impl BoxReader {
             memory,
             names,
             found: Vec::new(),
+            known: IndexMap::new(),
+            carried: None,
+            frame: None,
             said: None,
             seen: None,
             steady: 0,
@@ -87,13 +104,42 @@ impl BoxReader {
             self.said = None;
             return Ok(None);
         };
+        if Some(frame) != self.frame {
+            (self.frame, self.known, self.carried) = (Some(frame), IndexMap::new(), None);
+        }
+        let Some(&state) = self.memory.read(frame + STATE, 1)?.first() else {
+            return Err(Error::index("index out of range"));
+        };
+        if state == TURNING {
+            // Another box: what its slots hold is not known until they are passed again.
+            self.known.retain(|&slot, _name| slot >= BOX_SLOTS);
+        }
         let slot = u32(&self.memory.read(frame + SLOT, 4)?, 0)?;
         if slot >= BOX_SLOTS + slots::PARTY_SLOTS {
             return Ok(None);
         }
         let param = u32(&self.memory.read(status + PANEL, 4)?, 0)?;
         let held = pokemon::read(&*self.memory, &self.names, param, SPECIES_MAX)?;
-        let name = held.map(|held| held.nickname);
+        let shown = held.map(|held| held.nickname);
+        let name = if state == CARRYING {
+            // The panel is the carried Pokémon's: a slot holds what it held when last passed.
+            // One taken in a swap leaves the one carried before in the slot.
+            if let Some(shown) = shown {
+                if let Some(carried) = &self.carried
+                    && shown != *carried
+                {
+                    self.known.insert(slot, Some(carried.clone()));
+                }
+                self.carried = Some(shown);
+            }
+            self.known
+                .get(&slot)
+                .cloned()
+                .unwrap_or_else(|| Some(UNKNOWN.to_string()))
+        } else {
+            self.carried = None;
+            shown
+        };
         let key = (frame, slot, name.clone());
         // The panel follows the cursor a poll or two late: "row 1, column 6, empty" came 40 ms
         // before the Slowpoke there, and "Party 2, Rowlet" 30 ms before the Wingull, so a slot is
@@ -113,6 +159,9 @@ impl BoxReader {
         }
         let opened = self.said.as_ref().is_none_or(|said| said.0 != frame);
         self.said = Some(key);
+        if state != CARRYING {
+            self.known.insert(slot, name.clone());
+        }
         let r#where = if slot < BOX_SLOTS {
             own(
                 slots::GRID,
@@ -125,6 +174,7 @@ impl BoxReader {
             own(slots::PARTY, &[("number", &(slot - BOX_SLOTS + 1))])
         };
         let label = match name {
+            Some(name) if name == UNKNOWN => r#where,
             None => own(slots::EMPTY_SLOT, &[("slot", &r#where)]),
             Some(name) => format!("{}, {name}", r#where),
         };
