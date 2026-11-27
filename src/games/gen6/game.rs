@@ -19,7 +19,7 @@ use indexmap::{IndexMap, IndexSet};
 use crate::core::memory::Memory;
 use crate::games::gen6::anchors::Chain;
 use crate::games::gen6::field::camera;
-use crate::games::gen6::field::features::{Feature, SecretBaseReader};
+use crate::games::gen6::field::features::Feature;
 use crate::games::gen6::field::footsteps::{ORAS, Steps};
 use crate::games::gen6::field::landform::{Landform, gen6};
 use crate::games::gen6::own::{self, Kit, Own};
@@ -64,10 +64,8 @@ pub enum FurnitureKind {
 /// made as the module loads; a `Game` lives in a `static`, so here it is the function making it.
 pub type Data = fn() -> PathBuf;
 
-/// `Callable[[Memory, bytes, GameText], SecretBaseReader]`: a plain `fn`, since a `Game` is
-/// built once and kept in a `static`, where an `Rc<dyn Fn>` cannot be.
-pub type SecretBaseFactory = fn(Rc<dyn Memory>, &[u8], &GameText) -> Rc<dyn SecretBaseReader>;
-/// `Callable[[Memory, bytes, GameText], Feature]`.
+/// `Callable[[Memory, bytes, GameText], Feature]`: a plain `fn`, since a `Game` is built once
+/// and kept in a `static`, where an `Rc<dyn Fn>` cannot be.
 pub type FeatureFactory = fn(Rc<dyn Memory>, &[u8], &GameText) -> Rc<dyn Feature>;
 /// `Callable[[Kit], Own]`.
 pub type OwnFactory = fn(&Kit) -> Rc<dyn Own>;
@@ -114,9 +112,6 @@ pub struct Game {
     /// leaves by: the pole in Santalune Gym's lobby, which the game slides the player down to the
     /// web room (spike 224).
     pub furniture: IndexMap<(i64, i64), FurnitureKind>,
-    /// The reader of what stands inside its Secret Bases, given the game's words for each
-    /// decoration, or None in a game with none: ORAS's (`games.oras.field.secret_base`).
-    pub secret_bases: Option<SecretBaseFactory>,
     /// The event flag before the first hidden item's, each item's its number past it: `0x44c` in
     /// Omega Ruby's Dowsing Machine's getter, `0x4e49e4`, and in X's, `0x4ab888`
     /// (`gen6.field.hidden_items`, spike 249).
@@ -144,9 +139,10 @@ pub struct Game {
     /// Its kinds of special ground in P's way, each saying what it lists and how it is walked,
     /// worked out once a map (`gen6.field.landform`): gen 6's own, which every game's chunks can
     /// hold, and its own after them: X's ridden Pokémon, climbing walls, grind rails, vines and
-    /// Poké Ball Factory belts, and Dewford Gym's belts, Fortree Gym's rotating doors and
-    /// Sootopolis Gym's thin ice, each of the last two read through a watch of its own as the
-    /// player walks (`games.oras.field.doors`, `games.oras.field.ice`).
+    /// Poké Ball Factory belts, and Dewford Gym's belts, Fortree Gym's rotating doors, Sootopolis
+    /// Gym's thin ice and a Secret Base's floor, each of the last three read through a watch of
+    /// its own as the player walks (`games.oras.field.doors`, `games.oras.field.ice`,
+    /// `games.oras.field.secret_base`).
     pub landforms: Vec<Arc<dyn Landform>>,
     /// The sprites of the spots a wild Pokémon leaps out of as the player walks near, listed
     /// under pokémon rather than as a thing to use: X's grass on Routes 6 and 18, `TOBI_KUSA`
@@ -275,7 +271,6 @@ impl Game {
             barriers: HashSet::new(),
             triggers: IndexMap::new(),
             furniture: IndexMap::new(),
-            secret_bases: None,
             hidden_items: 0x44C,
             hidden_triggers: HashSet::new(),
             crossed: HashSet::new(),

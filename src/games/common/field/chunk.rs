@@ -1,6 +1,9 @@
 //! A chunk's cell table as every game's ground is laid out in, its floors, and what each kind
 //! of cell is.
 
+use std::collections::HashSet;
+use std::rc::Rc;
+
 use crate::core::pathfind::{EAST, NORTH, SOUTH, WEST};
 use crate::py::{self, Error, Result};
 
@@ -313,6 +316,27 @@ impl Chunk {
                 (self.origin.0 + i % CHUNK, self.origin.1 + i / CHUNK),
                 word >> KIND_SHIFT,
             )
+        })
+    }
+
+    /// The chunk with those of `cells` it holds open: the blocked bit cleared, the kind kept;
+    /// itself where it holds none.
+    pub fn opened(self: Rc<Self>, cells: &HashSet<(i64, i64)>) -> Rc<Chunk> {
+        let held: Vec<(i64, i64)> = cells
+            .iter()
+            .copied()
+            .filter(|&cell| self.holds(cell))
+            .collect();
+        if held.is_empty() {
+            return self;
+        }
+        let mut words = self.words.clone();
+        for (x, z) in held {
+            words[((z - self.origin.1) * CHUNK + x - self.origin.0) as usize] &= !BLOCKED;
+        }
+        Rc::new(Chunk {
+            words,
+            ..(*self).clone()
         })
     }
 }

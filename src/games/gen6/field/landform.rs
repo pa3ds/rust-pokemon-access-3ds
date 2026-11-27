@@ -62,9 +62,7 @@ pub const BUMPY_SLOPE: &str = "bumpy slope";
 pub const BIKE_RAIL: &str = "rail";
 
 /// What a hole a big boulder drops into is called, listed under obstacles with the boulders until
-/// one fills it (spike 202): its cells are of a kind of their own
-/// (`chunk.HOLE`). A hole in a Secret Base's floor is one too: the game names it only in the Solid
-/// Board's description, "You can place this over holes to cross over them", never where it is.
+/// one fills it (spike 202): its cells are of a kind of their own (`chunk.HOLE`).
 pub const HOLE: &str = "hole";
 
 /// What a patch of the deep water Dive goes down through is called: the game draws it darker than
@@ -198,6 +196,14 @@ pub struct Here<'a> {
     pub watch: Box<dyn Fn(&dyn Landform) -> Option<Rc<dyn Tracked>> + 'a>,
     pub terrain: &'a Terrain,
     pub zones: &'a ZoneTable,
+    /// The cell tables of the chunks loaded now, for what a landform reads off the map as it is
+    /// now rather than off the ROM's chunks: a Secret Base's crumbled cliff and holes.
+    pub chunks: Box<dyn Fn() -> Result<Vec<Rc<Chunk>>> + 'a>,
+    /// The zone the field map puts a cell in, None where it puts none or is not read.
+    pub zone_at: Box<dyn Fn(Cell) -> Result<Option<i64>> + 'a>,
+    /// What the furniture record in a cell is called as the field lists it, None where none
+    /// stands: a Secret Base's PC and flag, under its decorating cursor.
+    pub furniture: Box<dyn Fn(Cell) -> Result<Option<String>> + 'a>,
 }
 
 /// One kind of special ground. `found` is worked out once a map and must read no memory: a tape
@@ -296,6 +302,28 @@ pub fn spread(cells: &[Cell]) -> (Cell, (i64, i64)) {
 /// The four cells a step from this one.
 pub fn beside(cell: Cell) -> [Cell; 4] {
     pathfind::STEPS.map(|(_, (dx, dz))| (cell.0 + dx, cell.1 + dz))
+}
+
+/// `cells` in groups of those that touch side to side, the group with the first cell first.
+pub fn touching(cells: &HashSet<Cell>) -> Vec<Vec<Cell>> {
+    let mut left: BTreeSet<Cell> = cells.iter().copied().collect();
+    let mut out: Vec<Vec<Cell>> = Vec::new();
+    while let Some(&first) = left.iter().next() {
+        let mut group: Vec<Cell> = Vec::new();
+        left.remove(&first);
+        let mut edge = vec![first];
+        while let Some(cell) = edge.pop() {
+            group.push(cell);
+            let (x, z) = cell;
+            for near in [(x - 1, z), (x + 1, z), (x, z - 1), (x, z + 1)] {
+                if left.remove(&near) {
+                    edge.push(near);
+                }
+            }
+        }
+        out.push(group);
+    }
+    out
 }
 
 /// Each patch of cells side by side of one kind, the rails' kinds counting as one, its first cell

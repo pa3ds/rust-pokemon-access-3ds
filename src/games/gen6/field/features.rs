@@ -1,16 +1,15 @@
-//! What one game brings to the gen 6 field of its own: ORAS's DexNav, Secret Bases, berry spots
-//! and ash piles (`games.oras`), each found by a sweep as its module loads. The field reader reads
-//! them through these, and never imports a game. What it has of its own on the ground is its
+//! What one game brings to the gen 6 field of its own: ORAS's DexNav, Secret Base spots, berry
+//! spots and ash piles (`games.oras`), each found by a sweep as its module loads. The field reader
+//! reads them through these, and never imports a game. What it has of its own on the ground is its
 //! landforms' (`landform`).
 
 use std::any::Any;
 use std::rc::Rc;
 
-use indexmap::IndexSet;
-
 use crate::core::discovery::Found;
 use crate::core::pathfind::Cell;
 use crate::games::common::field::things::Interactable;
+use crate::games::gen6::field::voice::Speaking;
 use crate::py::Result;
 
 /// `Callable[[Cell], int | None]`: the zone the field map puts a cell in.
@@ -26,6 +25,31 @@ pub trait Tracked: Any {
     fn classes(&self) -> Vec<&'static str>;
 
     fn track(&self, found: &Found) -> Result<()>;
+
+    /// Itself as `Sweeping`, where it is one: Python's `isinstance(reader, Sweeping)`, a
+    /// runtime-checkable protocol.
+    fn sweeping(&self) -> Option<&dyn Sweeping> {
+        None
+    }
+
+    /// Itself as `voice.Speaking`, where it is one: Python's `isinstance(watch, Speaking)`, a
+    /// runtime-checkable protocol.
+    fn speaking(self: Rc<Self>) -> Option<Rc<dyn Speaking>> {
+        None
+    }
+}
+
+/// One of a game's own readers that may want a sweep sooner than the schedule has it: ORAS's
+/// Secret Bases' decorations, inside a base before they are found
+/// (`oras.field.secret_base.Decorations`).
+pub trait Sweeping: Tracked {
+    /// Why to sweep now, or None: `zone` is the one the player's model was built in, None while
+    /// no poll has read it, and `clock` the field reader's, asked only when it matters.
+    fn sweep_wanted(
+        &self,
+        zone: Option<i64>,
+        clock: &dyn Fn() -> f64,
+    ) -> Result<Option<&'static str>>;
 }
 
 /// Something a game has on its field that the gen 6 field reader lists without knowing what
@@ -65,27 +89,4 @@ pub struct Sighting {
 pub trait Watched: Feature {
     /// What it shows in `zone` now, `zone_at` as `listed` takes it.
     fn watch(&self, zone: i64, zone_at: ZoneAt) -> Result<Sighting>;
-}
-
-/// Inside a game's Secret Bases, where it has them: ORAS's (`oras.field.secret_base`), what
-/// stands where and the cursor the player decorates with.
-pub trait SecretBaseReader: Tracked {
-    /// Every zone a base is built in.
-    fn zones(&self) -> IndexSet<i64>;
-
-    /// Whether a sweep has found what stands where in a base.
-    fn furnished(&self) -> Result<bool>;
-
-    /// The cell the decorating cursor is on and whether the item held can be set down there,
-    /// None for nothing held; or None while it is not shown.
-    fn cursor(&self) -> Result<Option<(Cell, Option<bool>)>>;
-
-    /// The decorations standing in a cell, by number.
-    fn standing(&self, cell: Cell) -> Result<Vec<i64>>;
-
-    /// The cells a decoration stands in that is walked round, not over.
-    fn solid(&self) -> Result<IndexSet<Cell>>;
-
-    /// Each decoration standing in the base, by number, with its cells; none the game hides.
-    fn placed(&self) -> Result<Vec<(i64, Vec<Cell>)>>;
 }

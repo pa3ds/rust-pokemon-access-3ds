@@ -39,30 +39,28 @@ use crate::core::config::{HIDDEN_ALL, HIDDEN_UNDERWATER};
 use crate::core::discovery::{Found, HEAP_SPAN, within};
 use crate::core::memory::Memory;
 use crate::core::pathfind::{self, Cell};
-use crate::core::speech::Category;
-use crate::core::words::own;
-use crate::games::common::field::chunk::{BLOCKED, CHUNK, COUNTER, Chunk};
+use crate::games::common::field::chunk::{CHUNK, COUNTER, Chunk};
 use crate::games::common::field::ground::{
     self as common, BLOCK, Far, Grid, Ground, GroundHeight, NO_ZONE, Of, STRENGTH, StepWords, Word,
     pushes, walkable,
 };
 use crate::games::common::field::ride::riding;
 use crate::games::common::field::things::{
-    DECORATION_SOURCE, EDGE_SOURCE, FURNITURE_SOURCE, Field, Interactable, OBSTACLES,
-    OPENING_SOURCE, POKEMON, STAIRS_SOURCE, TELEPORT_SOURCE, TELEPORTER, TILE_SOURCE,
-    TRIGGER_SOURCE, WARP_SOURCE, bearing, kind_said, place_source,
+    EDGE_SOURCE, FURNITURE_SOURCE, Field, Interactable, OBSTACLES, OPENING_SOURCE, POKEMON,
+    STAIRS_SOURCE, TELEPORT_SOURCE, TELEPORTER, TILE_SOURCE, TRIGGER_SOURCE, WARP_SOURCE,
+    place_source,
 };
 use crate::games::gen6::anchors::follow;
 use crate::games::gen6::field::conveyors::{GymFloor, Switches};
-use crate::games::gen6::field::features::{Feature, SecretBaseReader, Sighting, Tracked, Watched};
+use crate::games::gen6::field::features::{Feature, Sighting, Tracked, Watched};
 use crate::games::gen6::field::hidden_items::{HIDDEN_ITEM, HiddenItems, Only};
 use crate::games::gen6::field::landform::{
-    Conveyors, Found as Worked, HOLE, Here, Holes, Landform, Matrix, Rides, TurningFloor, as_form,
-    beside, cell_number, dropped, holes_found, identity, runs, spread,
+    Conveyors, Found as Worked, Here, Holes, Landform, Matrix, Rides, TurningFloor, as_form,
+    beside, dropped, holes_found, identity, runs, spread, touching,
 };
 use crate::games::gen6::field::rail::{self, Rails, keep};
 use crate::games::gen6::field::terrain::{FarCells, FarFloors, FarHeights, FarMatrices, Terrain};
-use crate::games::gen6::field::voice::{Said, Voice};
+use crate::games::gen6::field::voice::{Said, Speaking, Voice};
 use crate::games::gen6::field::works::Works;
 use crate::games::gen6::field::zonedata::{
     Bytes, FURNITURE, FURNITURE_SCRIPT, LZ11, NPC, NPC_INDEX, NPC_SCRIPT, NPC_SPRITE, NPC_X, NPC_Y,
@@ -159,63 +157,6 @@ pub const OPEN_GROUND: &str = "open ground";
 /// (spike 251).
 pub const OPENING_REACH: i64 = 2;
 
-/// What a Secret Base's flag beside its PC is called: the game never names it where it stands.
-pub const FLAG: &str = "flag";
-
-/// The cell kind of a Secret Base's crumbled cliff, where the Stairs are placed to climb to the
-/// upper floor: always blocked, one patch of 3 cells by 2 a base (Route 116's, zone 0x1a7, at x 17
-/// to 19, z 17 to 18, its top row at the upper floor's height 36 and its bottom at 18, the lower
-/// floor 0). The 857 ORAS chunk files have it only in base shapes 11, 12, 21, 22, 23, 40 and 41,
-/// the 13 spots that need Stairs, and X's 1030 have none (spike 201).
-pub const CLIFF_TILE: i64 = 0xFD;
-
-/// What a Secret Base's crumbled cliff is called: the game names it only in the Stairs'
-/// description, "You can place this by a crumbled cliff to climb to a higher floor", never where
-/// it stands (omega_ruby_secret-base3.ctm).
-pub const CLIFF: &str = "crumbled cliff";
-
-/// The cell kind of a hole in a Secret Base's floor, crossed on a Solid Board: always blocked,
-/// two cells in Granite Cave's base (zone 0x1f0, at x 20, z 12 to 13), the only way into its
-/// upper-left room (omega_ruby_secret-base6.ctm). The ROM has it only in base shapes 42 to 50
-/// (spike 201).
-pub const HOLE_TILE: i64 = 0xFE;
-
-/// The cells of a Secret Base a decoration goes over, by kind, each with its name.
-pub const BASE_TILES: [(i64, &str); 2] = [(CLIFF_TILE, CLIFF), (HOLE_TILE, HOLE)];
-
-/// `BASE_TILES.get(kind)`.
-fn base_tile(kind: i64) -> Option<&'static str> {
-    BASE_TILES
-        .iter()
-        .find(|(tile, _)| *tile == kind)
-        .map(|(_, name)| *name)
-}
-
-/// What the decorating cursor is on where nothing stands and nothing is in the way: the game says
-/// nothing as it moves from one such cell to the next.
-pub const BLANK: &str = "blank";
-
-/// What the decorating cursor is on where the cell table has the cell blocked and no decoration,
-/// PC or flag stands: the base's walls and the hedge round them.
-pub const WALL: &str = "wall";
-
-/// Said first while an item is held: whether it can be set down where the cursor is. The game
-/// draws its squares green or red and says "You cannot set it there!" only once A is pressed
-/// (omega_ruby_secret-base5.ctm).
-pub fn fit(fits: bool) -> &'static str {
-    if fits {
-        "decorating-placeable"
-    } else {
-        "decorating-not-placeable"
-    }
-}
-
-pub const BASE_ASKS: i64 = 5;
-/// Sweeps asked for inside a Secret Base while what stands where is not found, and the seconds
-/// between them. The base's module is loaded as the player goes in, and its classes are learned a
-/// look after a look that lists it, too late for the sweep that look comes with.
-pub const BASE_EVERY: f64 = 2.0;
-
 /// What a move model is to the field, which says whether it is listed and whether it stands in
 /// the way (`FieldReader._role`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -295,8 +236,6 @@ pub struct FieldReader {
     stairs: HashSet<i64>,
     /// Zones listed a room at a time (`Game.rooms`).
     rooms: HashSet<i64>,
-    /// What the game calls each decoration, by its number (`GameText.decorations`).
-    decorations: Vec<String>,
     /// (zone, a furniture record's script) -> what it is, where it is no sign (`Game.furniture`):
     /// a Secret Base's PC and flag.
     furniture_kinds: IndexMap<(i64, i64), FurnitureKind>,
@@ -307,6 +246,9 @@ pub struct FieldReader {
     /// Each landform's watch, by the landform (`Landform.watch`): by its identity, as one
     /// holding a mapping does not hash.
     watches: IndexMap<usize, Rc<dyn Tracked>>,
+    /// The game's own field voices, its landforms' watches that speak (`voice.Speaking`), in
+    /// its landforms' order: ORAS's decorating cursor.
+    pub voices: Vec<Voice>,
     /// What the game's ridden Pokémon cross, or None in a game without one: who is in the way
     /// and who is listed asks it too.
     rides: Option<Rides>,
@@ -319,13 +261,6 @@ pub struct FieldReader {
     /// Whether a row of models drawn as nothing with a script of its own is a gate
     /// (`Game.gates`).
     gates: bool,
-    /// What stands inside the game's Secret Bases, or None in a game without them: swept for
-    /// after its features, before those watched.
-    secret_bases: Option<Rc<dyn SecretBaseReader>>,
-    /// The cell the decorating cursor was last said on, and what was there (`decorating`).
-    cursor_at: RefCell<Option<(Cell, String)>>,
-    /// The game's own field voices: ORAS's decorating cursor.
-    pub voices: Vec<Voice>,
     /// The save's works and flags, which arm triggers and say which hidden items are found.
     works: Rc<Works>,
     /// (zone, a warp's slot) -> the work and value it is taken at (`Game.armed_warps`).
@@ -434,9 +369,6 @@ pub struct FieldReader {
     table_asks: Slot<i64>,
     /// When the next may be asked for.
     table_next: Slot<f64>,
-    /// Sweeps asked for in the Secret Base the player is in so far (`BASE_ASKS`).
-    base_asks: Slot<i64>,
-    base_next: Slot<f64>,
     /// The player's model and the zone it was built in, as the last poll read them.
     visit: Slot<Option<(i64, i64)>>,
 }
@@ -506,10 +438,18 @@ impl FieldReader {
             .into_iter()
             .filter(|feature| feature.clone().watched().is_none())
             .collect();
-        let secret_bases = match game.secret_bases {
-            Some(make) if !image.is_empty() => Some(make(memory.clone(), image, text)),
-            _ => None,
-        };
+        let watches: IndexMap<usize, Rc<dyn Tracked>> = game
+            .landforms
+            .iter()
+            .filter_map(|form| {
+                form.watch(memory.clone(), image, text)
+                    .map(|watch| (identity(&**form), watch))
+            })
+            .collect();
+        let speaking: Vec<Rc<dyn Speaking>> = watches
+            .values()
+            .filter_map(|watch| watch.clone().speaking())
+            .collect();
         let listing = hidden_items == HIDDEN_UNDERWATER || hidden_items == HIDDEN_ALL;
         let underwater = hidden_items == HIDDEN_UNDERWATER;
         let hidden_memory = memory.clone();
@@ -572,34 +512,26 @@ impl FieldReader {
             player_looks: game.player_looks.clone(),
             stairs: game.stairs.clone(),
             rooms: game.rooms.clone(),
-            decorations: text.decorations.clone(),
             furniture_kinds: game.furniture.clone(),
             landforms: game.landforms.clone(),
             found_of: RefCell::new(HashMap::new()),
-            watches: game
-                .landforms
-                .iter()
-                .filter_map(|form| {
-                    form.watch(memory.clone(), image, text)
-                        .map(|watch| (identity(&**form), watch))
+            watches,
+            // `partial(self._said, watch)`, through the reader being made.
+            voices: speaking
+                .into_iter()
+                .map(|watch| {
+                    let me = me.clone();
+                    Rc::new(move |r#where: Option<&Field>| {
+                        me.upgrade()
+                            .expect("a reader is made in an Rc, which its holders keep")
+                            .said(&*watch, r#where)
+                    }) as Voice
                 })
                 .collect(),
             rides: game.landforms.iter().find_map(as_form::<Rides>).cloned(),
             natives: text.natives.clone(),
             teleports: text.teleports.clone(),
             gates: game.gates,
-            voices: if secret_bases.is_none() {
-                Vec::new()
-            } else {
-                let me = me.clone();
-                vec![Rc::new(move |r#where: Option<&Field>| {
-                    me.upgrade()
-                        .expect("a reader is made in an Rc, which its holders keep")
-                        .decorating(r#where)
-                }) as Voice]
-            },
-            secret_bases,
-            cursor_at: RefCell::new(None),
             barriers: game.barriers.clone(),
             triggers: game.triggers.clone(),
             trigger_exits: game
@@ -652,15 +584,14 @@ impl FieldReader {
             asks: Slot::new(0),
             table_asks: Slot::new(0),
             table_next: Slot::new(0.0),
-            base_asks: Slot::new(0),
-            base_next: Slot::new(0.0),
             visit: Slot::new(None),
             memory,
         })
     }
 
     /// What a sweep looks for for the game's own readers and its landforms' watches: ORAS's
-    /// DexNav, Secret Bases, ash piles, rotating doors and thin ice, in the order the log names
+    /// berry spots, ash piles, Secret Base spots and DexNav, then the save's works, then its
+    /// rotating doors, thin ice and Secret Bases' decorations, in the order the log names
     /// them.
     pub fn classes(&self) -> Vec<&'static str> {
         self.tracked()
@@ -673,9 +604,6 @@ impl FieldReader {
         let mut out: Vec<&dyn Tracked> = Vec::new();
         for feature in &self.features {
             out.push(&**feature);
-        }
-        if let Some(bases) = &self.secret_bases {
-            out.push(&**bases);
         }
         for feature in &self.watched {
             out.push(&**feature);
@@ -924,38 +852,24 @@ impl FieldReader {
                 },
             );
         }
-        let bases = &self.secret_bases;
         let files = self.terrain.files.borrow().1.clone();
         let lanes = self
             .rails
             .lanes(&files, self.terrain.raised()?, self.turn.get())?;
         // Where the streets are floors of their own, a cell they open is open on its own floor.
-        let mut covered = self.covered(r#where.zone)?;
-        if !self.terrain.raised()? {
-            covered.extend(lanes.keys().copied());
-        }
+        let covered: HashSet<Cell> = if self.terrain.raised()? {
+            HashSet::new()
+        } else {
+            lanes.keys().copied().collect()
+        };
         let (nothing, blockers) = self.unseen()?;
-        let mut solid: IndexMap<Cell, Option<f64>> = IndexMap::new();
-        if let Some(bases) = bases
-            && bases.zones().contains(&r#where.zone)
-        {
-            for cell in bases.solid()? {
-                if !covered.contains(&cell) {
-                    solid.insert(cell, None);
-                }
-            }
-        }
-        solid.extend(nothing);
         let loaded = || self.chunks_loaded();
         let level = self.height.get();
         let stacked = level.is_some() && self.terrain.stacked(&loaded)?;
 
         let mut chunks: Vec<Rc<Chunk>> = Vec::new();
         for chunk in self.chunks_loaded()? {
-            chunks.push(opened(
-                laid(&self.terrain, &chunk, stacked, level)?,
-                &covered,
-            ));
+            chunks.push(laid(&self.terrain, &chunk, stacked, level)?.opened(&covered));
         }
         let ladders = self.ladders_here()?;
         let cliffs = self.terrain.cliffs(&ladders)?;
@@ -975,10 +889,7 @@ impl FieldReader {
             }
             let chunk = match me.terrain.far(column, row)? {
                 None => None,
-                Some(chunk) => Some(opened(
-                    laid(&me.terrain, &chunk, stacked, level)?,
-                    &far_covered,
-                )),
+                Some(chunk) => Some(laid(&me.terrain, &chunk, stacked, level)?.opened(&far_covered)),
             };
             made.borrow_mut().insert((column, row), chunk.clone());
             Ok(chunk)
@@ -1041,7 +952,7 @@ impl FieldReader {
                     },
                     clears: self.clears.clone(),
                     through: self.lurkers.clone(),
-                    solid,
+                    solid: nothing,
                     stacked,
                     ..Of::default()
                 },
@@ -1066,89 +977,13 @@ impl FieldReader {
         }
     }
 
-    /// What the Secret Base's decorating cursor is on and where, a field voice: said each
-    /// time it moves or what is there changes, so a desk set down under it is said as it lands.
-    /// The decorations standing in its cell, by the game's names for them, or the PC or the flag,
-    /// or a wall, or the crumbled cliff or a hole, or blank. The game names a decoration on the
-    /// bottom screen only, says "Select location" alike over the floor, the PC and the walls,
-    /// and nothing at all moving from one empty cell to the next (omega_ruby_secret-base2.ctm).
-    /// The cursor crossing the cliff said "wall" three times, in the session before
-    /// omega_ruby_secret-base3.ctm. With an item held, `FIT` comes first.
-    fn decorating(&self, r#where: Option<&Field>) -> Result<Option<Said>> {
-        let Some(r#where) = r#where else {
-            return Ok(None);
-        };
-        let bases = &self.secret_bases;
-        let cursor = match bases {
-            Some(bases) if bases.zones().contains(&r#where.zone) => bases.cursor()?,
-            _ => None,
-        };
-        let mut on: Option<(Cell, String)> = None;
-        if let (Some(bases), Some((cell, fits))) = (bases, cursor) {
-            let under = kind_said(&self.under_cursor(r#where, bases.as_ref(), cell)?);
-            on = Some((
-                cell,
-                match fits {
-                    None => under,
-                    Some(fits) => format!("{}, {under}", own(fit(fits), &[])),
-                },
-            ));
+    /// What a landform's watch that speaks says now, given what the landforms are laid on where
+    /// the player is: nothing while nothing says where.
+    fn said(&self, watch: &dyn Speaking, r#where: Option<&Field>) -> Result<Option<Said>> {
+        match r#where {
+            None => Ok(None),
+            Some(r#where) => watch.said(&self.here(r#where, None)),
         }
-        if on == *self.cursor_at.borrow() {
-            return Ok(None);
-        }
-        *self.cursor_at.borrow_mut() = on.clone();
-        let Some((cell, words)) = on else {
-            return Ok(None);
-        };
-        let said = format!("{words}, {}", bearing(r#where.cell, cell));
-        Ok(Some(Said {
-            words: said.clone(),
-            category: Category::Menu,
-            logged: format!("cursor: {said}"),
-        }))
-    }
-
-    fn under_cursor(
-        &self,
-        r#where: &Field,
-        bases: &dyn SecretBaseReader,
-        cell: Cell,
-    ) -> Result<String> {
-        let mut names: Vec<&str> = Vec::new();
-        let standing = bases.standing(cell)?;
-        for number in standing {
-            if number < self.decorations.len() as i64
-                && !self.decorations[number as usize].is_empty()
-            {
-                names.push(&self.decorations[number as usize]);
-            }
-        }
-        if !names.is_empty() {
-            return Ok(names.join(", "));
-        }
-        let data = self.current()?;
-        let home = match &data {
-            None => None,
-            Some(data) => self.home(data, &[r#where.zone])?,
-        };
-        let items = match &data {
-            None => Vec::new(),
-            Some(data) => read_furniture(&*self.memory, data)?,
-        };
-        for item in items {
-            if item.cells().contains(&cell) {
-                return Ok(self.furniture_kind(home, &item));
-            }
-        }
-        let chunks = self.chunks_loaded()?;
-        if walkable(&chunks, cell)? != Some(false) {
-            return Ok(BLANK.to_string());
-        }
-        let Some(held) = chunks.iter().find(|chunk| chunk.holds(cell)) else {
-            return Ok(WALL.to_string());
-        };
-        Ok(base_tile(held.kind(cell)?).unwrap_or(WALL).to_string())
     }
 
     /// The cells of the zone's triggers whose (zone, script) `known` holds, each with it.
@@ -1421,8 +1256,6 @@ impl FieldReader {
             items.extend(form.listed(found, &here)?);
         }
         items.extend(self.stairs_in(r#where.zone)?);
-        items.extend(self.base_tiles(r#where.zone)?);
-        items.extend(self.placed(r#where.zone)?);
         if let Some(data) = &data {
             items.extend(self.listed_triggers(data, r#where.zone)?);
         }
@@ -1573,113 +1406,6 @@ impl FieldReader {
         Ok(out)
     }
 
-    /// The Secret Base's crumbled cliff and holes, each patch of touching cells of a kind in
-    /// `BASE_TILES` the zone's chunks hold as one thing over its bounding box: `runs` would split
-    /// the cliff's 3 cells by 2 into two rows and list it twice. A cell of the map, so only the
-    /// chunks loaded now say where it is. Nothing once a decoration stands on any of its cells:
-    /// the Stairs set down over the cliff left the cell table at kind `CLIFF_TILE` and the base's
-    /// mapper with a decoration in each of the six (omega_ruby_secret-base4.ctm).
-    fn base_tiles(&self, zone: i64) -> Result<Vec<Interactable>> {
-        let mut found: IndexMap<i64, HashSet<Cell>> = IndexMap::new();
-        for chunk in self.chunks_loaded()? {
-            for (cell, kind) in chunk.kinds() {
-                if base_tile(kind).is_some() {
-                    let at = self.zone_at(cell)?;
-                    if at == Some(zone) || at.is_none() {
-                        found.entry(kind).or_default().insert(cell);
-                    }
-                }
-            }
-        }
-        let covered = self.covered(zone)?;
-        let mut out: Vec<Interactable> = Vec::new();
-        for (kind, cells) in found {
-            for group in touching(&cells) {
-                if group.iter().any(|cell| covered.contains(cell)) {
-                    continue;
-                }
-                let (first, size) = spread(&group);
-                out.push(Interactable {
-                    size,
-                    code: kind,
-                    source: place_source(TILE_SOURCE, first.0 << 12 | first.1)?,
-                    ..Interactable::new(
-                        "exits",
-                        base_tile(kind).expect("a base tile's kind"),
-                        first,
-                    )
-                });
-            }
-        }
-        Ok(out)
-    }
-
-    /// The cells of the Secret Base's crumbled cliff and holes a decoration stands on, walked
-    /// over: the player climbed the Stairs set down over the cliff to the upper floor, the cell
-    /// table keeping all six cells blocked under them, and P said "can't continue"
-    /// (omega_ruby_secret-base4.ctm). The Solid Board over a hole is taken to be crossed the same
-    /// way, by its description; none has been set down yet.
-    fn covered(&self, zone: i64) -> Result<HashSet<Cell>> {
-        let Some(bases) = &self.secret_bases else {
-            return Ok(HashSet::new());
-        };
-        if !bases.zones().contains(&zone) {
-            return Ok(HashSet::new());
-        }
-        let mut out = HashSet::new();
-        for chunk in self.chunks_loaded()? {
-            for (cell, kind) in chunk.kinds() {
-                if base_tile(kind).is_none() {
-                    continue;
-                }
-                let at = self.zone_at(cell)?;
-                if (at == Some(zone) || at.is_none()) && !bases.standing(cell)?.is_empty() {
-                    out.insert(cell);
-                }
-            }
-        }
-        Ok(out)
-    }
-
-    /// The decorations set down in a Secret Base, among the signs by the game's names for them,
-    /// each one thing over its cells: set down, the Stairs and the desks were not listed at all.
-    /// The Invisible Doll is not, as the game hides it.
-    ///
-    /// Those of one name that touch are one thing: every base's five Welcome Mats in a line were
-    /// listed five times. Apart, they stay apart, so the way to one does not
-    /// end on the floor between them.
-    fn placed(&self, zone: i64) -> Result<Vec<Interactable>> {
-        let Some(bases) = &self.secret_bases else {
-            return Ok(Vec::new());
-        };
-        if !bases.zones().contains(&zone) {
-            return Ok(Vec::new());
-        }
-        let mut named: IndexMap<String, HashSet<Cell>> = IndexMap::new();
-        for (number, cells) in bases.placed()? {
-            if number < self.decorations.len() as i64
-                && !self.decorations[number as usize].is_empty()
-            {
-                named
-                    .entry(self.decorations[number as usize].clone())
-                    .or_default()
-                    .extend(cells);
-            }
-        }
-        let mut out: Vec<Interactable> = Vec::new();
-        for (name, cells) in named {
-            for group in touching(&cells) {
-                let (first, size) = spread(&group);
-                out.push(Interactable {
-                    size,
-                    source: place_source(DECORATION_SOURCE, cell_number(first))?,
-                    ..Interactable::new("signs", &name, first)
-                });
-            }
-        }
-        Ok(out)
-    }
-
     /// The stairs between the floors of the zone's chunks, where it is one of `Game.stairs`: each
     /// run of the cells of the ground a floor over it is walked onto from, at the ground's height
     /// there (`mapblock.joins`). The game names none of them. Sootopolis Gym's two, each two cells
@@ -1758,6 +1484,26 @@ impl FieldReader {
             FurnitureKind::Word(word) => word.clone(),
             FurnitureKind::Exit(_, kind, _) => kind.clone(),
         }
+    }
+
+    /// What the furniture record in a cell of `zone` is called (`furniture_kind`), None where
+    /// none stands.
+    fn furniture_at(&self, zone: i64, cell: Cell) -> Result<Option<String>> {
+        let data = self.current()?;
+        let home = match &data {
+            None => None,
+            Some(data) => self.home(data, &[zone])?,
+        };
+        let items = match &data {
+            None => Vec::new(),
+            Some(data) => read_furniture(&*self.memory, data)?,
+        };
+        for item in items {
+            if item.cells().contains(&cell) {
+                return Ok(Some(self.furniture_kind(home, &item)));
+            }
+        }
+        Ok(None)
     }
 
     /// A furniture record as the list has it: its kind (`_furniture_kind`), and where the
@@ -1869,23 +1615,12 @@ impl FieldReader {
                 return Ok(Some("no zone table, sweeping for it"));
             }
         }
-        let in_a_base = match (&self.secret_bases, self.visit.get()) {
-            (Some(bases), Some(visit)) => bases.zones().contains(&visit.1),
-            _ => false,
-        };
-        if !in_a_base {
-            self.base_asks.set(0);
-        } else if let Some(bases) = &self.secret_bases
-            && !bases.furnished()?
-            && self.base_asks.get() < BASE_ASKS
-        {
-            let now = (self.clock)();
-            if now >= self.base_next.get() {
-                self.base_next.set(now + BASE_EVERY);
-                self.base_asks.set(self.base_asks.get() + 1);
-                return Ok(Some(
-                    "in a Secret Base with nothing found standing in it, sweeping for it",
-                ));
+        let zone = self.visit.get().map(|visit| visit.1);
+        for reader in self.tracked() {
+            if let Some(reader) = reader.sweeping()
+                && let Some(why) = reader.sweep_wanted(zone, &*self.clock)?
+            {
+                return Ok(Some(why));
             }
         }
         Ok(None)
@@ -3060,6 +2795,9 @@ impl FieldReader {
             watch: Box::new(|form| self.watches.get(&identity(form)).cloned()),
             terrain: &self.terrain,
             zones: &self.zones,
+            chunks: Box::new(|| self.chunks_loaded()),
+            zone_at: Box::new(|cell| self.zone_at(cell)),
+            furniture: Box::new(move |cell| self.furniture_at(zone, cell)),
         }
     }
 
@@ -3258,26 +2996,6 @@ fn ladders(triggers: &[Vec<u8>]) -> Result<IndexMap<(Cell, Cell), (f64, f64)>> {
         }
     }
     Ok(out)
-}
-
-/// The chunk with `cells` it holds open: the blocked bit cleared, the kind kept.
-fn opened(chunk: Rc<Chunk>, cells: &HashSet<Cell>) -> Rc<Chunk> {
-    let held: Vec<Cell> = cells
-        .iter()
-        .copied()
-        .filter(|&cell| chunk.holds(cell))
-        .collect();
-    if held.is_empty() {
-        return chunk;
-    }
-    let mut words = chunk.words.clone();
-    for (x, z) in held {
-        words[((z - chunk.origin.1) * CHUNK + x - chunk.origin.0) as usize] &= !BLOCKED;
-    }
-    Rc::new(Chunk {
-        words,
-        ..(*chunk).clone()
-    })
 }
 
 /// Every cell the warps off the rails cover.
@@ -3510,26 +3228,4 @@ fn exits(
             item.kind, item.zone, item.height, item.home
         ))
     }))
-}
-
-/// `cells` in groups of those that touch side to side, the group with the first cell first.
-fn touching(cells: &HashSet<Cell>) -> Vec<Vec<Cell>> {
-    let mut left: std::collections::BTreeSet<Cell> = cells.iter().copied().collect();
-    let mut out: Vec<Vec<Cell>> = Vec::new();
-    while let Some(&first) = left.iter().next() {
-        let mut group: Vec<Cell> = Vec::new();
-        left.remove(&first);
-        let mut edge = vec![first];
-        while let Some(cell) = edge.pop() {
-            group.push(cell);
-            let (x, z) = cell;
-            for near in [(x - 1, z), (x + 1, z), (x, z - 1), (x, z + 1)] {
-                if left.remove(&near) {
-                    edge.push(near);
-                }
-            }
-        }
-        out.push(group);
-    }
-    out
 }

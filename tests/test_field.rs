@@ -32,7 +32,6 @@ use crate::games::common::field::things::{
     source_kind, source_number,
 };
 use crate::games::common::field::traversal::Traversal;
-use crate::games::gen6::field::features::SecretBaseReader;
 use crate::games::gen6::field::features::{Feature, Sighting, Tracked, ZoneAt};
 use crate::games::gen6::field::fieldmap::{
     MAP_BLOCK_SIZE, MAP_CHUNK_FILES, MAP_CHUNKS_TALL, MAP_CHUNKS_WIDE, MAP_GRID, MAP_KIND, MAP_MARK,
@@ -56,12 +55,13 @@ use crate::games::gen6::field::zonedata::{
 use crate::games::gen6::field::zonetable::{
     INFO_KIND, INFO_MATRIX, INFO_NAME, INFO_PARENT, INFO_SETTING, INFO_SIZE, UNDERWATER,
 };
-use crate::games::gen6::game::{FeatureFactory, FurnitureKind, Game, SecretBaseFactory};
+use crate::games::gen6::game::{FeatureFactory, FurnitureKind, Game};
 use crate::games::gen6::rom::archives::{GameText, no_text};
 use crate::games::gen6::rom::maps::{ChunkSource, StreetSource};
 use crate::games::oras;
 use crate::games::oras::field::berries::BerrySpots;
 use crate::games::oras::field::hidden::{self, DexNav, HIDDEN_POKEMON};
+use crate::games::oras::field::secret_base::SecretBaseFloor;
 use crate::games::oras::field::{ash, berries, doors, ice, secret_base};
 use crate::games::xy;
 use crate::games::{
@@ -157,7 +157,6 @@ impl StreetSource for Streets {
 
 thread_local! {
     static GIVEN_FEATURE: RefCell<Option<Rc<dyn Feature>>> = const { RefCell::new(None) };
-    static GIVEN_BASES: RefCell<Option<Rc<dyn SecretBaseReader>>> = const { RefCell::new(None) };
 }
 
 /// `_given(reader)`: a game's reader factory that hands over the reader a test has made. A
@@ -166,14 +165,6 @@ fn given_feature(reader: Rc<dyn Feature>) -> FeatureFactory {
     GIVEN_FEATURE.with(|given| *given.borrow_mut() = Some(reader));
     |_memory, _image, _text| {
         GIVEN_FEATURE.with(|given| given.borrow().clone().expect("a test's reader"))
-    }
-}
-
-/// `_given(bases)`, for `Game.secret_bases`.
-fn given_bases(bases: Rc<dyn SecretBaseReader>) -> SecretBaseFactory {
-    GIVEN_BASES.with(|given| *given.borrow_mut() = Some(bases));
-    |_memory, _image, _text| {
-        GIVEN_BASES.with(|given| given.borrow().clone().expect("a test's bases"))
     }
 }
 
@@ -7481,8 +7472,11 @@ impl Feature for Spots {
     }
 }
 
-/// What stands where in a Secret Base, the town standing for it, and the decorating cursor's
-/// cell, as `oras.field.secret_base` reads them.
+/// What stands where in a Secret Base, the town standing for it, by the game's `names` for each
+/// decoration, and the decorating cursor's cell, as `oras.field.secret_base` reads them.
+///
+/// Python's `Inside` subclasses `Decorations` and gives its own reads; here those reads are a
+/// `secret_base::Module`, which `floor` reads a `Decorations` through.
 pub(crate) struct Inside {
     standing: IndexMap<(i64, i64), Vec<i64>>,
     solid: IndexSet<(i64, i64)>,
@@ -7491,18 +7485,22 @@ pub(crate) struct Inside {
     /// Whether the item held can be set down at the cursor, None for nothing held.
     pub fits: StdCell<Option<bool>>,
     placed: Vec<(i64, Vec<(i64, i64)>)>,
+    names: Vec<String>,
+    furnished: bool,
 }
 
 impl Inside {
     fn new(standing: &[((i64, i64), Vec<i64>)], solid: &[(i64, i64)]) -> Rc<Inside> {
-        Inside::placing(standing, solid, &[])
+        Inside::with(standing, solid, &[], &[], true)
     }
 
-    /// `Inside(standing, solid, placed)`.
-    fn placing(
+    /// `Inside(standing, solid, placed, names, furnished)`.
+    fn with(
         standing: &[((i64, i64), Vec<i64>)],
         solid: &[(i64, i64)],
         placed: &[(i64, Vec<(i64, i64)>)],
+        names: &[&str],
+        furnished: bool,
     ) -> Rc<Inside> {
         Rc::new(Inside {
             standing: standing.iter().cloned().collect(),
@@ -7510,32 +7508,19 @@ impl Inside {
             at: StdCell::new(None),
             fits: StdCell::new(None),
             placed: placed.to_vec(),
+            names: names.iter().map(|name| name.to_string()).collect(),
+            furnished,
         })
     }
 }
 
-/// Python's `Inside` subclasses `Decorations`, and keeps its `classes`.
-impl Tracked for Inside {
-    fn classes(&self) -> Vec<&'static str> {
-        let mut classes = vec![secret_base::MAPPER_CLASS, secret_base::CURSOR_CLASS];
-        classes.extend(secret_base::WALKED_ON);
-        classes.push(secret_base::BALLOONS);
-        classes.push(secret_base::UNSEEN);
-        classes
-    }
-
+impl secret_base::Module for Inside {
     fn track(&self, _found: &Found) -> Result<()> {
         Ok(())
     }
-}
-
-impl SecretBaseReader for Inside {
-    fn zones(&self) -> IndexSet<i64> {
-        IndexSet::from([TOWN])
-    }
 
     fn furnished(&self) -> Result<bool> {
-        Ok(true)
+        Ok(self.furnished)
     }
 
     fn cursor(&self) -> Result<Option<((i64, i64), Option<bool>)>> {
@@ -7552,6 +7537,52 @@ impl SecretBaseReader for Inside {
 
     fn placed(&self) -> Result<Vec<(i64, Vec<(i64, i64)>)>> {
         Ok(self.placed.clone())
+    }
+}
+
+thread_local! {
+    static GIVEN_INSIDE: RefCell<Option<Rc<secret_base::Decorations>>> =
+        const { RefCell::new(None) };
+}
+
+/// `_Floor(inside)`: ORAS's Secret Base floor, read through `Inside`. A landform is shared
+/// between threads and keeps nothing of a test's, so what it reads through waits in a
+/// thread-local for the field reader to ask for its watch.
+fn floor(inside: &Rc<Inside>) -> Arc<dyn Landform> {
+    let decorations = secret_base::Decorations::reading(
+        inside.clone(),
+        IndexSet::from([TOWN]),
+        inside.names.clone(),
+    );
+    GIVEN_INSIDE.with(|given| *given.borrow_mut() = Some(Rc::new(decorations)));
+    Arc::new(BaseFloor)
+}
+
+/// `_Floor(SecretBaseFloor)`, listed and laid as the game's is (`secret_base.floor_listed`).
+#[derive(Debug)]
+struct BaseFloor;
+
+impl Landform for BaseFloor {
+    fn watch(
+        &self,
+        _memory: Rc<dyn Memory>,
+        _image: &[u8],
+        _text: &GameText,
+    ) -> Option<Rc<dyn Tracked>> {
+        GIVEN_INSIDE.with(|given| {
+            given
+                .borrow()
+                .clone()
+                .map(|inside| inside as Rc<dyn Tracked>)
+        })
+    }
+
+    fn listed(&self, _found: &Worked, here: &Here) -> Result<Vec<Interactable>> {
+        secret_base::floor_listed(self, here)
+    }
+
+    fn laid(&self, _found: &Worked, ground: Ground, here: &Here) -> Result<Ground> {
+        secret_base::floor_laid(self, ground, here)
     }
 }
 
@@ -7754,21 +7785,19 @@ fn test_the_decorating_cursor_says_what_stands_under_it() -> Result<()> {
         (80, 160),
         &[border(160), vec![(96, 171), (95, 170)]].concat(),
     );
-    let bases = Inside::new(&[((97, 172), vec![10])], &[]);
-    let mut decorations: Vec<String> = vec!["Small Desk".to_string()];
-    decorations.extend(std::iter::repeat_n(String::new(), 9));
-    decorations.push("Small Chair".to_string());
+    let mut names: Vec<&str> = vec!["Small Desk"];
+    names.extend(std::iter::repeat_n("", 9));
+    names.push("Small Chair");
+    let bases = Inside::with(&[((97, 172), vec![10])], &[], &[], &names, true);
     town.reader = field_reader(
         town.memory.clone(),
         Given {
-            decorations,
             tiles: Some(IndexMap::from([(PC_KIND, "PC".to_string())])),
             ..Given::default()
         },
         Game {
-            secret_bases: Some(given_bases(bases.clone())),
             furniture: IndexMap::from([((TOWN, oras::BASE_PC), FurnitureKind::Tile(PC_KIND))]),
-            ..game()
+            ..bases_game(bases.clone())
         },
     );
     let r#where = town.r#where()?;
@@ -7788,6 +7817,8 @@ fn test_the_decorating_cursor_says_what_stands_under_it() -> Result<()> {
     );
     bases.at.set(None);
     assert_eq!(under_cursor(&town, &r#where)?, None);
+    bases.at.set(Some((97, 172)));
+    assert_eq!((town.reader.voices[0])(None)?, None);
     Ok(())
 }
 
@@ -7816,9 +7847,10 @@ fn tiles(cells: &[(i64, i64)], word: i64) -> Vec<((i64, i64), i64)> {
     cells.iter().map(|&cell| (cell, word)).collect()
 }
 
+/// `landforms=(*GEN6, _Floor(bases))`.
 fn bases_game(bases: Rc<Inside>) -> Game {
     Game {
-        secret_bases: Some(given_bases(bases)),
+        landforms: [gen6(), vec![floor(&bases)]].concat(),
         ..game()
     }
 }
@@ -7828,7 +7860,10 @@ fn bases_game(bases: Rc<Inside>) -> Game {
 /// exit over all six cells, and still no ground to walk on.
 #[test]
 fn test_a_bases_crumbled_cliff_is_listed_once_as_one_exit() -> Result<()> {
-    let mut town = Town::new();
+    let mut town = Town::of(Game {
+        landforms: [gen6(), vec![Arc::new(SecretBaseFloor) as Arc<dyn Landform>]].concat(),
+        ..game()
+    });
     town.block_tiles(
         TOWN_BLOCK,
         TOWN_CHUNK,
@@ -8026,7 +8061,11 @@ fn test_a_held_item_says_first_whether_it_can_be_placed_under_the_cursor() -> Re
 #[test]
 fn test_a_bases_decorations_are_signs_by_the_games_names_one_over_its_cells() -> Result<()> {
     let mut town = Town::new();
-    let bases = Inside::placing(
+    let mut names: Vec<&str> = vec!["Small Desk"];
+    names.extend(std::iter::repeat_n("Welcome Mat", 2));
+    names.extend(std::iter::repeat_n("", 7));
+    names.push("Small Chair");
+    let bases = Inside::with(
         &[],
         &[],
         &[
@@ -8038,19 +8077,10 @@ fn test_a_bases_decorations_are_signs_by_the_games_names_one_over_its_cells() ->
             (2, vec![(90, 172)]),
             (1, vec![(93, 170)]),
         ],
+        &names,
+        true,
     );
-    let mut decorations = vec!["Small Desk".to_string()];
-    decorations.extend(std::iter::repeat_n("Welcome Mat".to_string(), 2));
-    decorations.extend(std::iter::repeat_n(String::new(), 7));
-    decorations.push("Small Chair".to_string());
-    town.reader = field_reader(
-        town.memory.clone(),
-        Given {
-            decorations,
-            ..Given::default()
-        },
-        bases_game(bases),
-    );
+    town.reader = field_reader(town.memory.clone(), Given::default(), bases_game(bases));
     let mut found: Vec<_> = town
         .r#where()?
         .of("signs")
@@ -8079,14 +8109,87 @@ fn test_p_goes_round_a_decoration_the_cell_table_has_as_floor() -> Result<()> {
     town.reader = field_reader(
         town.memory.clone(),
         Given::default(),
-        Game {
-            secret_bases: Some(given_bases(Inside::new(&[], &[(95, 172)]))),
-            ..game()
-        },
+        bases_game(Inside::new(&[], &[(95, 172)])),
     );
     let ground = town.reader.ground(&town.r#where()?)?;
     assert!(!ground.open((95, 172))? && ground.open((96, 172))?);
     Ok(())
+}
+
+/// The base's module is loaded as the player goes in, and its classes are learned a look
+/// after the look that lists it: inside a base the field asks for a sweep until what stands
+/// where is found, at most `ASKS` of them `EVERY` seconds apart, and afresh in the next base.
+/// Its watch asks, not the field reader (`features.Sweeping`).
+#[test]
+fn test_a_secret_base_asks_for_sweeps_until_what_stands_where_is_found() -> Result<()> {
+    let now = Rc::new(StdCell::new(0.0));
+    let inside = Inside::with(&[], &[], &[], &[], false);
+    let mut town = Town::new();
+    let clock = now.clone();
+    town.reader = field_reader(
+        town.memory.clone(),
+        Given {
+            clock: Some(Rc::new(move || clock.get())),
+            ..Given::default()
+        },
+        bases_game(inside),
+    );
+    town.r#where()?;
+    let mut asked: Vec<Option<&str>> = Vec::new();
+    for _ in 0..secret_base::ASKS + 1 {
+        asked.push(town.reader.sweep_wanted(true)?);
+        asked.push(town.reader.sweep_wanted(true)?);
+        now.set(now.get() + secret_base::EVERY);
+    }
+    let why = "in a Secret Base with nothing found standing in it, sweeping for it";
+    let mut wanted: Vec<Option<&str>> = Vec::new();
+    for _ in 0..secret_base::ASKS {
+        wanted.extend([Some(why), None]);
+    }
+    wanted.extend([None, None]);
+    assert_eq!(asked, wanted);
+    town.model(0, ROUTE, mmodel::PLAYER_INDEX, 0xAC, (94, 172));
+    town.r#where()?;
+    assert_eq!(town.reader.sweep_wanted(true)?, None);
+    town.model(0, TOWN, mmodel::PLAYER_INDEX, 0xAC, (94, 172));
+    town.r#where()?;
+    assert_eq!(town.reader.sweep_wanted(true)?, Some(why));
+    let inside = Inside::new(&[], &[]);
+    town.reader = field_reader(town.memory.clone(), Given::default(), bases_game(inside));
+    town.r#where()?;
+    assert_eq!(town.reader.sweep_wanted(true)?, None);
+    Ok(())
+}
+
+/// The log names what a sweep looks for in the order the field reader asks: the spots' save
+/// among ORAS's features, before the DexNav's find, and what stands inside a base, its module's
+/// classes, last, the base's floor being ORAS's last landform.
+#[test]
+fn test_a_secret_bases_decorations_are_swept_for_last_and_its_spots_before_the_dexnav() {
+    let classes = FieldReader::new(
+        FakeMemory::new(),
+        oras::game(),
+        &no_text(),
+        b"image",
+        Rc::new(py::time::monotonic),
+        None,
+        None,
+        HIDDEN_OFF,
+    )
+    .classes();
+    let mut inside = vec![secret_base::MAPPER_CLASS, secret_base::CURSOR_CLASS];
+    inside.extend(secret_base::WALKED_ON);
+    inside.extend([secret_base::BALLOONS, secret_base::UNSEEN]);
+    let mut wanted = vec![EVENT_CLASS, doors::CLASS, ice::CLASS];
+    wanted.extend(inside.iter().copied());
+    assert_eq!(classes[classes.len() - inside.len() - 3..], wanted);
+    let at = |class: &str| {
+        classes
+            .iter()
+            .position(|&name| name == class)
+            .expect("a class swept for")
+    };
+    assert!(at(secret_base::SAVE_CLASS) < at(hidden::CLASSES[0]));
 }
 
 /// The base's mapper keeps three layers of 40 by 40 cells, each a decoration's model and its

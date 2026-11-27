@@ -20,9 +20,9 @@ use crate::games::common::field::ground::{CUT, ROCK_SMASH, STRENGTH};
 use crate::games::common::pictures;
 use crate::games::gen6::anchors::Chain;
 use crate::games::gen6::apps::FIELD;
-use crate::games::gen6::field::features::{Feature, SecretBaseReader};
+use crate::games::gen6::field::features::Feature;
 use crate::games::gen6::field::landform::{Belts, Landform, gen6};
-use crate::games::gen6::field::reader::{FLAG, PC_TILE};
+use crate::games::gen6::field::reader::PC_TILE;
 use crate::games::gen6::field::{mapblock, mmodel};
 use crate::games::gen6::game::{CursorShapes, Data, FurnitureKind, Game};
 use crate::games::gen6::rom::archives::{BOY, GIRL, GameText};
@@ -35,7 +35,7 @@ use crate::games::oras::field::doors::RotatingDoors;
 use crate::games::oras::field::hidden::DexNav;
 use crate::games::oras::field::ice::ThinIce;
 use crate::games::oras::field::secret_base::{
-    self, Decorations, SecretBases, zones as secret_bases_zones,
+    self, FLAG, SecretBaseFloor, SecretBases, zones as secret_bases_zones,
 };
 use crate::games::oras::field::sky;
 use crate::games::oras::own::Oras;
@@ -938,16 +938,6 @@ fn secret_bases(memory: Rc<dyn Memory>, image: &[u8], text: &GameText) -> Rc<dyn
     Rc::new(SecretBases::new(memory, image, text))
 }
 
-/// `lambda memory, _image, text: Decorations(memory, text)`, as the factory
-/// `Game.secret_bases` holds.
-fn decorations(
-    memory: Rc<dyn Memory>,
-    _image: &[u8],
-    text: &GameText,
-) -> Rc<dyn SecretBaseReader> {
-    Rc::new(Decorations::new(memory, text))
-}
-
 /// `lambda memory, _image, _text: AshPiles(memory)`, as a factory `Game.features` holds.
 fn ash_piles(memory: Rc<dyn Memory>, _image: &[u8], _text: &GameText) -> Rc<dyn Feature> {
     Rc::new(AshPiles::new(memory))
@@ -1055,7 +1045,6 @@ pub fn game() -> &'static Game {
         barriers: barriers().clone(),
         triggers: triggers().clone(),
         furniture: furniture().clone(),
-        secret_bases: Some(decorations),
         features: vec![BerrySpots::of, ash_piles, secret_bases, dex_nav],
         blockers: HashSet::from(BLOCKERS),
         pickups: HashSet::from([KIRAKIRA, FOSSIL]),
@@ -1071,6 +1060,7 @@ pub fn game() -> &'static Game {
                 }) as Arc<dyn Landform>,
                 Arc::new(RotatingDoors),
                 Arc::new(ThinIce),
+                Arc::new(SecretBaseFloor),
             ],
         ]
         .concat(),

@@ -1,6 +1,7 @@
 //! ORAS's Secret Bases: every spot one can be made at, and which is the player's (spike 154), one
 //! of the field's features (`SecretBases`); and inside a base, what stands where and the cursor the
-//! player decorates with (`Decorations`).
+//! player decorates with (`Decorations`), the watch of a landform, a base's floor
+//! (`SecretBaseFloor`), and a field voice, the cursor's line. Gen 6 names none of it.
 //!
 //! No zone's data has a spot: Route 111's tree at (381, 116), the player's base, is a blocked cell
 //! like any tree's, with no record and no move model, and the vine on it is a model the field draws
@@ -71,8 +72,18 @@ use crate::core::binary::{self, s16, u16, u32};
 use crate::core::discovery::{Found, HEAP_SPAN, within};
 use crate::core::memory::Memory;
 use crate::core::pathfind::Cell;
-use crate::games::common::field::things::{Interactable, SECRET_BASE_SOURCE, place_source};
-use crate::games::gen6::field::features::{Feature, SecretBaseReader, Tracked, ZoneAt};
+use crate::core::speech::Category;
+use crate::core::words::own;
+use crate::games::common::field::ground::{Ground, walkable};
+use crate::games::common::field::things::{
+    DECORATION_SOURCE, Interactable, SECRET_BASE_SOURCE, TILE_SOURCE, bearing, kind_said,
+    place_source,
+};
+use crate::games::gen6::field::features::{Feature, Sweeping, Tracked, ZoneAt};
+use crate::games::gen6::field::landform::{
+    Found as Worked, HOLE, Here, Landform, as_watch, cell_number, spread, touching,
+};
+use crate::games::gen6::field::voice::{Said, Speaking};
 use crate::games::gen6::rom::archives::GameText;
 use crate::py::{self, Error, Result};
 
@@ -230,6 +241,66 @@ pub const TEAM: i64 = 0x234;
 pub const OWNER_SIZE: i64 = 0x1A;
 pub const TEAM_SIZE: i64 = 0x22;
 
+/// What a Secret Base's flag beside its PC is called: the game never names it where it stands
+/// (`oras.FURNITURE`).
+pub const FLAG: &str = "flag";
+
+/// The cell kind of a Secret Base's crumbled cliff, where the Stairs are placed to climb to the
+/// upper floor: always blocked, one patch of 3 cells by 2 a base (Route 116's, zone 0x1a7, at x 17
+/// to 19, z 17 to 18, its top row at the upper floor's height 36 and its bottom at 18, the lower
+/// floor 0). The 857 ORAS chunk files have it only in base shapes 11, 12, 21, 22, 23, 40 and 41,
+/// the 13 spots that need Stairs, and X's 1030 have none (spike 201).
+pub const CLIFF_TILE: i64 = 0xFD;
+
+/// What a Secret Base's crumbled cliff is called: the game names it only in the Stairs'
+/// description, "You can place this by a crumbled cliff to climb to a higher floor", never where
+/// it stands (omega_ruby_secret-base3.ctm).
+pub const CLIFF: &str = "crumbled cliff";
+
+/// The cell kind of a hole in a Secret Base's floor, crossed on a Solid Board: always blocked,
+/// two cells in Granite Cave's base (zone 0x1f0, at x 20, z 12 to 13), the only way into its
+/// upper-left room (omega_ruby_secret-base6.ctm). The ROM has it only in base shapes 42 to 50,
+/// and X's none (spike 201). Called a hole, as one a boulder drops into is (`landform.HOLE`): the
+/// game names it only in the Solid Board's description, "You can place this over holes to cross
+/// over them", never where it is.
+pub const HOLE_TILE: i64 = 0xFE;
+
+/// The cells of a Secret Base a decoration goes over, by kind, each with its name.
+pub const BASE_TILES: [(i64, &str); 2] = [(CLIFF_TILE, CLIFF), (HOLE_TILE, HOLE)];
+
+/// `BASE_TILES.get(kind)`.
+fn base_tile(kind: i64) -> Option<&'static str> {
+    BASE_TILES
+        .iter()
+        .find(|(tile, _)| *tile == kind)
+        .map(|(_, name)| *name)
+}
+
+/// What the decorating cursor is on where nothing stands and nothing is in the way: the game says
+/// nothing as it moves from one such cell to the next.
+pub const BLANK: &str = "blank";
+
+/// What the decorating cursor is on where the cell table has the cell blocked and no decoration,
+/// PC or flag stands: the base's walls and the hedge round them.
+pub const WALL: &str = "wall";
+
+/// Said first while an item is held: whether it can be set down where the cursor is. The game
+/// draws its squares green or red and says "You cannot set it there!" only once A is pressed
+/// (omega_ruby_secret-base5.ctm).
+pub fn fit(fits: bool) -> &'static str {
+    if fits {
+        "decorating-placeable"
+    } else {
+        "decorating-not-placeable"
+    }
+}
+
+pub const ASKS: i64 = 5;
+/// Sweeps asked for inside a Secret Base while what stands where is not found, and the seconds
+/// between them. The base's module is loaded as the player goes in, and its classes are learned a
+/// look after a look that lists it, too late for the sweep that look comes with.
+pub const EVERY: f64 = 2.0;
+
 /// Where `_FIRST_ROWS` matches: `(?=\x00\x00.{18}\x01\x00.{18}\x02\x00)` is a look-ahead, which
 /// the `regex` crate has none of, so the three row numbers are tested at each offset by hand.
 /// Python's `finditer` yields a match at each offset the look-ahead holds at.
@@ -375,13 +446,205 @@ impl SecretBases {
 }
 
 /// Inside a base, what stands in each cell and where the cursor the player decorates with is,
-/// read through the base's module.
+/// read through the base's module: the watch of a base's floor (`SecretBaseFloor`), which asks
+/// for a sweep until it finds them (`sweep_wanted`) and says what the cursor is on, a field voice
+/// (`said`).
+///
+/// What it reads through the module is a `Module` of its own, `ModuleObjects` in the game: where
+/// Python's tests subclass `Decorations` to give their own reads, keeping the rest, a test gives
+/// its own `Module`.
 pub struct Decorations {
     pub classes: Vec<&'static str>,
     /// The zones a base is built in, inside which what stands where is read.
-    pub zones: &'static IndexSet<i64>,
-    memory: Rc<dyn Memory>,
+    pub zones: IndexSet<i64>,
     names: Vec<String>,
+    module: Rc<dyn Module>,
+    /// Sweeps asked for in the base the player is in so far (`ASKS`).
+    asks: Slot<i64>,
+    /// When the next may be asked for.
+    next: Slot<f64>,
+    /// The cell the cursor was last said on, and what was there (`said`).
+    said: RefCell<Option<(Cell, String)>>,
+}
+
+impl Decorations {
+    pub fn new(memory: Rc<dyn Memory>, text: &GameText) -> Self {
+        Decorations::reading(
+            Rc::new(ModuleObjects::new(memory)),
+            zones().clone(),
+            text.decorations.clone(),
+        )
+    }
+
+    /// What stands in `zones`, read through `module`, by the game's `names` for each
+    /// decoration.
+    pub fn reading(module: Rc<dyn Module>, zones: IndexSet<i64>, names: Vec<String>) -> Self {
+        let mut classes = vec![MAPPER_CLASS, CURSOR_CLASS];
+        classes.extend(WALKED_ON);
+        classes.push(BALLOONS);
+        classes.push(UNSEEN);
+        Decorations {
+            classes,
+            zones,
+            names,
+            module,
+            asks: Slot::new(0),
+            next: Slot::new(0.0),
+            said: RefCell::new(None),
+        }
+    }
+
+    pub fn track(&self, found: &Found) -> Result<()> {
+        self.module.track(found)
+    }
+
+    /// Whether a sweep has found what stands where in a base.
+    pub fn furnished(&self) -> Result<bool> {
+        self.module.furnished()
+    }
+
+    /// The cell the decorating cursor is on and whether the item held can be set down there,
+    /// None for nothing held; or None while it is not shown.
+    pub fn cursor(&self) -> Result<Option<(Cell, Option<bool>)>> {
+        self.module.cursor()
+    }
+
+    /// The decorations standing in a cell, by number, on a desk first, the wall last.
+    pub fn standing(&self, cell: Cell) -> Result<Vec<i64>> {
+        self.module.standing(cell)
+    }
+
+    /// The floor's cells a decoration stands in that is walked round, not over.
+    pub fn solid(&self) -> Result<IndexSet<Cell>> {
+        self.module.solid()
+    }
+
+    /// Each decoration standing in the base, by number, with its cells; none the game hides.
+    pub fn placed(&self) -> Result<Vec<(i64, Vec<Cell>)>> {
+        self.module.placed()
+    }
+
+    /// What the game calls a decoration, by its number, or None where its text has no word for
+    /// it.
+    pub fn named(&self, number: i64) -> Option<String> {
+        if number < self.names.len() as i64 && !self.names[number as usize].is_empty() {
+            Some(self.names[number as usize].clone())
+        } else {
+            None
+        }
+    }
+
+    /// Why to sweep now rather than on schedule (`features.Sweeping`): in a base, `zone`, with
+    /// what stands where not found, at most `ASKS` sweeps `EVERY` seconds apart by `clock`. Out
+    /// of one, none, and the asks begin again at the next.
+    pub fn sweep_wanted(
+        &self,
+        zone: Option<i64>,
+        clock: &dyn Fn() -> f64,
+    ) -> Result<Option<&'static str>> {
+        if !zone.is_some_and(|zone| self.zones.contains(&zone)) {
+            self.asks.set(0);
+            return Ok(None);
+        }
+        if !self.furnished()? && self.asks.get() < ASKS {
+            let now = clock();
+            if now >= self.next.get() {
+                self.next.set(now + EVERY);
+                self.asks.set(self.asks.get() + 1);
+                return Ok(Some(
+                    "in a Secret Base with nothing found standing in it, sweeping for it",
+                ));
+            }
+        }
+        Ok(None)
+    }
+
+    /// What the decorating cursor is on and where, a field voice (`voice.Speaking`): said each
+    /// time it moves or what is there changes, so a desk set down under it is said as it lands.
+    /// The decorations standing in its cell, by the game's names for them, or the PC or the
+    /// flag, or a wall, or the crumbled cliff or a hole, or blank. The game names a decoration
+    /// on the bottom screen only, says "Select location" alike over the floor, the PC and the
+    /// walls, and nothing at all moving from one empty cell to the next
+    /// (omega_ruby_secret-base2.ctm). The cursor crossing the cliff said "wall" three times, in
+    /// the session before omega_ruby_secret-base3.ctm. With an item held, `FIT` comes first.
+    pub fn said(&self, here: &Here) -> Result<Option<Said>> {
+        let r#where = here.r#where;
+        let cursor = if self.zones.contains(&r#where.zone) {
+            self.cursor()?
+        } else {
+            None
+        };
+        let mut on: Option<(Cell, String)> = None;
+        if let Some((cell, fits)) = cursor {
+            let under = kind_said(&self.under(here, cell)?);
+            on = Some((
+                cell,
+                match fits {
+                    None => under,
+                    Some(fits) => format!("{}, {under}", own(fit(fits), &[])),
+                },
+            ));
+        }
+        if on == *self.said.borrow() {
+            return Ok(None);
+        }
+        *self.said.borrow_mut() = on.clone();
+        let Some((cell, words)) = on else {
+            return Ok(None);
+        };
+        let said = format!("{words}, {}", bearing(r#where.cell, cell));
+        Ok(Some(Said {
+            words: said.clone(),
+            category: Category::Menu,
+            logged: format!("cursor: {said}"),
+        }))
+    }
+
+    /// What is in the cursor's `cell` (`said`): the decorations, else the furniture the field
+    /// names, else blank or what blocks it.
+    fn under(&self, here: &Here, cell: Cell) -> Result<String> {
+        let mut names: Vec<String> = Vec::new();
+        for number in self.standing(cell)? {
+            if let Some(name) = self.named(number) {
+                names.push(name);
+            }
+        }
+        if !names.is_empty() {
+            return Ok(names.join(", "));
+        }
+        if let Some(called) = (here.furniture)(cell)? {
+            return Ok(called);
+        }
+        let chunks = (here.chunks)()?;
+        if walkable(&chunks, cell)? != Some(false) {
+            return Ok(BLANK.to_string());
+        }
+        let Some(held) = chunks.iter().find(|chunk| chunk.holds(cell)) else {
+            return Ok(WALL.to_string());
+        };
+        Ok(base_tile(held.kind(cell)?).unwrap_or(WALL).to_string())
+    }
+}
+
+/// What `Decorations` reads through the base's module.
+pub trait Module {
+    fn track(&self, found: &Found) -> Result<()>;
+
+    fn furnished(&self) -> Result<bool>;
+
+    fn cursor(&self) -> Result<Option<(Cell, Option<bool>)>>;
+
+    fn standing(&self, cell: Cell) -> Result<Vec<i64>>;
+
+    fn solid(&self) -> Result<IndexSet<Cell>>;
+
+    fn placed(&self) -> Result<Vec<(i64, Vec<Cell>)>>;
+}
+
+/// The base's module's objects a sweep finds: its mapper, which keeps what stands where, the
+/// decorating cursor, and the decorations' classes (see the module doc).
+pub struct ModuleObjects {
+    memory: Rc<dyn Memory>,
     mapper: Slot<Option<i64>>,
     cursor: Slot<Option<i64>>,
     /// The vtables of `WALKED_ON`'s classes, as the sweeps found them.
@@ -392,17 +655,10 @@ pub struct Decorations {
     unseen: RefCell<HashSet<i64>>,
 }
 
-impl Decorations {
-    pub fn new(memory: Rc<dyn Memory>, text: &GameText) -> Self {
-        let mut classes = vec![MAPPER_CLASS, CURSOR_CLASS];
-        classes.extend(WALKED_ON);
-        classes.push(BALLOONS);
-        classes.push(UNSEEN);
-        Decorations {
-            classes,
-            zones: zones(),
+impl ModuleObjects {
+    pub fn new(memory: Rc<dyn Memory>) -> Self {
+        ModuleObjects {
             memory,
-            names: text.decorations.clone(),
             mapper: Slot::new(None),
             cursor: Slot::new(None),
             walked_on: RefCell::new(HashSet::new()),
@@ -649,32 +905,231 @@ impl Tracked for Decorations {
     fn track(&self, found: &Found) -> Result<()> {
         Decorations::track(self, found)
     }
+
+    fn sweeping(&self) -> Option<&dyn Sweeping> {
+        Some(self)
+    }
+
+    fn speaking(self: Rc<Self>) -> Option<Rc<dyn Speaking>> {
+        Some(self)
+    }
 }
 
-impl SecretBaseReader for Decorations {
-    fn zones(&self) -> IndexSet<i64> {
-        self.zones.clone()
+impl Sweeping for Decorations {
+    fn sweep_wanted(
+        &self,
+        zone: Option<i64>,
+        clock: &dyn Fn() -> f64,
+    ) -> Result<Option<&'static str>> {
+        Decorations::sweep_wanted(self, zone, clock)
+    }
+}
+
+impl Speaking for Decorations {
+    fn said(&self, here: &Here) -> Result<Option<Said>> {
+        Decorations::said(self, here)
+    }
+}
+
+impl Module for ModuleObjects {
+    fn track(&self, found: &Found) -> Result<()> {
+        ModuleObjects::track(self, found)
     }
 
     fn furnished(&self) -> Result<bool> {
-        Decorations::furnished(self)
+        ModuleObjects::furnished(self)
     }
 
     fn cursor(&self) -> Result<Option<(Cell, Option<bool>)>> {
-        Decorations::cursor(self)
+        ModuleObjects::cursor(self)
     }
 
     fn standing(&self, cell: Cell) -> Result<Vec<i64>> {
-        Decorations::standing(self, cell)
+        ModuleObjects::standing(self, cell)
     }
 
     fn solid(&self) -> Result<IndexSet<Cell>> {
-        Decorations::solid(self)
+        ModuleObjects::solid(self)
     }
 
     fn placed(&self) -> Result<Vec<(i64, Vec<Cell>)>> {
-        Decorations::placed(self)
+        ModuleObjects::placed(self)
     }
+}
+
+/// A Secret Base's floor as its decorations leave it, read through the base's module, its watch
+/// (`Decorations`): the crumbled cliff and holes listed under exits, each decoration among the
+/// signs by the game's name for it, and on the ground those walked round standing in the way and
+/// the cliff and holes a decoration covers walked over. The cell table knows nothing of the
+/// decorations: the desk's cell stayed open with the desk in it, and P went through it
+/// (omega_ruby_secret-base2.ctm). Its tiles are read off the chunks loaded now, as the field reads
+/// its use tiles, not worked out off the ROM's.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SecretBaseFloor;
+
+impl Landform for SecretBaseFloor {
+    fn watch(
+        &self,
+        memory: Rc<dyn Memory>,
+        image: &[u8],
+        text: &GameText,
+    ) -> Option<Rc<dyn Tracked>> {
+        // Read only with the executable, as the spots are.
+        if image.is_empty() {
+            None
+        } else {
+            Some(Rc::new(Decorations::new(memory, text)))
+        }
+    }
+
+    fn listed(&self, _found: &Worked, here: &Here) -> Result<Vec<Interactable>> {
+        floor_listed(self, here)
+    }
+
+    fn laid(&self, _found: &Worked, ground: Ground, here: &Here) -> Result<Ground> {
+        floor_laid(self, ground, here)
+    }
+}
+
+/// `SecretBaseFloor.listed`, of `form`'s watch: a function of its own, where Python's tests
+/// subclass the landform over a watch of theirs, which lists as the game's does.
+pub fn floor_listed(form: &dyn Landform, here: &Here) -> Result<Vec<Interactable>> {
+    let watch = (here.watch)(form);
+    let inside = inside(watch.as_deref(), here);
+    let mut out = tiles(here, inside)?;
+    if let Some(inside) = inside {
+        out.extend(placed(inside)?);
+    }
+    Ok(out)
+}
+
+/// `SecretBaseFloor.laid`, of `form`'s watch, as `floor_listed` is.
+pub fn floor_laid(form: &dyn Landform, ground: Ground, here: &Here) -> Result<Ground> {
+    let watch = (here.watch)(form);
+    let Some(inside) = inside(watch.as_deref(), here) else {
+        return Ok(ground);
+    };
+    let covered = covered(here, inside)?;
+    let mut ground = ground;
+    if !covered.is_empty() {
+        ground = Ground {
+            chunks: ground
+                .chunks
+                .iter()
+                .map(|chunk| chunk.clone().opened(&covered))
+                .collect(),
+            ..ground
+        };
+    }
+    let mut solid: IndexMap<Cell, Option<f64>> = IndexMap::new();
+    for cell in inside.solid()? {
+        if !covered.contains(&cell) {
+            solid.insert(cell, None);
+        }
+    }
+    Ok(ground.stood(&solid, here.r#where.cell))
+}
+
+/// The base's watch, in a zone a base is built in, or None.
+fn inside<'a>(watch: Option<&'a dyn Tracked>, here: &Here) -> Option<&'a Decorations> {
+    watch
+        .and_then(as_watch::<Decorations>)
+        .filter(|inside| inside.zones.contains(&here.r#where.zone))
+}
+
+/// The base's crumbled cliff and holes, each patch of touching cells of a kind in `BASE_TILES`
+/// the chunks loaded now hold as one thing over its bounding box: `landform.runs` would split the
+/// cliff's 3 cells by 2 into two rows and list it twice. A cell of the map, so only the chunks
+/// loaded now say where it is, in the player's zone or none. Nothing once a decoration stands on
+/// any of its cells: the Stairs set down over the cliff left the cell table at kind `CLIFF_TILE`
+/// and the base's mapper with a decoration in each of the six (omega_ruby_secret-base4.ctm).
+fn tiles(here: &Here, inside: Option<&Decorations>) -> Result<Vec<Interactable>> {
+    let zone = here.r#where.zone;
+    let mut found: IndexMap<i64, HashSet<Cell>> = IndexMap::new();
+    for chunk in (here.chunks)()? {
+        for (cell, kind) in chunk.kinds() {
+            if base_tile(kind).is_some() {
+                let at = (here.zone_at)(cell)?;
+                if at == Some(zone) || at.is_none() {
+                    found.entry(kind).or_default().insert(cell);
+                }
+            }
+        }
+    }
+    let covered = match inside {
+        None => HashSet::new(),
+        Some(inside) => covered(here, inside)?,
+    };
+    let mut out: Vec<Interactable> = Vec::new();
+    for (kind, cells) in found {
+        for group in touching(&cells) {
+            if group.iter().any(|cell| covered.contains(cell)) {
+                continue;
+            }
+            let (first, size) = spread(&group);
+            out.push(Interactable {
+                size,
+                code: kind,
+                source: place_source(TILE_SOURCE, cell_number(first))?,
+                ..Interactable::new(
+                    "exits",
+                    base_tile(kind).expect("a base tile's kind"),
+                    first,
+                )
+            });
+        }
+    }
+    Ok(out)
+}
+
+/// The cells of the base's crumbled cliff and holes a decoration stands on, walked over: the
+/// player climbed the Stairs set down over the cliff to the upper floor, the cell table keeping
+/// all six cells blocked under them, and P said "can't continue" (omega_ruby_secret-base4.ctm).
+/// The Solid Board over a hole is taken to be crossed the same way, by its description; none has
+/// been set down yet.
+fn covered(here: &Here, inside: &Decorations) -> Result<HashSet<Cell>> {
+    let zone = here.r#where.zone;
+    let mut out = HashSet::new();
+    for chunk in (here.chunks)()? {
+        for (cell, kind) in chunk.kinds() {
+            if base_tile(kind).is_none() {
+                continue;
+            }
+            let at = (here.zone_at)(cell)?;
+            if (at == Some(zone) || at.is_none()) && !inside.standing(cell)?.is_empty() {
+                out.insert(cell);
+            }
+        }
+    }
+    Ok(out)
+}
+
+/// The decorations set down in the base, among the signs by the game's names for them, each one
+/// thing over its cells: set down, the Stairs and the desks were not listed at all. The Invisible
+/// Doll is not, as the game hides it.
+///
+/// Those of one name that touch are one thing: every base's five Welcome Mats in a line were
+/// listed five times. Apart, they stay apart, so the way to one does not end on the floor between
+/// them.
+fn placed(inside: &Decorations) -> Result<Vec<Interactable>> {
+    let mut named: IndexMap<String, HashSet<Cell>> = IndexMap::new();
+    for (number, cells) in inside.placed()? {
+        if let Some(name) = inside.named(number) {
+            named.entry(name).or_default().extend(cells);
+        }
+    }
+    let mut out: Vec<Interactable> = Vec::new();
+    for (name, cells) in named {
+        for group in touching(&cells) {
+            let (first, size) = spread(&group);
+            out.push(Interactable {
+                size,
+                source: place_source(DECORATION_SOURCE, cell_number(first))?,
+                ..Interactable::new("signs", &name, first)
+            });
+        }
+    }
+    Ok(out)
 }
 
 /// `SecretBases.listed` of every spot, the player's own, other players' names for theirs and the
