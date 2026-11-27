@@ -27,6 +27,7 @@
 //! went unsaid until opened (the PSS's multiplayer).
 
 use std::collections::{BTreeSet, HashMap, HashSet};
+use std::ops::Range;
 use std::rc::Rc;
 
 use indexmap::IndexMap;
@@ -66,6 +67,14 @@ pub const CARRIED: f64 = 10.0;
 pub const BOX_SLOTS: i64 = 30;
 /// The slots of a box and of the party, as the Box's grid cursor counts them (`nth`).
 pub const PARTY_SLOTS: i64 = 6;
+pub const NAME_BAR: Range<i64> = 36..42;
+/// The Box's grid cursor's numbers past the party, one for each column it left the grid from:
+/// the box's name bar, and the bottom bar's "change box" (`bar`). The cursor's table in the Box's
+/// module gives each of the 48 a button and its four neighbours, the same in Omega Ruby and X
+/// (spike 298).
+pub const BOTTOM_BAR: Range<i64> = 42..48;
+/// The texture of the bottom bar's button the Box's grid cursor goes to (spike 143).
+pub const CHANGE_BOX: &str = "change_box";
 
 /// `list.index(item)`, raising `ValueError` where the item is not in the list.
 #[track_caller]
@@ -251,35 +260,38 @@ pub fn button(
     top: bool,
 ) -> Result<Option<(i64, String, bool)>> {
     for other in layouts.roots_set().difference(&PySet::of([root])).iter() {
-        let tree = layouts.tree(other);
-        for (touch, kind) in &tree {
-            let touch = *touch;
-            if kind != lyt::BOUNDING_CLASS || !on(place(layouts, touch)?, (x, y)) {
+        for (touch, kind) in layouts.tree(other) {
+            if kind != lyt::BOUNDING_CLASS
+                || !on(place(layouts, touch)?, (x, y))
+                || !shown_on(layouts, touch, top)?
+            {
                 continue;
             }
-            let placement = layouts.placement(touch)?;
-            let Some(placement) = placement else {
-                continue;
+            let file = files.matching(&layouts.pane_names(other));
+            let texture = match file {
+                None => None,
+                Some(file) => beside(layouts, &file, other, touch)?,
             };
-            if !placement.shown || placement.top != top {
-                continue;
+            if let Some(texture) = texture {
+                return Ok(Some((touch, words(&texture), true)));
             }
-            let Some(file) = files.matching(&layouts.pane_names(other)) else {
-                continue;
-            };
-            let parent = u32(&layouts.pane(touch)?, lyt::PARENT)?;
-            for pane in layouts.children(other, parent) {
-                if tree.get(&pane).map(String::as_str) != Some(lyt::PICTURE_CLASS)
-                    || !shown(layouts, pane)?
-                {
-                    continue;
-                }
-                if let Some(textures) = file.textures.get(&layouts.pane_name(pane)?)
-                    && !textures.is_empty()
-                {
-                    return Ok(Some((touch, words(&textures[0]), true)));
-                }
-            }
+        }
+    }
+    Ok(None)
+}
+
+/// The texture of the first picture shown beside a touch area, under its parent.
+fn beside(layouts: &Layouts, file: &LayoutFile, root: i64, touch: i64) -> Result<Option<String>> {
+    let tree = layouts.tree(root);
+    for pane in layouts.children(root, u32(&layouts.pane(touch)?, lyt::PARENT)?) {
+        if tree.get(&pane).map(String::as_str) != Some(lyt::PICTURE_CLASS) || !shown(layouts, pane)?
+        {
+            continue;
+        }
+        if let Some(textures) = file.textures.get(&layouts.pane_name(pane)?)
+            && !textures.is_empty()
+        {
+            return Ok(Some(textures[0].clone()));
         }
     }
     Ok(None)
@@ -333,9 +345,26 @@ fn in_grid(
 
 /// The touch area of a slot as the game counts its Box's grid cursor's: 0 to 29 the box's thirty
 /// under the layout's root, row by row, and 30 to 35 the party's six, under a panel, in reading
-/// order (spike 298 on or_organize_boxes and x_pc_boxes). None for any after them, the box's name
-/// bar's, or where no such slots are shown.
+/// order (spike 298 on or_organize_boxes and x_pc_boxes). None for any after them, the name
+/// bar's and the bottom bar's (`bar`), or where no such slots are shown.
 pub fn nth(layouts: &Layouts, root: i64, index: i64) -> Result<Option<i64>> {
+    let r#box = index < BOX_SLOTS;
+    let found = slots(layouts, root, r#box)?;
+    let at = if r#box { index } else { index - BOX_SLOTS };
+    let Some(found) = found.filter(|found| at < found.len() as i64) else {
+        return Ok(None);
+    };
+    // `found[at]`: Python's negative index counts from the end.
+    let from = if at < 0 { at + found.len() as i64 } else { at };
+    if from < 0 {
+        return Err(Error::index("list index out of range"));
+    }
+    Ok(Some(found[from as usize]))
+}
+
+/// The box's thirty touch areas under the layout's root, row by row, or (not `box`) the
+/// party's six under a panel, in reading order; None where they are not shown.
+fn slots(layouts: &Layouts, root: i64, r#box: bool) -> Result<Option<Vec<i64>>> {
     let mut groups: IndexMap<(i64, (i64, i64)), Vec<i64>> = IndexMap::new();
     for (pane, kind) in &layouts.tree(root) {
         if kind == lyt::BOUNDING_CLASS && shown(layouts, *pane)? {
@@ -347,21 +376,20 @@ pub fn nth(layouts: &Layouts, root: i64, index: i64) -> Result<Option<i64>> {
                 .push(*pane);
         }
     }
-    let party = index - BOX_SLOTS;
     for ((parent, _), group) in &groups {
         let mut places: IndexMap<i64, (f64, f64)> = IndexMap::new();
         for &pane in group {
             places.insert(pane, place(layouts, pane)?);
         }
         let grids = grids(&places)?;
-        let found: Option<Rc<PySet>> = if index < BOX_SLOTS && *parent == root {
+        let found: Option<Rc<PySet>> = if r#box && *parent == root {
             // `grids.values()` in the order Python's dict holds them: each grid first met at
             // its first member in `places`' order.
             places
                 .keys()
                 .filter_map(|pane| grids[pane].clone())
                 .find(|grid| grid.len() as i64 == BOX_SLOTS)
-        } else if (0..PARTY_SLOTS).contains(&party) && *parent != root {
+        } else if !r#box && *parent != root {
             // Two columns, the second lower: no grid. A Pokémon's six marks fill one, and a
             // menu's buttons stand on one place, laid out as each opens.
             let mut spots: HashSet<(i64, i64)> = HashSet::new();
@@ -388,13 +416,66 @@ pub fn nth(layouts: &Layouts, root: i64, index: i64) -> Result<Option<i64>> {
             }
             // The key is `(-y, x)`: a tuple is smaller by its first element that differs.
             let order = sorted_by_lt(keyed, |a, b| a.1 < b.1);
-            let at = if index < BOX_SLOTS { index } else { party };
-            return Ok(Some(
-                order
-                    .get(at as usize)
-                    .ok_or_else(|| Error::index("list index out of range"))?
-                    .0,
-            ));
+            return Ok(Some(order.into_iter().map(|(pane, _key)| pane).collect()));
+        }
+    }
+    Ok(None)
+}
+
+/// The button the Box's grid cursor goes to past its slots, what to say of it, and that it
+/// is said alone: from 36 the touch area the box's name lies in, said by the name, and from 42
+/// the bottom bar's "change box", by its picture (`button`). Said as soon as the game names it,
+/// as a slot is: waiting for the pointer to rest, holding Up passed "change box" in 0.13 s
+/// unsaid (or_pc_organize). None for any other number, or where neither is shown.
+pub fn bar(
+    layouts: &Layouts,
+    files: &LayoutFiles,
+    root: i64,
+    index: i64,
+    on_screen: &[ScreenText],
+    top: bool,
+) -> Result<Option<(i64, String, bool)>> {
+    if BOTTOM_BAR.contains(&index) {
+        for other in layouts.roots_set().difference(&PySet::of([root])).iter() {
+            let Some(file) = files.matching(&layouts.pane_names(other)) else {
+                continue;
+            };
+            for (touch, kind) in layouts.tree(other) {
+                if kind == lyt::BOUNDING_CLASS && shown_on(layouts, touch, top)? {
+                    let texture = beside(layouts, &file, other, touch)?;
+                    if let Some(texture) = texture.filter(|texture| texture.starts_with(CHANGE_BOX))
+                    {
+                        return Ok(Some((touch, words(&texture), true)));
+                    }
+                }
+            }
+        }
+        return Ok(None);
+    }
+    let r#box = if NAME_BAR.contains(&index) {
+        slots(layouts, root, true)?
+    } else {
+        None
+    };
+    let Some(r#box) = r#box else {
+        return Ok(None);
+    };
+    let width = size(layouts, r#box[0])?.0 / 2.0;
+    let mut at: Vec<(f64, f64)> = Vec::new();
+    for &pane in &r#box {
+        at.push(place(layouts, pane)?);
+    }
+    let Some(name) = above(&at, width, root, on_screen) else {
+        return Ok(None);
+    };
+    let middle = ((name.left + name.right) / 2.0, name.row);
+    for (pane, kind) in layouts.tree(root) {
+        if kind == lyt::BOUNDING_CLASS
+            && shown(layouts, pane)?
+            && u32(&layouts.pane(pane)?, lyt::PARENT)? == root
+            && within(layouts, pane, middle)?
+        {
+            return Ok(Some((pane, name.text.clone(), true)));
         }
     }
     Ok(None)
@@ -450,6 +531,16 @@ fn grids(places: &IndexMap<i64, (f64, f64)>) -> Result<HashMap<i64, Option<Rc<Py
 
 /// The words just above these slots, between their first and last column: the box's name.
 fn title(places: &[(f64, f64)], width: f64, root: i64, on_screen: &[ScreenText]) -> Option<String> {
+    above(places, width, root, on_screen).map(|piece| piece.text.clone())
+}
+
+/// The piece of words `_title` says.
+fn above<'a>(
+    places: &[(f64, f64)],
+    width: f64,
+    root: i64,
+    on_screen: &'a [ScreenText],
+) -> Option<&'a ScreenText> {
     // Python's `min` and `max`: the first unless a later one is strictly less, or greater.
     let mut left = places[0].0;
     let mut right = places[0].0;
@@ -478,7 +569,7 @@ fn title(places: &[(f64, f64)], width: f64, root: i64, on_screen: &[ScreenText])
             above = Some(piece);
         }
     }
-    above.map(|piece| piece.text.clone())
+    above
 }
 
 /// The sign of the mark whose picture lies within this touch area, if one does: beside it in the
@@ -555,6 +646,19 @@ fn shown(layouts: &Layouts, pane: i64) -> Result<bool> {
     Ok(layouts
         .placement(pane)?
         .is_some_and(|placement| placement.shown))
+}
+
+/// Shown on this screen, the top one or the bottom.
+fn shown_on(layouts: &Layouts, pane: i64, top: bool) -> Result<bool> {
+    Ok(layouts
+        .placement(pane)?
+        .is_some_and(|placement| placement.shown && placement.top == top))
+}
+
+/// Does this point lie inside the pane's rectangle?
+fn within(layouts: &Layouts, pane: i64, point: (f64, f64)) -> Result<bool> {
+    let ((x, y), (width, height)) = (place(layouts, pane)?, size(layouts, pane)?);
+    Ok((point.0 - x).abs() <= width / 2.0 && (point.1 - y).abs() <= height / 2.0)
 }
 
 fn place(layouts: &Layouts, pane: i64) -> Result<(f64, f64)> {

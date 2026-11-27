@@ -2768,6 +2768,19 @@ impl BoxGrid {
                 40.0,
             );
         }
+        if full {
+            grid.add(
+                "nb",
+                root,
+                Some(bounding),
+                b"bnd1",
+                0,
+                -55.0,
+                90.0,
+                160.0,
+                20.0,
+            );
+        }
         if battle {
             for slot in 0..6 {
                 grid.add(
@@ -3467,8 +3480,15 @@ fn test_a_slot_the_game_names_is_said_while_the_pointer_glides_to_it() {
         said(&[(&["BOX 1, row 1, column 5, empty"], false)])
     );
     assert_eq!(r#box.rest(-10.0, 55.0), said(&[]));
-    // Past the party, the name bar's, the pointer is said once it rests, as before; leaving,
-    // still on the slot the game named, it is not said again (or_pc_organize).
+    // Past the party, a name bar not found is said once the pointer rests there; leaving,
+    // still on the number the game gave, the pointer is not said again (or_pc_organize).
+    let name_bar = r#box
+        .names
+        .iter()
+        .find(|(name, _pane, _kind, _material)| name == "nb")
+        .unwrap()
+        .1;
+    r#box.fake.visible(name_bar, false);
     r#box.slot.set(Some(36));
     for _ in 0..3 {
         r#box.reader.sample(&*r#box.memory).unwrap();
@@ -3486,6 +3506,24 @@ fn test_a_slot_the_game_names_is_said_while_the_pointer_glides_to_it() {
         r#box.reader.sample(&*r#box.memory).unwrap();
     }
     assert_eq!(r#box.rest(80.0, 55.0), said(&[(&["Party 1"], false)]));
+}
+
+/// Past the party the game counts 36 to 41 for the name bar and 42 to 47 for the bottom
+/// bar's "change box", one for each column (the Box's cursor table): said once the pointer
+/// rested, holding Up passed "change box" in 0.13 s unsaid (or_pc_organize).
+#[test]
+fn test_the_name_bar_and_change_box_the_game_names_are_said_before_the_pointer_is_there() {
+    let mut r#box = BoxGrid::with(true, lyt::ORAS, false, true);
+    r#box.slot.set(Some(4));
+    assert_eq!(
+        r#box.rest(-10.0, 55.0),
+        said(&[(&["BOX 1, row 1, column 5, empty"], true)])
+    );
+    r#box.slot.set(Some(40));
+    assert_eq!(r#box.rest(-10.0, 55.0), said(&[(&["BOX 1"], false)]));
+    r#box.slot.set(Some(46));
+    assert_eq!(r#box.rest(-30.0, 70.0), said(&[(&["change box"], false)]));
+    assert_eq!(r#box.rest(-110.0, -105.0), said(&[]));
 }
 
 /// Carried, its icon rides 10 units above the pointer all the way (or_organize_boxes): the slot

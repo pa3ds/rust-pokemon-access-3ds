@@ -280,17 +280,26 @@ impl ListCursors {
             let (mut at_slot, mut alone, mut reporter, mut heading) = (false, false, holder, false);
             // Where the game says which slot the PC Box's pointer is going to (`Panes.slot`), a
             // slot of the box or the party is said as soon as it says it, the pointer still over
-            // the name bar's words or gliding there.
+            // the name bar's words or gliding there; so are the name bar and "change box".
             let index = match &self.panes.slot {
                 Some(slot) if walks => slot()?,
                 _ => None,
             };
-            let target = match index {
+            let mut target = match index {
                 Some(index) if shown_roots.contains(&root) => {
                     slots::nth(&self.layouts, root, index)?
                 }
                 _ => None,
             };
+            let bar = match (index, &self.panes.files) {
+                (Some(index), Some(files)) if target.is_none() && shown_roots.contains(&root) => {
+                    slots::bar(&self.layouts, files, root, index, on_screen, rect.top)?
+                }
+                _ => None,
+            };
+            if let Some(bar) = &bar {
+                target = Some(bar.0);
+            }
             if (inside.is_empty() || target.is_some())
                 && walks
                 && let Some(files) = self.panes.files.clone()
@@ -303,8 +312,8 @@ impl ListCursors {
                 // With its layout's words all hidden, as under the Box's box list, a cursor looks
                 // only for another layout's button: the list's folders read as the Box's slots,
                 // "row 2, column 1, empty", and left the box's name above them unsaid (movie12).
-                let mut found = if !shown_roots.contains(&root) {
-                    None
+                let mut found = if bar.is_some() || !shown_roots.contains(&root) {
+                    bar
                 } else {
                     slots::slot(
                         &self.layouts,
@@ -400,10 +409,9 @@ impl ListCursors {
             // The PC Box's cursor glides from row to row and slot to slot over several frames,
             // through each one's own place, and a poll on the way said the rows it was leaving
             // and passing (or/movie6_pc, 2026-09-27): what it is over is said once it is at rest,
-            // as the ticks between polls say (`sample`), but for a slot the game named. Where the
-            // game names another place, its name bar or the bottom bar, whatever the pointer
-            // passes waits too: leaving the name bar it said the box's name again, and the
-            // bottom bar's "change box" went unsaid behind it (or_pc_organize).
+            // as the ticks between polls say (`sample`), but for a slot or bar the game named.
+            // Where the game names a place not found, whatever the pointer passes waits too:
+            // leaving the name bar it said the box's name again (or_pc_organize).
             if !heading && (held || index.is_some()) && !self.at_rest(holder, centre(&rect)) {
                 self.moving.insert(holder);
                 continue;
