@@ -1026,15 +1026,16 @@ fn separators(
 }
 
 /// These pieces, with each lone `LEVEL_GLYPH` just left of a number in its own group, on its
-/// row, read as `words`.
+/// row, read as `words`. Ultra Sun hangs the number from the glyph's own TextBox instead, drawn
+/// where the glyph is (spike P).
 fn level_marks(found: &IndexMap<i64, ScreenText>, words: &str) -> IndexMap<i64, ScreenText> {
     let mut out = found.clone();
     for (&r#box, piece) in found {
         if piece.text == LEVEL_GLYPH
             && found.values().any(|other| {
-                other.parent == piece.parent
-                    && py::isdigit(&other.text)
-                    && other.left > piece.left
+                py::isdigit(&other.text)
+                    && (other.parent == r#box
+                        || (other.parent == piece.parent && other.left > piece.left))
                     && (other.row - piece.row).abs() < max_of(piece.glyph, other.glyph) / 2.0
             })
         {

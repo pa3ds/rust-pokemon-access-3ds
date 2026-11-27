@@ -527,6 +527,37 @@ fn test_the_party_screens_level_glyph_is_said_as_the_games_words_for_a_level() {
     assert_eq!(texts, ["Lv.", "5", "l"]);
 }
 
+/// Ultra Sun hangs the level's digits from the glyph's own TextBox, drawn a unit left of it:
+/// read as Sun's, Rowlet's slot was "Rowlet l5 14/22", its maximum in fullwidth digits
+/// (spike P).
+#[test]
+fn test_ultra_sun_s_level_hangs_from_the_glyph_and_is_said_all_the_same() {
+    let title = Title::new();
+    let slot = MENU + 0x5000;
+    title.fake.pane(slot, title.root);
+    title.text_box_aligned(slot + 0x200, slot, "l", (-131.0, 68.0), LEFT, LEFT);
+    title.text_box_aligned(slot + 0x400, slot + 0x200, "5", (-132.0, 68.0), LEFT, LEFT);
+    title.fake.track().unwrap();
+    let mut screen = ScreenTextReader::with(
+        title.memory.clone(),
+        Rc::new(ClassNames::new(title.memory.clone(), CODE)),
+        title.fake.layouts.clone(),
+        msgwin::CLASSES.iter().map(|c| c.to_string()).collect(),
+        Some("Lv.".to_string()),
+        None,
+        IndexMap::new(),
+        HashSet::new(),
+    );
+    screen.track(title.boxes.borrow().clone());
+    screen.poll(&HashSet::new(), false).unwrap();
+    assert!(
+        screen
+            .on_screen()
+            .into_iter()
+            .any(|piece| piece.text == "Lv.")
+    );
+}
+
 /// The party slot's "/" is the layout file's own, with no tag processor, between the current
 /// HP and the maximum that code writes: read as written words only, it was "Rowlet 22" and the
 /// maximum run together (sun_9.ctm). The designer's placeholders, and a "/" beside no written

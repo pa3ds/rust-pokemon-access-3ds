@@ -162,10 +162,10 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
 
 ## Ultra Sun and Ultra Moon
 
-- **Checked only in the opening**: the language choice, and in your house dialogue, choices,
-  the map, the menu and the Options screen. Battles, the Bag and the other menus, and everywhere
-  outside the house are read as in Sun and Moon, but not yet checked, and may say less or
-  nothing.
+- **Checked only in the opening**: the language choice, your house and Route 1 up to your
+  first Pokémon and a wild battle: dialogue, choices, the map and pathfinding, the menu, the
+  Options screen, the Bag, the party and the battle. Trainer battles, a Pokémon's summary and
+  the other menus are read as in Sun and Moon but not yet checked, and may say less or nothing.
 - **Ultra Moon** has not been tried at all: it is read as Ultra Sun.
 - **Cutscenes are not described**, as Sun's are with `descriptions` on.
 - Everything listed for Sun and Moon above applies too.
