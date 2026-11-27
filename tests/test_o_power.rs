@@ -89,7 +89,10 @@ fn test_r_says_the_regen_rate_the_list_shows_after_the_energy() {
     let memory = FakeMemory::new();
     memory.u32(RECORD + ENERGY, &[8]);
     assert_eq!(
-        reader(&memory, vec![TOP, BOTTOM]).said().unwrap().as_deref(),
+        reader(&memory, vec![TOP, BOTTOM])
+            .said()
+            .unwrap()
+            .as_deref(),
         Some("energy 8 of 10 regen rate 4 Hatching Power Lv. 1 02:58")
     );
 }

@@ -11,8 +11,8 @@ use indexmap::IndexMap;
 
 use crate::app::{self, Settings};
 use crate::core::rpc::{DEFAULT_PORT, Rpc, UdpRpc};
-use crate::core::touch::PORT as TOUCH_PORT;
 use crate::core::speech::{self, Backend, Category, Speech};
+use crate::core::touch::PORT as TOUCH_PORT;
 use crate::core::words::{self, ENGLISH, Words, own};
 use crate::core::{config, instance, keyfile, window};
 use crate::games::common::field::keys::{DEFAULT_BINDINGS, DEFAULT_CONTEXTS, EXPLAINED};
@@ -149,9 +149,8 @@ fn parse(argv: &[String]) -> Result<Args, String> {
             }
             "--touch-port" => {
                 let text = take(&mut at)?;
-                args.touch_port = py::int_base10(&text).map_err(|_| {
-                    format!("argument --touch-port: invalid int value: '{text}'")
-                })?;
+                args.touch_port = py::int_base10(&text)
+                    .map_err(|_| format!("argument --touch-port: invalid int value: '{text}'"))?;
             }
             "--rom" => args.rom = Some(PathBuf::from(take(&mut at)?)),
             "--log-path" => args.log_path = Some(PathBuf::from(take(&mut at)?)),

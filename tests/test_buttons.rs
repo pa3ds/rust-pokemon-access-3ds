@@ -136,7 +136,10 @@ fn test_a_button_switched_off_is_greyed_where_it_has_an_animation_to_grey_it() {
     buttons.track([LIST], [], [], false).unwrap();
     assert_eq!(
         buttons.off().unwrap(),
-        HashSet::from([(PARTY_WORK, "a".to_string()), (PARTY_WORK, "2q".to_string())])
+        HashSet::from([
+            (PARTY_WORK, "a".to_string()),
+            (PARTY_WORK, "2q".to_string())
+        ])
     );
     assert_eq!(
         buttons.greyed().unwrap(),

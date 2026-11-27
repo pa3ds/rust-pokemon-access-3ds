@@ -144,11 +144,10 @@ impl OPower {
     pub fn poll(&mut self) {
         let on_screen = (self.on_screen)();
         let files = self.files(&on_screen).clone();
-        let panel = distinct(in_rows(
-            on_screen
-                .into_iter()
-                .filter(|piece| files.get(&piece.root).map(String::as_str) == Some(ACTIVE)),
-        ));
+        let panel =
+            distinct(in_rows(on_screen.into_iter().filter(|piece| {
+                files.get(&piece.root).map(String::as_str) == Some(ACTIVE)
+            })));
         let Some(first) = panel.first() else {
             return;
         };
@@ -255,10 +254,7 @@ fn counted_down(panel: &[ScreenText], seconds: i64) -> Result<Vec<ScreenText>> {
     for piece in panel {
         let mut piece = piece.clone();
         if CLOCK.is_match(&piece.text) {
-            let (minutes, left) = piece
-                .text
-                .split_once(':')
-                .expect("a clock has its colon");
+            let (minutes, left) = piece.text.split_once(':').expect("a clock has its colon");
             let total = 0.max(py::int_base10(minutes)? * 60 + py::int_base10(left)? - seconds);
             piece.text = format!(
                 "{:0width$}:{:02}",

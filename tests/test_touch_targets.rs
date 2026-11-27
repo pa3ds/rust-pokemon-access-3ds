@@ -1782,7 +1782,8 @@ fn placed(
     height: f32,
 ) {
     fake.pane_with_vtable(pane, parent, kind);
-    fake.memory.write(pane + lyt::WIDTH, &floats(&[width, height]));
+    fake.memory
+        .write(pane + lyt::WIDTH, &floats(&[width, height]));
     for (offset, value) in [
         (lyt::X, x),
         (lyt::Y, y),
@@ -1821,15 +1822,78 @@ fn test_an_icon_the_data_does_not_name_is_named_by_the_words_under_it() {
     let [backdrop, battle, label, wonder, back, other] =
         [1, 2, 3, 4, 5, 6].map(|i: i64| root + 0x1000 * i);
     placed(&fake, backdrop, root, Some(picture), 0.0, 0.0, 320.0, 240.0);
-    placed(&fake, battle, backdrop, Some(picture), -70.0, 70.0, 40.0, 40.0);
-    placed(&fake, battle + 0x200, battle, Some(bounding), -70.0, 65.0, 60.0, 50.0);
-    placed(&fake, label, backdrop, Some(textbox), -70.0, 35.0, 120.0, 30.0);
-    placed(&fake, wonder, backdrop, Some(picture), 70.0, 0.0, 40.0, 40.0);
-    placed(&fake, wonder + 0x200, wonder, Some(bounding), 70.0, -5.0, 60.0, 50.0);
+    placed(
+        &fake,
+        battle,
+        backdrop,
+        Some(picture),
+        -70.0,
+        70.0,
+        40.0,
+        40.0,
+    );
+    placed(
+        &fake,
+        battle + 0x200,
+        battle,
+        Some(bounding),
+        -70.0,
+        65.0,
+        60.0,
+        50.0,
+    );
+    placed(
+        &fake,
+        label,
+        backdrop,
+        Some(textbox),
+        -70.0,
+        35.0,
+        120.0,
+        30.0,
+    );
+    placed(
+        &fake,
+        wonder,
+        backdrop,
+        Some(picture),
+        70.0,
+        0.0,
+        40.0,
+        40.0,
+    );
+    placed(
+        &fake,
+        wonder + 0x200,
+        wonder,
+        Some(bounding),
+        70.0,
+        -5.0,
+        60.0,
+        50.0,
+    );
     placed(&fake, back, root, Some(picture), 145.0, -105.0, 30.0, 30.0);
-    placed(&fake, back + 0x200, back, Some(bounding), 145.0, -105.0, 40.0, 30.0);
+    placed(
+        &fake,
+        back + 0x200,
+        back,
+        Some(bounding),
+        145.0,
+        -105.0,
+        40.0,
+        30.0,
+    );
     placed(&fake, other, root, None, 70.0, -35.0, 120.0, 30.0);
-    placed(&fake, other + 0x200, other, Some(textbox), 70.0, -35.0, 120.0, 30.0);
+    placed(
+        &fake,
+        other + 0x200,
+        other,
+        Some(textbox),
+        70.0,
+        -35.0,
+        120.0,
+        30.0,
+    );
     fake.track().unwrap();
     let words = vec![
         text_in(label, "Battle", root),
@@ -1876,7 +1940,16 @@ fn test_a_touch_area_is_named_by_the_picture_lying_in_it_not_the_bar_it_hangs_fr
     let (bar, back) = (root + 0x1000, root + 0x2000);
     placed(&fake, bar, root, Some(picture), 0.0, -105.0, 320.0, 30.0);
     placed(&fake, back, bar, Some(picture), 145.0, -105.0, 30.0, 30.0);
-    placed(&fake, bar + 0x200, bar, Some(bounding), 145.0, -105.0, 40.0, 30.0);
+    placed(
+        &fake,
+        bar + 0x200,
+        bar,
+        Some(bounding),
+        145.0,
+        -105.0,
+        40.0,
+        30.0,
+    );
     fake.track().unwrap();
     let drawn: IndexMap<i64, &str> =
         IndexMap::from([(bar, "touch_bar.bclim"), (back, "return_pss.bclim")]);
@@ -1916,11 +1989,47 @@ fn test_the_words_of_a_touch_area_over_half_the_screen_are_the_screens() {
     let (_work, root) = fake.screen_with(0x08200000, false, false);
     let (panel, next) = (root + 0x1000, root + 0x2000);
     placed(&fake, panel, root, None, -35.0, 15.0, 250.0, 210.0);
-    placed(&fake, panel + 0x200, panel, Some(textbox), -35.0, 60.0, 230.0, 60.0);
-    placed(&fake, panel + 0x400, panel, Some(bounding), -35.0, 15.0, 250.0, 210.0);
+    placed(
+        &fake,
+        panel + 0x200,
+        panel,
+        Some(textbox),
+        -35.0,
+        60.0,
+        230.0,
+        60.0,
+    );
+    placed(
+        &fake,
+        panel + 0x400,
+        panel,
+        Some(bounding),
+        -35.0,
+        15.0,
+        250.0,
+        210.0,
+    );
     placed(&fake, next, panel, None, -35.0, -20.0, 150.0, 30.0);
-    placed(&fake, next + 0x200, next, Some(textbox), -35.0, -20.0, 60.0, 20.0);
-    placed(&fake, next + 0x400, next, Some(bounding), -35.0, -20.0, 150.0, 30.0);
+    placed(
+        &fake,
+        next + 0x200,
+        next,
+        Some(textbox),
+        -35.0,
+        -20.0,
+        60.0,
+        20.0,
+    );
+    placed(
+        &fake,
+        next + 0x400,
+        next,
+        Some(bounding),
+        -35.0,
+        -20.0,
+        150.0,
+        30.0,
+    );
     fake.track().unwrap();
     let words = vec![
         text_in(panel + 0x200, "Welcome to BuzzNav!", root),
@@ -1956,7 +2065,16 @@ fn test_the_pss_menus_arrow_turns_the_page_by_its_side() {
     for (i, x) in [137.0f32, -143.0].into_iter().enumerate() {
         let arrow = root + 0x1000 * (i as i64 + 1);
         placed(&fake, arrow, root, Some(picture), x, 0.0, 20.0, 40.0);
-        placed(&fake, arrow + 0x200, arrow, Some(bounding), x, 0.0, 40.0, 60.0);
+        placed(
+            &fake,
+            arrow + 0x200,
+            arrow,
+            Some(bounding),
+            x,
+            0.0,
+            40.0,
+            60.0,
+        );
     }
     fake.track().unwrap();
     let mut targets = TouchTargets::new(
@@ -1999,13 +2117,49 @@ fn test_a_window_holding_its_words_that_is_a_button_switched_on_is_a_touch_area(
         let window = root + 0x1000 * (i as i64 + 1);
         placed(&fake, window, root, Some(window_class), 0.0, y, 260.0, 40.0);
         memory.write(window + lyt::NAME, name);
-        placed(&fake, window + 0x200, window, Some(textbox), 0.0, y, 90.0, 20.0);
+        placed(
+            &fake,
+            window + 0x200,
+            window,
+            Some(textbox),
+            0.0,
+            y,
+            90.0,
+            20.0,
+        );
     }
     let held = root + 0x5000;
-    placed(&fake, held, root, Some(window_class), 0.0, 100.0, 40.0, 30.0);
+    placed(
+        &fake,
+        held,
+        root,
+        Some(window_class),
+        0.0,
+        100.0,
+        40.0,
+        30.0,
+    );
     memory.write(held + lyt::NAME, b"1r");
-    placed(&fake, held + 0x200, held, Some(textbox), 0.0, 100.0, 40.0, 30.0);
-    placed(&fake, held + 0x400, held, Some(bounding), 0.0, 100.0, 40.0, 30.0);
+    placed(
+        &fake,
+        held + 0x200,
+        held,
+        Some(textbox),
+        0.0,
+        100.0,
+        40.0,
+        30.0,
+    );
+    placed(
+        &fake,
+        held + 0x400,
+        held,
+        Some(bounding),
+        0.0,
+        100.0,
+        40.0,
+        30.0,
+    );
     fake.track().unwrap();
     let said: IndexMap<i64, &str> = IndexMap::from([
         (root + 0x1200, "Yes"),
@@ -2071,15 +2225,78 @@ fn test_a_window_drawn_off_the_draw_list_over_a_backdrop_covers_the_page_under_i
     }
     let (tab, yes, pokemon) = (page + 0x1000, window + 0x2000, frame + 0x1000);
     placed(&fake, tab, page, None, -100.0, 80.0, 120.0, 20.0);
-    placed(&fake, tab + 0x200, tab, Some(textbox), -90.0, 78.0, 100.0, 20.0);
-    placed(&fake, tab + 0x400, tab, Some(bounding), -100.0, 80.0, 120.0, 20.0);
+    placed(
+        &fake,
+        tab + 0x200,
+        tab,
+        Some(textbox),
+        -90.0,
+        78.0,
+        100.0,
+        20.0,
+    );
+    placed(
+        &fake,
+        tab + 0x400,
+        tab,
+        Some(bounding),
+        -100.0,
+        80.0,
+        120.0,
+        20.0,
+    );
     placed(&fake, pokemon, frame, None, -100.0, -103.0, 30.0, 30.0);
-    placed(&fake, pokemon + 0x200, pokemon, Some(textbox), -100.0, -103.0, 30.0, 30.0);
-    placed(&fake, pokemon + 0x400, pokemon, Some(bounding), -100.0, -103.0, 30.0, 30.0);
-    placed(&fake, window + 0x1000, window, Some(picture), 0.0, 0.0, 320.0, 240.0);
+    placed(
+        &fake,
+        pokemon + 0x200,
+        pokemon,
+        Some(textbox),
+        -100.0,
+        -103.0,
+        30.0,
+        30.0,
+    );
+    placed(
+        &fake,
+        pokemon + 0x400,
+        pokemon,
+        Some(bounding),
+        -100.0,
+        -103.0,
+        30.0,
+        30.0,
+    );
+    placed(
+        &fake,
+        window + 0x1000,
+        window,
+        Some(picture),
+        0.0,
+        0.0,
+        320.0,
+        240.0,
+    );
     placed(&fake, yes, window, None, 0.0, -10.0, 280.0, 40.0);
-    placed(&fake, yes + 0x200, yes, Some(textbox), 0.0, -10.0, 90.0, 20.0);
-    placed(&fake, yes + 0x400, yes, Some(bounding), 0.0, -10.0, 280.0, 40.0);
+    placed(
+        &fake,
+        yes + 0x200,
+        yes,
+        Some(textbox),
+        0.0,
+        -10.0,
+        90.0,
+        20.0,
+    );
+    placed(
+        &fake,
+        yes + 0x400,
+        yes,
+        Some(bounding),
+        0.0,
+        -10.0,
+        280.0,
+        40.0,
+    );
     fake.track().unwrap();
     let words: Rc<RefCell<Vec<ScreenText>>> = Rc::new(RefCell::new(vec![
         text_in(tab + 0x200, "Friends", page),
@@ -2110,10 +2327,37 @@ fn test_a_window_drawn_off_the_draw_list_over_a_backdrop_covers_the_page_under_i
     // A window built after it covers it too: the Shout-Out's Yes and No over the menu.
     let (later_work, later) = fake.screen_with(0x08500000, false, false);
     memory.write(later_work + lyt::WORK_LAYER, &1u16.to_le_bytes());
-    placed(&fake, later + 0x1000, later, Some(picture), 0.0, 0.0, 320.0, 240.0);
+    placed(
+        &fake,
+        later + 0x1000,
+        later,
+        Some(picture),
+        0.0,
+        0.0,
+        320.0,
+        240.0,
+    );
     placed(&fake, later + 0x2000, later, None, 0.0, 50.0, 280.0, 40.0);
-    placed(&fake, later + 0x2200, later + 0x2000, Some(textbox), 0.0, 50.0, 90.0, 20.0);
-    placed(&fake, later + 0x2400, later + 0x2000, Some(bounding), 0.0, 50.0, 280.0, 40.0);
+    placed(
+        &fake,
+        later + 0x2200,
+        later + 0x2000,
+        Some(textbox),
+        0.0,
+        50.0,
+        90.0,
+        20.0,
+    );
+    placed(
+        &fake,
+        later + 0x2400,
+        later + 0x2000,
+        Some(bounding),
+        0.0,
+        50.0,
+        280.0,
+        40.0,
+    );
     fake.track().unwrap();
     words
         .borrow_mut()
@@ -2154,12 +2398,48 @@ fn test_a_picture_holding_its_words_that_is_a_button_switched_on_is_a_touch_area
     let (message, bar) = (root + 0x1000, root + 0x2000);
     placed(&fake, message, root, Some(picture), 0.0, 89.0, 290.0, 40.0);
     memory.write(message + lyt::NAME, b"ah");
-    placed(&fake, message + 0x200, message, Some(textbox), 0.0, 89.0, 270.0, 20.0);
+    placed(
+        &fake,
+        message + 0x200,
+        message,
+        Some(textbox),
+        0.0,
+        89.0,
+        270.0,
+        20.0,
+    );
     placed(&fake, bar, root, Some(picture), 0.0, -105.0, 320.0, 30.0);
     memory.write(bar + lyt::NAME, b"c");
-    placed(&fake, bar + 0x200, bar, Some(textbox), -65.0, -107.0, 190.0, 20.0);
-    placed(&fake, bar + 0x400, bar, Some(picture), 145.0, -105.0, 30.0, 30.0);
-    placed(&fake, bar + 0x600, bar + 0x400, Some(bounding), 145.0, -105.0, 40.0, 30.0);
+    placed(
+        &fake,
+        bar + 0x200,
+        bar,
+        Some(textbox),
+        -65.0,
+        -107.0,
+        190.0,
+        20.0,
+    );
+    placed(
+        &fake,
+        bar + 0x400,
+        bar,
+        Some(picture),
+        145.0,
+        -105.0,
+        30.0,
+        30.0,
+    );
+    placed(
+        &fake,
+        bar + 0x600,
+        bar + 0x400,
+        Some(bounding),
+        145.0,
+        -105.0,
+        40.0,
+        30.0,
+    );
     fake.track().unwrap();
     let said: IndexMap<i64, &str> = IndexMap::from([
         (message + 0x200, "Enter your own message"),
@@ -2188,10 +2468,7 @@ fn test_a_picture_holding_its_words_that_is_a_button_switched_on_is_a_touch_area
             ..Options::default()
         },
     );
-    assert_eq!(
-        names_of(&mut targets),
-        ["Enter your own message", "return"]
-    );
+    assert_eq!(names_of(&mut targets), ["Enter your own message", "return"]);
 }
 
 /// The O-Power list's seventh row lies under its gauge, `assist_bg` 320 by 24, drawn after it,
@@ -2212,8 +2489,26 @@ fn test_a_touch_area_under_a_bar_drawn_over_it_is_left_out() {
     placed(&fake, header, root, Some(picture), 0.0, 100.0, 320.0, 30.0);
     for (row, y) in [(first, 100.0f32), (seventh, -80.0)] {
         placed(&fake, row, root, None, 25.0, y, 240.0, 30.0);
-        placed(&fake, row + 0x200, row, Some(textbox), -10.0, y, 140.0, 20.0);
-        placed(&fake, row + 0x400, row, Some(bounding), 25.0, y, 240.0, 30.0);
+        placed(
+            &fake,
+            row + 0x200,
+            row,
+            Some(textbox),
+            -10.0,
+            y,
+            140.0,
+            20.0,
+        );
+        placed(
+            &fake,
+            row + 0x400,
+            row,
+            Some(bounding),
+            25.0,
+            y,
+            240.0,
+            30.0,
+        );
     }
     placed(&fake, gauge, root, Some(picture), 0.0, -78.0, 320.0, 24.0);
     fake.track().unwrap();
@@ -2233,10 +2528,7 @@ fn test_a_touch_area_under_a_bar_drawn_over_it_is_left_out() {
     assert_eq!(names_of(&mut targets), ["Hatching Power"]);
     fake.fade(gauge, 0xC8);
     fake.layouts.refresh();
-    assert_eq!(
-        names_of(&mut targets),
-        ["Hatching Power", "Stealth Power"]
-    );
+    assert_eq!(names_of(&mut targets), ["Hatching Power", "Stealth Power"]);
 }
 
 /// Another player's Battle, Trade and O-Power in the PSS, offline: switched off, their icons
@@ -2324,8 +2616,26 @@ fn test_a_buttons_words_stay_its_own_while_its_layout_lives() {
     let (_work, root) = fake.screen_with(0x08200000, false, false);
     let r#use = root + 0x1000;
     placed(&fake, r#use, root, None, -105.0, -105.0, 90.0, 30.0);
-    placed(&fake, r#use + 0x200, r#use, Some(textbox), -105.0, -105.0, 60.0, 20.0);
-    placed(&fake, r#use + 0x400, r#use, Some(bounding), -105.0, -105.0, 90.0, 30.0);
+    placed(
+        &fake,
+        r#use + 0x200,
+        r#use,
+        Some(textbox),
+        -105.0,
+        -105.0,
+        60.0,
+        20.0,
+    );
+    placed(
+        &fake,
+        r#use + 0x400,
+        r#use,
+        Some(bounding),
+        -105.0,
+        -105.0,
+        90.0,
+        30.0,
+    );
     memory.write(r#use + 0x200 + lyt::NAME, b"3x");
     fake.track().unwrap();
     for _ in 0..BUILT_POLLS {
@@ -2380,18 +2690,45 @@ fn test_an_icon_is_named_by_the_words_under_it_beside_its_touch_area() {
     let (_work, root) = fake.screen_with(0x08200000, false, false);
     let battle = root + 0x1000;
     placed(&fake, battle, root, None, -55.0, 10.0, 100.0, 100.0);
-    placed(&fake, battle + 0x200, battle, Some(picture), -55.0, 10.0, 50.0, 50.0);
-    placed(&fake, battle + 0x400, battle, Some(textbox), -55.0, -25.0, 100.0, 30.0);
-    placed(&fake, battle + 0x600, battle, Some(bounding), -55.0, 10.0, 50.0, 50.0);
+    placed(
+        &fake,
+        battle + 0x200,
+        battle,
+        Some(picture),
+        -55.0,
+        10.0,
+        50.0,
+        50.0,
+    );
+    placed(
+        &fake,
+        battle + 0x400,
+        battle,
+        Some(textbox),
+        -55.0,
+        -25.0,
+        100.0,
+        30.0,
+    );
+    placed(
+        &fake,
+        battle + 0x600,
+        battle,
+        Some(bounding),
+        -55.0,
+        10.0,
+        50.0,
+        50.0,
+    );
     fake.track().unwrap();
     let words = vec![text_in(battle + 0x400, "Battle", root)];
     let mut targets = TouchTargets::new(
         fake.layouts.clone(),
         Rc::new(move || words.clone()),
         Rc::new(|_box| Ok(String::new())),
-        Rc::new(move |pane| {
-            Ok((pane == battle + 0x200).then(|| "pss_icon_base.bclim".to_string()))
-        }),
+        Rc::new(
+            move |pane| Ok((pane == battle + 0x200).then(|| "pss_icon_base.bclim".to_string())),
+        ),
         Rc::new(|_root| None),
         Rc::new(|_line: &str| {}),
         Options::default(),

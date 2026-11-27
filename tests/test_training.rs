@@ -73,7 +73,10 @@ fn paged(icons: i64) -> (super_training::TrainingPage, Rc<FakeMemory>, FakeClass
         memory.u32(record_at, &[param]);
         memory.u32(record_at + super_training::INDEX, &[i]);
         memory.u32(TABLE + 4 * i, &[TEXTURES + 0x100 * i]);
-        memory.u32(TEXTURES + 0x100 * i + pokeicon::IMAGE, &[IMAGE + 0x1000 * i]);
+        memory.u32(
+            TEXTURES + 0x100 * i + pokeicon::IMAGE,
+            &[IMAGE + 0x1000 * i],
+        );
     }
     for (picture, image) in [
         (FIRST, IMAGE),

@@ -1049,10 +1049,9 @@ impl TouchTargets {
                 // (or_pss_singleplayer).
                 if self.button(touch)? {
                     self.boxes.entry(root).or_default().extend(
-                        group
-                            .iter()
-                            .copied()
-                            .filter(|p| tree.get(p).map(String::as_str) == Some(lyt::TEXTBOX_CLASS)),
+                        group.iter().copied().filter(|p| {
+                            tree.get(p).map(String::as_str) == Some(lyt::TEXTBOX_CLASS)
+                        }),
                     );
                 }
                 let mut image: Option<String> = None;
@@ -1292,8 +1291,7 @@ impl TouchTargets {
                         continue;
                     }
                     names.insert(touch, slot.1);
-                } else if !worded && on_screen && u32(&layouts.pane(touch)?, lyt::PARENT)? != root
-                {
+                } else if !worded && on_screen && u32(&layouts.pane(touch)?, lyt::PARENT)? != root {
                     // A touch area hanging straight from the root has no button of its own, and
                     // the pictures over it are the screen's: the Battle Box's slots, left on
                     // under BOX 1, were said by its wallpaper, "line pattern" (movie22). One off
@@ -1560,12 +1558,10 @@ impl TouchTargets {
     fn button(&self, touch: i64) -> Result<bool> {
         let shape = self.layouts.shape;
         let head = self.layouts.pane(touch)?;
-        Ok(
-            size(&head, shape.width, shape.scale_x)?
-                * size(&head, shape.height, shape.scale_y)?
-                * 2.0
-                < (WIDTH * HEIGHT) as f64,
-        )
+        Ok(size(&head, shape.width, shape.scale_x)?
+            * size(&head, shape.height, shape.scale_y)?
+            * 2.0
+            < (WIDTH * HEIGHT) as f64)
     }
 
     /// The windows and pictures of a layout that are buttons switched on (`on`, their names)

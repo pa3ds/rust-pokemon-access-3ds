@@ -1708,7 +1708,10 @@ fn test_a_puff_is_named_by_the_texture_of_the_replace_system_holding_every_kind(
         memory.u32(system + pokeicon::TEXTURES, &[system + 0x100, count]);
         for i in 0..count {
             memory.u32(system + 0x100 + 4 * i, &[system + 0x200 + 0x40 * i]);
-            memory.u32(system + 0x200 + 0x40 * i + pokeicon::IMAGE, &[base + 0x1000 * i]);
+            memory.u32(
+                system + 0x200 + 0x40 * i + pokeicon::IMAGE,
+                &[base + 0x1000 * i],
+            );
         }
         systems.insert(system, pokeicon::REPLACE_CLASS.to_string());
     }

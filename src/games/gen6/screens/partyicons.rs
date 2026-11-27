@@ -229,7 +229,9 @@ impl PartyIcons {
                 continue;
             }
             let replace = u32(&memory.read(icon + pokeicon::REPLACE, 4)?, 0)?;
-            if replace == 0 || self.names.of_object(replace)?.as_deref() != Some(pokeicon::REPLACE_CLASS) {
+            if replace == 0
+                || self.names.of_object(replace)?.as_deref() != Some(pokeicon::REPLACE_CLASS)
+            {
                 continue;
             }
             let head = memory.read(replace + pokeicon::TEXTURES, 8)?;

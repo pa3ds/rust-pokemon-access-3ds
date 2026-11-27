@@ -1938,7 +1938,10 @@ fn test_a_clock_alone_outside_a_game_is_said_only_as_its_layout_comes() {
     }
     assert_eq!(
         said,
-        ["Prize Money Power Lv. 1 02:59", "Encounter Power Lv. 1 02:28"]
+        [
+            "Prize Money Power Lv. 1 02:59",
+            "Encounter Power Lv. 1 02:28"
+        ]
     );
 }
 

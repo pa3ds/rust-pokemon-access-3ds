@@ -93,9 +93,9 @@ use crate::games::common::field::keys::{STYLUS, STYLUS_JUMPS, STYLUS_MOVES, STYL
 use crate::games::common::touch::{After, Target};
 use crate::games::common::{lyt, pokemon, touch};
 use crate::games::gen6::apps::FIELD;
-use crate::games::gen6::{gflheap, pokeicon};
 use crate::games::gen6::screens::townmap;
 use crate::games::gen6::subscreen::berry_picker::{Name, Touching};
+use crate::games::gen6::{gflheap, pokeicon};
 use crate::py::{self, Error, Kind, PySet, Result};
 
 pub const CLASS: &str = "N5field9subscreen9kawaigari12FM_KawaigariE";
@@ -1950,7 +1950,10 @@ impl Replaced {
         let systems: Vec<(i64, i64)> = self.systems.iter().map(|(&s, &v)| (s, v)).collect();
         for (system, vtable) in systems {
             let head = memory.read(system, pokeicon::TEXTURES + 8)?;
-            let (listed, count_now) = (u32(&head, pokeicon::TEXTURES)?, u32(&head, pokeicon::TEXTURES + 4)?);
+            let (listed, count_now) = (
+                u32(&head, pokeicon::TEXTURES)?,
+                u32(&head, pokeicon::TEXTURES + 4)?,
+            );
             // A system freed and its memory taken by something else says nothing.
             if u32(&head, 0)? != vtable || count_now != count {
                 continue;
@@ -1968,7 +1971,10 @@ impl Replaced {
                 let table = memory.read(listed, 4 * count)?;
                 let mut images: Vec<i64> = Vec::new();
                 for i in 0..count {
-                    images.push(u32(&memory.read(u32(&table, 4 * i)? + pokeicon::IMAGE, 4)?, 0)?);
+                    images.push(u32(
+                        &memory.read(u32(&table, 4 * i)? + pokeicon::IMAGE, 4)?,
+                        0,
+                    )?);
                 }
                 self.images.insert(system, (listed, count, now, images));
             }

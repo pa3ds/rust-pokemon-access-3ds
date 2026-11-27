@@ -58,8 +58,8 @@ use crate::games::common::field::things::{
 };
 use crate::games::common::layout::{Cached, Layouts};
 use crate::games::common::layout_file::{LayoutFile, LayoutFiles};
-use crate::games::common::pictures::{CAUGHT, UNAVAILABLE};
 use crate::games::common::pictures::named as named_picture;
+use crate::games::common::pictures::{CAUGHT, UNAVAILABLE};
 use crate::games::common::scenes::{
     Described, GameClock, Lines, Recall, Scenes, Word, load as load_scenes,
     shipped as scenes_shipped,
@@ -2113,8 +2113,7 @@ impl Gen6Profile {
             texts.retain(|text| {
                 text.top
                     || !buttons.contains(&text.r#box)
-                    || (text.changed
-                        && changed.get(&text.root).copied().unwrap_or(0) < PAGE_TURNED)
+                    || (text.changed && changed.get(&text.root).copied().unwrap_or(0) < PAGE_TURNED)
                     || cursored.contains(&text.root)
             });
             quiet = screen
@@ -2151,8 +2150,8 @@ impl Gen6Profile {
         let cursors = said.cursors;
         // O-Power's Active panel turns between its field and battle powers by itself, as the
         // PSS's profile turns its counts (or_pss_o_power_2); it is the field's, not an app's.
-        let o_power = self.apps.borrow().running.as_deref() == Some(FIELD)
-            && self.o_power.borrow_mut().up();
+        let o_power =
+            self.apps.borrow().running.as_deref() == Some(FIELD) && self.o_power.borrow_mut().up();
         if o_power {
             self.o_power.borrow_mut().poll();
         }
