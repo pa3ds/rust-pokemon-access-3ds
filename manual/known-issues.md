@@ -172,6 +172,8 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
   page is read whole as it opens, its words run together: "Height1'00" Weight3.3 lbs.".
 - **A Poké Mart's buy list** says only the item under the cursor, not its price or how many
   you have, which are on screen beside it.
+- **Someone behind a stall's counter**, such as Festival Plaza's lottery shop, has no path: `P`
+  says "no path". Walk up to the counter in front of them and press A.
 - **A board can run its two lines together** where its second line has no quotation marks:
   "Hau'oli Police Station Keep our roads safe!".
 

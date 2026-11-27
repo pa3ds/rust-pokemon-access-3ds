@@ -1764,6 +1764,8 @@ impl Ground {
                 break;
             }
         }
+        let past = self.past_bodies(item, &cells, &beside)?;
+        beside.extend(past);
         if item.place_kind() == Some(WATER_SOURCE) {
             for &cell in &cells {
                 if self.open_at(cell, item.height)? {
@@ -1772,6 +1774,44 @@ impl Ground {
             }
         }
         Ok(beside)
+    }
+
+    /// Cells further out than the nearest ring `goals` found, on a side whose cells out to
+    /// them are all someone's body or a prop (`standing`): the game stops the player against
+    /// it and talks across it. Sophocles in Festival Plaza's doorway is a record at (84, 101) and
+    /// his body fills (84, 102); the nearest open cell was (84, 100), in the castle behind him,
+    /// and P said "no path" to him from (84, 103), where the game had stopped the player and A
+    /// spoke to him. A wall ends a side: no way ends across one.
+    fn past_bodies(
+        &self,
+        item: &Interactable,
+        cells: &[Cell],
+        found: &IndexMap<Cell, Option<&'static str>>,
+    ) -> Result<IndexMap<Cell, Option<&'static str>>> {
+        let mut past: IndexMap<Cell, Option<&'static str>> = IndexMap::new();
+        for &cell in cells {
+            for (direction, (dx, dz)) in pathfind::STEPS {
+                if item.way_in.is_some_and(|way| way != direction) {
+                    continue;
+                }
+                for out in 1..=self.reach {
+                    let near = (cell.0 - dx * out, cell.1 - dz * out);
+                    if cells.contains(&near) {
+                        break;
+                    }
+                    if out > 1 && self.by(near, item.height)? {
+                        if !found.contains_key(&near) {
+                            past.insert(near, Some(direction));
+                        }
+                        break;
+                    }
+                    if !self.standing.contains(&near) {
+                        break;
+                    }
+                }
+            }
+        }
+        Ok(past)
     }
 
     /// Whether a way to a thing may end in the cell beside it: never on a mat out, which a

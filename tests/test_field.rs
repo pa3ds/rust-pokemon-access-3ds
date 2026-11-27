@@ -3327,6 +3327,58 @@ fn test_a_person_behind_a_counter_is_talked_to_across_it() -> Result<()> {
     Ok(())
 }
 
+/// Sun's Festival Plaza: Sophocles in the castle's doorway, his body filling the cell south
+/// of him, walls either side, and the castle open behind him. The nearest open cell was behind
+/// him, so P said "no path" from the cell south of his body, where the game stops the player
+/// and A speaks to him. The way may end there; across a wall it may not.
+#[test]
+fn test_a_person_is_walked_up_to_across_their_body_not_round_to_a_cell_behind_them() -> Result<()>
+{
+    let walls: HashMap<(i64, i64), i64> = HashMap::from([
+        ((18, 15), BLOCKED),
+        ((20, 15), BLOCKED),
+        ((18, 16), BLOCKED),
+        ((20, 16), BLOCKED),
+        ((21, 15), BLOCKED),
+        ((22, 15), BLOCKED),
+    ]);
+    let words: Vec<i64> = (0..CHUNK * CHUNK)
+        .map(|i| walls.get(&(i % CHUNK, i / CHUNK)).copied().unwrap_or(0))
+        .collect();
+    let host = Interactable {
+        move_model: true,
+        ..Interactable::new("people", "person", (19, 15))
+    };
+    let ground = Ground::of(
+        &Field {
+            interactables: vec![host.clone()],
+            ..Field::new(0x103, (19, 19))
+        },
+        Of {
+            chunks: vec![Rc::new(Chunk::new((0, 0), words))],
+            ..Of::default()
+        },
+    )?;
+    let mut standing = ground.standing.clone();
+    standing.insert((19, 16));
+    let ground = Ground {
+        standing,
+        reach: 3,
+        ..ground
+    };
+    assert_eq!(
+        ground.goals(&host)?,
+        goals_of(&[
+            ((19, 14), Some(pathfind::SOUTH)),
+            ((19, 17), Some(pathfind::NORTH))
+        ])
+    );
+    let way = ground.find((19, 19), &ground.goals(&host)?, "", Some(&host), false, None)?;
+    let way = way.expect("a way");
+    assert_eq!(way[way.len() - 1].cell, (19, 17));
+    Ok(())
+}
+
 /// Spike 223: Santalune Gym's floor is a web whose open cells touch at corners, both
 /// neighbours walls, and the player walked them; they carry bit 3 of the cell word. A corner
 /// without the bit is a wall's corner.
