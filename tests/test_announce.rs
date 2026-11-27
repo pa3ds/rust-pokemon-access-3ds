@@ -192,6 +192,7 @@ impl Screen {
                 &given.lead,
                 &given.reread,
                 &given.rewritten,
+                &HashSet::new(),
             )
             .unwrap();
         self.backend.spoken()[before..].to_vec()
@@ -3172,6 +3173,7 @@ fn test_words_under_a_cursor_that_settle_after_it_spoke_are_not_said_again() {
             &HashSet::new(),
             &HashSet::new(),
             &HashSet::new(),
+            &HashSet::new(),
         )
         .unwrap();
     assert_eq!(screen.backend.spoken()[before..], NOTHING);
@@ -3548,6 +3550,7 @@ fn listed(
             None,
             None,
             None,
+            &HashSet::new(),
             &HashSet::new(),
             &HashSet::new(),
             &HashSet::new(),

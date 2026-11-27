@@ -43,20 +43,26 @@
 //! place the ROM names it (`places`), under every other button the AreaNav draws over the map
 //! (or_area_nav).
 //!
-//! A button a manager takes taps on by a window holding its words, with no touch area, is one too:
-//! the PSS Settings' Yes and No (`Buttons.on`). And the PSS draws its windows itself, off the
-//! field's draw list (`Layouts.listed`), each over a backdrop as big as the screen, at the layer of
-//! its page under them, which is on the list: a target of a layout on the list, at that layer or
-//! under it, is left out while such a window is up, and so is one of a window under a window built
-//! after it, the Shout-Out's Yes and No over the menu (`Layouts.order`, spike P).
+//! A button a manager takes taps on by a window or a picture holding its words, with no touch area,
+//! is one too: the PSS Settings' Yes and No, the PSS profile's messages (`Buttons.on`). And the PSS
+//! draws its windows itself, off the field's draw list (`Layouts.listed`), each over a backdrop as
+//! big as the screen, at the layer of its page under them, which is on the list: a target of a
+//! layout on the list, at that layer or under it, is left out while such a window is up, and so is
+//! one of a window under a window built after it, the Shout-Out's Yes and No over the menu
+//! (`Layouts.order`, spike P). A touch area under a bar its layout draws over it is hidden, the
+//! O-Power list's last row under its gauge; and a button switched off that the game greys, with an
+//! animation to grey it and a picture faded, is offered with "unavailable" after its name
+//! (`said_unavailable`, `greyed`).
 //!
 //! Bound by:
 //! - ADR-0009: a tap, or a drag, only on the player's keys, only on targets just named, and only
-//!   on the screens that need a touch.
+//!   on the screens that need a touch; a button the game shows greyed is offered, said unavailable.
 //! - ADR-0037: the DexNav's icons are offered and said caught or not, though the game switches off
 //!   those not caught.
 //! - ADR-0013: the words naming a target, a button's own or the label under its icon, are known
-//!   (`button_words`), for the field's bottom screen to leave them to touch mode.
+//!   (`button_words`), for the field's bottom screen and the PSS's apps to leave them to touch mode,
+//!   and stay known by their layout's file and their pane's name; a button switched off and not
+//!   offered names no target.
 
 use std::cell::Cell;
 use std::collections::HashSet;
@@ -291,6 +297,8 @@ pub struct Options {
     pub offered: Option<Rc<dyn Fn() -> bool>>,
     pub caught: HashSet<String>,
     pub said_caught: Option<Rc<dyn Fn(&str) -> String>>,
+    pub said_unavailable: Option<Rc<dyn Fn(&str) -> String>>,
+    pub greyed: Option<Off>,
 }
 
 /// The walk over the bottom screen's touch targets: the one chosen, a drag picked up and the
@@ -775,13 +783,23 @@ pub struct TouchTargets {
     caught: HashSet<String>,
     /// A button's words said caught.
     said_caught: Option<Rc<dyn Fn(&str) -> String>>,
+    /// A button's words said greyed; None offers no greyed button.
+    said_unavailable: Option<Rc<dyn Fn(&str) -> String>>,
+    /// (work, pane name) of the buttons switched off that have an animation to grey them
+    /// (`Buttons.greyed`), offered where a picture of theirs is faded (`_faded`).
+    greyed: Option<Off>,
     /// A layout's root -> the names of its buttons that were a list's labels while it was up.
     listed: IndexMap<i64, HashSet<String>>,
     /// Touch area -> what it was last called (rule 4), and the panes its button held then.
     named: IndexMap<i64, (String, HashSet<i64>)>,
     unnamed: HashSet<i64>,
-    /// Touch area -> the TextBoxes whose words named it at the last walk (`button_words`).
+    /// A layout's root -> the TextBoxes whose words named its buttons at the last walk
+    /// (`button_words`).
     boxes: IndexMap<i64, HashSet<i64>>,
+    /// (layout file, pane name) of every TextBox found a button's words (`button_words`).
+    worded: HashSet<(String, String)>,
+    /// The touch areas shown at the last walk and left out as switched off.
+    unoffered: HashSet<i64>,
     /// A layout's root -> the panes of other classes than a touch area's that its manager has
     /// listed as buttons switched on (`_windows`).
     windowed: IndexMap<i64, HashSet<i64>>,
@@ -816,6 +834,8 @@ impl TouchTargets {
             offered,
             caught,
             said_caught,
+            said_unavailable,
+            greyed,
         } = options;
         TouchTargets {
             layouts,
@@ -837,10 +857,14 @@ impl TouchTargets {
             offered,
             caught,
             said_caught,
+            said_unavailable,
+            greyed,
             listed: IndexMap::new(),
             named: IndexMap::new(),
             unnamed: HashSet::new(),
             boxes: IndexMap::new(),
+            worded: HashSet::new(),
+            unoffered: HashSet::new(),
             windowed: IndexMap::new(),
             groups: IndexMap::new(),
             middles: IndexMap::new(),
@@ -880,12 +904,17 @@ impl TouchTargets {
             Some(on) => on()?,
             None => HashSet::new(),
         };
+        let greyable = match &self.greyed {
+            Some(greyed) if self.said_unavailable.is_some() => greyed()?,
+            _ => HashSet::new(),
+        };
         let works: IndexMap<i64, i64> = layouts
             .works()
             .into_iter()
             .map(|(work, root)| (root, work))
             .collect();
         self.boxes = IndexMap::new();
+        self.unoffered = HashSet::new();
         // Only a layout drawn on the bottom screen now: the field's stay on the list while an app
         // of their own runs, Pokémon-Amie's, which draws all its layouts itself.
         let mut listed: HashSet<i64> = HashSet::new();
@@ -927,18 +956,34 @@ impl TouchTargets {
             }
             // A button switched off takes no tap however it is drawn: Super Training's party
             // under its Use panel (spike 228). But for a picture said all the same: the DexNav's
-            // Pokémon not caught were left out with it.
+            // Pokémon not caught were left out with it. And one the game shows greyed is offered
+            // said so: the PSS's Battle, Trade and O-Power for another player, offline, were said
+            // as screen text and could not be found among the targets (or_pss_singleplayer_2).
             let mut touches: Vec<i64> = Vec::new();
-            for (&pane, kind) in &tree {
-                if kind == lyt::BOUNDING_CLASS && shown(&layouts, pane)? {
-                    let name = self.name(pane)?;
-                    if !works
-                        .get(&root)
-                        .is_some_and(|&work| off.contains(&(work, name)))
-                        || self.said_though_off(root, pane, &tree)?
-                    {
-                        touches.push(pane);
-                    }
+            let mut greyed: HashSet<i64> = HashSet::new();
+            for (&area, kind) in &tree {
+                if kind != lyt::BOUNDING_CLASS || !shown(&layouts, area)? {
+                    continue;
+                }
+                let name = self.name(area)?;
+                if !works
+                    .get(&root)
+                    .is_some_and(|&work| off.contains(&(work, name)))
+                    || self.said_though_off(root, area, &tree)?
+                {
+                    touches.push(area);
+                    continue;
+                }
+                let name = self.name(area)?;
+                if works
+                    .get(&root)
+                    .is_some_and(|&work| greyable.contains(&(work, name)))
+                    && self.faded(root, area, &tree)?
+                {
+                    touches.push(area);
+                    greyed.insert(area);
+                } else {
+                    self.unoffered.insert(area);
                 }
             }
             let names_on: HashSet<String> = on
@@ -1003,13 +1048,11 @@ impl TouchTargets {
                 // came on screen as their buttons were named as they had been, and were said
                 // (or_pss_singleplayer).
                 if self.button(touch)? {
-                    self.boxes.insert(
-                        touch,
+                    self.boxes.entry(root).or_default().extend(
                         group
                             .iter()
                             .copied()
-                            .filter(|p| tree.get(p).map(String::as_str) == Some(lyt::TEXTBOX_CLASS))
-                            .collect(),
+                            .filter(|p| tree.get(p).map(String::as_str) == Some(lyt::TEXTBOX_CLASS)),
                     );
                 }
                 let mut image: Option<String> = None;
@@ -1160,10 +1203,30 @@ impl TouchTargets {
             // Touch area -> its middle in pixels and its size.
             let mut placed: IndexMap<i64, (i64, i64, f64, f64)> = IndexMap::new();
             let first = found.len();
+            let bars = self.bars(root, &tree, root_x, root_y)?;
+            let order: IndexMap<i64, i64> = if bars.is_empty() {
+                IndexMap::new()
+            } else {
+                tree.keys()
+                    .enumerate()
+                    .map(|(at, &pane)| (pane, at as i64))
+                    .collect()
+            };
             for &touch in &touches {
                 let group = &groups[&touch];
                 let pane = layouts.pane(touch)?;
                 let (x, y) = pixel(&pane, &shape, root_x, root_y)?;
+                // A bar drawn over a touch area's middle hides it: the O-Power list's seventh row
+                // lies under its gauge until the list scrolls, and a tap on it did nothing
+                // (or_pss_singleplayer_2).
+                if bars.iter().any(|&(bar, at, top, bottom)| {
+                    at > order[&touch]
+                        && top <= y as f64
+                        && y as f64 <= bottom
+                        && !group.contains(&bar)
+                }) {
+                    continue;
+                }
                 let on_screen = (0..WIDTH).contains(&x) && (0..HEIGHT).contains(&y);
                 // A button with words of its own is named by them or not at all: the Bag's rows
                 // all draw `bar1.bclim`, and an empty row was said by the one row's item
@@ -1298,7 +1361,7 @@ impl TouchTargets {
                         let label = self.label(root, touch, &words, &groups)?;
                         if let Some(label) = label {
                             picture = Some(label.text.clone());
-                            self.boxes.entry(touch).or_default().insert(label.r#box);
+                            self.boxes.entry(root).or_default().insert(label.r#box);
                         } else if let Some(texture) = &texture {
                             picture = Some(pictures::words_in(texture, layout_name));
                         }
@@ -1316,7 +1379,7 @@ impl TouchTargets {
                 areas.push((layer, x, y, width, height));
                 placed.insert(touch, (x, y, width, height));
                 let name = names.get(&touch).filter(|name| !name.is_empty()).cloned();
-                let Some(name) = name else {
+                let Some(mut name) = name else {
                     if !self.unnamed.contains(&touch) {
                         self.unnamed.insert(touch);
                         (self.log)(&format!(
@@ -1326,6 +1389,11 @@ impl TouchTargets {
                     }
                     continue;
                 };
+                if greyed.contains(&touch)
+                    && let Some(said_unavailable) = &self.said_unavailable
+                {
+                    name = said_unavailable(&name);
+                }
                 found.push(Target {
                     pane: touch,
                     name,
@@ -1411,13 +1479,22 @@ impl TouchTargets {
     /// or the label under its picture, which touch mode says as its target: offered or not, as a
     /// layout drawn over it may cover it. The field came back with the PSS's menu over its page,
     /// and its Friends, Acquaintances and Passersby were said (or_pss_singleplayer). A button
-    /// hidden or switched off is one all the same, while its words stay on screen: the PSS
-    /// Settings' rows, under its question, came back with it. Only one laid out, whose words are
-    /// its own; looked for here alone, as no walk needs it.
+    /// hidden is one all the same, while its words stay on screen: the PSS Settings' rows, under
+    /// its question, came back with it. Only one laid out, whose words are its own; looked for
+    /// here alone, as no walk needs it. Not one shown and switched off, which touch mode does not
+    /// offer: the PSS profile's History and Locations are said as screen text, or never would be
+    /// (or_pss_singleplayer_2). And once a button's words, always,
+    /// by its layout's file and its pane's name: an O-Power's panel grows from nothing as it
+    /// opens, its buttons not laid out, and Y said its "Use: Give, Cancel" at every opening but
+    /// the first (y_pss_singleplayer); the PSS's profile, built again as it came back from its
+    /// messages, said its rows.
+    ///
+    /// Python's sets of boxes are only tested and joined here, every name read of a box already
+    /// read in the walk: `HashSet`.
     pub fn button_words(&mut self) -> Result<HashSet<i64>> {
         self.targets()?;
-        let mut boxes: HashSet<i64> = self.boxes.values().flatten().copied().collect();
         let layouts = self.layouts.clone();
+        let mut boxes: HashSet<i64> = HashSet::new();
         for root in layouts.roots() {
             let Some(placement) = layouts.placement(root)? else {
                 continue;
@@ -1426,19 +1503,52 @@ impl TouchTargets {
                 continue;
             }
             let tree = layouts.tree(root);
+            let mut found: HashSet<i64> = self.boxes.get(&root).cloned().unwrap_or_default();
+            let mut unoffered: HashSet<i64> = HashSet::new();
             for (&pane, kind) in &tree {
-                if kind == lyt::BOUNDING_CLASS
-                    && !self.boxes.contains_key(&pane)
-                    && self.middle_of(pane)?.is_some()
-                    && self.button(pane)?
+                if kind != lyt::BOUNDING_CLASS
+                    || self.middle_of(pane)?.is_none()
+                    || !self.button(pane)?
                 {
-                    for p in self.group(root, pane, &tree)? {
-                        if tree.get(&p).map(String::as_str) == Some(lyt::TEXTBOX_CLASS) {
-                            boxes.insert(p);
-                        }
+                    continue;
+                }
+                let mut words: HashSet<i64> = HashSet::new();
+                for p in self.group(root, pane, &tree)? {
+                    if tree.get(&p).map(String::as_str) == Some(lyt::TEXTBOX_CLASS) {
+                        words.insert(p);
+                    }
+                }
+                if self.unoffered.contains(&pane) {
+                    unoffered.extend(words);
+                } else {
+                    found.extend(words);
+                }
+            }
+            if let Some(file) = (self.file_of)(root)
+                && !file.name.is_empty()
+            {
+                // Learnt from the targets offered alone, laid out: a layout just built has every
+                // pane in one place, and Y's O-Power list took its panel's every word for a
+                // button's, never to say them.
+                if !layouts.fresh(root) {
+                    let learnt: Vec<i64> = self
+                        .boxes
+                        .get(&root)
+                        .map(|boxes| boxes.iter().copied().collect())
+                        .unwrap_or_default();
+                    for r#box in learnt {
+                        self.worded.insert((file.name.clone(), self.name(r#box)?));
+                    }
+                }
+                for (&pane, kind) in &tree {
+                    if kind == lyt::TEXTBOX_CLASS
+                        && self.worded.contains(&(file.name.clone(), self.name(pane)?))
+                    {
+                        found.insert(pane);
                     }
                 }
             }
+            boxes.extend(found.difference(&unoffered));
         }
         Ok(boxes)
     }
@@ -1458,11 +1568,12 @@ impl TouchTargets {
         )
     }
 
-    /// The windows of a layout that are buttons switched on (`on`, their names) holding words
-    /// and no touch area: the game takes a tap on the window itself. The PSS Settings' Yes and
-    /// No are windows, `2w` and `34`, each holding its word, and were never offered (spike P).
-    /// Windows alone: Tile Puzzle's cursor, a picture its manager lists, was offered by its
-    /// texture, "cursol".
+    /// The windows and pictures of a layout that are buttons switched on (`on`, their names)
+    /// holding words and no touch area: the game takes a tap on the pane itself. The PSS
+    /// Settings' Yes and No are windows, `2w` and `34`, each holding its word, and were never
+    /// offered (spike P), nor the profile's messages to choose from, pictures, `prof_btn`, each
+    /// holding its message (or_pss_singleplayer_2). Holding words: Tile Puzzle's cursor, a
+    /// picture its manager lists, was offered by its texture, "cursol".
     ///
     /// A layout whose manager is not known now has the windows it had: a manager freed and
     /// built again in its block reads as it did, and is found only at the next whole sweep
@@ -1475,10 +1586,11 @@ impl TouchTargets {
         on: &HashSet<String>,
     ) -> Result<Vec<i64>> {
         let layouts = self.layouts.clone();
+        let classes = [lyt::WINDOW_CLASS, lyt::PICTURE_CLASS];
         if !on.is_empty() {
             let windowed = self.windowed.entry(root).or_default();
             for ((&pane, kind), name) in tree.iter().zip(layouts.pane_names(root)) {
-                if on.contains(&name) && kind == lyt::WINDOW_CLASS {
+                if on.contains(&name) && classes.contains(&kind.as_str()) {
                     windowed.insert(pane);
                 }
             }
@@ -1492,17 +1604,19 @@ impl TouchTargets {
             } else {
                 on.contains(&name)
             };
-            if !switched || kind != lyt::WINDOW_CLASS || !shown(&layouts, pane)? {
+            if !switched || !classes.contains(&kind.as_str()) || !shown(&layouts, pane)? {
                 continue;
             }
-            let kinds: HashSet<Option<&str>> = layouts
-                .children(root, pane)
-                .iter()
-                .map(|child| tree.get(child).map(String::as_str))
-                .collect();
-            if kinds.contains(&Some(lyt::TEXTBOX_CLASS))
-                && !kinds.contains(&Some(lyt::BOUNDING_CLASS))
-            {
+            // No touch area under it at any depth: the profile's bar along the bottom, a picture
+            // its manager lists, holds its count's words and return's picture, return's touch
+            // area under that.
+            let mut kinds: HashSet<&str> = HashSet::new();
+            let mut todo: Vec<i64> = layouts.children(root, pane);
+            while let Some(here) = todo.pop() {
+                kinds.insert(tree.get(&here).map_or("", String::as_str));
+                todo.extend(layouts.children(root, here));
+            }
+            if kinds.contains(lyt::TEXTBOX_CLASS) && !kinds.contains(lyt::BOUNDING_CLASS) {
                 found.push(pane);
             }
         }
@@ -1535,13 +1649,51 @@ impl TouchTargets {
         Ok(false)
     }
 
+    /// The bars a layout draws across the touch screen, each (pane, its place in the layout's
+    /// order, top, bottom): an opaque picture as wide as the screen and under half as tall, as
+    /// the O-Power list's gauge is, `assist_bg` 320 by 24. Under half: a frame as big as the
+    /// screen may be clear in its middle.
+    fn bars(
+        &self,
+        _root: i64,
+        tree: &IndexMap<i64, String>,
+        root_x: f64,
+        root_y: f64,
+    ) -> Result<Vec<(i64, i64, f64, f64)>> {
+        let (layouts, shape) = (&self.layouts, self.layouts.shape);
+        let mut found: Vec<(i64, i64, f64, f64)> = Vec::new();
+        for (at, (&pane, kind)) in tree.iter().enumerate() {
+            if kind != lyt::PICTURE_CLASS || !shown(layouts, pane)? {
+                continue;
+            }
+            let head = layouts.pane(pane)?;
+            let width = size(&head, shape.width, shape.scale_x)?;
+            let height = size(&head, shape.height, shape.scale_y)?;
+            if *head
+                .get(shape.alpha as usize)
+                .ok_or_else(|| py::Error::index("index out of range"))?
+                != 0xFF
+                || height * 2.0 >= HEIGHT as f64
+            {
+                continue;
+            }
+            let (x, y) = drawn(&head, &shape, root_x, root_y)?;
+            let (x, y) = (x as f64, y as f64);
+            if x - width / 2.0 <= 0.0 && x + width / 2.0 >= WIDTH as f64 {
+                found.push((pane, at as i64, y - height / 2.0, y + height / 2.0));
+            }
+        }
+        Ok(found)
+    }
+
     /// The words written under a touch area, as a label is under its icon, that are no
     /// button's own: the nearest of the layout's on screen, hanging beside the icon the touch
     /// area hangs from, whose middle is within its width and whose top is no more than
     /// `LABEL_GAP` below its bottom. The PSS's menu writes "Battle" over the bottom 10 of its
-    /// icon's touch area, both hanging from the menu's backdrop. Words not beside it are
-    /// another's: Amie's games menu writes "Head It" under its first button from a pane of its
-    /// own, and the Fly map's Pokémon Distribution names icons drawn under others.
+    /// icon's touch area, both hanging from the menu's backdrop; another player's window hangs
+    /// "Battle" beside the touch area itself, with the icon (or_pss_singleplayer_2). Words not
+    /// beside it are another's: Amie's games menu writes "Head It" under its first button from a
+    /// pane of its own, and the Fly map's Pokémon Distribution names icons drawn under others.
     fn label(
         &mut self,
         root: i64,
@@ -1552,7 +1704,8 @@ impl TouchTargets {
         let layouts = self.layouts.clone();
         let shape = layouts.shape;
         let head = layouts.pane(touch)?;
-        let beside = u32(&layouts.pane(u32(&head, lyt::PARENT)?)?, lyt::PARENT)?;
+        let parent = u32(&head, lyt::PARENT)?;
+        let beside = [parent, u32(&layouts.pane(parent)?, lyt::PARENT)?];
         let (across, up) = middle(&head, &shape)?;
         let width = size(&head, shape.width, shape.scale_x)?;
         let bottom = up - size(&head, shape.height, shape.scale_y)? / 2.0;
@@ -1562,7 +1715,7 @@ impl TouchTargets {
             if piece.root != root
                 || piece.picture
                 || buttons.contains(&r#box)
-                || u32(&layouts.pane(r#box)?, lyt::PARENT)? != beside
+                || !beside.contains(&u32(&layouts.pane(r#box)?, lyt::PARENT)?)
             {
                 continue;
             }
@@ -1729,6 +1882,29 @@ impl TouchTargets {
             }
         }
         Ok(said.join(" "))
+    }
+
+    /// Does the touch area's button draw a picture faded, neither clear nor solid? The PSS
+    /// draws another player's Battle, Trade and O-Power icons at alpha 100 while they are
+    /// switched off, and at 255 on its menu. Faded alone is not greyed: Super Training's party
+    /// under its panels draws a picture at alpha 200, with no animation to grey it, and was
+    /// said "Ralts unavailable" (the round after or_pss_singleplayer_2).
+    fn faded(&mut self, root: i64, touch: i64, tree: &IndexMap<i64, String>) -> Result<bool> {
+        let layouts = self.layouts.clone();
+        for p in self.group(root, touch, tree)? {
+            if tree.get(&p).map(String::as_str) == Some(lyt::PICTURE_CLASS)
+                && shown(&layouts, p)?
+                && (1..0xFF).contains(
+                    layouts
+                        .pane(p)?
+                        .get(layouts.shape.alpha as usize)
+                        .ok_or_else(|| py::Error::index("index out of range"))?,
+                )
+            {
+                return Ok(true);
+            }
+        }
+        Ok(false)
     }
 
     /// Does the touch area's button draw a picture offered though the button is off?

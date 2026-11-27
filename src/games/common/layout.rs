@@ -424,6 +424,12 @@ impl Layouts {
         self.order.borrow().get(&root).copied().unwrap_or(0)
     }
 
+    /// Was the layout taken in within the last `BUILT_POLLS` screen polls? Its panes may not
+    /// be laid out yet: Y's O-Power list, the poll it was built, had every pane in one place.
+    pub fn fresh(&self, root: i64) -> bool {
+        self.built.borrow().contains_key(&root)
+    }
+
     /// Stop reading a layout: its work holds another now.
     fn forget(&self, root: i64) {
         self.roots.borrow_mut().shift_remove(&root);

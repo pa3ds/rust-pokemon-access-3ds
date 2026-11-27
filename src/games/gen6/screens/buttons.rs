@@ -18,6 +18,8 @@
 //! button     +0x08  a handle, whose +0x04 is its layout's work
 //!            +0x10  the number of its touch area in that layout, or of its picture where it has
 //!                   none, which the pane is named by in base 36: 0x111 is "7l"
+//!            +0x18  its layout's animations, a word each to +0x28, 0xFFFFFFFF for none
+//!            +0x28  the animation that greys it (`PASSIVE`)
 //!            +0x35  it takes taps
 //! touch bar  +0x10  its manager
 //!            +0x14  its input listener, inside the touch bar itself
@@ -38,6 +40,12 @@
 //! its +0x9c while the page has the input, from the bags list on, and draws the frame's icons
 //! masked, and a tap on "previous" under the Use panel did nothing. Its manager counts as locked
 //! meanwhile.
+//!
+//! A button switched off is drawn greyed where it has an animation to grey it: another player's
+//! Battle, Trade and O-Power in the PSS, offline, their icons faded to alpha 100, the PlayNav
+//! tutorial's arrows, Amie's difficulty buttons as their menu opens (`greyed`). Super Training's
+//! buttons have no animations at all, and are drawn as bright as ever switched off; the DexNav's
+//! panel none at +0x28 (or_pss_singleplayer_2, the round after it).
 
 use std::collections::HashSet;
 use std::rc::Rc;
@@ -65,6 +73,7 @@ pub const INPUT: i64 = 0x2D;
 pub const BAR_SIZE: i64 = 0x100;
 pub const MAX_BUTTONS: i64 = 64;
 pub const PANE: i64 = 0x10;
+pub const PASSIVE: i64 = 0x28;
 pub const ON: i64 = 0x35;
 pub const MENU_CLASS: &str = "N5field9subscreen9FieldMenuE";
 /// Where ORAS's field menu keeps its manager and the byte set while an app has the input.
@@ -232,7 +241,7 @@ impl Buttons {
     /// (work, pane name) of every touch area whose buttons are all switched off now: its
     /// layout's work and its name, or its picture's where it has none.
     pub fn off(&self) -> Result<HashSet<(i64, String)>> {
-        let (on, found) = self.switched()?;
+        let (on, found, _greyed) = self.switched()?;
         // X's regimen menu keeps two buttons on its regimen's touch area, one of them off.
         Ok(found.difference(&on).cloned().collect())
     }
@@ -244,12 +253,27 @@ impl Buttons {
         Ok(self.switched()?.0)
     }
 
-    /// (work, pane name) of the buttons switched on now, and of those switched off.
+    /// (work, pane name) of the buttons switched off now that have an animation to grey them
+    /// (`PASSIVE`).
+    pub fn greyed(&self) -> Result<HashSet<(i64, String)>> {
+        let (on, _found, greyed) = self.switched()?;
+        Ok(greyed.difference(&on).cloned().collect())
+    }
+
+    /// (work, pane name) of the buttons switched on now, of those switched off, and of those
+    /// switched off that the game greys.
     #[allow(clippy::type_complexity)]
-    fn switched(&self) -> Result<(HashSet<(i64, String)>, HashSet<(i64, String)>)> {
+    fn switched(
+        &self,
+    ) -> Result<(
+        HashSet<(i64, String)>,
+        HashSet<(i64, String)>,
+        HashSet<(i64, String)>,
+    )> {
         let read = |at: i64, size: i64| self.memory.read(at, size);
         let mut found: HashSet<(i64, String)> = HashSet::new();
         let mut on: HashSet<(i64, String)> = HashSet::new();
+        let mut greyed: HashSet<(i64, String)> = HashSet::new();
         for (&manager, &vtable) in &self.managers {
             let head = read(manager, COUNT + 4)?;
             let (table, count) = (u32(&head, BUTTONS)?, u32(&head, COUNT)?);
@@ -278,14 +302,17 @@ impl Buttons {
                         pane_name(u32(state, PANE)?),
                     );
                     if state[ON as usize] != 0 {
-                        on.insert(key);
+                        on.insert(key.clone());
                     } else {
-                        found.insert(key);
+                        found.insert(key.clone());
+                    }
+                    if state[ON as usize] == 0 && u32(state, PASSIVE)? != 0xFFFFFFFF {
+                        greyed.insert(key);
                     }
                 }
             }
         }
-        Ok((on, found))
+        Ok((on, found, greyed))
     }
 
     /// The works of the layouts a manager's buttons are in, read again when its list of

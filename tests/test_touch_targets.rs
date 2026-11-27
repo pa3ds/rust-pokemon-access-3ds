@@ -14,7 +14,8 @@ use super::fake_layouts::FakeLayouts;
 use super::fake_memory::{CODE, FakeClasses, FakeMemory};
 use crate::core::config::{DRAG_HOLD, Touch};
 use crate::core::rtti::ClassNames;
-use crate::games::common::layout::Layouts;
+use crate::games::common::layout::{BUILT_POLLS, Layouts};
+use crate::games::common::layout_file::LayoutFile;
 use crate::games::common::lyt;
 use crate::games::common::screen::ScreenText;
 use crate::games::common::touch::{self, ModeOptions, Options, Target, TouchMode, TouchTargets};
@@ -2123,4 +2124,281 @@ fn test_a_window_drawn_off_the_draw_list_over_a_backdrop_covers_the_page_under_i
     fake.visible(window + 0x1000, false);
     fake.layouts.refresh();
     assert_eq!(names(&mut targets), ["Friends", "No", "Yes", "POKÉMON"]);
+}
+
+/// The names of the targets on the bottom screen now, in reading order.
+fn names_of(targets: &mut TouchTargets) -> Vec<String> {
+    targets
+        .targets()
+        .unwrap()
+        .into_iter()
+        .map(|t| t.name)
+        .collect()
+}
+
+/// The PSS profile's messages to choose from are pictures, `prof_btn`, each holding its
+/// message, that its manager lists as buttons: touch mode offered only return
+/// (or_pss_singleplayer_2). Its bar along the bottom is one too, holding its count's words and
+/// return, whose touch area hangs under return's picture: the bar is no touch area.
+#[test]
+fn test_a_picture_holding_its_words_that_is_a_button_switched_on_is_a_touch_area() {
+    let memory = FakeMemory::new();
+    let classes = FakeClasses::new(memory.clone());
+    let fake = FakeLayouts::new(&memory, &classes);
+    let (picture, textbox) = (
+        classes.add(lyt::PICTURE_CLASS),
+        classes.add(lyt::TEXTBOX_CLASS),
+    );
+    let bounding = classes.add(lyt::BOUNDING_CLASS);
+    let (work, root) = fake.screen_with(0x08200000, false, false);
+    let (message, bar) = (root + 0x1000, root + 0x2000);
+    placed(&fake, message, root, Some(picture), 0.0, 89.0, 290.0, 40.0);
+    memory.write(message + lyt::NAME, b"ah");
+    placed(&fake, message + 0x200, message, Some(textbox), 0.0, 89.0, 270.0, 20.0);
+    placed(&fake, bar, root, Some(picture), 0.0, -105.0, 320.0, 30.0);
+    memory.write(bar + lyt::NAME, b"c");
+    placed(&fake, bar + 0x200, bar, Some(textbox), -65.0, -107.0, 190.0, 20.0);
+    placed(&fake, bar + 0x400, bar, Some(picture), 145.0, -105.0, 30.0, 30.0);
+    placed(&fake, bar + 0x600, bar + 0x400, Some(bounding), 145.0, -105.0, 40.0, 30.0);
+    fake.track().unwrap();
+    let said: IndexMap<i64, &str> = IndexMap::from([
+        (message + 0x200, "Enter your own message"),
+        (bar + 0x200, "Total number of people met: 4"),
+    ]);
+    let words: Vec<ScreenText> = said
+        .iter()
+        .map(|(&r#box, &text)| text_in(r#box, text, root))
+        .collect();
+    let drawn: IndexMap<i64, &str> =
+        IndexMap::from([(bar, "touch_bar.bclim"), (bar + 0x400, "return_pss.bclim")]);
+    let mut targets = TouchTargets::new(
+        fake.layouts.clone(),
+        Rc::new(move || words.clone()),
+        Rc::new(move |r#box| Ok(said.get(&r#box).copied().unwrap_or_default().to_string())),
+        Rc::new(move |pane| Ok(drawn.get(&pane).map(|image| image.to_string()))),
+        Rc::new(|_root| None),
+        Rc::new(|_line: &str| {}),
+        Options {
+            on: Some(Rc::new(move || {
+                Ok(HashSet::from([
+                    (work, "ah".to_string()),
+                    (work, "c".to_string()),
+                ]))
+            })),
+            ..Options::default()
+        },
+    );
+    assert_eq!(
+        names_of(&mut targets),
+        ["Enter your own message", "return"]
+    );
+}
+
+/// The O-Power list's seventh row lies under its gauge, `assist_bg` 320 by 24, drawn after it,
+/// until the list scrolls: a tap on Stealth Power did nothing (or_pss_singleplayer_2). A bar
+/// drawn before a row is under it, and one see-through hides nothing.
+#[test]
+fn test_a_touch_area_under_a_bar_drawn_over_it_is_left_out() {
+    let memory = FakeMemory::new();
+    let classes = FakeClasses::new(memory.clone());
+    let fake = FakeLayouts::new(&memory, &classes);
+    let (bounding, picture) = (
+        classes.add(lyt::BOUNDING_CLASS),
+        classes.add(lyt::PICTURE_CLASS),
+    );
+    let textbox = classes.add(lyt::TEXTBOX_CLASS);
+    let (_work, root) = fake.screen_with(0x08200000, false, false);
+    let [header, first, seventh, gauge] = [1, 2, 3, 4].map(|i: i64| root + 0x1000 * i);
+    placed(&fake, header, root, Some(picture), 0.0, 100.0, 320.0, 30.0);
+    for (row, y) in [(first, 100.0f32), (seventh, -80.0)] {
+        placed(&fake, row, root, None, 25.0, y, 240.0, 30.0);
+        placed(&fake, row + 0x200, row, Some(textbox), -10.0, y, 140.0, 20.0);
+        placed(&fake, row + 0x400, row, Some(bounding), 25.0, y, 240.0, 30.0);
+    }
+    placed(&fake, gauge, root, Some(picture), 0.0, -78.0, 320.0, 24.0);
+    fake.track().unwrap();
+    let words = vec![
+        text_in(first + 0x200, "Hatching Power", root),
+        text_in(seventh + 0x200, "Stealth Power", root),
+    ];
+    let mut targets = TouchTargets::new(
+        fake.layouts.clone(),
+        Rc::new(move || words.clone()),
+        Rc::new(|_box| Ok(String::new())),
+        Rc::new(|_pane| Ok(None)),
+        Rc::new(|_root| None),
+        Rc::new(|_line: &str| {}),
+        Options::default(),
+    );
+    assert_eq!(names_of(&mut targets), ["Hatching Power"]);
+    fake.fade(gauge, 0xC8);
+    fake.layouts.refresh();
+    assert_eq!(
+        names_of(&mut targets),
+        ["Hatching Power", "Stealth Power"]
+    );
+}
+
+/// Another player's Battle, Trade and O-Power in the PSS, offline: switched off, their icons
+/// drawn at alpha 100 where the menu draws them at 255, and said as screen text, not offered
+/// (or_pss_singleplayer_2). A button switched off and drawn as ever is still left out, and so
+/// is one with no animation to grey it however faded: Super Training's party under its panels
+/// has none, its picture at alpha 200, and was said "Ralts unavailable".
+#[test]
+fn test_a_button_the_game_shows_greyed_is_offered_said_so() {
+    let memory = FakeMemory::new();
+    let classes = FakeClasses::new(memory.clone());
+    let fake = FakeLayouts::new(&memory, &classes);
+    let (bounding, picture) = (
+        classes.add(lyt::BOUNDING_CLASS),
+        classes.add(lyt::PICTURE_CLASS),
+    );
+    let (work, group) = fake.screen(0x08200000);
+    for (i, (x, name)) in [(-140.0f32, b"2q"), (0.0, b"2r"), (140.0, b"2s")]
+        .into_iter()
+        .enumerate()
+    {
+        let button = group + 0x1000 * (i as i64 + 1);
+        fake.pane(button, group);
+        fake.pane_with_vtable(button + 0x200, button, Some(bounding));
+        fake.pane_with_vtable(button + 0x400, button, Some(picture));
+        memory.write(button + 0x200 + lyt::NAME, name);
+        memory.write(button + 0x200 + lyt::X, &floats(&[x]));
+        memory.write(button + 0x200 + lyt::WIDTH, &floats(&[40.0, 30.0]));
+    }
+    fake.fade(group + 0x1400, 100);
+    fake.fade(group + 0x3400, 200);
+    fake.track().unwrap();
+    let mut targets = TouchTargets::new(
+        fake.layouts.clone(),
+        Rc::new(Vec::new),
+        Rc::new(|_box| Ok(String::new())),
+        Rc::new(|_pane| Ok(Some("slot.bclim".to_string()))),
+        Rc::new(|_root| None),
+        Rc::new(|_line: &str| {}),
+        Options {
+            images: Some(IndexMap::from([(
+                "slot.bclim".to_string(),
+                "slot".to_string(),
+            )])),
+            off: Some(Rc::new(move || {
+                Ok(HashSet::from([
+                    (work, "2q".to_string()),
+                    (work, "2r".to_string()),
+                    (work, "2s".to_string()),
+                ]))
+            })),
+            said_unavailable: Some(Rc::new(|words: &str| format!("{words}, unavailable"))),
+            greyed: Some(Rc::new(move || {
+                Ok(HashSet::from([
+                    (work, "2q".to_string()),
+                    (work, "2r".to_string()),
+                ]))
+            })),
+            ..Options::default()
+        },
+    );
+    assert_eq!(
+        targets
+            .targets()
+            .unwrap()
+            .iter()
+            .map(|t| (t.name.as_str(), t.x))
+            .collect::<Vec<_>>(),
+        [("slot, unavailable", 20)]
+    );
+}
+
+/// An O-Power's panel grows from nothing as it opens, its buttons not laid out as their words
+/// come: Y said "Use: Give, Cancel" at every opening but the first (y_pss_singleplayer). Known by
+/// its layout's file and its pane's name, as the PSS's profile is built again.
+#[test]
+fn test_a_buttons_words_stay_its_own_while_its_layout_lives() {
+    let memory = FakeMemory::new();
+    let classes = FakeClasses::new(memory.clone());
+    let fake = FakeLayouts::new(&memory, &classes);
+    let (bounding, textbox) = (
+        classes.add(lyt::BOUNDING_CLASS),
+        classes.add(lyt::TEXTBOX_CLASS),
+    );
+    let (_work, root) = fake.screen_with(0x08200000, false, false);
+    let r#use = root + 0x1000;
+    placed(&fake, r#use, root, None, -105.0, -105.0, 90.0, 30.0);
+    placed(&fake, r#use + 0x200, r#use, Some(textbox), -105.0, -105.0, 60.0, 20.0);
+    placed(&fake, r#use + 0x400, r#use, Some(bounding), -105.0, -105.0, 90.0, 30.0);
+    memory.write(r#use + 0x200 + lyt::NAME, b"3x");
+    fake.track().unwrap();
+    for _ in 0..BUILT_POLLS {
+        fake.layouts.revive().unwrap();
+    }
+    let words = vec![text_in(r#use + 0x200, "Use", root)];
+    let panel = Rc::new(LayoutFile {
+        name: "assist_lower.bclyt".to_string(),
+        ..LayoutFile::new(
+            vec!["RootPane".to_string()],
+            IndexMap::new(),
+            IndexMap::new(),
+        )
+    });
+    let mut targets = TouchTargets::new(
+        fake.layouts.clone(),
+        Rc::new(move || words.clone()),
+        Rc::new(|_box| Ok(String::new())),
+        Rc::new(|_pane| Ok(None)),
+        Rc::new(move |_root| Some(panel.clone())),
+        Rc::new(|_line: &str| {}),
+        Options::default(),
+    );
+    assert_eq!(
+        targets.button_words().unwrap(),
+        HashSet::from([r#use + 0x200])
+    );
+    for pane in [r#use, r#use + 0x400] {
+        memory.write(pane + lyt::SCALE_X, &floats(&[0.0]));
+    }
+    fake.visible(r#use + 0x400, false);
+    fake.layouts.refresh();
+    assert_eq!(
+        targets.button_words().unwrap(),
+        HashSet::from([r#use + 0x200])
+    );
+}
+
+/// Another player's window in the PSS hangs Battle's icon, its touch area and the word
+/// "Battle" under them all from one pane, where the menu hangs its touch area from the icon:
+/// touch mode said it by its icon's base, "pss icon base" (or_pss_singleplayer_2).
+#[test]
+fn test_an_icon_is_named_by_the_words_under_it_beside_its_touch_area() {
+    let memory = FakeMemory::new();
+    let classes = FakeClasses::new(memory.clone());
+    let fake = FakeLayouts::new(&memory, &classes);
+    let (bounding, picture) = (
+        classes.add(lyt::BOUNDING_CLASS),
+        classes.add(lyt::PICTURE_CLASS),
+    );
+    let textbox = classes.add(lyt::TEXTBOX_CLASS);
+    let (_work, root) = fake.screen_with(0x08200000, false, false);
+    let battle = root + 0x1000;
+    placed(&fake, battle, root, None, -55.0, 10.0, 100.0, 100.0);
+    placed(&fake, battle + 0x200, battle, Some(picture), -55.0, 10.0, 50.0, 50.0);
+    placed(&fake, battle + 0x400, battle, Some(textbox), -55.0, -25.0, 100.0, 30.0);
+    placed(&fake, battle + 0x600, battle, Some(bounding), -55.0, 10.0, 50.0, 50.0);
+    fake.track().unwrap();
+    let words = vec![text_in(battle + 0x400, "Battle", root)];
+    let mut targets = TouchTargets::new(
+        fake.layouts.clone(),
+        Rc::new(move || words.clone()),
+        Rc::new(|_box| Ok(String::new())),
+        Rc::new(move |pane| {
+            Ok((pane == battle + 0x200).then(|| "pss_icon_base.bclim".to_string()))
+        }),
+        Rc::new(|_root| None),
+        Rc::new(|_line: &str| {}),
+        Options::default(),
+    );
+    assert_eq!(names_of(&mut targets), ["Battle"]);
+    assert_eq!(
+        targets.button_words().unwrap(),
+        HashSet::from([battle + 0x400])
+    );
 }

@@ -6,7 +6,8 @@ use std::rc::Rc;
 
 use super::fake_memory::FakeMemory;
 use crate::games::gen6::screens::buttons::{
-    BAR_MANAGER, BUTTONS, Buttons, HANDLE, INPUT, LISTENER, LOCKED, ON, PANE, WORK, pane_name,
+    BAR_MANAGER, BUTTONS, Buttons, HANDLE, INPUT, LISTENER, LOCKED, ON, PANE, PASSIVE, WORK,
+    pane_name,
 };
 use crate::games::oras;
 
@@ -112,6 +113,35 @@ fn test_a_button_switched_off_is_said_by_its_layouts_work_and_its_panes_name() {
         HashSet::from([(PARTY_WORK, "85".to_string())])
     );
     assert_eq!(pane_name(0x111), "7l");
+}
+
+/// Another player's Battle in the PSS, offline, is switched off with an animation to grey it
+/// at +0x28, 0x2e, and drawn faded; Super Training's buttons have no animations, 0xFFFFFFFF
+/// each, and are drawn as bright as ever switched off (or_pss_singleplayer_2).
+#[test]
+fn test_a_button_switched_off_is_greyed_where_it_has_an_animation_to_grey_it() {
+    let memory = FakeMemory::new();
+    manager(&memory, LIST, PARTY_WORK, false, 3);
+    let (back, battle, slot) = (LIST + 0x300, LIST + 0x360, LIST + 0x3C0);
+    for (button, pane, passive) in [
+        (back, 0x01, 0x33),
+        (battle, 0x0A, 0x2E),
+        (slot, 0x62, 0xFFFFFFFF),
+    ] {
+        memory.u32(button + PANE, &[pane]);
+        memory.u32(button + PASSIVE, &[passive]);
+    }
+    memory.write(back + ON, b"\x01");
+    let mut buttons = Buttons::new(memory.clone());
+    buttons.track([LIST], [], [], false).unwrap();
+    assert_eq!(
+        buttons.off().unwrap(),
+        HashSet::from([(PARTY_WORK, "a".to_string()), (PARTY_WORK, "2q".to_string())])
+    );
+    assert_eq!(
+        buttons.greyed().unwrap(),
+        HashSet::from([(PARTY_WORK, "a".to_string())])
+    );
 }
 
 /// X's regimen menu keeps two buttons on its regimen's touch area "ca", 0x1ba, one of them

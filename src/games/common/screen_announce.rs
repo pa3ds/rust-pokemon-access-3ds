@@ -418,8 +418,12 @@ impl ScreenAnnouncer {
     /// it a poll later. `rewritten` is the roots whose words are heard as changed, a rewrite: a
     /// summary page changed with the Pokémon, an Egg's memo or the stats after it.
     ///
-    /// Python's `roots`, `subject`, `chosen` and `title` default to None, and `lead`, `reread`
-    /// and `rewritten` to none.
+    /// `quiet` is the boxes whose words another says, as touch mode says a button's as its target
+    /// (ADR-0013): never brought back with a screen coming back to their layout. The PSS's profile,
+    /// back from its messages, read its Message and its card again with its History.
+    ///
+    /// Python's `roots`, `subject`, `chosen` and `title` default to None, and `lead`, `reread`,
+    /// `rewritten` and `quiet` to none.
     #[allow(clippy::too_many_arguments)]
     pub fn say(
         &mut self,
@@ -433,6 +437,7 @@ impl ScreenAnnouncer {
         lead: &HashSet<i64>,
         reread: &HashSet<i64>,
         rewritten: &HashSet<i64>,
+        quiet: &HashSet<i64>,
     ) -> Result<()> {
         self.polls += 1;
         self.lead = lead.clone();
@@ -803,6 +808,7 @@ impl ScreenAnnouncer {
             .collect();
         let mut shown: Vec<ScreenText> = heard.iter().filter(|p| !p.changed).cloned().collect();
         let mut said: HashSet<i64> = cursored.union(&ticks).copied().collect();
+        said.extend(quiet.iter().copied());
         let mut gathering = self.gathering.take();
         if gathering
             .as_ref()

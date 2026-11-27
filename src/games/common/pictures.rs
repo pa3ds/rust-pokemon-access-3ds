@@ -162,6 +162,10 @@ pub const HIDDEN_ABILITY: &str = "dexnav-hidden-ability";
 /// Said after a Pokémon the DexNav shows in colour, caught, where the rest are its silhouettes:
 /// only the caught are said so.
 pub const CAUGHT: &str = "dexnav-caught";
+/// Said after a button the game shows greyed, its button switched off and its picture faded, where
+/// a tap does nothing: another player's Battle, Trade and O-Power in the PSS, offline
+/// (or_pss_singleplayer_2). Offered so, a player learns what is there; left out, they never would.
+pub const UNAVAILABLE: &str = "button-unavailable";
 
 /// `DRAWN.get(texture)`.
 pub fn drawn(texture: &str) -> Option<&'static str> {

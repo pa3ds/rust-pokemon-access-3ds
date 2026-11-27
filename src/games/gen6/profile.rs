@@ -58,7 +58,7 @@ use crate::games::common::field::things::{
 };
 use crate::games::common::layout::Layouts;
 use crate::games::common::layout_file::{LayoutFile, LayoutFiles};
-use crate::games::common::pictures::CAUGHT;
+use crate::games::common::pictures::{CAUGHT, UNAVAILABLE};
 use crate::games::common::pictures::named as named_picture;
 use crate::games::common::scenes::{
     Described, GameClock, Lines, Recall, Scenes, Word, load as load_scenes,
@@ -174,11 +174,12 @@ pub const HELD_MOST: f64 = 3.0;
 /// The apps touch mode offers targets in (ADR-0009 as amended 2026-10-29): the field, whose
 /// bottom screen is the PokéNav Plus and its DexNav, BuzzNav and PlayNav, or X's own, with
 /// Pokémon-Amie's and Super Training's pages; the subscreens' tutorials; the AreaNav; and the
-/// subscreens' own apps (`subscreen.TOUCHED`), Pokémon-Amie's and Super Training's. Every other
+/// subscreens' own apps (`subscreen.TOUCHED`), Pokémon-Amie's and Super Training's, and the PSS's
+/// (`subscreen.pss`). Every other
 /// screen, the Bag, the PC, a battle, is worked with the game's buttons, which do all its touches
 /// do and faster, and touch mode says there is nothing to touch. A
 /// `frozenset` in Python, only ever tested for membership.
-pub const TOUCHED: [&str; 12] = [
+pub const TOUCHED: [&str; 11] = [
     FIELD,
     TUTORIAL,
     townmap::APP,
@@ -190,7 +191,6 @@ pub const TOUCHED: [&str; 12] = [
     subscreen::TOUCHED[5],
     subscreen::TOUCHED[6],
     subscreen::TOUCHED[7],
-    subscreen::TOUCHED[8],
 ];
 pub const PICK_SOUND: &str = "SEQ_SE_CATCH";
 /// The PC Box's sounds for picking up a Pokémon and putting it down, the game's own for moving
@@ -899,6 +899,10 @@ impl Gen6Profile {
             let buttons = buttons.clone();
             Rc::new(move || buttons.borrow().on())
         };
+        let greyed: touch::Off = {
+            let buttons = buttons.clone();
+            Rc::new(move || buttons.borrow().greyed())
+        };
         // A screen's own keys are heard as the drag's own sounds are and the game's error sound,
         // or said where they are off; logged either way, as a key's line is.
         let heard = {
@@ -1099,17 +1103,23 @@ impl Gen6Profile {
                 said_caught: Some(Rc::new(move |words: &str| {
                     format!("{words}{gap}{}", own(CAUGHT, &[]))
                 })),
+                said_unavailable: Some(Rc::new(move |words: &str| {
+                    format!("{words}{gap}{}", own(UNAVAILABLE, &[]))
+                })),
                 lists: Some(lists_labels),
                 idle: Some(idle),
                 off: Some(off),
                 on: Some(on),
+                greyed: Some(greyed),
                 offered: Some({
                     let apps = apps.clone();
                     Rc::new(move || {
-                        apps.borrow()
-                            .running
-                            .as_deref()
-                            .is_none_or(|running| TOUCHED.contains(&running))
+                        let running = apps.borrow().running.clone();
+                        running.is_none()
+                            || running
+                                .as_deref()
+                                .is_some_and(|running| TOUCHED.contains(&running))
+                            || subscreen::pss(running.as_deref())
                     })
                 }),
                 said_off: Some({
@@ -1985,22 +1995,39 @@ impl Gen6Profile {
         // (or_pss_singleplayer). Words changing in a button are still said: "Game Chat:
         // Disabled". Not a cursor's: the X menu's are its items. Only as they come: what the
         // screen announcer hears whole, Amie's Switch screen read each Pokémon's Fullness and
-        // Enjoyment from, as details.
-        let on_field = self.apps.borrow().running.as_deref() == Some(FIELD);
-        if on_field && texts.iter().any(|t| !t.top && !t.changed) {
+        // Enjoyment from, as details. The PSS's own apps are its screens too: its profile said
+        // "Message: Nice to meet ya!" as it opened (or_pss_singleplayer_2).
+        let mut quiet: HashSet<i64> = HashSet::new();
+        let running = self.apps.borrow().running.clone();
+        let on_field = running.as_deref() == Some(FIELD);
+        if (on_field || subscreen::pss(running.as_deref()))
+            && texts.iter().any(|t| !t.top && !t.changed)
+        {
             let buttons = self.touch_targets.borrow_mut().button_words()?;
-            let cursored: HashSet<i64> = cursors
-                .under
-                .iter()
-                .flatten()
-                .map(|piece| piece.root)
-                .collect();
+            // The PSS's apps have no menu: the profile's Message row, lit as it came back from
+            // its messages, kept its words for the cursor it was taken for.
+            let cursored: HashSet<i64> = if on_field {
+                cursors
+                    .under
+                    .iter()
+                    .flatten()
+                    .map(|piece| piece.root)
+                    .collect()
+            } else {
+                HashSet::new()
+            };
             texts.retain(|text| {
                 text.top
                     || text.changed
                     || !buttons.contains(&text.r#box)
                     || cursored.contains(&text.root)
             });
+            quiet = screen
+                .on_screen
+                .iter()
+                .filter(|piece| buttons.contains(&piece.r#box) && !cursored.contains(&piece.root))
+                .map(|piece| piece.r#box)
+                .collect();
         }
         let mut title = polled.title;
         if self.after_forget.get().is_some() {
@@ -2049,6 +2076,7 @@ impl Gen6Profile {
             &said.lead,
             &said.reread,
             &said.rewritten,
+            &quiet,
         )?;
         for (logged, line) in &polled.after {
             (self.log)(&format!("{logged}: {line}"));
