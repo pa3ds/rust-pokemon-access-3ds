@@ -79,8 +79,8 @@ The battle's keys work throughout.
 | `Shift+R` | Say the enemy's side of the battle again. In a contest, everyone else's place. In a trade with another player, the Pokémon they have offered, and choosing your team before a battle with one, the team they chose: each Pokémon's gender and level, not yet its name. |
 | `Shift+K` | Give the chosen thing a name of your own. |
 | `Shift+J` | Give whoever spoke last a name of your own. |
-| `C` | Say the square you are standing on, as x and z: x grows going east, z going south. In a Super Training regimen, where your Pokémon stands, as below. |
-| `Shift+C` | Say the chosen thing's squares the same way. |
+| `C` | Say the square you are standing on, as x and z: x grows going east, z going south. In a Super Training regimen, where your Pokémon stands, as below. In a battle, the seconds you have left to choose, the "Command Time" a battle with another player shows, or "no timer". |
+| `Shift+C` | Say the chosen thing's squares the same way. In a battle, the time the battle has left, its "Battle Time", or "no timer". |
 | `Y` | Say again the last thing pa3ds said, whatever said it. |
 
 **List mode** walks the whole list, nearest first.
@@ -358,7 +358,8 @@ front of its line: a line you delete is put back the next time pa3ds starts.
 - `[pa3ds.training.page]` and `[pa3ds.training.round]` hold the keys of Super Training's page and
   of its regimens, taken only while each is up.
 - `[pa3ds.pss.trade]` and `[pa3ds.pss.colosseum]` hold the keys of a trade with another player
-  and of choosing your team before a battle with one, taken only while each is up.
+  and of choosing your team before a battle with one, taken only while each is up, and
+  `[pa3ds.pss.battle]` the keys of a battle's timers, taken in every battle.
 - `[azahar]` rebinds Azahar's own buttons, and `[azahar.circle_pad]` and `[azahar.c_stick]` its
   two sticks. Changes apply the next time pa3ds starts with Azahar closed.
 

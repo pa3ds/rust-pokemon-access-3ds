@@ -152,6 +152,10 @@ pub const THEIR_OFFER: &str = "their offer";
 /// Say the team the other player chose for a battle chosen in the PSS, as the team choice's top
 /// screen draws it (`pss_keys.PssKeys`).
 pub const THEIR_TEAM: &str = "their team";
+pub const COMMAND_TIME: &str = "command time";
+/// Say a battle's Command Time and Battle Time, as its top screen shows them
+/// (`pss_battle.BattleTimers`).
+pub const BATTLE_TIME: &str = "battle time";
 /// Amie's stylus moved a step over the Pokémon, which way across and down the screen each goes
 /// (`amie.StylusKeys`).
 pub const STYLUS_MOVES: [(&str, (i64, i64)); 4] = [
@@ -169,7 +173,7 @@ pub const STYLUS_JUMPS: [(&str, (i64, i64)); 4] = [
     ("stylus jump right", (1, 0)),
 ];
 
-pub const EXPLAINED: [(&str, &str); 18] = [
+pub const EXPLAINED: [(&str, &str); 20] = [
     (
         ENEMY_SIDE,
         "The enemy's Pokémon are said in the order the battle places them. In a horde of five that \
@@ -252,6 +256,16 @@ pub const EXPLAINED: [(&str, &str); 18] = [
         THEIR_TEAM,
         "Choosing your team for a battle with another player, says the team they chose, as the \
          top screen shows it.",
+    ),
+    (
+        COMMAND_TIME,
+        "In a battle, says the seconds you have left to choose, where it has a time limit, as the \
+         top screen shows them.",
+    ),
+    (
+        BATTLE_TIME,
+        "In a battle, says the time the battle has left, where it has a time limit, as the top \
+         screen shows it.",
     ),
 ];
 
@@ -403,6 +417,9 @@ pub const PSS_TRADE: &str = "pss.trade";
 /// The team choice before a battle chosen in the PSS: `[pa3ds.pss.colosseum]` in the keys
 /// file.
 pub const PSS_COLOSSEUM: &str = "pss.colosseum";
+/// A battle, whose timers a battle with another player shows: `[pa3ds.pss.battle]` in the keys
+/// file.
+pub const PSS_BATTLE: &str = "pss.battle";
 
 /// Context -> key -> action: keys that mean something only while one screen runs, in every mode,
 /// and are taken from the emulator only then, so a key that is a button of Azahar's elsewhere stays
@@ -420,7 +437,9 @@ pub type Contexts = IndexMap<String, IndexMap<String, String>>;
 /// and does not say, on down that line: Super Training's chart on its page, and a round's numbers.
 /// C, the map's coordinates elsewhere, says where a round's Pokémon stands. In a trade with another
 /// player R says the player's offer and Shift and R the other player's, and choosing a team before a
-/// battle with one Shift and R says theirs: what the top screen draws there, as R is elsewhere.
+/// battle with one Shift and R says theirs: what the top screen draws there, as R is elsewhere. In
+/// a battle C says Command Time and Shift and C Battle Time, where the battle shows them, a battle
+/// with another player: C's coordinates are the map's, and the battle is not on the map.
 pub static DEFAULT_CONTEXTS: LazyLock<Contexts> = LazyLock::new(|| {
     let mut keys: IndexMap<String, String> = BERRIES
         .iter()
@@ -476,6 +495,13 @@ pub static DEFAULT_CONTEXTS: LazyLock<Contexts> = LazyLock::new(|| {
         (
             PSS_COLOSSEUM.to_string(),
             IndexMap::from([("shift+r".to_string(), THEIR_TEAM.to_string())]),
+        ),
+        (
+            PSS_BATTLE.to_string(),
+            IndexMap::from([
+                ("c".to_string(), COMMAND_TIME.to_string()),
+                ("shift+c".to_string(), BATTLE_TIME.to_string()),
+            ]),
         ),
     ])
 });

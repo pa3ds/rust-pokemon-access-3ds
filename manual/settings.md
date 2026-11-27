@@ -28,7 +28,7 @@ pa3ds now for them to take effect; otherwise they take effect the next time pa3d
 | **`[pa3ds.audio]`** | | How loud pa3ds's own sounds are, beside the game's. Each follows Azahar's volume: 1 as loud as the game, 0.5 half as loud, 1.5 louder, 0 none. |
 | `tones` | `1.0` | The short tone as the map's cursor or touch mode moves: higher the further up, panned the further right. Also the tone as the way up walks you turns. |
 | `footsteps` | `1.0` | pa3ds's footsteps, where the game plays none. |
-| `ticks` | `0.0` | A short tone at each second of a game's clock, as in Pokémon-Amie's games and the time to choose your team before a battle with another player. The clock is said each half minute and in its last seconds either way. Off as it ships. |
+| `ticks` | `0.0` | A short tone at each second of a game's clock, as in Pokémon-Amie's games, the time to choose your team before a battle with another player, and the battle's Command Time. The clock is said each half minute and in its last seconds either way. Off as it ships. |
 | `feedback_sounds` | `1.0` | The game's own short sounds for what a key has done: the PC Box's sounds for picking up and putting down a Pokémon, as touch mode picks up a drag and lets go, and the game's error sound for a key with nothing to do, as a berry Berry Picker's round does not have; and Head It's cue. At 0, pa3ds says them instead: "holding", "let go on" and what was wrong, and plays no cue. It was called `drag_sounds` before. |
 | **`[pa3ds.navigation]`** | | |
 | `positions` | `true` | Say where a thing is in the list: "door, 1 of 3". |

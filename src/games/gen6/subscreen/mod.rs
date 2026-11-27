@@ -79,6 +79,7 @@ pub mod berry_picker;
 pub mod head_it;
 pub mod o_power;
 pub mod pss;
+pub mod pss_battle;
 pub mod pss_keys;
 pub mod pss_profile;
 pub mod puzzle;
@@ -113,6 +114,7 @@ use berry_picker::{BerryKeys, BerryPicker, Process, Touching};
 use head_it::{Cue, Frames, HeadIt, HeadItKeys};
 use o_power::OPower;
 use pss::{COLOSSEUM, DIALOG, FRIEND_ENTRY};
+use pss_battle::BattleTimers;
 use pss_keys::PssKeys;
 use pss_profile::ProfileValues;
 use puzzle::TilePuzzle;
@@ -316,6 +318,31 @@ impl Keyed for PssKeys {
         _touch: &mut dyn Touching,
     ) -> Result<String> {
         Ok(PssKeys::press(self, action, running))
+    }
+}
+
+impl Keyed for RefCell<BattleTimers> {
+    fn context(&self, running: Option<&str>) -> Result<Option<&'static str>> {
+        Ok(self.borrow().context(running))
+    }
+
+    fn press(
+        &self,
+        action: &str,
+        running: Option<&str>,
+        _touch: &mut dyn Touching,
+    ) -> Result<String> {
+        self.borrow().press(action, running)
+    }
+}
+
+impl Polled for RefCell<BattleTimers> {
+    fn poll(
+        &self,
+        running: Option<&str>,
+        _touch: &mut dyn Touching,
+    ) -> Result<Vec<(String, String, Option<Category>)>> {
+        self.borrow_mut().poll(running)
     }
 }
 
@@ -599,6 +626,7 @@ impl Subscreens {
         file_of: FileOf,
         on_screen: OnScreen,
         party: Rc<dyn Fn() -> Option<i64>>,
+        tick: Option<Rc<dyn Fn()>>,
     ) -> Subscreens {
         // The settings file's tables, each reader taking its own (`config.Tables`).
         let settings = &tables.amie;
@@ -618,6 +646,7 @@ impl Subscreens {
         let (memory_kept, layouts_kept) = (memory.clone(), layouts.clone());
         let (profile_memory, profile_names, profile_layouts) =
             (memory.clone(), names.clone(), layouts.clone());
+        let timers_layouts = layouts.clone();
         let running: Rc<dyn Fn() -> Option<String>> = {
             let apps = apps.clone();
             Rc::new(move || apps.borrow().running.clone())
@@ -872,6 +901,7 @@ impl Subscreens {
 
         let (on_screen_kept, file_of_kept) = (on_screen.clone(), file_of.clone());
         let profile_file_of = file_of.clone();
+        let timers_file_of = file_of.clone();
         let o_power = Rc::new(RefCell::new(OPower::new(
             memory_kept,
             on_screen,
@@ -909,6 +939,12 @@ impl Subscreens {
             &text.training_stats,
             &text.training_gains,
         ));
+        // A link battle's timers, which it draws a digit a picture: its Command Time ticks.
+        let timers = Rc::new(RefCell::new(BattleTimers::new(
+            timers_layouts,
+            timers_file_of,
+            tick,
+        )));
         // The page first: Amie's `Player` is read afresh for each poll as the others ask.
         let mut polled: Vec<Rc<dyn Polled>> = vec![
             page.clone(),
@@ -918,6 +954,7 @@ impl Subscreens {
             berry_picker.clone(),
             head_it.clone(),
             stylus_keys.clone(),
+            timers.clone(),
         ];
         if settings.descriptions {
             polled.push(Rc::new(RefCell::new(Moods::new(
@@ -954,7 +991,14 @@ impl Subscreens {
             pictured: vec![waiting, bags],
             polled,
             described: vec![puzzle.clone()],
-            keyed: vec![berry_keys, head_keys, stylus_keys, training_keys, pss_keys],
+            keyed: vec![
+                berry_keys,
+                head_keys,
+                stylus_keys,
+                training_keys,
+                pss_keys,
+                timers,
+            ],
             ticked: vec![head_it.clone(), sparring.clone()],
             holding: vec![head_it.clone(), sparring.clone()],
             rewording: vec![switch, head_it.clone(), medals, gains],

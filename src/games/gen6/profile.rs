@@ -861,6 +861,7 @@ impl Gen6Profile {
                 let party_icons = party_icons.clone();
                 Rc::new(move || party_icons.borrow().party)
             },
+            ticking(ticks.clone()),
         ));
         subscreens_made
             .set(subscreens.clone())

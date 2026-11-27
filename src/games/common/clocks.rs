@@ -472,7 +472,7 @@ fn seconds(text: &str) -> Result<Option<i64>> {
 }
 
 /// Is a clock's tick said? Each half minute, and counting down, at 10 and each of the last 5.
-fn marked(seconds: i64, down: bool) -> bool {
+pub fn marked(seconds: i64, down: bool) -> bool {
     (seconds > 0 && py::modulo(seconds, 30) == 0)
         || (down && (seconds == 10 || (0 < seconds && seconds <= 5)))
 }
