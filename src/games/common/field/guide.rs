@@ -1419,7 +1419,7 @@ impl Guide {
         heading: &str,
         push: Option<&str>,
     ) -> Result<Option<Way>> {
-        let ground = round_it(self.ground(r#where, hm)?, item);
+        let mut ground = round_it(self.ground(r#where, hm)?, item);
         if r#where.on_rail && ground.corridor.is_none() {
             return Ok(None);
         }
@@ -1436,6 +1436,32 @@ impl Guide {
             let over = ground.find(r#where.cell, &talked, heading, Some(item), true, None)?;
             if reached(&ground, item, &talked, &over)? {
                 (goals, path, short) = (talked, over, false);
+            }
+        }
+        if short {
+            let spots: HashSet<Cell> = r#where
+                .interactables
+                .iter()
+                .filter(|thing| thing.place_kind() == Some(field::TRIGGER_SOURCE))
+                .flat_map(|thing| thing.cells())
+                .filter(|cell| ground.stepped.contains(cell))
+                .collect();
+            if !spots.is_empty() {
+                // A scene spot is walked round, unless the only way crosses one: Sun's Iki Town
+                // has one over the whole stair up to Mahalo Trail, and P led into a dead end.
+                let crossing = Ground {
+                    stepped: ground
+                        .stepped
+                        .iter()
+                        .copied()
+                        .filter(|cell| !spots.contains(cell))
+                        .collect(),
+                    ..ground.clone()
+                };
+                let over = crossing.find(r#where.cell, &goals, heading, Some(item), true, None)?;
+                if reached(&crossing, item, &goals, &over)? {
+                    (ground, path, short) = (crossing, over, false);
+                }
             }
         }
         let over = if short {

@@ -1696,6 +1696,45 @@ fn test_p_goes_to_whatever_the_navigation_keys_are_on() {
     );
 }
 
+/// Sun's Iki Town has a scene spot over the whole stair up to Mahalo Trail, and P went
+/// west into a dead end, "then can't continue"; it now goes north first, up the stair.
+#[test]
+fn test_a_scene_spot_over_the_only_way_is_crossed_and_one_with_a_way_round_is_not() {
+    let mut wall: Vec<Cell> = (80..120)
+        .filter(|&x| x != 90)
+        .map(|x| (x, 175))
+        .collect();
+    wall.extend([80, 119].into_iter().flat_map(|x| (160..200).map(move |z| (x, z))));
+    wall.extend((80..120).flat_map(|x| [160, 199].into_iter().map(move |z| (x, z))));
+    let door = Interactable {
+        zone: Some(0xDF),
+        source: place_source(WARP_SOURCE, 0).unwrap(),
+        ..Interactable::new("exits", "door", (90, 170))
+    };
+    let spot = Interactable {
+        source: place_source(TRIGGER_SOURCE, 0).unwrap(),
+        ..Interactable::new("signs", "scene spot", (90, 175))
+    };
+    let field = || Field {
+        interactables: vec![door.clone(), spot.clone()],
+        ..Field::new(0x6, (90, 180))
+    };
+    let mut rig = navigator(Want {
+        exits: true,
+        blocked: wall,
+        ..on(field())
+    });
+    rig.press(PATHFIND);
+    assert_eq!(said(&rig.backend), ["10 north"]);
+    let mut rig = navigator(Want {
+        exits: true,
+        ..on(field())
+    });
+    rig.press(PATHFIND);
+    let spoken = said(&rig.backend);
+    assert!(!spoken[0].contains("can't continue") && spoken[0] != "10 north");
+}
+
 /// Sun's lottery clerk in Festival Plaza stands in her stall, walled in, and P said "no
 /// path"; the game speaks to her from where the range it gives her reaches over the counter,
 /// and P now leads there and no further (spike Q).
