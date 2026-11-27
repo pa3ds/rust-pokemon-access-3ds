@@ -12,7 +12,9 @@ fn evenness(wave: Wave) -> f64 {
         .render(py::round(RATE as f64 * LENGTH).unwrap(), 1.0)
         .unwrap();
     let left: Vec<f64> = rendered
-        .chunks_exact(4)
+        .as_chunks::<4>()
+        .0
+        .iter()
         .map(|frame| f64::from(i16::from_le_bytes([frame[0], frame[1]])))
         .collect();
     let left = &left[py::round(RATE as f64 * FADE).unwrap() as usize + 1..];
