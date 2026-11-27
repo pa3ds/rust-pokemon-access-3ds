@@ -150,6 +150,10 @@ pub const WARP_OPENING: i64 = 8;
 /// A line: the mat out of a building, back through the door that led in.
 pub const WARP_OUT: i64 = 9;
 
+/// The kind of a Pokémon Center's PC (script 0): one in each of Sun's 17 places with a Center,
+/// two in Aether Paradise, and nowhere else, 19 in Sun and 21 in Ultra Sun; facing Route 1's and
+/// pressing A opened the Box (spike Q).
+pub const PC: i64 = 0x08;
 /// The kinds of the things that are signs (script 0). Route 1 has three of 0x12, three of 0x15
 /// and one of 0x0e, and story text file 21, the game's signs, has seven for Route 1: "Route 1",
 /// "Pokémon Research Lab" and "Ten Carat Hill", three "Trainer Tips", and "↓ Iki Town". Which

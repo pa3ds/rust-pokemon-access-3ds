@@ -940,6 +940,51 @@ fn test_a_ball_on_the_ground_a_signpost_and_a_thing_built_twice_are_each_said_on
     );
 }
 
+/// Route 1's Pokémon Center's PC is a thing with no script, of kind 8, one in each place with
+/// a Center (spike Q).
+#[test]
+fn test_a_thing_of_the_pc_s_kind_is_the_pc() {
+    let bedroom = Bedroom::new();
+    let pc = Record {
+        kind: zones::PC,
+        ..record(49.5 * C, 57.5 * C, None)
+    };
+    let base = rom();
+    let area = base.areas[&AREA].clone();
+    let mut things = area.things[0].clone();
+    things.push(pc);
+    let ground = SunZones {
+        areas: IndexMap::from([(
+            AREA,
+            Area {
+                things: vec![things],
+                ..area
+            },
+        )]),
+        ..base
+    };
+    let actor = 0x3037B068;
+    bedroom
+        .memory
+        .u32(actor, &[bedroom.vtables[field::THING]]);
+    floats(
+        &bedroom.memory,
+        actor + field::ACTOR_X,
+        &[49.5 * C, 1.0, 57.5 * C],
+    );
+    let found = with_heap(&bedroom, &[(actor, field::THING)]);
+    let at = bedroom
+        .listed(Some(ground), Some(&found), false, &[])
+        .unwrap();
+    let kinds: Vec<String> = at
+        .of("signs")
+        .iter()
+        .filter(|item| item.cell == (49, 57))
+        .map(|item| item.kind.clone())
+        .collect();
+    assert_eq!(kinds, [field::PC]);
+}
+
 /// The field is in heap 0x21, whose own blocks the walk passes over: its block's header, 0x30
 /// before it, says the block is there (sun_4.ctm, 2026-09-26).
 #[test]

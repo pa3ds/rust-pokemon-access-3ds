@@ -89,6 +89,8 @@ pub const STATE: &str = "N5Field8Fieldmap5StateE";
 pub const THING: &str = "N5Field17FieldBgEventActorE";
 pub const WARP: &str = "N5Field17FieldMapJumpActorE";
 pub const ITEM: &str = "N5Field14FieldItemActorE";
+/// A Pokémon Center's PC, said `kind-PC`: the game never names it where it stands.
+pub const PC: &str = "PC";
 /// An item's actor where nothing lies, listed as gen 6 lists what the Dowsing Machine finds.
 pub const HIDDEN_ITEM: &str = "hidden item";
 pub const STEP: &str = "N5Field18FieldPosEventActorE";
@@ -1262,13 +1264,20 @@ fn exit(record: Option<&Record>) -> &'static str {
     }
 }
 
-/// A signpost as a sign, anything else read by facing it as an object, as ORAS says them.
+/// A signpost as a sign, a Pokémon Center's PC as the PC, anything else read by facing it as
+/// an object, as ORAS says them.
 fn thing(record: Option<&Record>) -> &'static str {
     if let Some(record) = record
         && record.script == 0
         && sm_zones::SIGNS.contains(&record.kind)
     {
         return "sign";
+    }
+    if let Some(record) = record
+        && record.script == 0
+        && record.kind == sm_zones::PC
+    {
+        return PC;
     }
     "object"
 }
