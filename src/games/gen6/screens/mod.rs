@@ -30,8 +30,6 @@ pub mod rows;
 
 pub mod reminder;
 
-pub mod secret_base;
-
 pub mod pokedex;
 pub mod scrolled;
 

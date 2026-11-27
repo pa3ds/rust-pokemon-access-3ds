@@ -99,7 +99,7 @@ use crate::games::gen6::screens::partners::Partners;
 use crate::games::gen6::screens::partyicons::PartyIcons;
 use crate::games::gen6::screens::sources::{Chase, CursorSources};
 use crate::games::gen6::screens::{
-    boxes, buttons, partners, partyicons, pokedex, registered, rows, secret_base, townmap,
+    boxes, buttons, partners, partyicons, pokedex, registered, rows, townmap,
 };
 use crate::games::gen6::subscreen::head_it::Cue;
 use crate::games::gen6::subscreen::{self, Subscreens};
@@ -983,14 +983,8 @@ impl Gen6Profile {
             .set(subscreens.clone())
             .unwrap_or_else(|_| unreachable!("the subscreens are made once"));
         screen.borrow_mut().set_reworded({
-            let (subscreens, files, layouts) = (subscreens.clone(), files.clone(), layouts.clone());
-            Rc::new(move |found| {
-                Ok(secret_base::emptied(
-                    subscreens.reworded(found)?,
-                    &*files,
-                    &*layouts,
-                ))
-            })
+            let (subscreens, alone) = (subscreens.clone(), alone.clone());
+            Rc::new(move |found| Ok(alone.reworded(subscreens.reworded(found)?)))
         });
         let classes: IndexSet<String> = alone
             .classes()

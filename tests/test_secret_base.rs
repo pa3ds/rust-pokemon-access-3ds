@@ -1,4 +1,4 @@
-//! The Secret Base PC's greyed categories are said empty (`gen6.screens.secret_base`, spike 308).
+//! The Secret Base PC's greyed categories are said empty (`oras.screens.secret_base`, spike 308).
 
 use std::rc::Rc;
 
@@ -7,7 +7,7 @@ use indexmap::IndexMap;
 use crate::games::common::layout::TrackedLayouts;
 use crate::games::common::layout_file::{FileMatching, LayoutFile};
 use crate::games::common::screen::ScreenText;
-use crate::games::gen6::screens::secret_base;
+use crate::games::oras::screens::secret_base;
 use crate::py::Result;
 
 const LIST: i64 = 0x08600000;

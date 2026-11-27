@@ -1,7 +1,8 @@
 //! What ORAS has alone, as the gen 6 profile asks it (`gen6.own.Own`): its subscreen, the PokéNav
 //! Plus (`oras.subscreen`); its contests' standings and a Pokémon's conditions
 //! (`oras.screens.contest`, `oras.screens.conditions`); the Pokéblock Kit's two screens
-//! (`oras.screens.pokeblock_kit`); the Pokémon its save keeps for the credits (`oras.memories`); and
+//! (`oras.screens.pokeblock_kit`); the Secret Base PC's decoration list
+//! (`oras.screens.secret_base`); the Pokémon its save keeps for the credits (`oras.memories`); and
 //! soaring (`oras.field.sky`). Each is built once, here, and answers for its own apps alone.
 //!
 //! Where two answer one question, the order is this:
@@ -31,7 +32,7 @@ use crate::games::gen6::screens::sources::{Chase, OwnSources};
 use crate::games::gen6::screens::townmap::OwnLists;
 use crate::games::oras::field::sky;
 use crate::games::oras::memories::Memories;
-use crate::games::oras::screens::{conditions, contest, pokeblock_kit};
+use crate::games::oras::screens::{conditions, contest, pokeblock_kit, secret_base};
 use crate::games::oras::subscreen::PokeNav;
 use crate::py::Result;
 
@@ -248,6 +249,11 @@ impl Own for Oras {
 
     fn owns(&self, piece: &ScreenText) -> bool {
         self.nav.owns(piece)
+    }
+
+    fn reworded(&self, found: IndexMap<i64, ScreenText>) -> IndexMap<i64, ScreenText> {
+        // The Secret Base PC's greyed categories, said empty.
+        secret_base::emptied(found, &*self.files, &*self.layouts)
     }
 
     fn sides(&self, player: bool) -> Result<Option<String>> {

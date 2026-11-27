@@ -26,7 +26,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use indexmap::IndexSet;
+use indexmap::{IndexMap, IndexSet};
 
 use crate::core::config::Tables;
 use crate::core::discovery::Found;
@@ -137,6 +137,12 @@ pub trait Own: OwnSources {
     /// Whether words on screen are its own to say, left out of screen text's.
     fn owns(&self, _piece: &ScreenText) -> bool {
         false
+    }
+
+    /// The words on screen as screen text says them, by their TextBoxes, after the
+    /// subscreens have reworded theirs: its own screens' reworded.
+    fn reworded(&self, found: IndexMap<i64, ScreenText>) -> IndexMap<i64, ScreenText> {
+        found
     }
 
     /// What the keys that say a battle's sides say, the player's side or everyone else's,
