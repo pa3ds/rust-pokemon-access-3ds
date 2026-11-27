@@ -16,17 +16,17 @@
 //! - ADR-0017: a Pokémon's conditions are an Extra and ship off.
 
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
-use indexmap::IndexSet;
+use indexmap::{IndexMap, IndexSet};
 
 use crate::core::binary::u32;
 use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
 use crate::core::speech::{Category, Speech};
-use crate::games::common::layout::Layouts;
-use crate::games::common::layout_file::LayoutFiles;
+use crate::games::common::layout::{Layouts, TrackedLayouts};
+use crate::games::common::layout_file::{FileMatching, LayoutFiles};
 use crate::games::common::pokemon;
 use crate::games::common::screen::ScreenText;
 use crate::games::gen6::apps::RunningApp;
@@ -35,6 +35,13 @@ use crate::games::gen6::screens::summary;
 use crate::py::{Log, Result};
 
 pub const CASE: &str = "N3app10poroc_case4ProcE";
+/// The conditions star's outline (spike 196). A layout drawing it draws the star's labels too: the
+/// conditions page's; the Move Reminder's contest effects' upper screen, its moves' category icons
+/// beside the star, where the labels were read with what stood near them, "Black Glasses
+/// Coolness", "Beauty", "Cuteness Cleverness", "Toughness" (or_move_reminder_bugs); and the
+/// Pokéblock Case's upper screen as it asks whom to give a block to, "Coolness", "Toughness,
+/// Beauty" (or_pokeblock_kit).
+pub const STAR: &str = "star_base.bclim";
 /// The Pokéblock Case's process -> the party's list, six `PokemonParam`s (spike 196).
 pub const PARTY: i64 = 0x130;
 
@@ -65,7 +72,7 @@ pub struct Conditions {
     layouts: Rc<Layouts>,
     files: Rc<LayoutFiles>,
     apps: Rc<RefCell<RunningApp>>,
-    /// The game's word for each category, coolness first (`GameText.contest_categories`).
+    /// The game's word for each category, coolness first (`contest.Words`).
     words: Vec<String>,
     heading: Option<String>,
     speech: Rc<Speech>,
@@ -206,7 +213,7 @@ impl Conditions {
                 let drawn = file
                     .textures
                     .values()
-                    .any(|drawn| drawn.iter().any(|texture| texture == summary::STAR));
+                    .any(|drawn| drawn.iter().any(|texture| texture == STAR));
                 self.stars.insert(names.clone(), drawn);
             }
             let placement = self.layouts.placement(root)?;
@@ -216,4 +223,40 @@ impl Conditions {
         }
         Ok(None)
     }
+}
+
+/// The TextBoxes of the conditions star's labels, "Coolness" to "Toughness", `words`: a
+/// label with no value, said as a list on the summary's conditions page, "Coolness", then
+/// "Beauty, Cleverness, Cuteness, Toughness". Never said; the conditions Extra says them with
+/// their values. The Move Reminder draws them as pictures hanging from its layout's root, and
+/// each move's category icon beside the star, which hangs from its row, is no label.
+pub fn star_labels(
+    layouts: &dyn TrackedLayouts,
+    files: &dyn FileMatching,
+    on_screen: &[ScreenText],
+    words: &HashSet<String>,
+) -> HashSet<i64> {
+    let mut stars: IndexMap<i64, bool> = IndexMap::new();
+    let mut boxes: HashSet<i64> = HashSet::new();
+    for piece in on_screen {
+        if !words.contains(&piece.text) {
+            continue;
+        }
+        if !stars.contains_key(&piece.root) {
+            let found = files.matching(&layouts.pane_names(piece.root));
+            stars.insert(
+                piece.root,
+                found.is_some_and(|found| {
+                    found
+                        .textures
+                        .values()
+                        .any(|drawn| drawn.iter().any(|texture| texture == STAR))
+                }),
+            );
+        }
+        if stars[&piece.root] && !(piece.picture && piece.parent != piece.root) {
+            boxes.insert(piece.r#box);
+        }
+    }
+    boxes
 }

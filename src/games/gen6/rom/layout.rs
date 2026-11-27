@@ -113,9 +113,6 @@ pub struct RomLayout {
     /// The text file naming the moves' categories and the line they start at: status, physical,
     /// special, as the category icons number them (`textures`).
     pub categories: Option<(i64, i64)>,
-    /// The text file naming the contest categories and the line they start at: coolness, beauty,
-    /// cuteness, cleverness, toughness, as a contest's move icons number them (`textures`).
-    pub contest_categories: Option<(i64, i64)>,
     /// The text file and line of Pokémon-Amie's three numbers: "Affection", "Fullness" and
     /// "Enjoyment", as its Switch screen labels them (`subscreen.amie`).
     pub amie_numbers: Option<(i64, i64)>,
@@ -125,15 +122,6 @@ pub struct RomLayout {
     /// The text file and line of the two headers over those stats, "Possible base stat increase:"
     /// and "Base stat increase:".
     pub training_gains: Option<(i64, i64)>,
-    /// The text file and line of a contest's labels of the entrant under its cursor, "Pokémon:"
-    /// and "Trainer:" (`oras.screens.contest`).
-    pub contest_entrant: Option<(i64, i64)>,
-    /// The story text file and line of the game's word for a Pokémon's contest conditions, said
-    /// before them (`oras.screens.conditions`).
-    pub contest_conditions: Option<(i64, i64)>,
-    /// The story text file naming the contests' computer entrants, the trainers in its first
-    /// half and each one's Pokémon in the second, in the same order (`oras.screens.contest`).
-    pub contest_rivals: Option<i64>,
     /// The text file naming the status conditions and the line they start at: paralysis, asleep,
     /// frozen, burned, poisoned, fainted, Pokérus, as the status icons number them (`textures`).
     pub conditions: Option<(i64, i64)>,
@@ -141,6 +129,10 @@ pub struct RomLayout {
     /// on screen names is a button for, by the image's file: the PokéNav's app buttons, the Bag's
     /// pockets (`games.common.touch`); none in a game whose are not read.
     pub touch_words: Vec<(i64, IndexMap<String, i64>)>,
+    /// Text files, and the line of each that names what a picture draws, by its texture's name,
+    /// where no rule of gen 6's names it (`textures.said`): ORAS's contest move icons, in its
+    /// contests' text.
+    pub texture_words: Vec<(i64, IndexMap<String, i64>)>,
     /// Text files, and the lines of each a screen draws as a label above or beside its value,
     /// which where they are drawn does not tell: the DexNav's "First Move" over its move. Each
     /// with what a mark drawn in its group says (`pictures.EGG_MOVE`), or "" (`games.common.screen`).
@@ -241,15 +233,12 @@ impl RomLayout {
             pokemon_models: None,
             battle_models: None,
             categories: None,
-            contest_categories: None,
             amie_numbers: None,
             training_stats: None,
             training_gains: None,
-            contest_entrant: None,
-            contest_conditions: None,
-            contest_rivals: None,
             conditions: None,
             touch_words: Vec::new(),
+            texture_words: Vec::new(),
             labels: Vec::new(),
             plain: Vec::new(),
             search_labels: Vec::new(),

@@ -159,8 +159,6 @@ pub struct CursorSources {
     registered: Option<Rc<RefCell<Registered>>>,
     labels: HashSet<String>,
     own: Rc<dyn OwnSources>,
-    /// The game's words for the contest categories, the conditions star's labels.
-    contest_words: HashSet<String>,
     box_mode: Option<boxes::Mode>,
     box_titles: Option<boxes::Titles>,
     bag: Option<Rc<RefCell<bag::Chosen>>>,
@@ -329,7 +327,6 @@ impl CursorSources {
             registered,
             labels: text.search_labels.clone(),
             own,
-            contest_words: text.contest_categories.iter().cloned().collect(),
             box_mode,
             box_titles,
             bag,
@@ -479,11 +476,9 @@ impl CursorSources {
             None => Vec::new(),
             Some(opened) => vec![("battle bag".to_string(), opened.clone())],
         };
-        // The summary's pages it does not draw are not heard, nor its star's labels, which
-        // have no values: the conditions Extra says them with theirs.
+        // The summary's pages it does not draw are not heard.
         let mut unsaid = counted;
         unsaid.extend(paged.unsaid.iter().copied());
-        unsaid.extend(self.summary.star_labels(on_screen, &self.contest_words));
         unsaid.extend(pokedex::tabled(
             running.as_deref(),
             &screen.texts,

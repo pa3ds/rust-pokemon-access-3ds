@@ -109,12 +109,6 @@ pub static TYPE: LazyLock<Regex> =
 /// A move category's icon, 00 status, 01 physical, 02 special (`GameText.categories`).
 pub static CATEGORY: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"\Adamage_type_icon_(\d\d)_").expect("a pattern"));
-/// A move's contest category on a contest's move list, 00 coolness to 04 toughness
-/// (`GameText.contest_categories`, spike 196).
-///
-/// Written for `fullmatch`, as `TAB` is.
-pub static CONTEST: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"\Acontest_icon_(\d\d)\z").expect("a pattern"));
 /// A status condition's icon, from 01 paralysis to 05 poisoned, and 06 badly poisoned, which the
 /// game says as poisoned (`GameText.conditions`). Every screen that draws one names paralysis's in
 /// its layout file and swaps it for the Pokémon's own: the battle's HP boxes, its party list, the
@@ -359,7 +353,8 @@ pub fn names(
 }
 
 /// What the game calls what a picture draws, from the name of its texture: a language tab's
-/// language, a type's, a move category's or a status condition's icon; or the sign of what the
+/// language, a type's, a move category's or a status condition's icon, or one the game's text
+/// names whole (`GameText.texture_words`: ORAS's contest move icons); or the sign of what the
 /// DexNav draws in place of words (`pictures.DRAWN`). None for a texture no rule reads, or one
 /// the ROM has no word for.
 ///
@@ -373,6 +368,11 @@ pub fn said(textures: &[impl AsRef<str>], text: &GameText) -> Result<Option<Stri
         }
         if let Some(place) = pictures::place(texture) {
             return Ok(Some(own(place, &[])));
+        }
+        if let Some(word) = text.texture_words.get(texture)
+            && !word.is_empty()
+        {
+            return Ok(Some(word.clone()));
         }
         let (index, words): (i64, &[String]);
         let tab = TAB
@@ -391,9 +391,6 @@ pub fn said(textures: &[impl AsRef<str>], text: &GameText) -> Result<Option<Stri
         } else if let Some(category) = CATEGORY.captures(texture) {
             index = int(&category[1]);
             words = &text.categories;
-        } else if let Some(contest) = CONTEST.captures(texture) {
-            index = int(&contest[1]);
-            words = &text.contest_categories;
         } else if let Some(condition) = CONDITION.captures(texture) {
             let number = int(&condition[1]);
             index = (if number == BADLY_POISONED {

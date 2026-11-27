@@ -301,19 +301,12 @@ pub struct GameText {
     pub categories: Vec<String>,
     /// What the game calls each status condition, in `RomLayout.conditions`' order.
     pub conditions: Vec<String>,
-    /// What the game calls each contest category, in `RomLayout.contest_categories`' order.
-    pub contest_categories: Vec<String>,
-    /// A contest's labels of the entrant under its cursor, the Pokémon's then the trainer's
-    /// (`RomLayout.contest_entrant`).
-    pub contest_entrant: Vec<String>,
-    /// The game's word for a Pokémon's contest conditions (`RomLayout.contest_conditions`).
-    pub contest_conditions: Option<String>,
-    /// The contests' computer entrants, each trainer with their Pokémon
-    /// (`RomLayout.contest_rivals`).
-    pub contest_rivals: Vec<(String, String)>,
     /// An image a button is drawn with -> the game's word for the button
     /// (`RomLayout.touch_words`).
     pub touch_words: IndexMap<String, String>,
+    /// A texture a picture draws -> the game's word for what it shows
+    /// (`RomLayout.texture_words`).
+    pub texture_words: IndexMap<String, String>,
     /// A label's words -> what a mark in its group says, or "" (`RomLayout.labels`).
     pub labels: IndexMap<String, String>,
     /// Words a screen draws as no label (`RomLayout.plain`).
@@ -430,11 +423,8 @@ impl PartialEq for GameText {
             && self.types == other.types
             && self.categories == other.categories
             && self.conditions == other.conditions
-            && self.contest_categories == other.contest_categories
-            && self.contest_entrant == other.contest_entrant
-            && self.contest_conditions == other.contest_conditions
-            && self.contest_rivals == other.contest_rivals
             && self.touch_words == other.touch_words
+            && self.texture_words == other.texture_words
             && self.labels == other.labels
             && self.plain == other.plain
             && self.search_labels == other.search_labels
@@ -481,11 +471,8 @@ impl Default for GameText {
             types: Vec::new(),
             categories: Vec::new(),
             conditions: Vec::new(),
-            contest_categories: Vec::new(),
-            contest_entrant: Vec::new(),
-            contest_conditions: None,
-            contest_rivals: Vec::new(),
             touch_words: IndexMap::new(),
+            texture_words: IndexMap::new(),
             labels: IndexMap::new(),
             plain: HashSet::new(),
             search_labels: HashSet::new(),
@@ -872,7 +859,8 @@ impl GameText {
             conditions,
             map_places,
             map_areas: map_areas_of(rom, layout, &table, &places)?,
-            touch_words: touch_words(&files, layout)?,
+            touch_words: words(&files, &layout.touch_words)?,
+            texture_words: words(&files, &layout.texture_words)?,
             labels: {
                 let mut labels: IndexMap<String, String> = IndexMap::new();
                 for (file, lines) in &layout.labels {
@@ -910,22 +898,9 @@ impl GameText {
                 labels
             },
             caught: layout.caught.clone(),
-            contest_categories: py::slice(&lines_from(layout.contest_categories)?, 0, 5).to_vec(),
-            contest_entrant: py::slice(&lines_from(layout.contest_entrant)?, 0, 2).to_vec(),
             amie_numbers: py::slice(&lines_from(layout.amie_numbers)?, 0, 3).to_vec(),
             training_stats: py::slice(&lines_from(layout.training_stats)?, 0, 6).to_vec(),
             training_gains: py::slice(&lines_from(layout.training_gains)?, 0, 2).to_vec(),
-            contest_rivals: match layout.contest_rivals {
-                Some(file) => halves(&lines_of_file(&story, file)?),
-                None => Vec::new(),
-            },
-            contest_conditions: match layout.contest_conditions {
-                Some((file, line)) => py::slice_from(&lines_of_file(&story, file)?, line)
-                    .first()
-                    .filter(|word| !word.is_empty())
-                    .cloned(),
-                None => None,
-            },
             decorations: match layout.decorations {
                 Some(file) => lines_of_file(&files, file)?,
                 None => Vec::new(),
@@ -1442,10 +1417,14 @@ fn read_zones(zones: &[Vec<u8>], layout: &RomLayout) -> Result<IndexMap<i64, pla
     Ok(out)
 }
 
-/// `RomLayout.touch_words` read: an image -> its line of the text file, where it has one.
-fn touch_words(files: &[Vec<u8>], layout: &RomLayout) -> Result<IndexMap<String, String>> {
+/// `RomLayout.touch_words` or `texture_words` read: an image or a texture -> its line of the
+/// text file, where it has one.
+fn words(
+    files: &[Vec<u8>],
+    tables: &[(i64, IndexMap<String, i64>)],
+) -> Result<IndexMap<String, String>> {
     let mut words: IndexMap<String, String> = IndexMap::new();
-    for (file, lines) in &layout.touch_words {
+    for (file, lines) in tables {
         let said = lines_of_file(files, *file)?;
         for (image, &line) in lines {
             if line < said.len() as i64 && !said[line as usize].is_empty() {
@@ -1503,18 +1482,6 @@ fn around_name(line: &[u8]) -> (String, String) {
         words(&parts[..at]),
         words(py::slice_from(&parts, at as i64 + 1)),
     )
-}
-
-/// A file's first half beside its second, line for line: a contest's trainers and their
-/// Pokémon (Omega Ruby's story file 445, Gianna on line 4 and Tailster on 73, as Bulbapedia
-/// lists them, 2026-10-09).
-fn halves(lines: &[String]) -> Vec<(String, String)> {
-    let half = lines.len() / 2;
-    lines[..half]
-        .iter()
-        .cloned()
-        .zip(lines[half..half * 2].iter().cloned())
-        .collect()
 }
 
 /// A text archive's file as its lines, each split once when first asked for.

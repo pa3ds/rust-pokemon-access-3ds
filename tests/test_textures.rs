@@ -332,6 +332,7 @@ fn test_a_picture_drawing_nothing_known_has_no_name() {
     );
 }
 
+/// A game's words, its contest move icons ORAS's (`oras.CONTEST_ICONS`).
 fn english() -> GameText {
     GameText {
         languages: strings(&[
@@ -351,7 +352,11 @@ fn english() -> GameText {
             "FAINTED",
             "POKÉRUS",
         ]),
-        contest_categories: strings(&["Coolness", "Beauty", "Cuteness", "Cleverness", "Toughness"]),
+        texture_words: ["Coolness", "Beauty", "Cuteness", "Cleverness", "Toughness"]
+            .iter()
+            .enumerate()
+            .map(|(n, word)| (format!("contest_icon_{n:02}"), word.to_string()))
+            .collect(),
         ..GameText::default()
     }
 }

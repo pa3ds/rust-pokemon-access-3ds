@@ -24,12 +24,21 @@
 //!
 //! No word names an entrant but the panel under the move list, "Pokémon: Pikachu, Trainer:
 //! Brendan", a second and a half after the cursor comes onto a portrait. The Pokémon the game
-//! picked names it at once: its trainer from the contests' own entrants
-//! (`GameText.contest_rivals`), the two said as the entry cards wrote them, "Jordyn & Seedottie",
-//! the player's by their card alone. The computer's entrants are learned before that too, in the
-//! first round, which appeals in place order: each appeal's message names the Pokémon whose turn
-//! it is, "Bolt tried to show its appeal with Light Screen!". Each name is kept for its entrant's
-//! block.
+//! picked names it at once: its trainer from the contests' own entrants (`Words.rivals`), the two
+//! said as the entry cards wrote them, "Jordyn & Seedottie", the player's by their card alone. The
+//! computer's entrants are learned before that too, in the first round, which appeals in place
+//! order: each appeal's message names the Pokémon whose turn it is, "Bolt tried to show its appeal
+//! with Light Screen!". Each name is kept for its entrant's block.
+//!
+//! The entrant picked is read every tick while a cursor is on screen, and a move between portraits
+//! polls the screen at once, as gen 6's rows do (`Picked`, `gen6.screens.rows`). The contests'
+//! words, their labels, their computer entrants and the categories and conditions a Pokémon's star
+//! draws, are ORAS's text's, read here (`words`).
+//!
+//! Bound by:
+//! - ADR-0013: a contest's portraits say when the cursor moves between them, the words still the
+//!   screen's.
+//! - ADR-0043: the entrant picked is read every tick, a move polling the screen at once.
 
 use std::cell::Cell;
 use std::rc::Rc;
@@ -40,21 +49,27 @@ use crate::core::binary::{f32, u32};
 use crate::core::memory::Memory;
 
 use crate::core::words::own;
+use crate::games::common::garc::plain;
 use crate::games::common::layout::Layouts;
 use crate::games::common::layout_file::LayoutFiles;
 use crate::games::common::pictures::PLACES;
 use crate::games::common::screen::ScreenText;
 use crate::games::common::{lyt, strbuf};
 use crate::games::gen6::anchors::{Kept, follow};
-use crate::games::gen6::screens::rows::{CONTEST_MAIN, CONTEST_UI, PICKED};
+use crate::games::gen6::rom::archives::GameText;
 use crate::py::{self, Error, Result};
 
 /// The entry cards' app, then the appeals' (spike 196). The appeals were taken for the cards'
 /// until a new app built where the last ran was noticed (2026-10-09, or_broken_contest).
 pub const APPS: [&str; 2] = ["N7contest11OhiromeProcE", "N7contest8MainProcE"];
+pub const CONTEST_MAIN: &str = "N7contest4MainE";
 /// The appeals' process -> its `contest::Main` -> its `contest::AppealUi` (spike 298).
-pub const MAIN: i64 = CONTEST_UI[0];
-pub const APPEAL_UI: i64 = CONTEST_UI[1];
+pub const MAIN: i64 = 0x30;
+pub const APPEAL_UI: i64 = 0x30;
+/// `AppealUi` -> the entrant the cursor has picked, its portrait 4 to 7 left to right, kept as
+/// the cursor goes down into the moves it shows: a move between portraits, not one onto them
+/// (spike 298 on or_toughness_contest, Omega Ruby alone).
+pub const PICKED: i64 = 0x24C;
 /// `contest::Main` -> the appeals: each entrant's appeal and place (spike 298).
 pub const APPEALS: i64 = 0x24;
 /// The appeals -> the rounds done.
@@ -84,6 +99,72 @@ pub const CURSOR_AT: (f64, f64) = (10.0, 20.0);
 pub const NEAR: f64 = 6.0;
 /// Between a trainer and a Pokémon, where no entry card wrote the two together.
 pub const JOIN: &str = " & ";
+/// Coolness, Beauty, Cuteness, Cleverness, Toughness: the contest's own text, in its move icons'
+/// order, `contest_icon_00` to `contest_icon_04` (spike 196: Hold Back's is 00, Iron Defense's
+/// 04).
+pub const CATEGORY_LINES: (i64, i64) = (141, 121);
+pub const CATEGORIES: i64 = 5;
+/// "Pokémon:" and "Trainer:", the contest's labels of the entrant its cursor is on (spike 196).
+pub const LABEL_LINES: (i64, i64) = (141, 138);
+/// "Conditions", in the story text (spike 196): the game's word for the five a Pokémon's star
+/// draws.
+pub const CONDITIONS_LINE: (i64, i64) = (446, 83);
+/// The story text naming the contests' computer entrants: 69 trainers, Micah to Wallace, then
+/// their 69 Pokémon in the same order, Poochin to Milotic (spike 196).
+pub const RIVALS_FILE: i64 = 445;
+
+/// The contests' own words out of the player's ROM; none where it is not read.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Words {
+    /// What the game calls each contest category, coolness first (`CATEGORY_LINES`).
+    pub categories: Vec<String>,
+    /// A contest's labels of the entrant under its cursor, the Pokémon's then the trainer's
+    /// (`LABEL_LINES`).
+    pub labels: Vec<String>,
+    /// The game's word for a Pokémon's contest conditions (`CONDITIONS_LINE`).
+    pub conditions: Option<String>,
+    /// The contests' computer entrants, each trainer with their Pokémon (`RIVALS_FILE`).
+    pub rivals: Vec<(String, String)>,
+}
+
+/// The contests' words, out of the game's text and its story text (`GameText.lines`).
+pub fn words(text: &GameText) -> Result<Words> {
+    let lines = |archive: &str, file: i64| -> Result<Vec<String>> {
+        match text.lines.get(archive) {
+            None => Ok(Vec::new()),
+            Some(read) => Ok((read.0)(file)?.iter().map(|line| plain(line)).collect()),
+        }
+    };
+    let heading = py::slice_from(&lines("story", CONDITIONS_LINE.0)?, CONDITIONS_LINE.1).to_vec();
+    Ok(Words {
+        categories: py::slice(
+            py::slice_from(&lines("text", CATEGORY_LINES.0)?, CATEGORY_LINES.1),
+            0,
+            CATEGORIES,
+        )
+        .to_vec(),
+        labels: py::slice(
+            py::slice_from(&lines("text", LABEL_LINES.0)?, LABEL_LINES.1),
+            0,
+            2,
+        )
+        .to_vec(),
+        conditions: heading.first().filter(|word| !word.is_empty()).cloned(),
+        rivals: halves(&lines("story", RIVALS_FILE)?),
+    })
+}
+
+/// A file's first half beside its second, line for line: a contest's trainers and their
+/// Pokémon (Omega Ruby's story file 445, Gianna on line 4 and Tailster on 73, as Bulbapedia
+/// lists them, 2026-10-09).
+pub fn halves(lines: &[String]) -> Vec<(String, String)> {
+    let half = lines.len() / 2;
+    lines[..half]
+        .iter()
+        .cloned()
+        .zip(lines[half..half * 2].iter().cloned())
+        .collect()
+}
 
 /// A picture's first texture, by its pane's name in its layout's file.
 fn texture_of(
@@ -248,6 +329,51 @@ pub struct Portrait {
 /// The four portraits, and where the cursor stands.
 type Found = (Vec<Portrait>, Option<(f64, f64)>);
 
+/// The entrant a contest's cursor has picked, read every tick while a cursor is on screen.
+pub struct Picked {
+    memory: Rc<dyn Memory>,
+    running: Rc<dyn Fn() -> Option<String>>,
+    /// The appeals' `contest::AppealUi`, its `contest::Main` checked by its class once an
+    /// app run.
+    kept: Kept,
+    /// Where the pick was read last tick, and what it read.
+    last: Option<(i64, Vec<u8>)>,
+}
+
+impl Picked {
+    pub fn new(
+        memory: Rc<dyn Memory>,
+        running: Rc<dyn Fn() -> Option<String>>,
+        process: Rc<dyn Fn() -> Option<i64>>,
+    ) -> Self {
+        Picked {
+            kept: Kept::new(memory.clone(), process, running.clone()),
+            memory,
+            running,
+            last: None,
+        }
+    }
+
+    /// Whether the pick has changed since the last tick, in the same appeals. `shown` is
+    /// whether the last screen poll found a cursor on screen: it is read only while one is.
+    pub fn moved(&mut self, shown: bool) -> Result<bool> {
+        let ui = if shown && (self.running)().as_deref() == Some(APPS[1]) {
+            self.kept.find(&[MAIN], Some(CONTEST_MAIN), &[APPEAL_UI])?
+        } else {
+            None
+        };
+        let now = match ui {
+            None => None,
+            Some(ui) => Some((ui, self.memory.read(ui + PICKED, 1)?)),
+        };
+        let last = std::mem::replace(&mut self.last, now.clone());
+        Ok(match (now, last) {
+            (Some(now), Some(last)) => now.0 == last.0 && now.1 != last.1,
+            _ => false,
+        })
+    }
+}
+
 /// Who stands where in a contest's appeals, from the game's own record of them.
 pub struct Standings {
     memory: Rc<dyn Memory>,
@@ -275,7 +401,7 @@ pub struct Standings {
     arrived_with: Option<String>,
     /// What the panel named at the last poll.
     last: Option<String>,
-    /// The computer's entrants, each trainer with their Pokémon (`GameText.contest_rivals`).
+    /// The computer's entrants, each trainer with their Pokémon (`Words.rivals`).
     rivals: Vec<(String, String)>,
     /// The computer's entrants the messages have named, in the order first named.
     appealed: Vec<(String, String)>,

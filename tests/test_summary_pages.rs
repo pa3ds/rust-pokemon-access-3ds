@@ -69,15 +69,9 @@ struct FakeFiles;
 impl FileMatching for FakeFiles {
     fn matching(&self, panes: &[String]) -> Option<Rc<LayoutFile>> {
         let name = panes.first()?;
-        // The conditions page draws the star's outline.
-        let star: IndexMap<String, Vec<String>> = if name == FILES[2].1 {
-            IndexMap::from([("p_star".to_string(), vec![summary::STAR.to_string()])])
-        } else {
-            IndexMap::new()
-        };
         Some(Rc::new(LayoutFile {
             name: name.clone(),
-            ..LayoutFile::new(Vec::new(), star, IndexMap::new())
+            ..LayoutFile::new(Vec::new(), IndexMap::new(), IndexMap::new())
         }))
     }
 }
@@ -238,31 +232,6 @@ fn test_the_page_shown_is_the_one_whose_list_is_flagged_and_the_others_are_unhea
     poll_with(&memory, pages, Some(MOVES), METAGROSS, (IRON_HEAD, 0));
     poll_with(&memory, pages, Some(MOVES), METAGROSS, (IRON_HEAD, 0));
     assert_eq!(pages.turned(), roots(&[PARAMS, WAZA]));
-    // The star's labels, in a layout drawing the star alone.
-    // A label drawn as a picture hangs from the root, as the Move Reminder's do; a move's
-    // category icon beside the star hangs from its row.
-    let star = [
-        piece(CONTEST, "Coolness", 4),
-        piece(PARAMS, "HP 199/227", 1),
-        ScreenText {
-            picture: true,
-            parent: CONTEST,
-            ..piece(CONTEST, "Beauty", 6)
-        },
-        ScreenText {
-            picture: true,
-            parent: CONTEST + 0x100,
-            ..piece(CONTEST, "Toughness", 5)
-        },
-    ];
-    let words: HashSet<String> = ["Coolness", "Beauty", "Toughness", "HP 199/227"]
-        .iter()
-        .map(|word| word.to_string())
-        .collect();
-    assert_eq!(
-        pages.star_labels(&star, &words),
-        roots(&[CONTEST + 4, CONTEST + 6])
-    );
     // Out of the summary, every page is forgotten.
     apps.borrow_mut().running = None;
     pages.poll().unwrap();

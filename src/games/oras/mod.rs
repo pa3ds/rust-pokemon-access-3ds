@@ -41,6 +41,7 @@ use crate::games::oras::field::ice::IceFloors;
 use crate::games::oras::field::secret_base::{self, SecretBases, zones as secret_bases_zones};
 use crate::games::oras::field::sky;
 use crate::games::oras::own::Oras;
+use crate::games::oras::screens::contest;
 use crate::games::oras::subscreen::{areanav, distribution};
 
 /// ORAS's own words, for what the game does not say itself (ADR-0040): its scenes' timing, and a
@@ -412,19 +413,19 @@ pub const POKEMON_MODELS: (&str, i64) = ("a/0/2/1", 0x1BE);
 pub const MODELS: (Option<i64>, i64) = (None, POKEMON_MODELS.1);
 /// STATUS, PHYSICAL, SPECIAL: the summary's words, in the category icons' order (spike 147).
 pub const MOVE_CATEGORIES: (i64, i64) = (150, 17);
-/// Coolness, Beauty, Cuteness, Cleverness, Toughness: the contest's own text, in its move icons'
-/// order, `contest_icon_00` to `contest_icon_04` (spike 196: Hold Back's is 00, Iron Defense's 04).
-pub const CONTEST_CATEGORIES: (i64, i64) = (141, 121);
+/// A move's contest category, drawn as an icon alone on a contest's move list and the summary's
+/// conditions page, by its texture, 00 coolness to 04 toughness, and the line of the contest's text
+/// naming it (`contest.CATEGORY_LINES`, spike 196).
+pub fn contest_icons() -> (i64, IndexMap<String, i64>) {
+    (
+        contest::CATEGORY_LINES.0,
+        (0..contest::CATEGORIES)
+            .map(|n| (format!("contest_icon_{n:02}"), contest::CATEGORY_LINES.1 + n))
+            .collect(),
+    )
+}
 /// "Affection", "Fullness" and "Enjoyment", in Pokémon-Amie's text (spike 287).
 pub const AMIE_NUMBERS: (i64, i64) = (111, 14);
-/// "Pokémon:" and "Trainer:", the contest's labels of the entrant its cursor is on (spike 196).
-pub const CONTEST_ENTRANT: (i64, i64) = (141, 138);
-/// The story text naming the contests' computer entrants: 69 trainers, Micah to Wallace, then
-/// their 69 Pokémon in the same order, Poochin to Milotic (spike 196).
-pub const CONTEST_RIVALS: i64 = 445;
-/// "Conditions", in the story text (spike 196): the game's word for the five a Pokémon's star
-/// draws.
-pub const CONTEST_CONDITIONS: (i64, i64) = (446, 83);
 /// PARALYSIS, ASLEEP, FROZEN, BURNED, POISONED, FAINTED, POKÉRUS (spike 147).
 pub const CONDITIONS: (i64, i64) = (123, 50);
 /// A Secret Base's decorations by number, as the save numbers them: Small Desk 0, Small Chair 10,
@@ -522,10 +523,6 @@ pub fn rom() -> &'static RomLayout {
         forms: Some((FORM_NAMES.0, FORM_NAMES.1.to_string())),
         pokemon_models: Some((POKEMON_MODELS.0.to_string(), POKEMON_MODELS.1)),
         categories: Some(MOVE_CATEGORIES),
-        contest_categories: Some(CONTEST_CATEGORIES),
-        contest_entrant: Some(CONTEST_ENTRANT),
-        contest_rivals: Some(CONTEST_RIVALS),
-        contest_conditions: Some(CONTEST_CONDITIONS),
         conditions: Some(CONDITIONS),
         map_panes: Some((MAP_PANES.0.to_string(), MAP_PANES.1, MAP_PANES.2)),
         decorations: Some(DECORATION_NAMES),
@@ -560,6 +557,7 @@ pub fn rom() -> &'static RomLayout {
             )
         })
         .collect(),
+        texture_words: vec![contest_icons()],
         entrances: ENTRANCES.into_iter().collect(),
         caught: CAUGHT_IMAGES
             .iter()

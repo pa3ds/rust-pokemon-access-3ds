@@ -18,8 +18,6 @@ use std::cell::RefCell;
 use std::collections::HashSet;
 use std::rc::Rc;
 
-use indexmap::IndexMap;
-
 use crate::core::binary::{u16, u32};
 use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
@@ -59,13 +57,6 @@ pub const PAGES: [&str; 6] = [
 pub const BUTTON: &str = "touch_bar_lower.bclyt";
 /// The Pokémon's name, level and item, on every page.
 pub const INFO: &str = "info.bclyt";
-/// The conditions star's outline (spike 196). A layout drawing it draws the star's labels too: the
-/// conditions page's; the Move Reminder's contest effects' upper screen, its moves' category icons
-/// beside the star, where the labels were read with what stood near them, "Black Glasses
-/// Coolness", "Beauty", "Cuteness Cleverness", "Toughness" (or_move_reminder_bugs); and the
-/// Pokéblock Case's upper screen as it asks whom to give a block to, "Coolness", "Toughness,
-/// Beauty" (or_pokeblock_kit).
-pub const STAR: &str = "star_base.bclim";
 /// The pages' moves, which Check Moves' cursors go over. A `frozenset` only tested.
 pub const MOVES: [&str; 2] = ["waza.bclyt", "waza_contest.bclyt"];
 /// The summary's process -> the place of the Pokémon shown in its party or box, from 0: it
@@ -544,37 +535,5 @@ impl Pages {
                     .is_some_and(|found| names.contains(&found.name.as_str()))
             })
             .collect()
-    }
-
-    /// The TextBoxes of the conditions star's labels, "Coolness" to "Toughness": a label
-    /// with no value, said as a list on the conditions page, "Coolness", then "Beauty,
-    /// Cleverness, Cuteness, Toughness". Never said; the conditions Extra says them with their
-    /// values (`oras.screens.conditions`). The Move Reminder draws them as pictures hanging from
-    /// its layout's root, and each move's category icon beside the star, which hangs from its
-    /// row, is no label.
-    pub fn star_labels(&self, on_screen: &[ScreenText], words: &HashSet<String>) -> HashSet<i64> {
-        let mut stars: IndexMap<i64, bool> = IndexMap::new();
-        let mut boxes: HashSet<i64> = HashSet::new();
-        for piece in on_screen {
-            if !words.contains(&piece.text) {
-                continue;
-            }
-            if !stars.contains_key(&piece.root) {
-                let found = self.files.matching(&self.layouts.pane_names(piece.root));
-                stars.insert(
-                    piece.root,
-                    found.is_some_and(|found| {
-                        found
-                            .textures
-                            .values()
-                            .any(|drawn| drawn.iter().any(|texture| texture == STAR))
-                    }),
-                );
-            }
-            if stars[&piece.root] && !(piece.picture && piece.parent != piece.root) {
-                boxes.insert(piece.r#box);
-            }
-        }
-        boxes
     }
 }

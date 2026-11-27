@@ -8,8 +8,10 @@
 //!
 //! - the classes swept for: the PokéNav Plus's, then the credits' save's;
 //! - what a sweep found: the PokéNav Plus, then the credits' save;
-//! - the layouts put away: the AreaNav's views not drawn, then the Pokéblock Kit's screen not shown,
-//!   which never run at once.
+//! - the cursors moved: a contest's portrait picked, a row's move, then the Pokéblock Kit's cursors,
+//!   chased until the block's details are said;
+//! - the layouts put away: the AreaNav's views not drawn, then the Pokéblock Kit's screen not shown;
+//! - the words left unsaid: the AreaNav's lists', then the conditions star's labels.
 
 use std::cell::RefCell;
 use std::collections::HashSet;
@@ -19,6 +21,8 @@ use indexmap::{IndexMap, IndexSet};
 
 use crate::core::discovery::Found;
 use crate::games::common::cursors::shared::CursorPoll;
+use crate::games::common::layout::Layouts;
+use crate::games::common::layout_file::LayoutFiles;
 use crate::games::common::screen::ScreenText;
 use crate::games::gen6::apps::RunningApp;
 use crate::games::gen6::own::{Kit, Own, OwnApp};
@@ -27,9 +31,7 @@ use crate::games::gen6::screens::sources::{Chase, OwnSources};
 use crate::games::gen6::screens::townmap::OwnLists;
 use crate::games::oras::field::sky;
 use crate::games::oras::memories::Memories;
-use crate::games::oras::screens::conditions::Conditions;
-use crate::games::oras::screens::contest::Standings;
-use crate::games::oras::screens::pokeblock_kit;
+use crate::games::oras::screens::{conditions, contest, pokeblock_kit};
 use crate::games::oras::subscreen::PokeNav;
 use crate::py::Result;
 
@@ -40,8 +42,13 @@ pub struct Oras {
     text: Rc<GameText>,
     pauses: bool,
     nav: PokeNav,
-    standings: RefCell<Standings>,
-    conditions: Option<RefCell<Conditions>>,
+    standings: RefCell<contest::Standings>,
+    picked: RefCell<contest::Picked>,
+    conditions: Option<RefCell<conditions::Conditions>>,
+    layouts: Rc<Layouts>,
+    files: Rc<LayoutFiles>,
+    /// The star's labels, the game's words for the contest categories.
+    star_labels: HashSet<String>,
     kit: RefCell<pokeblock_kit::Kit>,
     memories: Memories,
     classes: Vec<String>,
@@ -58,37 +65,43 @@ impl Oras {
         // has left as they were.
         let nav = PokeNav::new(kit.memory.clone(), kit.names.clone(), &text, pauses);
         // A contest's appeals draw who stands where as portraits, said on the keys that say a
-        // battle's sides.
-        let standings = Standings::new(
+        // battle's sides, and the entrant the cursor picks is read every tick. Python raises out
+        // of the profile's making, which ends the runtime.
+        let words = contest::words(&text).unwrap_or_else(|error| panic!("{error}"));
+        let running: Rc<dyn Fn() -> Option<String>> = {
+            let apps = apps.clone();
+            Rc::new(move || apps.borrow().running.clone())
+        };
+        let process: Rc<dyn Fn() -> Option<i64>> = {
+            let apps = apps.clone();
+            Rc::new(move || apps.borrow().process)
+        };
+        let standings = contest::Standings::new(
             kit.memory.clone(),
             kit.layouts.clone(),
             kit.files.clone(),
-            text.contest_entrant.clone(),
-            {
-                let apps = apps.clone();
-                Rc::new(move || apps.borrow().running.clone())
-            },
-            text.contest_rivals.clone(),
-            {
-                let apps = apps.clone();
-                Rc::new(move || apps.borrow().process)
-            },
+            words.labels.clone(),
+            running.clone(),
+            words.rivals.clone(),
+            process.clone(),
         );
+        let picked = contest::Picked::new(kit.memory.clone(), running, process);
         // An Extra: the conditions the game draws as a star, said as numbers (ADR-0017).
         let conditions = (kit.tables.extras.conditions && text.loaded()).then(|| {
-            RefCell::new(Conditions::new(
+            RefCell::new(conditions::Conditions::new(
                 kit.memory.clone(),
                 kit.names.clone(),
                 kit.layouts.clone(),
                 kit.files.clone(),
                 apps.clone(),
-                text.contest_categories.clone(),
-                text.contest_conditions.clone(),
+                words.categories.clone(),
+                words.conditions.clone(),
                 kit.speech.clone(),
                 kit.log.clone(),
                 pauses,
             ))
         });
+        let star_labels: HashSet<String> = words.categories.iter().cloned().collect();
         // The Pokéblock Kit keeps the Case's and the Berry Blender's screens on screen at once.
         let pokeblocks = pokeblock_kit::Kit::new(
             kit.memory.clone(),
@@ -120,7 +133,11 @@ impl Oras {
             pauses,
             nav,
             standings: RefCell::new(standings),
+            picked: RefCell::new(picked),
             conditions,
+            layouts: kit.layouts.clone(),
+            files: kit.files.clone(),
+            star_labels,
             kit: RefCell::new(pokeblocks),
             memories,
             classes,
@@ -154,15 +171,19 @@ impl OwnLists for Oras {
 }
 
 impl OwnSources for Oras {
-    fn moved(&self, windows: &[i64], _shown: bool) -> Result<Chase> {
+    fn moved(&self, windows: &[i64], shown: bool) -> Result<Chase> {
+        let mut chase = Chase::NONE;
+        // A contest's cursor came onto another portrait: a row's move.
+        if self.picked.borrow_mut().moved(shown)? {
+            chase |= Chase::ROW;
+        }
         // The Pokéblock Kit keeps no index of what its cursor is over, and its cursor's place
         // is read instead. The block's count is said with its name, which the game writes as
         // the cursor moves: the screen is polled until both are said (or_pokeblock_kit).
-        Ok(if self.kit.borrow_mut().moved(windows)? {
-            Chase::DETAILS
-        } else {
-            Chase::NONE
-        })
+        if self.kit.borrow_mut().moved(windows)? {
+            chase |= Chase::DETAILS;
+        }
+        Ok(chase)
     }
 
     fn put_away(&self, works: &IndexMap<i64, i64>) -> Result<HashSet<i64>> {
@@ -182,7 +203,15 @@ impl OwnSources for Oras {
     }
 
     fn unsaid(&self, area: Option<&str>, on_screen: &[ScreenText]) -> HashSet<i64> {
-        self.nav.unsaid(area, on_screen)
+        // The star's labels have no values: the conditions Extra says them with theirs.
+        let mut unsaid = self.nav.unsaid(area, on_screen);
+        unsaid.extend(conditions::star_labels(
+            &*self.layouts,
+            &*self.files,
+            on_screen,
+            &self.star_labels,
+        ));
+        unsaid
     }
 }
 
