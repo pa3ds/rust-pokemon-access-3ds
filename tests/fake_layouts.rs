@@ -7,7 +7,7 @@ use indexmap::IndexMap;
 
 use super::fake_memory::{CODE, FakeClasses, FakeMemory};
 use crate::core::rtti::ClassNames;
-use crate::games::common::layout::Layouts;
+use crate::games::common::layout::{Cached, Layouts};
 use crate::games::common::lyt;
 use crate::py::Result;
 
@@ -39,6 +39,16 @@ impl FakeLayouts {
         classes: &FakeClasses,
         shape: lyt::PaneShape,
     ) -> Self {
+        FakeLayouts::with_cached(memory, classes, shape, None)
+    }
+
+    /// `FakeLayouts(memory, classes, shape, cached)`.
+    pub fn with_cached(
+        memory: &Rc<FakeMemory>,
+        classes: &FakeClasses,
+        shape: lyt::PaneShape,
+        cached: Option<Cached>,
+    ) -> Self {
         FakeLayouts {
             memory: memory.clone(),
             shape,
@@ -47,10 +57,11 @@ impl FakeLayouts {
             drawinfo: classes.add(lyt::DRAWINFO_CLASS),
             works: RefCell::new(Vec::new()),
             children: RefCell::new(IndexMap::new()),
-            layouts: Rc::new(Layouts::new(
+            layouts: Rc::new(Layouts::with_cached(
                 memory.clone(),
                 Rc::new(ClassNames::new(memory.clone(), CODE)),
                 shape,
+                cached,
             )),
         }
     }

@@ -12,6 +12,9 @@
 //! A layout's panes are found by walking its tree from the root (spike 49), which reaches TextBoxes
 //! a sweep would take seconds to find: the field's AreaNav keeps its work in the heap and its panes
 //! in the linear heap.
+//!
+//! Bound by:
+//! - ADR-0034: a layout pool that goes has the memory it lay in looked over for one made there.
 
 use std::cell::{Cell, RefCell};
 use std::collections::HashSet;
@@ -20,7 +23,7 @@ use std::rc::Rc;
 use indexmap::{IndexMap, IndexSet};
 
 use crate::core::binary::{f32, u16, u32};
-use crate::core::memory::Memory;
+use crate::core::memory::{Memory, PAGE};
 use crate::core::rtti::ClassNames;
 use crate::games::common::lyt;
 use crate::py::PySet;
@@ -53,6 +56,9 @@ pub const SETTLE_WALKS: i64 = 5;
 pub const BUILT_POLLS: i64 = 5;
 /// Works waiting for their layout, at most; the oldest is let go.
 pub const PENDING_KEPT: i64 = 128;
+/// Screen polls, two seconds, that the memory a watched pool lay in is looked over for a pool
+/// made there once it goes: as long as a new block is swept again for one (ADR-0034).
+pub const REMADE_POLLS: i64 = 10;
 /// Between the bottom screen's 320 and the top screen's 400, for a work's projection width.
 pub const SCREEN_SPLIT: f64 = 360.0;
 /// A root this far up or down from the middle is drawn by another view than its projection's. The
@@ -198,13 +204,35 @@ pub struct Layouts {
     dead: RefCell<IndexMap<i64, i64>>,
     /// Work -> looks left, for works found before their layout was built.
     pending: RefCell<IndexMap<i64, i64>>,
+    /// The page at an address where the poll has read it already (`PageCache.cached`), which
+    /// a pool that goes is looked for again in; none, and it is not.
+    cached: Option<Cached>,
+    /// Page a watched pool lay in -> pool polls left to look in it for a pool made there.
+    gone: RefCell<IndexMap<i64, i64>>,
 }
 
+/// `Callable[[int], bytes | None]`: the page starting at an address where the poll has read it
+/// already, else None (`PageCache.cached`).
+pub type Cached = Rc<dyn Fn(i64) -> Option<Vec<u8>>>;
+
 impl Layouts {
-    /// `Layouts(memory, names, shape)`; Python's default `shape` is `lyt::ORAS`.
+    /// `Layouts(memory, names, shape)`; Python's default `shape` is `lyt::ORAS`, and its default
+    /// `cached` None.
     pub fn new(memory: Rc<dyn Memory>, names: Rc<ClassNames>, shape: lyt::PaneShape) -> Self {
+        Layouts::with_cached(memory, names, shape, None)
+    }
+
+    /// `Layouts(memory, names, shape, cached)`.
+    pub fn with_cached(
+        memory: Rc<dyn Memory>,
+        names: Rc<ClassNames>,
+        shape: lyt::PaneShape,
+        cached: Option<Cached>,
+    ) -> Self {
         Layouts {
             memory,
+            cached,
+            gone: RefCell::new(IndexMap::new()),
             names,
             shape,
             roots: RefCell::new(IndexMap::new()),
@@ -472,11 +500,45 @@ impl Layouts {
     pub fn poll_pools(&self) -> Result<bool> {
         let mut known: HashSet<i64> = self.roots.borrow().values().map(|l| l.work).collect();
         let mut taken = false;
+        if !self.gone.borrow().is_empty()
+            && let Some(cached) = &self.cached
+        {
+            // The PSS builds each screen's pool where the last one's lay, in a block its heap's
+            // watch knew already: O-Power's list, opened from the PSS menu, offered the menu's
+            // buttons until the whole sweep, 16 s (or_pss_o_power_2). Only pages the poll holds
+            // already, as `revive` reads the gone pool's works there: read afresh, every replay
+            // recorded before went its own way where a pool went.
+            let pages: IndexMap<i64, Vec<u8>> = self
+                .gone
+                .borrow()
+                .keys()
+                .filter_map(|&page| cached(page).map(|data| (page, data)))
+                .collect();
+            self.watch_pools_in(&pages)?;
+            self.gone.borrow_mut().retain(|_page, left| {
+                *left -= 1;
+                *left > 0
+            });
+        }
         let pools: Vec<i64> = self.pools.borrow().keys().copied().collect();
         for pool in pools {
             let Some(shape) = self.pool(pool)? else {
-                self.pools.borrow_mut().shift_remove(&pool);
+                let (_table, capacity) = self
+                    .pools
+                    .borrow_mut()
+                    .shift_remove(&pool)
+                    .expect("a pool watched");
                 self.in_use.borrow_mut().shift_remove(&pool);
+                let end = pool
+                    + lyt::POOL_SLOTS_OFFSET
+                    + capacity * (lyt::WORK_SIZE + lyt::ENTRY_SIZE)
+                    + lyt::WORK_SIZE;
+                if self.cached.is_some() {
+                    let mut gone = self.gone.borrow_mut();
+                    for page in ((pool & -PAGE)..end).step_by(PAGE as usize) {
+                        gone.insert(page, REMADE_POLLS);
+                    }
+                }
                 continue;
             };
             // A layout built into a pool takes a slot: while the count holds, the table is not

@@ -1,31 +1,40 @@
 //! Layout tests: layouts taken in from a layout pool, as spike 64 read the battle's.
 
+use std::rc::Rc;
+
 use indexmap::{IndexMap, IndexSet};
 
 use super::fake_layouts::FakeLayouts;
 use super::fake_memory::{FakeClasses, FakeMemory};
-use crate::games::common::layout::{BUILT_POLLS, SETTLE_WALKS};
+use crate::core::memory::{Memory, PAGE};
+use crate::games::common::layout::{self, BUILT_POLLS, SETTLE_WALKS};
 use crate::games::common::lyt;
 
 const POOL: i64 = 0x14A9F008;
 const TABLE: i64 = POOL + lyt::POOL_TABLE_OFFSET;
 
-/// A pool of `capacity` slots whose table lists these works, the rest of it empty slots.
+/// `pool(memory, works, capacity)`, at `POOL`.
 fn pool(memory: &FakeMemory, works: &[i64], capacity: i64) {
-    memory.u32(POOL + lyt::POOL_TABLE, &[TABLE]);
-    memory.u16(POOL + lyt::POOL_CAPACITY, capacity);
-    memory.u16(POOL + lyt::POOL_IN_USE, works.len() as i64);
-    memory.u32(POOL + lyt::POOL_SELF, &[POOL]);
+    pool_at(memory, works, capacity, POOL);
+}
+
+/// A pool of `capacity` slots whose table lists these works, the rest of it empty slots.
+fn pool_at(memory: &FakeMemory, works: &[i64], capacity: i64, at: i64) {
+    let table = at + lyt::POOL_TABLE_OFFSET;
+    memory.u32(at + lyt::POOL_TABLE, &[table]);
+    memory.u16(at + lyt::POOL_CAPACITY, capacity);
+    memory.u16(at + lyt::POOL_IN_USE, works.len() as i64);
+    memory.u32(at + lyt::POOL_SELF, &[at]);
     memory.u32(
-        POOL + lyt::POOL_TABLE_END,
-        &[TABLE + capacity * lyt::ENTRY_SIZE],
+        at + lyt::POOL_TABLE_END,
+        &[table + capacity * lyt::ENTRY_SIZE],
     );
     for index in 0..capacity {
         let work = works
             .get(index as usize)
             .copied()
             .unwrap_or(0x14AA0000 + index * lyt::WORK_SIZE);
-        memory.u32(TABLE + index * lyt::ENTRY_SIZE, &[POOL, work]);
+        memory.u32(table + index * lyt::ENTRY_SIZE, &[at, work]);
     }
 }
 
@@ -73,9 +82,54 @@ fn test_a_pool_that_stops_being_one_is_no_longer_read() {
     pool(&memory, &[], 4);
     fake.layouts.watch_pools([TABLE]).unwrap();
     memory.u16(POOL + lyt::POOL_CAPACITY, 0);
-    assert!(!fake.layouts.poll_pools().unwrap());
+    for _ in 0..layout::REMADE_POLLS + 1 {
+        assert!(!fake.layouts.poll_pools().unwrap());
+    }
     pool(&memory, &[work], 4);
     assert!(!fake.layouts.poll_pools().unwrap());
+}
+
+/// The PSS builds each screen's pool where the last one's lay, in a block its heap's watch knew
+/// already: O-Power's list, opened from the PSS menu, offered the menu's buttons until the whole
+/// sweep (or_pss_o_power_2). Only in pages the poll has read already, as it reads the gone
+/// pool's works there: read afresh, every replay recorded before went its own way.
+#[test]
+fn test_a_pool_made_where_a_watched_one_went_is_watched() {
+    let made = POOL + 0x9E8;
+    for (held, found) in [(true, true), (false, false)] {
+        let memory = FakeMemory::new();
+        let kept = memory.clone();
+        let cached: layout::Cached = Rc::new(move |page: i64| {
+            if held || page != made & -PAGE {
+                kept.read(page, PAGE).ok()
+            } else {
+                None
+            }
+        });
+        let fake = FakeLayouts::with_cached(
+            &memory,
+            &FakeClasses::new(memory.clone()),
+            lyt::ORAS,
+            Some(cached),
+        );
+        let (work, _group) = fake.screen(0x14B00000);
+        pool(&memory, &[], 10);
+        fake.layouts.watch_pools([TABLE]).unwrap();
+        fake.layouts.poll_pools().unwrap();
+        memory.u16(POOL + lyt::POOL_CAPACITY, 0);
+        assert!(!fake.layouts.poll_pools().unwrap());
+        assert!(!fake.layouts.poll_pools().unwrap());
+        pool_at(&memory, &[work], 10, made);
+        assert_eq!(fake.layouts.poll_pools().unwrap(), found);
+        assert_eq!(
+            fake.layouts.works(),
+            if found {
+                works(&[(work, 0x14B00400)])
+            } else {
+                works(&[])
+            }
+        );
+    }
 }
 
 const FIELD_POOL: i64 = 0x08300000;

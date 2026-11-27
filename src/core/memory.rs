@@ -42,6 +42,15 @@ pub trait Cache: Memory {
     fn end(&self, name: &str);
     /// Many reads at once, keyed by address; a read that failed is left out.
     fn read_each(&self, reads: &[(i64, i64)]) -> Result<IndexMap<i64, Vec<u8>>>;
+    /// Whether the cache has `cached`, which Python asks with `getattr(memory, "cached", None)`:
+    /// a `PageCache` has, the rest not.
+    fn has_cached(&self) -> bool {
+        false
+    }
+    /// `PageCache.cached`, for a cache that has it (`has_cached`).
+    fn cached(&self, _address: i64) -> Option<Vec<u8>> {
+        None
+    }
 }
 
 /// `with cache.phase(name): body`. A phase that fails to begin runs no body and is not ended,
@@ -267,6 +276,21 @@ impl Cache for PageCache {
             .insert(name.to_string(), touched.into_iter().collect());
         if state.phases.is_empty() {
             state.pages.clear();
+        }
+    }
+
+    fn has_cached(&self) -> bool {
+        true
+    }
+
+    /// The page starting at this address where the phase in progress has it already, else
+    /// None: a look that costs no read, and is no read the phase makes for its next fetch.
+    fn cached(&self, address: i64) -> Option<Vec<u8>> {
+        let state = self.state.borrow();
+        if state.phases.is_empty() {
+            None
+        } else {
+            state.pages.get(&address).cloned()
         }
     }
 

@@ -56,7 +56,7 @@ use crate::games::common::field::things::{
     FURNITURE_SOURCE, Field, Interactable, MODEL_SOURCE, WARP_SOURCE, bearing, describe,
     source_kind, source_number,
 };
-use crate::games::common::layout::Layouts;
+use crate::games::common::layout::{Cached, Layouts};
 use crate::games::common::layout_file::{LayoutFile, LayoutFiles};
 use crate::games::common::pictures::{CAUGHT, UNAVAILABLE};
 use crate::games::common::pictures::named as named_picture;
@@ -488,7 +488,18 @@ impl Gen6Profile {
         let cache = memory;
         let memory: Rc<dyn Memory> = cache.clone();
         let named = named.unwrap_or_else(|| Rc::new(Names::empty()));
-        let layouts = Rc::new(Layouts::new(memory.clone(), names.clone(), lyt::ORAS));
+        // The page cache's pages, which a layout pool gone is looked for again in; none from a
+        // snapshot or a fake, which cache none.
+        let cached: Option<Cached> = cache.has_cached().then(|| {
+            let cache = cache.clone();
+            Rc::new(move |page: i64| cache.cached(page)) as Cached
+        });
+        let layouts = Rc::new(Layouts::with_cached(
+            memory.clone(),
+            names.clone(),
+            lyt::ORAS,
+            cached,
+        ));
         let apps = Rc::new(RefCell::new(RunningApp::new(memory.clone(), names.clone())));
         // The options screen types TEXT SPEED's description again to show the speed chosen.
         let dialogue = DialogueReader::with(

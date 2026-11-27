@@ -71,6 +71,24 @@ fn test_reads_in_one_page_in_one_phase_fetch_it_once() {
     assert_eq!(emu.reads(), 1);
 }
 
+/// A layout pool gone is looked for again only in pages the poll holds already: read
+/// afresh, every replay recorded before went its own way where a pool went (or_pss_o_power_2).
+#[test]
+fn test_a_page_the_phase_holds_is_looked_at_with_no_read() {
+    let emu = FakeEmulator::new(filled(&[(0x08001000, 1), (0x08001400, 2)]));
+    let cache = PageCache::new(connect(&emu));
+    assert_eq!(cache.cached(0x08001000), None);
+    phase(&cache, "screen", || {
+        cache.read(0x08001000, 1)?;
+        assert_eq!(cache.cached(0x08001000), Some(vec![1; M]));
+        assert_eq!(cache.cached(0x08001400), None);
+        Ok(())
+    })
+    .unwrap();
+    assert_eq!(emu.reads(), 1);
+    assert_eq!(cache.cached(0x08001000), None);
+}
+
 #[test]
 fn test_a_new_phase_reads_the_game_as_it_is_now() {
     let emu = FakeEmulator::new(filled(&[(0x08001000, 1)]));
