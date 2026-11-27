@@ -12,7 +12,7 @@ use indexmap::{IndexMap, IndexSet};
 
 use super::fake_memory::{CODE, FakeClasses, FakeMemory};
 use super::test_rail;
-use crate::core::config::{HIDDEN_OFF, HIDDEN_UNDERWATER};
+use crate::core::config::{HIDDEN_ALL, HIDDEN_OFF, HIDDEN_UNDERWATER};
 use crate::core::discovery::{ALLOCATION, Found};
 use crate::core::memory::Memory;
 use crate::core::pathfind;
@@ -34,7 +34,7 @@ use crate::games::gen6::field::features::{Feature, Sighting, Tracked, ZoneAt};
 use crate::games::gen6::field::fieldmap::{
     MAP_BLOCK_SIZE, MAP_CHUNK_FILES, MAP_CHUNKS_TALL, MAP_CHUNKS_WIDE, MAP_GRID, MAP_KIND, MAP_MARK,
 };
-use crate::games::gen6::field::hidden_items::HIDDEN_ITEM;
+use crate::games::gen6::field::hidden_items::{HIDDEN_ITEM, ITEMS_LEAST, MARKED, ROW};
 use crate::games::gen6::field::landform::{ArrowTiles, Belts, Landform, Rides, gen6};
 use crate::games::gen6::field::mmodel::PROP_MODEL;
 use crate::games::gen6::field::reader::PC_TILE as PC_KIND;
@@ -55,7 +55,7 @@ use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::rom::maps::{ChunkSource, StreetSource};
 use crate::games::oras;
 use crate::games::oras::field::berries::BerrySpots;
-use crate::games::oras::field::hidden::{self, DexNav};
+use crate::games::oras::field::hidden::{self, DexNav, HIDDEN_POKEMON};
 use crate::games::oras::field::{ash, berries, doors, ice, secret_base};
 use crate::games::xy;
 use crate::games::{
@@ -2089,6 +2089,90 @@ fn test_a_record_two_parts_keep_is_one_thing_told_by_the_first_parts_record() ->
     // Out of the town's part, where the game has built neither, the route's record says it.
     town.memory.u32(POOL + 2 * MODEL_STRIDE, &[town.vtable, 0]);
     assert_eq!(balls(&town)?, built);
+    Ok(())
+}
+
+/// ADR-0042: another part's features are listed out of their own readers, but a watched one,
+/// the DexNav's find, only where the player is: its record says where its tail is now, and
+/// another part's listing never had it. Here the route is the town's other part.
+#[test]
+fn test_a_watched_feature_is_listed_in_the_players_own_part_alone() -> Result<()> {
+    let mut town = Town::new();
+    let both = vec![TOWN, ROUTE];
+    town.reader = field_reader(
+        town.memory.clone(),
+        Given {
+            berries: vec![(ROUTE, (90, 150))],
+            parts: IndexMap::from([(TOWN, both.clone()), (ROUTE, both.clone())]),
+            part_data: IndexMap::from([(ROUTE, zone_file(&ZoneSpec::default()))]),
+            ..Given::default()
+        },
+        Game {
+            features: vec![dexnav, BerrySpots::of],
+            ..game()
+        },
+    );
+    town.hide(POOCHYENA, 5, (94, 129));
+    let kinds: HashSet<String> = town
+        .r#where()?
+        .interactables
+        .iter()
+        .map(|item| item.kind.clone())
+        .collect();
+    assert!(kinds.contains("berry spot") && !kinds.contains(HIDDEN_POKEMON));
+    assert!(up(&town, ROUTE)?.is_some());
+    Ok(())
+}
+
+/// The listing's order: the game's features, its Secret Bases, those of its features watched
+/// at every poll, the DexNav's find, then the hidden items, wherever the game puts the DexNav
+/// among its features.
+#[test]
+fn test_a_watched_feature_is_listed_after_the_secret_bases_and_before_the_hidden_items()
+-> Result<()> {
+    let mut town = Town::new();
+    let mut table: Vec<u8> = Vec::new();
+    for number in 1..=ITEMS_LEAST {
+        let zone = if number == 1 { TOWN } else { 9 };
+        table.extend(ROW.pack([4, number, 90, 0, 175, zone, MARKED])?);
+    }
+    town.reader = field_reader(
+        town.memory.clone(),
+        Given {
+            berries: vec![(TOWN, (96, 175))],
+            extras_hidden_items: Some(HIDDEN_ALL),
+            image: Some(table),
+            ..Given::default()
+        },
+        Game {
+            features: vec![dexnav, BerrySpots::of],
+            secret_bases: Some(given_bases(Bases::new(
+                &[(TOWN, (100, 165))],
+                None,
+                &[],
+                &[],
+            ))),
+            ..game()
+        },
+    );
+    town.reader.track(&Found {
+        heap: IndexMap::from([(EVENT_WORK, EVENT_CLASS.to_string())]),
+        ..Found::default()
+    })?;
+    town.hide(POOCHYENA, 5, (95, 176));
+    let kinds: Vec<String> = town
+        .r#where()?
+        .interactables
+        .iter()
+        .map(|item| item.kind.clone())
+        .filter(|kind| {
+            ["berry spot", "secret base spot", HIDDEN_POKEMON, HIDDEN_ITEM].contains(&kind.as_str())
+        })
+        .collect();
+    assert_eq!(
+        kinds,
+        ["berry spot", "secret base spot", HIDDEN_POKEMON, HIDDEN_ITEM]
+    );
     Ok(())
 }
 
