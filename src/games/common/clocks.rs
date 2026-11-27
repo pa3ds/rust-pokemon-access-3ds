@@ -63,6 +63,38 @@ pub const AGAIN_POLLS: i64 = 15;
 /// reads the game, so it can raise.
 pub type Scored = Rc<dyn Fn(&ScreenText) -> Result<bool>>;
 
+/// What the screen announcer asks of its clocks (`Clocks`): a trait, where Python's tests subclass
+/// `Clocks` with clocks of their own.
+pub trait Clocked {
+    /// `Clocks.timed`.
+    fn timed(&self) -> bool;
+
+    /// `Clocks.unsaid`.
+    fn unsaid(
+        &mut self,
+        heard: &[ScreenText],
+        texts: &[ScreenText],
+        opened_at: &IndexMap<i64, i64>,
+        turns: bool,
+    ) -> Result<HashSet<i64>>;
+}
+
+impl Clocked for Clocks {
+    fn timed(&self) -> bool {
+        Clocks::timed(self)
+    }
+
+    fn unsaid(
+        &mut self,
+        heard: &[ScreenText],
+        texts: &[ScreenText],
+        opened_at: &IndexMap<i64, i64>,
+        turns: bool,
+    ) -> Result<HashSet<i64>> {
+        Clocks::unsaid(self, heard, texts, opened_at, turns)
+    }
+}
+
 /// What of a screen's words ticks, turns or scores, left unsaid, one poll at a time.
 pub struct Clocks {
     log: Log,

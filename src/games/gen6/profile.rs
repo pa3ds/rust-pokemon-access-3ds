@@ -1222,7 +1222,7 @@ impl Gen6Profile {
             speech.clone(),
             log.clone(),
             ui.pauses,
-            Some(Clocks::with(
+            Some(Box::new(Clocks::with(
                 log.clone(),
                 ticking(ticks),
                 Some({
@@ -1238,7 +1238,7 @@ impl Gen6Profile {
                     Rc::new(move |piece: &ScreenText| subscreens.scored(piece))
                 }),
                 tables.amie.head_it_score,
-            )),
+            ))),
         );
         // The scenes the game shows without words, described where the player asks and the game
         // has descriptions in their language (ADR-0038), those of the other version left out.

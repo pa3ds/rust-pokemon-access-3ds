@@ -61,7 +61,7 @@ use std::rc::Rc;
 use indexmap::{IndexMap, IndexSet};
 
 use crate::core::speech::{Category, Speech};
-use crate::games::common::clocks::Clocks;
+use crate::games::common::clocks::{Clocked, Clocks};
 use crate::games::common::cursors::shared::CursorPoll;
 use crate::games::common::screen::{
     ScreenPoll, ScreenText, by_rows, distinct, in_rows, join, labels_value, reading_order,
@@ -241,7 +241,7 @@ pub struct ScreenAnnouncer {
     speech: Rc<Speech>,
     log: Log,
     pauses: bool,
-    clocks: Clocks,
+    clocks: Box<dyn Clocked>,
     /// Roots of the layouts a cursor has been over, for as long as those layouts live.
     menus: HashSet<i64>,
     gathering: Option<Gathering>,
@@ -306,8 +306,13 @@ impl ScreenAnnouncer {
     /// `clocks` leave unsaid what ticks, turns or scores, asked once a poll; where no game
     /// times anything, clocks of no game's, which leave clocks alone and rows turned unsaid
     /// all the same.
-    pub fn with_clocks(speech: Rc<Speech>, log: Log, pauses: bool, clocks: Option<Clocks>) -> Self {
-        let clocks = clocks.unwrap_or_else(|| Clocks::new(log.clone()));
+    pub fn with_clocks(
+        speech: Rc<Speech>,
+        log: Log,
+        pauses: bool,
+        clocks: Option<Box<dyn Clocked>>,
+    ) -> Self {
+        let clocks = clocks.unwrap_or_else(|| Box::new(Clocks::new(log.clone())));
         ScreenAnnouncer {
             speech,
             log,

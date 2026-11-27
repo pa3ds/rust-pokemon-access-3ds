@@ -26,6 +26,7 @@ mod test_catalog;
 mod test_choices;
 mod test_claims;
 mod test_clips;
+mod test_clocks;
 mod test_conditions;
 mod test_config;
 mod test_contest;

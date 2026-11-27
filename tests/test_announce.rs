@@ -1,6 +1,6 @@
 //! Screen announcing tests: what is said of screen text and cursors, and in what order.
 
-use std::cell::{Cell, RefCell};
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
@@ -11,7 +11,7 @@ use crate::core::speech::{Category, Speech};
 use crate::games::common::announce::{Announcements, FOCUS_HEARD_POLLS, Focus, SPEAKER_POLLS};
 use crate::games::common::battle::Battler;
 use crate::games::common::cursors::shared::{CursorItem, CursorPoll};
-use crate::games::common::clocks::{CLOCK_POLLS, Clocks, Scored};
+use crate::games::common::clocks::{CLOCK_POLLS, Clocked, Clocks};
 use crate::games::common::dialogue::{PageShown, Shown};
 use crate::games::common::screen::{ScreenPoll, ScreenText};
 use crate::games::common::screen_announce::{
@@ -157,41 +157,17 @@ impl Screen {
     }
 
     fn with(pauses: bool) -> Self {
-        Screen::with_clock(pauses, None, false, None)
+        Screen::with_clocks(pauses, None)
     }
 
-    /// `Screen(pauses, tick, timed, playing)`.
-    fn with_clock(
-        pauses: bool,
-        tick: Option<Rc<dyn Fn()>>,
-        timed: bool,
-        playing: Option<Rc<dyn Fn() -> Result<bool>>>,
-    ) -> Self {
-        Screen::with_score(pauses, tick, timed, playing, None, false)
-    }
-
-    /// `Screen(pauses, tick, timed, playing, scored, score_said)`.
-    fn with_score(
-        pauses: bool,
-        tick: Option<Rc<dyn Fn()>>,
-        timed: bool,
-        playing: Option<Rc<dyn Fn() -> Result<bool>>>,
-        scored: Option<Scored>,
-        score_said: bool,
-    ) -> Self {
+    /// `Screen(pauses, clocks)`.
+    fn with_clocks(pauses: bool, clocks: Option<Box<dyn Clocked>>) -> Self {
         let backend = Recorder::new();
         let announcer = ScreenAnnouncer::with_clocks(
             Rc::new(Speech::plain(backend.clone())),
             Rc::new(|_line: &str| {}),
             pauses,
-            Some(Clocks::with(
-                Rc::new(|_line: &str| {}),
-                tick,
-                Some(Rc::new(move || timed)),
-                playing,
-                scored,
-                score_said,
-            )),
+            clocks,
         );
         Screen { backend, announcer }
     }
@@ -1609,247 +1585,133 @@ fn test_a_changed_value_alone_in_its_group_takes_its_whole_row() {
     );
 }
 
-/// What is said of a clock shown with its first words and changed to each of the rest, a
-/// change every `polls` polls, or after each of them.
-///
-/// Python's `polls` is an int or a list; here it is always a list, `vec![5; n]` for the int.
-fn run_clock(screen: &mut Screen, texts: &[String], polls: &[usize]) -> Vec<String> {
-    let mut first = piece(1, &texts[0], -100.0, 100.0, PANEL);
-    let mut said = screen.say(args(&one(&first), vec![], &one(&first)));
-    assert_eq!(polls.len(), texts.len() - 1);
-    for (text, &gap) in texts[1..].iter().zip(polls) {
-        for _ in 0..gap - 1 {
-            said.extend(screen.on(&one(&first)));
-        }
-        first = ScreenText {
-            text: text.clone(),
-            changed: true,
-            with_layout: false,
-            ..first.clone()
-        };
-        said.extend(screen.say(args(&one(&first), vec![], &one(&first))));
-    }
-    said
+/// What the clocks were asked a poll: the words heard, the words that came or changed, the poll
+/// each layout's words came at, and whether the screen turns its rows.
+type Ask = (Vec<String>, Vec<String>, IndexMap<i64, i64>, bool);
+
+/// Clocks leaving the boxes given unsaid, keeping what they are asked: Python's `Asked`
+/// subclasses `Clocks`, whose `timed` it keeps, a game timing nothing.
+struct Asked {
+    left: Rc<RefCell<HashSet<i64>>>,
+    asked: Rc<RefCell<Vec<Ask>>>,
 }
 
-/// `run_clock` with a change every 5 polls, its default.
-fn run_clock_5(screen: &mut Screen, texts: &[String]) -> Vec<String> {
-    run_clock(screen, texts, &vec![5; texts.len() - 1])
+impl Clocked for Asked {
+    fn timed(&self) -> bool {
+        false
+    }
+
+    fn unsaid(
+        &mut self,
+        heard: &[ScreenText],
+        texts: &[ScreenText],
+        opened_at: &IndexMap<i64, i64>,
+        turns: bool,
+    ) -> Result<HashSet<i64>> {
+        self.asked.borrow_mut().push((
+            heard.iter().map(|p| p.text.clone()).collect(),
+            texts.iter().map(|p| p.text.clone()).collect(),
+            opened_at.clone(),
+            turns,
+        ));
+        Ok(self.left.borrow().clone())
+    }
 }
 
 fn words(texts: &[&str]) -> Vec<String> {
     texts.iter().map(|text| text.to_string()).collect()
 }
 
+/// ADR-0013: what ticks, turns or scores is the clocks' (`common.clocks`), asked once a poll of
+/// the words screen text would say, a cursor's item and the list readers' labels left out, with
+/// every word that came or changed, the poll each layout's words came at and whether the screen
+/// turns its rows. What they leave unsaid is neither a change nor words come on screen: a clock's
+/// tick and a score changing in one poll are no rewrite of two rows.
 #[test]
-fn test_a_countdown_is_said_each_half_minute_at_10_and_its_last_5() {
-    // Berry Picker said "Time Left" every second for its whole minute (a player, 2026-10-26).
-    let ticks = Rc::new(RefCell::new(Vec::<i64>::new()));
-    let counting = ticks.clone();
-    let mut screen = Screen::with_clock(
+fn test_the_clocks_are_asked_once_a_poll_of_what_screen_text_would_say() {
+    let left: Rc<RefCell<HashSet<i64>>> = Rc::new(RefCell::new(HashSet::new()));
+    let asked: Rc<RefCell<Vec<Ask>>> = Rc::new(RefCell::new(Vec::new()));
+    let mut screen = Screen::with_clocks(
         false,
-        Some(Rc::new(move || counting.borrow_mut().push(1))),
-        true,
-        None,
+        Some(Box::new(Asked {
+            left: left.clone(),
+            asked: asked.clone(),
+        })),
     );
-    let countdown: Vec<String> = (0..=60)
-        .rev()
-        .map(|left| format!("Time Left: {left:02}"))
-        .collect();
-    let said = run_clock_5(&mut screen, &countdown);
+    let item = piece(1, "Bag", -100.0, 100.0, MENU);
+    let label = piece(2, "Potion", 0.0, 100.0, MENU);
+    let row = Kw { parent: 5, ..PLAIN };
+    let time = [
+        piece_kw(3, "Time Left:", -100.0, 0.0, PANEL, row),
+        piece_kw(4, "60", 0.0, 0.0, PANEL, row),
+    ];
+    let score = piece_kw(5, "SCORE 7", -100.0, -40.0, PANEL, Kw { parent: 6, ..PLAIN });
+    let everything = vec![
+        item.clone(),
+        label.clone(),
+        time[0].clone(),
+        time[1].clone(),
+        score.clone(),
+    ];
+    *left.borrow_mut() = HashSet::from([5]);
     assert_eq!(
-        said,
-        [
-            "Time Left: 60",
-            "Time Left: 30",
-            "Time Left: 10",
-            "Time Left: 05",
-            "Time Left: 04",
-            "Time Left: 03",
-            "Time Left: 02",
-            "Time Left: 01"
-        ]
+        screen.say(Args {
+            texts: everything.clone(),
+            items: vec![CursorItem::new(0x0C, vec![item.clone()], true)],
+            on_screen: everything,
+            labels: labelled(&["Potion"]),
+            turns: true,
+            ..Args::default()
+        }),
+        ["Bag", "Time Left: 60"]
     );
-    assert_eq!(ticks.borrow().len(), 60);
-}
-
-#[test]
-fn test_a_clock_counting_up_is_said_each_half_minute() {
-    let up: Vec<String> = (28..33)
-        .map(|seconds| format!("Time: 00:{seconds:02}"))
-        .collect();
-    let said = run_clock_5(&mut Screen::with_clock(false, None, true, None), &up);
-    assert_eq!(said, ["Time: 00:28", "Time: 00:30"]);
-}
-
-#[test]
-fn test_a_clock_still_ticks_past_a_missed_second_and_after_a_late_one() {
-    // Berry Picker's replay read 41 then 39 two seconds later, and 10 then 9 two polls after
-    // (as_amie_berry_picker); 31 to 29 passes the half minute, which is said.
-    let said = run_clock(
-        &mut Screen::with_clock(false, None, true, None),
-        &words(&[
-            "Time Left: 42",
-            "Time Left: 41",
-            "Time Left: 39",
-            "Time Left: 38",
-            "Time Left: 37",
-            "Time Left: 36",
-        ]),
-        &[5, 10, 5, 7, 2],
-    );
-    assert_eq!(said, ["Time Left: 42"]);
-    let said = run_clock(
-        &mut Screen::with_clock(false, None, true, None),
-        &words(&[
-            "Time Left: 33",
-            "Time Left: 32",
-            "Time Left: 31",
-            "Time Left: 29",
-        ]),
-        &[5, 5, 10],
-    );
-    assert_eq!(said, ["Time Left: 33", "Time Left: 29"]);
-}
-
-#[test]
-fn test_a_mark_is_said_once_as_a_second_won_back_bounces_the_clock_round_it() {
-    // Tile Puzzle's Unlimited gives a second back for a piece put home, and said "Time
-    // Remaining: 01:00" twice in a second (or_amie_tile_puzzle_unlimited). A clock jumping, as a
-    // finished puzzle's 28 seconds won back do, passes its marks afresh.
-    let bouncing: Vec<String> = ["01:02", "01:01", "01:00", "01:01", "01:00", "00:59"]
-        .iter()
-        .map(|seconds| format!("Time Remaining: {seconds}"))
-        .collect();
-    let said = run_clock(
-        &mut Screen::with_clock(false, None, true, None),
-        &bouncing,
-        &[5, 5, 3, 3, 5],
-    );
-    assert_eq!(said, ["Time Remaining: 01:02", "Time Remaining: 01:00"]);
-    let jumping: Vec<String> = [31, 30]
-        .into_iter()
-        .chain((30..=58).rev())
-        .map(|seconds| format!("Time Remaining: 00:{seconds}"))
-        .collect();
-    let said = run_clock_5(&mut Screen::with_clock(false, None, true, None), &jumping);
     assert_eq!(
-        said,
-        [
-            "Time Remaining: 00:31",
-            "Time Remaining: 00:30",
-            "Time Remaining: 00:58",
-            "Time Remaining: 00:30"
-        ]
+        *asked.borrow(),
+        vec![(
+            words(&["Time Left:", "60", "SCORE 7"]),
+            words(&["Bag", "Potion", "Time Left:", "60", "SCORE 7"]),
+            IndexMap::new(),
+            true
+        )]
     );
-}
-
-#[test]
-fn test_numbers_are_the_plays_while_the_player_plays() {
-    // At each piece put home Unlimited said its total and the gain it popped up, "Puzzle No. 2,
-    // 102 Points", "+2 Points" (or_amie_tile_puzzle_unlimited): nothing is said of a swap, the
-    // total only as a puzzle starts and once it is solved. Words are said.
-    let playing = Rc::new(Cell::new(false));
-    let asked = playing.clone();
-    let mut screen = Screen::with_clock(false, None, true, Some(Rc::new(move || Ok(asked.get()))));
-    let in_panel = Kw { parent: 5, ..PLAIN };
-    let puzzle = piece_kw(1, "Puzzle No. 2", -100.0, 20.0, PANEL, in_panel);
-    let total = piece_kw(2, "100 Points", 0.0, 20.0, PANEL, in_panel);
-    let both = [puzzle.clone(), total.clone()];
-    assert_eq!(
-        screen.say(args(&both, vec![], &both)),
-        ["Puzzle No. 2 100 Points"]
-    );
-    playing.set(true);
-    let more = ScreenText {
-        text: "102 Points".into(),
+    *left.borrow_mut() = HashSet::from([4]);
+    let ticked = ScreenText {
+        text: "59".to_string(),
         changed: true,
         with_layout: false,
-        ..total.clone()
+        ..time[1].clone()
     };
-    let alone = Kw {
+    let scored = ScreenText {
+        text: "SCORE 8".to_string(),
+        changed: true,
         with_layout: false,
-        ..PLAIN
+        ..score.clone()
     };
-    let gain = [
-        piece_kw(3, "+", 44.0, 0.0, PANEL, alone),
-        piece_kw(5, "2 Points", 50.0, 0.0, PANEL, alone),
-    ];
-    let question = piece(4, "Quit the puzzle?", 0.0, -50.0, MENU);
+    let now = vec![item, label, time[0].clone(), ticked.clone(), scored.clone()];
+    let mut said = screen.say(Args {
+        texts: vec![ticked, scored],
+        on_screen: now.clone(),
+        labels: labelled(&["Potion"]),
+        ..Args::default()
+    });
+    for _ in 0..DETAIL_MAX_POLLS {
+        said.extend(screen.say(Args {
+            on_screen: now.clone(),
+            labels: labelled(&["Potion"]),
+            ..Args::default()
+        }));
+    }
+    assert_eq!(said, ["SCORE 8"]);
     assert_eq!(
-        screen.say(args(
-            &cat(&[
-                std::slice::from_ref(&more),
-                &gain,
-                std::slice::from_ref(&question)
-            ]),
-            vec![],
-            &cat(&[&[puzzle.clone(), more.clone()], &gain, &[question]]),
-        )),
-        ["Quit the puzzle?"]
+        asked.borrow()[1],
+        (
+            words(&["59", "SCORE 8"]),
+            words(&["59", "SCORE 8"]),
+            IndexMap::from([(MENU, 1), (PANEL, 1)]),
+            false
+        )
     );
-    playing.set(false);
-    let solved = ScreenText {
-        text: "202 Points".into(),
-        ..more
-    };
-    assert_eq!(
-        screen.say(args(&one(&solved), vec![], &[puzzle, solved.clone()])),
-        ["Puzzle No. 2 202 Points"]
-    );
-}
-
-/// Head It's score, combo and "MISS!" came at every ball, a second apart, and queued behind
-/// the balls' names; its combo, one up each second, ticked as a clock and was said at 30 (spike
-/// 273's `--again`). Its chances left are said (players, 2026-11-04).
-#[test]
-fn test_a_games_score_is_left_unsaid_and_is_never_a_clock() {
-    let ticks = Rc::new(Cell::new(0));
-    let ticked = ticks.clone();
-    let mut screen = Screen::with_score(
-        false,
-        Some(Rc::new(move || ticked.set(ticked.get() + 1))),
-        true,
-        None,
-        Some(Rc::new(|p: &ScreenText| Ok([1, 2].contains(&p.r#box)))),
-        false,
-    );
-    let combos: Vec<String> = (28..33).map(|hits| format!("{hits}-HIT COMBO")).collect();
-    assert_eq!(run_clock_5(&mut screen, &combos), Vec::<String>::new());
-    let missed = piece(2, "MISS!", 0.0, 0.0, PANEL);
-    let chances = piece(3, "Chances:2", -100.0, 80.0, PANEL);
-    let both = [missed, chances];
-    assert_eq!(screen.say(args(&both, vec![], &both)), ["Chances:2"]);
-    assert_eq!(ticks.get(), 0);
-}
-
-/// `[pa3ds.amie] head_it_score`: the combo once while hits keep coming within 3 s, and again
-/// after a pause or once it starts over.
-#[test]
-fn test_a_games_score_asked_for_is_said_once_while_it_keeps_going_up() {
-    let ticks = Rc::new(Cell::new(0));
-    let ticked = ticks.clone();
-    let mut screen = Screen::with_score(
-        false,
-        Some(Rc::new(move || ticked.set(ticked.get() + 1))),
-        true,
-        None,
-        Some(Rc::new(|p: &ScreenText| Ok(p.r#box == 1))),
-        true,
-    );
-    let combos: Vec<String> = [
-        "3-HIT COMBO",
-        "4-HIT COMBO",
-        "5-HIT COMBO",
-        "6-HIT COMBO",
-        "3-HIT COMBO",
-    ]
-    .iter()
-    .map(|combo| combo.to_string())
-    .collect();
-    let said = run_clock(&mut screen, &combos, &[5, 5, 20, 5]);
-    assert_eq!(said, ["3-HIT COMBO", "6-HIT COMBO", "3-HIT COMBO"]);
-    assert_eq!(ticks.get(), 0);
+    assert_eq!(asked.borrow().len() as i64, 2 + DETAIL_MAX_POLLS);
 }
 
 #[test]
@@ -1874,252 +1736,26 @@ fn test_words_coming_back_while_a_game_times_the_player_come_alone() {
             },
         )
     };
+    let on_screen = cat(&[&rules, std::slice::from_ref(&gain)]);
+    let timed = Clocks::with(
+        Rc::new(|_line: &str| {}),
+        None,
+        Some(Rc::new(|| true)),
+        None,
+        None,
+        false,
+    );
     assert_eq!(
-        Screen::with_clock(false, None, true, None).say(args(
+        Screen::with_clocks(false, Some(Box::new(timed))).say(args(
             &one(&gain),
             vec![],
-            &cat(&[&rules, std::slice::from_ref(&gain)]),
+            &on_screen
         )),
         ["+28 Seconds"]
     );
-}
-
-#[test]
-fn test_no_number_is_a_clock_outside_a_game_that_times_the_player() {
-    // Taken for a clock wherever it ticked, the battle Bag's page, the Mart's counts, money, a
-    // save screen's minute and the PC Box's name went unsaid as the player changed them
-    // (as_cave_of_origin, or_mart, or_pc_box_buttons and others).
-    let countdown: Vec<String> = (56..=60)
-        .rev()
-        .map(|left| format!("Time Left: {left}"))
-        .collect();
-    assert_eq!(run_clock_5(&mut Screen::new(), &countdown), countdown);
-}
-
-/// O-Power's Active panel counts down each power running, its time a TextBox of its own, and
-/// each second of up to four was read (or_pss_o_power). Its half minute is no mark either: R
-/// says the times. Back from a power used, it came with the times it had left, then jumped them
-/// two seconds a poll later and brought one back alone: "Prize Money Power Lv. 1 02:57",
-/// "02:43".
-#[test]
-fn test_a_clock_alone_outside_a_game_is_said_only_as_its_layout_comes() {
-    let ticks = Rc::new(RefCell::new(Vec::<i64>::new()));
-    let counting = ticks.clone();
-    let mut screen = Screen::with_clock(
-        false,
-        Some(Rc::new(move || counting.borrow_mut().push(1))),
-        false,
-        None,
-    );
-    let countdown: Vec<String> = (28..34).rev().map(|left| format!("02:{left:02}")).collect();
-    let said = run_clock_5(&mut screen, &countdown);
-    assert_eq!(said, ["02:33"]);
-    assert!(ticks.borrow().is_empty());
-    // Its first tick two seconds on: a row came at "02:59" and next read "02:57".
     assert_eq!(
-        run_clock(
-            &mut Screen::new(),
-            &words(&["02:59", "02:57", "02:56"]),
-            &[10, 5]
-        ),
-        ["02:59"]
-    );
-    let mut screen = Screen::new();
-    let in_row = |parent: i64| Kw { parent, ..PLAIN };
-    let power = vec![
-        piece_kw(1, "Prize Money Power", -100.0, 60.0, PANEL, in_row(5)),
-        piece_kw(2, "Lv. 1", 20.0, 60.0, PANEL, in_row(5)),
-        piece_kw(3, "02:59", 80.0, 60.0, PANEL, in_row(5)),
-    ];
-    assert_eq!(
-        screen.say(args(&power, vec![], &power)),
-        ["Prize Money Power Lv. 1 02:59"]
-    );
-    let jumped = ScreenText {
-        text: "02:57".to_string(),
-        changed: true,
-        with_layout: false,
-        ..power[2].clone()
-    };
-    let later = Kw {
-        parent: 6,
-        with_layout: false,
-        ..PLAIN
-    };
-    let back = piece_kw(4, "02:43", 80.0, 30.0, PANEL, later);
-    assert_eq!(
-        screen.say(args(
-            &[jumped.clone(), back.clone()],
-            vec![],
-            &cat(&[&power[..2], &[jumped, back]])
-        )),
-        NOTHING
-    );
-    // A row coming later in that second ticked first two polls on, past it: "Encounter Power
-    // Lv. 1 02:27" was said again.
-    let mut screen = Screen::new();
-    let mut said = screen.say(args(&power, vec![], &power));
-    for _ in 0..ARRIVAL_MAX_POLLS - 3 {
-        said.extend(screen.on(&power));
-    }
-    let mut late = vec![
-        piece_kw(5, "Encounter Power", -100.0, 30.0, PANEL, later),
-        piece_kw(6, "Lv. 1", 20.0, 30.0, PANEL, later),
-        piece_kw(7, "02:28", 80.0, 30.0, PANEL, later),
-    ];
-    said.extend(screen.say(args(&late, vec![], &cat(&[&power, &late]))));
-    said.extend(screen.on(&cat(&[&power, &late])));
-    late[2] = rewritten(&late[2], "02:27");
-    said.extend(screen.say(args(&one(&late[2]), vec![], &cat(&[&power, &late]))));
-    for _ in 0..ARRIVAL_MAX_POLLS {
-        said.extend(screen.on(&cat(&[&power, &late])));
-    }
-    assert_eq!(
-        said,
-        [
-            "Prize Money Power Lv. 1 02:59",
-            "Encounter Power Lv. 1 02:28"
-        ]
-    );
-}
-
-/// The PSS's profile turns between "Total number of people met: 4" and "Number of people met
-/// today: 0" every 3.4 s, its count a poll or two after its label, and each turn was read
-/// (or_pss_singleplayer_2). A row turned back off that pace is said: a summary turned back to a
-/// Pokémon by the player.
-#[test]
-fn test_a_row_turned_back_and_forth_by_itself_is_said_once_each_way() {
-    fn turn(turns: bool, polls: &[i64]) -> Vec<String> {
-        let mut screen = Screen::new();
-        let row = Kw { parent: 5, ..PLAIN };
-        let mut rows = vec![
-            piece_kw(1, "Total number of people met:", -150.0, 0.0, PANEL, row),
-            piece_kw(2, "4", 50.0, 0.0, PANEL, row),
-        ];
-        let mut said = screen.say(Args {
-            turns,
-            ..args(&rows, vec![], &rows)
-        });
-        let words = [
-            "Total number of people met:",
-            "4",
-            "Number of people met today:",
-            "0",
-        ];
-        for (i, &gap) in polls.iter().enumerate() {
-            let i = i + 1;
-            let mut gap = gap;
-            for r#box in [0, 1] {
-                for _ in 0..gap - 1 {
-                    said.extend(screen.say(Args {
-                        turns,
-                        on_screen: rows.clone(),
-                        ..Args::default()
-                    }));
-                }
-                rows[r#box] = ScreenText {
-                    text: words[2 * (i % 2) + r#box].to_string(),
-                    changed: true,
-                    with_layout: false,
-                    ..rows[r#box].clone()
-                };
-                said.extend(screen.say(Args {
-                    turns,
-                    ..args(&one(&rows[r#box]), vec![], &rows)
-                }));
-                gap = 2;
-            }
-        }
-        for _ in 0..DETAIL_MAX_POLLS {
-            said.extend(screen.say(Args {
-                turns,
-                on_screen: rows.clone(),
-                ..Args::default()
-            }));
-        }
-        said
-    }
-
-    let once = [
-        "Total number of people met: 4",
-        "Number of people met today:",
-        "Number of people met today: 0",
-    ];
-    let again = [
-        "Total number of people met:",
-        "Total number of people met: 4",
-    ];
-    assert_eq!(turn(true, &[17, 16, 17, 16]), once);
-    assert_eq!(turn(false, &[17, 16]), [&once[..], &again[..]].concat());
-    assert_eq!(turn(true, &[17, 30]), [&once[..], &again[..]].concat());
-}
-
-/// O-Power's list hides its description under Use, Give and Cancel, and the next power
-/// picked brings it back with "Required Energy" as before: at the pace of a turn, that row went
-/// unsaid with the new power said (y_pss_singleplayer). A page turned back comes back whole.
-#[test]
-fn test_a_row_back_beside_new_words_is_no_turn() {
-    let mut screen = Screen::new();
-    let row = Kw { parent: 5, ..PLAIN };
-    let mut rows = vec![
-        piece_kw(1, "Capture Power Lv. 1", -150.0, 40.0, PANEL, row),
-        piece_kw(2, "Required Energy", -150.0, 0.0, PANEL, row),
-    ];
-    let mut said = screen.say(Args {
-        turns: true,
-        ..args(&rows, vec![], &rows)
-    });
-    for words in [["", ""], ["HP Restoring Power Lv. 1", "Required Energy"]] {
-        for _ in 0..16 {
-            said.extend(screen.say(Args {
-                turns: true,
-                on_screen: rows.clone(),
-                ..Args::default()
-            }));
-        }
-        rows = rows
-            .iter()
-            .zip(words)
-            .map(|(row, text)| ScreenText {
-                text: text.to_string(),
-                changed: true,
-                with_layout: false,
-                ..row.clone()
-            })
-            .collect();
-        said.extend(screen.say(Args {
-            turns: true,
-            ..args(&rows, vec![], &rows)
-        }));
-    }
-    for _ in 0..DETAIL_MAX_POLLS {
-        said.extend(screen.say(Args {
-            turns: true,
-            on_screen: rows.clone(),
-            ..Args::default()
-        }));
-    }
-    assert!(said[1..].contains(&"Required Energy".to_string()));
-}
-
-#[test]
-fn test_a_number_changing_by_one_off_a_seconds_beat_is_said() {
-    // A score going up by one a poll after it came, or a play time a minute after, is no clock.
-    assert_eq!(
-        run_clock(
-            &mut Screen::with_clock(false, None, true, None),
-            &words(&["SCORE 7", "SCORE 8"]),
-            &[1]
-        ),
-        ["SCORE 7", "SCORE 8"]
-    );
-    assert_eq!(
-        run_clock(
-            &mut Screen::with_clock(false, None, true, None),
-            &words(&["Play time: 14", "Play time: 15"]),
-            &[300]
-        ),
-        ["Play time: 14", "Play time: 15"]
+        Screen::new().say(args(&one(&gain), vec![], &on_screen)),
+        ["How to Play Time: 00:47 +28 Seconds"]
     );
 }
 
