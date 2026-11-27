@@ -1,4 +1,5 @@
-//! The Pokédex lists: Omega Ruby's entry said the tick it is chosen, X's by its number and name.
+//! The Pokédex lists: Omega Ruby's entry said the tick it is chosen, X's by its number and name,
+//! and X's regions by the row under the cursor.
 //!
 //! Omega Ruby's list keeps its rows in `app::sango_zukan::ZukanLaunch`, the process's +0xC8: nine
 //! records of 0x44 bytes from +0x50, each an index and then pointers into a row's panes (spike 298
@@ -30,22 +31,31 @@
 //! The entry under the cursor is `app::zukan::DataManager` +0x130 (spike 298 on x_pokedex), the
 //! process's +0x3C; X said each move the poll it changed, so it is not read.
 //!
+//! X's Pokédex opens on its regions, Central, Coastal and Mountain, each a row with its count, and
+//! no cursor of theirs is drawn as one: only a pane of the layout moves. The region under the
+//! cursor is the view's, `app::zukan::top::View` +0x18, a row from the top, through the process's
+//! `Graphics` and its view of the screen up now (spike A on x_pokedex: seven of seven against the
+//! screenshots). It is read every tick, and said in its row's words, "CENTRAL KALOS POKÉDEX 14",
+//! once the view has built as many rows as the screen shows (`XyRegions`): as the screen comes up
+//! its words are there a poll or more before any row is lit.
+//!
 //! Bound by:
-//! - ADR-0043: the list's entry once its index holds, a jump where it lands; search's fields
-//!   with their labels, the shapes in pa3ds's words.
+//! - ADR-0043: the list's entry once its index holds, a jump where it lands; X's regions by the
+//!   row under the cursor, as they open and as it moves; search's fields with their labels, the
+//!   shapes in pa3ds's words.
 
 use std::collections::HashSet;
 use std::rc::Rc;
 use std::sync::LazyLock;
 
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 use regex::Regex;
 
 use crate::core::binary::{s32, u32};
 use crate::core::memory::Memory;
 use crate::games::common::cursors::shared::{CursorItem, CursorPoll, Rect};
 use crate::games::common::screen::ScreenText;
-use crate::games::common::screen_order::join;
+use crate::games::common::screen_order::{join, side_by_side};
 use crate::games::gen6::anchors::Kept;
 use crate::py::{self, Result};
 
@@ -62,9 +72,23 @@ pub const REGISTRATION: &str = "description_lower.bclyt";
 /// Next's as "Rotate Zoom Next" (`claims.RULES`).
 pub const CAPTIONS: [(&str, &str); 2] = [(REGISTRATION, "3s"), (REGISTRATION, "3w")];
 /// X's choice of the Central, Coastal and Mountain Pokédex, each with its count, as its Pokédex
-/// opens: buttons, but no cursor of theirs is found, so their words stay screen text's
-/// (`claims.RULES`; x_pokedex).
+/// opens: buttons, whose words are said a row at a time as the cursor comes onto them
+/// (`XyRegions`).
 pub const REGIONS: &str = "top_lower.bclyt";
+/// X's Pokédex's process -> `app::zukan::Graphics`.
+pub const GRAPHICS: i64 = 0x40;
+pub const GRAPHICS_CLASS: &str = "N3app5zukan8GraphicsE";
+/// `Graphics` -> the view of the screen up now: `app::zukan::top::View` on the regions screen,
+/// `app::zukan::list::ScrollView` on the list. It points 0xC4 into the view, at the last of its
+/// secondary vtables, which RTTI names as the view.
+pub const VIEW: i64 = 0x5C;
+pub const VIEW_CLASS: &str = "N3app5zukan3top4ViewE";
+/// The regions' view, where `VIEW` points -> how many rows it has built, a byte counting up to
+/// the three shown as the screen comes up.
+pub const BUILT: i64 = 0x14;
+/// The regions' view, where `VIEW` points -> the region under the cursor, a u32 counted from the
+/// top row: down wraps round, left and right move nothing.
+pub const REGION: i64 = 0x18;
 /// The Pokédex's process -> `app::sango_zukan::ZukanLaunch`, its list.
 pub const LAUNCH: i64 = 0xC8;
 pub const LAUNCH_CLASS: &str = "N3app11sango_zukan11ZukanLaunchE";
@@ -442,6 +466,111 @@ fn tables(on_screen: &[ScreenText], labels: &HashSet<String>) -> HashSet<(i64, i
         .filter(|(_, words)| words.len() > 1)
         .map(|(&panel, _)| panel)
         .collect()
+}
+
+/// `files: Callable[[Iterable[int]], Mapping[int, str]]`: the layouts on screen, by root, the
+/// file each was built from (`layout_file.FilesOnScreen.poll`).
+pub type Files = Box<dyn FnMut(Vec<i64>) -> IndexMap<i64, String>>;
+
+/// X's Pokédex's region under the cursor, said in its row's words as the cursor comes onto
+/// it. Asked beside Omega Ruby's list (`sources.CursorSources`), before X's list and search:
+/// a row naming no entry's number and no search label, it passes them as it is.
+pub struct XyRegions {
+    memory: Rc<dyn Memory>,
+    running: Rc<dyn Fn() -> Option<String>>,
+    kept: Kept,
+    files: Files,
+    /// The view, the rows it has built and the region under the cursor, at the last tick.
+    read: Option<(i64, i64, i64)>,
+    /// The region last said, while the regions are up.
+    said: Option<i64>,
+}
+
+impl XyRegions {
+    /// `files` gives the layouts on screen the file each was built from
+    /// (`layout_file.FilesOnScreen.poll`).
+    pub fn new(
+        memory: Rc<dyn Memory>,
+        running: Rc<dyn Fn() -> Option<String>>,
+        process: Rc<dyn Fn() -> Option<i64>>,
+        files: Files,
+    ) -> Self {
+        XyRegions {
+            kept: Kept::new(memory.clone(), process, running.clone()),
+            memory,
+            running,
+            files,
+            read: None,
+            said: None,
+        }
+    }
+
+    /// Has the region under the cursor, or the rows built, changed since the last tick?
+    /// Asked every tick, three reads while X's Pokédex runs.
+    pub fn moved(&mut self) -> Result<bool> {
+        let read = self.now()?;
+        let moved = read.is_some() && read != self.read;
+        self.read = read;
+        Ok(moved)
+    }
+
+    /// The cursors' poll with the region under the cursor, the poll it changes, in its
+    /// row's words.
+    pub fn cursors(&mut self, cursors: CursorPoll, on_screen: &[ScreenText]) -> CursorPoll {
+        let Some((view, built, region)) = self.read else {
+            // Not the regions: they are said afresh when they come back.
+            self.said = None;
+            return cursors;
+        };
+        // A set Python iterates: what is done for each root reads nothing.
+        let roots: IndexSet<i64> = on_screen
+            .iter()
+            .filter(|p| !p.top)
+            .map(|p| p.root)
+            .collect();
+        let files = (self.files)(roots.into_iter().collect());
+        let mut rows: Vec<Vec<ScreenText>> = Vec::new();
+        let regions: Vec<ScreenText> = on_screen
+            .iter()
+            .filter(|p| !p.top && files.get(&p.root).map(String::as_str) == Some(REGIONS))
+            .cloned()
+            .collect();
+        for piece in py::sorted_by_lt(regions, |a, b| -a.row < -b.row) {
+            match rows.last_mut() {
+                Some(row) if side_by_side(&row[0], &piece) => row.push(piece),
+                _ => rows.push(vec![piece]),
+            }
+        }
+        let count = rows.len() as i64;
+        if Some(region) == self.said || !(region < count && count <= built) {
+            return cursors;
+        }
+        let opened = self.said.is_none();
+        self.said = Some(region);
+        let pieces = py::sorted_by_lt(rows.swap_remove(region as usize), |a, b| a.left < b.left);
+        let mut items = cursors.items.clone();
+        items.push(CursorItem::new(view, pieces, opened));
+        CursorPoll { items, ..cursors }
+    }
+
+    /// The view, the rows it has built and the region under the cursor, while the regions
+    /// are up.
+    fn now(&mut self) -> Result<Option<(i64, i64, i64)>> {
+        if (self.running)().as_deref() != Some(APP) {
+            self.kept.forget();
+            return Ok(None);
+        }
+        let graphics = self.kept.find(&[GRAPHICS], Some(GRAPHICS_CLASS), &[])?;
+        let view = match graphics {
+            None => None,
+            Some(graphics) => self.kept.checked(graphics, &[VIEW], Some(VIEW_CLASS))?,
+        };
+        let Some(view) = view else {
+            return Ok(None);
+        };
+        let state = self.memory.read(view + BUILT, REGION + 4 - BUILT)?;
+        Ok(Some((view, state[0] as i64, u32(&state, REGION - BUILT)?)))
+    }
 }
 
 /// Omega Ruby's Pokédex list's entry, said the tick it is chosen in its row's own words.

@@ -337,11 +337,11 @@ fn test_the_pokedexs_buttons_words_are_left_to_its_cursors() -> Result<()> {
 }
 
 /// ADR-0013, amended 2026-11-24: the Pokédex's choices may go unsaid only as long as the item
-/// under its cursor is said, and X's regions have no cursor found: "CENTRAL KALOS POKÉDEX 14
-/// COASTAL KALOS POKÉDEX 5…" is still said as the Pokédex opens (x_pokedex). Its list's numbers,
-/// which its cursor says, still go.
+/// under its cursor is said. X's regions were said whole, "CENTRAL KALOS POKÉDEX 14 COASTAL
+/// KALOS POKÉDEX 5…", until their source said the one under the cursor (2026-11-25,
+/// `pokedex.XyRegions`): they go with the list's numbers.
 #[test]
-fn test_xs_regions_stay_screen_text_while_no_cursor_says_them() -> Result<()> {
+fn test_xs_regions_are_left_to_their_source() -> Result<()> {
     let central = shown(1, "CENTRAL KALOS POKÉDEX", MENU);
     let coastal = bottom(2, "COASTAL KALOS POKÉDEX", MENU, 100.0, false);
     let number = shown(3, "001", PAGE);
@@ -352,24 +352,13 @@ fn test_xs_regions_stay_screen_text_while_no_cursor_says_them() -> Result<()> {
         (2, pane(pokedex::REGIONS, "r")),
         (3, pane("list_lower.bclyt", "a")),
     ]);
-    let heard = field_named(&Buttons::new(&[1, 2, 3]), rule, named.clone()).poll(
-        &poll(&[central.clone(), coastal.clone(), number]),
+    let heard = field_named(&Buttons::new(&[1, 2, 3]), rule, named).poll(
+        &poll(&[central, coastal, number]),
         &polled(&[]),
         &no_labels(),
     )?;
-    assert_eq!(heard.texts, [central.clone(), coastal.clone()]);
-    assert_eq!(heard.quiet, HashSet::from([3]));
-    let ruled = field_named(
-        &Buttons::new(&[1, 2]),
-        claims::rule(Some(pokedex::ORAS_APP), &|| false),
-        named,
-    );
-    assert!(
-        ruled
-            .poll(&poll(&[central, coastal]), &polled(&[]), &no_labels())?
-            .texts
-            .is_empty()
-    );
+    assert!(heard.texts.is_empty());
+    assert_eq!(heard.quiet, HashSet::from([1, 2, 3]));
     Ok(())
 }
 

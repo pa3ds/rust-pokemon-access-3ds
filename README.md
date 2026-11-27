@@ -53,11 +53,13 @@ the Game Boy games. Nothing here is taken from its code.
   switch Pokémon its name, level and item and only the page you are on. In Check Moves each move
   is said in the words of the page you are on: its type and PP, or its contest kind. The PC Box
   says its mode as Start and Select change it, and each box's name as the box turns, by the name
-  you gave it. The Pokédex's list says each entry as you move onto it, and a jump of a page only
-  where it lands; X and Y's by its number and name, "004 Fennekin". In search and sort, each
-  field is said with its name, "COLOR ---", "NAME A", and one left blank by its name alone,
-  "TYPE". Search by shape says each body shape the game draws as a silhouette in pa3ds's words,
-  "Quadruped", "Multi-winged", and SHAPE its chosen one, "SHAPE Finned".
+  you gave it. The Pokédex's first choices say the one you move onto, in X and Y each region
+  with its count. Its list says each entry as you move onto it, and a
+  jump of a page only where it lands; X and Y's by its number and name, "004 Fennekin". In
+  search and sort, each field is said with its name, "COLOR ---", "NAME A", and one left blank
+  by its name alone, "TYPE". Search by shape says each body shape the game draws as a
+  silhouette in pa3ds's words, "Quadruped", "Multi-winged", and SHAPE its chosen one, "SHAPE
+  Finned".
 - **The fitting room** in X and Y's boutiques: each category, and each item with its colour and
   price.
 - **A Poké Mart's count**, to buy or to sell, with its price, each time it changes: hold a key and

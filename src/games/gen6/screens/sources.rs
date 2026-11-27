@@ -12,7 +12,9 @@
 //! The order the sources are asked in is theirs and is kept here: the Bag's pick-up is taken out
 //! before the Mart's jumps, the battle Bag's pockets, a shiny target and the Bag's item see the
 //! cursors; and the title is the Bag's pocket, else the Box's box, else the battle Bag's page,
-//! else the map's place, though no two run at once. A game's own sources are its `Own`'s
+//! else the map's place, though no two run at once. X's Pokédex's regions add their item beside
+//! Omega Ruby's list's, before X's list and search see the cursors, which leave a row naming no
+//! entry's number and no label as it is. A game's own sources are its `Own`'s
 //! (`gen6.own`), asked in their places here through `OwnSources`: its rows after gen 6's, its
 //! lines before the screen's words after the Box's mode, and its words unsaid last.
 //!
@@ -34,7 +36,7 @@ use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
 use crate::games::common::cursors::shared::{CursorItem, CursorPoll};
 use crate::games::common::layout::Layouts;
-use crate::games::common::layout_file::LayoutFiles;
+use crate::games::common::layout_file::{FilesOnScreen, LayoutFiles};
 use crate::games::common::pokemon::Pokemon;
 use crate::games::common::screen::{ScreenPoll, ScreenText};
 use crate::games::common::screen_announce::Heard;
@@ -162,6 +164,7 @@ pub struct CursorSources {
     xy_list: pokedex::XyList,
     search_rows: scrolled::Scrolled,
     oras_list: pokedex::OrasList,
+    xy_regions: pokedex::XyRegions,
     summary: summary::Pages,
 }
 
@@ -298,7 +301,17 @@ impl CursorSources {
             files.clone(),
         );
         // Omega Ruby's says its entry from the list's own rows, the tick it is chosen (spike 310).
-        let oras_list = pokedex::OrasList::new(memory.clone(), running, process);
+        let oras_list = pokedex::OrasList::new(memory.clone(), running.clone(), process.clone());
+        // X's regions say the row under the cursor, which no cursor of the layout's marks.
+        let xy_regions = {
+            let mut on_screen = FilesOnScreen::new(layouts.clone(), files.clone());
+            pokedex::XyRegions::new(
+                memory.clone(),
+                running,
+                process,
+                Box::new(move |roots| on_screen.poll(roots).clone()),
+            )
+        };
         // The summary draws one page and keeps the rest as drawn: those not shown go unheard.
         let summary = summary::Pages::new(
             memory,
@@ -332,6 +345,7 @@ impl CursorSources {
             // Search and sort's moves along rows reading alike, its dashes after another field's.
             search_rows: scrolled::Scrolled::new(),
             oras_list,
+            xy_regions,
             summary,
         }
     }
@@ -341,7 +355,7 @@ impl CursorSources {
     pub fn moved(&mut self, windows: &dyn Fn() -> Vec<i64>) -> Result<Chase> {
         let mut chase = Chase::NONE;
         // A menu's row moved: the screen is polled now, and each tick until its word is said.
-        if self.rows.moved()? || self.oras_list.moved()? {
+        if self.rows.moved()? || self.oras_list.moved()? || self.xy_regions.moved()? {
             chase |= Chase::ROW;
         }
         // A game's own screens' cursors: ORAS's Pokéblock Kit's.
@@ -422,6 +436,7 @@ impl CursorSources {
         let cursors = self.summary.cursors(cursors, on_screen)?;
         let cursors = self.reminder.cursors(cursors);
         let cursors = self.oras_list.cursors(cursors, on_screen)?;
+        let cursors = self.xy_regions.cursors(cursors, on_screen);
         let cursors = self.xy_list.poll(running.as_deref(), cursors, on_screen);
         let cursors = self.search_rows.poll(
             cursors,

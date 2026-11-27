@@ -8,6 +8,7 @@ use crate::games::common::cursors::shared::{CursorItem, CursorPoll, Rect};
 use crate::games::common::screen::ScreenText;
 use crate::games::common::screen_order::join;
 use crate::games::gen6::screens::pokedex;
+use crate::py::Result;
 
 const LIST: i64 = 0x0831EEBC;
 const PANEL: i64 = 0x082D14F8;
@@ -524,4 +525,142 @@ fn test_a_picture_beside_a_row_with_a_value_takes_no_label() {
     // The picker shown, the table's values hidden: a label for no picture, nor its blank.
     assert_eq!(blank(&[name.clone(), color.clone()], &shape), Vec::new());
     assert_eq!(blank(&[name, color], &[]), Vec::new());
+}
+
+const GRAPHICS: i64 = 0x08400000;
+const VIEW: i64 = 0x085000C4;
+const REGIONS_ROOT: i64 = 0x082D56B8;
+const BAR_ROOT: i64 = 0x08600000;
+
+/// The layouts on screen's files: the regions' root alone, `top_lower.bclyt`.
+fn regions_files() -> pokedex::Files {
+    Box::new(|_roots| [(REGIONS_ROOT, pokedex::REGIONS.to_string())].into())
+}
+
+/// X's regions: the process's `Graphics`, its view of the screen up now the regions', the
+/// rows it has built and the region under the cursor (spike A on x_pokedex). Python's `built`
+/// defaults to 3.
+fn regions(region: i64, built: i64) -> (Rc<FakeMemory>, pokedex::XyRegions) {
+    let memory = FakeMemory::new();
+    let classes = FakeClasses::new(memory.clone());
+    memory.u32(PROCESS + pokedex::GRAPHICS, &[GRAPHICS]);
+    memory.u32(GRAPHICS, &[classes.add(pokedex::GRAPHICS_CLASS)]);
+    memory.u32(GRAPHICS + pokedex::VIEW, &[VIEW]);
+    memory.u32(VIEW, &[classes.add(pokedex::VIEW_CLASS)]);
+    memory.u32(VIEW + pokedex::BUILT, &[built, region]);
+    let source = pokedex::XyRegions::new(
+        memory.clone(),
+        Rc::new(|| Some(pokedex::APP.to_string())),
+        Rc::new(|| Some(PROCESS)),
+        regions_files(),
+    );
+    (memory, source)
+}
+
+/// The regions' rows, each a name and its count, top first, with a word of another layout on
+/// the bottom screen below them.
+fn screen() -> Vec<ScreenText> {
+    let rows = [
+        ("CENTRAL KALOS POKÉDEX", "14", 25.0),
+        ("COASTAL KALOS POKÉDEX", "5", 0.0),
+        ("MOUNTAIN KALOS POKÉDEX", "4", -25.0),
+    ];
+    // Each count listed before its name: a row is read left to right.
+    let mut words: Vec<ScreenText> = Vec::new();
+    for (n, (name, count, row)) in rows.into_iter().enumerate() {
+        for (half, (left, text)) in [(80.0, count), (-100.0, name)].into_iter().enumerate() {
+            words.push(piece(
+                0x100 + 2 * n as i64 + half as i64,
+                text,
+                false,
+                row,
+                left,
+                REGIONS_ROOT,
+            ));
+        }
+    }
+    words.push(ScreenText {
+        picture: true,
+        ..piece(0x200, "Back", false, -100.0, 120.0, BAR_ROOT)
+    });
+    words
+}
+
+/// Python's `nothing()` of the regions' tests: `CursorPoll([], [], {}, frozenset(),
+/// frozenset())`.
+fn no_cursors() -> CursorPoll {
+    CursorPoll::default()
+}
+
+/// X's regions were said whole, as no cursor of theirs is drawn (x_pokedex). The view's
+/// region is said in its row's words once it has built the rows shown, as they open, then each
+/// move, and nothing where the region holds: left and right move nothing.
+#[test]
+fn test_the_region_under_the_cursor_is_said_in_its_row_s_words() -> Result<()> {
+    let (memory, mut source) = regions(0, 1);
+    assert!(source.moved()?);
+    assert!(source.cursors(no_cursors(), &screen()).items.is_empty());
+    memory.u32(VIEW + pokedex::BUILT, &[3]);
+    assert!(source.moved()?);
+    let items = source.cursors(no_cursors(), &screen()).items;
+    let [opened] = items.as_slice() else {
+        panic!("one item: {items:?}");
+    };
+    assert!(opened.opened && join(&opened.pieces, false) == "CENTRAL KALOS POKÉDEX 14");
+    for (region, said) in [
+        (1, "COASTAL KALOS POKÉDEX 5"),
+        (2, "MOUNTAIN KALOS POKÉDEX 4"),
+        (0, "CENTRAL KALOS POKÉDEX 14"),
+    ] {
+        memory.u32(VIEW + pokedex::REGION, &[region]);
+        assert!(source.moved()?);
+        let items = source.cursors(no_cursors(), &screen()).items;
+        let [item] = items.as_slice() else {
+            panic!("one item: {items:?}");
+        };
+        assert!(!item.opened && join(&item.pieces, false) == said, "{said}");
+    }
+    assert!(!source.moved()?);
+    assert!(source.cursors(no_cursors(), &screen()).items.is_empty());
+    Ok(())
+}
+
+/// The list's view in the regions' place: back to them, the region is said as they open.
+#[test]
+fn test_the_regions_are_said_afresh_as_they_come_back() -> Result<()> {
+    let (memory, mut source) = regions(1, 3);
+    source.moved()?;
+    source.cursors(no_cursors(), &screen());
+    memory.u32(
+        VIEW,
+        &[FakeClasses::starting(memory.clone(), 0x00180000).add("N3app5zukan4list10ScrollViewE")],
+    );
+    assert!(!source.moved()?);
+    assert!(source.cursors(no_cursors(), &[]).items.is_empty());
+    memory.u32(
+        VIEW,
+        &[FakeClasses::starting(memory.clone(), 0x00190000).add(pokedex::VIEW_CLASS)],
+    );
+    assert!(source.moved()?);
+    let items = source.cursors(no_cursors(), &screen()).items;
+    let [item] = items.as_slice() else {
+        panic!("one item: {items:?}");
+    };
+    assert!(item.opened && join(&item.pieces, false) == "COASTAL KALOS POKÉDEX 5");
+    Ok(())
+}
+
+#[test]
+fn test_the_regions_are_read_in_x_s_pokedex_alone() -> Result<()> {
+    let (memory, _source) = regions(0, 3);
+    let mut source = pokedex::XyRegions::new(
+        memory,
+        Rc::new(|| Some(pokedex::ORAS_APP.to_string())),
+        Rc::new(|| Some(PROCESS)),
+        regions_files(),
+    );
+    let cursors = no_cursors();
+    assert!(!source.moved()?);
+    assert_eq!(source.cursors(cursors.clone(), &screen()), cursors);
+    Ok(())
 }
