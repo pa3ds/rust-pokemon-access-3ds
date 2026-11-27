@@ -7262,6 +7262,29 @@ fn test_a_model_walled_in_on_every_side_is_not_on_the_map() -> Result<()> {
     Ok(())
 }
 
+/// Shabboneau Castle's caretaker, whose record stands him at (0, 0) until his scene walks him
+/// in, was listed there after it with no way to him: off the map's north and
+/// west edges is wall.
+#[test]
+fn test_a_model_in_the_maps_corner_walled_in_against_its_edge_is_not_on_the_map() -> Result<()> {
+    use crate::games::gen6::field::reader::walled_in;
+
+    let walls: HashSet<(i64, i64)> = (0..2).flat_map(|x| (0..2).map(move |z| (x, z))).collect();
+    let words: Vec<i64> = (0..CHUNK * CHUNK)
+        .map(|i| {
+            if walls.contains(&(i % CHUNK, i / CHUNK)) {
+                BLOCKED
+            } else {
+                0
+            }
+        })
+        .collect();
+    let chunks = vec![Rc::new(Chunk::new((0, 0), words))];
+    assert!(walled_in(&chunks, (0, 0), &HashSet::new())?);
+    assert!(!walled_in(&chunks, (1, 1), &HashSet::new())?);
+    Ok(())
+}
+
 /// Lavaridge's herbalist, the Lilycove Department Store's receptionists, Devon's fossil
 /// scientist and the Secret Base Guild's shops stand in walls but for the counter they are talked
 /// to across, and went unlisted as the secret team parked in a base's walls is (a player's

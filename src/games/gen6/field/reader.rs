@@ -3157,9 +3157,15 @@ fn laid(
 /// spikes and the Rhyhorn ridden over them were left out (spike 238). Nor is a counter, which a
 /// clerk behind it is talked to across: Lavaridge's herbalist, the Lilycove Department Store's
 /// receptionists, Devon's fossil scientist and the Secret Base Guild's two shops each stand in
-/// walls but for the counter in front, and went unlisted (a player's report, spike 233).
-fn walled_in(chunks: &[Rc<Chunk>], cell: Cell, rides: &HashSet<i64>) -> Result<bool> {
+/// walls but for the counter in front, and went unlisted (a player's report, spike 233). Off
+/// the map's north or west edge is wall too, as `_buried` has it: Shabboneau Castle's caretaker,
+/// whose record stands him at (0, 0) until his scene walks him in, was listed there after it,
+/// with no way to him.
+pub(crate) fn walled_in(chunks: &[Rc<Chunk>], cell: Cell, rides: &HashSet<i64>) -> Result<bool> {
     let wall = |near: Cell| -> Result<bool> {
+        if near.0 < 0 || near.1 < 0 {
+            return Ok(true);
+        }
         match chunks.iter().find(|chunk| chunk.holds(near)) {
             None => Ok(false),
             Some(chunk) => Ok(!chunk.walkable(near)?
