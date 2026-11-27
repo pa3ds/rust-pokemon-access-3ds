@@ -325,7 +325,7 @@ impl SunProfile {
         );
         // Menus and screens are ORAS's readers over Sun's panes: the words each TextBox on screen
         // shows, and the item under each cursor (spike 112).
-        let screen = ScreenTextReader::with(
+        let mut screen = ScreenTextReader::with(
             panes.clone(),
             names.clone(),
             layouts.clone(),
@@ -336,6 +336,7 @@ impl SunProfile {
             IndexMap::new(),
             HashSet::new(),
         );
+        screen.set_reworded(Rc::new(|found| Ok(words_apart(found))));
         let cursors = CursorReader::with(layouts.clone(), names.clone(), None, true, None);
         let ui = ui.unwrap_or_default();
         let screen_announcer = ScreenAnnouncer::with(speech.clone(), log.clone(), ui.pauses);
@@ -571,6 +572,11 @@ impl SunProfile {
                 })
                 .cloned()
                 .collect();
+            let texts = if self.app.borrow().as_deref() == Some(POKEDEX) {
+                counted_rows(&texts)?
+            } else {
+                texts
+            };
             let texts = self._without_plates(texts)?;
             // A layout built again where it was is the one that was there, and a menu stays a
             // menu, as in ORAS.
@@ -662,6 +668,107 @@ fn leads_to(zones: Option<&SunZones>, here: i64, there: i64) -> Result<Option<St
         return Ok(None);
     }
     Ok(theirs)
+}
+
+/// Each word and number Sun draws touching on a row, two letters or more each, moved a glyph
+/// apart so they are said apart: the Pokédex entry read "Height1'00"", "Weight3.3 lbs." and
+/// "001Rowlet" (spike Q). A level mark and its number, one letter, stay one.
+pub fn words_apart(found: IndexMap<i64, ScreenText>) -> IndexMap<i64, ScreenText> {
+    let mut out = found.clone();
+    for second in found.values() {
+        let glyph = second.glyph;
+        let before: Vec<&ScreenText> = found
+            .values()
+            .filter(|piece| {
+                // `min(glyph, piece.glyph)`, the first unless the second is less.
+                let least = if piece.glyph < glyph {
+                    piece.glyph
+                } else {
+                    glyph
+                };
+                piece.root == second.root
+                    && piece.glyph > 0.0
+                    && piece.left < second.left
+                    && (piece.row - second.row).abs() < least
+            })
+            .collect();
+        if glyph <= 0.0 || before.is_empty() {
+            continue;
+        }
+        // Its own row's first: the entry's rows are closer than a glyph, and Height's value stood
+        // left of Weight's, nearer than Weight.
+        let key = |piece: &ScreenText| ((piece.row - second.row).abs(), -piece.left);
+        let mut first = before[0];
+        for &piece in &before[1..] {
+            let (a, b) = (key(piece), key(first));
+            // Python's tuples: the first parts unless they differ by `!=`, then `<`.
+            let less = if a.0 != b.0 { a.0 < b.0 } else { a.1 < b.1 };
+            if less {
+                first = piece;
+            }
+        }
+        let (a, b) = (py::rstrip(&first.text), py::lstrip(&second.text));
+        let (last, start) = (a.chars().last(), b.chars().next());
+        let mixed = (last.is_some_and(py::is_alpha) && start.is_some_and(py::is_digit))
+            || (last.is_some_and(py::is_digit) && start.is_some_and(py::is_alpha));
+        if a.chars().count() < 2
+            || b.chars().count() < 2
+            || second.left - first.right >= glyph
+            || !mixed
+        {
+            continue;
+        }
+        out.insert(
+            second.r#box,
+            ScreenText {
+                left: first.right + glyph,
+                right: second.right + glyph,
+                ..second.clone()
+            },
+        );
+    }
+    out
+}
+
+/// The Pokédex's rows of a name and two counts with the counts said as the cursor says them,
+/// caught and seen: the menu as it opened read "Alola Pokédex 1 10 Melemele Pokédex 1 10"
+/// (spike Q), and on its cursor "Alola Pokédex 1 caught 10 seen" (`_counted`).
+pub fn counted_rows(texts: &[ScreenText]) -> Result<Vec<ScreenText>> {
+    let mut rows: IndexMap<(i64, i64), Vec<&ScreenText>> = IndexMap::new();
+    for piece in texts {
+        rows.entry((piece.root, piece.parent))
+            .or_default()
+            .push(piece);
+    }
+    let mut out: IndexMap<i64, ScreenText> = texts
+        .iter()
+        .map(|piece| (piece.r#box, piece.clone()))
+        .collect();
+    for row in rows.into_values() {
+        if row.len() != 3 {
+            continue;
+        }
+        let sorted = py::sorted_by_lt(row, |a, b| a.left < b.left);
+        let (name, caught, seen) = (sorted[0], sorted[1], sorted[2]);
+        if py::isdigit(&name.text) || !(py::isdigit(&caught.text) && py::isdigit(&seen.text)) {
+            continue;
+        }
+        out.insert(
+            caught.r#box,
+            ScreenText {
+                text: own("dex-caught", &[("count", &py::int_base10(&caught.text)?)]),
+                ..caught.clone()
+            },
+        );
+        out.insert(
+            seen.r#box,
+            ScreenText {
+                text: own("dex-seen", &[("count", &py::int_base10(&seen.text)?)]),
+                ..seen.clone()
+            },
+        );
+    }
+    Ok(texts.iter().map(|piece| out[&piece.r#box].clone()).collect())
 }
 
 impl Profile for SunProfile {

@@ -16,16 +16,18 @@ use crate::core::memory::{Memory, RpcMemory};
 use crate::core::rpc::{MAX_READ, Process, Rpc, UdpRpc};
 use crate::core::rtti::ClassNames;
 use crate::core::speech::Speech;
+use crate::core::words::{self, ENGLISH, Words};
 use crate::games::common::announce::{Focus, SPEAKER_POLLS};
 use crate::games::common::msgwin as common_msgwin;
 use crate::games::common::screen::ScreenText;
+use crate::games::common::screen_order::join;
 use crate::games::common::session::Profile;
 use crate::games::sm::heaps::{self, Blocks, Heaps};
 use crate::games::sm::langselect::{self, LangSelectReader, Shown};
-use crate::games::sm::profile::SunProfile;
+use crate::games::sm::profile::{SunProfile, counted_rows, words_apart};
 use crate::games::sm::shop::{self, ShopReader};
 use crate::games::sm::text::SunText;
-use crate::games::sm::{SUN_LAYOUT, ULTRA_LAYOUT, VersionLayout, apps, msgwin, talk};
+use crate::games::sm::{SUN_LAYOUT, ULTRA_LAYOUT, VersionLayout, apps, field, msgwin, talk};
 use crate::py::Result;
 
 const TABLE: i64 = 0x08000000;
@@ -617,6 +619,79 @@ fn test_a_mart_s_item_is_priced_by_the_row_its_price_shares_on_screen() {
         ])
     );
     assert!(shop::priced(&names, &[]).is_empty());
+}
+
+fn drawn(r#box: i64, text: &str, left: f64, row: f64, parent: i64) -> ScreenText {
+    ScreenText {
+        left,
+        right: left + 6.0 * text.chars().count() as f64,
+        row,
+        glyph: 12.0,
+        root: 0x31900000,
+        parent,
+        ..ScreenText::new(r#box, text, false)
+    }
+}
+
+/// Rowlet's Pokédex entry, its rows closer than a glyph (spike Q).
+#[test]
+fn test_a_word_and_a_number_drawn_touching_are_said_apart_and_a_level_mark_is_not() {
+    let (height, value) = (
+        drawn(1, "Height", 0.0, 50.0, 1),
+        drawn(2, "1'00\"", 37.0, 50.0, 1),
+    );
+    let (weight, mass) = (
+        drawn(3, "Weight", 0.0, 42.0, 1),
+        drawn(4, "3.3 lbs.", 38.0, 42.0, 1),
+    );
+    let (number, name) = (
+        drawn(5, "001", 100.0, 80.0, 1),
+        drawn(6, "Rowlet", 118.0, 80.0, 1),
+    );
+    let (mark, level) = (drawn(7, "L", 200.0, 80.0, 1), drawn(8, "5", 206.0, 80.0, 1));
+    let pieces = [height, value, weight, mass, number, name, mark, level];
+    let apart = words_apart(
+        pieces
+            .iter()
+            .map(|piece| (piece.r#box, piece.clone()))
+            .collect(),
+    );
+    let joined: Vec<String> = [(1, 2), (3, 4), (5, 6), (7, 8)]
+        .iter()
+        .map(|(a, b)| join(&[apart[a].clone(), apart[b].clone()], false))
+        .collect();
+    assert_eq!(
+        joined,
+        ["Height 1'00\"", "Weight 3.3 lbs.", "001 Rowlet", "L5"]
+    );
+}
+
+#[test]
+fn test_the_pokedex_menu_s_counts_are_said_caught_and_seen_as_it_opens() {
+    words::r#use(Some(Rc::new(
+        Words::new(
+            ENGLISH,
+            Some(&field::names()),
+            IndexMap::new(),
+            Rc::new(|_line: &str| {}),
+        )
+        .unwrap(),
+    )));
+    let rows = [
+        drawn(1, "Alola Pokédex", 0.0, 90.0, 1),
+        drawn(2, "1", 120.0, 90.0, 1),
+        drawn(3, "10", 150.0, 90.0, 1),
+        drawn(4, "Pokédex Evaluation", 0.0, 20.0, 2),
+    ];
+    let texts: Vec<String> = counted_rows(&rows)
+        .unwrap()
+        .into_iter()
+        .map(|piece| piece.text)
+        .collect();
+    assert_eq!(
+        texts,
+        ["Alola Pokédex", "1 caught", "10 seen", "Pokédex Evaluation"]
+    );
 }
 
 /// A sweep of the blocks just allocated says what is new and nothing of what is gone: taken as

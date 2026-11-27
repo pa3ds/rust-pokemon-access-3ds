@@ -164,9 +164,7 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
   1, Rowlet" or "row 1, column 5, empty", but then the Pokémon's whole summary on the top screen at
   once, labels and numbers run together. Moving a Pokémon is not said.
 - **The Pokédex's list** says each entry where the cursor lands, "Rowlet 001", "????? 012", a
-  moment after it gets there. Its first menu's choices say their counts, "Alola Pokédex 3
-  caught 9 seen", but the menu as it opens reads them bare, "Alola Pokédex 3 9", and an entry's
-  page is read whole as it opens, its words run together: "Height1'00" Weight3.3 lbs.".
+  moment after it gets there. An entry's page is read whole as it opens.
 - **Hidden items**, listed with `hidden_items = "all"`: whether one leaves the list once you
   have found it has not been tried, nor where you stand to pick one up; `P` says "here" anywhere
   within the patch of ground the game gives it.
