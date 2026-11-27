@@ -21,6 +21,7 @@ use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
 use crate::core::speech::Speech;
 use crate::games::common::announce::Focus;
+use crate::games::common::cursors::shared::CursorPoll;
 use crate::games::common::field::things::Field;
 use crate::games::common::layout::Layouts;
 use crate::games::common::layout_file::LayoutFiles;
@@ -63,6 +64,61 @@ pub trait OwnApp {
 
     /// Say what it says of itself, every field poll while it runs.
     fn poll(&self, process: i64) -> Result<()>;
+}
+
+/// A subscreen only one game has, and the apps it opens, read by that game's own package:
+/// ORAS's PokéNav Plus, its AreaNav's views and the lists drawn over its map, and its navigator's
+/// Pokémon, the AreaNav's Pokémon Distribution and the DexNav's icons (`oras.subscreen`). Each
+/// answers for the app running, and for nothing in any other app.
+pub trait OwnSubscreen {
+    /// What the heap is swept for to find its objects.
+    fn classes(&self) -> Vec<&'static str>;
+
+    /// What a sweep found of them, by class: all of it, or with `adding` the new.
+    fn track(&self, found: &IndexMap<i64, String>, adding: bool) -> Result<()>;
+
+    /// What screen text calls a picture of its screens', or None.
+    fn name(&self, picture: i64, running: Option<&str>) -> Result<Option<String>>;
+
+    /// What touch mode calls a picture of its screens', or None: named apart from screen
+    /// text's, as touch mode names the icons the player walks to (ADR-0006, 2026-10-15).
+    fn touched(&self, picture: i64, running: Option<&str>) -> Result<Option<String>>;
+
+    /// Whether touch mode offers a picture of its screens' though its button is switched
+    /// off.
+    fn said_off(&self, picture: i64, running: Option<&str>) -> Result<bool>;
+
+    /// Whether a view is drawn over the town map now, where a tap reaches the view and not
+    /// a place.
+    fn drawing(&self) -> Result<bool>;
+
+    /// Every screen poll, before the screen is read: the works of the layouts of the views
+    /// not drawn now (`Layouts.put_away`), by `works_of` a layout's root -> its work.
+    fn put_away(&self, works_of: &IndexMap<i64, i64>) -> Result<HashSet<i64>>;
+
+    /// Whether a list was drawn over the town map at the last `put_away`.
+    fn listing(&self) -> bool;
+
+    /// Every screen poll: the cursors as the lists over the town map have them, with the
+    /// map on `area` (`townmap.AreaNav`).
+    fn cursors(
+        &self,
+        cursors: CursorPoll,
+        area: Option<&str>,
+        on_screen: &[ScreenText],
+    ) -> CursorPoll;
+
+    /// Every screen poll: the boxes of the words the lists over the town map leave
+    /// unsaid, with the map on `area`.
+    fn unsaid(&self, area: Option<&str>, on_screen: &[ScreenText]) -> HashSet<i64>;
+
+    /// Every screen poll, with every piece of screen text on screen: what it says after the
+    /// screen's words, as (what the log calls it, the line).
+    fn poll(&self, on_screen: &[ScreenText], running: Option<&str>)
+    -> Result<Vec<(String, String)>>;
+
+    /// Whether words on screen are its own to say, left out of screen text's.
+    fn owns(&self, piece: &ScreenText) -> bool;
 }
 
 /// Who stands where in a competition only one game has, said on the keys that say a battle's
@@ -212,6 +268,9 @@ pub type ScreensFactory = fn(
     Rc<Layouts>,
     Rc<LayoutFiles>,
 ) -> Box<dyn ScreensReader>;
+/// `Callable[[Memory, ClassNames, GameText, bool], OwnSubscreen]`.
+pub type SubscreenFactory =
+    fn(Rc<dyn Memory>, Rc<ClassNames>, &GameText, bool) -> Rc<dyn OwnSubscreen>;
 /// `Callable[[Memory, str], OpeningReader]`.
 pub type OpeningFactory = fn(Rc<dyn Memory>, &str) -> Box<dyn OpeningReader>;
 
@@ -351,6 +410,10 @@ pub struct Game {
     /// The reader of which screen its apps that keep two on screen draw, or None in a game with
     /// none: ORAS's Pokéblock Kit, the Case or the Berry Blender (`oras.screens.pokeblock_kit`).
     pub screens: Option<ScreensFactory>,
+    /// The reader of the subscreen it alone has, built from the memory, the ROM's words and
+    /// whether pauses are asked for, or None in a game with none: ORAS's PokéNav Plus
+    /// (`oras.subscreen`).
+    pub subscreen: Option<SubscreenFactory>,
     /// The reader of the choices its opening draws without a layout, built from the memory and
     /// the player's language, or None where the opening's choices are layouts, as ORAS's are: X's
     /// (`xy.intro`).
@@ -463,6 +526,7 @@ impl Game {
             standings: None,
             conditions: None,
             screens: None,
+            subscreen: None,
             opening: None,
             memories: None,
             teleporting: IndexMap::new(),

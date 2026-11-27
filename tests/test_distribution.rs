@@ -8,7 +8,7 @@ use crate::core::rtti::ClassNames;
 use crate::games::common::lyt;
 use crate::games::common::screen::ScreenText;
 use crate::games::gen6::pokeicon;
-use crate::games::gen6::screens::distribution as d;
+use crate::games::oras::subscreen::distribution as d;
 
 const NAVI: i64 = 0x08200000;
 const ICONS: i64 = 0x08210000;

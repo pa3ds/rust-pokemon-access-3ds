@@ -36,7 +36,9 @@ use crate::games::common::layout_file::LayoutFiles;
 use crate::games::common::pokemon::Pokemon;
 use crate::games::common::screen::{ScreenPoll, ScreenText};
 use crate::games::gen6::apps::RunningApp;
-use crate::games::gen6::game::{CursorShapes, ScreensFactory, ScreensReader, StandingsReader};
+use crate::games::gen6::game::{
+    CursorShapes, OwnSubscreen, ScreensFactory, ScreensReader, StandingsReader,
+};
 use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::screens::registered::Registered;
 use crate::games::gen6::screens::{
@@ -134,7 +136,6 @@ pub struct CursorSources {
     bag: Option<Rc<RefCell<bag::Chosen>>>,
     bag_sort: bag_sort::BagSort,
     areanav: townmap::AreaNav,
-    views: Rc<RefCell<townmap::Views>>,
     reminder: reminder::Pages,
     counts: counts::Counts,
     battle_bag: battle_bag::BattleBag,
@@ -152,9 +153,10 @@ pub struct CursorSources {
 
 impl CursorSources {
     /// `menu` is the field menu (`buttons.Buttons.menu`), `choices` the choice boxes', `gauges`
-    /// the battle's HP gauges kept, `occupants` and `box_shown` the PC Box's, `views` the
-    /// AreaNav's, `registered` the Y button's menu's, `standings` a game's contests' and
-    /// `screens` its apps' that keep two screens on screen, where it has them.
+    /// the battle's HP gauges kept, `occupants` and `box_shown` the PC Box's, `subscreen` the
+    /// game's own subscreen, whose views and lists its town map draws, `registered` the Y
+    /// button's menu's, `standings` a game's contests' and `screens` its apps' that keep two
+    /// screens on screen, where it has them.
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         memory: Rc<dyn Memory>,
@@ -170,7 +172,7 @@ impl CursorSources {
         gauges: Rc<dyn Fn() -> Vec<i64>>,
         occupants: Rc<RefCell<boxes::Occupants>>,
         box_shown: boxes::Shown,
-        views: Rc<RefCell<townmap::Views>>,
+        subscreen: Option<Rc<dyn OwnSubscreen>>,
         registered: Option<Rc<RefCell<Registered>>>,
         standings: Option<Rc<RefCell<dyn StandingsReader>>>,
         screens: Option<ScreensFactory>,
@@ -227,9 +229,9 @@ impl CursorSources {
             })
         });
         // The place under the AreaNav's map cursor, said from its MapView before the top screen
-        // names it (spike 309), and the lists drawn over the map.
+        // names it (spike 309), and the lists a game draws over the map (`OwnSubscreen`).
         let areanav = townmap::AreaNav::new(
-            views.clone(),
+            subscreen,
             shapes.map_view.map(|map_view| {
                 let map_areas = text.map_areas.clone();
                 townmap::Places::new(
@@ -309,7 +311,6 @@ impl CursorSources {
             bag,
             bag_sort,
             areanav,
-            views,
             reminder,
             counts,
             battle_bag,
@@ -361,7 +362,7 @@ impl CursorSources {
     /// Every screen poll, before the screen is read: the works of the layouts not drawn now
     /// (`Layouts.put_away`). `works` is each layout's root -> its work.
     pub fn put_away(&mut self, works: &IndexMap<i64, i64>) -> Result<HashSet<i64>> {
-        let mut not_drawn = self.views.borrow().put_away(works)?;
+        let mut not_drawn = self.areanav.put_away(works)?;
         not_drawn.extend(self.reminder.put_away()?);
         if let Some(screens) = &mut self.screens {
             not_drawn.extend(screens.put_away()?);

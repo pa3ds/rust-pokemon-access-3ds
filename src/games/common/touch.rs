@@ -21,7 +21,7 @@
 //!    AreaNav's tabs, Places to Berries, draw images of their words that come from no archive
 //!    pa3ds reads, and their file names them `map_navi01` to `05` (movie17); or what the game
 //!    fills a picture with as it runs: the AreaNav's Pokémon Distribution draws each Pokémon's
-//!    icon, named by its species (`gen6.screens.distribution`, spike 178);
+//!    icon, named by its species (`oras.subscreen.distribution`, spike 178);
 //! 3. **the words of the button drawing the same picture beside words**: the shortcut bar under
 //!    the AreaNav draws the X menu's six icons alone, and the X menu draws each beside its word,
 //!    POKÉMON, POKÉDEX, BAG, the player's name, SAVE and OPTIONS, hidden until it opens;

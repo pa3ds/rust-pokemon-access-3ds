@@ -81,7 +81,9 @@ use crate::games::gen6::field::reader::{FieldReader, MOVE_MODEL_CLASS};
 use crate::games::gen6::field::speaker::SpeakerReader;
 use crate::games::gen6::field::{camera, mapblock, talk};
 use crate::games::gen6::game::MemoriesReader;
-use crate::games::gen6::game::{ConditionsReader, Game, OpeningReader, OwnApp, StandingsReader};
+use crate::games::gen6::game::{
+    ConditionsReader, Game, OpeningReader, OwnApp, OwnSubscreen, StandingsReader,
+};
 use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::rom::cries::Crier;
 use crate::games::gen6::rom::textures;
@@ -92,7 +94,6 @@ use crate::games::gen6::screens::battle::{
 use crate::games::gen6::screens::choices::{
     BOX_DEVICE_MANAGER, ChoiceReader, DEVICE_MANAGER_CLASS,
 };
-use crate::games::gen6::screens::distribution::{Distribution, DistributionReader};
 use crate::games::gen6::screens::habitat::HabitatReader;
 use crate::games::gen6::screens::lists::{CONTROLLER_CLASS, ListReader};
 use crate::games::gen6::screens::mapcursor::MapCursor;
@@ -100,8 +101,7 @@ use crate::games::gen6::screens::partners::Partners;
 use crate::games::gen6::screens::partyicons::PartyIcons;
 use crate::games::gen6::screens::sources::{Chase, CursorSources};
 use crate::games::gen6::screens::{
-    boxes, buttons, distribution, partners, partyicons, pokedex, registered, rows, secret_base,
-    townmap,
+    boxes, buttons, partners, partyicons, pokedex, registered, rows, secret_base, townmap,
 };
 use crate::games::gen6::subscreen::amie;
 use crate::games::gen6::subscreen::head_it::Cue;
@@ -114,18 +114,18 @@ use crate::py::{self, Error, Kind, Log, PySet, Result};
 /// models, the heaps themselves, whose blocks the runtime watches for what they allocate (`app`,
 /// ADR-0034), the camera whose heading the D-pad walks by on Lumiose's rails, the process manager
 /// that says which app is running, and the button managers, touch bars and the field's menu that
-/// say whose buttons take taps (`buttons`), and the AreaNav's navigator, which says whose icon each
-/// picture of its Pokémon Distribution draws, and its views, which say which of its layouts it
-/// draws; the party and the icons the Bag draws it with; the Battle Maison's partner screen,
-/// which says whose portrait each picture draws; and the save's trainer record, which says the
-/// game's language (`mystatus`). The subscreens add what they find their objects by
-/// (`Subscreens.classes`), and a game's own readers theirs (`Gen6Profile.classes`): ORAS's DexNav,
-/// the player's work its hidden Pokémon's record is found through.
+/// say whose buttons take taps (`buttons`); the party and the icons the Bag draws it with; the
+/// Battle Maison's partner screen, which says whose portrait each picture draws; and the save's
+/// trainer record, which says the game's language (`mystatus`). The subscreens add what they find
+/// their objects by (`Subscreens.classes`), and a game's own subscreen and readers theirs
+/// (`Gen6Profile.classes`): ORAS's AreaNav's navigator, which says whose icon each picture of its
+/// Pokémon Distribution draws, and its views, which say which of its layouts it draws; and ORAS's
+/// DexNav, the player's work its hidden Pokémon's record is found through.
 ///
 /// Not TextBoxes or cursor windows: walking each layout's tree finds every one that can be placed on
 /// screen (spike 62). And the linear heap is not swept: the battle builds its layouts there, and its
 /// message window leads to their pool (spike 64).
-pub const HEAP_CLASSES: [&str; 33] = [
+pub const HEAP_CLASSES: [&str; 27] = [
     msgwin::CLASSES[0],
     msgwin::CLASSES[1],
     talk::CLASSES[0],
@@ -140,13 +140,6 @@ pub const HEAP_CLASSES: [&str; 33] = [
     mapblock::CLASS,
     camera::CLASS,
     MANAGER_CLASS,
-    distribution::CLASS,
-    // `*townmap.VIEWS`: the dict's keys, in its order.
-    townmap::VIEWS[0].0,
-    townmap::VIEWS[1].0,
-    townmap::VIEWS[2].0,
-    townmap::VIEWS[3].0,
-    townmap::VIEWS[4].0,
     partners::CLASS,
     pokemon::PARAM_CLASS,
     partyicons::ICON_CLASS,
@@ -327,13 +320,18 @@ pub struct Gen6Profile {
     field: Rc<RefCell<Rc<FieldReader>>>,
     /// The Pokémon its save keeps for its credits, which their descriptions name (spike 222).
     pub memories: Option<Rc<dyn MemoriesReader>>,
-    /// What the heap is swept for in this game: `HEAP_CLASSES`, the subscreens' classes, and
-    /// what the game's own readers find their objects by.
+    /// What the heap is swept for in this game: the classes of the subscreen it alone has,
+    /// `HEAP_CLASSES`, the subscreens' classes, and what the game's own readers find their
+    /// objects by. Its own subscreen's come first, before the touch bars, as they did inside
+    /// `HEAP_CLASSES`: the log names the classes a module brings in that order, the AreaNav's
+    /// views and then its touch bar.
     pub classes: Vec<String>,
     /// The O-Power list's energy and the powers running, which R says on their screens.
     pub o_power: Rc<RefCell<o_power::OPower>>,
-    pub distribution: Rc<RefCell<Distribution>>,
-    pub views: Rc<RefCell<townmap::Views>>,
+    /// The subscreen the game alone has, and the apps it opens: ORAS's PokéNav Plus, whose
+    /// AreaNav's Pokémon Distribution and DexNav draw each Pokémon's icon, which no file names,
+    /// and whose AreaNav keeps the layouts of a screen it has left as they were.
+    pub own_subscreen: Option<Rc<dyn OwnSubscreen>>,
     /// The subscreens, Pokémon-Amie's and Super Training's and the apps they open, which name
     /// what they draw, offer what no touch area does, and answer keys of their own.
     pub subscreens: Rc<Subscreens>,
@@ -400,8 +398,6 @@ pub struct Gen6Profile {
     pub scenes: Option<RefCell<Scenes>>,
     /// The Pokédex's habitat map draws the Pokémon's places and never names them (spike 152).
     pub habitat: RefCell<HabitatReader>,
-    /// And the AreaNav's Pokémon Distribution draws a place's Pokémon and names none.
-    pub distribution_reader: RefCell<DistributionReader>,
     /// An Extra: the conditions the game draws as a star, said as numbers (ADR-0017).
     pub conditions: Option<RefCell<Box<dyn ConditionsReader>>>,
     /// X's opening draws its boy or girl and their looks as models, with no word (spike 216).
@@ -528,14 +524,13 @@ impl Gen6Profile {
             let memory = memory.clone();
             Rc::new(move |pane: i64| pictures.said(&*memory, pane)) as Pictures
         });
-        let species: Vec<String> = text.species.clone();
         // The Bag draws each party member's icon, and says nothing of whose it is. Made here,
         // before the screen text reader that asks it, where Python makes it later and reaches it
         // through `self`; making it reads nothing.
         let party_icons = Rc::new(RefCell::new(PartyIcons::new(
             memory.clone(),
             names.clone(),
-            species.clone(),
+            text.species.clone(),
             {
                 let apps = apps.clone();
                 Rc::new(move || apps.borrow().running.clone())
@@ -545,18 +540,18 @@ impl Gen6Profile {
         // before the screen text reader that asks it, where Python makes it later and reaches it
         // through `self`; making it reads nothing.
         let partners = Rc::new(RefCell::new(Partners::new(memory.clone())));
-        // The AreaNav's Pokémon Distribution draws each Pokémon's icon, which no file names. Made
+        // The subscreen the game alone has, and the apps it opens: ORAS's PokéNav Plus, whose
+        // AreaNav's Pokémon Distribution and DexNav draw each Pokémon's icon, which no file
+        // names, and whose AreaNav keeps the layouts of a screen it has left as they were. Made
         // here, before the screen text reader that asks it, where Python makes it later and
         // reaches it through `self`; making it reads nothing.
-        let distribution = Rc::new(RefCell::new(Distribution::new(
-            memory.clone(),
-            names.clone(),
-            species,
-        )));
+        let own_subscreen: Option<Rc<dyn OwnSubscreen>> = game
+            .subscreen
+            .map(|make| make(memory.clone(), names.clone(), &text, ui.pauses));
         // The Bag's party draws each member as an icon beside its level, or, for an evolution
-        // stone, beside "ABLE!" or "UNABLE!": "Metagross UNABLE!" (movie31). The AreaNav's
-        // Pokémon Distribution draws the place's Pokémon as icons whose buttons take no tap, so
-        // they are named here for its reader to say whole (or_area_nav, spike 232).
+        // stone, beside "ABLE!" or "UNABLE!": "Metagross UNABLE!" (movie31). A game's own
+        // subscreen names its pictures for its readers to say whole: ORAS's AreaNav's Pokémon
+        // Distribution, whose icons' buttons take no tap (`OwnSubscreen.name`).
         // Made here, before the screen text reader, which names pictures by it: Python's closure
         // reaches `self.files` once it is made, later. Making either reads nothing.
         let files = Rc::new(LayoutFiles::new(memory.clone()));
@@ -572,15 +567,15 @@ impl Gen6Profile {
         let on_screen_named: Pictures = {
             let (named_by_image, party_icons) = (named_by_image.clone(), party_icons.clone());
             let image_of = image_of.clone();
-            let (apps, distribution, partners) =
-                (apps.clone(), distribution.clone(), partners.clone());
+            let (apps, own_subscreen, partners) =
+                (apps.clone(), own_subscreen.clone(), partners.clone());
             Rc::new(move |pane: i64| {
                 let by_image = match &named_by_image {
                     Some(named) => named(pane)?,
                     None => None,
                 };
                 // Python's `or`: a name of "" or None goes on to the party's icons, then to the
-                // Distribution's, and then to the Maison's partners.
+                // game's own subscreen's, and then to the Maison's partners.
                 if let Some(name) = by_image
                     && !name.is_empty()
                 {
@@ -599,8 +594,8 @@ impl Gen6Profile {
                 {
                     return Ok(Some(name));
                 }
-                if apps.borrow().running.as_deref() == Some(townmap::APP)
-                    && let Some(name) = distribution.borrow().name(pane)?
+                if let Some(own_subscreen) = &own_subscreen
+                    && let Some(name) = own_subscreen.name(pane, running.as_deref())?
                     && !name.is_empty()
                 {
                     return Ok(Some(name));
@@ -729,11 +724,6 @@ impl Gen6Profile {
             ui.pauses,
         )));
 
-        // The AreaNav keeps the layouts of a screen it has left as they were; its views say.
-        let views = Rc::new(RefCell::new(townmap::Views::new(
-            memory.clone(),
-            names.clone(),
-        )));
         // The game's button managers say whose buttons take taps (spike 189).
         let buttons = Rc::new(RefCell::new(buttons::Buttons::with_menu(
             memory.clone(),
@@ -875,7 +865,7 @@ impl Gen6Profile {
             },
             occupants.clone(),
             box_shown.clone(),
-            views.clone(),
+            own_subscreen.clone(),
             registered.clone(),
             standings.clone(),
             game.screens,
@@ -1109,44 +1099,40 @@ impl Gen6Profile {
                 ))
             })
         });
-        let classes: IndexSet<String> = HEAP_CLASSES
+        let classes: IndexSet<String> = own_subscreen
             .iter()
-            .chain(subscreens.classes.iter())
-            .copied()
+            .flat_map(|own_subscreen| own_subscreen.classes())
+            .chain(HEAP_CLASSES.iter().copied())
+            .chain(subscreens.classes.iter().copied())
             .chain(field.borrow().classes())
             .map(String::from)
             .chain(memories.iter().flat_map(|memories| memories.classes()))
             .collect();
         let picture_name: PictureName = {
-            let (apps, distribution, subscreens) =
-                (apps.clone(), distribution.clone(), subscreens.clone());
+            let (apps, own_subscreen, subscreens) =
+                (apps.clone(), own_subscreen.clone(), subscreens.clone());
             let partners = partners.clone();
             Rc::new(move |pane: i64| {
-                // The AreaNav's navigators are the field's and its own app's: elsewhere they are
-                // gone, and asking cost a touch walk 1,400 reads (movie22). On the field its icons
-                // are the DexNav's; in the AreaNav, its Pokémon Distribution's (or_area_nav).
+                // The subscreen the game alone has names its pictures first: the DexNav's icons on
+                // the field, the Pokémon Distribution's in the AreaNav (`OwnSubscreen.touched`).
                 // A name of "" or None goes on to the next.
                 let running = apps.borrow().running.clone();
-                let near = running
-                    .as_deref()
-                    .is_none_or(|running| running == FIELD || running == townmap::APP);
-                if near {
-                    let said = if running.as_deref() == Some(FIELD) {
-                        distribution.borrow().said(pane, gap)?
-                    } else {
-                        distribution.borrow().name(pane)?
-                    };
-                    if let Some(name) = said
-                        && !name.is_empty()
-                    {
-                        return Ok(Some(name));
-                    }
+                if let Some(own_subscreen) = &own_subscreen
+                    && let Some(name) = own_subscreen.touched(pane, running.as_deref())?
+                    && !name.is_empty()
+                {
+                    return Ok(Some(name));
                 }
                 if let Some(name) = subscreens.name(pane, running.as_deref())?
                     && !name.is_empty()
                 {
                     return Ok(Some(name));
                 }
+                // The Battle Maison's partners, asked where the AreaNav's navigators are, on the
+                // field and in the AreaNav.
+                let near = running
+                    .as_deref()
+                    .is_none_or(|running| running == FIELD || running == townmap::APP);
                 if near {
                     return Ok(partners
                         .borrow()
@@ -1198,22 +1184,29 @@ impl Gen6Profile {
                     })
                 }),
                 said_off: Some({
-                    let (apps, distribution) = (apps.clone(), distribution.clone());
+                    let (apps, own_subscreen) = (apps.clone(), own_subscreen.clone());
                     Rc::new(move |pane: i64| {
                         let running = apps.borrow().running.clone();
-                        Ok(running.as_deref().is_none_or(|running| running == FIELD)
-                            && distribution.borrow().name(pane)?.is_some())
+                        match &own_subscreen {
+                            None => Ok(false),
+                            Some(own_subscreen) => {
+                                own_subscreen.said_off(pane, running.as_deref())
+                            }
+                        }
                     })
                 }),
                 places: Some({
-                    let (apps, views) = (apps.clone(), views.clone());
+                    let (apps, own_subscreen) = (apps.clone(), own_subscreen.clone());
                     let map_places = Rc::new(text.map_places.clone());
                     let none = Rc::new(IndexMap::new());
                     Rc::new(move || {
                         let running = apps.borrow().running.clone();
                         Ok(
                             if running.as_deref() == Some(townmap::APP)
-                                && !views.borrow().drawing()?
+                                && !match &own_subscreen {
+                                    None => false,
+                                    Some(own_subscreen) => own_subscreen.drawing()?,
+                                }
                             {
                                 map_places.clone()
                             } else {
@@ -1410,8 +1403,6 @@ impl Gen6Profile {
             log.clone(),
             ui.pauses,
         );
-        // And the AreaNav's Pokémon Distribution draws a place's Pokémon and names none.
-        let distribution_reader = DistributionReader::new(distribution.clone(), ui.pauses);
         // An Extra: the conditions the game draws as a star, said as numbers (ADR-0017).
         let conditions = match game.conditions {
             Some(make) if tables.extras.conditions && text.loaded() => Some(RefCell::new(make(
@@ -1478,8 +1469,7 @@ impl Gen6Profile {
             memories,
             classes: classes.into_iter().collect(),
             o_power,
-            distribution,
-            views,
+            own_subscreen,
             subscreens,
             contexts,
             buttons,
@@ -1515,7 +1505,6 @@ impl Gen6Profile {
             screen_announcer: RefCell::new(screen_announcer),
             scenes,
             habitat: RefCell::new(habitat),
-            distribution_reader: RefCell::new(distribution_reader),
             conditions,
             opening,
             archived: RefCell::new(HashSet::new()),
@@ -1562,10 +1551,9 @@ impl Gen6Profile {
         // A talk object's class is a DLL's while a talk runs, so every one found is kept.
         self.speaker.track(found.of(&talk::CLASSES));
         self.o_power.borrow_mut().track(found);
-        self.distribution
-            .borrow_mut()
-            .track(found.of(&[distribution::CLASS]), adding);
-        self.views.borrow_mut().track(&found.heap, adding)?;
+        if let Some(own_subscreen) = &self.own_subscreen {
+            own_subscreen.track(&found.heap, adding)?;
+        }
         self.subscreens.track(&found.heap, adding)?;
         self.partners.borrow_mut().track(&found.heap, adding)?;
         self.occupants.borrow_mut().track(&found.heap);
@@ -1973,6 +1961,14 @@ impl Gen6Profile {
     /// `poll_screen(hold, with_choices)`. Named apart from `poll_screen` because the runtime's
     /// `Profile::poll_screen` takes neither.
     pub fn poll_screen_with(&self, hold: bool, with_choices: bool) -> Result<()> {
+        let own_subscreen = &self.own_subscreen;
+        // Whether words on screen are the game's own subscreen's to say: the AreaNav's Pokémon
+        // Distribution's icons.
+        let owned = |piece: &ScreenText| {
+            own_subscreen
+                .as_ref()
+                .is_some_and(|own_subscreen| own_subscreen.owns(piece))
+        };
         let polled = phase(&*self.memory, "screen", || {
             // The field's layouts come back where they were when a menu screen closes, and a
             // layout found before it was built is taken in once it is.
@@ -2009,11 +2005,12 @@ impl Gen6Profile {
                 Some(opponents) => opponents.borrow_mut().poll()?,
             };
             self.habitat.borrow_mut().poll(on_screen)?;
-            let in_townmap = self.apps.borrow().running.as_deref() == Some(townmap::APP);
-            let listed = self
-                .distribution_reader
-                .borrow_mut()
-                .poll(on_screen, in_townmap)?;
+            let listed = match &self.own_subscreen {
+                None => Vec::new(),
+                Some(own_subscreen) => {
+                    own_subscreen.poll(on_screen, self.apps.borrow().running.as_deref())?
+                }
+            };
             self.map_cursor.borrow_mut().poll()?;
             let running = self.apps.borrow().running.clone();
             let played = {
@@ -2059,7 +2056,7 @@ impl Gen6Profile {
         for text in &screen.texts {
             if !self.battle.borrow().owns(text)?
                 && !self.habitat.borrow().owns(text)
-                && !self.distribution_reader.borrow().owns(text)
+                && !owned(text)
                 && !unsaid.contains(&text.r#box)
                 && !unseen.contains(&text.root)
             {
@@ -2140,7 +2137,7 @@ impl Gen6Profile {
             .on_screen
             .iter()
             .filter(|piece| {
-                !self.distribution_reader.borrow().owns(piece)
+                !owned(piece)
                     && !unsaid.contains(&piece.r#box)
                     && !unseen.contains(&piece.root)
             })
@@ -2185,9 +2182,9 @@ impl Gen6Profile {
             (self.log)(&format!("{logged}: {line}"));
             self.speech.say(line, Category::Screen);
         }
-        // After the screen's words, which name the place first.
-        for line in &listed {
-            (self.log)(&format!("distribution: {line}"));
+        // After the screen's words, which name the place first: the Pokémon Distribution's.
+        for (logged, line) in &listed {
+            (self.log)(&format!("{logged}: {line}"));
             self.speech.say(line, Category::Screen);
         }
         // A description after the screen's words, as it follows what it describes, and what is

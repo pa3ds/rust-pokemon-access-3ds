@@ -1,8 +1,9 @@
 //! Pokémon Omega Ruby and Alpha Sapphire: read by the gen 6 profile and readers (`games.gen6`),
 //! with what ORAS keeps where X does not here — where its ROM keeps each kind of file, and who its
 //! story's people are — and what ORAS alone has: on its field (`field`) the DexNav's hidden
-//! Pokémon, Secret Bases, berry spots, soaring and more, and among its screens (`screens`) its
-//! contests.
+//! Pokémon, Secret Bases, berry spots, soaring and more, among its screens (`screens`) its
+//! contests, and its subscreen, the PokéNav Plus, its AreaNav's views and Pokémon Distribution and
+//! its DexNav's icons (`subscreen`).
 
 use std::collections::HashSet;
 use std::path::PathBuf;
@@ -28,7 +29,7 @@ use crate::games::gen6::game::{CursorShapes, Data, FurnitureKind, Game};
 use crate::games::gen6::rom::archives::{BOY, GIRL, GameText};
 use crate::games::gen6::rom::layout::{RomLayout, TownFacilities};
 use crate::games::gen6::screens::{
-    bag, boxes, buttons, distribution, pokedex, rows, summary, townmap,
+    bag, boxes, buttons, pokedex, rows, summary, townmap,
 };
 use crate::games::gen6::subscreen::{amie, berry_picker, super_training};
 use crate::games::oras::field::ash::{self, AshPiles};
@@ -43,6 +44,7 @@ use crate::games::oras::memories::Memories;
 use crate::games::oras::screens::conditions::Conditions;
 use crate::games::oras::screens::contest::Standings;
 use crate::games::oras::screens::pokeblock_kit::Kit;
+use crate::games::oras::subscreen::{PokeNav, areanav, distribution};
 
 /// ORAS's own words, for what the game does not say itself (ADR-0040): its scenes' timing, and a
 /// folder a language of the names, picture words, scene descriptions and words only ORAS says.
@@ -1011,7 +1013,7 @@ pub const TOWNMAP_WORK: [i64; 2] = [0x20, 0xEC];
 /// the round's, and the balls were said "ball of yarn" and the berries "Razz Berry wanted".
 pub fn anchors() -> IndexMap<String, Vec<Chain>> {
     let [process, work] = TOWNMAP_WORK;
-    let mut townmap: Vec<Chain> = townmap::VIEWS
+    let mut townmap: Vec<Chain> = areanav::VIEWS
         .iter()
         .zip([0xB8, 0xB4, 0xBC, 0xC0, 0xC4])
         .map(|(&(view, _), at)| Chain::new(view, &[process, work, at]))
@@ -1080,6 +1082,7 @@ pub fn game() -> &'static Game {
         standings: Some(Standings::of),
         conditions: Some(Conditions::of),
         screens: Some(Kit::of),
+        subscreen: Some(PokeNav::of),
         memories: Some(Memories::of),
         form: Some(mmodel::FORM),
         whole: HashSet::from(SAFARI_ZONE),
@@ -1109,3 +1112,5 @@ pub mod field;
 pub mod screens;
 
 pub mod memories;
+
+pub mod subscreen;

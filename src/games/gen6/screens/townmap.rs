@@ -1,24 +1,8 @@
-//! The AreaNav's views, which say which of its layouts it draws (spikes 181 and 183).
+//! The town map, ORAS's AreaNav and X's Town Map: the place under its map's cursor (spike 309),
+//! and the layouts a `G2DUtil` draws, by which ORAS's AreaNav's views and the Move Reminder's pages
+//! are put away (spikes 181 and 183).
 //!
-//! The AreaNav keeps the layouts of a screen it has put away exactly as they were: the berry list
-//! after its View Details, the Pokémon Distribution, the trainers' details. Its layout work, its
-//! panes' flags and alpha, Game Freak's layout helper (`app::util::G2DUtil`) and its button manager
-//! all read as drawn (spikes 174, 179 and 180), and a tap on a berry row moved the map's cursor
-//! (movie20).
-//! The game stops walking the layout altogether (spike 181, a read watchpoint on its root): each
-//! screen is a view of the AreaNav's module, `app::townmap::NutsView` for the berry list, whose
-//! update and draw return at once while a byte of its own is 0, and which otherwise draws the
-//! layouts of the `G2DUtil` at its +0x5C (spike 183, the byte 1 while the list is up and 0 once it
-//! is gone). Which byte is each class's own: the offsets in `VIEWS` are where each class's draw
-//! reads it. `MapView` and `GraphicWork` draw whenever the AreaNav does, and are not listed.
-//!
-//! ```text
-//! view     +0x5C  -> app::util::G2DUtil
-//! G2DUtil  +0x1C  -> its layouts, 8 bytes each: a handle, then flags; +0x20 how many
-//! handle   +0x04  the layout's work, as a layout pool's table keeps it
-//! ```
-//!
-//! The place under the map's cursor is the AreaNav's cursor source (`Places`, spike 309): the Fly
+//! The place under the map's cursor is the town map's cursor source (`Places`, spike 309): the Fly
 //! map's, the Town Map's, and the place a View Details pages to. Its `MapView` keeps the touch
 //! area the top screen tells of, and the module's code sets it before writing the place's words:
 //!
@@ -36,12 +20,22 @@
 //! than a poll's rewrite, as the Fly map's cursor glides, was heard only inside the next one's
 //! details, "Mauville City", then "Route 110, Cycling Road Trick House, …" (or_bag_and_battle_bag).
 //!
+//! ORAS's AreaNav draws views over its map, which X's Town Map has none of: Berry Trees', Trainer's
+//! Eye's and Secret Bases' lists and the Pokémon Distribution. They are ORAS's own
+//! (`oras.subscreen.areanav`), and what its lists make of the cursors and words comes in through
+//! its `Game` (`AreaNav`, `gen6.game.OwnSubscreen`). A view draws the layouts of Game Freak's
+//! layout helper, `app::util::G2DUtil`, as the Move Reminder's pages do (`reminder`):
+//!
+//! ```text
+//! view     +0x5C  -> app::util::G2DUtil
+//! G2DUtil  +0x1C  -> its layouts, 8 bytes each: a handle, then flags; +0x20 how many
+//! handle   +0x04  the layout's work, as a layout pool's table keeps it
+//! ```
+//!
 //! Bound by:
 //! - ADR-0043: the place under the map's cursor is said as it changes, the area over a list
-//!   only as it changes, a berry with its time; a view not drawn is put away, its cursor's
-//!   layout too.
+//!   only as it changes.
 
-use std::cell::{Cell, RefCell};
 use std::collections::HashSet;
 use std::rc::Rc;
 
@@ -49,42 +43,15 @@ use indexmap::IndexMap;
 
 use crate::core::binary::u32;
 use crate::core::memory::Memory;
-use crate::core::rtti::ClassNames;
-use crate::games::common::cursors::shared::{CursorItem, CursorPoll};
+use crate::games::common::cursors::shared::CursorPoll;
 use crate::games::common::screen::ScreenText;
 use crate::games::gen6::anchors::Kept;
-use crate::games::gen6::screens::scrolled::{Row, Scrolled, row};
+use crate::games::gen6::game::OwnSubscreen;
 use crate::py::Result;
 
 /// The AreaNav as an app of its own, opened from the PokéNav's window or the Bag's Town Map.
 pub const APP: &str = "N3app7townmap4ProcE";
-/// Each view class whose draw is skipped while a byte of it is 0, by where that byte is.
-pub const VIEWS: [(&str, i64); 5] = [
-    ("N3app7townmap8NutsViewE", 0xAC),
-    ("N3app7townmap14TrainerEyeViewE", 0xAC),
-    ("N3app7townmap14SecretBaseViewE", 0xB4),
-    ("N3app7townmap9ZukanViewE", 0x7C),
-    ("N3app7townmap11MessageViewE", 0x7C),
-];
-/// The views drawn as lists whose rows name their places, the map following the row under their
-/// cursor: Berry Trees, Trainer's Eye and Secret Bases (or_areanav_by_touch). A `frozenset` only
-/// tested.
-pub const LISTS: [&str; 3] = [
-    "N3app7townmap8NutsViewE",
-    "N3app7townmap14TrainerEyeViewE",
-    "N3app7townmap14SecretBaseViewE",
-];
-pub const TRAINERS: &str = "N3app7townmap14TrainerEyeViewE";
-pub const BERRIES: &str = "N3app7townmap8NutsViewE";
 pub const UTIL: i64 = 0x5C;
-/// A list view -> its list's cursor, whose +0x58 is the root of the cursor's layout: Berry
-/// Trees', Trainer's Eye's and Secret Bases' each (a probe on or_areanav_trainers_bug). The view's
-/// `G2DUtil` does not hold it, and put away with the rest of Berry Trees, its cursor stayed drawn
-/// where it last stood, over Trainer's Eye opened after it, reading each trainer a move late: the
-/// area's switch said the last area's trainer, "Edwin" as Mauville City opened (a player's report,
-/// or_areanav_trainers_bug).
-pub const CURSOR: i64 = 0x94;
-pub const CURSOR_ROOT: i64 = 0x58;
 pub const UTIL_CLASS: &str = "N3app4util7G2DUtilE";
 pub const LAYOUTS: i64 = 0x1C;
 pub const LAYOUT_COUNT: i64 = 0x20;
@@ -133,122 +100,6 @@ pub fn util_works(memory: &dyn Memory, util: i64) -> Result<HashSet<i64>> {
         }
     }
     Ok(works)
-}
-
-/// The AreaNav's views a sweep found, and the layouts of those it has put away.
-pub struct Views {
-    memory: Rc<dyn Memory>,
-    names: Rc<ClassNames>,
-    /// View -> the vtable it was found with, where its byte saying it is drawn is, and its
-    /// class.
-    views: IndexMap<i64, (i64, i64, &'static str)>,
-    /// A `Cell`, as `put_away` sets it through `&self`.
-    list: Cell<Option<&'static str>>,
-}
-
-impl Views {
-    pub fn new(memory: Rc<dyn Memory>, names: Rc<ClassNames>) -> Self {
-        Views {
-            memory,
-            names,
-            views: IndexMap::new(),
-            list: Cell::new(None),
-        }
-    }
-
-    /// The views a sweep found, by class: all of them, or with `adding` the new ones.
-    pub fn track(&mut self, found: &IndexMap<i64, String>, adding: bool) -> Result<()> {
-        let mut views = if !adding {
-            IndexMap::new()
-        } else {
-            self.views.clone()
-        };
-        for (&view, name) in found {
-            if let Some(&(class, drawn_at)) = VIEWS.iter().find(|(class, _)| class == name) {
-                views.insert(
-                    view,
-                    (u32(&self.memory.read(view, 4)?, 0)?, drawn_at, class),
-                );
-            }
-        }
-        self.views = views;
-        Ok(())
-    }
-
-    /// Whether the AreaNav draws one of these views over its map now: the Pokémon
-    /// Distribution, Trainer's Eye's rows, the berry list. Then a tap on the map reaches the view's
-    /// own buttons, not a place (or_area_nav).
-    pub fn drawing(&self) -> Result<bool> {
-        Ok(self
-            .read()?
-            .iter()
-            .any(|(drawn, _util, _name, _head)| *drawn))
-    }
-
-    /// Whether the AreaNav drew one of its lists over its map at the last `put_away`
-    /// (`LISTS`): read again, its reads were new to the screen poll's tapes.
-    pub fn listing(&self) -> bool {
-        self.list.get().is_some()
-    }
-
-    /// The class of the list the AreaNav drew over its map at the last `put_away`, or None.
-    pub fn list_drawn(&self) -> Option<&'static str> {
-        self.list.get()
-    }
-
-    /// The works of the layouts of every view the AreaNav is not drawing now, its list's
-    /// cursor's among them (`CURSOR`), by `works_of` a layout's root -> its work.
-    pub fn put_away(&self, works_of: &IndexMap<i64, i64>) -> Result<HashSet<i64>> {
-        let mut works: HashSet<i64> = HashSet::new();
-        let read = self.read()?;
-        self.list.set(
-            read.iter()
-                .find(|(drawn, _util, name, _head)| *drawn && LISTS.contains(name))
-                .map(|&(_, _, name, _)| name),
-        );
-        for (drawn, util, name, head) in read {
-            if drawn {
-                continue;
-            }
-            works.extend(util_works(&*self.memory, util)?);
-            if LISTS.contains(&name) {
-                let cursor = u32(&head, CURSOR)?;
-                if cursor != 0 {
-                    let root = u32(&self.memory.read(cursor + CURSOR_ROOT, 4)?, 0)?;
-                    if let Some(&work) = works_of.get(&root) {
-                        works.insert(work);
-                    }
-                }
-            }
-        }
-        Ok(works)
-    }
-
-    /// Each view still one, whether it is drawn, its `G2DUtil`, its class and the head of it
-    /// read.
-    #[allow(clippy::type_complexity)]
-    fn read(&self) -> Result<Vec<(bool, i64, &'static str, Vec<u8>)>> {
-        let memory = &self.memory;
-        let mut read: Vec<(bool, i64, &'static str, Vec<u8>)> = Vec::new();
-        for (&view, &(vtable, drawn_at, name)) in &self.views {
-            let head = memory.read(view, drawn_at.max(UTIL).max(CURSOR) + 4)?;
-            // A view freed and its memory taken by something else says nothing.
-            if u32(&head, 0)? != vtable {
-                continue;
-            }
-            let util = u32(&head, UTIL)?;
-            if util != 0
-                && self
-                    .names
-                    .of_vtable(u32(&memory.read(util, 4)?, 0)?)?
-                    .as_deref()
-                    == Some(UTIL_CLASS)
-            {
-                read.push((head[drawn_at as usize] != 0, util, name, head));
-            }
-        }
-        Ok(read)
-    }
 }
 
 /// The place under the AreaNav's map cursor, read every tick from its `MapView` (module
@@ -361,138 +212,20 @@ impl Places {
     }
 }
 
-/// A list over the map: its moves along rows reading alike (`scrolled`), its rows one list,
-/// and Berry Trees' time since planting said with each berry.
-///
-/// Each row was its own list of rows, the panels its details are said from kept apart
-/// (`CursorItem.rows`); a list is one. Berry Trees writes a berry's time on the top screen, the
-/// poll its row is under the cursor or the one after, and the same words for berries planted
-/// the same minute, which no change of the screen's said: a berry is said a poll late, with
-/// the time standing then, "Lum Berry, It has been 25 days…", and the time on its own never,
-/// as the minutes tick over too. The first of an area is queued behind its name: a poll late,
-/// it came as a move 0.3 s after "Route 104", cutting it off (or_areanav_berries).
-#[derive(Default)]
-pub struct ListRows {
-    /// The layouts of the list's rows, those naming the area.
-    lists: HashSet<i64>,
-    scrolled: Scrolled,
-    /// A berry list -> the row under its cursor at the last screen poll.
-    seen: IndexMap<i64, Row>,
-    /// A berry list -> the row last said.
-    said: IndexMap<i64, Row>,
-    /// A berry list -> its cursor.
-    cursors: IndexMap<i64, i64>,
-    /// A berry list -> the area its last row said was in.
-    areas: IndexMap<i64, String>,
-}
-
-impl ListRows {
-    pub fn new() -> Self {
-        ListRows::default()
-    }
-
-    /// The cursors' poll with the list `drawn` over the map read so (`Views.list_drawn`).
-    pub fn poll(
-        &mut self,
-        cursors: CursorPoll,
-        drawn: Option<&str>,
-        area: Option<&str>,
-        on_screen: &[ScreenText],
-    ) -> CursorPoll {
-        let (Some(drawn), Some(area)) = (drawn, area) else {
-            self.lists.clear();
-            self.seen.clear();
-            self.said.clear();
-            self.cursors.clear();
-            self.areas.clear();
-            return self.scrolled.poll(cursors, &HashSet::new());
-        };
-        let mut under: IndexMap<i64, &Vec<ScreenText>> = IndexMap::new();
-        for pieces in &cursors.under {
-            if let Some(first) = pieces.first() {
-                under.insert(first.root, pieces);
-            }
-        }
-        for (&root, pieces) in &under {
-            if pieces.iter().any(|p| p.text == area) {
-                self.lists.insert(root);
-            }
-        }
-        if drawn != BERRIES {
-            let cursors = self.scrolled.poll(cursors, &self.lists);
-            let items = cursors
-                .items
-                .iter()
-                .map(|item| match item.pieces.first() {
-                    Some(first) if self.lists.contains(&first.root) => CursorItem {
-                        rows: first.root,
-                        ..item.clone()
-                    },
-                    _ => item.clone(),
-                })
-                .collect();
-            return CursorPoll { items, ..cursors };
-        }
-        let mut items: Vec<CursorItem> = Vec::new();
-        for item in &cursors.items {
-            match item.pieces.first() {
-                Some(first) if self.lists.contains(&first.root) => {
-                    self.cursors.insert(first.root, item.cursor);
-                }
-                _ => items.push(item.clone()),
-            }
-        }
-        let mut chased = cursors.chased;
-        for (&root, pieces) in &under {
-            if !self.lists.contains(&root) || !self.cursors.contains_key(&root) {
-                continue;
-            }
-            let now = row(pieces);
-            let seen = self.seen.insert(root, now.clone());
-            if Some(&now) == self.said.get(&root) {
-                continue;
-            }
-            if Some(&now) != seen.as_ref() {
-                chased = true;
-                continue;
-            }
-            self.said.insert(root, now);
-            let words: Vec<ScreenText> = on_screen.iter().filter(|p| p.top).cloned().collect();
-            items.push(CursorItem {
-                rows: root,
-                ..CursorItem::new(
-                    self.cursors[&root],
-                    [pieces.to_vec(), words].concat(),
-                    self.areas.get(&root).map(String::as_str) != Some(area),
-                )
-            });
-            self.areas.insert(root, area.to_string());
-        }
-        CursorPoll {
-            items,
-            chased,
-            ..cursors
-        }
-    }
-}
-
 /// What the AreaNav makes of a screen poll: the place under its map's cursor said as a title
-/// (`Places`), the lists drawn over the map read row by row (`ListRows`) without the area said
-/// already, and the words they make the screen's no more. `places` is None in a game whose
-/// `MapView` is not measured: the place is then the screen's alone.
+/// (`Places`), and what a game's own lists drawn over the map make of the cursors and words, the
+/// area the map is on given (`OwnSubscreen.cursors`: ORAS's Berry Trees, Trainer's Eye and
+/// Secret Bases). `places` is None in a game whose `MapView` is not measured: the place is then
+/// the screen's alone; `lists` None in a game that draws no view over its map, as X's Town Map
+/// draws none.
 pub struct AreaNav {
-    views: Rc<RefCell<Views>>,
+    lists: Option<Rc<dyn OwnSubscreen>>,
     places: Option<Places>,
-    rows: ListRows,
 }
 
 impl AreaNav {
-    pub fn new(views: Rc<RefCell<Views>>, places: Option<Places>) -> Self {
-        AreaNav {
-            views,
-            places,
-            rows: ListRows::new(),
-        }
+    pub fn new(lists: Option<Rc<dyn OwnSubscreen>>, places: Option<Places>) -> Self {
+        AreaNav { lists, places }
     }
 
     /// Every tick: has the map's cursor come onto another place (`Places.turned`)?
@@ -503,102 +236,41 @@ impl AreaNav {
         }
     }
 
+    /// Every screen poll, before the screen is read: the works of the layouts of the views not
+    /// drawn over the map now, by `works_of` a layout's root -> its work.
+    pub fn put_away(&self, works_of: &IndexMap<i64, i64>) -> Result<HashSet<i64>> {
+        match &self.lists {
+            None => Ok(HashSet::new()),
+            Some(lists) => lists.put_away(works_of),
+        }
+    }
+
     /// Every screen poll, before the cursors: the place the cursor has just come onto.
     pub fn title(&mut self) -> Result<Option<String>> {
+        let listing = self.lists.as_ref().is_some_and(|lists| lists.listing());
         match &mut self.places {
             None => Ok(None),
-            Some(places) => {
-                let listing = self.views.borrow().listing();
-                places.poll(listing)
-            }
+            Some(places) => places.poll(listing),
         }
     }
 
     /// The cursors, a list over the map read row by row, each row without its area.
     pub fn cursors(&mut self, cursors: CursorPoll, on_screen: &[ScreenText]) -> CursorPoll {
-        let area = self.area();
-        let drawn = self.views.borrow().list_drawn();
-        let mut cursors = self.rows.poll(cursors, drawn, area.as_deref(), on_screen);
-        if let Some(area) = &area
-            && self.views.borrow().listing()
-        {
-            // A list over the AreaNav's map says each row's place: said as the area as the map
-            // moves to it, and not again with its rows.
-            cursors = unplaced(cursors, area);
+        match &self.lists {
+            None => cursors,
+            Some(lists) => lists.cursors(cursors, self.area().as_deref(), on_screen),
         }
-        cursors
     }
 
     /// The boxes of the words the lists over the map leave unsaid.
     pub fn unsaid(&self, on_screen: &[ScreenText]) -> HashSet<i64> {
-        let (area, drawn) = (self.area(), self.views.borrow().list_drawn());
-        // Trainer's Eye's area is said as it changes, its words above the card no more.
-        let mut unsaid = berry_times(on_screen, drawn);
-        if let Some(area) = &area
-            && drawn == Some(TRAINERS)
-        {
-            unsaid.extend(place_block(on_screen, area));
+        match &self.lists {
+            None => HashSet::new(),
+            Some(lists) => lists.unsaid(self.area().as_deref(), on_screen),
         }
-        unsaid
     }
 
     fn area(&self) -> Option<String> {
         self.places.as_ref().and_then(|places| places.current())
     }
-}
-
-/// The boxes of Berry Trees' time since planting, said with its berry alone (`ListRows`).
-pub fn berry_times(on_screen: &[ScreenText], drawn: Option<&str>) -> HashSet<i64> {
-    if drawn == Some(BERRIES) {
-        on_screen
-            .iter()
-            .filter(|p| p.top)
-            .map(|p| p.r#box)
-            .collect()
-    } else {
-        HashSet::new()
-    }
-}
-
-/// The boxes of the top screen's layout naming the area: its name, its facilities and its
-/// description, which Trainer's Eye draws above each trainer's card. The area is said as it
-/// changes (`Places`), and its words were said again with every trainer once the card was
-/// hidden, "Route 104, This path, rich with water…" (or_areanav_trainers).
-pub fn place_block(on_screen: &[ScreenText], area: &str) -> HashSet<i64> {
-    let roots: HashSet<i64> = on_screen
-        .iter()
-        .filter(|p| p.top && p.text == area)
-        .map(|p| p.root)
-        .collect();
-    on_screen
-        .iter()
-        .filter(|p| roots.contains(&p.root))
-        .map(|p| p.r#box)
-        .collect()
-}
-
-/// The cursors' poll with the area said already taken out of each item's words, where more
-/// are left: a list over the map names each row's place.
-pub fn unplaced(cursors: CursorPoll, area: &str) -> CursorPoll {
-    let items = cursors
-        .items
-        .iter()
-        .map(|item| {
-            let kept: Vec<ScreenText> = item
-                .pieces
-                .iter()
-                .filter(|p| p.text != area)
-                .cloned()
-                .collect();
-            if !kept.is_empty() && kept.len() < item.pieces.len() {
-                CursorItem {
-                    pieces: kept,
-                    ..item.clone()
-                }
-            } else {
-                item.clone()
-            }
-        })
-        .collect();
-    CursorPoll { items, ..cursors }
 }

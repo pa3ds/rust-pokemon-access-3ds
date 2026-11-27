@@ -18,7 +18,7 @@ use crate::games::gen6::apps::RunningApp;
 use crate::games::gen6::game::CursorShapes;
 use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::screens::sources::{Chase, CursorSources};
-use crate::games::gen6::screens::{boxes, rows, townmap};
+use crate::games::gen6::screens::{boxes, rows};
 
 const ROOT: i64 = 0x08300400;
 const OTHER: i64 = 0x08310400;
@@ -58,7 +58,7 @@ fn sources_of(running: &str, r#box: Rc<Cell<Option<i64>>>) -> CursorSources {
         Rc::new(Vec::new),
         occupants,
         shown,
-        Rc::new(RefCell::new(townmap::Views::new(memory.clone(), names))),
+        None,
         None,
         None,
         None,

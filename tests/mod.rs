@@ -10,6 +10,7 @@ mod fake_speech;
 mod fake_words;
 mod test_amie;
 mod test_anchors;
+mod test_areanav;
 mod test_announce;
 mod test_app;
 mod test_apps;
