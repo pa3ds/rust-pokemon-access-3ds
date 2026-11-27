@@ -24,7 +24,8 @@
 //! 6. **the words of the picture's own name** (`pictures.words`), a bare "button" in the top bar's
 //!    corners and the PSS menu's arrow being the page arrows, previous and next; where the data has
 //!    no word for the picture, **the game's words written under it**, as a label under its icon,
-//!    come first: the PSS's menu, "Battle" under `pss_taisen_icon` (or_pss_singleplayer).
+//!    come first: the PSS's menu, "Battle" under `pss_taisen_icon` (or_pss_singleplayer); or with
+//!    none under it, beside it on its row, as a box's words are: "Add to Favorites List".
 //!
 //! A touch area none of these names is left out, and the log says so once. So is the AreaNav's
 //! map, whose every place is a touch area (spike 152), on the field: it is drawn zoomed in and cut
@@ -1161,6 +1162,10 @@ impl TouchTargets {
     /// "Battle" beside the touch area itself, with the icon (or_pss_singleplayer_2). Words not
     /// beside it are another's: Amie's games menu writes "Head It" under its first button from a
     /// pane of its own, and the Fly map's Pokémon Distribution names icons drawn under others.
+    /// With none under it, the words starting no more than `LABEL_GAP` past its right edge
+    /// whose middle is within its height, as a box's words are beside it: another player's
+    /// profile ticks a box beside "Add to Favorites List", said "checkmark2" (the PSS's
+    /// multiplayer).
     fn label(
         &mut self,
         root: i64,
@@ -1175,9 +1180,12 @@ impl TouchTargets {
         let beside = [parent, u32(&layouts.pane(parent)?, lyt::PARENT)?];
         let (across, up) = middle(&head, &shape)?;
         let width = size(&head, shape.width, shape.scale_x)?;
-        let bottom = up - size(&head, shape.height, shape.scale_y)? / 2.0;
+        let height = size(&head, shape.height, shape.scale_y)?;
+        let bottom = up - height / 2.0;
+        let right = across + width / 2.0;
         let buttons: HashSet<i64> = groups.values().flatten().copied().collect();
         let mut best: Option<(f64, &ScreenText)> = None;
+        let mut nearest: Option<(f64, &ScreenText)> = None;
         for (&r#box, piece) in words {
             if piece.root != root
                 || piece.picture
@@ -1189,16 +1197,27 @@ impl TouchTargets {
             let Some(middle) = self.middle_of(r#box)? else {
                 continue;
             };
-            let top = middle.1 + size(&layouts.pane(r#box)?, shape.height, shape.scale_y)? / 2.0;
-            if (middle.0 - across).abs() * 2.0 > width || middle.1 >= up || bottom - top > LABEL_GAP
+            let pane = layouts.pane(r#box)?;
+            let top = middle.1 + size(&pane, shape.height, shape.scale_y)? / 2.0;
+            if (middle.0 - across).abs() * 2.0 <= width
+                && middle.1 < up
+                && bottom - top <= LABEL_GAP
             {
+                if best.is_none_or(|(y, _piece)| middle.1 > y) {
+                    best = Some((middle.1, piece));
+                }
                 continue;
             }
-            if best.is_none_or(|(y, _piece)| middle.1 > y) {
-                best = Some((middle.1, piece));
+            let gap = (middle.0 - size(&pane, shape.width, shape.scale_x)? / 2.0 - right).abs();
+            if (middle.1 - up).abs() * 2.0 <= height
+                && gap <= LABEL_GAP
+                && nearest.is_none_or(|(near, _piece)| gap < near)
+            {
+                nearest = Some((gap, piece));
             }
         }
-        Ok(best.map(|(_y, piece)| piece.clone()))
+        let found = best.or(nearest);
+        Ok(found.map(|(_y, piece)| piece.clone()))
     }
 
     /// The targets, less a list's buttons while the list is not up. A list's layout can stay

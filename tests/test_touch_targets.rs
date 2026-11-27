@@ -2994,3 +2994,68 @@ fn test_a_picture_two_buttons_without_words_draw_names_neither() {
     );
     assert_eq!(names_of(&mut targets), ["Battle", "Trade"]);
 }
+
+/// Another player's profile ticks a box beside "Add to Favorites List", and it was said by its
+/// picture, "checkmark2" (the PSS's multiplayer).
+#[test]
+fn test_a_box_is_named_by_the_words_beside_it() {
+    let memory = FakeMemory::new();
+    let classes = FakeClasses::new(memory.clone());
+    let fake = FakeLayouts::new(&memory, &classes);
+    let (bounding, picture) = (
+        classes.add(lyt::BOUNDING_CLASS),
+        classes.add(lyt::PICTURE_CLASS),
+    );
+    let textbox = classes.add(lyt::TEXTBOX_CLASS);
+    let (_work, root) = fake.screen_with(0x08200000, false, false);
+    let bar = root + 0x1000;
+    placed(&fake, bar, root, None, 0.0, -107.0, 320.0, 30.0);
+    placed(
+        &fake,
+        bar + 0x200,
+        bar,
+        Some(picture),
+        -135.0,
+        -107.0,
+        30.0,
+        30.0,
+    );
+    placed(
+        &fake,
+        bar + 0x400,
+        bar,
+        Some(bounding),
+        -135.0,
+        -107.0,
+        40.0,
+        30.0,
+    );
+    placed(
+        &fake,
+        bar + 0x600,
+        bar,
+        Some(textbox),
+        0.0,
+        -107.0,
+        230.0,
+        20.0,
+    );
+    fake.track().unwrap();
+    let words = vec![text_in(bar + 0x600, "Add to Favorites List", root)];
+    let pictures: HashMap<i64, String> =
+        HashMap::from([(bar + 0x200, "checkmark2.bclim".to_string())]);
+    let mut targets = TouchTargets::new(
+        fake.layouts.clone(),
+        Rc::new(move || words.clone()),
+        Rc::new(|_box| Ok(String::new())),
+        Rc::new(move |pane| Ok(pictures.get(&pane).cloned())),
+        Rc::new(|_root| None),
+        Rc::new(|_line: &str| {}),
+        Options::default(),
+    );
+    assert_eq!(names_of(&mut targets), ["Add to Favorites List"]);
+    assert_eq!(
+        targets.button_words().unwrap(),
+        HashSet::from([bar + 0x600])
+    );
+}
