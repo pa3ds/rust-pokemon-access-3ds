@@ -30,7 +30,6 @@
 use std::cell::{Cell as Slot, RefCell};
 use std::collections::{HashMap, HashSet};
 use std::rc::{Rc, Weak};
-use std::sync::Arc;
 
 use indexmap::{IndexMap, IndexSet};
 
@@ -51,11 +50,11 @@ use crate::games::common::field::things::{
     place_source,
 };
 use crate::games::gen6::anchors::follow;
-use crate::games::gen6::field::conveyors::{GymFloor, Switches};
+use crate::games::gen6::field::conveyors::Switches;
 use crate::games::gen6::field::features::{Feature, Sighting, Tracked, Watched};
 use crate::games::gen6::field::hidden_items::{HiddenItems, Only};
 use crate::games::gen6::field::landform::{
-    Conveyors, Found as Worked, Here, Holes, Landform, Matrix, Rides, TurningFloor, as_form,
+    Conveyors, Found as Worked, Here, Holes, Matrix, Rides, TurningFloor, as_form,
     beside, dropped, holes_found, identity, runs, touching,
 };
 use crate::games::gen6::field::models::Models;
@@ -147,6 +146,10 @@ type Twins = HashMap<(i64, i64), (i64, i64)>;
 pub struct FieldReader {
     me: Weak<FieldReader>,
     memory: Rc<dyn Memory>,
+    /// What one gen 6 game has of its own, read where it is asked.
+    game: Rc<Game>,
+    /// The game's words and tables out of the player's ROM, or `NO_TEXT` without one.
+    text: Rc<GameText>,
     /// The zone table, which names every place and tells a path from stairs.
     pub zones: Rc<ZoneTable>,
     /// What the game has of its own to list: ORAS's berry spots, ash piles and Secret Base
@@ -156,14 +159,6 @@ pub struct FieldReader {
     /// DexNav's find. Listed after the rest, and in the player's own part of a place in parts
     /// alone.
     watched: Vec<Rc<dyn Watched>>,
-    /// Where the field's work holds the current zone's record (`anchor`).
-    zone_record: i64,
-    /// Zones whose floors' stairs are listed (`Game.stairs`).
-    stairs: HashSet<i64>,
-    /// Zones listed a room at a time (`Game.rooms`).
-    rooms: HashSet<i64>,
-    /// The game's landforms, gen 6's and its own (`Game.landforms`).
-    landforms: Vec<Arc<dyn Landform>>,
     /// What each landform worked out, by the map it was worked out on (`_found`).
     found_of: RefCell<HashMap<FoundKey, Rc<Vec<Worked>>>>,
     /// Each landform's watch, by the landform (`Landform.watch`): by its identity, as one
@@ -175,35 +170,14 @@ pub struct FieldReader {
     /// What the game's ridden Pokémon cross, or None in a game without one: who is in the way
     /// and who is listed asks it too.
     rides: Option<Rides>,
-    /// (zone, a furniture record's script) -> the native its case hands one constant to, and
-    /// the constant (`plates.native_furniture`).
-    natives: IndexMap<(i64, i64), (i64, i64)>,
-    /// (zone, a trigger's script) -> (x, how high, z) of where the teleporter it is puts the
-    /// player (`plates.teleports`).
-    teleports: IndexMap<(i64, i64), (i64, i64, i64)>,
     /// The save's works and flags, which arm triggers and say which hidden items are found.
     works: Rc<Works>,
-    /// (zone, a warp's slot) -> the work and value it is taken at (`Game.armed_warps`).
-    armed_warps: IndexMap<(i64, i64), (i64, i64)>,
-    /// The flags saying which version's story the save plays (`Game.version_flags`).
-    version_flags: Option<(i64, i64)>,
     /// What each zone's switches have turned (`landform.Conveyors`, `landform.TurningFloor`).
     switches: Option<Switches>,
-    /// What a Gym's module turns and shuts (`maps.gym_floor`).
-    gym_floor: Option<GymFloor>,
     /// The hidden items still to be found, where the Extra lists them (spike 249).
     hidden_items: Option<HiddenItems>,
-    /// (zone, a trigger's script) -> the category and kind it is listed as, and for an exit into
-    /// another place, the zone it leads to (`Game.triggers`).
-    triggers: IndexMap<(i64, i64), (String, String, Option<i64>)>,
     /// (zone, the zone it leads to) of each trigger listed as an exit into another place.
     trigger_exits: HashSet<(i64, i64)>,
-    /// (zone, a trigger's script) of the triggers that give an item (`Game.hidden_triggers`).
-    hidden_triggers: HashSet<(i64, i64)>,
-    /// Sprite -> the move that clears the thing drawn as it (`Game.clears`).
-    clears: IndexMap<i64, i64>,
-    /// The sprites of the spots a wild Pokémon waits at unseen (`Game.lurkers`).
-    lurkers: HashSet<i64>,
     /// The matrix out of the ROM, which never touches RAM.
     pub terrain: Rc<Terrain>,
     /// Zone -> its triggers' boxes, (x, z, width, height) in the table's order, once read
@@ -215,21 +189,11 @@ pub struct FieldReader {
     clock: Rc<dyn Fn() -> f64>,
     /// Lumiose's streets, which X places things on rather than on cells.
     pub rails: Rails,
-    /// (zone, a trigger's script) of the listed triggers P walks over (`Game.crossed`).
-    crossed: HashSet<(i64, i64)>,
-    parts: IndexMap<i64, Vec<i64>>,
-    /// Each zone of a place in parts, with every zone of its place, and its zone data out of
-    /// the ROM, its things listed from the other parts where its place is listed whole, `whole`
-    /// (ADR-0042).
-    part_data: IndexMap<i64, Vec<u8>>,
-    whole: HashSet<i64>,
     twins_of: RefCell<HashMap<Vec<i64>, Rc<Twins>>>,
     /// Each part of a place in parts the player has stood in -> the indices of the NPC records
     /// the game built models for there, when last seen: another part's records are listed only
     /// where it built them (`part_records`).
     built: RefCell<HashMap<i64, HashSet<i64>>>,
-    /// Where the player's model says what they move as (`Game.form`).
-    form: Option<i64>,
     /// What each kind of use tile is: the game's own word where it has one, the PC's out of
     /// the ROM (`archives.PC_LINES`), ahead of the shipped table's.
     words: IndexMap<i64, String>,
@@ -330,11 +294,13 @@ impl FieldReader {
         {
             words.insert(PC_TILE, pc);
         }
-        // One `Game` for the records and the models, which Python's share by reference.
+        // One `Game` and one text for the reader, its records and its models, which Python's
+        // share by reference.
         let shared = Rc::new(game.clone());
+        let words_of = Rc::new(text.clone());
         let records = Records::new(
             shared.clone(),
-            Rc::new(text.clone()),
+            words_of.clone(),
             zones.clone(),
             terrain.clone(),
             words.clone(),
@@ -398,7 +364,7 @@ impl FieldReader {
             me: me.clone(),
             hidden_items: hidden_items(me),
             // `self._current`, through the reader being made.
-            models: Models::new(memory.clone(), shared, works.clone(), rides.clone(), {
+            models: Models::new(memory.clone(), shared.clone(), works.clone(), rides.clone(), {
                 let me = me.clone();
                 Rc::new(move || {
                     me.upgrade()
@@ -406,9 +372,9 @@ impl FieldReader {
                         .current()
                 })
             }),
+            game: shared,
+            text: words_of,
             works,
-            armed_warps: game.armed_warps.clone(),
-            version_flags: game.version_flags,
             switches: {
                 let states: IndexSet<(&'static str, i64)> = game
                     .landforms
@@ -425,14 +391,9 @@ impl FieldReader {
                     Some(Switches::new(memory.clone(), states))
                 }
             },
-            gym_floor: text.gym_floor.clone(),
             zones,
             features,
             watched,
-            zone_record: game.zone_record,
-            stairs: game.stairs.clone(),
-            rooms: game.rooms.clone(),
-            landforms: game.landforms.clone(),
             found_of: RefCell::new(HashMap::new()),
             watches,
             // `partial(self._said, watch)`, through the reader being made.
@@ -448,17 +409,11 @@ impl FieldReader {
                 })
                 .collect(),
             rides,
-            natives: text.natives.clone(),
-            teleports: text.teleports.clone(),
-            triggers: game.triggers.clone(),
             trigger_exits: game
                 .triggers
                 .iter()
                 .filter_map(|(&(zone, _), known)| known.2.map(|to| (zone, to)))
                 .collect(),
-            hidden_triggers: game.hidden_triggers.clone(),
-            clears: game.clears.clone(),
-            lurkers: game.lurkers.clone(),
             terrain,
             trigger_boxes: RefCell::new(HashMap::new()),
             height: Slot::new(None),
@@ -470,13 +425,8 @@ impl FieldReader {
                 game.camera,
                 text.rail_teleports.clone(),
             ),
-            crossed: game.crossed.clone(),
-            parts: text.parts.clone(),
-            part_data: text.part_data.clone(),
-            whole: game.whole.clone(),
             twins_of: RefCell::new(HashMap::new()),
             built: RefCell::new(HashMap::new()),
-            form: game.form,
             words,
             records,
             player: Slot::new(None),
@@ -618,7 +568,8 @@ impl FieldReader {
             Some(zone) => zone,
             None => mmodel::zone_of(&head)?,
         };
-        let form = match self.form {
+        let offset = self.game.form;
+        let form = match offset {
             None => None,
             Some(at) => Some(
                 *self
@@ -812,8 +763,8 @@ impl FieldReader {
             None
         };
         let crossed: HashSet<Cell> = self
-            .trigger_cells(r#where.zone, self.crossed.is_empty(), &|key| {
-                self.crossed.contains(&key)
+            .trigger_cells(r#where.zone, self.game.crossed.is_empty(), &|key| {
+                self.game.crossed.contains(&key)
             })?
             .into_keys()
             .collect();
@@ -840,6 +791,7 @@ impl FieldReader {
             lanes,
             raised: self.terrain.raised()?,
             words: self
+                .game
                 .landforms
                 .iter()
                 .map(|form| {
@@ -862,8 +814,8 @@ impl FieldReader {
                     } else {
                         None
                     },
-                    clears: self.clears.clone(),
-                    through: self.lurkers.clone(),
+                    clears: self.game.clears.clone(),
+                    through: self.game.lurkers.clone(),
                     solid: nothing,
                     stacked,
                     ..Of::default()
@@ -871,7 +823,7 @@ impl FieldReader {
             )?
         };
         let here = self.here(r#where, None);
-        for (form, found) in self.landforms.iter().zip(self.found(r#where.zone)?.iter()) {
+        for (form, found) in self.game.landforms.iter().zip(self.found(r#where.zone)?.iter()) {
             ground = form.laid(found, ground, &here)?;
         }
         Ok(if ground.doors.is_empty() {
@@ -931,9 +883,10 @@ impl FieldReader {
 
     /// The zone's triggers listed (`Records.triggers`), read only in a game that lists any.
     fn listed_triggers(&self, data: &ZoneData, zone: i64) -> Result<Vec<Interactable>> {
-        let home = if self.triggers.is_empty()
-            && self.hidden_triggers.is_empty()
-            && self.teleports.is_empty()
+        let game = &self.game;
+        let home = if game.triggers.is_empty()
+            && game.hidden_triggers.is_empty()
+            && self.text.teleports.is_empty()
         {
             None
         } else {
@@ -968,7 +921,7 @@ impl FieldReader {
     /// Whether the save's works shut the zone's warp in `slot` (`Game.armed_warps`). Both of a
     /// lift's warps stay listed until a sweep has found the works.
     fn shut(&self, home: Option<i64>, slot: i64) -> Result<bool> {
-        let armed = home.and_then(|home| self.armed_warps.get(&(home, slot)));
+        let armed = home.and_then(|home| self.game.armed_warps.get(&(home, slot)));
         Ok(match armed {
             Some(&(work, value)) => {
                 self.works.event.get().is_some() && !self.works.holds(work, value)?
@@ -1062,7 +1015,7 @@ impl FieldReader {
         items.extend(self.edges(r#where.zone, !r#where.on_rail, true)?);
         items.extend(self.use_tiles(r#where.zone)?);
         let here = self.here(r#where, Some(people.clone()));
-        for (form, found) in self.landforms.iter().zip(self.found(r#where.zone)?.iter()) {
+        for (form, found) in self.game.landforms.iter().zip(self.found(r#where.zone)?.iter()) {
             items.extend(form.listed(found, &here)?);
         }
         items.extend(self.stairs_in(r#where.zone)?);
@@ -1079,8 +1032,9 @@ impl FieldReader {
         if let Some(hidden_items) = &self.hidden_items {
             items.extend(hidden_items.listed(r#where.zone, &zone_at)?);
         }
-        if self.whole.contains(&r#where.zone)
+        if self.game.whole.contains(&r#where.zone)
             && let Some(parts) = self
+                .text
                 .parts
                 .get(&r#where.zone)
                 .filter(|parts| !parts.is_empty())
@@ -1090,12 +1044,12 @@ impl FieldReader {
         // A boulder in a hole is floor now, and neither it nor the hole is anything to find.
         let holes = self.holes(r#where.zone)?;
         if !holes.is_empty() {
-            let gone = dropped(&holes, &items, &self.clears);
+            let gone = dropped(&holes, &items, &self.game.clears);
             if !gone.is_empty() {
                 items.retain(|item| !item.cells().iter().all(|cell| gone.contains(cell)));
             }
         }
-        if self.rooms.contains(&r#where.zone) {
+        if self.game.rooms.contains(&r#where.zone) {
             items = self.in_room(items, r#where.cell)?;
         }
         Ok(Field {
@@ -1148,7 +1102,7 @@ impl FieldReader {
     ) -> Result<Vec<Interactable>> {
         if !people
             .iter()
-            .any(|item| self.clears.get(&item.code) == Some(&STRENGTH))
+            .any(|item| self.game.clears.get(&item.code) == Some(&STRENGTH))
         {
             return Ok(people);
         }
@@ -1162,7 +1116,7 @@ impl FieldReader {
             }
         }
         let holes = self.holes(zone)?;
-        let filled = dropped(&holes, &people, &self.clears);
+        let filled = dropped(&holes, &people, &self.game.clears);
         let standing: HashSet<Cell> = people
             .iter()
             .flat_map(|item| item.cells())
@@ -1181,7 +1135,7 @@ impl FieldReader {
 
         let mut out: Vec<Interactable> = Vec::new();
         for mut item in people {
-            if self.clears.get(&item.code) == Some(&STRENGTH)
+            if self.game.clears.get(&item.code) == Some(&STRENGTH)
                 && !item.cells().iter().all(|cell| holes.contains(cell))
             {
                 // Going through a passage out of the room, a poll found its chunks gone and
@@ -1208,7 +1162,7 @@ impl FieldReader {
     /// The cells of the zone's holes a big boulder drops into (`landform.Holes`).
     fn holes(&self, zone: i64) -> Result<HashSet<Cell>> {
         let mut out: HashSet<Cell> = HashSet::new();
-        for (form, found) in self.landforms.iter().zip(self.found(zone)?.iter()) {
+        for (form, found) in self.game.landforms.iter().zip(self.found(zone)?.iter()) {
             if as_form::<Holes>(form).is_some() {
                 out.extend(holes_found(found));
             }
@@ -1222,7 +1176,7 @@ impl FieldReader {
     /// wide at (11, 59) and (24, 59), climb from its lower floor to 189 beside the entrance's room
     /// at 198, the only way back up (spike 167).
     fn stairs_in(&self, zone: i64) -> Result<Vec<Interactable>> {
-        if !self.stairs.contains(&zone) {
+        if !self.game.stairs.contains(&zone) {
             return Ok(Vec::new());
         }
         let mut tops: IndexMap<Cell, f64> = IndexMap::new();
@@ -1277,7 +1231,7 @@ impl FieldReader {
     /// ```
     pub fn anchor(&self, process: i64) -> Result<Vec<String>> {
         let mut taken: Vec<String> = Vec::new();
-        let record = follow(&*self.memory, process, &[WORK, self.zone_record])?;
+        let record = follow(&*self.memory, process, &[WORK, self.game.zone_record])?;
         if let Some(record) = record {
             let holder = record + RECORD_DATA;
             if self.current()?.is_none()
@@ -1640,7 +1594,7 @@ impl FieldReader {
     /// twins, in a save with neither, and before a sweep has found the works. Read only where
     /// two warps on one cell lead to two places, so that no other listing reads the flags.
     fn played(&self, one: i64, other: i64) -> Result<Option<i64>> {
-        let Some((higher, lower)) = self.version_flags else {
+        let Some((higher, lower)) = self.game.version_flags else {
             return Ok(None);
         };
         if self.works.flag(higher)? == Some(true) {
@@ -1821,7 +1775,7 @@ impl FieldReader {
     /// Every zone of the place in parts `zone` is a part of, itself among them, or none for a
     /// zone that is no part (`GameText.parts`, ADR-0042).
     pub fn parts(&self, zone: i64) -> Vec<i64> {
-        self.parts.get(&zone).cloned().unwrap_or_default()
+        self.text.parts.get(&zone).cloned().unwrap_or_default()
     }
 
     /// `items`, the player's own part's, with the rest of their place in parts (ADR-0042).
@@ -1894,7 +1848,7 @@ impl FieldReader {
                 ..r#where.clone()
             };
             let here = self.here(&there, Some(Vec::new()));
-            for (form, found) in self.landforms.iter().zip(self.found(part)?.iter()) {
+            for (form, found) in self.game.landforms.iter().zip(self.found(part)?.iter()) {
                 out.extend(form.listed(found, &here)?);
             }
             let zone_at = |cell: Cell| self.zone_at(cell);
@@ -1936,7 +1890,7 @@ impl FieldReader {
         twins: &Twins,
     ) -> Result<Vec<Interactable>> {
         let built = self.built.borrow().get(&zone).cloned();
-        let Some(data) = self.part_data.get(&zone) else {
+        let Some(data) = self.text.part_data.get(&zone) else {
             return Ok(Vec::new());
         };
         let memory = Bytes(data);
@@ -1983,7 +1937,7 @@ impl FieldReader {
         let mut first: HashMap<(i64, i64, i64, i64), (i64, i64)> = HashMap::new();
         let mut out: Twins = HashMap::new();
         for &zone in parts {
-            let Some(data) = self.part_data.get(&zone) else {
+            let Some(data) = self.text.part_data.get(&zone) else {
                 continue;
             };
             let memory = Bytes(data);
@@ -2097,7 +2051,7 @@ impl FieldReader {
             zones: &self.zones,
         };
         let mut found: Vec<Worked> = Vec::new();
-        for form in &self.landforms {
+        for form in &self.game.landforms {
             found.push(form.found(&matrix)?);
         }
         let found = Rc::new(found);
@@ -2115,19 +2069,19 @@ impl FieldReader {
                 Some(people) => Box::new(move || Ok(people.clone())),
                 None => Box::new(move || self.people(zone)),
             },
-            clears: &self.clears,
+            clears: &self.game.clears,
             memory: &*self.memory,
             data: Box::new(|| self.current()),
             home: Box::new(move |data| self.home(data, &[zone])),
             trigger_cells: Box::new(move |none, known| self.trigger_cells(zone, none, known)),
             rails: &self.rails,
             files: self.terrain.files.borrow().1.clone(),
-            natives: &self.natives,
+            natives: &self.text.natives,
             turned: Box::new(|state, size| match &self.switches {
                 None => Ok(None),
                 Some(switches) => switches.turned(state, size),
             }),
-            gym_floor: self.gym_floor.as_ref(),
+            gym_floor: self.text.gym_floor.as_ref(),
             watch: Box::new(|form| self.watches.get(&identity(form)).cloned()),
             terrain: &self.terrain,
             zones: &self.zones,
