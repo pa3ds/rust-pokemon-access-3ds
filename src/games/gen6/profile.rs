@@ -1494,7 +1494,7 @@ impl Gen6Profile {
                 &mut self.narrate(),
             )?;
             if DEMOS.contains(&started.as_str()) {
-                scenes.borrow_mut().demo(None, &mut self.narrate())?;
+                scenes.borrow_mut().demo(None, None, &mut self.narrate())?;
             }
         }
         for app in self.own.apps() {

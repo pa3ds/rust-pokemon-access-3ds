@@ -101,8 +101,8 @@ the Game Boy games. Nothing here is taken from its code.
 - **Pictures the game never names**: the boy and the girl to choose from as a game begins, and
   the Trainer Passport's photos in Sun and Moon, described in pa3ds's own words.
 - **Scenes without words**, described unless the `descriptions` setting is turned off: many in
-  Omega Ruby and Alpha Sapphire, the story's in X and Y, and the opening's in Sun and Ultra Sun
-  so far. Pokémon-Amie's Tile Puzzle says which of your Pokémon stand where in each picture it
+  Omega Ruby and Alpha Sapphire, the story's in X and Y, the opening's in Sun and Ultra Sun, and
+  the rescue on Mahalo Trail's bridge in Sun, so far. Pokémon-Amie's Tile Puzzle says which of your Pokémon stand where in each picture it
   draws, and where the picture is set.
 - **Footsteps** where Omega Ruby, Alpha Sapphire, X and Y play none, as on streets, floors and in
   caves: the game's own step sound, as loud as the game and Azahar would play it.

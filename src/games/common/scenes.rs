@@ -29,7 +29,10 @@
 //!
 //! Sun's demos keep their number (`App::AppDemo::AppDemoProc` +0x24), so a scene
 //! of Sun's is found by it, `demo = 6` for the chase after Kukui's call, in no zone and after no
-//! line.
+//! line. The field plays demos of its own, numbered apart (`Field::Demo::FieldDemoProc` +0x38): a
+//! scene over one names the app as well, `demo = 7` with `app = "Field::Demo::FieldDemoProc"`.
+//! What the field shows between two lines of a talk follows a line of Sun's story text, as ORAS's
+//! do, `story:38:5`.
 //!
 //! When each beat is said is a game's `scenes.toml`, every language's; what it says is the message
 //! of its `id` in the language's `scenes.ftl` (ADR-0040), English's where the language has none.
@@ -164,7 +167,8 @@ pub struct Scene {
     pub demo: Option<i64>,
     pub trigger: Option<i64>,
     /// The app that plays it, by its class, `movie::MovieProc`: said as the app starts, and let
-    /// go as any other starts.
+    /// go as any other starts; with a `demo`, said over that demo of the app's, where the app numbers
+    /// its demos apart from the game's others.
     pub app: Option<String>,
 }
 
@@ -741,16 +745,17 @@ impl Scenes {
         Ok(())
     }
 
-    /// A scene of the game's own has started, by its number where the game keeps one: a beat
-    /// waiting for it comes, or else the scene said over it starts.
-    pub fn demo(&mut self, number: Option<i64>, say: Say) -> Result<()> {
+    /// A scene of the game's own has started, by its number where the game keeps one and the
+    /// app playing it where that app numbers its demos apart: a beat waiting for it comes, or
+    /// else the scene said over it starts.
+    pub fn demo(&mut self, number: Option<i64>, app: Option<&str>, say: Say) -> Result<()> {
         if self.waiting().is_some_and(|beat| beat.demo) {
             self.came(say)?;
         } else if let Some(number) = number
             && let Some(found) = self
                 .scenes
                 .iter()
-                .position(|scene| scene.demo == Some(number))
+                .position(|scene| scene.demo == Some(number) && scene.app.as_deref() == app)
         {
             self.start(found, say)?;
         }
@@ -768,10 +773,9 @@ impl Scenes {
         {
             self.scene = None;
         }
-        let found = self
-            .scenes
-            .iter()
-            .position(|scene| scene.app.as_deref() == Some(app) && scene.zone == zone);
+        let found = self.scenes.iter().position(|scene| {
+            scene.app.as_deref() == Some(app) && scene.demo.is_none() && scene.zone == zone
+        });
         if let Some(found) = found {
             self.start(found, say)?;
         }

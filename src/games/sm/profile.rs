@@ -295,9 +295,9 @@ impl SunProfile {
     /// `phases` opens a named phase of `memory`'s cache round each poll, as ORAS's page cache
     /// has (`memory.ExactCache.phase`): the reads a poll makes are fetched together at the start
     /// of the next poll of its kind, where each was sent alone (issue 4). `scenes` is pa3ds's
-    /// words for the cutscenes, by demo (`scenes.load`), each beat worded by `said`
-    /// (`Described.said`). `layout` is where the version running keeps what Sun's readers read
-    /// (`sm.VersionLayout`).
+    /// words for the cutscenes, by demo or the line before (`scenes.load`), each beat worded by
+    /// `said` (`Described.said`). `layout` is where the version running keeps what Sun's readers
+    /// read (`sm.VersionLayout`).
     pub fn with(
         memory: Rc<dyn Memory>,
         names: Rc<ClassNames>,
@@ -1295,23 +1295,23 @@ impl Profile for SunProfile {
     /// objects and learn the classes its module brings. One read a poll, and one more as a demo
     /// starts, for its number: the moment its scene's description starts.
     fn poll_app(&self) -> Result<bool> {
-        let (started, late, demo) = self.phase("app", || {
+        let (started, late, running, demo) = self.phase("app", || {
             let started = self.apps.borrow_mut().poll()?;
             let late = if started.is_none() {
                 self.apps.borrow_mut().late_name()?
             } else {
                 None
             };
-            let named = match &started {
-                None => late.as_deref(),
-                Some((_, name)) => name.as_deref(),
+            let running = match &started {
+                None => late.clone(),
+                Some((_, name)) => name.clone(),
             };
-            let demo = if named == Some(apps::DEMO) {
-                self.apps.borrow().demo()?
-            } else {
-                None
+            let at = running.as_deref().and_then(apps::numbers);
+            let demo = match at {
+                Some(at) => self.apps.borrow().demo_at(at)?,
+                None => None,
             };
-            Ok((started, late, demo))
+            Ok((started, late, running, demo))
         })?;
         if let Some(late) = late {
             *self.app.borrow_mut() = Some(late.clone());
@@ -1323,10 +1323,18 @@ impl Profile for SunProfile {
                 opponents.borrow_mut().begin();
             }
         }
-        if let Some(demo) = demo {
+        if let (Some(demo), Some(running)) = (demo, &running) {
             (self.log)(&format!("app: demo {demo}"));
+            // The field's demos are numbered apart from the app's, and a scene over one names it.
             if let Some(scenes) = &self.scenes {
-                scenes.borrow_mut().demo(Some(demo), &mut self.narrate())?;
+                let app = if running == apps::DEMO {
+                    None
+                } else {
+                    Some(demangle(running))
+                };
+                scenes
+                    .borrow_mut()
+                    .demo(Some(demo), app.as_deref(), &mut self.narrate())?;
             }
         }
         let Some((pointer, name)) = started else {
@@ -1378,6 +1386,18 @@ impl Profile for SunProfile {
         })?;
         if said && let Some(opponents) = &self.opponents {
             opponents.borrow_mut().paged();
+        }
+        // A first page waits for its speaker's name, so a scene follows the page as it is said.
+        if let Some(scenes) = &self.scenes {
+            let pages = self.announcements.borrow().said.clone();
+            for page in pages {
+                scenes.borrow_mut().heard(
+                    page.index,
+                    &page.text,
+                    self.zone.get(),
+                    &mut self.narrate(),
+                )?;
+            }
         }
         Ok(said)
     }

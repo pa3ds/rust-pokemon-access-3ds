@@ -64,6 +64,9 @@ pub struct Announcements {
     /// Screen lines spoken by then (`Speech.spoken`): a screen's words coming between two of a
     /// speaker's lines name them again.
     screens: i64,
+    /// The pages the last `pages` said, a page held for its speaker among them as it comes:
+    /// what a scene follows.
+    pub said: Vec<PageShown>,
     /// First pages with no name yet, each with the polls it has waited (`SPEAKER_POLLS`).
     unnamed: Vec<(i64, PageShown)>,
     /// Text written over a message window, each with the number of screen text polls before it,
@@ -102,6 +105,7 @@ impl Announcements {
             hold,
             said_speaker: None,
             screens: 0,
+            said: Vec::new(),
             unnamed: Vec::new(),
             written: Vec::new(),
             screen_polls: 0,
@@ -125,7 +129,6 @@ impl Announcements {
     /// Say pages as they come, and hold written text for the screen poll. Returns whether a
     /// page was said.
     pub fn pages(&mut self, shown: &[Shown]) -> Result<bool> {
-        let mut said = false;
         let mut fresh: Vec<PageShown> = Vec::new();
         for item in shown {
             match item {
@@ -133,14 +136,14 @@ impl Announcements {
                 Shown::Page(item) => fresh.push(item.clone()),
             }
         }
-        for item in self.ready(fresh)? {
+        self.said = self.ready(fresh)?;
+        for item in self.said.clone() {
             let window = item.window;
             self.say(&item)?;
             // A page covers whatever was written over its window before it.
             self.written.retain(|held| held.1.window != window);
-            said = true;
         }
-        Ok(said)
+        Ok(!self.said.is_empty())
     }
 
     /// The pages to say now, in order: those held for a name that has come, or that have

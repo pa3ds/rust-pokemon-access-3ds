@@ -172,14 +172,23 @@ pub fn start(
         let live = live.clone();
         Rc::new(move || live.spans())
     };
+    let line: scenes::Lines = {
+        let game_text = game_text.clone();
+        Rc::new(
+            move |archive: &str, file: i64, number: i64| match &game_text {
+                Some(game_text) if archive == "story" => game_text.story(file, number),
+                _ => Ok(None),
+            },
+        )
+    };
     let described = Rc::new(scenes::Described::new(
-        Rc::new(|_: &str, _: i64, _: i64| Ok(None)),
+        line.clone(),
         Rc::new(|_: &str, _: i64| None),
         None,
     )?);
-    // Sun's scenes are found by their demo's number, so none follows a line and none names a
-    // thing the game does (ADR-0038). Each version's scenes are its own titles', the Ultra games
-    // numbering their demos otherwise.
+    // Sun's scenes are found by their demo's number, or by the line of its story text they
+    // follow on the field, and none names a thing the game does (ADR-0038). Each version's
+    // scenes are its own titles', the Ultra games numbering their demos otherwise.
     let loaded = if setup.tables.ui.descriptions {
         let known = {
             let described = described.clone();
@@ -187,7 +196,7 @@ pub fn start(
         };
         scenes::load(
             scenes::shipped(&field::names()),
-            &|_: &str, _: i64, _: i64| Ok(None),
+            &*line,
             &known,
             &setup.log,
             Some(setup.process.title_id),

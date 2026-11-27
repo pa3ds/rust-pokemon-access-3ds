@@ -48,6 +48,7 @@
 //! - ADR-0008: the game's words come out of the player's own ROM, in their language.
 //! - ADR-0023: the game's own word comes behind the player's names and ahead of the shipped.
 
+use std::cell::RefCell;
 use std::cmp::Reverse;
 use std::collections::{HashMap, HashSet};
 
@@ -167,9 +168,19 @@ pub struct SunGameText {
     pub places: IndexMap<Slot, String>,
     /// A `frozenset` only tested.
     pub door_signs: HashSet<Slot>,
+    pub text: Option<StoryText>,
 }
 
 impl SunGameText {
+    /// A line of the story text by its file and number, as the ROM has it: what a scene
+    /// follows (`games.common.scenes`).
+    pub fn story(&self, file: i64, number: i64) -> Result<Option<Vec<u8>>> {
+        match &self.text {
+            None => Ok(None),
+            Some(text) => text.raw(file, Some(number)),
+        }
+    }
+
     pub fn sprite(&self, model: i64) -> Option<String> {
         self.sprites.get(&model).cloned()
     }
@@ -263,6 +274,7 @@ impl SunGameText {
             trainers: own_names,
             places,
             door_signs,
+            text: Some(text.text),
         })
     }
 }
@@ -275,24 +287,17 @@ pub(crate) struct Sign {
     pub said: String,
 }
 
-/// The story text, its files read as they are asked for.
-struct Story<'a> {
+/// The story text's files and those read so far: `_Story`'s own, which `SunGameText` keeps after
+/// loading as the Python keeps its `_Story`, whose zones it never asks of again.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct StoryText {
     files: Vec<Vec<u8>>,
-    zones: &'a SunZones,
-    read: HashMap<i64, Vec<Vec<u8>>>,
+    read: RefCell<HashMap<i64, Vec<Vec<u8>>>>,
 }
 
-impl<'a> Story<'a> {
-    fn new(files: Vec<Vec<u8>>, zones: &'a SunZones) -> Self {
-        Story {
-            files,
-            zones,
-            read: HashMap::new(),
-        }
-    }
-
-    fn raw(&mut self, number: i64, index: Option<i64>) -> Result<Option<Vec<u8>>> {
-        if !self.read.contains_key(&number) {
+impl StoryText {
+    fn raw(&self, number: i64, index: Option<i64>) -> Result<Option<Vec<u8>>> {
+        if !self.read.borrow().contains_key(&number) {
             let found = match self.files.get(number as usize) {
                 None => Ok(Vec::new()),
                 Some(file) => match message_lines(file) {
@@ -302,15 +307,38 @@ impl<'a> Story<'a> {
                     other => other,
                 },
             }?;
-            self.read.insert(number, found);
+            self.read.borrow_mut().insert(number, found);
         }
-        let lines = &self.read[&number];
+        let read = self.read.borrow();
+        let lines = &read[&number];
         Ok(match index {
             Some(index) if 0 <= index && index < lines.len() as i64 => {
                 Some(lines[index as usize].clone())
             }
             _ => None,
         })
+    }
+}
+
+/// The story text, its files read as they are asked for.
+struct Story<'a> {
+    text: StoryText,
+    zones: &'a SunZones,
+}
+
+impl<'a> Story<'a> {
+    fn new(files: Vec<Vec<u8>>, zones: &'a SunZones) -> Self {
+        Story {
+            text: StoryText {
+                files,
+                read: RefCell::new(HashMap::new()),
+            },
+            zones,
+        }
+    }
+
+    fn raw(&mut self, number: i64, index: Option<i64>) -> Result<Option<Vec<u8>>> {
+        self.text.raw(number, index)
     }
 
     fn line(&mut self, number: i64, index: Option<i64>) -> Result<Option<String>> {

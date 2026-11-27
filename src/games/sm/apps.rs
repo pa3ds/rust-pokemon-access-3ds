@@ -38,6 +38,21 @@ pub const DEMO: &str = "N3App7AppDemo11AppDemoProcE";
 /// Which demo the process plays, a u32 the same all through it: 55 Kukui's call, 6 the chase
 /// after it. The rest of the process read the same in both.
 pub const DEMO_NUMBER: i64 = 0x24;
+/// The cutscenes played on the field, numbered apart from `DEMO`'s: 7 the Spearow on Mahalo
+/// Trail's bridge, 8 Tapu Koko's rescue (sun_tapu-scene.ctm).
+pub const FIELD_DEMO: &str = "N5Field4Demo13FieldDemoProcE";
+/// Which field demo the process plays: the one word of its first 0x400 bytes that held through
+/// each of the two and told them apart.
+pub const FIELD_DEMO_NUMBER: i64 = 0x38;
+
+/// Where each kind of demo keeps its number. `NUMBERS`, a dict in the Python.
+pub fn numbers(running: &str) -> Option<i64> {
+    match running {
+        DEMO => Some(DEMO_NUMBER),
+        FIELD_DEMO => Some(FIELD_DEMO_NUMBER),
+        _ => None,
+    }
+}
 
 /// Tracks the process manager and says when another process has started.
 pub struct RunningApp {
@@ -134,19 +149,24 @@ impl RunningApp {
         Ok(name)
     }
 
-    /// Which demo the process running now plays, its word at `DEMO_NUMBER`, once it has been
-    /// named and while the word lies inside the small blocks; else None. Asked only of a process
-    /// named `DEMO`.
+    /// `demo()`: its word at `DEMO_NUMBER`.
     pub fn demo(&self) -> Result<Option<i64>> {
+        self.demo_at(DEMO_NUMBER)
+    }
+
+    /// Which demo the process running now plays, its word `at` (`NUMBERS`), once it has been
+    /// named and while the word lies inside the small blocks; else None. Asked only of a process
+    /// named in `NUMBERS`.
+    pub fn demo_at(&self, at: i64) -> Result<Option<i64>> {
         let (Some(process), Some(blocks)) = (self.process, &self.blocks) else {
             return Ok(None);
         };
         let mut spans: Vec<(i64, i64)> = blocks().to_vec();
         spans.sort();
-        if !inside(&spans, process + DEMO_NUMBER, 4) {
+        if !inside(&spans, process + at, 4) {
             return Ok(None);
         }
-        Ok(Some(u32(&self.memory.read(process + DEMO_NUMBER, 4)?, 0)?))
+        Ok(Some(u32(&self.memory.read(process + at, 4)?, 0)?))
     }
 
     fn name(&mut self, record: i64) -> Result<Option<String>> {

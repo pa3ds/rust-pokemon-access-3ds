@@ -258,7 +258,7 @@ missing-1 = { ITEM(9999) } is nowhere.
     reader.poll(&mut say)?;
     assert_eq!(*said.borrow(), ["Maxie walks to the lava."]);
     now.set(30.0);
-    reader.demo(None, &mut say)?;
+    reader.demo(None, None, &mut say)?;
     assert_eq!(last(), "The Orb glows.");
     now.set(39.0);
     reader.poll(&mut say)?;
@@ -818,7 +818,7 @@ id = "line-2"
     assert_eq!(said.borrow().last().unwrap(), "The title screen.");
     reader.heard(0, "Come see me in my Pokémon Lab!", None, &mut say)?;
     reader.started("app::field_demo::Proc", None, &mut say)?;
-    reader.demo(None, &mut say)?;
+    reader.demo(None, None, &mut say)?;
     assert_eq!(
         said.borrow()[said.borrow().len() - 2..],
         ["He waves.", "The ground shakes."]
@@ -900,16 +900,22 @@ fn test_a_scene_of_suns_is_said_over_the_demo_it_plays_as() -> Result<()> {
         &log,
         None,
     )?;
-    assert!(logged.borrow().is_empty());
+    assert!(
+        !logged.borrow().is_empty()
+            && logged
+                .borrow()
+                .iter()
+                .all(|line| line.contains("after story:"))
+    );
     let said: RefCell<Vec<String>> = RefCell::new(Vec::new());
     let now = Rc::new(Cell::new(100.0));
     let clock = now.clone();
     let mut reader = Scenes::new(scenes, said_of(&words), Rc::new(move || Ok(clock.get())));
     let mut say = |text: &str| said.borrow_mut().push(text.to_string());
-    reader.demo(Some(55), &mut say)?;
-    reader.demo(None, &mut say)?;
+    reader.demo(Some(55), None, &mut say)?;
+    reader.demo(None, None, &mut say)?;
     assert!(said.borrow().is_empty());
-    reader.demo(Some(6), &mut say)?;
+    reader.demo(Some(6), None, &mut say)?;
     assert!(said.borrow().len() == 1 && said.borrow()[0].starts_with("After the call"));
     now.set(101.0);
     reader.poll(&mut say)?;
@@ -931,6 +937,38 @@ fn test_a_scene_of_suns_is_said_over_the_demo_it_plays_as() -> Result<()> {
     now.set(506.0);
     reader.poll(&mut say)?;
     assert_eq!(said.borrow().len(), 12);
+    Ok(())
+}
+
+/// The field numbers its demos apart from the app's, 7 the Spearow on Mahalo Trail's bridge
+/// (sun_tapu-scene.ctm): demo 7 of the field's is described, and an app's demo 7 is not it.
+#[test]
+fn test_a_field_demo_of_suns_is_told_apart_from_the_apps_by_its_app() -> Result<()> {
+    use_words(ENGLISH, &field::names())?;
+    let words = nothing_described()?;
+    let said: RefCell<Vec<String>> = RefCell::new(Vec::new());
+    let now = Rc::new(Cell::new(0.0));
+    let clock = now.clone();
+    let scenes = load(
+        shipped(&field::names()),
+        &|_: &str, _: i64, _: i64| Ok(None),
+        &|message: &str| words.known(message),
+        &(Rc::new(|_: &str| {}) as Log),
+        None,
+    )?;
+    let mut reader = Scenes::new(scenes, said_of(&words), Rc::new(move || Ok(clock.get())));
+    let mut say = |text: &str| said.borrow_mut().push(text.to_string());
+    reader.demo(Some(7), None, &mut say)?;
+    now.set(5.0);
+    reader.poll(&mut say)?;
+    assert!(said.borrow().is_empty());
+    reader.demo(Some(7), Some("Field::Demo::FieldDemoProc"), &mut say)?;
+    now.set(6.0);
+    reader.poll(&mut say)?;
+    assert!(
+        said.borrow().len() == 1
+            && said.borrow()[0].starts_with("The girl in the white sun hat runs")
+    );
     Ok(())
 }
 
