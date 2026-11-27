@@ -15,6 +15,8 @@ const RECORD: i64 = 0x08C7FD3C;
 const TOP: i64 = 0x15DCBA14;
 const BOTTOM: i64 = 0x15DF062C;
 const FIELD: i64 = 0x0860AB84;
+/// Textures of the pictures under the list: an orb, and the regen rate beside the clock icon.
+const GAUGE: [&str; 2] = ["o_power_soto.bclim", "number_4.bclim"];
 
 fn words(r#box: i64, text: &str, x: f64, y: f64) -> ScreenText {
     ScreenText {
@@ -52,6 +54,13 @@ fn reader(memory: &Rc<FakeMemory>, shown: Vec<i64>) -> OPower {
         Rc::new(move || panel.clone()),
         Rc::new(move |root| files.get(&root).cloned()),
         Rc::new(move || Ok(shown.clone())),
+        Rc::new(|root| {
+            Ok(if root == BOTTOM {
+                GAUGE.iter().map(|image| image.to_string()).collect()
+            } else {
+                Vec::new()
+            })
+        }),
         false,
     );
     o_power.track(&Found {
@@ -68,8 +77,20 @@ fn test_r_says_the_energy_then_the_powers_running_on_o_powers_screens() {
     let memory = FakeMemory::new();
     memory.u32(RECORD + ENERGY, &[8]);
     assert_eq!(
-        reader(&memory, vec![TOP, BOTTOM]).said().unwrap().as_deref(),
+        reader(&memory, vec![TOP]).said().unwrap().as_deref(),
         Some("energy 8 of 10 Hatching Power Lv. 1 02:58")
+    );
+}
+
+/// The digit beside the list's gauge's clock icon is the energy's regen rate, `number_1` with
+/// Azahar counting no steps and `number_4` at 9000 an hour (spike Q again).
+#[test]
+fn test_r_says_the_regen_rate_the_list_shows_after_the_energy() {
+    let memory = FakeMemory::new();
+    memory.u32(RECORD + ENERGY, &[8]);
+    assert_eq!(
+        reader(&memory, vec![TOP, BOTTOM]).said().unwrap().as_deref(),
+        Some("energy 8 of 10 regen rate 4 Hatching Power Lv. 1 02:58")
     );
 }
 
@@ -105,6 +126,7 @@ fn test_r_says_each_page_of_the_active_panel_as_it_turns() {
         },
         Rc::new(move |root| files.get(&root).cloned()),
         Rc::new(|| Ok(vec![TOP])),
+        Rc::new(|_root| Ok(Vec::new())),
         false,
         {
             let now = now.clone();

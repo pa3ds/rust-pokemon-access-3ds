@@ -697,6 +697,25 @@ impl Gen6Profile {
             })
         };
 
+        let drawn_images: o_power::Pictures = {
+            let (layouts, image_of) = (layouts.clone(), image_of.clone());
+            Rc::new(move |root: i64| {
+                let mut images: Vec<String> = Vec::new();
+                for (pane, kind) in layouts.tree(root) {
+                    if kind == lyt::PICTURE_CLASS
+                        && layouts
+                            .placement(pane)?
+                            .is_some_and(|placement| placement.shown)
+                        && let Some(image) = image_of(pane)?
+                        && !image.is_empty()
+                    {
+                        images.push(image);
+                    }
+                }
+                Ok(images)
+            })
+        };
+
         // The O-Power list's energy and the powers running, which R says on their screens.
         let o_power = Rc::new(RefCell::new(o_power::OPower::new(
             memory.clone(),
@@ -706,6 +725,7 @@ impl Gen6Profile {
             },
             file_of.clone(),
             shown_roots,
+            drawn_images,
             ui.pauses,
         )));
 

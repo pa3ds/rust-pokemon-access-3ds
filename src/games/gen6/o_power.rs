@@ -9,7 +9,9 @@
 //! charged the power's cost (or_pss_o_power); Y's record keeps it at the same place. The O-Power
 //! list draws it as ten orbs along its bottom, pictures whose inner part stays shown, as it empties,
 //! for a while after the orb is spent, and named nothing: read from the record, it is the number the
-//! orbs settle on.
+//! orbs settle on. Beside them a clock icon and a digit, a picture of its own, `number_1` with
+//! Azahar counting no steps and `number_4` at 9000 an hour: the energy's regen rate, which goes up
+//! with the steps counted that day, said after the energy where the list is up.
 //!
 //! The powers running are words of the top screen's Active panel, `assist_power_upper.bclyt`, up
 //! while the PSS is: "Active", the kind of power, and a row for each, "Hatching Power", "Lv. 1",
@@ -44,11 +46,18 @@ pub const GAUGE: i64 = 10;
 pub const LIST: &str = "assist_power_lower.bclyt";
 pub const ACTIVE: &str = "assist_power_upper.bclyt";
 pub const ENERGY_WORDS: &str = "o-power-energy";
+/// How the texture of the digit beside the list's gauge's clock icon begins, `number_1` to
+/// `number_4`: the energy's regen rate, by the steps counted that day (spike Q again).
+pub const REGEN: &str = "number_";
+pub const REGEN_WORDS: &str = "o-power-regen";
 /// Seconds a page of the Active panel is kept for R after it last showed: two of its turns.
 pub const PAGE_SECONDS: f64 = 15.0;
 
 /// `Callable[[], Sequence[int]]`: the roots of the layouts drawn now. It reads memory.
 pub type Shown = Rc<dyn Fn() -> Result<Vec<i64>>>;
+/// `Callable[[int], Sequence[str]]`: the textures the pictures shown under a layout's root draw.
+/// It reads memory.
+pub type Pictures = Rc<dyn Fn(i64) -> Result<Vec<String>>>;
 
 /// The save's O-Power record and the screens that show it.
 pub struct OPower {
@@ -57,6 +66,8 @@ pub struct OPower {
     file_of: FileOf,
     /// The roots of the layouts drawn now, on either screen.
     shown: Shown,
+    /// The textures the pictures shown under a layout's root draw.
+    pictures: Pictures,
     pauses: bool,
     clock: Rc<dyn Fn() -> f64>,
     records: Vec<i64>,
@@ -67,13 +78,14 @@ pub struct OPower {
 }
 
 impl OPower {
-    /// `OPower(memory, on_screen, file_of, shown, pauses)`; Python's `pauses` defaults to False
-    /// and its `clock` to `time.monotonic`.
+    /// `OPower(memory, on_screen, file_of, shown, pictures, pauses)`; Python's `pauses` defaults
+    /// to False and its `clock` to `time.monotonic`.
     pub fn new(
         memory: Rc<dyn Memory>,
         on_screen: OnScreen,
         file_of: FileOf,
         shown: Shown,
+        pictures: Pictures,
         pauses: bool,
     ) -> Self {
         OPower::with_clock(
@@ -81,17 +93,19 @@ impl OPower {
             on_screen,
             file_of,
             shown,
+            pictures,
             pauses,
             Rc::new(py::time::monotonic),
         )
     }
 
-    /// `OPower(memory, on_screen, file_of, shown, pauses, clock)`.
+    /// `OPower(memory, on_screen, file_of, shown, pictures, pauses, clock)`.
     pub fn with_clock(
         memory: Rc<dyn Memory>,
         on_screen: OnScreen,
         file_of: FileOf,
         shown: Shown,
+        pictures: Pictures,
         pauses: bool,
         clock: Rc<dyn Fn() -> f64>,
     ) -> Self {
@@ -100,6 +114,7 @@ impl OPower {
             on_screen,
             file_of,
             shown,
+            pictures,
             pauses,
             clock,
             records: Vec::new(),
@@ -148,8 +163,8 @@ impl OPower {
         self.pages.insert(heading, (now, panel));
     }
 
-    /// The energy, then each page of the Active panel, while O-Power's list or the panel is
-    /// up; None elsewhere.
+    /// The energy, the regen rate, then each page of the Active panel, while O-Power's list or
+    /// the panel is up; None elsewhere.
     pub fn said(&mut self) -> Result<Option<String>> {
         let mut files: IndexMap<i64, String> = IndexMap::new();
         for root in (self.shown)()? {
@@ -163,6 +178,25 @@ impl OPower {
         let mut parts: Vec<String> = Vec::new();
         if let Some(energy) = self.energy()? {
             parts.push(own(ENERGY_WORDS, &[("count", &energy)]));
+        }
+        let mut rates: Vec<i64> = Vec::new();
+        for (&root, name) in &files {
+            if name != LIST {
+                continue;
+            }
+            for image in (self.pictures)(root)? {
+                let Some(rest) = image.strip_prefix(REGEN) else {
+                    continue;
+                };
+                // `partition(".")[0]`: up to the first dot, or all of it.
+                let digits = rest.split('.').next().unwrap_or_default();
+                if py::isdigit(digits) {
+                    rates.push(py::int_base10(digits)?);
+                }
+            }
+        }
+        if let Some(rate) = rates.first() {
+            parts.push(own(REGEN_WORDS, &[("rate", rate)]));
         }
         self.poll();
         let now = (self.clock)();
