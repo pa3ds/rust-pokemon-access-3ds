@@ -127,8 +127,8 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
   After Wulfric is beaten, the ice slide up the middle has not been tried with `P`.
 - **Riding on Routes 9 and 17**: getting off and smashing a rock have not been tried with `P`.
 - **Rails outside Shalour Gym**, on Routes 5, 13 and 18 and in Dendemille and Couriway Towns, are
-  found the same way and nobody has tried them. A rail broken in the middle, as Route 5's over the
-  water is, is not taken by `P`.
+  found the same way and nobody has tried them. Route 5's rail over the water has a notch the
+  walkthroughs say to build up speed for; `P` does not say so, and has not been tried on it.
 - **The Pokémon League's Radiant Chamber**: the way up to the Champion is listed as an elevator,
   the round glass platform, and `P` walks you onto it. The door it takes you to is not listed,
   since it stands in the wall. `P` onto the platform has not been tried in the game yet.

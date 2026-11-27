@@ -593,7 +593,7 @@ impl Terrain {
                     tables(chunk).iter().any(|table| {
                         table
                             .iter()
-                            .any(|&word| word >> KIND_SHIFT == grinding.rail)
+                            .any(|&word| grinding.rail.contains(&(word >> KIND_SHIFT)))
                     })
                 })
                 .map(|(&key, _)| key)

@@ -5017,20 +5017,25 @@ fn test_a_slide_is_found_where_the_cells_past_its_top_fall_to_a_lower_landing() 
 
 /// Spike 247: Shalour Gym's way out is a rail on its floor 1, skated onto from an end cell on
 /// floor 0 by the centre, landing on the floor by the entrance, which is no end cell: ridden that
-/// one way. On Route 5 a rail over the water is broken in the middle by `0x90`, blocked, and
-/// neither half of it lands anywhere.
+/// one way. On Route 5 the rail over the water runs through its notch, `0x90`, and is ridden
+/// either way; a rail broken by a wall lands nowhere.
 #[test]
-fn test_grind_rails_are_found_on_every_floor_and_never_past_a_blocked_cell() -> Result<()> {
+fn test_grind_rails_are_found_on_every_floor_through_a_notch_and_never_past_a_wall() -> Result<()> {
     let mut town = Town::with(false, 5, 7);
     let mut files = vec![NO_CHUNK_FILE; 64];
     files[4 * 8 + 2] = 7;
     town.memory.write(MAP + MAP_CHUNK_FILES, &le16(&files));
+    let notched: Vec<(i64, i64)> = (86..93).map(|x| (x, 170)).collect();
     let mut ground: IndexMap<(i64, i64), i64> = IndexMap::from([((85, 170), 0x8B000020)]);
-    ground.extend([86, 87, 88].map(|x| ((x, 170), 0x8C000021)));
+    ground.extend(notched.iter().map(|&cell| (cell, 0x8C000021)));
     ground.insert((89, 170), 0x90000021);
-    ground.extend([90, 91, 92].map(|x| ((x, 170), 0x8C000021)));
     ground.insert((93, 170), 0x8B000020);
     ground.insert((100, 170), 0x8B000020);
+    ground.insert((85, 165), 0x8B000020);
+    ground.extend([(86, 165), (87, 165)].map(|cell| (cell, 0x8C000021)));
+    ground.insert((88, 165), 0x01000021);
+    ground.extend([(89, 165), (90, 165)].map(|cell| (cell, 0x8C000021)));
+    ground.insert((91, 165), 0x8B000020);
     let upper: IndexMap<(i64, i64), i64> = (171..176).map(|z| ((100, z), 0x8C000021)).collect();
     let cells: Vec<(i64, i64)> = (0..CHUNK * CHUNK)
         .map(|i| (80 + i % CHUNK, 160 + i / CHUNK))
@@ -5080,15 +5085,24 @@ fn test_grind_rails_are_found_on_every_floor_and_never_past_a_blocked_cell() -> 
         .grind_rails
         .rails
         .clone();
+    let mut across = vec![(85, 170)];
+    across.extend(notched);
+    across.push((93, 170));
     let mut want = vec![(100, 170)];
     want.extend(upper.keys().copied());
     want.push((100, 176));
     assert_eq!(
         rails,
-        [GrindRail {
-            cells: want,
-            both: false
-        }]
+        [
+            GrindRail {
+                cells: across,
+                both: true
+            },
+            GrindRail {
+                cells: want,
+                both: false
+            }
+        ]
     );
     Ok(())
 }

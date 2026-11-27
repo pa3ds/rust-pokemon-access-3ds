@@ -1102,8 +1102,10 @@ impl Landform for Climbing {
 /// X's Shalour City Gym's (`grind.GrindRails`, spike 247). Not listed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Grinding {
-    /// A cell of a rail, blocked.
-    pub rail: i64,
+    /// The kinds of a rail's cells, blocked.
+    ///
+    /// Python's is a frozenset, only tested: a slice here.
+    pub rail: &'static [i64],
     /// The cell past a rail's end that it is skated onto from, open.
     pub end: i64,
 }

@@ -93,20 +93,22 @@ impl GrindRails {
     }
 
     /// The rails in `floors`, each floor's cells with their words: a rail is a chain of
-    /// `rail` cells of one floor, each beside the next or touching it at a corner. Past each end
-    /// of the chain, in the line of its last step, is the cell a ride gets on at, where any floor
-    /// has the `end` kind there, or lands on, where it is not that but open on some floor. A
-    /// chain with an end at both is ridden either way; with one, only from it; with none, or
-    /// with an end against a blocked cell, not at all. In Shalour City Gym the player skated
-    /// north from `0x8b` at (67, 62) along `0x8c` (67, 61) to (67, 53) onto `0x8b` at (67, 52);
-    /// the Gym's way out, on its floor 1, has an end only at its top, on floor 0, and lands on
-    /// the floor by the entrance; and on Route 5 a rail over the water is broken by `0x90` at
-    /// (701, 455), which neither half is ridden past (spike 247).
+    /// cells of one floor of a kind in `rail`, each beside the next or touching it at a corner.
+    /// Past each end of the chain, in the line of its last step, is the cell a ride gets on at,
+    /// where any floor has the `end` kind there, or lands on, where it is not that but open on
+    /// some floor. A chain with an end at both is ridden either way; with one, only from it;
+    /// with none, or with an end against a blocked cell, not at all. In Shalour City Gym the
+    /// player skated north from `0x8b` at (67, 62) along `0x8c` (67, 61) to (67, 53) onto `0x8b`
+    /// at (67, 52); the Gym's way out, on its floor 1, has an end only at its top, on floor 0,
+    /// and lands on the floor by the entrance; and on Route 5 the rail over the water runs
+    /// through `0x90` at (701, 455), and the rail down to an item ball through `0x8f` at its
+    /// bend, (690, 472).
     ///
     /// Python takes a floor's rail cells as a `set` and pops a chain's first cell off it, in
     /// CPython's order for tuples; here it is the floor's own order, last first. The order
-    /// numbers the rides alone: what a way is and how it is said do not depend on it.
-    pub fn found(floors: &[IndexMap<Cell, i64>], rail: i64, end: i64) -> GrindRails {
+    /// numbers the rides alone: what a way is and how it is said do not depend on it. Python's
+    /// `rail` is a set, only tested: a slice here.
+    pub fn found(floors: &[IndexMap<Cell, i64>], rail: &[i64], end: i64) -> GrindRails {
         let words = |cell: Cell| -> Vec<i64> {
             floors
                 .iter()
@@ -130,7 +132,7 @@ impl GrindRails {
         for floor in floors {
             let mut left: IndexSet<Cell> = floor
                 .iter()
-                .filter(|&(_, &word)| word >> KIND_SHIFT == rail)
+                .filter(|&(_, &word)| rail.contains(&(word >> KIND_SHIFT)))
                 .map(|(&cell, _)| cell)
                 .collect();
             while !left.is_empty() {

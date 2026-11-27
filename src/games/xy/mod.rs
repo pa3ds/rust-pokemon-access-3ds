@@ -530,11 +530,16 @@ pub fn climbing() -> Climbing {
 /// (30, 49) crosses it at (40, 55), a cell of both on two floors. Six invisible blockers stand on
 /// the end cells (17, 39..41) and (63, 39..41), the bridge that is put together as the four trainers
 /// are beaten, never seen. X has 0x8b and 0x8c on Route 5, Route 13, Route 18, Dendemille Town and
-/// Couriway Town too, never seen; Route 5's rail over the water, (695..707, 455), is broken in the
-/// middle by (701, 455), `0x90000021`, blocked, and is no rail: 0x90 is in one other cell of X's,
-/// mid-rail on Route 13 (spike 247).
+/// Couriway Town too, never seen. Kinds 0x8d to 0x90, blocked, are rail cells too, one here and
+/// there in the chains of Route 5 and Route 13 alone, the only zones with any: 0x8d and 0x8e where a
+/// rail runs north and south, 0x8f and 0x90 east and west, straight or at a bend, with a rail's end
+/// past each end of the chain. Route 5's rail over the water, (695..707, 455), the one walkthroughs
+/// say has a notch to build up speed for, runs through 0x90 at (701, 455), and the rail down to the
+/// pocket holding TM01 through 0x8f at its bend, (690, 472). Taken for 0x8c, each was a chain broken
+/// in two, and P never reached the TM. What the game does on them
+/// is not measured.
 pub const GRINDING: Grinding = Grinding {
-    rail: 0x8C,
+    rail: &[0x8C, 0x8D, 0x8E, 0x8F, 0x90],
     end: 0x8B,
 };
 
