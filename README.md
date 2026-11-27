@@ -30,7 +30,8 @@ the Game Boy games. Nothing here is taken from its code.
 
 - **Omega Ruby and Alpha Sapphire**: the most complete.
 - **X and Y**: most of what Omega Ruby has, with some screens still silent.
-- **Sun and Moon**: dialogue, menus and screens, the name entry keyboard, battles, and the map's
+- **Sun and Moon**: dialogue, menus and screens, the name entry keyboard, battles, a Poké Mart's
+  buy list, and the map's
   doors, signs, people and items, with pathfinding. Trainers, signs, the things you can check and
   many buildings' doors are called by the game's own words.
 - **Ultra Sun and Ultra Moon**: read as Sun and Moon are, and checked so far in the opening, up

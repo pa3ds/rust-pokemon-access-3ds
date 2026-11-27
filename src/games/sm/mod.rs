@@ -76,7 +76,7 @@ pub const SUN_LAYOUT: VersionLayout = VersionLayout {
     field_models: "a/1/9/6",
     town_map: "a/2/4/1",
     chosen_language: 0x12C,
-    shop_item: None,
+    shop_item: Some(0xC4),
 };
 /// Ultra Sun's, read against Sun's in its ROM and its bedroom (spike P, 2026-11-23): every class
 /// the readers find has Sun's name, and every field of each is where Sun's is but a move model's,
@@ -86,7 +86,7 @@ pub const SUN_LAYOUT: VersionLayout = VersionLayout {
 /// (whose 316 models with a name keep Sun's numbers) and the Town Map's at `a/2/4/5`, where Sun's
 /// paths hold others. System text files from 36 on (the level's 21 is Sun's) are four or five on,
 /// the item names' 36 at 40, the language choice's 51 at 55 and the place names' 67 at 72; a
-/// Mart's list keeps its item at `ShopDraw` +0xc4.
+/// Mart's list keeps its item at `ShopDraw` +0xc4, as Sun's does.
 pub const ULTRA_LAYOUT: VersionLayout = VersionLayout {
     system_files: &[
         (36, 40),

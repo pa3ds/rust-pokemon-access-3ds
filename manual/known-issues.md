@@ -163,6 +163,8 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
 - **The compass turns with the camera**: where the camera swings as you walk a bend, north turns
   a quarter at a time, and a way said a few steps before can point the other way. Press `P`
   again after a turn.
+- **A Poké Mart's buy list** says only the item under the cursor, not its price or how many
+  you have, which are on screen beside it.
 - **A board can run its two lines together** where its second line has no quotation marks:
   "Hau'oli Police Station Keep our roads safe!".
 
@@ -173,8 +175,6 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
   map and pathfinding, the menu, the Options screen, the Bag, the party, the summary, battles,
   the nurse and the Poké Mart's counter and buy list. The other menus are read as in Sun and
   Moon but not yet checked.
-- **A Poké Mart's buy list** says only the item under the cursor, not its price or how many
-  you have, which are on screen beside it.
 - **Ultra Moon** has not been tried at all: it is read as Ultra Sun.
 - **Only the opening cutscene is described** with `descriptions` on, in English.
 - Everything listed for Sun and Moon above applies too.

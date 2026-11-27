@@ -1,4 +1,4 @@
-//! A Poké Mart's list in the Ultra games: the item under the cursor, by its own number.
+//! A Poké Mart's list in Sun and the Ultra games: the item under the cursor, by its own number.
 //!
 //! The list is one layout whose rows the generic cursor reader reads whole, "Poké Ball Potion
 //! Antidote ... $200 $200 ... In Bag: 10", moving through it unsaid. The shop's own object knows
@@ -12,8 +12,9 @@
 //! App::Shop::ShopFrame +0x7c u16 the row, from 0
 //! ```
 //!
-//! Sun's own shop is not measured, so it is read only where the version layout knows the field
-//! (`sm.VersionLayout`).
+//! Sun's keeps the item at the same +0xc4 (Sun's Route 1 Mart, driven live to it through Iki
+//! Town's festival: 4, 17, 18, 22 down the list and 18 back up). The version layout says where
+//! (`sm.VersionLayout`), and a version whose field is not measured is not read.
 //!
 //! Bound by:
 //! - ADR-0043: a screen's cursor is read from its own objects.
