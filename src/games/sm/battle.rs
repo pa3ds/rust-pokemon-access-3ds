@@ -51,6 +51,7 @@ use crate::core::rtti::ClassNames;
 use crate::core::words::own;
 use crate::games::common::battle::{Battler, GAUGE_RECORD, MAX_ASKS, REASK, RECORD_PARAM, SIGNS};
 use crate::games::common::layout::Layouts;
+use crate::games::common::lyt::PICTURE_CLASS;
 use crate::games::common::pokemon;
 use crate::games::common::screen::ScreenText;
 use crate::py::{self, Error, Result};
@@ -62,6 +63,15 @@ pub const GAUGE_SHOWN_HP: i64 = 0x28;
 pub const GAUGE_TARGET_HP: i64 = 0x2C;
 pub const GAUGE_HEAD: i64 = 0x30;
 pub const ENEMY: i64 = 1;
+pub const BALL_CLASS: &str = "N3btl13BtlvGaugeBallE";
+pub const BALL_TRAY: i64 = 0x14;
+pub const BALL_SIDE: i64 = 0x1C;
+pub const BALL_HEAD: i64 = 0x20;
+/// The start of the six balls' pictures' names, `IconBall_00` to `IconBall_05`, beside the tray's
+/// own `BG_Ball`, which is always shown (a wild battle on Route 1, spike Q).
+pub const BALL_PANE: &[u8] = b"IconBall";
+/// Screen polls the tray is looked for from the battle's first page, as gen 6's.
+pub const TRAY_POLLS: i64 = 10;
 /// Sun and Moon's last species, Marshadow.
 pub const SPECIES_MAX: i64 = 802;
 /// The battle record's u16 maximum HP (spike 124). The gauge's own, +0x30, is 0 until its first
@@ -287,6 +297,132 @@ impl SunBattleReader {
             0
         };
         Ok(Some(own("battle-share", &[("percent", &percent)])))
+    }
+}
+
+/// How many Pokémon a trainer has, told once a battle after its first page, as gen 6's
+/// (`gen6.screens.battle.OpponentsParty`): the balls the trainer's tray shows.
+///
+/// The tray is `btl::BtlvGaugeBall`, one a side (its decompile, spike Q). It sets each of six ball
+/// pictures visible for a Pokémon, whole, poisoned or fainted, and hides it for none or an Egg:
+///
+/// ```text
+/// BtlvGaugeBall  +0x14 -> the tray's pane, the balls' pictures under it, `IconBall_00`
+///                       to `IconBall_05`, beside `BG_Ball`
+///                +0x1c u32 its side, 1 the trainer's
+/// ```
+///
+/// The balls are shown one after another as the tray comes on, so a count holds for a poll.
+pub struct SunOpponentsParty {
+    memory: Rc<dyn Memory>,
+    names: Rc<ClassNames>,
+    layouts: Rc<Layouts>,
+    trays: Vec<i64>,
+    looks: i64,
+    due: bool,
+    last: Option<i64>,
+}
+
+impl SunOpponentsParty {
+    /// `memory` should read only inside the blocks the last walk found (ADR-0035).
+    pub fn new(memory: Rc<dyn Memory>, names: Rc<ClassNames>, layouts: Rc<Layouts>) -> Self {
+        SunOpponentsParty {
+            memory,
+            names,
+            layouts,
+            trays: Vec::new(),
+            looks: 0,
+            due: false,
+            last: None,
+        }
+    }
+
+    /// Take these `btl::BtlvGaugeBall` addresses, as `SunBattleReader.track` takes gauges.
+    pub fn track(&mut self, trays: impl IntoIterator<Item = i64>, adding: bool) -> Result<()> {
+        let mut found: Vec<i64> = Vec::new();
+        for tray in trays {
+            if self.names.of_object(tray)?.as_deref() == Some(BALL_CLASS) {
+                found.push(tray);
+            }
+        }
+        if adding {
+            let fresh: Vec<i64> = found
+                .into_iter()
+                .filter(|tray| !self.trays.contains(tray))
+                .collect();
+            self.trays.extend(fresh);
+        } else {
+            self.trays = found;
+        }
+        Ok(())
+    }
+
+    /// A battle has started.
+    pub fn begin(&mut self) {
+        (self.due, self.looks, self.last) = (true, 0, None);
+    }
+
+    /// A page was said: in a battle not yet told, the tray is looked for from now.
+    pub fn paged(&mut self) {
+        if self.due && self.looks == 0 {
+            self.looks = TRAY_POLLS;
+        }
+    }
+
+    /// The trainer's count once it has held for a poll, once a battle; else None.
+    pub fn poll(&mut self) -> Result<Option<i64>> {
+        if !self.due || self.looks == 0 {
+            return Ok(None);
+        }
+        self.looks -= 1;
+        let count = self.count()?;
+        if count.is_none() || count != self.last {
+            self.last = count;
+            self.due = self.looks > 0;
+            return Ok(None);
+        }
+        self.due = false;
+        Ok(count)
+    }
+
+    /// The balls the trainer's tray shows, or None while it is not on screen.
+    pub fn count(&self) -> Result<Option<i64>> {
+        for &tray in &self.trays {
+            let head = self.memory.read(tray, BALL_HEAD)?;
+            if self.names.of_vtable(u32(&head, 0)?)?.as_deref() != Some(BALL_CLASS)
+                || u32(&head, BALL_SIDE)? != ENEMY
+            {
+                continue;
+            }
+            let pane = u32(&head, BALL_TRAY)?;
+            let Some(r#where) = self.layouts.placement(pane)?.filter(|at| at.shown) else {
+                return Ok(None);
+            };
+            let kinds = self.layouts.tree(r#where.root);
+            let mut balls = 0;
+            for p in self.under(r#where.root, pane) {
+                if kinds.get(&p).map(String::as_str) == Some(PICTURE_CLASS)
+                    && self.layouts.name(p)?.starts_with(BALL_PANE)
+                    && self
+                        .layouts
+                        .placement(p)?
+                        .is_some_and(|shown| shown.shown)
+                {
+                    balls += 1;
+                }
+            }
+            return Ok((balls != 0).then_some(balls));
+        }
+        Ok(None)
+    }
+
+    fn under(&self, root: i64, pane: i64) -> Vec<i64> {
+        let mut out: Vec<i64> = Vec::new();
+        for child in self.layouts.children(root, pane) {
+            out.push(child);
+            out.extend(self.under(root, child));
+        }
+        out
     }
 }
 

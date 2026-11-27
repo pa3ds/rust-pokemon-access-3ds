@@ -213,6 +213,7 @@ pub fn start(
             game_text,
             layout: Some(game.layout),
             hidden_items: Some(setup.tables.extras.hidden_items.clone()),
+            tones: setup.tones.clone(),
         },
     ));
 

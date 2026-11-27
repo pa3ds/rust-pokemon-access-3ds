@@ -20,13 +20,14 @@ use std::rc::Rc;
 
 use indexmap::IndexMap;
 
-use crate::core::config::{HIDDEN_OFF, Navigation, Ui};
+use crate::core::config::{HIDDEN_OFF, Navigation, PARTY_BEEPS, PARTY_OFF, Ui};
 use crate::core::discovery::Found;
 use crate::core::heaps::ReadEach;
 use crate::core::memory::{self, Cache, Memory};
 use crate::core::names::Names;
 use crate::core::rtti::{ClassNames, demangle};
 use crate::core::speech::{Category, Speech};
+use crate::core::tones::{Tones, beeps};
 use crate::core::words::own;
 use crate::games::common::announce::{Announcements, Focus};
 use crate::games::common::battle::{MAX_ASKS, REASK};
@@ -45,7 +46,7 @@ use crate::games::common::screen::{ScreenText, ScreenTextReader};
 use crate::games::common::screen_announce::{Heard, ScreenAnnouncer};
 use crate::games::common::session::Profile;
 use crate::games::sm::apps::{self, RunningApp};
-use crate::games::sm::battle::{self, SunBattleReader};
+use crate::games::sm::battle::{self, SunBattleReader, SunOpponentsParty};
 use crate::games::sm::r#box::{self, BoxReader};
 use crate::games::sm::field::{self, SunFieldReader, Walls};
 use crate::games::sm::gametext::SunGameText;
@@ -77,7 +78,11 @@ pub fn heap_classes() -> Vec<&'static str> {
     classes.extend(r#box::CLASSES);
     classes.push(common_lyt::DRAWINFO_CLASS);
     classes.extend(field::CLASSES);
-    classes.extend([apps::MANAGER_CLASS, battle::GAUGE_CLASS]);
+    classes.extend([
+        apps::MANAGER_CLASS,
+        battle::GAUGE_CLASS,
+        battle::BALL_CLASS,
+    ]);
     classes
 }
 
@@ -85,6 +90,8 @@ pub fn heap_classes() -> Vec<&'static str> {
 pub const REQUIRED: [&str; 2] = msgwin::CLASSES;
 /// The Pokédex's app, whose cursors' items are held till they settle (`SunProfile._settled`).
 pub const POKEDEX: &str = "N3app5zukan9ZukanProcE";
+/// The battle's app, as `apps` names it: the moment a trainer's tray is looked for from.
+pub const BATTLE: &str = "N3btl10BattleProcE";
 /// Polls a Pokédex cursor's item must stand with no newer one before it is said.
 pub const SETTLE: i64 = 3;
 /// The most pieces one Pokédex item holds: its first menu's, "Alola Pokédex 3 9", three.
@@ -174,6 +181,7 @@ pub struct Options {
     pub layout: Option<VersionLayout>,
     /// `[pa3ds.extras] hidden_items`; None is `HIDDEN_OFF`.
     pub hidden_items: Option<String>,
+    pub tones: Option<Rc<Tones>>,
 }
 
 /// Sun's readers, and what each sweep and poll does with them.
@@ -219,6 +227,9 @@ pub struct SunProfile {
     /// Polls the Pokédex has been blank, asking a sweep every `REASK` of them.
     blank_asks: Cell<i64>,
     pub battle: RefCell<SunBattleReader>,
+    pub opponents: Option<RefCell<SunOpponentsParty>>,
+    party_beeped: bool,
+    tones: Option<Rc<Tones>>,
     pub apps: RefCell<RunningApp>,
     pub scenes: Option<RefCell<Scenes>>,
     /// The message windows read: the last sweep's, and any a util has held since.
@@ -297,6 +308,7 @@ impl SunProfile {
             game_text,
             layout,
             hidden_items,
+            tones,
         } = options;
         // The layout readers follow pointers down each layout's tree to its words, and read only
         // inside the blocks the last walk found, as the field's do (ADR-0035).
@@ -364,7 +376,17 @@ impl SunProfile {
         let r#box = BoxReader::new(panes.clone(), names.clone());
         // The HP box is the battle reader's to say, from the gauges behind its panels, and a
         // gauge's pointers are followed only inside the blocks the last walk found (spike 124).
-        let battle = SunBattleReader::new(panes, names.clone(), layouts.clone());
+        let battle = SunBattleReader::new(panes.clone(), names.clone(), layouts.clone());
+        // How many Pokémon a trainer has, from the balls of its tray, said or beeped as the
+        // player chose, as in gen 6.
+        let opponents = (ui.trainer_party != PARTY_OFF).then(|| {
+            RefCell::new(SunOpponentsParty::new(
+                panes,
+                names.clone(),
+                layouts.clone(),
+            ))
+        });
+        let party_beeped = ui.trainer_party == PARTY_BEEPS;
         let running = RunningApp::with(memory.clone(), names.clone(), blocks.clone());
         // The field: the player's zone and cell and what is around them (spike 113), walked by
         // ORAS's navigator, and P's way found through the walls out of the ROM (spike 114).
@@ -444,6 +466,9 @@ impl SunProfile {
             blank: Cell::new(false),
             blank_asks: Cell::new(0),
             battle: RefCell::new(battle),
+            opponents,
+            party_beeped,
+            tones,
             apps: RefCell::new(running),
             scenes,
             windows: RefCell::new(Vec::new()),
@@ -560,6 +585,19 @@ impl SunProfile {
                 None,
                 None,
             )?;
+        }
+        let party = match &self.opponents {
+            None => None,
+            Some(opponents) => opponents.borrow_mut().poll()?,
+        };
+        if let Some(party) = party {
+            (self.log)(&format!("battle party: {party}"));
+            if !self.party_beeped {
+                self.speech
+                    .say(&own("battle-party", &[("count", &party)]), Category::Battle);
+            } else if let Some(tones) = &self.tones {
+                beeps(tones, party);
+            }
         }
         self.announcements.borrow_mut().battlers(&sides);
         // Text written over a message window is held for a screen poll before it is said.
@@ -678,6 +716,11 @@ impl Profile for SunProfile {
         self.battle
             .borrow_mut()
             .track(found.of(&[battle::GAUGE_CLASS]), adding)?;
+        if let Some(opponents) = &self.opponents {
+            opponents
+                .borrow_mut()
+                .track(found.of(&[battle::BALL_CLASS]), adding)?;
+        }
         self.apps
             .borrow_mut()
             .track(found.of(&[apps::MANAGER_CLASS]))?;
@@ -731,6 +774,12 @@ impl Profile for SunProfile {
         if let Some(late) = late {
             *self.app.borrow_mut() = Some(late.clone());
             (self.log)(&format!("app: the one started is {}", demangle(&late)));
+            // Kevin's battle on Route 1 was named a poll after it started (spike Q).
+            if late == BATTLE
+                && let Some(opponents) = &self.opponents
+            {
+                opponents.borrow_mut().begin();
+            }
         }
         if let Some(demo) = demo {
             (self.log)(&format!("app: demo {demo}"));
@@ -742,13 +791,18 @@ impl Profile for SunProfile {
             return Ok(false);
         };
         *self.app.borrow_mut() = name.clone();
-        let what = match name {
+        let what = match &name {
             None => format!("the manager pointing at {pointer:#010x}"),
-            Some(name) => demangle(&name),
+            Some(name) => demangle(name),
         };
         (self.log)(&format!("app: another started, {what}"));
         // A battle's sides are said again on a key only while it lasts.
         self.announcements.borrow_mut().forget_sides();
+        if name.as_deref() == Some(BATTLE)
+            && let Some(opponents) = &self.opponents
+        {
+            opponents.borrow_mut().begin();
+        }
         Ok(true)
     }
 
@@ -760,7 +814,7 @@ impl Profile for SunProfile {
 
     /// Poll dialogue. Returns whether a page was said.
     fn poll_dialogue(&self) -> Result<bool> {
-        self.phase("dialogue", || {
+        let said = self.phase("dialogue", || {
             let utils = self.utils.borrow().clone();
             let held = talk::windows(&*self.memory, &self.names, utils, &msgwin::CLASSES)?;
             let new: Vec<i64> = {
@@ -779,7 +833,11 @@ impl Profile for SunProfile {
             }
             let shown = self.dialogue.borrow_mut().poll()?;
             self.announcements.borrow_mut().pages(&shown)
-        })
+        })?;
+        if said && let Some(opponents) = &self.opponents {
+            opponents.borrow_mut().paged();
+        }
+        Ok(said)
     }
 
     /// Poll the language choice, a Poké Mart's list and the PC Box. Returns whether it said

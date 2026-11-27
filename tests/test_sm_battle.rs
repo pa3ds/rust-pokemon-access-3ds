@@ -12,7 +12,7 @@ use crate::games::common::battle::{GAUGE_RECORD, MAX_ASKS, RECORD_PARAM};
 use crate::games::common::screen::ScreenText;
 use crate::games::common::{lyt, pokemon};
 use crate::games::sm::battle as hp;
-use crate::games::sm::battle::SunBattleReader;
+use crate::games::sm::battle::{SunBattleReader, SunOpponentsParty};
 use crate::games::sm::lyt::SHAPE;
 
 const BOX: i64 = 0x30330000;
@@ -117,6 +117,52 @@ impl Battle {
             .map(|side| side.text)
             .collect()
     }
+}
+
+const TRAYS: i64 = 0x30700000;
+
+/// Lass Madison's tray on Route 1 showed `BG_Ball` and `IconBall_00` and "1" was said after
+/// "You are challenged by Lass Madison!", and she had one Pokémon (spike Q). The player's tray
+/// and the background are not counted.
+#[test]
+fn test_a_trainer_s_party_is_the_balls_its_tray_shows_once_they_hold() {
+    let memory = FakeMemory::new();
+    let classes = FakeClasses::new(memory.clone());
+    let (ball_class, picture) = (classes.add(hp::BALL_CLASS), classes.add(lyt::PICTURE_CLASS));
+    let fake = FakeLayouts::with_shape(&memory, &classes, SHAPE);
+    let (work, root) = fake.screen_with(BOX, true, false);
+    fake.project(work, 400.0);
+    let mut reader = SunOpponentsParty::new(
+        memory.clone(),
+        Rc::new(ClassNames::new(memory.clone(), CODE)),
+        fake.layouts.clone(),
+    );
+    for (side, tray) in [BOX + 0x1000, BOX + 0x2000].into_iter().enumerate() {
+        let side = side as i64;
+        fake.pane(tray, root);
+        let mut names: Vec<Vec<u8>> = vec![b"BG_Ball".to_vec()];
+        names.extend((0..6).map(|n| format!("IconBall_{n:02}").into_bytes()));
+        for (i, name) in names.into_iter().enumerate() {
+            let i = i as i64;
+            let ball = tray + 0x100 * (i + 1);
+            fake.pane_with_vtable(ball, tray, Some(picture));
+            let mut padded = name;
+            padded.resize(16, 0);
+            memory.write(ball + SHAPE.name, &padded);
+            fake.visible(ball, (i <= 3 && i != 2) || (side == 0 && i == 1));
+        }
+        memory.u32(TRAYS + side * 0x80, &[ball_class]);
+        memory.u32(TRAYS + side * 0x80 + hp::BALL_TRAY, &[tray]);
+        memory.u32(TRAYS + side * 0x80 + hp::BALL_SIDE, &[side]);
+    }
+    fake.track().unwrap();
+    reader.track([TRAYS, TRAYS + 0x80], false).unwrap();
+    assert_eq!(reader.count().unwrap(), Some(2));
+    assert_eq!(reader.poll().unwrap(), None);
+    reader.begin();
+    reader.paged();
+    let polled: Vec<Option<i64>> = (0..3).map(|_| reader.poll().unwrap()).collect();
+    assert_eq!(polled, [None, Some(2), None]);
 }
 
 fn piece(r#box: i64, text: &str, panel: i64, row: f64, left: f64, root: i64) -> ScreenText {

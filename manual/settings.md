@@ -24,7 +24,7 @@ pa3ds now for them to take effect; otherwise they take effect the next time pa3d
 | `unfocused` | `false` | Keep saying what the game shows while another window is in front. |
 | `language` | `""` | The language of pa3ds's own words: `en`, `fr`, `de`, `es`, `it`, `ja`, `ko`, `zh-CN` or `zh-TW`. Empty follows your save. See [Languages](languages.md). |
 | `descriptions` | `true` | Describe the scenes the game shows without words, and Tile Puzzle's picture, said as "Narration:". |
-| `trainer_party` | `"text"` | As a trainer's battle opens, after "You are challenged by", how many Pokémon they have, from the balls the game shows: `"text"` says "2 Pokémon", `"beeps"` plays a beep for each, as loud as `tones`, and `"off"` neither. Not in Sun and Moon yet. |
+| `trainer_party` | `"text"` | As a trainer's battle opens, after "You are challenged by", how many Pokémon they have, from the balls the game shows: `"text"` says "2 Pokémon", `"beeps"` plays a beep for each, as loud as `tones`, and `"off"` neither. |
 | **`[pa3ds.audio]`** | | How loud pa3ds's own sounds are, beside the game's. Each follows Azahar's volume: 1 as loud as the game, 0.5 half as loud, 1.5 louder, 0 none. |
 | `tones` | `1.0` | The short tone as the map's cursor or touch mode moves: higher the further up, panned the further right. Also the tone as the way up walks you turns. |
 | `footsteps` | `1.0` | pa3ds's footsteps, where the game plays none. |

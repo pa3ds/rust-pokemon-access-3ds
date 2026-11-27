@@ -149,8 +149,6 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
 
 ## Sun and Moon
 
-- **How many Pokémon a trainer has** is not told as their battle opens: `trainer_party` works in
-  Omega Ruby, Alpha Sapphire, X and Y only.
 - **Townspeople are named by how they look**, "Old woman", "Clerk", "Little boy": the game has
   no word for them, so pa3ds chose one from their clothes and what they say, and one can be
   wrong. A few people, about 15 in the whole game, are still "person".
