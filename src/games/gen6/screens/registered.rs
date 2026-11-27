@@ -25,6 +25,8 @@ use crate::games::common::layout_file::LayoutFile;
 use crate::py::Result;
 
 pub const BAG: &str = "N8savedata3BAGE";
+/// The save's Bag -> the four items registered, in ORAS and in X (module docstring).
+pub const SLOTS: i64 = 0x0E;
 /// The way each slot of the Bag's four is chosen by, in the order it keeps them.
 pub const WAYS: [&str; 4] = ["up", "right", "down", "left"];
 pub const ICON_PANE: &str = "p";
@@ -34,7 +36,6 @@ pub const ICON: [&str; 1] = ["item_icon.bclim"];
 /// Says what each way of the Y button's menu uses, as the menu opens.
 pub struct Registered {
     memory: Rc<dyn Memory>,
-    slots: i64,
     items: Vec<String>,
     file_of: Rc<dyn Fn(i64) -> Option<Rc<LayoutFile>>>,
     bag: Option<i64>,
@@ -44,13 +45,11 @@ pub struct Registered {
 impl Registered {
     pub fn new(
         memory: Rc<dyn Memory>,
-        slots: i64,
         items: Vec<String>,
         file_of: Rc<dyn Fn(i64) -> Option<Rc<LayoutFile>>>,
     ) -> Self {
         Registered {
             memory,
-            slots,
             items,
             file_of,
             bag: None,
@@ -78,7 +77,7 @@ impl Registered {
         if was || !self.open {
             return Ok(None);
         }
-        let data = self.memory.read(bag + self.slots, 2 * WAYS.len() as i64)?;
+        let data = self.memory.read(bag + SLOTS, 2 * WAYS.len() as i64)?;
         let mut said: Vec<String> = Vec::new();
         for (i, way) in WAYS.iter().enumerate() {
             let number = u16(&data, 2 * i as i64)?;

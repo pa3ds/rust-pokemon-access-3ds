@@ -283,7 +283,7 @@ pub struct Gen6Profile {
     pub buttons: Rc<RefCell<buttons::Buttons>>,
     pub party_icons: Rc<RefCell<PartyIcons>>,
     pub partners: Rc<RefCell<Partners>>,
-    registered: Option<Rc<RefCell<registered::Registered>>>,
+    registered: Rc<RefCell<registered::Registered>>,
     pub occupants: Rc<RefCell<boxes::Occupants>>,
     /// What each screen's own objects say its cursor is on (ADR-0043).
     pub sources: Rc<RefCell<CursorSources>>,
@@ -673,14 +673,11 @@ impl Gen6Profile {
                 }
             })
         };
-        let registered = game.registered.map(|slots| {
-            Rc::new(RefCell::new(registered::Registered::new(
-                memory.clone(),
-                slots,
-                text.items.clone(),
-                file_of.clone(),
-            )))
-        });
+        let registered = Rc::new(RefCell::new(registered::Registered::new(
+            memory.clone(),
+            text.items.clone(),
+            file_of.clone(),
+        )));
         // Carrying a Pokémon in the PC Box, the slot it is over says who is in it, from the save.
         // Made before the block the cursors are made in, where Python makes it inside, just before
         // them; making it reads nothing.
@@ -729,7 +726,7 @@ impl Gen6Profile {
             occupants.clone(),
             box_shown.clone(),
             alone.clone(),
-            registered.clone(),
+            Some(registered.clone()),
         )));
 
         // Omega Ruby's boy and girl are portraits the game never names, said in pa3ds's words
@@ -1321,9 +1318,7 @@ impl Gen6Profile {
         self.subscreens.track(&found.heap, adding)?;
         self.partners.borrow_mut().track(&found.heap, adding)?;
         self.occupants.borrow_mut().track(&found.heap);
-        if let Some(registered) = &self.registered {
-            registered.borrow_mut().track(&found.heap);
-        }
+        self.registered.borrow_mut().track(&found.heap);
         self.buttons.borrow_mut().track(
             found.of(&[buttons::MANAGER_CLASS]),
             found.of(&[buttons::BAR_CLASS]),

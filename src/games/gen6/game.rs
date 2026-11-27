@@ -112,10 +112,6 @@ pub struct Game {
     /// leaves by: the pole in Santalune Gym's lobby, which the game slides the player down to the
     /// web room (spike 224).
     pub furniture: IndexMap<(i64, i64), FurnitureKind>,
-    /// The event flag before the first hidden item's, each item's its number past it: `0x44c` in
-    /// Omega Ruby's Dowsing Machine's getter, `0x4e49e4`, and in X's, `0x4ab888`
-    /// (`gen6.field.hidden_items`, spike 249).
-    pub hidden_items: i64,
     /// (zone, a trigger's script) of each trigger that gives an item, listed as a hidden item
     /// while it is armed: ORAS's Scanner. Listed wherever the hidden items are, under the sea or
     /// everywhere, since the player dives to it in a zone the zone table does not put under the
@@ -227,9 +223,6 @@ pub struct Game {
     /// Where its field camera's block keeps where the camera looks (`camera.Shape`): ORAS's, or
     /// X's (spikes 230 and 239).
     pub camera: camera::Shape,
-    /// Where the save's Bag keeps the key items of the Y button's menu (`screens.registered`,
-    /// spike 289): +0x0E in ORAS and X. None in a game that has no such menu.
-    pub registered: Option<i64>,
     /// The zones of the places in parts listed whole, the other parts' things out of the ROM
     /// (ADR-0042); every other place in parts is listed a part at a time.
     pub whole: HashSet<i64>,
@@ -271,7 +264,6 @@ impl Game {
             barriers: HashSet::new(),
             triggers: IndexMap::new(),
             furniture: IndexMap::new(),
-            hidden_items: 0x44C,
             hidden_triggers: HashSet::new(),
             crossed: HashSet::new(),
             own: own::nothing,
@@ -300,7 +292,6 @@ impl Game {
             field_menu: MENU,
             cursors: CursorShapes::default(),
             camera: camera::ORAS,
-            registered: None,
             whole: HashSet::new(),
             items_at: IndexMap::new(),
             zone_record: 0xF4,

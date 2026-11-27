@@ -1045,7 +1045,6 @@ pub fn game() -> &'static Game {
         amie_player: AMIE_PLAYER,
         field_menu: FIELD_MENU,
         worded: WORDED.iter().map(|texture| texture.to_string()).collect(),
-        registered: Some(0x0E),
         cursors: CursorShapes {
             rows: Some(rows::XY),
             bag: Some(bag::XY),

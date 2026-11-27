@@ -15,8 +15,8 @@
 //! Omega Ruby and Alpha Sapphire list the same 171, 43 of them under the sea, and X 151. The Poké
 //! Ball the Dowsing Machine found on Route 110 at (10, 59) is the 27th (or_route_110_dowsing). The
 //! table is found by its shape, as the Secret Bases' spots are: the longest run of rows numbered
-//! from 1 whose zone and cell are in range. An item is gone once the event flag `Game.hidden_items`
-//! plus its number is set: the save's flags (`works.Works`).
+//! from 1 whose zone and cell are in range. An item is gone once the event flag `FLAG` plus its
+//! number is set: the save's flags (`works.Works`).
 //!
 //! A second table of 33 rows lies past it, items found only while something else holds (their flags
 //! carry 0x8000), each with several to choose from: not read.
@@ -42,6 +42,9 @@ use crate::py::{Error, Result};
 
 /// What one is listed as: the game shows a glint at most, and never names it.
 pub const HIDDEN_ITEM: &str = "hidden item";
+/// The event flag before the first hidden item's, each item's its number past it: `0x44c` in
+/// Omega Ruby's Dowsing Machine's getter, `0x4e49e4`, and in X's, `0x4ab888` (spike 249).
+pub const FLAG: i64 = 0x44C;
 
 /// `struct.Struct("<HHHhHHBx")`: a row's item, number, x, height, z, zone and bits. Python's
 /// `Row` is the tuple a row is read into, so the struct is `RowFormat` here.
@@ -175,25 +178,17 @@ pub struct HiddenItems {
     memory: Rc<dyn Memory>,
     works: Rc<Works>,
     rows: Vec<Row>,
-    flags: i64,
     only: Option<Only>,
 }
 
 impl HiddenItems {
-    /// `works` holds the save's flags; `flags` is the flag before the first item's; `only`
-    /// says which zones to list them in, under the sea, or None for every zone.
-    pub fn new(
-        memory: Rc<dyn Memory>,
-        works: Rc<Works>,
-        image: &[u8],
-        flags: i64,
-        only: Option<Only>,
-    ) -> Self {
+    /// `works` holds the save's flags; `only` says which zones to list them in, under the
+    /// sea, or None for every zone.
+    pub fn new(memory: Rc<dyn Memory>, works: Rc<Works>, image: &[u8], only: Option<Only>) -> Self {
         HiddenItems {
             memory,
             works,
             rows: rows(image),
-            flags,
             only,
         }
     }
@@ -215,14 +210,14 @@ impl HiddenItems {
         if here.is_empty() {
             return Ok(Vec::new());
         }
-        let first = (self.flags + 1) >> 3;
+        let first = (FLAG + 1) >> 3;
         let bits = self.memory.read(
             event + FLAGS + first,
-            ((self.flags + self.rows.len() as i64) >> 3) - first + 1,
+            ((FLAG + self.rows.len() as i64) >> 3) - first + 1,
         )?;
         let mut out = Vec::new();
         for (number, (_zone, cell, y, item)) in here {
-            let flag = self.flags + number;
+            let flag = FLAG + number;
             let byte = *bits
                 .get(((flag >> 3) - first) as usize)
                 .ok_or_else(|| Error::index("index out of range"))?;

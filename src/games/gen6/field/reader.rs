@@ -334,7 +334,6 @@ impl FieldReader {
         let listing = hidden_items == HIDDEN_UNDERWATER || hidden_items == HIDDEN_ALL;
         let underwater = hidden_items == HIDDEN_UNDERWATER;
         let hidden_memory = memory.clone();
-        let flags = game.hidden_items;
         let works = Rc::new(Works::new(memory.clone()));
         let hidden_works = works.clone();
         let hidden_items = move |me: &Weak<FieldReader>| {
@@ -351,13 +350,7 @@ impl FieldReader {
                         .underwater(zone)
                 }) as Only
             });
-            Some(HiddenItems::new(
-                hidden_memory,
-                hidden_works,
-                image,
-                flags,
-                only,
-            ))
+            Some(HiddenItems::new(hidden_memory, hidden_works, image, only))
         };
         let rides = game.landforms.iter().find_map(as_form::<Rides>).cloned();
         Rc::new_cyclic(|me| FieldReader {

@@ -29,13 +29,12 @@ fn drawing(pane: &str, texture: &str) -> Rc<LayoutFile> {
 fn reader(slots: &[u16]) -> registered::Registered {
     let memory = FakeMemory::new();
     for (i, number) in slots.iter().enumerate() {
-        memory.write(BAG + 0x0E + 2 * i as i64, &number.to_le_bytes());
+        memory.write(BAG + registered::SLOTS + 2 * i as i64, &number.to_le_bytes());
     }
     let menu = drawing(registered::ICON_PANE, registered::ICON[0]);
     let other = drawing("p", "mode01.bclim");
     let mut found = registered::Registered::new(
         memory,
-        0x0E,
         items(),
         Rc::new(move |root| {
             Some(if root == MENU_ROOT {
@@ -75,7 +74,6 @@ fn test_nothing_is_said_of_another_screen_or_before_the_bag_is_found() {
     let mut found = reader(&[1, 2, 3, 4]);
     assert_eq!(found.poll([OTHER_ROOT]).unwrap(), None);
     assert_eq!(found.poll([]).unwrap(), None);
-    let mut empty =
-        registered::Registered::new(FakeMemory::new(), 0x0E, items(), Rc::new(|_root| None));
+    let mut empty = registered::Registered::new(FakeMemory::new(), items(), Rc::new(|_root| None));
     assert_eq!(empty.poll([MENU_ROOT]).unwrap(), None);
 }

@@ -1078,7 +1078,6 @@ pub fn game() -> &'static Game {
             r#box: Some(boxes::GEN6),
             map_view: Some(townmap::ORAS),
         },
-        registered: Some(0x0E),
         version_flags: Some(VERSION_FLAGS),
         models: Some(MODELS),
         worded: WORDED.iter().map(|texture| texture.to_string()).collect(),
