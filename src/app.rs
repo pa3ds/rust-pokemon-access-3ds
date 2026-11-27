@@ -992,7 +992,7 @@ fn session(
                 swept = found.heap.keys().copied().collect();
                 profile.track(&found)?;
                 (session.adopt)(&found)?;
-                if let Some(said) = (session.language)()
+                if let Some(said) = (session.language)()?
                     && said != language
                 {
                     log(&format!(

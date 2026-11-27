@@ -80,7 +80,8 @@ in a way pa3ds cannot otherwise put into words. Each is off until you turn it on
 - **`hidden_items`**: under the sea the Dowsing Machine cannot be used, and a hidden item is
   something a sighted player may spot among the rocks and weed, so `"underwater"` lists those,
   and the Scanner under Sea Mauville until you take it. `"all"` lists every hidden item, which
-  the game keeps from everyone: on land, the Dowsing Machine finds them.
+  the game keeps from everyone: on land, the Dowsing Machine finds them. Sun, Moon and the
+  Ultra games have no Dowsing Machine and no sea floor, so there only `"all"` lists them.
 
 ## Command-line options
 

@@ -1,11 +1,8 @@
 # Languages
 
-In Omega Ruby, Alpha Sapphire, X and Y, pa3ds reads your game's language from your save: the one
-you chose as your game began. Everything pa3ds reads from the game is in that language, and so
-are pa3ds's own words. Until a save is loaded, pa3ds speaks English.
-
-In Sun and Moon pa3ds cannot read your save's language. Set `language` under `[pa3ds.ui]` in
-`user\config.toml` to your game's.
+pa3ds reads your game's language from your save: the one you chose as your game began.
+Everything pa3ds reads from the game is in that language, and so are pa3ds's own words. Until a
+save is loaded, pa3ds speaks English.
 
 A game translated by fans may keep the language it replaced in its save: the Chinese Omega Ruby
 says Japanese. pa3ds still reads the game's words right, but would say its own in Japanese. Set

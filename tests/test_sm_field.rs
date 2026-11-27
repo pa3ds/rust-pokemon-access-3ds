@@ -368,6 +368,18 @@ impl Bedroom {
         walked: bool,
         unwalked: &[i64],
     ) -> Option<Field> {
+        self.listed_hidden(rom, found, walked, unwalked, "off")
+    }
+
+    /// `listed(..., hidden_items=...)`.
+    fn listed_hidden(
+        &self,
+        rom: Option<SunZones>,
+        found: Option<&Found>,
+        walked: bool,
+        unwalked: &[i64],
+        hidden_items: &str,
+    ) -> Option<Field> {
         let blocks: Vec<Span> = SIZES
             .iter()
             .filter(|(at, _size)| !unwalked.contains(at))
@@ -382,7 +394,7 @@ impl Bedroom {
             let blocks = Rc::new(blocks);
             Rc::new(move || blocks.clone()) as Blocks
         });
-        let reader = SunFieldReader::with(
+        let reader = SunFieldReader::with_hidden(
             memory.clone(),
             names(&memory),
             rom.map(Rc::new),
@@ -390,6 +402,7 @@ impl Bedroom {
             None,
             None,
             self.layout,
+            hidden_items,
         );
         reader.track(found.unwrap_or(&self.found));
         let at = reader.poll().unwrap();
@@ -1134,6 +1147,22 @@ fn test_a_hidden_item_is_not_listed_though_the_field_builds_it_an_actor() {
         .unwrap();
     let cells: Vec<(i64, i64)> = at.of("items").iter().map(|item| item.cell).collect();
     assert_eq!(cells, [(48, 62)]);
+    let at = bedroom
+        .listed_hidden(Some(rom()), Some(&found), true, &[], "all")
+        .unwrap();
+    let mut items: Vec<((i64, i64), String, i64)> = at
+        .of("items")
+        .iter()
+        .map(|item| (item.cell, item.kind.clone(), item.code))
+        .collect();
+    items.sort();
+    assert_eq!(
+        items,
+        [
+            ((44, 62), field::HIDDEN_ITEM.to_string(), 307),
+            ((48, 62), "item ball".to_string(), 4)
+        ]
+    );
 }
 
 /// Of Route 1's twelve steps one was armed, and walking at it started its scene (spike P).

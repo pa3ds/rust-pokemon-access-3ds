@@ -99,9 +99,11 @@ pub struct Session {
     /// (ADR-0019); None where they read to the byte.
     pub pages: Option<Rc<PageCache>>,
     /// The language the save says the game is in, as the last whole sweep read it, or None where
-    /// it is not known: before the sweep, and in Sun, whose save pa3ds cannot reach (spike 226).
-    /// The runtime reads the game again in it where it is not the session's.
-    pub language: Rc<dyn Fn() -> Option<String>>,
+    /// it is not known: before the sweep or the save. Sun reads it down the game's own pointers
+    /// (`sm.savedata`). The runtime reads the game again in it where it is not the session's.
+    ///
+    /// A `Result`: Sun's reads memory, and what it does not catch is raised to the runtime.
+    pub language: Rc<dyn Fn() -> Result<Option<String>>>,
 }
 
 /// `Callable[[], AbstractContextManager[None]]`: what is read inside it is run as the closure

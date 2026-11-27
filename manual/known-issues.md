@@ -149,7 +149,6 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
 
 ## Sun and Moon
 
-- **Your save's language** cannot be read: set it yourself (see [Languages](languages.md)).
 - **How many Pokémon a trainer has** is not told as their battle opens: `trainer_party` works in
   Omega Ruby, Alpha Sapphire, X and Y only.
 - **Townspeople are named by how they look**, "Old woman", "Clerk", "Little boy": the game has
@@ -172,6 +171,9 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
   page is read whole as it opens, its words run together: "Height1'00" Weight3.3 lbs.".
 - **A Poké Mart's buy list** says only the item under the cursor, not its price or how many
   you have, which are on screen beside it.
+- **Hidden items**, listed with `hidden_items = "all"`: whether one leaves the list once you
+  have found it has not been tried, nor where you stand to pick one up; `P` says "here" anywhere
+  within the patch of ground the game gives it.
 - **Someone behind a stall's counter**, such as Festival Plaza's lottery shop, has no path: `P`
   says "no path". Walk up to the counter in front of them and press A.
 - **A board can run its two lines together** where its second line has no quotation marks:

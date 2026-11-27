@@ -15,7 +15,8 @@
 //!
 //! The language is the one the player chose as their game began, or on a new game the one it starts
 //! with: 1 Japanese, 2 English, 3 French, 4 Italian, 5 German, 7 Spanish, 8 Korean, and in Sun, whose
-//! record pa3ds cannot reach, 9 and 10 Chinese. A fan translation keeps another language's number:
+//! record `sm.savedata` reads by the same numbers, 9 and 10 Chinese. A fan translation keeps another
+//! language's number:
 //! the Chinese Omega Ruby says Japanese, whose text it replaced.
 //!
 //! Bound by:

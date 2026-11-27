@@ -64,6 +64,7 @@ use std::sync::Arc;
 use indexmap::{IndexMap, IndexSet};
 
 use crate::core::binary::{self, f32, u16, u32};
+use crate::core::config::{HIDDEN_ALL, HIDDEN_OFF};
 use crate::core::discovery::Found;
 use crate::core::heaps::ReadEach;
 use crate::core::memory::Memory;
@@ -87,6 +88,8 @@ pub const STATE: &str = "N5Field8Fieldmap5StateE";
 pub const THING: &str = "N5Field17FieldBgEventActorE";
 pub const WARP: &str = "N5Field17FieldMapJumpActorE";
 pub const ITEM: &str = "N5Field14FieldItemActorE";
+/// An item's actor where nothing lies, listed as gen 6 lists what the Dowsing Machine finds.
+pub const HIDDEN_ITEM: &str = "hidden item";
 pub const STEP: &str = "N5Field18FieldPosEventActorE";
 pub const STEP_ARMED: i64 = 0x10;
 /// The actors listed. An item actor is built for each ball still on the ground: seven on Route 1's
@@ -296,6 +299,7 @@ pub struct SunFieldReader {
     visit: Cell<Option<(i64, i64)>>,
     /// The area the player was last polled in, whose walls have been asked for.
     area: Cell<Option<i64>>,
+    hidden: bool,
     shown: i64,
     place: i64,
     area_number: i64,
@@ -318,7 +322,8 @@ impl SunFieldReader {
     /// those near what was found before: the field and the area loaded were not among them, and
     /// the keys said "no map" standing in the bedroom (sun_3.ctm, 2026-09-26).
     ///
-    /// `read_each` is `memory`'s own where it has one (see the field).
+    /// `read_each` is `memory`'s own where it has one (see the field). Hidden items off
+    /// (`with_hidden` says otherwise).
     pub fn with(
         memory: Rc<dyn Memory>,
         names: Rc<ClassNames>,
@@ -328,10 +333,30 @@ impl SunFieldReader {
         read_each: Option<ReadEach>,
         layout: VersionLayout,
     ) -> Self {
+        SunFieldReader::with_hidden(
+            memory, names, zones, blocks, walls, read_each, layout, HIDDEN_OFF,
+        )
+    }
+
+    /// `with`, and `hidden_items` the setting `[pa3ds.extras] hidden_items`.
+    #[allow(clippy::too_many_arguments)]
+    pub fn with_hidden(
+        memory: Rc<dyn Memory>,
+        names: Rc<ClassNames>,
+        zones: Option<Rc<SunZones>>,
+        blocks: Option<Blocks>,
+        walls: Option<Rc<dyn Walls>>,
+        read_each: Option<ReadEach>,
+        layout: VersionLayout,
+        hidden_items: &str,
+    ) -> Self {
         // A move model's fields from +0x2f4 on are where its version keeps them
         // (`sm.VersionLayout`).
         let (shown, place) = (layout.model_shown, layout.model_place);
         SunFieldReader {
+            // An Extra (ADR-0017): Sun has no Dowsing Machine and no sea floor, so its hidden items
+            // are listed only where every one is asked for.
+            hidden: hidden_items == HIDDEN_ALL,
             shown,
             place,
             area_number: layout.area_number,
@@ -958,7 +983,7 @@ impl SunFieldReader {
             if self.zones.is_some() && record.is_none() {
                 continue;
             }
-            if let Some(item) = made(&name, x, z, record.as_ref(), zone)? {
+            if let Some(item) = made(&name, x, z, record.as_ref(), zone, self.hidden)? {
                 out.push(item);
             }
         }
@@ -1001,7 +1026,9 @@ impl SunFieldReader {
                         continue;
                     }
                     said.insert((actor, at));
-                    if let Some(item) = made(actor, record.x, record.z, Some(record), zone)? {
+                    if let Some(item) =
+                        made(actor, record.x, record.z, Some(record), zone, false)?
+                    {
                         out.push(item);
                     }
                 }
@@ -1076,13 +1103,14 @@ fn tuple_less(a: (f64, i64), b: (f64, i64)) -> bool {
 
 /// What an actor, or a record without one, of the class `name` is, in the world's cells: an
 /// exit, a thing, an item ball or the story's step, as wide as its record's shape, keyed by its
-/// cell. None for a hidden item.
+/// cell. A hidden item only where `hidden` asks for them, None otherwise.
 fn made(
     name: &str,
     x: f64,
     z: f64,
     record: Option<&Record>,
     zone: i64,
+    hidden: bool,
 ) -> Result<Option<Interactable>> {
     let at = cell(x, z)?;
     let (first, size) = reach(at, record)?;
@@ -1108,11 +1136,20 @@ fn made(
     if name == ITEM {
         // The field builds an actor for a hidden item too, where nothing is seen: three of the
         // seven beside the house, and P led the player onto one (sun_4.ctm). Hidden items are an
-        // extra the game does not show (parity), so only balls are listed.
+        // extra the game does not show (parity), listed only under the setting.
         if let Some(record) = record
             && record.kind != sm_zones::ITEM_BALL
         {
-            return Ok(None);
+            if !hidden {
+                return Ok(None);
+            }
+            return Ok(Some(Interactable {
+                size,
+                code: record.code,
+                source: place_of(ITEM_SOURCE, x, z)?,
+                home: Some(home),
+                ..Interactable::new("items", HIDDEN_ITEM, first)
+            }));
         }
         return Ok(Some(Interactable {
             size,

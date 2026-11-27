@@ -46,6 +46,9 @@ pub struct VersionLayout {
     /// Festival Plaza's zones, which the zone table gives the place of a Pokémon Center: named by
     /// the X menu's own line instead (`zones.PLAZA`). A `frozenset` only looked in.
     pub plaza: &'static [i64],
+    /// Where the save keeps its trainer record, `Savedata::MyStatus` (`savedata`): 0xea0 in Sun
+    /// and 0xee8 in Ultra Sun, as 68 and 73 of their functions reach it.
+    pub my_status: i64,
 }
 
 impl VersionLayout {
@@ -81,6 +84,7 @@ pub const SUN_LAYOUT: VersionLayout = VersionLayout {
     chosen_language: 0x12C,
     shop_item: Some(0xC4),
     plaza: &[0x119, 0x11A],
+    my_status: 0xEA0,
 };
 /// Ultra Sun's, read against Sun's in its ROM and its bedroom (spike P, 2026-11-23): every class
 /// the readers find has Sun's name, and every field of each is where Sun's is but a move model's,
@@ -112,6 +116,7 @@ pub const ULTRA_LAYOUT: VersionLayout = VersionLayout {
     chosen_language: 0x130,
     shop_item: Some(0xC4),
     plaza: &[0x13E, 0x13F],
+    my_status: 0xEE8,
 };
 
 /// `GAME`: a function, since a `String` and a `HashSet` cannot be built in a constant.
@@ -166,3 +171,5 @@ pub mod zones;
 pub mod shop;
 
 pub mod r#box;
+
+pub mod savedata;

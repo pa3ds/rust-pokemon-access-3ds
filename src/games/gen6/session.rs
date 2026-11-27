@@ -163,7 +163,7 @@ pub fn start(
         walk: None,
         bases: vec![buttons::BAR_CLASS.to_string()],
         pages: Some(memory),
-        language: Rc::new(move || saved.save_language.borrow().clone()),
+        language: Rc::new(move || Ok(saved.save_language.borrow().clone())),
     })
 }
 

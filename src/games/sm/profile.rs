@@ -20,7 +20,7 @@ use std::rc::Rc;
 
 use indexmap::IndexMap;
 
-use crate::core::config::{Navigation, Ui};
+use crate::core::config::{HIDDEN_OFF, Navigation, Ui};
 use crate::core::discovery::Found;
 use crate::core::heaps::ReadEach;
 use crate::core::memory::{self, Cache, Memory};
@@ -172,6 +172,8 @@ pub struct Options {
     pub game_text: Option<Rc<SunGameText>>,
     /// None is `SUN_LAYOUT`.
     pub layout: Option<VersionLayout>,
+    /// `[pa3ds.extras] hidden_items`; None is `HIDDEN_OFF`.
+    pub hidden_items: Option<String>,
 }
 
 /// Sun's readers, and what each sweep and poll does with them.
@@ -290,6 +292,7 @@ impl SunProfile {
             said,
             game_text,
             layout,
+            hidden_items,
         } = options;
         // The layout readers follow pointers down each layout's tree to its words, and read only
         // inside the blocks the last walk found, as the field's do (ADR-0035).
@@ -363,7 +366,7 @@ impl SunProfile {
         // ORAS's navigator, and P's way found through the walls out of the ROM (spike 114).
         // Without them, P says where the thing is and that no way is known.
         let routes = walls.is_some();
-        let reader = Rc::new(SunFieldReader::with(
+        let reader = Rc::new(SunFieldReader::with_hidden(
             memory.clone(),
             names.clone(),
             zones.clone(),
@@ -371,6 +374,7 @@ impl SunProfile {
             walls,
             read_each,
             layout.unwrap_or(SUN_LAYOUT),
+            hidden_items.as_deref().unwrap_or(HIDDEN_OFF),
         ));
         // The game's own words for its people, signs, things and doors, behind the player's names
         // and ahead of the shipped (spike 291, ADR-0023).

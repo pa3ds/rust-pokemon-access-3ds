@@ -7,9 +7,10 @@ use std::rc::Rc;
 
 use indexmap::IndexMap;
 
+use crate::core::cro;
 use crate::core::discovery::{CODE_SPAN, Walk};
 use crate::core::heaps::{Block, Heaps};
-use crate::core::memory::{Cache, ExactCache, Memory};
+use crate::core::memory::{Cache, ExactCache, Memory, RpcMemory};
 use crate::core::names::Names;
 use crate::core::rpc::Rpc;
 use crate::core::rtti::ClassNames;
@@ -24,8 +25,11 @@ use crate::games::sm::profile::{Options, REQUIRED, SunProfile, heap_classes};
 use crate::games::sm::text::SunText;
 use crate::games::sm::walls::SunWalls;
 use crate::games::sm::zones::SunZones;
-use crate::games::sm::{SunMoon, apps, field, heaps, langselect, lyt, shop};
+use crate::games::sm::{SunMoon, apps, field, heaps, langselect, lyt, savedata, shop};
 use crate::py::{PySet, Result};
+
+/// The RomFS file where the executable names what it exports (`pa3ds.core.cro`).
+pub const CRS: &str = "static.crs";
 
 /// Sun, read to the byte, never a page around what is asked for: in Sun the byte after an
 /// object may be the GPU's, and reading that took the emulator down (`games.sm.heaps`). A poll's
@@ -37,20 +41,30 @@ pub fn start(
     speech: Rc<Speech>,
     setup: Setup,
 ) -> Result<Session> {
-    let setup = if setup.tables.ui.language.is_empty() {
-        setup
+    // The game's words are the save's language's, and pa3ds's own the setting's where it names
+    // one (ADR-0040), as in gen 6, now that the save is read (`savedata`).
+    let language = if setup.tables.ui.language.is_empty() {
+        &setup.language
     } else {
-        Setup {
-            language: setup.tables.ui.language.clone(),
-            ..setup
-        }
+        &setup.tables.ui.language
     };
     words::r#use(Some(Rc::new(Words::new(
-        &setup.language,
+        language,
         Some(&field::names()),
         IndexMap::new(),
         setup.log.clone(),
     )?)));
+    let exports = setup.words(
+        |image, _language| cro::exports(&image.read(CRS)?),
+        "the save's language is not read",
+    )?;
+    let raw: Rc<dyn Memory> = Rc::new(RpcMemory::new(rpc.clone()));
+    let save = savedata::SaveLanguage::new(
+        raw.clone(),
+        Rc::new(ClassNames::new(raw, CODE_SPAN)),
+        &exports.unwrap_or_default(),
+        game.layout,
+    );
     let live = Rc::new(heaps::SmallBlocks::new());
     let exact = Rc::new(ExactCache::new(
         rpc.clone(),
@@ -198,6 +212,7 @@ pub fn start(
             said: Some(Rc::new(move |message: &str| described.said(message))),
             game_text,
             layout: Some(game.layout),
+            hidden_items: Some(setup.tables.extras.hidden_items.clone()),
         },
     ));
 
@@ -231,7 +246,7 @@ pub fn start(
             Rc::new(move |blocks: &[Block]| watch.borrow_mut().forget(&live.allocated(blocks)))
         },
         walk: Some(walk),
-        language: Rc::new(|| None),
+        language: Rc::new(move || save.language()),
         bases: Vec::new(),
         pages: None,
     })
