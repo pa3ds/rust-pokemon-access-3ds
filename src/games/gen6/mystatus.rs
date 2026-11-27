@@ -23,6 +23,7 @@
 //! - ADR-0040: the language is the save's.
 
 use crate::core::discovery::Found;
+use crate::games::common::text::LANGUAGES;
 use crate::py;
 
 pub const CLASS: &str = "N8savedata8MyStatusE";
@@ -30,19 +31,6 @@ pub const GENDER: i64 = 0x0D;
 pub const NAME: i64 = 0x50;
 pub const NAME_SIZE: i64 = 26;
 pub const LANGUAGE: i64 = 0x35;
-/// The record's number for a language -> its code, the name of its folders under `data/` and its
-/// key in a game's text archives.
-pub const LANGUAGES: [(u8, &str); 9] = [
-    (1, "ja"),
-    (2, "en"),
-    (3, "fr"),
-    (4, "it"),
-    (5, "de"),
-    (7, "es"),
-    (8, "ko"),
-    (9, "zh-CN"),
-    (10, "zh-TW"),
-];
 
 /// The language the save says, out of the pages a sweep has already read, or None where the sweep
 /// found no record or it holds no language pa3ds knows.

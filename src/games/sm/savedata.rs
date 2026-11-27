@@ -32,7 +32,7 @@ use indexmap::IndexMap;
 use crate::core::binary::u32;
 use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
-use crate::games::gen6::mystatus::LANGUAGES;
+use crate::games::common::text::LANGUAGES;
 use crate::games::sm::VersionLayout;
 use crate::py::{Kind, Result};
 

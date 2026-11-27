@@ -21,6 +21,19 @@ use crate::py::{self, Error, Result};
 pub const MARKER: i64 = 0x0010;
 pub const END: i64 = 0x0000;
 pub const NEWLINE: i64 = 0x000A;
+/// A save's number for the language it is played in (`gen6.mystatus`, `sm.savedata`) -> its code,
+/// the name of its folders under `data/` and its key in a game's text archives.
+pub const LANGUAGES: [(u8, &str); 9] = [
+    (1, "ja"),
+    (2, "en"),
+    (3, "fr"),
+    (4, "it"),
+    (5, "de"),
+    (7, "es"),
+    (8, "ko"),
+    (9, "zh-CN"),
+    (10, "zh-TW"),
+];
 pub const PAGE_CLEAR: i64 = 0xBE01;
 pub const PAGE_SCROLL: i64 = 0xBE00;
 pub const PAGE_BREAKS: [i64; 2] = [PAGE_CLEAR, PAGE_SCROLL];
