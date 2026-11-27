@@ -847,9 +847,7 @@ impl TouchTargets {
                     keyed.push((p, !self.lies_in(p, touch)?));
                 }
                 keyed.sort_by_key(|&(_p, key)| key);
-                // Python's `next` over a generator: the first picture's texture ends the look,
-                // and no picture after it has its name read.
-                let mut texture: Option<String> = None;
+                let mut found: Vec<String> = Vec::new();
                 for (p, _key) in keyed {
                     let image = drawn.get(&p).cloned().flatten();
                     let t = match image {
@@ -859,14 +857,21 @@ impl TouchTargets {
                             .and_then(|textures| textures.first().cloned()),
                     };
                     if let Some(t) = t.filter(|t| !t.is_empty()) {
-                        texture = Some(t);
-                        break;
+                        found.push(t);
                     }
                 }
+                let layout_name = file.map_or("", |file| file.name.as_str());
+                // Of those, one the data has a word for: the Colosseum's return draws the end
+                // of the bar it sits on before its arrow, and was said "topbar" (the PSS's
+                // multiplayer).
+                let texture = found
+                    .iter()
+                    .find(|t| pictures::named_in(t, layout_name).is_some_and(|w| !w.is_empty()))
+                    .or(found.first())
+                    .cloned();
                 let stem = texture
                     .as_deref()
                     .map(|texture| texture.split('.').next().unwrap_or_default());
-                let layout_name = file.map_or("", |file| file.name.as_str());
                 let mut picture: Option<String> = None;
                 if stem == Some(pictures::ARROW) || (stem == Some(pictures::BUTTON) && y < TOP_BAR)
                 {

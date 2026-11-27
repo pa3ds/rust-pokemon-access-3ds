@@ -6,7 +6,7 @@
 //! pa3ds has just named.
 
 use std::cell::{Cell, RefCell};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use indexmap::IndexMap;
@@ -2830,4 +2830,65 @@ fn test_an_icon_is_named_by_the_words_under_it_beside_its_touch_area() {
         targets.button_words().unwrap(),
         HashSet::from([battle + 0x400])
     );
+}
+
+/// The Colosseum's return draws the end of the bar it sits on, `topbar_mini`, before its
+/// arrow, `return_pss`, and was said "topbar" (the PSS's multiplayer).
+#[test]
+fn test_a_touch_area_is_named_by_the_picture_the_data_has_a_word_for() {
+    let memory = FakeMemory::new();
+    let classes = FakeClasses::new(memory.clone());
+    let fake = FakeLayouts::new(&memory, &classes);
+    let (bounding, picture) = (
+        classes.add(lyt::BOUNDING_CLASS),
+        classes.add(lyt::PICTURE_CLASS),
+    );
+    let (_work, root) = fake.screen_with(0x08200000, false, false);
+    let back = root + 0x1000;
+    placed(&fake, back, root, None, 140.0, -100.0, 40.0, 40.0);
+    placed(
+        &fake,
+        back + 0x200,
+        back,
+        Some(picture),
+        140.0,
+        -100.0,
+        40.0,
+        40.0,
+    );
+    placed(
+        &fake,
+        back + 0x400,
+        back,
+        Some(picture),
+        140.0,
+        -100.0,
+        30.0,
+        30.0,
+    );
+    placed(
+        &fake,
+        back + 0x600,
+        back,
+        Some(bounding),
+        140.0,
+        -100.0,
+        40.0,
+        40.0,
+    );
+    fake.track().unwrap();
+    let drawn: HashMap<i64, String> = HashMap::from([
+        (back + 0x200, "topbar_mini.bclim".to_string()),
+        (back + 0x400, "return_pss.bclim".to_string()),
+    ]);
+    let mut targets = TouchTargets::new(
+        fake.layouts.clone(),
+        Rc::new(Vec::new),
+        Rc::new(|_box| Ok(String::new())),
+        Rc::new(move |pane| Ok(drawn.get(&pane).cloned())),
+        Rc::new(|_root| None),
+        Rc::new(|_line: &str| {}),
+        Options::default(),
+    );
+    assert_eq!(names_of(&mut targets), ["return"]);
 }
