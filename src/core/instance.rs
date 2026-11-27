@@ -17,18 +17,25 @@
 //! program that has its number since. It is deleted as pa3ds closes, and not when pa3ds is
 //! replaced.
 //!
+//! **One for each emulator.** A pa3ds reading another RPC port than Azahar's own reads another
+//! emulator, the rig's fork with a second player's game, and runs beside the one reading Azahar's
+//! rather than ending it: each port has a file of its own (`lock`). Each is hidden and closed with
+//! its own emulator, the one on its port (`window.own`).
+//!
 //! Bound by:
-//! - ADR-0039: one pa3ds at a time, hidden while Azahar is open and closed with it; a `--silent`
-//!   run takes no part.
+//! - ADR-0039: one pa3ds at a time for each emulator, hidden while it is open and closed with it;
+//!   a `--silent` run takes no part.
 
 use std::cell::Cell;
 use std::path::Path;
 use std::rc::Rc;
 
+use crate::core::rpc::DEFAULT_PORT;
 use crate::core::{toml, window};
 use crate::py::{Log, Result, time};
 
-/// The file in the player's folder naming the pa3ds running.
+/// The file in the player's folder naming the pa3ds running, the one reading Azahar's own RPC
+/// port (`lock`).
 pub const LOCK: &str = "pa3ds.lock";
 /// What pa3ds runs as: the Rust port's one executable, or Python under uv. A console with anything
 /// else attached to it is a shell's.
@@ -188,9 +195,20 @@ pub fn alone() -> bool {
 #[cfg(not(windows))]
 pub fn hide() {}
 
-/// Take the place of the pa3ds running from `home`, ending it, and say whether one was.
-pub fn replace(home: &Path) -> Result<bool> {
-    let path = home.join(LOCK);
+/// The file naming the pa3ds reading the emulator on this RPC port: `LOCK` for Azahar's own,
+/// `pa3ds.<port>.lock` for another's, so that a pa3ds for each runs beside the other.
+pub fn lock(port: u16) -> String {
+    if port == DEFAULT_PORT {
+        LOCK.to_string()
+    } else {
+        format!("pa3ds.{port}.lock")
+    }
+}
+
+/// Take the place of the pa3ds running from `home` for the emulator on this RPC port, ending
+/// it, and say whether one was.
+pub fn replace(home: &Path, port: u16) -> Result<bool> {
+    let path = home.join(lock(port));
     let held = toml::read(&path);
     let own = i64::from(std::process::id());
     let replaced = match (held.get("pid"), held.get("started")) {
@@ -227,9 +245,10 @@ pub fn again() -> Result<()> {
     Ok(())
 }
 
-/// Delete the file naming the pa3ds running, while it still names this one.
-pub fn release(home: &Path) {
-    let path = home.join(LOCK);
+/// Delete the file naming the pa3ds running for the emulator on this RPC port, while it still
+/// names this one.
+pub fn release(home: &Path, port: u16) {
+    let path = home.join(lock(port));
     let own = i64::from(std::process::id());
     if toml::read(&path).get("pid") == Some(&::toml::Value::Integer(own)) {
         let _ = std::fs::remove_file(&path);

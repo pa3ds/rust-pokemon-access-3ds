@@ -91,3 +91,22 @@ fn test_keys_are_taken_in_the_game_windows_and_not_in_the_emulators_dialogs() {
     assert!(!window::shows_game("Configure"));
     assert!(!window::shows_game("Azahar 2116"));
 }
+
+/// ADR-0039: pa3ds's emulator is the one on its RPC port. With two open, one per player of
+/// the PSS on one machine, each pa3ds took keys in front of both. This test's own socket stands
+/// in for Azahar's RPC server.
+#[test]
+fn test_the_emulator_on_the_rpc_port_is_the_one_with_its_socket() {
+    let pid = i64::from(std::process::id());
+    {
+        let server = std::net::UdpSocket::bind("127.0.0.1:0").unwrap();
+        let port = server.local_addr().unwrap().port();
+        assert_eq!(window::listening(port), pid);
+        window::follow(port);
+        // try/finally: followed no further whatever the assertion found.
+        let own = window::own();
+        window::follow(0);
+        assert_eq!(own, pid);
+    }
+    assert_eq!(window::own(), 0);
+}

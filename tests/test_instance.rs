@@ -10,6 +10,7 @@ use std::process::{Child, Command, Stdio};
 use std::rc::Rc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use crate::core::rpc::DEFAULT_PORT;
 use crate::core::{instance, toml};
 
 /// pytest's `tmp_path`: a folder of this test's own, gone when the test is.
@@ -84,7 +85,7 @@ fn test_a_pa3ds_started_again_ends_the_one_running_and_takes_its_place() {
     let tmp_path = TmpPath::new();
     let mut other = Other::new();
     lock(&tmp_path, other.pid(), instance::started(other.pid()));
-    assert!(instance::replace(&tmp_path).unwrap());
+    assert!(instance::replace(&tmp_path, DEFAULT_PORT).unwrap());
     assert_eq!(other.0.wait().unwrap().code(), Some(0));
     assert_eq!(
         toml::read(&tmp_path.join(instance::LOCK))["pid"],
@@ -99,18 +100,18 @@ fn test_a_file_left_by_a_pa3ds_that_died_ends_nothing() {
     let tmp_path = TmpPath::new();
     let mut other = Other::new();
     lock(&tmp_path, other.pid(), instance::started(other.pid()) + 1);
-    assert!(!instance::replace(&tmp_path).unwrap());
+    assert!(!instance::replace(&tmp_path, DEFAULT_PORT).unwrap());
     assert!(other.0.try_wait().unwrap().is_none());
 }
 
 #[test]
 fn test_the_file_goes_as_pa3ds_closes_but_not_once_another_has_taken_its_place() {
     let tmp_path = TmpPath::new();
-    instance::replace(&tmp_path).unwrap();
-    instance::release(&tmp_path);
+    instance::replace(&tmp_path, DEFAULT_PORT).unwrap();
+    instance::release(&tmp_path, DEFAULT_PORT);
     assert!(!tmp_path.join(instance::LOCK).exists());
     lock(&tmp_path, i64::from(std::process::id()) + 4, 1);
-    instance::release(&tmp_path);
+    instance::release(&tmp_path, DEFAULT_PORT);
     assert!(tmp_path.join(instance::LOCK).exists());
 }
 
@@ -163,4 +164,22 @@ fn test_a_pa3ds_with_its_own_window_hides_its_console_at_once_and_its_window_wit
     assert!(!beside.closed() && consoles.get() && !windows.get());
     azahar.set(other.pid());
     assert!(!beside.closed() && windows.get());
+}
+
+/// ADR-0039: one pa3ds for each emulator. The rig's fork on another RPC port, with a second
+/// player's game: two players of the PSS on one machine, each with a pa3ds.
+#[test]
+fn test_a_pa3ds_for_another_emulator_runs_beside_the_one_running() {
+    let tmp_path = TmpPath::new();
+    let mut other = Other::new();
+    lock(&tmp_path, other.pid(), instance::started(other.pid()));
+    assert!(!instance::replace(&tmp_path, 45988).unwrap());
+    assert!(other.0.try_wait().unwrap().is_none());
+    assert_eq!(
+        toml::read(&tmp_path.join("pa3ds.45988.lock"))["pid"],
+        ::toml::Value::Integer(i64::from(std::process::id()))
+    );
+    instance::release(&tmp_path, 45988);
+    assert!(!tmp_path.join("pa3ds.45988.lock").exists());
+    assert!(tmp_path.join(instance::LOCK).exists());
 }

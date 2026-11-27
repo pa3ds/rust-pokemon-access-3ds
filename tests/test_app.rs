@@ -20,7 +20,7 @@ use crate::app::{
 };
 use crate::core::config::{Tables, Ui};
 use crate::core::memory::{self, Memory};
-use crate::core::rpc::{MAX_READ, Process, Rpc, UdpRpc};
+use crate::core::rpc::{DEFAULT_PORT, MAX_READ, Process, Rpc, UdpRpc};
 use crate::core::speech::{Backend, Category, Speech};
 use crate::core::{config, folders, keyfile, words};
 use crate::games::catalog::{self, Running};
@@ -330,7 +330,7 @@ fn test_each_run_logs_afresh_and_keeps_the_runs_before() {
 fn test_everything_the_player_owns_sits_beside_pa3ds() {
     let home = Home::new();
     assert_eq!(
-        default_log_path().unwrap().parent().unwrap(),
+        default_log_path(DEFAULT_PORT).unwrap().parent().unwrap(),
         home.home.join("logs")
     );
     assert_eq!(

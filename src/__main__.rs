@@ -96,7 +96,7 @@ fn help() -> Result<String, String> {
          before it are kept beside it as pa3ds.1.log (the newest) to pa3ds.{}.log. Everything \
          else is set in {}.",
         usage(),
-        default_log_path()
+        default_log_path(DEFAULT_PORT)
             .map_err(|error| error.to_string())?
             .display(),
         KEPT_LOGS - 1,
@@ -215,25 +215,27 @@ pa3ds: error: {message}",
     }
 }
 
-/// `atexit.register(instance.release, home)`: the file naming this pa3ds goes when `run` ends, by
-/// returning, raising or panicking, and not when another pa3ds ends this process.
-struct Release(PathBuf);
+/// `atexit.register(instance.release, home, port)`: the file naming this pa3ds goes when `run`
+/// ends, by returning, raising or panicking, and not when another pa3ds ends this process.
+struct Release(PathBuf, u16);
 
 impl Drop for Release {
     fn drop(&mut self) {
-        instance::release(&self.0);
+        instance::release(&self.0, self.1);
     }
 }
 
 fn run(args: Args, hooks: &Hooks) -> py::Result<()> {
-    // One pa3ds at a time (ADR-0039). Not a silent run, which is an agent's or a developer's: it
-    // would end the player's own pa3ds mid-game. The file naming this one goes when it closes,
-    // and not when another ends it.
+    // Its emulator is the one on its RPC port, where two are open (ADR-0039).
+    window::follow(args.rpc_port);
+    // One pa3ds at a time for each emulator (ADR-0039). Not a silent run, which is an agent's or a
+    // developer's: it would end the player's own pa3ds mid-game. The file naming this one goes
+    // when it closes, and not when another ends it.
     let mut replaced = false;
     let mut _release = None;
     if !args.silent {
-        replaced = instance::replace(&folders::home_path()?)?;
-        _release = Some(Release(folders::home_path()?));
+        replaced = instance::replace(&folders::home_path()?, args.rpc_port)?;
+        _release = Some(Release(folders::home_path()?, args.rpc_port));
     }
     // A patch of Azahar's config is lost when an open Azahar closes, so none is written while
     // it is open.
@@ -293,7 +295,11 @@ fn run(args: Args, hooks: &Hooks) -> py::Result<()> {
         None
     } else {
         // A pa3ds replaced is the same session to the player, so its log carries on.
-        let path = log_path(args.log_path.as_deref(), !replaced)?;
+        let place = match args.log_path.clone() {
+            Some(place) => place,
+            None => default_log_path(args.rpc_port)?,
+        };
+        let path = log_path(Some(&place), !replaced)?;
         println!("logging to {}", path.display());
         let file = if replaced {
             File::options().append(true).create(true).open(&path)?
@@ -469,9 +475,16 @@ fn ask_for_azahar(settings: config::Config, notes: &mut Vec<String>) -> py::Resu
 }
 
 /// `<pa3ds>/user/logs/pa3ds.log`, among everything else the player owns (ADR-0032), in a folder
-/// of its own so ten runs of it do not bury the keys file and the names.
-pub fn default_log_path() -> py::Result<PathBuf> {
-    Ok(folders::home_path()?.join(LOG_FOLDER).join(LOG_NAME))
+/// of its own so ten runs of it do not bury the keys file and the names. `pa3ds.<port>.log` for
+/// a pa3ds reading another emulator than Azahar's own RPC port, which runs beside it
+/// (ADR-0039).
+pub fn default_log_path(port: u16) -> py::Result<PathBuf> {
+    let name = if port == DEFAULT_PORT {
+        LOG_NAME.to_string()
+    } else {
+        format!("pa3ds.{port}.log")
+    };
+    Ok(folders::home_path()?.join(LOG_FOLDER).join(name))
 }
 
 /// Where this run's log goes, with the runs before it moved aside to make room.
@@ -483,7 +496,7 @@ pub fn default_log_path() -> py::Result<PathBuf> {
 /// once. `rotate` off moves nothing, for a run carrying on the log of the pa3ds it replaced.
 pub fn log_path(place: Option<&Path>, rotate: bool) -> py::Result<PathBuf> {
     let mut path = match place {
-        None => default_log_path()?,
+        None => default_log_path(DEFAULT_PORT)?,
         Some(place) => place.to_path_buf(),
     };
     if path.is_dir() {

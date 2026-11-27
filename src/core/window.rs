@@ -19,11 +19,18 @@
 //! find Azahar's window among everybody's, and `pa3ds.core.keys`, to answer a key only while Azahar's
 //! window is in front. It was written twice before it was written once.
 //!
+//! **Which emulator is pa3ds's** where two are open, one per player of the PSS on one machine: the
+//! one listening on the RPC port pa3ds reads (`follow`, `own`). Its windows are the ones in front,
+//! named and closed with; the other's are somebody else's, as any program's are. Until one listens
+//! there, before a game is loaded, every Azahar's windows are.
+//!
 //! Bound by:
 //! - ADR-0021: "in front" is a window showing the game, known by its title.
 //! - ADR-0031: the game's name is the emulator's window title: pa3ds keeps no table of game names.
+//! - ADR-0039: with two emulators open, pa3ds's is the one on its RPC port.
 
 use std::path::{Path, PathBuf};
+use std::sync::{Mutex, PoisonError};
 
 use crate::py;
 
@@ -33,14 +40,40 @@ pub const EMULATOR: &str = "azahar.exe";
 pub const SEPARATOR: &str = " | ";
 
 pub const PROCESS_QUERY_LIMITED_INFORMATION: i64 = 0x1000;
+pub const UDP_TABLE_OWNER_PID: i32 = 1;
+/// Seconds an answer of `own` stands: it is asked on every key and every line said.
+pub const LOOK: f64 = 1.0;
+
+/// The RPC port pa3ds reads (`follow`), 0 for none; and the process `own` found, and when it
+/// looked. One lock for the two, which the Python keeps as module globals.
+static FOLLOWED: Mutex<(u16, (i64, f64))> = Mutex::new((0, (0, -LOOK)));
+
+/// Take the emulator listening on this RPC port for pa3ds's own (`own`).
+pub fn follow(port: u16) {
+    *FOLLOWED.lock().unwrap_or_else(PoisonError::into_inner) = (port, (0, -LOOK));
+}
+
+/// The process listening on the RPC port pa3ds reads, or 0 while none does or none is
+/// followed: with two emulators open, the one that is pa3ds's.
+pub fn own() -> i64 {
+    let mut followed = FOLLOWED.lock().unwrap_or_else(PoisonError::into_inner);
+    let (port, (mut pid, looked)) = *followed;
+    if port != 0 && py::time::monotonic() - looked >= LOOK {
+        pid = listening(port);
+        followed.1 = (pid, py::time::monotonic());
+    }
+    pid
+}
 
 #[cfg(windows)]
 use std::collections::HashMap;
 #[cfg(windows)]
-use std::sync::{LazyLock, Mutex, PoisonError};
+use std::sync::LazyLock;
 
 #[cfg(windows)]
 use windows_sys::Win32::Foundation::{CloseHandle, HWND, LPARAM};
+#[cfg(windows)]
+use windows_sys::Win32::NetworkManagement::IpHelper::GetExtendedUdpTable;
 #[cfg(windows)]
 use windows_sys::Win32::System::Threading::{OpenProcess, QueryFullProcessImageNameW};
 #[cfg(windows)]
@@ -55,18 +88,70 @@ use windows_sys::core::BOOL;
 #[cfg(windows)]
 static NAMES: LazyLock<Mutex<HashMap<i64, String>>> = LazyLock::new(|| Mutex::new(HashMap::new()));
 
-/// The executable behind a window, in lower case, or "" when it cannot be asked.
+/// The process with a UDP socket on this port, which Azahar's RPC server is, or 0.
 #[cfg(windows)]
-pub fn process_of(window: i64) -> String {
+pub fn listening(port: u16) -> i64 {
+    // socket.AF_INET.
+    let af_inet: u32 = 2;
+    let mut size: u32 = 0;
+    // SAFETY: a null table asks only for the size, written into `size`.
+    unsafe {
+        GetExtendedUdpTable(
+            std::ptr::null_mut(),
+            &mut size,
+            0,
+            af_inet,
+            UDP_TABLE_OWNER_PID,
+            0,
+        )
+    };
+    // With room for sockets opened between the two asks.
+    size += 12 * 16;
+    // Words rather than bytes, for the table's alignment.
+    let mut table = vec![0u32; (size as usize).div_ceil(4)];
+    // SAFETY: `table` holds at least `size` bytes, which is what `size` tells the call.
+    if unsafe {
+        GetExtendedUdpTable(
+            table.as_mut_ptr().cast(),
+            &mut size,
+            0,
+            af_inet,
+            UDP_TABLE_OWNER_PID,
+            0,
+        )
+    } != 0
+    {
+        return 0;
+    }
+    // MIB_UDPTABLE_OWNER_PID: a count, then rows of address, port and process, the port in
+    // network order in its first two bytes.
+    for row in 0..table[0] as usize {
+        let (_address, at, pid) = (table[1 + 3 * row], table[2 + 3 * row], table[3 + 3 * row]);
+        if u16::from_be((at & 0xFFFF) as u16) == port {
+            return i64::from(pid);
+        }
+    }
+    0
+}
+
+#[cfg(windows)]
+fn pid(window: i64) -> i64 {
     let mut pid: u32 = 0;
     // SAFETY: `pid` is a live u32 for the call to write the process id into; an invalid window
     // leaves it 0.
     unsafe { GetWindowThreadProcessId(window as usize as HWND, &mut pid) };
-    process_name(pid as i64)
+    i64::from(pid)
 }
 
-/// Whether the window in front is one of the emulator's showing the game: its main
-/// window or a render window, and not one of its dialogs. What the keyboard hook takes a
+/// The executable behind a window, in lower case, or "" when it cannot be asked.
+#[cfg(windows)]
+pub fn process_of(window: i64) -> String {
+    process_name(pid(window))
+}
+
+/// Whether the window in front is one of the emulator's showing the game, pa3ds's own
+/// emulator's where it is known (`own`): its main window or a render window, and not one of
+/// its dialogs. What the keyboard hook takes a
 /// key by (ADR-0022), and what speech keeps quiet by while the player is reading something
 /// else (ADR-0021).
 #[cfg(windows)]
@@ -76,16 +161,15 @@ pub fn in_front(emulator: &str) -> bool {
     if front.is_null() {
         return false;
     }
-    let mut pid: u32 = 0;
-    // SAFETY: as in `process_of`.
-    unsafe { GetWindowThreadProcessId(front, &mut pid) };
+    let pid = pid(front as usize as i64);
     let name = NAMES
         .lock()
         .unwrap_or_else(PoisonError::into_inner)
-        .entry(pid as i64)
-        .or_insert_with(|| process_name(pid as i64))
+        .entry(pid)
+        .or_insert_with(|| process_name(pid))
         .clone();
-    name == emulator && shows_game(&text(front as usize as i64))
+    let mine = own();
+    name == emulator && (mine == 0 || pid == mine) && shows_game(&text(front as usize as i64))
 }
 
 #[cfg(windows)]
@@ -159,19 +243,15 @@ pub fn titles(emulator: &str) -> Vec<String> {
 /// The process behind the emulator's visible windows, or 0 while it has none up.
 #[cfg(windows)]
 pub fn emulator_pid(emulator: &str) -> i64 {
-    let Some(&window) = visible(emulator).first() else {
-        return 0;
-    };
-    let mut pid: u32 = 0;
-    // SAFETY: `pid` is a live u32 for the call to write the process id into.
-    unsafe { GetWindowThreadProcessId(window as usize as HWND, &mut pid) };
-    pid as i64
+    visible(emulator).first().map_or(0, |&window| pid(window))
 }
 
+/// The emulator's visible windows, pa3ds's own (`own`) where it is known.
 #[cfg(windows)]
 fn visible(emulator: &str) -> Vec<i64> {
     struct Each<'a> {
         emulator: &'a str,
+        mine: i64,
         found: Vec<i64>,
     }
 
@@ -184,6 +264,7 @@ fn visible(emulator: &str) -> Vec<i64> {
         if unsafe { IsWindowVisible(window as usize as HWND) } != 0
             && !text(window).is_empty()
             && process_of(window) == this.emulator
+            && (this.mine == 0 || pid(window) == this.mine)
         {
             this.found.push(window);
         }
@@ -192,6 +273,7 @@ fn visible(emulator: &str) -> Vec<i64> {
 
     let mut every = Each {
         emulator,
+        mine: own(),
         found: Vec::new(),
     };
     // SAFETY: `each` matches the callback signature, and `every` outlives the call.
@@ -200,6 +282,11 @@ fn visible(emulator: &str) -> Vec<i64> {
 }
 
 // The runtime is Windows; this keeps the import working elsewhere.
+
+#[cfg(not(windows))]
+pub fn listening(_port: u16) -> i64 {
+    0
+}
 
 #[cfg(not(windows))]
 pub fn process_name(_pid: i64) -> String {
