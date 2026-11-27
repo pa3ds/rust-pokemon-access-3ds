@@ -8,12 +8,8 @@ use indexmap::IndexMap;
 
 use super::fake_rom::TmpDir;
 use super::fake_words::words_in;
-use super::test_field::{
-    Given, HOUSE, ROUTE, TABLE, TOWN, Town, dexnav, field_reader, game,
-};
-use crate::games::common::field::things::{
-    Interactable, MODEL_SOURCE, WARP_SOURCE, place_source,
-};
+use super::test_field::{Given, HOUSE, ROUTE, TABLE, TOWN, Town, dexnav, field_reader, game};
+use crate::games::common::field::things::{Interactable, MODEL_SOURCE, WARP_SOURCE, place_source};
 use crate::games::gen6::field::places::PlaceNames;
 use crate::games::gen6::field::reader::FieldReader;
 use crate::games::gen6::field::zonetable::{INFO_NAME, INFO_SIZE};
@@ -122,10 +118,7 @@ fn test_a_part_of_a_place_is_said_walking_into_it_and_by_the_exits_into_it() -> 
         places.arrived(ROUTE)?,
         named("Southern Route 101", Some("Route 101"))
     );
-    assert_eq!(
-        places.place(ROUTE)?.as_deref(),
-        Some("Southern Route 101")
-    );
+    assert_eq!(places.place(ROUTE)?.as_deref(), Some("Southern Route 101"));
     assert_eq!(places.place(HOUSE)?.as_deref(), Some("Littleroot Town"));
     Ok(())
 }

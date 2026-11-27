@@ -12,14 +12,7 @@ use crate::py::Result;
 const PANEL: i64 = 0x08200000;
 
 /// `piece(box, text, x, y, parent, with_layout)`.
-fn piece_at(
-    r#box: i64,
-    text: &str,
-    x: f64,
-    y: f64,
-    parent: i64,
-    with_layout: bool,
-) -> ScreenText {
+fn piece_at(r#box: i64, text: &str, x: f64, y: f64, parent: i64, with_layout: bool) -> ScreenText {
     ScreenText {
         left: x,
         right: x + (text.chars().count() * 6) as f64,
@@ -259,7 +252,12 @@ fn test_numbers_are_the_plays_while_the_player_plays() {
         piece_at(5, "2 Points", 50.0, 0.0, 0, false),
     ];
     let question = piece_at(4, "Quit the puzzle?", 0.0, -50.0, 0, true);
-    let texts = [more.clone(), gain[0].clone(), gain[1].clone(), question.clone()];
+    let texts = [
+        more.clone(),
+        gain[0].clone(),
+        gain[1].clone(),
+        question.clone(),
+    ];
     let on_screen = [
         puzzle.clone(),
         more.clone(),
@@ -375,11 +373,13 @@ fn test_a_clock_alone_outside_a_game_is_said_only_as_its_layout_comes() {
     );
     let jumped = changed_to(&power[2], "02:57");
     let back = piece_at(4, "02:43", 80.0, 30.0, 6, false);
-    let on_screen = [power[0].clone(), power[1].clone(), jumped.clone(), back.clone()];
-    assert_eq!(
-        polls.on(&[jumped, back], &on_screen),
-        Vec::<String>::new()
-    );
+    let on_screen = [
+        power[0].clone(),
+        power[1].clone(),
+        jumped.clone(),
+        back.clone(),
+    ];
+    assert_eq!(polls.on(&[jumped, back], &on_screen), Vec::<String>::new());
 }
 
 /// A row of O-Power's Active panel coming later in its first second ticked first two polls on,

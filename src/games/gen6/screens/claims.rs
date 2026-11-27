@@ -185,8 +185,7 @@ impl Claims {
                     continue 'texts;
                 }
             }
-            if !(self.own)(text) && !unsaid.contains(&text.r#box) && !unseen.contains(&text.root)
-            {
+            if !(self.own)(text) && !unsaid.contains(&text.r#box) && !unseen.contains(&text.root) {
                 texts.push(text.clone());
             }
         }
@@ -260,7 +259,9 @@ impl Claims {
             .on_screen
             .iter()
             .filter(|piece| {
-                !(self.own)(piece) && !unsaid.contains(&piece.r#box) && !unseen.contains(&piece.root)
+                !(self.own)(piece)
+                    && !unsaid.contains(&piece.r#box)
+                    && !unseen.contains(&piece.root)
             })
             .cloned()
             .collect();

@@ -10,8 +10,7 @@ use indexmap::IndexMap;
 use super::fake_memory::{CODE, FakeClasses, FakeMemory};
 use super::fake_speech::Recorder;
 use super::test_field::{
-    FILE, HOLDER, PC_TILE, POOCHYENA, ROUTE_BLOCK, TOWN, TOWN_BLOCK, TOWN_CHUNK, Town, border,
-    game,
+    FILE, HOLDER, PC_TILE, POOCHYENA, ROUTE_BLOCK, TOWN, TOWN_BLOCK, TOWN_CHUNK, Town, border, game,
 };
 use crate::core::bcsar::Sound;
 use crate::core::clips::Clips;

@@ -44,12 +44,7 @@ fn poll(texts: &[ScreenText]) -> ScreenPoll {
 }
 
 /// The cursor sources' poll, a cursor over `under` where any is given.
-fn polled_with(
-    under: &[ScreenText],
-    unsaid: &[i64],
-    unseen: &[i64],
-    labels: &[&str],
-) -> Polled {
+fn polled_with(under: &[ScreenText], unsaid: &[i64], unseen: &[i64], labels: &[&str]) -> Polled {
     let items = if under.is_empty() {
         Vec::new()
     } else {
@@ -179,7 +174,15 @@ fn test_one_buttons_words_changing_are_said_but_a_page_of_them_is_turned_unsaid(
     );
     let powers: Vec<ScreenText> = [1, 2]
         .iter()
-        .map(|&r#box| bottom(r#box, &format!("Power {}", r#box), PAGE, 50.0 * r#box as f64, true))
+        .map(|&r#box| {
+            bottom(
+                r#box,
+                &format!("Power {}", r#box),
+                PAGE,
+                50.0 * r#box as f64,
+                true,
+            )
+        })
         .collect();
     assert!(
         field(&Buttons::new(&[1, 2]), Some(field_rule()))
@@ -221,10 +224,7 @@ fn test_buttons_are_asked_for_only_where_something_comes_or_a_page_may_turn() ->
 /// (or_pss_singleplayer_2).
 #[test]
 fn test_a_layout_a_cursor_is_over_keeps_its_buttons_words_on_the_field_alone() -> Result<()> {
-    let (bag, save) = (
-        shown(1, "BAG", MENU),
-        bottom(2, "SAVE", MENU, 100.0, false),
-    );
+    let (bag, save) = (shown(1, "BAG", MENU), bottom(2, "SAVE", MENU, 100.0, false));
     let menu = poll(&[bag.clone(), save.clone()]);
     let heard = field(&Buttons::new(&[1, 2]), Some(field_rule())).poll(
         &menu,
@@ -244,11 +244,8 @@ fn test_a_layout_a_cursor_is_over_keeps_its_buttons_words_on_the_field_alone() -
 #[test]
 fn test_a_screen_with_no_rule_keeps_its_buttons_words() -> Result<()> {
     let buttons = Buttons::new(&[1]);
-    let heard = field(&buttons, None).poll(
-        &poll(&[shown(1, "Next", PAGE)]),
-        &polled(&[]),
-        &no_labels(),
-    )?;
+    let heard =
+        field(&buttons, None).poll(&poll(&[shown(1, "Next", PAGE)]), &polled(&[]), &no_labels())?;
     assert!(heard.texts.len() == 1 && heard.quiet.is_empty() && buttons.asked.get() == 0);
     Ok(())
 }
@@ -296,7 +293,7 @@ fn test_a_readers_words_are_left_unsaid_but_heard_and_the_games_own_neither() ->
         &polled_with(&[], &[4], &[TOP], &["BOX 1"]),
         &HashSet::from(["YES".to_string()]),
     )?;
-    assert_eq!(heard.texts, [name.clone()]);
+    assert_eq!(heard.texts, std::slice::from_ref(&name));
     assert_eq!(heard.heard, [hp, name]);
     assert_eq!(
         heard.labels,

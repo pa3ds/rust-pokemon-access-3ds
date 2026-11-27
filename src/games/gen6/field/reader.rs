@@ -889,7 +889,9 @@ impl FieldReader {
             }
             let chunk = match me.terrain.far(column, row)? {
                 None => None,
-                Some(chunk) => Some(laid(&me.terrain, &chunk, stacked, level)?.opened(&far_covered)),
+                Some(chunk) => {
+                    Some(laid(&me.terrain, &chunk, stacked, level)?.opened(&far_covered))
+                }
             };
             made.borrow_mut().insert((column, row), chunk.clone());
             Ok(chunk)

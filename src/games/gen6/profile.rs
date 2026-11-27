@@ -70,9 +70,9 @@ use crate::games::common::{lyt, msgwin, pokemon, strbuf};
 use crate::games::gen6::anchors::Anchors;
 use crate::games::gen6::apps::{BATTLE, DEMOS, FIELD, MANAGER_CLASS, RunningApp, TUTORIAL};
 use crate::games::gen6::field::dowsing::Lights;
-use crate::games::gen6::field::places::PlaceNames;
 use crate::games::gen6::field::features::Sighting;
 use crate::games::gen6::field::footsteps::Footsteps;
+use crate::games::gen6::field::places::PlaceNames;
 use crate::games::gen6::field::reader::{FieldReader, MOVE_MODEL_CLASS};
 use crate::games::gen6::field::speaker::SpeakerReader;
 use crate::games::gen6::field::voice::Voice;
@@ -89,6 +89,7 @@ use crate::games::gen6::screens::battle::{
 use crate::games::gen6::screens::choices::{
     BOX_DEVICE_MANAGER, ChoiceReader, DEVICE_MANAGER_CLASS,
 };
+use crate::games::gen6::screens::claims::{Claims, Owner};
 use crate::games::gen6::screens::habitat::HabitatReader;
 use crate::games::gen6::screens::lists::{CONTROLLER_CLASS, ListReader};
 use crate::games::gen6::screens::mapcursor::MapCursor;
@@ -98,7 +99,6 @@ use crate::games::gen6::screens::sources::{Chase, CursorSources};
 use crate::games::gen6::screens::{
     boxes, buttons, claims, partners, partyicons, pokedex, registered, rows, townmap,
 };
-use crate::games::gen6::screens::claims::{Claims, Owner};
 use crate::games::gen6::subscreen::head_it::Cue;
 use crate::games::gen6::subscreen::{self, Subscreens};
 use crate::games::gen6::{frames, gflheap, mystatus};
@@ -1903,9 +1903,7 @@ impl Gen6Profile {
             // left unsaid: its stats, moves and pocket were read between "Give up trying to make
             // Altaria remember a move?" and its YES (or_move_reminder, a player's log of the
             // Bag). Its cursors still count as said for the chase.
-            heard
-                .texts
-                .retain(|text| text.changed || !text.with_layout);
+            heard.texts.retain(|text| text.changed || !text.with_layout);
             cursors.items.retain(|item| !item.opened);
             title = None;
         }
@@ -2393,7 +2391,11 @@ impl Gen6Profile {
 
 /// `Gen6Profile._pane_named`: the file a word's layout was built from and its pane's name there,
 /// or None where the file is not known: by the layout's tree as last walked, reading nothing.
-fn pane_named(layouts: &Layouts, files: &LayoutFiles, piece: &ScreenText) -> Option<(String, String)> {
+fn pane_named(
+    layouts: &Layouts,
+    files: &LayoutFiles,
+    piece: &ScreenText,
+) -> Option<(String, String)> {
     let names = layouts.pane_names(piece.root);
     let file = files.matching(&names)?;
     let name = layouts

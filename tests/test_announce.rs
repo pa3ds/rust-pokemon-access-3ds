@@ -10,8 +10,8 @@ use super::fake_speech::Recorder;
 use crate::core::speech::{Category, Speech};
 use crate::games::common::announce::{Announcements, FOCUS_HEARD_POLLS, Focus, SPEAKER_POLLS};
 use crate::games::common::battle::Battler;
-use crate::games::common::cursors::shared::{CursorItem, CursorPoll};
 use crate::games::common::clocks::{CLOCK_POLLS, Clocked, Clocks};
+use crate::games::common::cursors::shared::{CursorItem, CursorPoll};
 use crate::games::common::dialogue::{PageShown, Shown};
 use crate::games::common::screen::{ScreenPoll, ScreenText};
 use crate::games::common::screen_announce::{
@@ -1645,7 +1645,14 @@ fn test_the_clocks_are_asked_once_a_poll_of_what_screen_text_would_say() {
         piece_kw(3, "Time Left:", -100.0, 0.0, PANEL, row),
         piece_kw(4, "60", 0.0, 0.0, PANEL, row),
     ];
-    let score = piece_kw(5, "SCORE 7", -100.0, -40.0, PANEL, Kw { parent: 6, ..PLAIN });
+    let score = piece_kw(
+        5,
+        "SCORE 7",
+        -100.0,
+        -40.0,
+        PANEL,
+        Kw { parent: 6, ..PLAIN },
+    );
     let everything = vec![
         item.clone(),
         label.clone(),

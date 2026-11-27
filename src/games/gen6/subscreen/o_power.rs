@@ -35,8 +35,8 @@ use indexmap::IndexMap;
 use crate::core::binary::u32;
 use crate::core::memory::Memory;
 use crate::core::words::own;
-use crate::games::common::screen::{ScreenText, distinct, in_rows, join};
 use crate::games::common::clocks::CLOCK;
+use crate::games::common::screen::{ScreenText, distinct, in_rows, join};
 use crate::games::common::touch::{FileOf, OnScreen};
 use crate::py::{self, Result};
 

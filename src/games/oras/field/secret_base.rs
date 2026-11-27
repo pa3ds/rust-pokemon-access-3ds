@@ -1071,11 +1071,7 @@ fn tiles(here: &Here, inside: Option<&Decorations>) -> Result<Vec<Interactable>>
                 size,
                 code: kind,
                 source: place_source(TILE_SOURCE, cell_number(first))?,
-                ..Interactable::new(
-                    "exits",
-                    base_tile(kind).expect("a base tile's kind"),
-                    first,
-                )
+                ..Interactable::new("exits", base_tile(kind).expect("a base tile's kind"), first)
             });
         }
     }
