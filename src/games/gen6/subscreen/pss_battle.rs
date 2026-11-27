@@ -9,7 +9,9 @@
 //!   once the player has chosen.
 //! - **Command Time is timed** as the clocks of Amie's games are (`common.clocks`): every second a
 //!   tick, `[pa3ds.audio] ticks`, and said at its marks, each half minute and at 10 and each of the
-//!   last 5. Battle Time, running the whole battle, is the player's to ask for.
+//!   last 5. Battle Time, running the whole battle, is the player's to ask for. Followed only after
+//!   the two players' face-to-face, `pss.VS_DEMO`: every battle builds the layout, hidden, and no
+//!   battle of the tapes came from it.
 //!
 //! Each timer is a row of its own, a pane under the layout's root holding its label and its
 //! digits: Battle Time's with a colon among them, Command Time's without. A digit is told by where
@@ -33,6 +35,8 @@ use crate::games::common::layout::Layouts;
 use crate::games::common::lyt;
 use crate::games::common::touch::FileOf;
 use crate::games::gen6::apps::BATTLE;
+use crate::games::gen6::subscreen::pss::VS_DEMO;
+use crate::games::gen6::subscreen::pss_keys::Before;
 use crate::py::{self, Result, sorted_by_lt};
 
 pub const FILE: &str = "btl_time.bclyt";
@@ -59,6 +63,7 @@ pub const TICK: i64 = 2;
 pub struct BattleTimers {
     layouts: Rc<Layouts>,
     file_of: FileOf,
+    before: Before,
     tick: Option<Rc<dyn Fn()>>,
     /// Command Time at the last poll, None while none was shown.
     last: Option<i64>,
@@ -89,11 +94,27 @@ fn most(values: &[f64]) -> f64 {
 }
 
 impl BattleTimers {
-    /// Python's `tick` defaults to None.
+    /// `BattleTimers(layouts, file_of, tick)`: `before` left to its default, `VS_DEMO`.
     pub fn new(layouts: Rc<Layouts>, file_of: FileOf, tick: Option<Rc<dyn Fn()>>) -> Self {
+        BattleTimers::with_before(
+            layouts,
+            file_of,
+            tick,
+            Rc::new(|| Some(VS_DEMO.to_string())),
+        )
+    }
+
+    /// `before` is the app that ran before the one running (`Subscreens.started`).
+    pub fn with_before(
+        layouts: Rc<Layouts>,
+        file_of: FileOf,
+        tick: Option<Rc<dyn Fn()>>,
+        before: Before,
+    ) -> Self {
         BattleTimers {
             layouts,
             file_of,
+            before,
             tick,
             last: None,
             mark: None,
@@ -128,11 +149,11 @@ impl BattleTimers {
         &mut self,
         running: Option<&str>,
     ) -> Result<Vec<(String, String, Option<Category>)>> {
-        let command = if running == Some(BATTLE) {
-            self.timers()?.0
-        } else {
-            None
-        };
+        // Followed only in a battle the two players met face to face for: every battle builds
+        // the timers' layout, hidden, and asking whether it showed was a read more in each,
+        // which a key asks only when pressed.
+        let linked = running == Some(BATTLE) && (self.before)().as_deref() == Some(VS_DEMO);
+        let command = if linked { self.timers()?.0 } else { None };
         let now = match command {
             None => None,
             Some(command) => Some(py::int_base10(&command)?),

@@ -581,7 +581,7 @@ pub struct Subscreens {
     apps: Rc<RefCell<RunningApp>>,
     /// The app running, as of the last `started`.
     now: RefCell<Option<String>>,
-    /// The app that ran before it, shared with `PssKeys`, which asks for it.
+    /// The app that ran before it, shared with `PssKeys` and `BattleTimers`, which ask for it.
     before: Rc<RefCell<Option<String>>>,
     image_of: ImageOf,
     pub(crate) puzzle: Rc<RefCell<TilePuzzle>>,
@@ -956,11 +956,16 @@ impl Subscreens {
             &text.training_stats,
             &text.training_gains,
         ));
+        let before: Rc<RefCell<Option<String>>> = Rc::new(RefCell::new(None));
         // A link battle's timers, which it draws a digit a picture: its Command Time ticks.
-        let timers = Rc::new(RefCell::new(BattleTimers::new(
+        let timers = Rc::new(RefCell::new(BattleTimers::with_before(
             timers_layouts,
             timers_file_of,
             tick,
+            {
+                let before = before.clone();
+                Rc::new(move || before.borrow().clone())
+            },
         )));
         // The page first: Amie's `Player` is read afresh for each poll as the others ask.
         let mut polled: Vec<Rc<dyn Polled>> = vec![
@@ -979,7 +984,6 @@ impl Subscreens {
                 settings.fidgets,
             ))));
         }
-        let before: Rc<RefCell<Option<String>>> = Rc::new(RefCell::new(None));
         let pss_keys = Rc::new(PssKeys::new(
             on_screen_kept,
             file_of_kept,

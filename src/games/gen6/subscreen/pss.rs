@@ -19,6 +19,10 @@ pub const COLOSSEUM: &str = "N3app9colosseum4ProcE";
 /// A trade's party and boxes, each slot an icon and no words, and no summary of the one under the
 /// pointer: its Pokémon went unsaid until opened (the PSS's multiplayer), and are said by name.
 pub const TRADE_LIST: &str = "N6netapp9tradelist4ProcE";
+/// The two players face to face before a battle between them: in both of a link battle's games,
+/// and before no battle of the tapes, which all came from the field or a cutscene (the PSS's
+/// multiplayer).
+pub const VS_DEMO: &str = "N3app7vs_demo4ProcE";
 /// After a trade or a battle in the PSS, "Would you like to do something else with" the other
 /// player, Yes or No: only a tap answers Yes, B alone answering No, and both players had nothing to
 /// touch there (the PSS's multiplayer, spike A).

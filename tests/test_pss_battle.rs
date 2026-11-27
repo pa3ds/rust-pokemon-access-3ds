@@ -226,6 +226,19 @@ fn test_command_time_ticks_every_second_and_is_said_at_its_marks() {
         ["60"]
     );
     assert_eq!(polls(&mut battle, &[Some(5), Some(4)]), ["4"]);
+    // A battle from the field, as every battle of the tapes: nothing followed, though C asks.
+    battle.timers = pss_battle::BattleTimers::with_before(
+        battle.fake.layouts.clone(),
+        Rc::new(|_root| None),
+        Some({
+            let ticks = battle.ticks.clone();
+            Rc::new(move || ticks.set(ticks.get() + 1))
+        }),
+        Rc::new(|| Some(FIELD.to_string())),
+    );
+    let ticks = battle.ticks.get();
+    assert!(polls(&mut battle, &[Some(62), Some(61), Some(60)]).is_empty());
+    assert_eq!(battle.ticks.get(), ticks);
 }
 
 #[test]
