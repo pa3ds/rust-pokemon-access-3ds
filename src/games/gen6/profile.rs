@@ -22,7 +22,7 @@
 //!   wires none itself (`poll_menus`, `poll_screen`).
 
 use std::cell::{Cell, OnceCell, RefCell};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::rc::Rc;
 
 use indexmap::{IndexMap, IndexSet};
@@ -64,8 +64,8 @@ use crate::games::common::scenes::{
     Described, GameClock, Lines, Recall, Scenes, Word, load as load_scenes,
     shipped as scenes_shipped,
 };
-use crate::games::common::screen::{Pictures, ScreenPoll, ScreenText, ScreenTextReader};
-use crate::games::common::screen_announce::ScreenAnnouncer;
+use crate::games::common::screen::{Pictures, ScreenText, ScreenTextReader};
+use crate::games::common::screen_announce::{Heard, ScreenAnnouncer};
 use crate::games::common::session::{Profile, Ways};
 use crate::games::common::slots::Occupant;
 use crate::games::common::touch::{
@@ -101,8 +101,9 @@ use crate::games::gen6::screens::partners::Partners;
 use crate::games::gen6::screens::partyicons::PartyIcons;
 use crate::games::gen6::screens::sources::{Chase, CursorSources};
 use crate::games::gen6::screens::{
-    boxes, buttons, partners, partyicons, pokedex, registered, rows, townmap,
+    boxes, buttons, claims, partners, partyicons, pokedex, registered, rows, townmap,
 };
+use crate::games::gen6::screens::claims::{Claims, Owner};
 use crate::games::gen6::subscreen::head_it::Cue;
 use crate::games::gen6::subscreen::{self, Subscreens};
 use crate::games::gen6::{frames, gflheap, mystatus};
@@ -207,11 +208,6 @@ pub const ANCHOR_EVERY: f64 = 0.2;
 /// within 1.5 s of a zone load or an app starting, the compass turned south and back within 0.8 s
 /// (spike 251).
 pub const ARRIVAL_QUIET: f64 = 1.5;
-/// Buttons of one layout whose words change in a poll, at least, for a page of them turned rather
-/// than one button's words changed: L and R page O-Power's list, its seven at once
-/// (or_pss_o_power_2), where a button changing its own words alone is still said: "Game Chat:
-/// Disabled".
-pub const PAGE_TURNED: i64 = 2;
 
 /// `Gen6Profile.__init__`'s arguments after `memory`, `names`, `speech`, `log` and the keyword
 /// `game`, each as the Python defaults it: set what differs with `..Options::default()`.
@@ -288,7 +284,7 @@ pub struct Gen6Profile {
     /// while a battle is up (spike 57). Its gauges say which Pokémon each HP panel shows.
     pub battlers: Rc<Battlers>,
     pub gauges: Rc<Gauges>,
-    pub battle: RefCell<BattleReader>,
+    pub battle: Rc<RefCell<BattleReader>>,
     /// How many Pokémon a trainer has, from the tray of balls its battle opens with (spike 285),
     /// said or beeped as the player chose.
     pub opponents: Option<RefCell<OpponentsParty>>,
@@ -336,8 +332,6 @@ pub struct Gen6Profile {
     pub footsteps: Option<RefCell<Footsteps>>,
     /// Python's `self.touch` is the navigator's `touch`, which it owns here.
     pub navigator: RefCell<Navigator>,
-    /// The touch targets touch mode walks, asked which words name a button (`button_words`).
-    touch_targets: Rc<RefCell<TouchTargets>>,
     log: Log,
     speech: Rc<Speech>,
     /// Gen 6's own field voices: the Dowsing Machine's lights, in a game where they have been
@@ -378,7 +372,9 @@ pub struct Gen6Profile {
     /// descriptions in their language (ADR-0038).
     pub scenes: Option<RefCell<Scenes>>,
     /// The Pokédex's habitat map draws the Pokémon's places and never names them (spike 152).
-    pub habitat: RefCell<HabitatReader>,
+    pub habitat: Rc<RefCell<HabitatReader>>,
+    /// Whose words (`gen6.screens.claims`).
+    pub claims: Claims,
     /// (work, root) of every layout whose files have been looked for since an app started.
     archived: RefCell<HashSet<(i64, i64)>>,
     /// The zone the player was last polled in.
@@ -1283,6 +1279,37 @@ impl Gen6Profile {
             log.clone(),
             ui.pauses,
         );
+        let battle = Rc::new(RefCell::new(battle));
+        let habitat = Rc::new(RefCell::new(habitat));
+        // Whose words: the HP boxes are the battle reader's to say, whole and once they hold
+        // still; the AreaNav's Pokémon Distribution's icons the game's own; a button's the
+        // touch target's.
+        let claims = Claims::new(
+            vec![
+                {
+                    let battle = battle.clone();
+                    Rc::new(move |text: &ScreenText| battle.borrow().owns(text)) as Owner
+                },
+                {
+                    let habitat = habitat.clone();
+                    Rc::new(move |text: &ScreenText| Ok(habitat.borrow().owns(text))) as Owner
+                },
+            ],
+            {
+                let alone = alone.clone();
+                Rc::new(move |text: &ScreenText| alone.owns(text))
+            },
+            {
+                let targets = touch_targets.clone();
+                Rc::new(move || targets.borrow_mut().button_words())
+            },
+            {
+                let (apps, subscreens) = (apps.clone(), subscreens.clone());
+                Rc::new(move || {
+                    claims::rule(apps.borrow().running.as_deref(), &|| subscreens.in_pss())
+                })
+            },
+        );
         // The rival is a work object in RAM and a name in the ROM, and so are some doors' buildings:
         // the game's own word, behind whatever the player has called them and ahead of pa3ds's.
         let sprite: GameSprite = {
@@ -1321,7 +1348,7 @@ impl Gen6Profile {
             cursors: RefCell::new(cursors),
             battlers,
             gauges,
-            battle: RefCell::new(battle),
+            battle,
             opponents,
             party_beeped,
             tones: beeping,
@@ -1343,7 +1370,6 @@ impl Gen6Profile {
             map_cursor: RefCell::new(map_cursor),
             footsteps,
             navigator: RefCell::new(navigator),
-            touch_targets,
             log,
             speech,
             voices,
@@ -1361,7 +1387,8 @@ impl Gen6Profile {
             announcements,
             screen_announcer: RefCell::new(screen_announcer),
             scenes,
-            habitat: RefCell::new(habitat),
+            habitat,
+            claims,
             archived: RefCell::new(HashSet::new()),
             zone: Cell::new(None),
             unheard: RefCell::new(HashSet::new()),
@@ -1796,8 +1823,6 @@ impl Gen6Profile {
     /// `poll_screen(hold, with_choices)`. Named apart from `poll_screen` because the runtime's
     /// `Profile::poll_screen` takes neither.
     pub fn poll_screen_with(&self, hold: bool, with_choices: bool) -> Result<()> {
-        // Words on screen the game's own says: the AreaNav's Pokémon Distribution's icons.
-        let owned = |piece: &ScreenText| self.own.owns(piece);
         let polled = phase(&*self.memory, "screen", || {
             // The field's layouts come back where they were when a menu screen closes, and a
             // layout found before it was built is taken in once it is.
@@ -1854,10 +1879,9 @@ impl Gen6Profile {
             Ok((screen, sides, party, listed, played, polled))
         })?;
         let (screen, sides, party, listed, played, polled) = polled;
-        let mut cursors = polled.cursors;
         self.moving
-            .set(self.moving.get() || !cursors.items.is_empty());
-        self.cursor_said.set(!cursors.items.is_empty());
+            .set(self.moving.get() || !polled.cursors.items.is_empty());
+        self.cursor_said.set(!polled.cursors.items.is_empty());
         for (logged, line, category) in &played {
             (self.log)(&format!("{logged}: {line}"));
             if let Some(category) = category {
@@ -1870,79 +1894,11 @@ impl Gen6Profile {
         }
         let mut labels = self.lists.borrow().labels();
         labels.extend(self.announcements.borrow_mut().recent_labels());
-        labels.extend(polled.labels);
         if with_choices {
             labels.extend(self.choices.borrow().labels());
         }
-        let (unseen, unsaid) = (polled.unseen, polled.unsaid);
-        let mut texts: Vec<ScreenText> = Vec::new();
-        for text in &screen.texts {
-            if !self.battle.borrow().owns(text)?
-                && !self.habitat.borrow().owns(text)
-                && !owned(text)
-                && !unsaid.contains(&text.r#box)
-                && !unseen.contains(&text.root)
-            {
-                texts.push(text.clone());
-            }
-        }
-        // The field's bottom screen is touched, never walked with a cursor: a button's words are
-        // touch mode's, which says them as each target. Read as they came, the PSS said "Friends
-        // Acquaintances Passersby" each time it came back, and its menu "Battle Trade Battle Spot"
-        // (or_pss_singleplayer). Words changing in a button are still said: "Game Chat:
-        // Disabled". Not a cursor's: the X menu's are its items. Only as they come: what the
-        // screen announcer hears whole, Amie's Switch screen read each Pokémon's Fullness and
-        // Enjoyment from, as details. The PSS's own apps are its screens too: its profile said
-        // "Message: Nice to meet ya!" as it opened (or_pss_singleplayer_2).
-        let mut quiet: HashSet<i64> = HashSet::new();
-        let running = self.apps.borrow().running.clone();
-        let on_field = running.as_deref() == Some(FIELD);
-        // `Counter(not t.changed for t in texts if not t.top)`: the bottom screen's words come or
-        // came back (True), and changed (False).
-        let bottom = |shown: bool| -> i64 {
-            texts
-                .iter()
-                .filter(|t| !t.top && !t.changed == shown)
-                .count() as i64
-        };
-        if (on_field || self.subscreens.in_pss())
-            && (bottom(true) > 0 || bottom(false) >= PAGE_TURNED)
-        {
-            let buttons = self.touch_targets.borrow_mut().button_words()?;
-            // The PSS's apps have no menu: the profile's Message row, lit as it came back from
-            // its messages, kept its words for the cursor it was taken for.
-            let cursored: HashSet<i64> = if on_field {
-                cursors
-                    .under
-                    .iter()
-                    .flatten()
-                    .map(|piece| piece.root)
-                    .collect()
-            } else {
-                HashSet::new()
-            };
-            // Unless a layout's buttons change two or more at once: a page turned, touch mode's to
-            // offer. L and R page O-Power's list, and its seven powers were read as they came
-            // (or_pss_o_power_2).
-            let mut changed: HashMap<i64, i64> = HashMap::new();
-            for text in &texts {
-                if !text.top && text.changed && buttons.contains(&text.r#box) {
-                    *changed.entry(text.root).or_default() += 1;
-                }
-            }
-            texts.retain(|text| {
-                text.top
-                    || !buttons.contains(&text.r#box)
-                    || (text.changed && changed.get(&text.root).copied().unwrap_or(0) < PAGE_TURNED)
-                    || cursored.contains(&text.root)
-            });
-            quiet = screen
-                .on_screen
-                .iter()
-                .filter(|piece| buttons.contains(&piece.r#box) && !cursored.contains(&piece.root))
-                .map(|piece| piece.r#box)
-                .collect();
-        }
+        let mut heard = self.claims.poll(&screen, &polled, &labels)?;
+        let mut cursors = polled.cursors;
         let mut title = polled.title;
         if self.after_forget.get().is_some() {
             // Back from Move to forget, the Bag or the Move Reminder is built again as the player
@@ -1950,49 +1906,33 @@ impl Gen6Profile {
             // left unsaid: its stats, moves and pocket were read between "Give up trying to make
             // Altaria remember a move?" and its YES (or_move_reminder, a player's log of the
             // Bag). Its cursors still count as said for the chase.
-            texts.retain(|text| text.changed || !text.with_layout);
+            heard
+                .texts
+                .retain(|text| text.changed || !text.with_layout);
             cursors.items.retain(|item| !item.opened);
             title = None;
         }
-        // The Distribution's icons are not gathered with the rest of their screen either: a
-        // rewrite reads again the groups it has met.
-        let heard: Vec<ScreenText> = screen
-            .on_screen
-            .iter()
-            .filter(|piece| {
-                !owned(piece) && !unsaid.contains(&piece.r#box) && !unseen.contains(&piece.root)
-            })
-            .cloned()
-            .collect();
-        let said = self.sources.borrow().said(cursors, texts, &heard);
-        let cursors = said.cursors;
+        let (cursors, heard) = self.sources.borrow().said(cursors, heard);
         // O-Power's Active panel turns between its field and battle powers by itself, as the
         // PSS's profile turns its counts (or_pss_o_power_2): the subscreens say where.
-        let turns = self.subscreens.turns();
+        let heard = Heard {
+            turns: self.subscreens.turns(),
+            ..heard
+        };
         // A layout built again where it was is the one that was there, and a menu stays a menu:
         // the battle's move list, forgotten while it was gone, was read out whole the moment it
         // showed.
         let mut roots = self.layouts.roots();
         roots.extend(self.layouts.buried());
-        let poll = ScreenPoll {
-            texts: said.texts,
-            on_screen: heard,
-            ..screen.clone()
-        };
         let subject = || self.sources.borrow().subject();
         self.screen_announcer.borrow_mut().say(
-            &poll,
+            &screen,
             &cursors,
-            &labels,
+            &heard,
             Some(&roots),
             Some(&subject),
             Some(&polled.chosen),
             title.as_deref(),
-            &said.lead,
-            &said.reread,
-            &said.rewritten,
-            &quiet,
-            turns,
         )?;
         for (logged, line) in &polled.after {
             (self.log)(&format!("{logged}: {line}"));
@@ -2023,7 +1963,7 @@ impl Gen6Profile {
             .collect();
         let waiting = self.screen_announcer.borrow().gathering();
         self.own
-            .last(&under, &poll.on_screen, &screen.settling, waiting)?;
+            .last(&under, &heard.heard, &screen.settling, waiting)?;
         if let Some(party) = party {
             (self.log)(&format!("battle party: {party}"));
             if !self.party_beeped {

@@ -489,8 +489,7 @@ impl Pages {
     }
 
     /// The roots of the page turned to a poll ago, drawn afresh since, or none: its words are
-    /// said as a screen opening's are, the first cutting off the page before
-    /// (`ScreenAnnouncer.say`'s `lead`).
+    /// said as a screen opening's are, the first cutting off the page before (`Heard.lead`).
     pub fn turned(&self) -> HashSet<i64> {
         match self.page {
             Some(page) if self.since == 1 => self.roots(self.shape.lists[page].2),

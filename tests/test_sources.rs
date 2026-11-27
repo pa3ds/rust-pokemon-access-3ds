@@ -14,6 +14,7 @@ use crate::games::common::cursors::shared::{CursorItem, CursorPoll};
 use crate::games::common::layout_file::LayoutFiles;
 use crate::games::common::pokemon::Pokemon;
 use crate::games::common::screen::{ScreenPoll, ScreenText};
+use crate::games::common::screen_announce::Heard;
 use crate::games::gen6::apps::RunningApp;
 use crate::games::gen6::game::CursorShapes;
 use crate::games::gen6::own::Nothing;
@@ -169,10 +170,9 @@ fn test_the_fitting_rooms_cursor_owns_the_layouts_it_walks_as_they_open() {
         std::slice::from_ref(&tab),
     );
     let fitting = sources_of(rows::FITTING, Rc::new(Cell::new(None)));
-    let said = fitting.said(
+    let (_cursors_left, said) = fitting.said(
         cursors.clone(),
-        vec![card.clone(), changed.clone(), other.clone()],
-        &[],
+        Heard::new(vec![card.clone(), changed.clone(), other.clone()], vec![]),
     );
     assert_eq!(said.texts, vec![changed.clone(), other.clone()]);
     assert!(said.lead == said.reread && said.reread == said.rewritten && said.rewritten.is_empty());
@@ -181,9 +181,9 @@ fn test_the_fitting_rooms_cursor_owns_the_layouts_it_walks_as_they_open() {
         elsewhere
             .said(
                 cursors,
-                vec![card.clone(), changed.clone(), other.clone()],
-                &[]
+                Heard::new(vec![card.clone(), changed.clone(), other.clone()], vec![])
             )
+            .1
             .texts,
         vec![card, changed, other]
     );

@@ -44,8 +44,8 @@
 //!   seconds alone, O-Power's "02:58", are left unsaid as they tick and as they settle in their
 //!   layout's first second.
 //! - **A row a screen turns back and forth by itself is said once each way**, where the screen is
-//!   known to: the PSS's profile turns between its counts of people met every 3.4 s (`say`'s
-//!   `turns`). A row back beside new words in its layout is no turn.
+//!   known to: the PSS's profile turns between its counts of people met every 3.4 s
+//!   (`Heard.turns`). A row back beside new words in its layout is no turn.
 //! - **A game's score is the player's to ask for** (players, 2026-11-04): Head It's
 //!   score, combo and "MISS!", which come at every ball, faster than they can be said, are left
 //!   unsaid and never taken for a clock, its combo one up a second apart; where the player asks to
@@ -154,6 +154,55 @@ pub const AGAIN_POLLS: i64 = 15;
 /// A layout root and the pane a group of pieces hangs from, or the frame drawn round words hanging
 /// from the root itself (`ScreenText.group`).
 pub type Panel = (i64, i64);
+
+/// A screen poll's words as the readers that say some of them leave them to screen text, and
+/// how it is to hear them (`ScreenAnnouncer.say`; gen 6 decides it in `gen6.screens.claims`).
+///
+/// Python's `Heard(texts, heard)` is `Heard::new`, the rest none and False: set what differs
+/// with `..Heard::new(texts, heard)`.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Heard {
+    /// What came on screen or changed, less what another says.
+    pub texts: Vec<ScreenText>,
+    /// Every word on screen screen text hears beside them, the words a reader of their own says
+    /// among them: the battle's HP boxes, beside which its other panels are read.
+    pub heard: Vec<ScreenText>,
+    /// The list readers' labels, and words a cursor source has said: left out everywhere.
+    pub labels: HashSet<String>,
+    /// The boxes whose words another says, as touch mode says a button's as its target
+    /// (ADR-0013): never brought back with a screen coming back to their layout. The PSS's
+    /// profile, back from its messages, read its Message and its card again with its History.
+    pub quiet: HashSet<i64>,
+    /// The roots of layouts a screen has just turned to, whose words come on screen as a screen
+    /// opening's do: the first of them said is said as a cursor's move is, cutting off what the
+    /// screen said before, and the rest queued behind it. A summary page turned to was queued
+    /// behind the last page's rest, and turning on through the pages heard each page whole
+    /// (`summary.Pages`).
+    pub lead: HashSet<i64>,
+    /// The roots of layouts whose words are heard as a screen coming back is, whole and as they
+    /// stand, written again or not: a summary page turned to, and the button under it a poll
+    /// later.
+    pub reread: HashSet<i64>,
+    /// The roots whose words are heard as changed, a rewrite: a summary page changed with the
+    /// Pokémon, an Egg's memo or the stats after it.
+    pub rewritten: HashSet<i64>,
+    /// The screen may turn rows back and forth by itself: a row back to the words it had before
+    /// its last change, about as long after it as that change came after the one before, is left
+    /// unsaid. The PSS's profile turns "Total number of people met: 4" and "Number of people met
+    /// today: 0" every 3.4 s, and each turn was read (or_pss_singleplayer_2). Not everywhere: the
+    /// summary turned back to a Pokémon at a player's steady pace would go unsaid.
+    pub turns: bool,
+}
+
+impl Heard {
+    pub fn new(texts: Vec<ScreenText>, heard: Vec<ScreenText>) -> Self {
+        Heard {
+            texts,
+            heard,
+            ..Heard::default()
+        }
+    }
+}
 
 /// The details of the item a cursor has just moved to, gathered until they settle.
 struct Gathering {
@@ -401,11 +450,11 @@ impl ScreenAnnouncer {
         self.speech.say(name, Category::Screen);
     }
 
-    /// Say one poll's worth: what the `screen` text reader and the `cursors` reader found, less
-    /// what other readers own, the list readers' `labels`, the `roots` of every layout still
-    /// alive, so a menu whose layout is gone is forgotten, and the `subject`, asked only as a
-    /// screen is rewritten, for the name of what it shows where that is known: the summary's
-    /// Pokémon's.
+    /// Say one poll's worth: what the `screen` text reader and the `cursors` reader found, its
+    /// words as the readers that say some of them leave them (`words`, whose texts and heard are
+    /// said of the screen in place of its own), the `roots` of every layout still alive, so a
+    /// menu whose layout is gone is forgotten, and the `subject`, asked only as a screen is
+    /// rewritten, for the name of what it shows where that is known: the summary's Pokémon's.
     ///
     /// `chosen` gives a cursor's **cursor source**: the name of the item its screen's own
     /// objects say it is on, as the Bag's do (`gen6.screens.bag`). Its details are said the poll
@@ -428,56 +477,27 @@ impl ScreenAnnouncer {
     /// pictures alone owns those pictures: the AreaNav's tabs are drawn in its bar's layout, and
     /// left to them its View Details was never heard (or_area_nav).
     ///
-    /// `lead` is the roots of layouts a screen has just turned to, whose words come on screen
-    /// as a screen opening's do: the first of them said is said as a cursor's move is, cutting
-    /// off what the screen said before, and the rest queued behind it. A summary page turned to
-    /// was queued behind the last page's rest, and turning on through the pages heard each page
-    /// whole (`summary.Pages`).
+    /// How the words are heard, a screen turned to, coming back or rewritten, the boxes another
+    /// says and a screen turning its rows by itself, is `Heard`'s.
     ///
-    /// `reread` is the roots of layouts whose words are heard as a screen coming back is, whole
-    /// and as they stand, written again or not: a summary page turned to, and the button under
-    /// it a poll later. `rewritten` is the roots whose words are heard as changed, a rewrite: a
-    /// summary page changed with the Pokémon, an Egg's memo or the stats after it.
-    ///
-    /// `quiet` is the boxes whose words another says, as touch mode says a button's as its target
-    /// (ADR-0013): never brought back with a screen coming back to their layout. The PSS's profile,
-    /// back from its messages, read its Message and its card again with its History.
-    ///
-    /// `turns` says the screen may turn rows back and forth by itself: a row back to the words
-    /// it had before its last change, about as long after it as that change came after the one
-    /// before, is left unsaid. The PSS's profile turns "Total number of people met: 4" and
-    /// "Number of people met today: 0" every 3.4 s, and each turn was read
-    /// (or_pss_singleplayer_2). Not everywhere: the summary turned back to a Pokémon at a
-    /// player's steady pace would go unsaid.
-    ///
-    /// Python's `roots`, `subject`, `chosen` and `title` default to None, `lead`, `reread`,
-    /// `rewritten` and `quiet` to none, and `turns` to False.
+    /// Python's `roots`, `subject`, `chosen` and `title` default to None.
     #[allow(clippy::too_many_arguments)]
     pub fn say(
         &mut self,
         screen: &ScreenPoll,
         cursors: &CursorPoll,
-        labels: &HashSet<String>,
+        words: &Heard,
         roots: Option<&IndexSet<i64>>,
         subject: Option<Subject>,
         chosen: Option<&IndexMap<i64, String>>,
         title: Option<&str>,
-        lead: &HashSet<i64>,
-        reread: &HashSet<i64>,
-        rewritten: &HashSet<i64>,
-        quiet: &HashSet<i64>,
-        turns: bool,
     ) -> Result<()> {
         self.polls += 1;
-        self.lead = lead.clone();
+        let (labels, quiet, turns) = (&words.labels, &words.quiet, words.turns);
+        self.lead = words.lead.clone();
         self.chosen = chosen.cloned().unwrap_or_default();
-        let (texts, on_screen, settling, left) = (
-            &screen.texts,
-            &screen.on_screen,
-            &screen.settling,
-            &screen.left,
-        );
-        let texts = &hinted(texts, on_screen, reread, rewritten);
+        let (on_screen, settling, left) = (&words.heard, &screen.settling, &screen.left);
+        let texts = &hinted(&words.texts, on_screen, &words.reread, &words.rewritten);
         for piece in texts.iter().chain(left.iter()) {
             self.words_said.shift_remove(&piece.r#box);
         }
@@ -1079,7 +1099,7 @@ impl ScreenAnnouncer {
     }
 
     /// The boxes of `texts` back to the words they had before their last change, about as
-    /// long after it as it came after the one before (`say`'s `turns`).
+    /// long after it as it came after the one before (`Heard.turns`).
     fn turned(&mut self, texts: &[ScreenText], turns: bool) -> HashSet<i64> {
         if !turns {
             self.writes.clear();

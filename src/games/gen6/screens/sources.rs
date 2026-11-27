@@ -37,6 +37,7 @@ use crate::games::common::layout::Layouts;
 use crate::games::common::layout_file::LayoutFiles;
 use crate::games::common::pokemon::Pokemon;
 use crate::games::common::screen::{ScreenPoll, ScreenText};
+use crate::games::common::screen_announce::Heard;
 use crate::games::gen6::apps::RunningApp;
 use crate::games::gen6::game::CursorShapes;
 use crate::games::gen6::rom::archives::GameText;
@@ -103,20 +104,6 @@ pub struct Polled {
     pub unseen: HashSet<i64>,
     /// Words the screen should leave unsaid this poll: the boxes' names the Box has said.
     pub labels: HashSet<String>,
-}
-
-/// The poll's cursors and words as the sources leave them, and how the announcer is to hear
-/// them (`ScreenAnnouncer.say`).
-#[derive(Debug, Clone, PartialEq)]
-pub struct Said {
-    pub cursors: CursorPoll,
-    pub texts: Vec<ScreenText>,
-    /// The roots whose first word said cuts off what was said before.
-    pub lead: HashSet<i64>,
-    /// The roots heard as a screen coming back, whole and as they stand.
-    pub reread: HashSet<i64>,
-    /// The roots heard as changed, a rewrite.
-    pub rewritten: HashSet<i64>,
 }
 
 /// What the cursor sources ask of a game's own (`gen6.own.Own`), the lists its town map
@@ -505,9 +492,9 @@ impl CursorSources {
     }
 
     /// The poll's cursors and words, filtered, as the sources have the last word on them, and
-    /// how the announcer is to hear them. `heard` is every word on screen to be heard.
-    pub fn said(&self, cursors: CursorPoll, texts: Vec<ScreenText>, heard: &[ScreenText]) -> Said {
-        let mut out = texts;
+    /// how the announcer is to hear them.
+    pub fn said(&self, cursors: CursorPoll, mut heard: Heard) -> (CursorPoll, Heard) {
+        let mut out = std::mem::take(&mut heard.texts);
         if self.apps.borrow().running.as_deref() == Some(rows::FITTING) {
             // The fitting room's cursor walks its tabs, pictures, and on into the list and the
             // buttons drawn in their layout, which open with it as a menu's do: owning the tab
@@ -527,16 +514,20 @@ impl CursorSources {
         // with the Pokémon, an Egg's or the one after it, is said as a switch is: the name, then
         // the rest, its layouts coming back to the screen part of it.
         let turned = self.summary.turned();
-        let cursors = self.summary.rowed(cursors, heard);
+        let cursors = self.summary.rowed(cursors, &heard.heard);
         let mut reread = turned.clone();
         reread.extend(self.summary.button());
-        Said {
+        let rewritten = self.summary.switched();
+        (
             cursors,
-            texts: out,
-            lead: turned,
-            reread,
-            rewritten: self.summary.switched(),
-        }
+            Heard {
+                texts: out,
+                lead: turned,
+                reread,
+                rewritten,
+                ..heard
+            },
+        )
     }
 
     /// The name of what a rewrite shows, where a source knows it: the summary's Pokémon.

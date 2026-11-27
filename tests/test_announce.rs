@@ -15,7 +15,7 @@ use crate::games::common::dialogue::{PageShown, Shown};
 use crate::games::common::screen::{ScreenPoll, ScreenText};
 use crate::games::common::screen_announce::{
     ARRIVAL_MAX_POLLS, CLOCK_POLLS, CURSOR_HEARD_POLLS, DETAIL_MAX_POLLS, DETAIL_POLLS,
-    LABEL_POLLS, PLACE_POLLS, REPEAT_POLLS, Scored, ScreenAnnouncer,
+    Heard, LABEL_POLLS, PLACE_POLLS, REPEAT_POLLS, Scored, ScreenAnnouncer,
 };
 use crate::py::{Log, Result};
 
@@ -58,6 +58,34 @@ fn piece_kw(r#box: i64, text: &str, x: f64, y: f64, root: i64, kw: Kw) -> Screen
 
 fn piece(r#box: i64, text: &str, x: f64, y: f64, root: i64) -> ScreenText {
     piece_kw(r#box, text, x, y, root, PLAIN)
+}
+
+/// The poll's words, all of them screen text's: `heard(poll, labels, reread, rewritten, turns)`.
+fn heard_with(
+    poll: &ScreenPoll,
+    labels: &HashSet<String>,
+    reread: &HashSet<i64>,
+    rewritten: &HashSet<i64>,
+    turns: bool,
+) -> Heard {
+    Heard {
+        labels: labels.clone(),
+        reread: reread.clone(),
+        rewritten: rewritten.clone(),
+        turns,
+        ..Heard::new(poll.texts.clone(), poll.on_screen.clone())
+    }
+}
+
+/// `heard(poll)`.
+fn heard(poll: &ScreenPoll) -> Heard {
+    heard_with(
+        poll,
+        &HashSet::new(),
+        &HashSet::new(),
+        &HashSet::new(),
+        false,
+    )
 }
 
 /// `replace(p, changed=True)`.
@@ -168,15 +196,26 @@ impl Screen {
         let before = self.backend.spoken().len();
         let under: Vec<Vec<ScreenText>> =
             given.items.iter().map(|item| item.pieces.clone()).collect();
+        let poll = ScreenPoll {
+            texts: given.texts.clone(),
+            on_screen: given.on_screen.clone(),
+            left: given.left.clone(),
+            settling: given.settling.clone(),
+            message_lines: IndexSet::new(),
+        };
+        let words = Heard {
+            lead: given.lead.clone(),
+            ..heard_with(
+                &poll,
+                &given.labels,
+                &given.reread,
+                &given.rewritten,
+                given.turns,
+            )
+        };
         self.announcer
             .say(
-                &ScreenPoll {
-                    texts: given.texts.clone(),
-                    on_screen: given.on_screen.clone(),
-                    left: given.left.clone(),
-                    settling: given.settling.clone(),
-                    message_lines: IndexSet::new(),
-                },
+                &poll,
                 &CursorPoll {
                     items: given.items.clone(),
                     under,
@@ -185,16 +224,11 @@ impl Screen {
                     rows: given.rows.clone(),
                     chased: given.chased,
                 },
-                &given.labels,
+                &words,
                 given.roots.as_ref(),
                 given.subject.as_deref(),
                 given.chosen.as_ref(),
                 given.title.as_deref(),
-                &given.lead,
-                &given.reread,
-                &given.rewritten,
-                &HashSet::new(),
-                given.turns,
             )
             .unwrap();
         self.backend.spoken()[before..].to_vec()
@@ -3361,28 +3395,24 @@ fn test_words_under_a_cursor_that_settle_after_it_spoke_are_not_said_again() {
     screen.say(args(&[], items, &one(&potion)));
     let under = vec![vec![potion.clone()]];
     let before = screen.backend.spoken().len();
+    let poll = ScreenPoll {
+        texts: one(&potion),
+        on_screen: one(&potion),
+        ..ScreenPoll::default()
+    };
     screen
         .announcer
         .say(
-            &ScreenPoll {
-                texts: one(&potion),
-                on_screen: one(&potion),
-                ..ScreenPoll::default()
-            },
+            &poll,
             &CursorPoll {
                 under,
                 ..CursorPoll::default()
             },
-            &HashSet::new(),
+            &heard(&poll),
             None,
             None,
             None,
             None,
-            &HashSet::new(),
-            &HashSet::new(),
-            &HashSet::new(),
-            &HashSet::new(),
-            false,
         )
         .unwrap();
     assert_eq!(screen.backend.spoken()[before..], NOTHING);
@@ -3740,30 +3770,26 @@ fn listed(
     let under: Vec<Vec<ScreenText>> = items.iter().map(|item| item.pieces.clone()).collect();
     let lists: IndexMap<i64, HashSet<i64>> =
         IndexMap::from([(MART, rows.iter().map(|p| p.r#box).collect())]);
+    let poll = ScreenPoll {
+        texts: texts.to_vec(),
+        on_screen: on_screen.to_vec(),
+        ..ScreenPoll::default()
+    };
     screen
         .announcer
         .say(
-            &ScreenPoll {
-                texts: texts.to_vec(),
-                on_screen: on_screen.to_vec(),
-                ..ScreenPoll::default()
-            },
+            &poll,
             &CursorPoll {
                 items: items.to_vec(),
                 under,
                 lists,
                 ..CursorPoll::default()
             },
-            &HashSet::new(),
+            &heard(&poll),
             None,
             None,
             None,
             None,
-            &HashSet::new(),
-            &HashSet::new(),
-            &HashSet::new(),
-            &HashSet::new(),
-            false,
         )
         .unwrap();
     screen.backend.spoken()[before..].to_vec()

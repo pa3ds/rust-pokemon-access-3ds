@@ -38,8 +38,8 @@ use crate::games::common::field::things::{Field, Interactable, describe};
 use crate::games::common::layout::Layouts;
 use crate::games::common::lyt as common_lyt;
 use crate::games::common::scenes::{Scene, Scenes};
-use crate::games::common::screen::{ScreenPoll, ScreenText, ScreenTextReader};
-use crate::games::common::screen_announce::ScreenAnnouncer;
+use crate::games::common::screen::{ScreenText, ScreenTextReader};
+use crate::games::common::screen_announce::{Heard, ScreenAnnouncer};
 use crate::games::common::session::Profile;
 use crate::games::sm::apps::{self, RunningApp};
 use crate::games::sm::battle::{self, SunBattleReader};
@@ -381,18 +381,13 @@ impl SunProfile {
             let mut roots = self.layouts.roots();
             roots.extend(self.layouts.buried());
             self.screen_announcer.borrow_mut().say(
-                &ScreenPoll { texts, ..screen },
+                &screen,
                 &cursors,
-                &HashSet::new(),
+                &Heard::new(texts, screen.on_screen.clone()),
                 Some(&roots),
                 None,
                 None,
                 None,
-                &HashSet::new(),
-                &HashSet::new(),
-                &HashSet::new(),
-                &HashSet::new(),
-                false,
             )?;
         }
         self.announcements.borrow_mut().battlers(&sides);

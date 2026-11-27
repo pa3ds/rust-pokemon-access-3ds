@@ -53,8 +53,9 @@
 //! `Subscreens.offered`), where Shift alone drags (`DRAGS`), and where a drag is made only on
 //! letting go, at the pace of the game's clock (`Subscreens.delayed`, `Subscreens.pace`). So is
 //! what the screen announcer asks of their apps: whether one of Amie's games times the player
-//! (`Subscreens.timed`) and is mid-play (`Subscreens.playing`); and the profile, whether one of the
-//! PSS's own apps runs, whose buttons' words are touch mode's (`Subscreens.in_pss`).
+//! (`Subscreens.timed`) and is mid-play (`Subscreens.playing`); and what the claims on a screen's
+//! words ask (`gen6.screens.claims`): whether one of the PSS's own apps runs, whose buttons' words
+//! are touch mode's (`Subscreens.in_pss`).
 //!
 //! Bound by:
 //! - ADR-0009: touch mode offers targets in the subscreens' apps that need a touch, Shift alone
@@ -1034,9 +1035,9 @@ impl Subscreens {
         pss::running(self.running().as_deref())
     }
 
-    /// Whether the screen turns rows back and forth by itself (`ScreenAnnouncer.say`'s
-    /// `turns`): one of the PSS's own apps, whose profile turns its counts of people met, or
-    /// O-Power's list or Active panel up on the field, the panel turning between its field
+    /// Whether the screen turns rows back and forth by itself (`Heard.turns`): one of the
+    /// PSS's own apps, whose profile turns its counts of people met, or O-Power's list or
+    /// Active panel up on the field, the panel turning between its field
     /// powers and its battle powers, the page showing kept there for R (`OPower.poll`). Asked
     /// once a screen poll, outside the screen's phase, which would fetch O-Power's pages every
     /// poll after.

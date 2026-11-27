@@ -34,3 +34,5 @@ pub mod pokedex;
 pub mod scrolled;
 
 pub mod sources;
+
+pub mod claims;
