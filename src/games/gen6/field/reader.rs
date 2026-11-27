@@ -276,11 +276,12 @@ pub struct FieldReader {
     warp_words: IndexMap<i64, String>,
     /// The warp kinds that are only where a teleporter pad puts the player (`Game.landings`).
     landings: HashSet<i64>,
-    /// What the game has of its own to list: ORAS's berry spots and ash piles.
+    /// What the game has of its own to list: ORAS's berry spots, ash piles and Secret Base
+    /// spots.
     features: Vec<Rc<dyn Feature>>,
     /// Those read at every poll, since they show and go between sweeps (`watch`): ORAS's
-    /// DexNav's find. Listed after the Secret Bases, and in the player's own part of a place in
-    /// parts alone.
+    /// DexNav's find. Listed after the rest, and in the player's own part of a place in parts
+    /// alone.
     watched: Vec<Rc<dyn Watched>>,
     /// Where the field's work holds the current zone's record (`anchor`).
     zone_record: i64,
@@ -318,7 +319,8 @@ pub struct FieldReader {
     /// Whether a row of models drawn as nothing with a script of its own is a gate
     /// (`Game.gates`).
     gates: bool,
-    /// The game's Secret Bases, or None in a game without them.
+    /// What stands inside the game's Secret Bases, or None in a game without them: swept for
+    /// after its features, before those watched.
     secret_bases: Option<Rc<dyn SecretBaseReader>>,
     /// The cell the decorating cursor was last said on, and what was there (`decorating`).
     cursor_at: RefCell<Option<(Cell, String)>>,
@@ -494,7 +496,7 @@ impl FieldReader {
         let made: Vec<Rc<dyn Feature>> = game
             .features
             .iter()
-            .map(|make| make(memory.clone(), text))
+            .map(|make| make(memory.clone(), image, text))
             .collect();
         let watched: Vec<Rc<dyn Watched>> = made
             .iter()
@@ -1427,9 +1429,6 @@ impl FieldReader {
         let zone_at = |cell: Cell| self.zone_at(cell);
         for feature in &self.features {
             items.extend(feature.listed(r#where.zone, &zone_at)?);
-        }
-        if let Some(bases) = &self.secret_bases {
-            items.extend(bases.listed(r#where.zone, &zone_at)?);
         }
         for feature in &self.watched {
             items.extend(feature.listed(r#where.zone, &zone_at)?);
@@ -2776,9 +2775,6 @@ impl FieldReader {
             let zone_at = |cell: Cell| self.zone_at(cell);
             for feature in &self.features {
                 out.extend(feature.listed(part, &zone_at)?);
-            }
-            if let Some(bases) = &self.secret_bases {
-                out.extend(bases.listed(part, &zone_at)?);
             }
             if let Some(hidden_items) = &self.hidden_items {
                 out.extend(hidden_items.listed(part, &zone_at)?);

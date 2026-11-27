@@ -67,8 +67,8 @@ pub type Data = fn() -> PathBuf;
 /// `Callable[[Memory, bytes, GameText], SecretBaseReader]`: a plain `fn`, since a `Game` is
 /// built once and kept in a `static`, where an `Rc<dyn Fn>` cannot be.
 pub type SecretBaseFactory = fn(Rc<dyn Memory>, &[u8], &GameText) -> Rc<dyn SecretBaseReader>;
-/// `Callable[[Memory, GameText], Feature]`.
-pub type FeatureFactory = fn(Rc<dyn Memory>, &GameText) -> Rc<dyn Feature>;
+/// `Callable[[Memory, bytes, GameText], Feature]`.
+pub type FeatureFactory = fn(Rc<dyn Memory>, &[u8], &GameText) -> Rc<dyn Feature>;
 /// `Callable[[Kit], Own]`.
 pub type OwnFactory = fn(&Kit) -> Rc<dyn Own>;
 
@@ -114,9 +114,8 @@ pub struct Game {
     /// leaves by: the pole in Santalune Gym's lobby, which the game slides the player down to the
     /// web room (spike 224).
     pub furniture: IndexMap<(i64, i64), FurnitureKind>,
-    /// The reader of its Secret Bases, given the executable's image to find every spot in and the
-    /// game's words to name other players' bases with, or None in a game with none: ORAS's
-    /// (`games.oras.field.secret_base`).
+    /// The reader of what stands inside its Secret Bases, given the game's words for each
+    /// decoration, or None in a game with none: ORAS's (`games.oras.field.secret_base`).
     pub secret_bases: Option<SecretBaseFactory>,
     /// The event flag before the first hidden item's, each item's its number past it: `0x44c` in
     /// Omega Ruby's Dowsing Machine's getter, `0x4e49e4`, and in X's, `0x4ab888`
@@ -135,10 +134,12 @@ pub struct Game {
     /// (`gen6.own`): ORAS's PokéNav Plus, contests, Pokéblock Kit, credits' Pokémon, Secret Base PC
     /// and soaring (`oras.own`), X's opening (`xy.own`); nothing, in a game with none of them.
     pub own: OwnFactory,
-    /// The readers of what else it has on its field to list, each in its own words: ORAS's berry
-    /// spots, Route 113's ash piles and the DexNav's find (`games.oras.field.berries`,
-    /// `games.oras.field.ash`, `games.oras.field.hidden`). One that shows and goes between sweeps
-    /// is read at every poll (`features.Watched`).
+    /// The readers of what else it has on its field to list, each in its own words, given the
+    /// executable's image where its table is, and the game's words: ORAS's berry spots, Route
+    /// 113's ash piles, its Secret Bases' spots and the DexNav's find
+    /// (`games.oras.field.berries`, `games.oras.field.ash`, `games.oras.field.secret_base`,
+    /// `games.oras.field.hidden`). One that shows and goes between sweeps is read at every poll
+    /// (`features.Watched`).
     pub features: Vec<FeatureFactory>,
     /// Its kinds of special ground in P's way, each saying what it lists and how it is walked,
     /// worked out once a map (`gen6.field.landform`): gen 6's own, which every game's chunks can

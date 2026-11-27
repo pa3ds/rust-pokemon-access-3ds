@@ -1,4 +1,6 @@
-//! ORAS's Secret Bases: every spot one can be made at, and which is the player's (spike 154).
+//! ORAS's Secret Bases: every spot one can be made at, and which is the player's (spike 154), one
+//! of the field's features (`SecretBases`); and inside a base, what stands where and the cursor the
+//! player decorates with (`Decorations`).
 //!
 //! No zone's data has a spot: Route 111's tree at (381, 116), the player's base, is a blocked cell
 //! like any tree's, with no record and no move model, and the vine on it is a model the field draws
@@ -281,16 +283,105 @@ pub fn spots(image: &[u8]) -> Vec<(i64, Cell)> {
     }
 }
 
-/// Every spot, out of the executable, and the player's own, out of the save; inside a base,
-/// what stands in each cell and where the cursor the player decorates with is.
+/// Every spot, out of the executable, and the player's own and other players', out of the
+/// save: the spots listed among the field's features (`gen6.field.features.Feature`).
 pub struct SecretBases {
     pub classes: Vec<&'static str>,
     pub inside: i64,
-    pub zones: &'static IndexSet<i64>,
     memory: Rc<dyn Memory>,
     names: Vec<(String, String)>,
     pub spots: Vec<(i64, Cell)>,
     save: Slot<Option<i64>>,
+}
+
+impl SecretBases {
+    pub fn new(memory: Rc<dyn Memory>, image: &[u8], text: &GameText) -> Self {
+        SecretBases {
+            classes: vec![SAVE_CLASS],
+            inside: INSIDE,
+            memory,
+            names: text.base_names.clone(),
+            spots: spots(image),
+            save: Slot::new(None),
+        }
+    }
+
+    pub fn track(&self, found: &Found) -> Result<()> {
+        let save = found.of(&[SAVE_CLASS]);
+        if let Some(&first) = save.first() {
+            self.save.set(Some(first));
+        }
+        Ok(())
+    }
+
+    /// The zone's spots: the player's own base as its entrance, leading inside, another player's
+    /// by the game's name for it, and every other spot as a spot (spike 154). A spot is a tree, a
+    /// wall or a bush, walked up to and faced as a sign is.
+    pub fn listed(&self, zone: i64, _zone_at: ZoneAt) -> Result<Vec<Interactable>> {
+        let own = self.own()?;
+        let shared = if (0..self.spots.len() as i64)
+            .any(|number| self.spots[number as usize].0 == zone && Some(number) != own)
+        {
+            self.shared()?
+        } else {
+            HashMap::new()
+        };
+        spots_in(&self.spots, own, &shared, self.inside, zone)
+    }
+
+    /// What the game calls each base loaded from another player, by its spot's number: by its
+    /// team's name, or by its owner's where the team has none ("Team Tarin's Base"). None before
+    /// the save is found, or without the game's words for them.
+    pub fn shared(&self) -> Result<HashMap<i64, String>> {
+        let Some(save) = self.save.get() else {
+            return Ok(HashMap::new());
+        };
+        if self.names.len() < 2 {
+            return Ok(HashMap::new());
+        }
+        let data = self
+            .memory
+            .read(save + SHARED, SHARED_SIZE * SHARED_COUNT)?;
+        let mut out: HashMap<i64, String> = HashMap::new();
+        for at in (0..data.len() as i64).step_by(SHARED_SIZE as usize) {
+            let number = s16(&data, at + SHARED_SPOT)?;
+            let team = name(py::slice(&data, at + TEAM, at + TEAM + TEAM_SIZE));
+            let owner = name(py::slice(&data, at + OWNER, at + OWNER + OWNER_SIZE));
+            let ((before, after), name) = if !team.is_empty() {
+                (&self.names[1], team)
+            } else {
+                (&self.names[0], owner)
+            };
+            if 0 <= number && number < self.spots.len() as i64 && !name.is_empty() {
+                out.insert(number, format!("{before}{name}{after}"));
+            }
+        }
+        Ok(out)
+    }
+
+    /// The number of the player's own spot, or None while the player has none or the save is
+    /// not found yet.
+    pub fn own(&self) -> Result<Option<i64>> {
+        let Some(save) = self.save.get() else {
+            return Ok(None);
+        };
+        let number = s16(&self.memory.read(save + OWN_SPOT, 2)?, 0)?;
+        Ok(if 0 < number && number < self.spots.len() as i64 {
+            Some(number)
+        } else {
+            None
+        })
+    }
+}
+
+/// Inside a base, what stands in each cell and where the cursor the player decorates with is,
+/// read through the base's module.
+pub struct Decorations {
+    pub classes: Vec<&'static str>,
+    /// The zones a base is built in, inside which what stands where is read.
+    pub zones: &'static IndexSet<i64>,
+    memory: Rc<dyn Memory>,
+    names: Vec<String>,
     mapper: Slot<Option<i64>>,
     cursor: Slot<Option<i64>>,
     /// The vtables of `WALKED_ON`'s classes, as the sweeps found them.
@@ -301,20 +392,17 @@ pub struct SecretBases {
     unseen: RefCell<HashSet<i64>>,
 }
 
-impl SecretBases {
-    pub fn new(memory: Rc<dyn Memory>, image: &[u8], text: &GameText) -> Self {
-        let mut classes = vec![SAVE_CLASS, MAPPER_CLASS, CURSOR_CLASS];
+impl Decorations {
+    pub fn new(memory: Rc<dyn Memory>, text: &GameText) -> Self {
+        let mut classes = vec![MAPPER_CLASS, CURSOR_CLASS];
         classes.extend(WALKED_ON);
         classes.push(BALLOONS);
         classes.push(UNSEEN);
-        SecretBases {
+        Decorations {
             classes,
-            inside: INSIDE,
             zones: zones(),
             memory,
-            names: text.base_names.clone(),
-            spots: spots(image),
-            save: Slot::new(None),
+            names: text.decorations.clone(),
             mapper: Slot::new(None),
             cursor: Slot::new(None),
             walked_on: RefCell::new(HashSet::new()),
@@ -324,10 +412,6 @@ impl SecretBases {
     }
 
     pub fn track(&self, found: &Found) -> Result<()> {
-        let save = found.of(&[SAVE_CLASS]);
-        if let Some(&first) = save.first() {
-            self.save.set(Some(first));
-        }
         // The module's image is copied into the heap as it loads, vtables and all, and a sweep
         // finds every class of it there: a find is taken only in the shape of the object.
         let mut mappers: Vec<i64> = Vec::new();
@@ -523,65 +607,6 @@ impl SecretBases {
             u32(&head, 4)?,
         )))
     }
-
-    /// The number of the player's own spot, or None while the player has none or the save is
-    /// not found yet.
-    /// The zone's spots: the player's own base as its entrance, leading inside, another player's
-    /// by the game's name for it, and every other spot as a spot (spike 154). A spot is a tree, a
-    /// wall or a bush, walked up to and faced as a sign is.
-    pub fn listed(&self, zone: i64, _zone_at: ZoneAt) -> Result<Vec<Interactable>> {
-        let own = self.own()?;
-        let shared = if (0..self.spots.len() as i64)
-            .any(|number| self.spots[number as usize].0 == zone && Some(number) != own)
-        {
-            self.shared()?
-        } else {
-            HashMap::new()
-        };
-        spots_in(&self.spots, own, &shared, self.inside, zone)
-    }
-
-    /// What the game calls each base loaded from another player, by its spot's number: by its
-    /// team's name, or by its owner's where the team has none ("Team Tarin's Base"). None before
-    /// the save is found, or without the game's words for them.
-    pub fn shared(&self) -> Result<HashMap<i64, String>> {
-        let Some(save) = self.save.get() else {
-            return Ok(HashMap::new());
-        };
-        if self.names.len() < 2 {
-            return Ok(HashMap::new());
-        }
-        let data = self
-            .memory
-            .read(save + SHARED, SHARED_SIZE * SHARED_COUNT)?;
-        let mut out: HashMap<i64, String> = HashMap::new();
-        for at in (0..data.len() as i64).step_by(SHARED_SIZE as usize) {
-            let number = s16(&data, at + SHARED_SPOT)?;
-            let team = name(py::slice(&data, at + TEAM, at + TEAM + TEAM_SIZE));
-            let owner = name(py::slice(&data, at + OWNER, at + OWNER + OWNER_SIZE));
-            let ((before, after), name) = if !team.is_empty() {
-                (&self.names[1], team)
-            } else {
-                (&self.names[0], owner)
-            };
-            if 0 <= number && number < self.spots.len() as i64 && !name.is_empty() {
-                out.insert(number, format!("{before}{name}{after}"));
-            }
-        }
-        Ok(out)
-    }
-
-    pub fn own(&self) -> Result<Option<i64>> {
-        let Some(save) = self.save.get() else {
-            return Ok(None);
-        };
-        let number = s16(&self.memory.read(save + OWN_SPOT, 2)?, 0)?;
-        Ok(if 0 < number && number < self.spots.len() as i64 {
-            Some(number)
-        } else {
-            None
-        })
-    }
 }
 
 /// A name the save keeps as UTF-16 to a zero.
@@ -616,29 +641,39 @@ impl Feature for SecretBases {
     }
 }
 
-impl SecretBaseReader for SecretBases {
+impl Tracked for Decorations {
+    fn classes(&self) -> Vec<&'static str> {
+        self.classes.clone()
+    }
+
+    fn track(&self, found: &Found) -> Result<()> {
+        Decorations::track(self, found)
+    }
+}
+
+impl SecretBaseReader for Decorations {
     fn zones(&self) -> IndexSet<i64> {
         self.zones.clone()
     }
 
     fn furnished(&self) -> Result<bool> {
-        SecretBases::furnished(self)
+        Decorations::furnished(self)
     }
 
     fn cursor(&self) -> Result<Option<(Cell, Option<bool>)>> {
-        SecretBases::cursor(self)
+        Decorations::cursor(self)
     }
 
     fn standing(&self, cell: Cell) -> Result<Vec<i64>> {
-        SecretBases::standing(self, cell)
+        Decorations::standing(self, cell)
     }
 
     fn solid(&self) -> Result<IndexSet<Cell>> {
-        SecretBases::solid(self)
+        Decorations::solid(self)
     }
 
     fn placed(&self) -> Result<Vec<(i64, Vec<Cell>)>> {
-        SecretBases::placed(self)
+        Decorations::placed(self)
     }
 }
 

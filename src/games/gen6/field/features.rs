@@ -67,9 +67,9 @@ pub trait Watched: Feature {
     fn watch(&self, zone: i64, zone_at: ZoneAt) -> Result<Sighting>;
 }
 
-/// A game's Secret Bases, where it has them: ORAS's (`oras.field.secret_base`), listing every
-/// spot; inside one, what stands where and the cursor the player decorates with.
-pub trait SecretBaseReader: Feature {
+/// Inside a game's Secret Bases, where it has them: ORAS's (`oras.field.secret_base`), what
+/// stands where and the cursor the player decorates with.
+pub trait SecretBaseReader: Tracked {
     /// Every zone a base is built in.
     fn zones(&self) -> IndexSet<i64>;
 

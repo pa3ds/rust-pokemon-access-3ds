@@ -34,7 +34,9 @@ use crate::games::oras::field::berries::BerrySpots;
 use crate::games::oras::field::doors::RotatingDoors;
 use crate::games::oras::field::hidden::DexNav;
 use crate::games::oras::field::ice::ThinIce;
-use crate::games::oras::field::secret_base::{self, SecretBases, zones as secret_bases_zones};
+use crate::games::oras::field::secret_base::{
+    self, Decorations, SecretBases, zones as secret_bases_zones,
+};
 use crate::games::oras::field::sky;
 use crate::games::oras::own::Oras;
 use crate::games::oras::screens::contest;
@@ -926,18 +928,28 @@ pub fn furniture() -> &'static IndexMap<(i64, i64), FurnitureKind> {
     })
 }
 
-/// `lambda memory, _text: DexNav(memory)`, as a factory `Game.features` holds.
-fn dex_nav(memory: Rc<dyn Memory>, _text: &GameText) -> Rc<dyn Feature> {
+/// `lambda memory, _image, _text: DexNav(memory)`, as a factory `Game.features` holds.
+fn dex_nav(memory: Rc<dyn Memory>, _image: &[u8], _text: &GameText) -> Rc<dyn Feature> {
     Rc::new(DexNav::new(memory))
 }
 
-/// `SecretBases`, as the factory `Game.secret_bases` holds.
-fn secret_bases(memory: Rc<dyn Memory>, image: &[u8], text: &GameText) -> Rc<dyn SecretBaseReader> {
+/// `SecretBases`, as a factory `Game.features` holds.
+fn secret_bases(memory: Rc<dyn Memory>, image: &[u8], text: &GameText) -> Rc<dyn Feature> {
     Rc::new(SecretBases::new(memory, image, text))
 }
 
-/// `lambda memory, _text: AshPiles(memory)`, as a factory `Game.features` holds.
-fn ash_piles(memory: Rc<dyn Memory>, _text: &GameText) -> Rc<dyn Feature> {
+/// `lambda memory, _image, text: Decorations(memory, text)`, as the factory
+/// `Game.secret_bases` holds.
+fn decorations(
+    memory: Rc<dyn Memory>,
+    _image: &[u8],
+    text: &GameText,
+) -> Rc<dyn SecretBaseReader> {
+    Rc::new(Decorations::new(memory, text))
+}
+
+/// `lambda memory, _image, _text: AshPiles(memory)`, as a factory `Game.features` holds.
+fn ash_piles(memory: Rc<dyn Memory>, _image: &[u8], _text: &GameText) -> Rc<dyn Feature> {
     Rc::new(AshPiles::new(memory))
 }
 
@@ -1043,8 +1055,8 @@ pub fn game() -> &'static Game {
         barriers: barriers().clone(),
         triggers: triggers().clone(),
         furniture: furniture().clone(),
-        secret_bases: Some(secret_bases),
-        features: vec![BerrySpots::of, ash_piles, dex_nav],
+        secret_bases: Some(decorations),
+        features: vec![BerrySpots::of, ash_piles, secret_bases, dex_nav],
         blockers: HashSet::from(BLOCKERS),
         pickups: HashSet::from([KIRAKIRA, FOSSIL]),
         items_at: IndexMap::from(FOSSILS),

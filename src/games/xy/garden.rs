@@ -149,8 +149,9 @@ impl FurfrouChase {
         }
     }
 
-    /// The factory `Game.features` holds.
-    pub fn of(memory: Rc<dyn Memory>, text: &GameText) -> Rc<dyn Feature> {
+    /// `lambda memory, _image, text: FurfrouChase(memory, text)`, the factory `Game.features`
+    /// holds.
+    pub fn of(memory: Rc<dyn Memory>, _image: &[u8], text: &GameText) -> Rc<dyn Feature> {
         Rc::new(FurfrouChase::new(memory, text))
     }
 

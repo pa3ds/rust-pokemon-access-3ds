@@ -95,7 +95,7 @@ impl BerrySpots {
     }
 
     /// The factory `Game.features` holds.
-    pub fn of(memory: Rc<dyn Memory>, text: &GameText) -> Rc<dyn Feature> {
+    pub fn of(memory: Rc<dyn Memory>, _image: &[u8], text: &GameText) -> Rc<dyn Feature> {
         Rc::new(BerrySpots::new(
             memory,
             text.berries.clone(),
