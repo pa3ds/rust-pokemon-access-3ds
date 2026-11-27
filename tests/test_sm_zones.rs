@@ -305,6 +305,21 @@ fn test_the_zone_table_says_which_zones_are_outdoors() {
 }
 
 #[test]
+fn test_the_flag_the_ultra_games_set_beside_a_zone_s_kind_is_not_its_kind() {
+    let mut rows = vec![0u8; (zones::ZONE_ROW * 2) as usize];
+    let at = (zones::ZONE_ROW + zones::ROW_KIND) as usize;
+    rows[at..at + 2].copy_from_slice(&((0x08 | zones::OUTDOORS) as u16).to_le_bytes());
+    let rom = SunZones {
+        rows,
+        places: SunText {
+            files: IndexMap::new(),
+        },
+        areas: IndexMap::new(),
+    };
+    assert!(rom.outdoors(1).unwrap());
+}
+
+#[test]
 fn test_items_are_read_with_the_item_and_how_they_lie() {
     let rom = route_1();
     let potion = rom

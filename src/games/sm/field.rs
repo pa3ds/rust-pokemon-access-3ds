@@ -17,7 +17,7 @@
 //!     +0x14 -> the field, which has no class of its own, in a block of 0x1a0 of heap 0x21,
 //!              whose own blocks a walk passes over (`heaps.UNREAD`):
 //!         +0x78 -> the area loaded, which has none either: +0x00 u32 its number in the ROM's
-//!                  event data, 21 for the player's house
+//!                  event data, 21 for the player's house (+0x04 in the Ultra games, 29)
 //!         +0x7c u16 the zone the player is in: 0x1d in the living room, 0x1a in the bedroom;
 //!               +0x7e is 1 on Route 1's second zone and 0 elsewhere so far, not known
 //! Field::FieldBgEventActor, FieldMapJumpActor, FieldItemActor  (heap 0x45)
@@ -68,6 +68,7 @@ use crate::games::sm::camera::{self, turned, turned_box, unturned};
 use crate::games::sm::heaps::{self, Blocks};
 use crate::games::sm::walls::{AreaWalls, SunWalls};
 use crate::games::sm::zones::{self as sm_zones, Record, SunZones};
+use crate::games::sm::{SUN_LAYOUT, VersionLayout};
 use crate::py::{self, Result};
 
 pub const MANAGER: &str = "N5Field9MoveModel21FieldMoveModelManagerE";
@@ -111,17 +112,16 @@ pub const MANAGER_PLAYER: i64 = 0x0C;
 pub const MANAGER_FIRST: i64 = 0x10;
 pub const MODEL_NODE: i64 = 0x20;
 pub const MODEL_CODE: i64 = 0x6C;
-/// 1 while the model is drawn, 0 while it stands on the field unseen, its model not loaded
-/// (+0x30c 0xffff). The living room held five such, one in the player's own cell, and the porch
-/// outside four, and P led the player to them (sun_4.ctm, spike 117, 2026-09-26).
-pub const MODEL_SHOWN: i64 = 0x308;
-/// Where a model stands now, x, y and z. Its +0x30 is where the save put it: in sun_1.ctm it
-/// stayed zero while +0x3a4 walked from (2411, 2418) to (2126, 1978), and the field's own copy at
-/// its +0x104 followed a frame ahead.
-pub const MODEL_PLACE: i64 = 0x3A4;
+/// Sun's +0x308, the Ultra games' +0x310 (`sm.VersionLayout`): 1 while the model is drawn, 0
+/// while it stands on the field unseen, its model not loaded (+0x30c 0xffff). The living room held
+/// five such, one in the player's own cell, and the porch outside four, and P led the player to
+/// them (sun_4.ctm, spike 117, 2026-09-26).
+pub const MODEL_SHOWN: i64 = SUN_LAYOUT.model_shown;
+/// Sun's +0x3a4, the Ultra games' +0x3b0: where a model stands now, x, y and z. Its +0x30 is
+/// where the save put it: in sun_1.ctm it stayed zero while +0x3a4 walked from (2411, 2418) to
+/// (2126, 1978), and the field's own copy at its +0x104 followed a frame ahead.
+pub const MODEL_PLACE: i64 = SUN_LAYOUT.model_place;
 pub const PLACE_SIZE: i64 = 12;
-/// A model from its start to where it stands, in one read.
-pub const MODEL_HEAD: i64 = MODEL_PLACE + PLACE_SIZE;
 pub const STATE_FIELD: i64 = 0x14;
 pub const FIELD_AREA: i64 = 0x78;
 pub const FIELD_ZONE: i64 = 0x7C;
@@ -254,12 +254,18 @@ pub struct SunFieldReader {
     visit: Cell<Option<(i64, i64)>>,
     /// The area the player was last polled in, whose walls have been asked for.
     area: Cell<Option<i64>>,
+    shown: i64,
+    place: i64,
+    area_number: i64,
+    /// A model from its start to where it stands, in one read.
+    head: i64,
 }
 
 impl SunFieldReader {
-    /// `SunFieldReader(memory, names)`: no `zones`, `blocks`, `walls` or `read_each`.
+    /// `SunFieldReader(memory, names)`: no `zones`, `blocks`, `walls` or `read_each`, and Sun's
+    /// layout.
     pub fn new(memory: Rc<dyn Memory>, names: Rc<ClassNames>) -> Self {
-        SunFieldReader::with(memory, names, None, None, None, None)
+        SunFieldReader::with(memory, names, None, None, None, None, SUN_LAYOUT)
     }
 
     /// `memory` should read exactly what it is asked for (`heaps`); `zones` is the ROM's,
@@ -278,8 +284,16 @@ impl SunFieldReader {
         blocks: Option<Blocks>,
         walls: Option<Rc<dyn Walls>>,
         read_each: Option<ReadEach>,
+        layout: VersionLayout,
     ) -> Self {
+        // A move model's fields from +0x2f4 on are where its version keeps them
+        // (`sm.VersionLayout`).
+        let (shown, place) = (layout.model_shown, layout.model_place);
         SunFieldReader {
+            shown,
+            place,
+            area_number: layout.area_number,
+            head: place + PLACE_SIZE,
             memory,
             names,
             zones,
@@ -397,7 +411,7 @@ impl SunFieldReader {
         let model = self.standing(found.2)?;
         let mut height = match &model {
             None => None,
-            Some(model) => Some(f32(&model.0, MODEL_PLACE + 4)?),
+            Some(model) => Some(f32(&model.0, self.place + 4)?),
         };
         if let Some(value) = height
             && !value.is_finite()
@@ -667,7 +681,7 @@ impl SunFieldReader {
             let zone = u16(&head, FIELD_ZONE)?;
             let area_link = u32(&head, FIELD_AREA)?;
             let area = if area_link != 0 {
-                self.read(area_link, 4)?
+                self.read(area_link + self.area_number, 4)?
             } else {
                 None
             };
@@ -763,14 +777,14 @@ impl SunFieldReader {
             for at in (MANAGER_FIRST..MANAGER_SLOTS).step_by(4) {
                 starts.push(u32(&slots, at)?);
             }
-            self.fetch(&starts, MODEL_HEAD)?;
+            self.fetch(&starts, self.head)?;
             for at in (MANAGER_FIRST..MANAGER_SLOTS).step_by(4) {
                 let model = u32(&slots, at)?;
                 if model == player || self.class(model)?.as_deref() != Some(MODEL) {
                     continue;
                 }
                 if let Some((head, place)) = self.standing(model)?
-                    && u32(&head, MODEL_SHOWN)? != 0
+                    && u32(&head, self.shown)? != 0
                 {
                     out.push((model, head, place));
                 }
@@ -783,13 +797,13 @@ impl SunFieldReader {
     /// A model's head and where it stands, (x, z), or None for a free slot or a place that
     /// is not a number.
     fn standing(&self, model: i64) -> Result<Option<Standing>> {
-        let Some(head) = self.read(model, MODEL_HEAD)? else {
+        let Some(head) = self.read(model, self.head)? else {
             return Ok(None);
         };
         if u32(&head, MODEL_NODE)? == 0 {
             return Ok(None);
         }
-        let (x, z) = (f32(&head, MODEL_PLACE)?, f32(&head, MODEL_PLACE + 8)?);
+        let (x, z) = (f32(&head, self.place)?, f32(&head, self.place + 8)?);
         if !(x.is_finite() && z.is_finite()) {
             return Ok(None);
         }

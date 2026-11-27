@@ -74,6 +74,9 @@ pub const INDOORS: i64 = 0;
 pub const ENCLOSED: i64 = 2;
 /// A zone's kind (`ROW_KIND`): a room, a cave or trail or ruin, and a route or town or sea.
 pub const OUTDOORS: i64 = 3;
+/// The kind in its row's u16: the Ultra games set 0x08 on 155 of their 380 zones, the player's
+/// bedroom's among them, and keep Sun's kinds below it (spike P).
+pub const KIND_BITS: i64 = 0x07;
 
 pub const EVENTS: &str = "a/0/8/2";
 /// Files an area has in `EVENTS`, its events first.
@@ -277,7 +280,8 @@ impl SunZones {
     /// `INDOORS`, `ENCLOSED`, `OUTDOORS` or another the table holds, or None for a zone it
     /// does not have.
     pub fn zone_kind(&self, zone: i64) -> Result<Option<i64>> {
-        self.row(zone, ROW_KIND)
+        let kind = self.row(zone, ROW_KIND)?;
+        Ok(kind.map(|kind| kind & KIND_BITS))
     }
 
     pub fn outdoors(&self, zone: i64) -> Result<bool> {

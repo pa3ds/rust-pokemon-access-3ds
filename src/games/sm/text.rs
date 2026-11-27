@@ -3,12 +3,14 @@
 //! The text files are ORAS's format in version 0x0600 archives, one archive a language: `a/0/3/0` is
 //! the Japanese in kana and `a/0/3/1` in kanji, then English, French, Italian, German, Spanish,
 //! Korean, and Chinese in simplified and traditional characters, each told by the word the Bag's
-//! empty pocket says (spike 111). Only the files a reader needs are kept.
+//! empty pocket says (spike 111). Only the files a reader needs are kept, each by Sun's number: the
+//! Ultra games keep most of them a few files on (`sm.VersionLayout`).
 
 use indexmap::IndexMap;
 
 use crate::core::rom::Rom;
 use crate::games::common::garc::{garc_files, message_lines, plain};
+use crate::games::sm::layout_of;
 use crate::py::{self, Error, Kind, Result};
 
 /// A dict in the order Python wrote it, looked up by its first of each pair.
@@ -31,8 +33,8 @@ pub struct SunText {
 }
 
 impl SunText {
-    /// These system text files in `language`. A RomError for a language Sun has no text in, or
-    /// a file that is not one.
+    /// These system text files in `language`, numbered as Sun numbers them whichever version
+    /// `rom` is. A RomError for a language Sun has no text in, or a file that is not one.
     pub fn load(rom: &Rom, language: &str, files: &[i64]) -> Result<SunText> {
         let archive = TEXT_ARCHIVES
             .iter()
@@ -45,14 +47,12 @@ impl SunText {
             ));
         };
         let texts = garc_files(&rom.read(archive)?)?;
+        let layout = layout_of(rom.title_id);
         let mut loaded: IndexMap<i64, Vec<String>> = IndexMap::new();
         for &number in files {
-            // `texts[number]`, which counts a negative number from the end.
-            let at = if number < 0 {
-                number + texts.len() as i64
-            } else {
-                number
-            };
+            // `texts[layout.system(number)]`, which counts a negative number from the end.
+            let at = layout.system(number);
+            let at = if at < 0 { at + texts.len() as i64 } else { at };
             let Some(text) = usize::try_from(at).ok().and_then(|at| texts.get(at)) else {
                 let last = files.iter().max().expect("a file was asked for");
                 return Err(Error::new(

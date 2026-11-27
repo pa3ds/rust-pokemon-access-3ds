@@ -3,18 +3,20 @@
 //!
 //! **People.** Every trainer record names its trainer (`zones.TRAINER_FLAGS`), whose file in
 //! `a/1/0/5` gives their class at +0x00: text file 106 the classes, 105 the names. Each class says
-//! the model it is drawn as (`CLASSES`), and a model is what every trainer of its classes is
+//! the model it is drawn as (`CLASS_MODEL`), and a model is what every trainer of its classes is
 //! (`_drawn`): "Youngster", "Pokémon Trainer Hau", "Hala". Where its classes are two words, a model
 //! two trainers or more stand as, all of one class, is that class, as gen 6's sprites are (spike
 //! 90). The trainer standing on their own record is their class and name, "Youngster Jimmy". A
-//! Pokémon's model is its species (`FIELD_MODELS`), "Meowth".
+//! Pokémon's model is its species, "Meowth": the field's models (`sm.VersionLayout`) are model n
+//! file n, a Pokémon's tagged with its national number as gen 6's are (`gen6.rom.people`),
+//! Meowth's `0x77` `pm0052`.
 //!
 //! **Signs and things** say what their zone's script shows first (`script`): a sign a line of story
 //! file 21, its first line its name, "Trainer Tips", "Route 1"; anything else read by facing it a
 //! line of its zone's own story file, its first sentence its name, "It's a Wii U!".
 //!
-//! **Doors** in from outdoors are named for what the **Town Map** (`a/2/4/1` file 0) lists, records
-//! of 0x2c bytes:
+//! **Doors** in from outdoors are named for what the **Town Map** (file 0, `sm.VersionLayout`)
+//! lists, records of 0x2c bytes:
 //!
 //! ```text
 //! +0x00 u32 the island    +0x04 u32 the zone (0xffff none)    +0x08 u32 how it is marked: 0 a
@@ -61,9 +63,9 @@ use crate::games::common::garc::{garc_files, garc_spans, message_lines, plain};
 use crate::games::common::species_tags::{model_tags, tagged_species_with};
 use crate::games::common::text::{Token, tokens};
 use crate::games::sm::field::{CELL, place_of};
-use crate::games::sm::script;
 use crate::games::sm::text::TEXT_ARCHIVES;
 use crate::games::sm::zones::{self as sm_zones, Record, SunZones};
+use crate::games::sm::{layout_of, script};
 use crate::py::{self, Error, Kind, Result};
 
 /// The story text, a language an archive beside its system text's: `a/0/4/2` English.
@@ -75,20 +77,16 @@ pub fn story_archives() -> IndexMap<&'static str, String> {
         .map(|&(language, archive)| (language, archive.replace("a/0/3/", "a/0/4/")))
         .collect()
 }
+/// `FACILITIES`, `TRAINER_NAMES` and `TRAINER_CLASSES`: system text files, numbered as Sun numbers
+/// them (`sm.VersionLayout`). The signs' story file, the trainers' and the classes' archives are
+/// the layout's: story file 21 in Sun, "Route 1", "Trainer Tips"; a trainer's file gives its class
+/// at +0x00, and a class's file, its +0x08 u16 the field model it is drawn as: Youngster `0x43`,
+/// the Pokémon Trainer who is Hau `0x04`, the Island Kahuna who is Hala `0x1b` (spike 291).
 pub const FACILITIES: i64 = 100;
 pub const TRAINER_NAMES: i64 = 105;
 pub const TRAINER_CLASSES: i64 = 106;
-/// Story text file 21, the signs': "Route 1", "Trainer Tips", "Pokémon Research Lab".
-pub const SIGN_TEXT: i64 = 21;
-pub const TRAINERS: &str = "a/1/0/5";
 pub const TRAINER_CLASS: i64 = 0x00;
-/// A file a trainer class, its +0x08 u16 the field model it is drawn as: Youngster `0x43`, the
-/// Pokémon Trainer who is Hau `0x04`, the Island Kahuna who is Hala `0x1b` (spike 291).
-pub const CLASSES: &str = "a/1/0/4";
 pub const CLASS_MODEL: i64 = 0x08;
-/// The field's models, model n file n, a Pokémon's tagged with its national number as gen 6's
-/// are (`common.species_tags`): Meowth's `0x77` `pm0052`.
-pub const FIELD_MODELS: &str = "a/1/9/6";
 /// System text file 55, the species' names by national number.
 pub const SPECIES: i64 = 55;
 /// The Pokémon's battle models, nine files a model (`tagged_species`).
@@ -101,7 +99,6 @@ pub const BATTLE_MODEL_TAGGED: i64 = 2;
 /// tagged in another order, Stufful `pm0852`, and every tag below is the species itself (spike
 /// 291).
 pub const RETAGGED: i64 = 650;
-pub const TOWN_MAP: &str = "a/2/4/1";
 pub const TOWN_MAP_RECORD: i64 = 0x2C;
 pub const TOWN_MAP_LINE: i64 = 0x24;
 pub const MARKED_CENTER: i64 = 0x00;
@@ -207,9 +204,10 @@ impl SunGameText {
         };
         let texts = garc_files(&rom.read(system)?)?;
         let stories = garc_files(&rom.read(&story)?)?;
+        let layout = layout_of(rom.title_id);
         let mut read: Vec<Vec<String>> = Vec::new();
         for number in [FACILITIES, TRAINER_NAMES, TRAINER_CLASSES, SPECIES] {
-            let found = match texts.get(number as usize) {
+            let found = match texts.get(layout.system(number) as usize) {
                 None => Err(Error::index("list index out of range")),
                 Some(blob) => lines(blob),
             };
@@ -228,7 +226,7 @@ impl SunGameText {
         let classes = read.pop().expect("four files read");
         let names = read.pop().expect("four files read");
         let facilities = read.pop().expect("four files read");
-        let trainers: Vec<i64> = garc_files(&rom.read(TRAINERS)?)?
+        let trainers: Vec<i64> = garc_files(&rom.read(layout.trainers)?)?
             .iter()
             .map(|data| {
                 data.get(TRAINER_CLASS as usize)
@@ -236,16 +234,19 @@ impl SunGameText {
             })
             .collect();
         let mut models: Vec<i64> = Vec::new();
-        for data in garc_files(&rom.read(CLASSES)?)? {
+        for data in garc_files(&rom.read(layout.classes)?)? {
             models.push(if data.len() as i64 > CLASS_MODEL + 1 {
                 u16(&data, CLASS_MODEL)?
             } else {
                 -1
             });
         }
-        let town_map = garc_files(&rom.read(TOWN_MAP)?)?;
+        let town_map = garc_files(&rom.read(layout.town_map)?)?;
         let Some(first) = town_map.first() else {
-            return Err(Error::new(Kind::RomError, format!("{TOWN_MAP} is empty")));
+            return Err(Error::new(
+                Kind::RomError,
+                format!("{} is empty", layout.town_map),
+            ));
         };
         let mut text = Story::new(stories, zones);
         let (mut sprites, own_names) = people(zones, &trainers, &classes, &names, &models);
@@ -353,9 +354,9 @@ fn lines(blob: &[u8]) -> Result<Vec<String>> {
 
 /// Model -> the kind of trainer it is, and (zone, record) -> each trainer record's own.
 ///
-/// A model the classes (`CLASSES`) are drawn as, all of one word, is that word, and its name too
-/// where every trainer of them has the one: "Pokémon Trainer Hau", "Island Kahuna Hala". A model
-/// of classes of two words, Collector's and a Pokémon Trainer's, is named by the trainers
+/// A model the classes are drawn as (`CLASS_MODEL`), all of one word, is that word, and its name
+/// too where every trainer of them has the one: "Pokémon Trainer Hau", "Island Kahuna Hala". A
+/// model of classes of two words, Collector's and a Pokémon Trainer's, is named by the trainers
 /// standing as it instead, as gen 6's are.
 pub(crate) fn people(
     zones: &SunZones,
@@ -508,10 +509,11 @@ fn pokemon(rom: &Rom, species: &[String]) -> Result<IndexMap<i64, String>> {
         BATTLE_MODEL_TAGGED,
         Some(RETAGGED..species.len() as i64),
     )?;
-    let (start, spans) = garc_spans(rom, FIELD_MODELS)?;
+    let models = layout_of(rom.title_id).field_models;
+    let (start, spans) = garc_spans(rom, models)?;
     let mut out: IndexMap<i64, String> = IndexMap::new();
     for (model, &span) in spans.iter().enumerate() {
-        let tags = model_tags(rom, FIELD_MODELS, start, span)?;
+        let tags = model_tags(rom, models, start, span)?;
         if tags.len() != 1 {
             continue;
         }
@@ -538,6 +540,7 @@ fn signs_and_things(
     text: &mut Story,
 ) -> Result<(Vec<Sign>, IndexMap<Slot, String>)> {
     let (start, spans) = garc_spans(rom, sm_zones::EVENTS)?;
+    let signs_file = layout_of(rom.title_id).sign_text;
     let mut signs: Vec<Sign> = Vec::new();
     let mut things: IndexMap<Slot, String> = IndexMap::new();
     for (&number, area) in &zones.areas {
@@ -558,7 +561,7 @@ fn signs_and_things(
                 let slot = (zone, place_of(FURNITURE_SOURCE, record.x, record.z)?);
                 if record.script == 0 && sm_zones::SIGNS.contains(&record.kind) {
                     let line = found.line(record.code, Some(1))?;
-                    let said = text.line(SIGN_TEXT, line)?;
+                    let said = text.line(signs_file, line)?;
                     if let Some(said) = said {
                         signs.push(Sign {
                             area: number,

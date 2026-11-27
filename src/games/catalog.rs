@@ -66,7 +66,7 @@ pub fn start(
     image: &[u8],
 ) -> Result<Session> {
     match game {
-        Running::SunMoon(_) => sm::session::start(rpc, speech, setup),
+        Running::SunMoon(game) => sm::session::start(game, rpc, speech, setup),
         Running::Gen6(game) => gen6::session::start(game, rpc, speech, code, setup, image),
     }
 }

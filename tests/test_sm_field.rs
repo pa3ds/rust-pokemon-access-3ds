@@ -20,7 +20,6 @@ use crate::core::speech::Speech;
 use crate::games::common::field::things::{FURNITURE_SOURCE, Field, WARP_SOURCE};
 use crate::games::common::scenes::{Beat, Scene};
 use crate::games::common::session::Profile;
-use crate::games::sm::camera;
 use crate::games::sm::field::{self, SunFieldReader, Walls};
 use crate::games::sm::gametext::SunGameText;
 use crate::games::sm::heaps::{self, Blocks, Heaps};
@@ -28,6 +27,7 @@ use crate::games::sm::profile::{Options, SunProfile};
 use crate::games::sm::text::SunText;
 use crate::games::sm::walls::AreaWalls;
 use crate::games::sm::zones::{self, Area, Record, Shape, SunZones};
+use crate::games::sm::{SUN_LAYOUT, ULTRA_LAYOUT, VersionLayout, camera};
 use crate::py::{PySet, Result};
 
 const C: f64 = field::CELL;
@@ -247,6 +247,7 @@ fn record(x: f64, z: f64, shape: Option<Shape>) -> Record {
 /// The player in the bedroom at cell (50, 60), the door two cells east, the pillow three north
 /// and Meowth four west.
 struct Bedroom {
+    layout: VersionLayout,
     memory: Rc<FakeMemory>,
     vtables: HashMap<&'static str, i64>,
     found: Found,
@@ -270,6 +271,11 @@ fn heap_of(found: &[(i64, &str)]) -> IndexMap<i64, String> {
 
 impl Bedroom {
     fn new() -> Bedroom {
+        Bedroom::laid_out(SUN_LAYOUT)
+    }
+
+    /// `Bedroom(layout)`.
+    fn laid_out(layout: VersionLayout) -> Bedroom {
         let memory = FakeMemory::new();
         let classes = FakeClasses::new(memory.clone());
         let vtables: HashMap<&'static str, i64> = [
@@ -300,21 +306,26 @@ impl Bedroom {
         memory.u32(PLAYER + field::MODEL_NODE, &[0x3090D96C]);
         floats(
             &memory,
-            PLAYER + field::MODEL_PLACE,
+            PLAYER + layout.model_place,
             &[50.5 * C, 5.0, 60.5 * C],
         );
         memory.u32(MEOWTH + field::MODEL_NODE, &[0x3096D9CC]);
         floats(
             &memory,
-            MEOWTH + field::MODEL_PLACE,
+            MEOWTH + layout.model_place,
             &[46.5 * C, 1.0, 60.5 * C],
         );
         memory.u32(MEOWTH + field::MODEL_CODE, &[0x77]);
-        memory.u32(MEOWTH + field::MODEL_SHOWN, &[1]);
+        memory.u32(MEOWTH + layout.model_shown, &[1]);
         memory.u32(STATE, &[vtables[field::STATE]]);
         memory.u32(STATE + field::STATE_FIELD, &[FIELDMAP]);
         memory.u32(FIELDMAP + field::FIELD_AREA, &[LOADED, BEDROOM]);
-        memory.u32(LOADED, &[AREA]);
+        // The Ultra games keep a pointer before the area's number.
+        if layout.area_number != 0 {
+            memory.u32(LOADED, &[LOADED + 0xD0, AREA]);
+        } else {
+            memory.u32(LOADED, &[AREA]);
+        }
         for (actor, name, (x, z)) in [
             (THING, field::THING, (50.5, 57.5)),
             (WARP, field::WARP, (53.5, 60.5)),
@@ -333,6 +344,7 @@ impl Bedroom {
             partial: false,
         };
         Bedroom {
+            layout,
             memory,
             vtables,
             found,
@@ -372,6 +384,7 @@ impl Bedroom {
             blocks,
             None,
             None,
+            self.layout,
         );
         reader.track(found.unwrap_or(&self.found));
         let at = reader.poll().unwrap();
@@ -481,6 +494,19 @@ fn test_people_things_and_exits_are_listed_where_the_field_placed_them() {
     );
 }
 
+/// Ultra Sun keeps a move model's place and its flag further on, and the area's number after
+/// a pointer (spike P): read through its layout, its bedroom lists as Sun's does.
+#[test]
+fn test_ultra_sun_s_bedroom_is_read_through_its_own_layout() {
+    let sun = Bedroom::new().listed(Some(rom()), None, false, &[]);
+    let ultra = Bedroom::laid_out(ULTRA_LAYOUT).listed(Some(rom()), None, false, &[]);
+    let (Some(sun), Some(ultra)) = (sun, ultra) else {
+        panic!("both bedrooms listed");
+    };
+    assert_eq!((ultra.zone, ultra.cell), (BEDROOM, (50, 60)));
+    assert_eq!(ultra.interactables, sun.interactables);
+}
+
 #[test]
 fn test_without_the_rom_each_thing_is_its_own_cell_and_an_exit_leads_nowhere_named() {
     let at = Bedroom::new().listed(None, None, false, &[]).unwrap();
@@ -573,6 +599,7 @@ fn test_the_listing_reads_the_actors_and_the_models_in_one_burst() {
             let cache = cache.clone();
             Rc::new(move |reads: &[(i64, i64)]| cache.read_each(reads))
         }),
+        SUN_LAYOUT,
     );
     reader.track(&bedroom.found);
     let listed = memory::phase(&*cache, "field", || {
@@ -1212,6 +1239,7 @@ fn test_a_camera_given_no_angle_yet_keeps_the_compass_as_it_was() {
         None,
         None,
         None,
+        SUN_LAYOUT,
     );
     reader.track(&found);
     let before = reader.poll().unwrap();
@@ -1242,6 +1270,7 @@ fn test_walking_into_another_zone_of_the_area_is_not_a_warp() {
         None,
         None,
         None,
+        SUN_LAYOUT,
     );
     reader.track(&bedroom.found);
     assert!(reader.poll().unwrap().is_some());
@@ -1367,6 +1396,7 @@ fn test_the_field_is_not_up_until_the_player_is_placed_in_the_area_loaded() {
         None,
         None,
         None,
+        SUN_LAYOUT,
     );
     reader.track(&bedroom.found);
     assert!(reader.poll().unwrap().is_some());
@@ -1426,6 +1456,7 @@ fn test_things_of_the_area_s_other_zones_are_kept_until_their_own_zone_has_them_
         None,
         None,
         None,
+        SUN_LAYOUT,
     );
     let listed = |category: &str| -> Vec<(i64, i64)> {
         let at = reader.poll().unwrap().unwrap();

@@ -50,7 +50,7 @@ use crate::games::sm::langselect::{self, LangSelectReader};
 use crate::games::sm::talk::{self, Speakers};
 use crate::games::sm::text::SunText;
 use crate::games::sm::zones::SunZones;
-use crate::games::sm::{lyt, msgwin};
+use crate::games::sm::{SUN_LAYOUT, VersionLayout, lyt, msgwin};
 use crate::py::{Log, Result};
 
 /// Message windows, the talk windows and utils that name their speakers, the language choice,
@@ -104,6 +104,8 @@ pub struct Options {
     /// Each beat's words by its id (`Described.said`); None words none.
     pub said: Option<Rc<dyn Fn(&str) -> Option<String>>>,
     pub game_text: Option<Rc<SunGameText>>,
+    /// None is `SUN_LAYOUT`.
+    pub layout: Option<VersionLayout>,
 }
 
 /// Sun's readers, and what each sweep and poll does with them.
@@ -184,7 +186,8 @@ impl SunProfile {
     /// has (`memory.ExactCache.phase`): the reads a poll makes are fetched together at the start
     /// of the next poll of its kind, where each was sent alone (issue 4). `scenes` is pa3ds's
     /// words for the cutscenes, by demo (`scenes.load`), each beat worded by `said`
-    /// (`Described.said`).
+    /// (`Described.said`). `layout` is where the version running keeps what Sun's readers read
+    /// (`sm.VersionLayout`).
     pub fn with(
         memory: Rc<dyn Memory>,
         names: Rc<ClassNames>,
@@ -206,6 +209,7 @@ impl SunProfile {
             scenes,
             said,
             game_text,
+            layout,
         } = options;
         // The layout readers follow pointers down each layout's tree to its words, and read only
         // inside the blocks the last walk found, as the field's do (ADR-0035).
@@ -270,6 +274,7 @@ impl SunProfile {
             blocks,
             walls,
             read_each,
+            layout.unwrap_or(SUN_LAYOUT),
         ));
         // The game's own words for its people, signs, things and doors, behind the player's names
         // and ahead of the shipped (spike 291, ADR-0023).

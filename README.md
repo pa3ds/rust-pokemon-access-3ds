@@ -33,6 +33,9 @@ the Game Boy games. Nothing here is taken from its code.
 - **Sun and Moon**: dialogue, menus and screens, the name entry keyboard, battles, and the map's
   doors, signs, people and items, with pathfinding. Trainers, signs, the things you can check and
   many buildings' doors are called by the game's own words.
+- **Ultra Sun and Ultra Moon**: read as Sun and Moon are, and checked so far in the opening, in
+  your house: dialogue with who is speaking, choices, and the map's doors, things and people,
+  with pathfinding.
 
 ## What it says
 

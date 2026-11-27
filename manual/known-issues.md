@@ -159,3 +159,12 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
   buildings its map does not place, such as the Trainers' School and the Thrifty Megamart.
 - **A board can run its two lines together** where its second line has no quotation marks:
   "Hau'oli Police Station Keep our roads safe!".
+
+## Ultra Sun and Ultra Moon
+
+- **Checked only in the opening**, in your house: dialogue, choices and the map there. Menus,
+  battles, the language choice and everywhere outside the house are read as in Sun and Moon,
+  but not yet checked, and may say less or nothing.
+- **Ultra Moon** has not been tried at all: it is read as Ultra Sun.
+- **Cutscenes are not described**, as Sun's are with `descriptions` on.
+- Everything listed for Sun and Moon above applies too.

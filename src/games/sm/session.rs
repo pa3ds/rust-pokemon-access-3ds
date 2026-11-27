@@ -24,14 +24,19 @@ use crate::games::sm::profile::{Options, REQUIRED, SunProfile, heap_classes};
 use crate::games::sm::text::SunText;
 use crate::games::sm::walls::SunWalls;
 use crate::games::sm::zones::SunZones;
-use crate::games::sm::{apps, field, heaps, langselect, lyt};
+use crate::games::sm::{SUN_LAYOUT, SunMoon, apps, field, heaps, langselect, lyt};
 use crate::py::{PySet, Result};
 
 /// Sun, read to the byte, never a page around what is asked for: in Sun the byte after an
 /// object may be the GPU's, and reading that took the emulator down (`games.sm.heaps`). A poll's
 /// reads are fetched together at the next poll of its kind, kept to the small blocks that may be
 /// read now.
-pub fn start(rpc: Rc<dyn Rpc>, speech: Rc<Speech>, setup: Setup) -> Result<Session> {
+pub fn start(
+    game: &SunMoon,
+    rpc: Rc<dyn Rpc>,
+    speech: Rc<Speech>,
+    setup: Setup,
+) -> Result<Session> {
     let setup = if setup.tables.ui.language.is_empty() {
         setup
     } else {
@@ -153,8 +158,9 @@ pub fn start(rpc: Rc<dyn Rpc>, speech: Rc<Speech>, setup: Setup) -> Result<Sessi
         None,
     )?);
     // Sun's scenes are found by their demo's number, so none follows a line and none names a
-    // thing the game does (ADR-0038).
-    let loaded = if setup.tables.ui.descriptions {
+    // thing the game does (ADR-0038). The Ultra games' demos are unread and may number otherwise,
+    // so Sun's are not said over them.
+    let loaded = if setup.tables.ui.descriptions && game.layout == SUN_LAYOUT {
         let known = {
             let described = described.clone();
             move |message: &str| described.known(message)
@@ -191,6 +197,7 @@ pub fn start(rpc: Rc<dyn Rpc>, speech: Rc<Speech>, setup: Setup) -> Result<Sessi
             scenes: loaded,
             said: Some(Rc::new(move |message: &str| described.said(message))),
             game_text,
+            layout: Some(game.layout),
         },
     ));
 
