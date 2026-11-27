@@ -12,7 +12,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use indexmap::IndexMap;
 
-use crate::core::keyfile::{self, Asked, Bindings, Wanted};
+use crate::core::azahar::{self, Asked, Wanted};
+use crate::core::keyfile::{self, Bindings};
 use crate::core::keys::{
     Released, WM_KEYDOWN, WM_KEYUP, WM_SYSKEYDOWN, bound, modified, shifted, track,
 };
@@ -173,25 +174,25 @@ fn stick(name: &str, settings: &[(&str, &str)]) -> Wanted {
 /// Windows, and an arrow key is not in the virtual-key range at all.
 #[test]
 fn test_a_key_is_numbered_the_way_qt_numbers_it_not_the_way_windows_does() {
-    assert_eq!(keyfile::qt_code("a").unwrap(), Some(0x41));
-    assert_eq!(keyfile::qt_code("1").unwrap(), Some(0x31));
-    assert_eq!(keyfile::qt_code(";").unwrap(), Some(0x3B));
-    assert_eq!(keyfile::qt_code("'").unwrap(), Some(0x27));
-    assert_eq!(keyfile::qt_code("left").unwrap(), Some(16777234));
-    assert_eq!(keyfile::qt_code("return").unwrap(), Some(16777220));
+    assert_eq!(azahar::qt_code("a").unwrap(), Some(0x41));
+    assert_eq!(azahar::qt_code("1").unwrap(), Some(0x31));
+    assert_eq!(azahar::qt_code(";").unwrap(), Some(0x3B));
+    assert_eq!(azahar::qt_code("'").unwrap(), Some(0x27));
+    assert_eq!(azahar::qt_code("left").unwrap(), Some(16777234));
+    assert_eq!(azahar::qt_code("return").unwrap(), Some(16777220));
 }
 
 #[test]
 fn test_a_name_no_key_has_is_no_code_at_all() {
-    assert_eq!(keyfile::qt_code("wibble").unwrap(), None);
-    assert_eq!(keyfile::qt_code("€").unwrap(), None);
-    assert_eq!(keyfile::qt_code("").unwrap(), None);
+    assert_eq!(azahar::qt_code("wibble").unwrap(), None);
+    assert_eq!(azahar::qt_code("€").unwrap(), None);
+    assert_eq!(azahar::qt_code("").unwrap(), None);
 }
 
 /// Qt's `Key_ssharp` is 0xdf; upper case, "ß" is two letters.
 #[test]
 fn test_a_letter_with_no_single_capital_is_numbered_by_itself() {
-    assert_eq!(keyfile::qt_code("ß").unwrap(), Some(0xDF));
+    assert_eq!(azahar::qt_code("ß").unwrap(), Some(0xDF));
 }
 
 #[test]
@@ -200,7 +201,7 @@ fn test_a_code_that_is_digits_but_no_number_is_no_key() {
         ("engine".to_string(), "keyboard".to_string()),
         ("code".to_string(), "²".to_string()),
     ]);
-    assert_eq!(keyfile::keyboard_code(&params).unwrap(), None);
+    assert_eq!(azahar::keyboard_code(&params).unwrap(), None);
 }
 
 #[test]
@@ -219,9 +220,9 @@ fn test_every_code_reads_back_as_the_name_it_was_written_from() {
     for name in [
         "a", "z", "0", "9", ";", "'", "[", "]", "/", "left", "down", "enter", "space",
     ] {
-        let code = keyfile::qt_code(name).unwrap();
+        let code = azahar::qt_code(name).unwrap();
         assert!(code.is_some(), "{name}");
-        assert_eq!(keyfile::qt_name(code.unwrap()), name);
+        assert_eq!(azahar::qt_name(code.unwrap()), name);
     }
 }
 
@@ -229,21 +230,21 @@ fn test_every_code_reads_back_as_the_name_it_was_written_from() {
 /// key pa3ds takes is compared with Azahar's by that name (touch mode's tap, 2026-10-01).
 #[test]
 fn test_the_main_enter_key_is_enter_as_pa3ds_s_hook_calls_it() {
-    assert_eq!(keyfile::qt_code("return").unwrap(), Some(0x01000004));
-    assert_eq!(keyfile::qt_code("enter").unwrap(), Some(0x01000004));
-    assert_eq!(keyfile::qt_name(0x01000005), "keypad enter");
+    assert_eq!(azahar::qt_code("return").unwrap(), Some(0x01000004));
+    assert_eq!(azahar::qt_code("enter").unwrap(), Some(0x01000004));
+    assert_eq!(azahar::qt_name(0x01000005), "keypad enter");
 }
 
 #[test]
 fn test_a_code_nothing_knows_is_said_as_itself() {
-    assert_eq!(keyfile::qt_name(0x01FFFFFF), "code 33554431");
+    assert_eq!(azahar::qt_name(0x01FFFFFF), "code 33554431");
 }
 
 // ---------------------------------------------------------------- reading the emulator's config
 
 #[test]
 fn test_the_emulator_s_own_bindings_are_read_buttons_and_sticks_alike() {
-    let found = keyfile::emulator_keys(&config()).unwrap();
+    let found = azahar::emulator_keys(&config()).unwrap();
     assert_eq!(found["button_a"], ["a"]);
     assert_eq!(found["button_start"], ["m"]);
     assert_eq!(found["c_stick"], ["i", "k", "j", "l"]); // up, down, left, right
@@ -254,7 +255,7 @@ fn test_the_emulator_s_own_bindings_are_read_buttons_and_sticks_alike() {
 #[test]
 fn test_a_control_that_is_not_on_the_keyboard_is_left_out() {
     assert!(
-        !keyfile::emulator_keys(&config())
+        !azahar::emulator_keys(&config())
             .unwrap()
             .contains_key("touch_device")
     );
@@ -264,7 +265,7 @@ fn test_a_control_that_is_not_on_the_keyboard_is_left_out() {
 fn test_the_profile_setting_counts_from_zero_and_the_sections_count_from_one() {
     let other = config().replace("profile=0", "profile=1");
     assert_eq!(
-        keyfile::emulator_keys(&other).unwrap(),
+        azahar::emulator_keys(&other).unwrap(),
         IndexMap::<String, Vec<String>>::new()
     );
 }
@@ -275,7 +276,7 @@ fn test_the_profile_setting_counts_from_zero_and_the_sections_count_from_one() {
 /// not open the game's menu while pa3ds was running.
 #[test]
 fn test_a_key_pa3ds_takes_is_named_with_the_button_it_costs() {
-    let emulator = keyfile::emulator_keys(&config()).unwrap();
+    let emulator = azahar::emulator_keys(&config()).unwrap();
     let over = keyfile::taken(&modes(&[(LIST, &[("m", "mode")])]), &emulator);
     assert_eq!(over, [("Start".to_string(), "m".to_string(), false)]);
     assert!(keyfile::taken(&bindings(), &emulator).contains(&(
@@ -290,7 +291,7 @@ fn test_a_key_pa3ds_takes_is_named_with_the_button_it_costs() {
 /// whenever shift is up. Until then `shift+k` was said to take the C-stick's K.
 #[test]
 fn test_a_key_with_a_modifier_takes_its_button_only_while_the_modifier_is_held() {
-    let emulator = keyfile::emulator_keys(&config()).unwrap();
+    let emulator = azahar::emulator_keys(&config()).unwrap();
     assert_eq!(
         keyfile::taken(&modes(&[(LIST, &[("shift+k", "rename")])]), &emulator),
         []
@@ -333,7 +334,7 @@ fn test_the_controls_oras_never_uses_are_logged_but_not_said() {
 /// startup, which is how a frame limit of 1000 was silently ignored for an afternoon.
 #[test]
 fn test_a_button_is_bound_with_its_default_flag_turned_off() {
-    let (patched, changed) = keyfile::patch(&config(), &key("start", "y")).unwrap();
+    let (patched, changed) = azahar::patch(&config(), &key("start", "y")).unwrap();
     assert!(patched.contains("profiles\\1\\button_start=\"code:89,engine:keyboard\""));
     assert!(patched.contains("profiles\\1\\button_start\\default=false"));
     assert_eq!(changed, ["Start is now y"]);
@@ -341,7 +342,7 @@ fn test_a_button_is_bound_with_its_default_flag_turned_off() {
 
 #[test]
 fn test_patching_keeps_the_file_s_own_line_endings() {
-    let (patched, _) = keyfile::patch(&config(), &key("start", "y")).unwrap();
+    let (patched, _) = azahar::patch(&config(), &key("start", "y")).unwrap();
     assert!(!patched.replace("\r\n", "").contains('\n'));
 }
 
@@ -349,8 +350,8 @@ fn test_patching_keeps_the_file_s_own_line_endings() {
 /// nothing must not tell the player to restart the game.
 #[test]
 fn test_a_button_already_bound_the_way_it_is_asked_for_changes_nothing() {
-    let (once, _) = keyfile::patch(&config(), &key("start", "y")).unwrap();
-    let (twice, changed) = keyfile::patch(&once, &key("start", "y")).unwrap();
+    let (once, _) = azahar::patch(&config(), &key("start", "y")).unwrap();
+    let (twice, changed) = azahar::patch(&once, &key("start", "y")).unwrap();
     assert_eq!(twice, once);
     assert_eq!(changed, Vec::<String>::new());
 }
@@ -358,20 +359,20 @@ fn test_a_button_already_bound_the_way_it_is_asked_for_changes_nothing() {
 /// The value alone is not enough: with the flag true Azahar is not using the value.
 #[test]
 fn test_a_button_whose_flag_is_still_true_is_rewritten_even_at_the_same_value() {
-    let (_, changed) = keyfile::patch(&config(), &key("start", "m")).unwrap();
+    let (_, changed) = azahar::patch(&config(), &key("start", "m")).unwrap();
     assert_eq!(changed, ["Start is now m"]);
 }
 
 #[test]
 fn test_a_key_that_does_not_exist_is_said_rather_than_written() {
-    let (patched, changed) = keyfile::patch(&config(), &key("start", "wibble")).unwrap();
+    let (patched, changed) = azahar::patch(&config(), &key("start", "wibble")).unwrap();
     assert_eq!(patched, config());
     assert_eq!(changed, ["start: no key is called 'wibble'"]);
 }
 
 #[test]
 fn test_a_button_the_config_does_not_have_is_said_rather_than_invented() {
-    let (_, changed) = keyfile::patch(
+    let (_, changed) = azahar::patch(
         &config().replace("button_start", "button_gone"),
         &key("start", "y"),
     )
@@ -648,7 +649,7 @@ fn test_a_key_pa3ds_gained_is_added_to_its_table_and_nothing_else_changes() {
     older[DIRECTION].shift_remove("shift+k");
     let before = keyfile::render(
         &older,
-        &keyfile::emulator_keys(&config()).unwrap(),
+        &azahar::emulator_keys(&config()).unwrap(),
         None,
         None,
         None,
@@ -926,7 +927,7 @@ fn test_the_azahar_section_is_written_into_the_emulator_s_config() {
     assert!(read(&config).contains("profiles\\1\\button_start=\"code:89,engine:keyboard\""));
     assert!(keys.said.contains("keys applied"));
     assert_eq!(
-        keyfile::emulator_keys(&read(&config)).unwrap()["button_start"],
+        azahar::emulator_keys(&read(&config)).unwrap()["button_start"],
         ["y"]
     );
 }
@@ -1010,15 +1011,15 @@ fn test_a_missing_emulator_config_is_said_and_nothing_else_stops() {
 fn test_a_portable_azahar_is_the_folder_with_azahar_exe_and_a_user_folder() {
     let tmp_path = TmpPath::new();
     fs::write(tmp_path.join("azahar.exe"), b"").unwrap();
-    assert!(keyfile::portable(&tmp_path).is_err());
+    assert!(azahar::portable(&tmp_path).is_err());
     fs::create_dir(tmp_path.join("user")).unwrap();
-    assert_eq!(keyfile::portable(&tmp_path), Ok(tmp_path.to_path_buf()));
+    assert_eq!(azahar::portable(&tmp_path), Ok(tmp_path.to_path_buf()));
     assert_eq!(
-        keyfile::portable(&tmp_path.join("user")),
+        azahar::portable(&tmp_path.join("user")),
         Ok(tmp_path.to_path_buf())
     );
     assert_eq!(
-        keyfile::emulator_config(&crate::py::path_str(&tmp_path)).unwrap(),
+        azahar::emulator_config(&crate::py::path_str(&tmp_path)).unwrap(),
         tmp_path.join("user").join("config").join("qt-config.ini")
     );
 }
@@ -1029,12 +1030,12 @@ fn test_a_folder_that_is_not_a_portable_azahar_says_why() {
     let empty = tmp_path.join("empty");
     fs::create_dir(&empty).unwrap();
     assert!(
-        keyfile::portable(&empty)
+        azahar::portable(&empty)
             .unwrap_err()
             .contains("no azahar.exe")
     );
     fs::write(empty.join("azahar.exe"), b"").unwrap();
-    assert!(keyfile::portable(&empty).unwrap_err().contains("AppData"));
+    assert!(azahar::portable(&empty).unwrap_err().contains("AppData"));
 }
 
 // ---------------------------------------------------------------- modifiers
@@ -1112,10 +1113,10 @@ fn test_a_key_nobody_bound_is_nobody_s() {
 /// give the untouched value back exactly.
 #[test]
 fn test_a_sticks_value_reads_and_writes_back_byte_for_byte() {
-    let stick = keyfile::emulator_keys(&config()).unwrap();
+    let stick = azahar::emulator_keys(&config()).unwrap();
     assert_eq!(stick["c_stick"], ["i", "k", "j", "l"]);
     let value = stick_value(&config());
-    assert_eq!(keyfile::pack(&keyfile::unpack(&value)), value);
+    assert_eq!(azahar::pack(&azahar::unpack(&value)), value);
 }
 
 /// The keys file has to show a stick the way a table sets it, or the block it writes as a
@@ -1123,7 +1124,7 @@ fn test_a_sticks_value_reads_and_writes_back_byte_for_byte() {
 #[test]
 fn test_a_stick_is_also_read_as_what_each_of_its_settings_is_on() {
     assert_eq!(
-        keyfile::emulator_sticks(&config()).unwrap()["c_stick"],
+        azahar::emulator_sticks(&config()).unwrap()["c_stick"],
         mode(&[("up", "i"), ("down", "k"), ("left", "j"), ("right", "l")])
     );
 }
@@ -1135,7 +1136,7 @@ fn test_the_real_layout_reads_back_the_way_the_keys_file_shows_it() {
     let config = include_str!("fake_qt_config.ini")
         .replace("\r\n", "\n")
         .replace('\r', "\n");
-    let sticks = keyfile::emulator_sticks(&config).unwrap();
+    let sticks = azahar::emulator_sticks(&config).unwrap();
     assert_eq!(
         sticks["circle_pad"],
         mode(&[
@@ -1155,7 +1156,7 @@ fn test_the_real_layout_reads_back_the_way_the_keys_file_shows_it() {
 /// modifier is what sneaking and DexNav need and w/a/s/d is what some people prefer.
 #[test]
 fn test_a_stick_can_be_moved_onto_other_keys() {
-    let (patched, changed) = keyfile::patch(
+    let (patched, changed) = azahar::patch(
         &config(),
         &stick(
             "c_stick",
@@ -1170,7 +1171,7 @@ fn test_a_stick_can_be_moved_onto_other_keys() {
     )
     .unwrap();
     assert_eq!(
-        keyfile::emulator_keys(&patched).unwrap()["c_stick"],
+        azahar::emulator_keys(&patched).unwrap()["c_stick"],
         ["w", "s", "a", "d", "shift"]
     );
     assert_eq!(
@@ -1183,8 +1184,8 @@ fn test_a_stick_can_be_moved_onto_other_keys() {
 /// moves and leaves its note behind would leave a stale pair in the value for ever.
 #[test]
 fn test_moving_a_direction_takes_its_annotation_with_it() {
-    let (patched, _) = keyfile::patch(&config(), &stick("c_stick", &[("up", "w")])).unwrap();
-    let params = keyfile::unpack(&stick_value(&patched));
+    let (patched, _) = azahar::patch(&config(), &stick("c_stick", &[("up", "w")])).unwrap();
+    let params = azahar::unpack(&stick_value(&patched));
     assert_eq!(params["up"], "code:87,engine:keyboard");
     assert!(params.contains_key("code:87,engine:keyboard"));
     assert!(!params.contains_key("code:73,engine:keyboard"));
@@ -1193,20 +1194,20 @@ fn test_moving_a_direction_takes_its_annotation_with_it() {
 /// A player gives 0.5 and Azahar stores 0.500000.
 #[test]
 fn test_the_modifier_scale_is_written_the_way_the_config_keeps_it() {
-    let (patched, _) = keyfile::patch(
+    let (patched, _) = azahar::patch(
         &config(),
         &stick("c_stick", &[("modifier_scale", "0.250000")]),
     )
     .unwrap();
     assert_eq!(
-        keyfile::unpack(&stick_value(&patched))["modifier_scale"],
+        azahar::unpack(&stick_value(&patched))["modifier_scale"],
         "0.250000"
     );
 }
 
 #[test]
 fn test_a_stick_setting_that_does_not_exist_is_said_rather_than_written() {
-    let (_, changed) = keyfile::patch(&config(), &stick("c_stick", &[("diagonal", "w")])).unwrap();
+    let (_, changed) = azahar::patch(&config(), &stick("c_stick", &[("diagonal", "w")])).unwrap();
     assert_eq!(changed, ["c_stick: a stick has no 'diagonal'"]);
 }
 
@@ -1222,7 +1223,7 @@ fn test_a_stick_is_read_from_the_file_with_its_scale_as_a_number() {
     )
     .unwrap();
     let keys = prepare(&bindings(), &home, &config, true, false, None);
-    let params = keyfile::unpack(&stick_value(&read(&config)));
+    let params = azahar::unpack(&stick_value(&read(&config)));
     assert_eq!(params["up"], "code:87,engine:keyboard");
     assert_eq!(params["modifier"], "code:16777248,engine:keyboard");
     assert_eq!(params["modifier_scale"], "0.500000");

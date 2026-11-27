@@ -280,7 +280,7 @@ pub(crate) fn game_title_from(
 }
 
 /// The folder of the running emulator's executable, or None while none is up: where a
-/// portable Azahar keeps its settings (`keyfile.found_portable`).
+/// portable Azahar keeps its settings (`azahar.found_portable`).
 pub fn emulator_folder(emulator: &str) -> Option<PathBuf> {
     let pid = emulator_pid(emulator);
     let path = if pid != 0 {

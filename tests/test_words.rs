@@ -12,7 +12,7 @@ use indexmap::IndexMap;
 use regex::Regex;
 
 use super::fake_words::words_in;
-use crate::core::keyfile::data_path;
+use crate::core::folders::data_path;
 use crate::core::words::{self, ENGLISH, Words, own};
 
 /// pytest's `tmp_path`: a folder of this test's own, gone when the test is.

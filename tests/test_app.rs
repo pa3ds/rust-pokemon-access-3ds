@@ -22,7 +22,7 @@ use crate::core::config::{Tables, Ui};
 use crate::core::memory::{self, Memory};
 use crate::core::rpc::{MAX_READ, Process, Rpc, UdpRpc};
 use crate::core::speech::{Backend, Category, Speech};
-use crate::core::{config, keyfile, words};
+use crate::core::{config, folders, keyfile, words};
 use crate::games::catalog::{self, Running};
 use crate::games::common::announce::Announcements;
 use crate::games::common::dialogue::{Shown, TextWritten};
@@ -56,7 +56,7 @@ impl Home {
         let home = root.path().join("user");
         // SAFETY: every test that touches the environment holds `ENVIRONMENT`.
         unsafe {
-            std::env::set_var(keyfile::HOME_ENV, &home);
+            std::env::set_var(folders::HOME_ENV, &home);
             // Azahar's own config is looked for under APPDATA, and is not pa3ds's to find in a
             // test.
             std::env::set_var("APPDATA", root.path().join("appdata"));
@@ -76,7 +76,7 @@ impl Home {
 impl Drop for Home {
     fn drop(&mut self) {
         // SAFETY: as in `new`.
-        unsafe { std::env::remove_var(keyfile::HOME_ENV) };
+        unsafe { std::env::remove_var(folders::HOME_ENV) };
     }
 }
 
@@ -337,7 +337,7 @@ fn test_everything_the_player_owns_sits_beside_pa3ds() {
         keyfile::keys_path(None).unwrap().parent().unwrap(),
         home.home
     );
-    assert_eq!(keyfile::home_path().unwrap(), home.home);
+    assert_eq!(folders::home_path().unwrap(), home.home);
 }
 
 /// Found from where pa3ds itself is. In Python, run from a checkout, that was the checkout; the
@@ -346,7 +346,7 @@ fn test_everything_the_player_owns_sits_beside_pa3ds() {
 #[test]
 fn test_pa3ds_run_from_a_checkout_is_the_checkout() {
     let executable = std::env::current_exe().unwrap();
-    assert_eq!(keyfile::app_path().unwrap(), executable.parent().unwrap());
+    assert_eq!(folders::app_path().unwrap(), executable.parent().unwrap());
 }
 
 #[test]

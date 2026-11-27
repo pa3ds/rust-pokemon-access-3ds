@@ -14,7 +14,7 @@ use crate::core::rpc::{DEFAULT_PORT, Rpc, UdpRpc};
 use crate::core::speech::{self, Backend, Category, Speech};
 use crate::core::touch::PORT as TOUCH_PORT;
 use crate::core::words::{self, ENGLISH, Words, own};
-use crate::core::{config, instance, keyfile, window};
+use crate::core::{azahar, config, folders, instance, keyfile, window};
 use crate::games::common::field::keys::{DEFAULT_BINDINGS, DEFAULT_CONTEXTS, EXPLAINED};
 use crate::py::{self, Log, time};
 use crate::ux::folder;
@@ -232,8 +232,8 @@ fn run(args: Args, hooks: &Hooks) -> py::Result<()> {
     let mut replaced = false;
     let mut _release = None;
     if !args.silent {
-        replaced = instance::replace(&keyfile::home_path()?)?;
-        _release = Some(Release(keyfile::home_path()?));
+        replaced = instance::replace(&folders::home_path()?)?;
+        _release = Some(Release(folders::home_path()?));
     }
     // A patch of Azahar's config is lost when an open Azahar closes, so none is written while
     // it is open.
@@ -410,7 +410,7 @@ fn run(args: Args, hooks: &Hooks) -> py::Result<()> {
             tables: settings.tables.clone(),
             keys: bindings,
             contexts,
-            names_home: Some(keyfile::home_path()?),
+            names_home: Some(folders::home_path()?),
             rom: args.rom,
             restarted: replaced,
             emulator: Some(settings.emulator.clone()),
@@ -434,13 +434,13 @@ fn ask_for_azahar(settings: config::Config, notes: &mut Vec<String>) -> py::Resu
     let mut title = own("azahar-folder-ask", &[]);
     loop {
         println!("{title}");
-        let app = keyfile::app_path()?;
+        let app = folders::app_path()?;
         let Some(chosen) = folder::choose(&title, app.parent().unwrap_or(&app), notes) else {
             notes.push("no Azahar folder chosen".to_string());
             return Ok(settings);
         };
         notes.push(format!("Azahar folder chosen: {}", py::path_str(&chosen)));
-        let found = match keyfile::portable(&chosen) {
+        let found = match azahar::portable(&chosen) {
             Ok(found) => found,
             Err(found) => {
                 title = own("azahar-folder-again", &[("problem", &found)]);
@@ -471,7 +471,7 @@ fn ask_for_azahar(settings: config::Config, notes: &mut Vec<String>) -> py::Resu
 /// `<pa3ds>/user/logs/pa3ds.log`, among everything else the player owns (ADR-0032), in a folder
 /// of its own so ten runs of it do not bury the keys file and the names.
 pub fn default_log_path() -> py::Result<PathBuf> {
-    Ok(keyfile::home_path()?.join(LOG_FOLDER).join(LOG_NAME))
+    Ok(folders::home_path()?.join(LOG_FOLDER).join(LOG_NAME))
 }
 
 /// Where this run's log goes, with the runs before it moved aside to make room.

@@ -33,6 +33,7 @@ use indexmap::IndexMap;
 use unic_langid::LanguageIdentifier;
 use unicode_normalization::UnicodeNormalization;
 
+use crate::core::folders::data_path;
 use crate::py::{self, Log, Result};
 
 /// The language every message is written in first, and the one a message is looked for in when
@@ -144,7 +145,7 @@ impl Words {
         log: Log,
     ) -> Result<Words> {
         let common = match game {
-            None => crate::core::keyfile::data_path()?,
+            None => data_path()?,
             Some(game) => game.parent().map(Path::to_path_buf).unwrap_or_default(),
         }
         .join(COMMON);

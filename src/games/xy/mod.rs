@@ -13,7 +13,7 @@ use std::sync::{Arc, LazyLock, OnceLock};
 
 use indexmap::IndexMap;
 
-use crate::core::keyfile::data_path;
+use crate::core::folders::data_path;
 use crate::core::pathfind;
 use crate::games::common::field::ground::{CUT, ROCK_SMASH, STRENGTH};
 use crate::games::gen6::anchors::Chain;

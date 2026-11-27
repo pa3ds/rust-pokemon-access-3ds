@@ -26,7 +26,7 @@ The reference ports show every rule below in use: `src/core/rpc.rs`, `src/core/m
   it lacks in your report, and write a private helper meanwhile.
 - `data/` is upstream's, which `tools/sync.py mirror` keeps: a game a folder and a language a
   folder inside it (ADR-0040). Its `.ftl` files, everything a translator edits, are read at run
-  time (`core::keyfile::data_path`): a build run under `target\` reads the checkout's, and the
+  time (`core::folders::data_path`): a build run under `target\` reads the checkout's, and the
   release zip carries them beside `pa3ds.exe`. Anything else, a `.toml` table that is no
   translation, is built in by the reader that reads it, with `include_str!` (#16): its `shipped`
   is the table, and its `load` takes the table's text where the Python's takes its path.
@@ -252,7 +252,7 @@ Kept here so the next porter, and anyone reading a tape that differs, knows what
 
 - **Integers past `i64`.** Python's ints never overflow. A float made an int past about 9.2e18
   saturates (`py::int`, `round`, `floor`, `ceil`); a product of two words out of freed memory is
-  saturated where a port saw it (`lists`, `rtti`, `walls`, `keyfile`) and widened to `i128` in
+  saturated where a port saw it (`lists`, `rtti`, `walls`, `azahar`) and widened to `i128` in
   `mapblock`; anything else overflows, and since release builds check overflow (`Cargo.toml`) it
   panics and the runtime takes it for a reader's failure ("Reader error") where Python would have
   read on with a big number. Only garbage reaches these sizes.

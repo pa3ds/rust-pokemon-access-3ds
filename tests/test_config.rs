@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use super::test_app::ENVIRONMENT;
 use crate::core::config::{self, General, Navigation, Table, Ui, Value};
-use crate::core::keyfile;
+use crate::core::{azahar, keyfile};
 use crate::core::toml as toml_text;
 use crate::core::words::own;
 use crate::py;
@@ -948,19 +948,19 @@ fn test_a_portable_azahar_beside_pa3ds_is_found_over_an_old_appdata_config() {
     // SAFETY: every test that touches the environment holds `ENVIRONMENT`.
     unsafe { std::env::set_var("APPDATA", tmp_path.join("appdata")) };
     let home = tmp_path.join("home");
-    keyfile::LOOKED_IN.with(|looked_in| {
+    azahar::LOOKED_IN.with(|looked_in| {
         *looked_in.borrow_mut() = Some([None, Some(tmp_path.join("Azahar"))]);
     });
     let found = config::prepare(Some(&home), None, true, false).unwrap();
     let running = azahar(&tmp_path.join("elsewhere"));
-    keyfile::LOOKED_IN.with(|looked_in| {
+    azahar::LOOKED_IN.with(|looked_in| {
         *looked_in.borrow_mut() = Some([
             Some(tmp_path.join("elsewhere")),
             Some(tmp_path.join("Azahar")),
         ]);
     });
     let found_running = config::prepare(Some(&home), None, true, false).unwrap();
-    keyfile::LOOKED_IN.with(|looked_in| *looked_in.borrow_mut() = None);
+    azahar::LOOKED_IN.with(|looked_in| *looked_in.borrow_mut() = None);
     // SAFETY: as above.
     unsafe {
         match appdata {

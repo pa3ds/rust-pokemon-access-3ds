@@ -47,6 +47,7 @@ use indexmap::IndexMap;
 use crate::core::keyfile;
 use crate::core::toml;
 use crate::core::touch;
+use crate::core::{azahar, folders};
 use crate::core::words::own;
 use crate::py::{self, Result};
 
@@ -702,7 +703,7 @@ pub struct Config {
 /// `<pa3ds>/user/config.toml`, or under `home` instead.
 pub fn config_path(home: Option<&Path>) -> Result<PathBuf> {
     let home = match home {
-        None => keyfile::home_path()?,
+        None => folders::home_path()?,
         Some(home) => home.to_path_buf(),
     };
     Ok(home.join(FILE_NAME))
@@ -1109,7 +1110,7 @@ pub fn ui_language(home: Option<&Path>) -> Result<String> {
 /// Read the settings file, writing it the first time, and patch Azahar's settings.
 ///
 /// `write` off reads and reports without touching either file. `running` says Azahar is open,
-/// when its config is left alone (`keyfile.save`).
+/// when its config is left alone (`azahar.save`).
 pub fn prepare(
     home: Option<&Path>,
     emulator: Option<&Path>,
@@ -1254,13 +1255,13 @@ pub fn prepare(
     let mut folder = general.azahar_folder.clone();
     if emulator.is_none()
         && folder.is_empty()
-        && let Some(found) = keyfile::found_portable()?
+        && let Some(found) = azahar::found_portable()?
     {
         folder = py::path_str(&found);
         notes.push(format!("a portable Azahar found at {folder}"));
     }
     let config = match emulator {
-        None => keyfile::emulator_config(&folder)?,
+        None => azahar::emulator_config(&folder)?,
         Some(emulator) => emulator.to_path_buf(),
     };
     notes.push(format!(
@@ -1268,12 +1269,12 @@ pub fn prepare(
         py::path_str(&config)
     ));
     if !wanted.is_empty() {
-        let emulated = keyfile::read_config(&config, &mut notes);
+        let emulated = azahar::read_config(&config, &mut notes);
         if !emulated.is_empty() {
             // Of `[azahar]`, what neither pa3ds ships nor Azahar has goes, as `tidy` takes out a
             // setting of pa3ds's own it no longer has.
             let shipped = azahar();
-            let lacking: Vec<String> = keyfile::lacks(&emulated, wanted.keys().map(String::as_str))
+            let lacking: Vec<String> = azahar::lacks(&emulated, wanted.keys().map(String::as_str))
                 .into_iter()
                 .filter(|name| !shipped.contains_key(name.as_str()))
                 .collect();
@@ -1291,9 +1292,9 @@ pub fn prepare(
                 }
                 wanted.retain(|name, _| !lacking.contains(name));
             }
-            let (patched, changed) = keyfile::patch_settings(&emulated, &wanted);
+            let (patched, changed) = azahar::patch_settings(&emulated, &wanted);
             notes.extend(changed);
-            saved = keyfile::save(&config, &emulated, &patched, write, running, &mut notes);
+            saved = azahar::save(&config, &emulated, &patched, write, running, &mut notes);
         } else {
             // An Azahar never started has no settings yet: said, or its RPC server stays off
             // unheard.

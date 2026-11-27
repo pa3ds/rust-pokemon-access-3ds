@@ -5,7 +5,7 @@ use std::rc::Rc;
 
 use indexmap::IndexMap;
 
-use crate::core::keyfile::data_path;
+use crate::core::folders::data_path;
 use crate::core::words::{self, Words};
 use crate::games::common::pictures::named;
 use crate::games::gen6::screens::pokedex::SHAPES;

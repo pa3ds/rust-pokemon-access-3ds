@@ -6,7 +6,7 @@ use indexmap::IndexMap;
 
 use super::fake_memory::FakeMemory;
 use super::test_textures::darc;
-use crate::core::keyfile::data_path;
+use crate::core::folders::data_path;
 use crate::core::memory::Memory;
 use crate::core::words::{self, ENGLISH, Words};
 use crate::games::common::layout_file::{

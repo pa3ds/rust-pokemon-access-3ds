@@ -8,7 +8,7 @@ use std::sync::Arc;
 use indexmap::{IndexMap, IndexSet};
 
 use crate::core::config::Navigation;
-use crate::core::keyfile;
+use crate::core::{azahar, keyfile};
 use crate::core::keys::{SHIFT_DOWN, SHIFT_UP, key_name};
 use crate::core::names::Names;
 use crate::core::pathfind::{self, Cell, Leg, nearest};
@@ -5838,7 +5838,7 @@ fn test_no_key_of_the_default_bindings_is_a_button_the_player_presses() {
     let config = include_str!("fake_qt_config.ini")
         .replace("\r\n", "\n")
         .replace('\r', "\n");
-    let taken = keyfile::taken(&DEFAULT_BINDINGS, &keyfile::emulator_keys(&config).unwrap());
+    let taken = keyfile::taken(&DEFAULT_BINDINGS, &azahar::emulator_keys(&config).unwrap());
     let controls: HashSet<String> = taken.into_iter().map(|(control, _, _)| control).collect();
     assert_eq!(
         controls,

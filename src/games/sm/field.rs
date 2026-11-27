@@ -100,7 +100,7 @@ pub const HEAPS: [i64; 1] = [3];
 ///
 /// A function: Python's `NAMES` is a `Path` made as the module loads.
 pub fn names() -> PathBuf {
-    crate::core::keyfile::data_path()
+    crate::core::folders::data_path()
         .unwrap_or_default()
         .join("sm")
 }

@@ -7,7 +7,8 @@
 //!   them) and `heaps` (the blocks just allocated, ADR-0034).
 //! - The ROM on disk: `rom`, its file system, for the game's own words (ADR-0008).
 //! - The player's side: `speech`, `keys` and `keyfile`, `window`,
-//!   `names` and `toml`, the files the player owns (ADR-0031).
+//!   `names` and `toml`, the files the player owns (ADR-0031), and `folders`, where they are.
+//! - Azahar's own settings file, which pa3ds writes its settings and buttons into: `azahar`.
 //! - `pathfind`: a way on foot over any game's cells.
 //!
 //! What the game is, and what its memory means, is a game package's (`pa3ds.games`).
@@ -40,3 +41,6 @@ pub mod bcsar;
 pub mod clips;
 pub mod loudness;
 pub mod mixer;
+
+pub mod azahar;
+pub mod folders;

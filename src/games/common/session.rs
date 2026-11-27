@@ -22,7 +22,7 @@ use crate::core::rom::Rom;
 use crate::core::rpc::Process;
 use crate::core::tones::Tones;
 use crate::core::touch::TouchScreen;
-use crate::core::{keyfile, rom};
+use crate::core::{azahar, rom};
 use crate::games::common::field::keys::{Bindings, Contexts, DEFAULT_BINDINGS, DEFAULT_CONTEXTS};
 use crate::py::{self, Error, Kind, Log, Result};
 
@@ -188,7 +188,7 @@ impl Setup {
         }
         let path = match &self.emulator {
             Some(emulator) => emulator.clone(),
-            None => keyfile::emulator_config("")?,
+            None => azahar::emulator_config("")?,
         };
         // `read_text(encoding="utf-8", errors="replace")`, which also turns a CRLF into a LF:
         // `azahar_roms` splits the text into lines, so the difference is never seen.
@@ -199,7 +199,7 @@ impl Setup {
                     notes.push(format!(
                         "{} could not be read: {}",
                         py::path_str(&path),
-                        keyfile::os_error(&error, &path, true)
+                        azahar::os_error(&error, &path, true)
                     ));
                 }
                 String::new()

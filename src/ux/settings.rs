@@ -38,7 +38,7 @@ use std::rc::Rc;
 use indexmap::IndexMap;
 
 use crate::core::config::{self, Config, Value};
-use crate::core::keyfile;
+use crate::core::folders;
 use crate::core::words::{ENGLISH, Words, own};
 use crate::py::{self, Result};
 use crate::ux::dialog::{
@@ -147,7 +147,7 @@ pub fn fields() -> Vec<Field> {
 /// The language list's choices, (folder, what it is called): the game's own first, "", then
 /// each language pa3ds has words in, by its own name.
 pub fn languages() -> Result<Vec<(String, String)>> {
-    let common = keyfile::data_path()?.join("common");
+    let common = folders::data_path()?.join("common");
     let found: Vec<String> = if common.is_dir() {
         let mut found = Vec::new();
         for path in std::fs::read_dir(&common)? {
@@ -816,7 +816,7 @@ mod win {
         let initial = match typed_in {
             Some(typed_in) if typed_in.is_dir() => typed_in,
             _ => {
-                let app = keyfile::app_path()?;
+                let app = folders::app_path()?;
                 app.parent().map(Path::to_path_buf).unwrap_or(app)
             }
         };

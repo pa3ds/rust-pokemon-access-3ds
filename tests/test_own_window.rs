@@ -1,7 +1,7 @@
 //! pa3ds's own window (`pa3ds.ux.window`), read back from its template: no test opens it.
 
 use super::test_rename::read_template;
-use crate::core::keyfile::data_path;
+use crate::core::folders::data_path;
 use crate::ux::window::{
     DOCUMENTS, IDC_AMIE, IDC_CHANGELOG, IDC_DOCUMENTATION, IDC_EXIT, IDC_INSTALLER, IDC_ISSUES,
     IDC_KEYS, IDC_KNOWN_ISSUES, IDC_PORTABLE, IDC_SETTINGS, IDC_SETTINGS_GUIDE, IDC_TRANSLATING,

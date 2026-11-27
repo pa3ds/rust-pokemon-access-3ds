@@ -8,7 +8,7 @@ use indexmap::IndexMap;
 use super::fake_layouts::FakeLayouts;
 use super::fake_memory::{CODE, FakeClasses, FakeMemory};
 use super::test_memories::record;
-use crate::core::keyfile::data_path;
+use crate::core::folders::data_path;
 use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
 use crate::core::speech::Category;
