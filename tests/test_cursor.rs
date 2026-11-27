@@ -1013,6 +1013,33 @@ fn test_a_picture_cursor_on_a_buttons_pane_says_the_words_of_its_picture() {
     assert_eq!(Battle::new().heard(), said(&[(&["fight"], true)]));
 }
 
+/// X's forfeit question puts YES and NO over the command menu, and the cursor on YES was said
+/// "poke" a second after "YES", or at once: its spot was looked for in whichever layout came
+/// first, and the menu has a button's pane there too (the PSS's multiplayer). The button with
+/// words of its own is the one the cursor is on.
+#[test]
+fn test_a_picture_cursor_on_a_question_over_its_menu_says_the_questions_answer() {
+    let mut battle = Battle::new();
+    let question = 0x14700000;
+    let (work, root) = battle.fake.screen_with(question, false, false);
+    battle.fake.project(work, 320.0);
+    let group = question + 0x1000;
+    battle.fake.pane(group, root);
+    battle.name(group, "4");
+    battle.fake.pane(group + 0x200, group);
+    battle.name(group + 0x200, "5");
+    put(&battle.memory, group + 0x200 + lyt::X, &[39.0]);
+    put(&battle.memory, group + 0x200 + lyt::Y, &[12.0]);
+    battle.fake.pane(group + 0x400, group);
+    battle.name(group + 0x400, "6");
+    battle.fake.track().unwrap();
+    let yes = ScreenText {
+        root,
+        ..ScreenText::placed(group + 0x400, "YES", false, 20.0, 60.0, 12.0, 12.5)
+    };
+    assert_eq!(battle.heard_with(&[yes]), said(&[(&["YES"], true)]));
+}
+
 #[test]
 fn test_moving_a_picture_cursor_says_the_new_button() {
     let mut battle = Battle::new();

@@ -62,7 +62,7 @@ impl PictureCursors {
             self.said.forget(marker);
         }
         for (&marker, &top) in &markers {
-            let Some(spot) = self.spot(marker, top)? else {
+            let Some(spot) = self.spot(marker, top, on_screen)? else {
                 // A pane read mid-update can sit 1,000 units off for one poll (spike 50): a
                 // cursor lost for one poll is not taken for one gone, and said again.
                 let missed = self.missed.get(&marker).copied().unwrap_or(0) + 1;
@@ -124,7 +124,7 @@ impl PictureCursors {
     }
 
     /// The pane the cursor picture sits on, or None. Searched again only when it moved.
-    fn spot(&mut self, marker: i64, top: bool) -> Result<Option<Spot>> {
+    fn spot(&mut self, marker: i64, top: bool, on_screen: &[ScreenText]) -> Result<Option<Spot>> {
         let shape = self.layouts.shape;
         let head = self.layouts.pane(marker)?;
         let (x, y) = (f32(&head, shape.x)?, f32(&head, shape.y)?);
@@ -142,6 +142,7 @@ impl PictureCursors {
             }
         }
         let marker_root = u32(&head, lyt::PARENT)?;
+        let mut found: Vec<Spot> = Vec::new();
         for root in self.layouts.roots() {
             if root == marker_root {
                 continue;
@@ -160,19 +161,45 @@ impl PictureCursors {
                 }
                 let pane_placement = self.layouts.placement(pane)?;
                 if pane_placement.is_some_and(|placement| placement.shown) {
-                    let spot = Spot {
+                    found.push(Spot {
                         x,
                         y,
                         anchor: pane,
                         root,
-                    };
-                    self.spots.insert(marker, spot);
-                    return Ok(Some(spot));
+                    });
+                    break;
                 }
             }
         }
-        self.spots.shift_remove(&marker);
-        Ok(None)
+        if found.is_empty() {
+            self.spots.shift_remove(&marker);
+            return Ok(None);
+        }
+        // Of two layouts with a button's pane at the spot, the one whose button has words: X's
+        // forfeit question writes YES over the command menu, whose button there draws an icon, and
+        // the cursor on YES was said "poke" whenever the menu came first (the PSS's multiplayer).
+        // Taking the layout drawn over instead flipped the move-learning screen's return between
+        // two layouts as they were taken in again, its details said again at each.
+        let mut taken = found[0];
+        for &spot in &found {
+            if self.worded(&spot, on_screen)? {
+                taken = spot;
+                break;
+            }
+        }
+        self.spots.insert(marker, taken);
+        Ok(Some(taken))
+    }
+
+    /// Whether the button a spot belongs to has words of its own on screen.
+    fn worded(&self, spot: &Spot, on_screen: &[ScreenText]) -> Result<bool> {
+        let group = u32(&self.layouts.pane(spot.anchor)?, lyt::PARENT)?;
+        for p in on_screen {
+            if p.text.chars().any(py::is_alnum) && self.panes.below(p.r#box, group)? {
+                return Ok(true);
+            }
+        }
+        Ok(false)
     }
 
     /// The item a cursor picture's pane belongs to: the words under its group, or the words
