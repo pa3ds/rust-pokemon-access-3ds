@@ -8,7 +8,7 @@ use indexmap::IndexMap;
 use super::fake_layouts::FakeLayouts;
 use super::fake_memory::{CODE, FakeClasses};
 use super::test_amie::{PAGE, WALKER, page, species};
-use crate::core::config::Amie;
+use crate::core::config::Tables;
 use crate::core::rtti::ClassNames;
 use crate::games::common::field::keys::{BERRIES, BERRY_PICKER};
 use crate::games::common::touch::Target;
@@ -52,10 +52,9 @@ fn subscreens(apps: Rc<RefCell<RunningApp>>) -> Subscreens {
         }),
         oras::game(),
         apps,
-        &Amie::default(),
+        &Tables::default(),
         Rc::new(|said: &str| said.to_string()),
         Rc::new(|said: &str| said.to_string()),
-        false,
         None,
         None,
         Rc::new(|| Ok(None)),
@@ -67,8 +66,6 @@ fn subscreens(apps: Rc<RefCell<RunningApp>>) -> Subscreens {
         Rc::new(|| {}),
         Rc::new(|_said: &str| {}),
         Rc::new(|_said: &str| {}),
-        0.6,
-        false,
     );
     found
         .track(&IndexMap::from([(PAGE, amie::CLASS.to_string())]), false)

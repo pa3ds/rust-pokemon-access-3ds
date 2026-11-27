@@ -70,7 +70,7 @@ use std::rc::Rc;
 
 use indexmap::{IndexMap, IndexSet};
 
-use crate::core::config::{Amie, CRYING, STYLE_CRY, STYLE_NONE};
+use crate::core::config::{CRYING, STYLE_CRY, STYLE_NONE, Tables};
 use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
 use crate::core::speech::Category;
@@ -529,10 +529,9 @@ impl Subscreens {
         text: Rc<GameText>,
         game: &Game,
         apps: Rc<RefCell<RunningApp>>,
-        settings: &Amie,
+        tables: &Tables,
         picked: Rc<dyn Fn(&str) -> String>,
         wrong: Rc<dyn Fn(&str) -> String>,
-        describing: bool,
         cue: Option<Cue>,
         cry: Option<Crier>,
         frames: Frames,
@@ -544,9 +543,9 @@ impl Subscreens {
         bag_finished: Rc<dyn Fn()>,
         shot_fired: Rc<dyn Fn(&str)>,
         block_now: Rc<dyn Fn(&str)>,
-        block_lead: f64,
-        exact_stats: bool,
     ) -> Subscreens {
+        // The settings file's tables, each reader taking its own (`config.Tables`).
+        let settings = &tables.amie;
         let running: Rc<dyn Fn() -> Option<String>> = {
             let apps = apps.clone();
             Rc::new(move || apps.borrow().running.clone())
@@ -625,7 +624,7 @@ impl Subscreens {
                 let text = text.clone();
                 Rc::new(move |found: &pokemon::Pokemon| yours(&text, found)) as _
             }),
-            describing,
+            tables.ui.descriptions,
         )));
         // So does Super Training's, with the party; and its rounds' goals are on the top screen.
         let training = Rc::new(RefCell::new(TrainingPage::with_icons(
@@ -719,7 +718,7 @@ impl Subscreens {
             RoundOptions {
                 shot_fired: Some(shot_fired),
                 block_now: Some(block_now),
-                lead: block_lead,
+                lead: tables.training.block_lead,
                 ..RoundOptions::default()
             },
         )));
@@ -734,7 +733,7 @@ impl Subscreens {
             training.clone(),
             sparring.clone(),
             text.training_stats.clone(),
-            exact_stats,
+            tables.extras.base_stats,
             layouts,
             image_of,
             wrong,

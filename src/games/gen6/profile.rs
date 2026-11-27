@@ -1046,13 +1046,12 @@ impl Gen6Profile {
             text.clone(),
             game,
             apps.clone(),
-            &tables.amie,
+            &tables,
             {
                 let heard = heard.clone();
                 Rc::new(move |berry: &str| heard(PICK_SOUND, own(HOLDING, &[("target", &berry)])))
             },
             Rc::new(move |why: &str| heard(WRONG_SOUND, why.to_string())),
-            ui.descriptions,
             feedback_sounds
                 .as_ref()
                 .is_some_and(|sounds| sounds.names().contains(CUE_SOUND))
@@ -1079,8 +1078,6 @@ impl Gen6Profile {
                 let mode = tables.training.block_cue.clone();
                 Rc::new(move |said: &str| round_cue(&mode, CUE_SOUND, said))
             },
-            tables.training.block_lead,
-            tables.extras.base_stats,
         ));
         screen.borrow_mut().set_reworded({
             let (subscreens, files, layouts) = (subscreens.clone(), files.clone(), layouts.clone());
