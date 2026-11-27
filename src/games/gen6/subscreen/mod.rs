@@ -80,6 +80,7 @@ pub mod head_it;
 pub mod o_power;
 pub mod pss;
 pub mod pss_keys;
+pub mod pss_profile;
 pub mod puzzle;
 pub mod super_training;
 
@@ -113,6 +114,7 @@ use head_it::{Cue, Frames, HeadIt, HeadItKeys};
 use o_power::OPower;
 use pss::{COLOSSEUM, DIALOG, FRIEND_ENTRY};
 use pss_keys::PssKeys;
+use pss_profile::ProfileValues;
 use puzzle::TilePuzzle;
 use super_training::{
     Bags, CoreTraining, Gains, Goals, Medals, Round, RoundOptions, TrainingKeys, TrainingPage,
@@ -368,7 +370,8 @@ tracked!(
     BerryPicker,
     HeadIt,
     TrainingPage,
-    Round
+    Round,
+    ProfileValues
 );
 
 impl Touched for RefCell<AmiePage> {
@@ -542,6 +545,7 @@ pub struct Subscreens {
     pub(crate) puzzle: Rc<RefCell<TilePuzzle>>,
     pub(crate) o_power: Rc<RefCell<OPower>>,
     berry_picker: Rc<RefCell<BerryPicker>>,
+    profile: Rc<RefCell<ProfileValues>>,
     /// What the heap is swept for, each reader's `classes`.
     pub classes: Vec<&'static str>,
     tracked: Vec<Rc<dyn Tracked>>,
@@ -612,6 +616,8 @@ impl Subscreens {
             Rc::new(move |why: &str| sounds.heard(WRONG_SOUND, why))
         };
         let (memory_kept, layouts_kept) = (memory.clone(), layouts.clone());
+        let (profile_memory, profile_names, profile_layouts) =
+            (memory.clone(), names.clone(), layouts.clone());
         let running: Rc<dyn Fn() -> Option<String>> = {
             let apps = apps.clone();
             Rc::new(move || apps.borrow().running.clone())
@@ -865,6 +871,7 @@ impl Subscreens {
         };
 
         let (on_screen_kept, file_of_kept) = (on_screen.clone(), file_of.clone());
+        let profile_file_of = file_of.clone();
         let o_power = Rc::new(RefCell::new(OPower::new(
             memory_kept,
             on_screen,
@@ -875,6 +882,12 @@ impl Subscreens {
         )));
         // O-Power first: the log names the classes swept for in the order asked, its record's
         // straight after the profile's own (`gen6.profile.HEAP_CLASSES`).
+        let profile = Rc::new(RefCell::new(ProfileValues::new(
+            profile_memory,
+            profile_names,
+            profile_layouts,
+            profile_file_of,
+        )));
         let tracked: Vec<Rc<dyn Tracked>> = vec![
             o_power.clone(),
             page.clone(),
@@ -885,6 +898,7 @@ impl Subscreens {
             head_it.clone(),
             training.clone(),
             sparring.clone(),
+            profile.clone(),
         ];
         let classes: IndexSet<&'static str> = tracked
             .iter()
@@ -948,6 +962,7 @@ impl Subscreens {
             puzzle,
             o_power,
             berry_picker,
+            profile,
         }
     }
 
@@ -966,17 +981,17 @@ impl Subscreens {
 
     /// What screen text calls a picture of these screens', or None: a digit of a count the
     /// results of Amie's games draw a picture a digit, `0.bclim` to `9.bclim`, too large for the
-    /// index (or_amie_stars), named by its file.
+    /// index (or_amie_stars), named by its file; and a PSS profile's row, its message or a
+    /// location, drawn into a picture (`pss_profile`).
     pub fn name(&self, picture: i64) -> Result<Option<String>> {
         let running = self.running();
         if running
             .as_deref()
             .is_some_and(|running| amie::GAMES.contains(&running))
         {
-            Ok(amie::digit((self.image_of)(picture)?.as_deref()))
-        } else {
-            Ok(None)
+            return Ok(amie::digit((self.image_of)(picture)?.as_deref()));
         }
+        self.profile.borrow().name(picture)
     }
 
     /// What touch mode calls a picture of these screens', or None.

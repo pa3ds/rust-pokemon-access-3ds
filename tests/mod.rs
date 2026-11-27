@@ -74,6 +74,7 @@ mod test_pokedex;
 mod test_pokemon;
 mod test_profile;
 mod test_pss_keys;
+mod test_pss_profile;
 mod test_puzzle;
 mod test_rail;
 mod test_records;

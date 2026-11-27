@@ -9,13 +9,11 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
   Turning a PlayNav page with its arrows says nothing of the new page.
 - **The PSS**: the people shown under Friends, Acquaintances and Passersby are not offered by
   touch mode until you open their list; the PSS Settings do not say which kinds of people are
-  ticked. Someone else's profile does not say their message, their History or their
-  Locations. "Yes" may be said on its own as
-  the question about connecting to the Internet opens or closes. The O-Power list shows six
-  powers at once, and touch mode offers only those six: the 3DS's L and R buttons turn its page
-  to the rest. Your profile's History and Locations are read as screen
-  text with nothing after them: the icons of History and the place under each Location are not
-  read.
+  ticked. A profile, yours or someone else's, says its message and Locations, but not the
+  icons of its History, and has been checked only with its list as it opens, not scrolled. "Yes"
+  may be said on its own as the question about connecting to the Internet opens or closes. The
+  O-Power list shows six powers at once, and touch mode offers only those six: the 3DS's L and R
+  buttons turn its page to the rest.
 - **Battling another player in the PSS**: before the battle, the other player's Pokémon are not
   named.
 - **Registering each other as friends** after a trade or battle never finishes in Azahar: both
