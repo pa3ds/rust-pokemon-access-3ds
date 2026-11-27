@@ -40,6 +40,9 @@
 //!   once while it bounces round one. They said "Time Left" every second for a minute. Every tick
 //!   can sound a tone, `[pa3ds.audio] ticks`. While the player plays, a Tile Puzzle with a piece
 //!   away from home, its numbers are the play's, unsaid but for the clock's marks.
+//! - **A clock alone is said as its layout comes**: outside such a game, words that are minutes and
+//!   seconds alone, O-Power's "02:58", are left unsaid as they tick and as they settle in their
+//!   layout's first second.
 //! - **A game's score is the player's to ask for** (players, 2026-11-04): Head It's
 //!   score, combo and "MISS!", which come at every ball, faster than they can be said, are left
 //!   unsaid and never taken for a clock, its combo one up a second apart; where the player asks to
@@ -128,6 +131,10 @@ pub const REWRITE_ROWS: i64 = 2;
 /// Polls from one tick of a clock to the next: a second is five, and Berry Picker's "Time Left"
 /// was caught 0.82 to 1.05 s apart; a slow poll moves it a little either way.
 pub const CLOCK_POLLS: Range<i64> = 3..9;
+/// Words that are a clock alone, minutes and seconds: O-Power's "02:58". Python's `fullmatch`:
+/// anchored at both ends.
+static CLOCK: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^(?:\d+:\d\d)$").expect("a fixed pattern"));
 
 static NUMBERS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\d+").expect("a fixed pattern"));
 /// Polls, three seconds, within which a score heard again higher is left unsaid, where the player
@@ -674,7 +681,7 @@ impl ScreenAnnouncer {
                 && !listed.contains_key(&piece.root)
                 && !(piece.frame != 0 && !over.contains(&piece.group()))
         };
-        let heard: Vec<ScreenText> = texts
+        let mut heard: Vec<ScreenText> = texts
             .iter()
             .filter(|p| {
                 !labels.contains(&p.text)
@@ -702,10 +709,10 @@ impl ScreenAnnouncer {
         }
         let mut steps: IndexMap<i64, bool> = IndexMap::new();
         for p in &heard {
-            if timed
+            if (timed || CLOCK.is_match(&p.text))
                 && p.changed
                 && !scored.contains(&p.r#box)
-                && let Some(tick) = self.ticked(p)?
+                && let Some(tick) = self.ticked(p, timed)?
             {
                 steps.insert(p.r#box, tick);
             }
@@ -715,6 +722,40 @@ impl ScreenAnnouncer {
             .filter(|(_, tick)| **tick)
             .map(|(&r#box, _)| r#box)
             .collect();
+        // And settles with its layout: O-Power's Active panel, back from a power used, came with
+        // the times it had left, then jumped them a second or two a poll later and brought one
+        // back alone, "Prize Money Power Lv. 1 02:57", "02:43" (or_pss_o_power). A clock from
+        // then on: a row coming later in that second ticked first two polls on, too soon for a
+        // clock's beat, and said "Encounter Power Lv. 1 02:27" again.
+        let settled: HashSet<i64> = if timed {
+            HashSet::new()
+        } else {
+            heard
+                .iter()
+                .filter(|p| {
+                    let since = self
+                        .on_screen_since
+                        .get(&p.root)
+                        .copied()
+                        .unwrap_or(self.polls);
+                    CLOCK.is_match(&p.text)
+                        && !ticks.contains(&p.r#box)
+                        && (1..ARRIVAL_MAX_POLLS).contains(&(self.polls - since))
+                })
+                .map(|p| p.r#box)
+                .collect()
+        };
+        for p in &heard {
+            if settled.contains(&p.r#box) {
+                (self.log)(&format!(
+                    "screen ticked: {}  [layout {:#x}]",
+                    p.text, p.root
+                ));
+            }
+        }
+        heard.retain(|p| !settled.contains(&p.r#box));
+        ticks.extend(settled.iter().copied());
+        self.clocks.extend(settled.iter().copied());
         // Kept for two beats, so a clock whose second the reader missed still ticks.
         let polls = self.polls;
         self.set
@@ -741,7 +782,6 @@ impl ScreenAnnouncer {
             })
             .map(|p| p.r#box)
             .collect();
-        let mut heard = heard;
         if timed && !played.is_empty() {
             let playing = match &self.playing {
                 Some(playing) => playing()?,
@@ -997,7 +1037,14 @@ impl ScreenAnnouncer {
     /// reaching or passing a mark is said, but a mark said last, as a second won back bounces
     /// the clock round it: Unlimited said "Time Remaining: 01:00" twice in a second
     /// (or_amie_tile_puzzle_unlimited). A clock changing on no tick passes its marks afresh.
-    fn ticked(&mut self, piece: &ScreenText) -> Result<Option<bool>> {
+    ///
+    /// Outside such a game, only words that are a clock alone, minutes and seconds, are asked,
+    /// and every tick is left unsaid with no sound and no mark: O-Power's Active panel counts
+    /// down each power running, "02:58", and read each second of up to four at once
+    /// (or_pss_o_power); R says them (`gen6.o_power`).
+    ///
+    /// Python's `timed` defaults to True.
+    fn ticked(&mut self, piece: &ScreenText, timed: bool) -> Result<Option<bool>> {
         let Some(before) = self.set.get(&piece.r#box).cloned() else {
             return Ok(None);
         };
@@ -1009,13 +1056,24 @@ impl ScreenAnnouncer {
             return Ok(None);
         }
         let step = (now - then).abs();
-        if !((step == 1 && CLOCK_POLLS.contains(&(self.polls - before.1)))
-            || (self.clocks.contains(&piece.r#box) && 0 < step && step <= 2))
+        // Words a clock alone are one from their first tick, two seconds on two seconds after: the
+        // Active panel's row came at "02:59" and ticked first to "02:57" (or_pss_o_power).
+        let gap = self.polls - before.1;
+        if !((step == 1 && CLOCK_POLLS.contains(&gap))
+            || (self.clocks.contains(&piece.r#box) && 0 < step && step <= 2)
+            || (!timed && step == 2 && (CLOCK_POLLS.start..2 * CLOCK_POLLS.end).contains(&gap)))
         {
             self.marks.shift_remove(&piece.r#box);
             return Ok(None);
         }
         self.clocks.insert(piece.r#box);
+        if !timed {
+            (self.log)(&format!(
+                "screen ticked: {}  [layout {:#x}]",
+                piece.text, piece.root
+            ));
+            return Ok(Some(true));
+        }
         let down = now < then;
         if let Some(tick) = &self.tick {
             tick();

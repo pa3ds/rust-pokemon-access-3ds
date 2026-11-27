@@ -14,8 +14,8 @@ use crate::games::common::cursors::shared::{CursorItem, CursorPoll};
 use crate::games::common::dialogue::{PageShown, Shown};
 use crate::games::common::screen::{ScreenPoll, ScreenText};
 use crate::games::common::screen_announce::{
-    ARRIVAL_MAX_POLLS, CURSOR_HEARD_POLLS, DETAIL_MAX_POLLS, DETAIL_POLLS, LABEL_POLLS,
-    PLACE_POLLS, REPEAT_POLLS, Scored, ScreenAnnouncer,
+    ARRIVAL_MAX_POLLS, CLOCK_POLLS, CURSOR_HEARD_POLLS, DETAIL_MAX_POLLS, DETAIL_POLLS,
+    LABEL_POLLS, PLACE_POLLS, REPEAT_POLLS, Scored, ScreenAnnouncer,
 };
 use crate::py::{Log, Result};
 
@@ -1854,6 +1854,90 @@ fn test_no_number_is_a_clock_outside_a_game_that_times_the_player() {
         .map(|left| format!("Time Left: {left}"))
         .collect();
     assert_eq!(run_clock_5(&mut Screen::new(), &countdown), countdown);
+}
+
+/// O-Power's Active panel counts down each power running, its time a TextBox of its own, and
+/// each second of up to four was read (or_pss_o_power). Its half minute is no mark either: R
+/// says the times. Back from a power used, it came with the times it had left, then jumped them
+/// two seconds a poll later and brought one back alone: "Prize Money Power Lv. 1 02:57",
+/// "02:43".
+#[test]
+fn test_a_clock_alone_outside_a_game_is_said_only_as_its_layout_comes() {
+    let ticks = Rc::new(RefCell::new(Vec::<i64>::new()));
+    let counting = ticks.clone();
+    let mut screen = Screen::with_clock(
+        false,
+        Some(Rc::new(move || counting.borrow_mut().push(1))),
+        false,
+        None,
+    );
+    let countdown: Vec<String> = (28..34).rev().map(|left| format!("02:{left:02}")).collect();
+    let said = run_clock_5(&mut screen, &countdown);
+    assert_eq!(said, ["02:33"]);
+    assert!(ticks.borrow().is_empty());
+    // Its first tick two seconds on: a row came at "02:59" and next read "02:57".
+    assert_eq!(
+        run_clock(
+            &mut Screen::new(),
+            &words(&["02:59", "02:57", "02:56"]),
+            &[10, 5]
+        ),
+        ["02:59"]
+    );
+    let mut screen = Screen::new();
+    let in_row = |parent: i64| Kw { parent, ..PLAIN };
+    let power = vec![
+        piece_kw(1, "Prize Money Power", -100.0, 60.0, PANEL, in_row(5)),
+        piece_kw(2, "Lv. 1", 20.0, 60.0, PANEL, in_row(5)),
+        piece_kw(3, "02:59", 80.0, 60.0, PANEL, in_row(5)),
+    ];
+    assert_eq!(
+        screen.say(args(&power, vec![], &power)),
+        ["Prize Money Power Lv. 1 02:59"]
+    );
+    let jumped = ScreenText {
+        text: "02:57".to_string(),
+        changed: true,
+        with_layout: false,
+        ..power[2].clone()
+    };
+    let later = Kw {
+        parent: 6,
+        with_layout: false,
+        ..PLAIN
+    };
+    let back = piece_kw(4, "02:43", 80.0, 30.0, PANEL, later);
+    assert_eq!(
+        screen.say(args(
+            &[jumped.clone(), back.clone()],
+            vec![],
+            &cat(&[&power[..2], &[jumped, back]])
+        )),
+        NOTHING
+    );
+    // A row coming later in that second ticked first two polls on, past it: "Encounter Power
+    // Lv. 1 02:27" was said again.
+    let mut screen = Screen::new();
+    let mut said = screen.say(args(&power, vec![], &power));
+    for _ in 0..ARRIVAL_MAX_POLLS - 3 {
+        said.extend(screen.on(&power));
+    }
+    let mut late = vec![
+        piece_kw(5, "Encounter Power", -100.0, 30.0, PANEL, later),
+        piece_kw(6, "Lv. 1", 20.0, 30.0, PANEL, later),
+        piece_kw(7, "02:28", 80.0, 30.0, PANEL, later),
+    ];
+    said.extend(screen.say(args(&late, vec![], &cat(&[&power, &late]))));
+    said.extend(screen.on(&cat(&[&power, &late])));
+    late[2] = rewritten(&late[2], "02:27");
+    said.extend(screen.say(args(&one(&late[2]), vec![], &cat(&[&power, &late]))));
+    for _ in 0..ARRIVAL_MAX_POLLS {
+        said.extend(screen.on(&cat(&[&power, &late])));
+    }
+    assert_eq!(
+        said,
+        ["Prize Money Power Lv. 1 02:59", "Encounter Power Lv. 1 02:28"]
+    );
 }
 
 #[test]
@@ -4174,6 +4258,10 @@ fn test_one_row_changing_alone_is_said_at_once() {
         piece(2, "0:13", 50.0, 0.0, OPTIONS),
     ];
     screen.say(args(&time, vec![], &time));
+    // A minute on, long past a clock's second.
+    for _ in 0..2 * CLOCK_POLLS.end {
+        screen.on(&time);
+    }
     let now = vec![time[0].clone(), rewritten(&time[1], "0:14")];
     assert_eq!(
         screen.say(args(&one(&now[1]), vec![], &now)),
