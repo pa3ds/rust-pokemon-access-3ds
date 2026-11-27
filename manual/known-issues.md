@@ -7,6 +7,12 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
 
 - **Some touch-screen apps are only partly read**: the DexNav, Super Training and the PSS.
   Turning a PlayNav page with its arrows says nothing of the new page.
+- **The PSS**: the people shown under Friends, Acquaintances and Passersby are not offered by
+  touch mode until you open their list; the PSS Settings do not say which kinds of people are
+  ticked; and its screens with other players, a trade or battle, someone's profile and the
+  Favorites List with people in it, have been checked only from a player's log, so some of
+  their buttons may still be said by the name of their picture. "Yes" may be said on its own as
+  the question about connecting to the Internet opens or closes.
 - **X, Y, Sun and Moon** are read less completely than Omega Ruby and Alpha Sapphire.
 - **Games translated by fans**, such as the Chinese Omega Ruby, are supported where possible,
   but not as fully as the official games, which pa3ds is built and checked on. Where a

@@ -178,7 +178,7 @@ pub const HELD_MOST: f64 = 3.0;
 /// screen, the Bag, the PC, a battle, is worked with the game's buttons, which do all its touches
 /// do and faster, and touch mode says there is nothing to touch. A
 /// `frozenset` in Python, only ever tested for membership.
-pub const TOUCHED: [&str; 10] = [
+pub const TOUCHED: [&str; 12] = [
     FIELD,
     TUTORIAL,
     townmap::APP,
@@ -189,6 +189,8 @@ pub const TOUCHED: [&str; 10] = [
     subscreen::TOUCHED[4],
     subscreen::TOUCHED[5],
     subscreen::TOUCHED[6],
+    subscreen::TOUCHED[7],
+    subscreen::TOUCHED[8],
 ];
 pub const PICK_SOUND: &str = "SEQ_SE_CATCH";
 /// The PC Box's sounds for picking up a Pokémon and putting it down, the game's own for moving
@@ -891,6 +893,10 @@ impl Gen6Profile {
             let buttons = buttons.clone();
             Rc::new(move || buttons.borrow().off())
         };
+        let on: touch::Off = {
+            let buttons = buttons.clone();
+            Rc::new(move || buttons.borrow().on())
+        };
         // A screen's own keys are heard as the drag's own sounds are and the game's error sound,
         // or said where they are off; logged either way, as a key's line is.
         let heard = {
@@ -1094,6 +1100,7 @@ impl Gen6Profile {
                 lists: Some(lists_labels),
                 idle: Some(idle),
                 off: Some(off),
+                on: Some(on),
                 offered: Some({
                     let apps = apps.clone();
                     Rc::new(move || {

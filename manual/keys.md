@@ -97,9 +97,10 @@ The battle's keys work throughout.
 
 Touch mode walks the buttons on the bottom screen, in reading order. While a panel or a Yes
 and No is up, it leaves out the buttons behind it that a tap no longer reaches. It works where the
-game needs a touch: on the map with the PokéNav Plus, in the AreaNav, Pokémon-Amie and Super
-Training. Elsewhere, in the Bag, the PC or a battle, the game's own buttons do everything a touch
-does, and touch mode says "nothing to touch".
+game needs a touch: on the map with the PokéNav Plus and the PSS, in the AreaNav, Pokémon-Amie,
+Super Training, the PSS's profile, and the screen after a trade or battle online that asks
+whether to register someone as a friend. Elsewhere, in the Bag, the PC or a battle, the game's
+own buttons do everything a touch does, and touch mode says "nothing to touch".
 
 | Key | What it does |
 |---|---|

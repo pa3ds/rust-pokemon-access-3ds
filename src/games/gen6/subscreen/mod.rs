@@ -36,6 +36,10 @@
 //!
 //! A new one is built here and put in the tuples of what it answers, in the order it is asked in:
 //! touch mode names a picture by the first reader with a name for it, and offers targets in order.
+//! The PSS has no reader of its own: its screens are the field's bottom screen and touch mode's, but
+//! for its profile and the friend list's registering after a trade, apps of their own that need a
+//! touch.
+//!
 //! What touch mode does in the subscreens' apps is theirs too: which need a touch (`TOUCHED`), where
 //! Shift alone drags (`DRAGS`), and where a drag is made only on letting go, at the pace of the
 //! game's clock (`Subscreens.delayed`, `Subscreens.pace`). The profile reaches Tile Puzzle by name,
@@ -83,10 +87,18 @@ use super_training::{
     Waiting,
 };
 
+/// The PSS's profile, which its menu's Profile opens: the player's card and message, a tap on the
+/// message writing another, and nothing for the game's buttons to choose (or_pss_singleplayer).
+pub const PSS_PROFILE: &str = "N3app3pss11pss_profile4ProcE";
+/// After a trade or a battle with someone not a friend, "Tap the player's icon below" to register
+/// them as one, or Do not register: a player online with the PSS had nothing to touch there (a
+/// player's log of 2026-11-12).
+pub const FRIEND_ENTRY: &str = "N6netapp12friend_entry4ProcE";
 /// The subscreens' apps touch mode offers targets in (ADR-0009 as amended 2026-10-29), beside the
-/// field whose bottom screen they are: Pokémon-Amie, its decorate screen and its games, and Super
-/// Training's regimen menu and rounds. A `frozenset` in Python, only ever tested for membership.
-pub const TOUCHED: [&str; 7] = [
+/// field whose bottom screen they are: Pokémon-Amie, its decorate screen and its games, Super
+/// Training's regimen menu and rounds, and the PSS's profile and the friend list's registering. A
+/// `frozenset` in Python, only ever tested for membership.
+pub const TOUCHED: [&str; 9] = [
     amie::SCREENS[0],
     amie::SCREENS[1],
     amie::SCREENS[2],
@@ -94,6 +106,8 @@ pub const TOUCHED: [&str; 7] = [
     amie::SCREENS[4],
     super_training::MENU,
     super_training::SPARRING,
+    PSS_PROFILE,
+    FRIEND_ENTRY,
 ];
 /// The apps where Shift alone drags (ADR-0009): Pokémon-Amie's, and Super Training's rounds, where
 /// it is the stylus held on a goal to charge a shot. A `frozenset` in Python, only ever tested for

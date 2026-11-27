@@ -107,6 +107,10 @@ fn test_a_button_switched_off_is_said_by_its_layouts_work_and_its_panes_name() {
         buttons.off().unwrap(),
         HashSet::from([(PARTY_WORK, "2q".to_string())])
     );
+    assert_eq!(
+        buttons.on().unwrap(),
+        HashSet::from([(PARTY_WORK, "85".to_string())])
+    );
     assert_eq!(pane_name(0x111), "7l");
 }
 

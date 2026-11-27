@@ -232,6 +232,21 @@ impl Buttons {
     /// (work, pane name) of every touch area whose buttons are all switched off now: its
     /// layout's work and its name, or its picture's where it has none.
     pub fn off(&self) -> Result<HashSet<(i64, String)>> {
+        let (on, found) = self.switched()?;
+        // X's regimen menu keeps two buttons on its regimen's touch area, one of them off.
+        Ok(found.difference(&on).cloned().collect())
+    }
+
+    /// (work, pane name) of every button switched on now. The PSS Settings' Yes and No are
+    /// windows holding their words, with no touch area: the manager takes a tap on the window
+    /// (spike P).
+    pub fn on(&self) -> Result<HashSet<(i64, String)>> {
+        Ok(self.switched()?.0)
+    }
+
+    /// (work, pane name) of the buttons switched on now, and of those switched off.
+    #[allow(clippy::type_complexity)]
+    fn switched(&self) -> Result<(HashSet<(i64, String)>, HashSet<(i64, String)>)> {
         let read = |at: i64, size: i64| self.memory.read(at, size);
         let mut found: HashSet<(i64, String)> = HashSet::new();
         let mut on: HashSet<(i64, String)> = HashSet::new();
@@ -270,8 +285,7 @@ impl Buttons {
                 }
             }
         }
-        // X's regimen menu keeps two buttons on its regimen's touch area, one of them off.
-        Ok(found.difference(&on).cloned().collect())
+        Ok((on, found))
     }
 
     /// The works of the layouts a manager's buttons are in, read again when its list of

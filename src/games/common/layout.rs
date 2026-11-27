@@ -173,6 +173,9 @@ pub struct Layouts {
     /// Root -> screen polls left before its layout, just taken in, is taken for listed
     /// (`BUILT_POLLS`).
     built: RefCell<IndexMap<i64, i64>>,
+    /// Root -> when its layout was last taken in, counted (`order`).
+    order: RefCell<IndexMap<i64, i64>>,
+    taken_in: Cell<i64>,
     /// Root -> every pane under it, with its class name, as last walked.
     contents: RefCell<IndexMap<i64, IndexMap<i64, String>>>,
     /// Root -> the names of the panes under it, in the order walked.
@@ -211,6 +214,8 @@ impl Layouts {
             put_away: RefCell::new(HashSet::new()),
             listed: RefCell::new(HashSet::new()),
             built: RefCell::new(IndexMap::new()),
+            order: RefCell::new(IndexMap::new()),
+            taken_in: Cell::new(0),
             contents: RefCell::new(IndexMap::new()),
             pane_names: RefCell::new(IndexMap::new()),
             children: RefCell::new(IndexMap::new()),
@@ -272,7 +277,7 @@ impl Layouts {
             if changed || stale {
                 if changed {
                     self.settling.borrow_mut().insert(root, SETTLE_WALKS);
-                    self.built.borrow_mut().insert(root, BUILT_POLLS);
+                    self.taken(root);
                 }
                 self.walk(root)?;
             }
@@ -378,7 +383,7 @@ impl Layouts {
                 .insert(root, Layout { work, top, layout });
             self.walk(root)?;
             self.settling.borrow_mut().insert(root, SETTLE_WALKS);
-            self.built.borrow_mut().insert(root, BUILT_POLLS);
+            self.taken(root);
             self.watch_pool_of(work)?;
             back = true;
         }
@@ -399,10 +404,24 @@ impl Layouts {
                 .insert(root, Layout { work, top, layout });
             self.walk(root)?;
             self.settling.borrow_mut().insert(root, SETTLE_WALKS);
-            self.built.borrow_mut().insert(root, BUILT_POLLS);
+            self.taken(root);
             back = true;
         }
         Ok(back)
+    }
+
+    /// A layout just taken in, or built again.
+    fn taken(&self, root: i64) {
+        self.built.borrow_mut().insert(root, BUILT_POLLS);
+        self.taken_in.set(self.taken_in.get() + 1);
+        self.order.borrow_mut().insert(root, self.taken_in.get());
+    }
+
+    /// When a layout was last taken in among the others, a later one higher; 0 for one never
+    /// seen taken in. The PSS builds a window over its menu, the Shout-Out's Yes and No, at the
+    /// menu's layer and off the field's draw list as the menu is (spike P).
+    pub fn order(&self, root: i64) -> i64 {
+        self.order.borrow().get(&root).copied().unwrap_or(0)
     }
 
     /// Stop reading a layout: its work holds another now.
@@ -476,7 +495,7 @@ impl Layouts {
                     .borrow_mut()
                     .insert(root, Layout { work, top, layout });
                 self.walk(root)?;
-                self.built.borrow_mut().insert(root, BUILT_POLLS);
+                self.taken(root);
                 known.insert(work);
                 taken = true;
             }
@@ -719,6 +738,17 @@ impl Layouts {
         }
         let state = self.state(layout.work)?;
         Ok(byte(&state, lyt::WORK_LISTED)? == 0)
+    }
+
+    /// Is this layout on the system's list of layouts to draw now (`lyt.WORK_LISTED`)? The
+    /// field draws its own through it, and the PSS draws its windows itself, over the PSS's page
+    /// (spike P, or_pss_singleplayer).
+    pub fn listed(&self, root: i64) -> Result<bool> {
+        let Some(layout) = self.roots.borrow().get(&root).copied() else {
+            return Ok(false);
+        };
+        let state = self.state(layout.work)?;
+        Ok(byte(&state, lyt::WORK_LISTED)? == 1)
     }
 
     /// The roots of every layout tracked, whose works were still works at the last sweep.

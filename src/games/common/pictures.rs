@@ -62,6 +62,10 @@ pub const PREVIOUS: &str = "top-bar-previous";
 /// `button.bclim` are plates, a battle's 250 by 40 and a rounded corner in Super Training's
 /// archive, and a `button` anywhere but that bar stays one.
 pub const NEXT: &str = "top-bar-next";
+/// The PSS menu's arrow, a ▶ beside its right edge on its first page and a ◀ beside its left on
+/// its second, which turns the page: said `PREVIOUS` or `NEXT` by its side, as the top bar's are,
+/// where it was "arrow" (or_pss_singleplayer).
+pub const ARROW: &str = "arrow_button";
 
 /// Words a texture name spells otherwise, for a picture no file names. A file name is ASCII, so
 /// `pokemon_button.bclim` loses the accent the game itself writes everywhere else ("Choose a

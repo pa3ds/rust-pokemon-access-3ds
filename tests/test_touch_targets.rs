@@ -1766,3 +1766,361 @@ fn test_a_target_that_moves_what_the_screen_shows_is_told_it_has_been_pressed() 
     screen.press(touch::TAP);
     assert_eq!(*told.borrow(), [1]);
 }
+
+/// A pane at (x, y) from the layout's middle, up the screen, as big as given and drawn from its
+/// middle at its own size.
+#[allow(clippy::too_many_arguments)]
+fn placed(
+    fake: &FakeLayouts,
+    pane: i64,
+    parent: i64,
+    kind: Option<i64>,
+    x: f32,
+    y: f32,
+    width: f32,
+    height: f32,
+) {
+    fake.pane_with_vtable(pane, parent, kind);
+    fake.memory.write(pane + lyt::WIDTH, &floats(&[width, height]));
+    for (offset, value) in [
+        (lyt::X, x),
+        (lyt::Y, y),
+        (lyt::SCALE_X, 1.0),
+        (lyt::SCALE_Y, 1.0),
+    ] {
+        fake.memory.write(pane + offset, &floats(&[value]));
+    }
+    fake.memory.write(pane + lyt::ANCHOR, &[0x04]);
+}
+
+/// `ScreenText(box, text, False, root=root)`.
+fn text_in(r#box: i64, text: &str, root: i64) -> ScreenText {
+    ScreenText {
+        root,
+        ..ScreenText::new(r#box, text, false)
+    }
+}
+
+/// The PSS's menu draws Battle as an icon, its touch area under it, and writes "Battle" below
+/// it, hanging from the menu's backdrop: touch mode said "pss taisen" (or_pss_singleplayer). An
+/// icon with only another pane's words under it keeps its picture's words, as Amie's games menu's
+/// first button does, and one the data names its word. ADR-0013: the label is among the words
+/// naming a target, which the field's bottom screen leaves to touch mode.
+#[test]
+fn test_an_icon_the_data_does_not_name_is_named_by_the_words_under_it() {
+    let memory = FakeMemory::new();
+    let classes = FakeClasses::new(memory.clone());
+    let fake = FakeLayouts::new(&memory, &classes);
+    let (bounding, picture) = (
+        classes.add(lyt::BOUNDING_CLASS),
+        classes.add(lyt::PICTURE_CLASS),
+    );
+    let textbox = classes.add(lyt::TEXTBOX_CLASS);
+    let (_work, root) = fake.screen_with(0x08200000, false, false);
+    let [backdrop, battle, label, wonder, back, other] =
+        [1, 2, 3, 4, 5, 6].map(|i: i64| root + 0x1000 * i);
+    placed(&fake, backdrop, root, Some(picture), 0.0, 0.0, 320.0, 240.0);
+    placed(&fake, battle, backdrop, Some(picture), -70.0, 70.0, 40.0, 40.0);
+    placed(&fake, battle + 0x200, battle, Some(bounding), -70.0, 65.0, 60.0, 50.0);
+    placed(&fake, label, backdrop, Some(textbox), -70.0, 35.0, 120.0, 30.0);
+    placed(&fake, wonder, backdrop, Some(picture), 70.0, 0.0, 40.0, 40.0);
+    placed(&fake, wonder + 0x200, wonder, Some(bounding), 70.0, -5.0, 60.0, 50.0);
+    placed(&fake, back, root, Some(picture), 145.0, -105.0, 30.0, 30.0);
+    placed(&fake, back + 0x200, back, Some(bounding), 145.0, -105.0, 40.0, 30.0);
+    placed(&fake, other, root, None, 70.0, -35.0, 120.0, 30.0);
+    placed(&fake, other + 0x200, other, Some(textbox), 70.0, -35.0, 120.0, 30.0);
+    fake.track().unwrap();
+    let words = vec![
+        text_in(label, "Battle", root),
+        text_in(other + 0x200, "Head It", root),
+    ];
+    let drawn: IndexMap<i64, &str> = IndexMap::from([
+        (battle, "pss_taisen_icon.bclim"),
+        (wonder, "pss_random_icon.bclim"),
+        (back, "return_pss.bclim"),
+    ]);
+    let mut targets = TouchTargets::new(
+        fake.layouts.clone(),
+        Rc::new(move || words.clone()),
+        Rc::new(|_box| Ok(String::new())),
+        Rc::new(move |pane| Ok(drawn.get(&pane).map(|image| image.to_string()))),
+        Rc::new(|_root| None),
+        Rc::new(|_line: &str| {}),
+        Options::default(),
+    );
+    assert_eq!(
+        targets
+            .targets()
+            .unwrap()
+            .iter()
+            .map(|t| t.name.as_str())
+            .collect::<Vec<_>>(),
+        ["Battle", "pss random", "return"]
+    );
+    assert_eq!(targets.button_words().unwrap(), HashSet::from([label]));
+}
+
+/// The PSS's Favorites List hangs its return's touch area from the bar along the bottom, and
+/// it was said "touch bar" (or_pss_singleplayer).
+#[test]
+fn test_a_touch_area_is_named_by_the_picture_lying_in_it_not_the_bar_it_hangs_from() {
+    let memory = FakeMemory::new();
+    let classes = FakeClasses::new(memory.clone());
+    let fake = FakeLayouts::new(&memory, &classes);
+    let (bounding, picture) = (
+        classes.add(lyt::BOUNDING_CLASS),
+        classes.add(lyt::PICTURE_CLASS),
+    );
+    let (_work, root) = fake.screen_with(0x08200000, false, false);
+    let (bar, back) = (root + 0x1000, root + 0x2000);
+    placed(&fake, bar, root, Some(picture), 0.0, -105.0, 320.0, 30.0);
+    placed(&fake, back, bar, Some(picture), 145.0, -105.0, 30.0, 30.0);
+    placed(&fake, bar + 0x200, bar, Some(bounding), 145.0, -105.0, 40.0, 30.0);
+    fake.track().unwrap();
+    let drawn: IndexMap<i64, &str> =
+        IndexMap::from([(bar, "touch_bar.bclim"), (back, "return_pss.bclim")]);
+    let mut targets = TouchTargets::new(
+        fake.layouts.clone(),
+        Rc::new(Vec::new),
+        Rc::new(|_box| Ok(String::new())),
+        Rc::new(move |pane| Ok(drawn.get(&pane).map(|image| image.to_string()))),
+        Rc::new(|_root| None),
+        Rc::new(|_line: &str| {}),
+        Options::default(),
+    );
+    assert_eq!(
+        targets
+            .targets()
+            .unwrap()
+            .iter()
+            .map(|t| t.name.as_str())
+            .collect::<Vec<_>>(),
+        ["return"]
+    );
+}
+
+/// ADR-0013: the field's bottom screen leaves a button's words to touch mode, and only a
+/// button's. The AreaNav's window on the field says the place as the field comes back, the
+/// DexNav's panel "It couldn't be found nearby", the BuzzNav's its news: each a touch area as
+/// large as most of the screen, holding a button of its own, NEXT.
+#[test]
+fn test_the_words_of_a_touch_area_over_half_the_screen_are_the_screens() {
+    let memory = FakeMemory::new();
+    let classes = FakeClasses::new(memory.clone());
+    let fake = FakeLayouts::new(&memory, &classes);
+    let (bounding, textbox) = (
+        classes.add(lyt::BOUNDING_CLASS),
+        classes.add(lyt::TEXTBOX_CLASS),
+    );
+    let (_work, root) = fake.screen_with(0x08200000, false, false);
+    let (panel, next) = (root + 0x1000, root + 0x2000);
+    placed(&fake, panel, root, None, -35.0, 15.0, 250.0, 210.0);
+    placed(&fake, panel + 0x200, panel, Some(textbox), -35.0, 60.0, 230.0, 60.0);
+    placed(&fake, panel + 0x400, panel, Some(bounding), -35.0, 15.0, 250.0, 210.0);
+    placed(&fake, next, panel, None, -35.0, -20.0, 150.0, 30.0);
+    placed(&fake, next + 0x200, next, Some(textbox), -35.0, -20.0, 60.0, 20.0);
+    placed(&fake, next + 0x400, next, Some(bounding), -35.0, -20.0, 150.0, 30.0);
+    fake.track().unwrap();
+    let words = vec![
+        text_in(panel + 0x200, "Welcome to BuzzNav!", root),
+        text_in(next + 0x200, "NEXT", root),
+    ];
+    let mut targets = TouchTargets::new(
+        fake.layouts.clone(),
+        Rc::new(move || words.clone()),
+        Rc::new(|_box| Ok(String::new())),
+        Rc::new(|_pane| Ok(None)),
+        Rc::new(|_root| None),
+        Rc::new(|_line: &str| {}),
+        Options::default(),
+    );
+    assert_eq!(
+        targets.button_words().unwrap(),
+        HashSet::from([next + 0x200])
+    );
+}
+
+/// A ▶ beside the menu's right edge on its first page, a ◀ beside its left on its second, said
+/// "arrow" (or_pss_singleplayer).
+#[test]
+fn test_the_pss_menus_arrow_turns_the_page_by_its_side() {
+    let memory = FakeMemory::new();
+    let classes = FakeClasses::new(memory.clone());
+    let fake = FakeLayouts::new(&memory, &classes);
+    let (bounding, picture) = (
+        classes.add(lyt::BOUNDING_CLASS),
+        classes.add(lyt::PICTURE_CLASS),
+    );
+    let (_work, root) = fake.screen_with(0x08200000, false, false);
+    for (i, x) in [137.0f32, -143.0].into_iter().enumerate() {
+        let arrow = root + 0x1000 * (i as i64 + 1);
+        placed(&fake, arrow, root, Some(picture), x, 0.0, 20.0, 40.0);
+        placed(&fake, arrow + 0x200, arrow, Some(bounding), x, 0.0, 40.0, 60.0);
+    }
+    fake.track().unwrap();
+    let mut targets = TouchTargets::new(
+        fake.layouts.clone(),
+        Rc::new(Vec::new),
+        Rc::new(|_box| Ok(String::new())),
+        Rc::new(|_pane| Ok(Some("arrow_button.bclim".to_string()))),
+        Rc::new(|_root| None),
+        Rc::new(|_line: &str| {}),
+        Options::default(),
+    );
+    let mut names: Vec<String> = targets
+        .targets()
+        .unwrap()
+        .into_iter()
+        .map(|t| t.name)
+        .collect();
+    names.sort();
+    assert_eq!(names, ["next", "previous"]);
+}
+
+/// The PSS Settings' Yes and No are windows, `2w` and `34`, each holding its word and no
+/// touch area, and the game takes a tap on the window: touch mode offered neither (spike P). A
+/// window that is no button, or holds a touch area of its own, is none.
+#[test]
+fn test_a_window_holding_its_words_that_is_a_button_switched_on_is_a_touch_area() {
+    let memory = FakeMemory::new();
+    let classes = FakeClasses::new(memory.clone());
+    let fake = FakeLayouts::new(&memory, &classes);
+    let (window_class, textbox) = (
+        classes.add(lyt::WINDOW_CLASS),
+        classes.add(lyt::TEXTBOX_CLASS),
+    );
+    let bounding = classes.add(lyt::BOUNDING_CLASS);
+    let (work, root) = fake.screen_with(0x08200000, false, false);
+    for (i, (name, y)) in [(b"2w", -10.0f32), (b"34", -70.0), (b"35", 50.0)]
+        .into_iter()
+        .enumerate()
+    {
+        let window = root + 0x1000 * (i as i64 + 1);
+        placed(&fake, window, root, Some(window_class), 0.0, y, 260.0, 40.0);
+        memory.write(window + lyt::NAME, name);
+        placed(&fake, window + 0x200, window, Some(textbox), 0.0, y, 90.0, 20.0);
+    }
+    let held = root + 0x5000;
+    placed(&fake, held, root, Some(window_class), 0.0, 100.0, 40.0, 30.0);
+    memory.write(held + lyt::NAME, b"1r");
+    placed(&fake, held + 0x200, held, Some(textbox), 0.0, 100.0, 40.0, 30.0);
+    placed(&fake, held + 0x400, held, Some(bounding), 0.0, 100.0, 40.0, 30.0);
+    fake.track().unwrap();
+    let said: IndexMap<i64, &str> = IndexMap::from([
+        (root + 0x1200, "Yes"),
+        (root + 0x2200, "No"),
+        (root + 0x3200, "Is this OK?"),
+        (held + 0x200, "PSS menu"),
+    ]);
+    let words: Vec<ScreenText> = said
+        .iter()
+        .map(|(&r#box, &text)| text_in(r#box, text, root))
+        .collect();
+    let mut targets = TouchTargets::new(
+        fake.layouts.clone(),
+        Rc::new(move || words.clone()),
+        Rc::new(move |r#box| Ok(said.get(&r#box).copied().unwrap_or_default().to_string())),
+        Rc::new(|_pane| Ok(None)),
+        Rc::new(|_root| None),
+        Rc::new(|_line: &str| {}),
+        Options {
+            on: Some(Rc::new(move || {
+                Ok(HashSet::from([
+                    (work, "2w".to_string()),
+                    (work, "34".to_string()),
+                    (work, "1r".to_string()),
+                ]))
+            })),
+            ..Options::default()
+        },
+    );
+    assert_eq!(
+        targets
+            .targets()
+            .unwrap()
+            .iter()
+            .map(|t| (t.name.as_str(), t.x, t.y))
+            .collect::<Vec<_>>(),
+        [("PSS menu", 160, 20), ("Yes", 160, 130), ("No", 160, 190)]
+    );
+}
+
+/// The PSS draws its menu, its Yes and No and its other windows itself, each over a picture as
+/// big as the screen, at the layer of its page on the field's draw list: the page's Friends was
+/// offered under each, and a tap on it did nothing (or_pss_singleplayer). The field menu, at a
+/// higher layer, is drawn over them; with no window up the page is offered.
+#[test]
+fn test_a_window_drawn_off_the_draw_list_over_a_backdrop_covers_the_page_under_it() {
+    let memory = FakeMemory::new();
+    let classes = FakeClasses::new(memory.clone());
+    let fake = FakeLayouts::new(&memory, &classes);
+    let (bounding, picture) = (
+        classes.add(lyt::BOUNDING_CLASS),
+        classes.add(lyt::PICTURE_CLASS),
+    );
+    let textbox = classes.add(lyt::TEXTBOX_CLASS);
+    let (page_work, page) = fake.screen_with(0x08200000, false, false);
+    let (frame_work, frame) = fake.screen_with(0x08300000, false, false);
+    let (window_work, window) = fake.screen_with(0x08400000, false, false);
+    for (work, layer) in [(page_work, 1u16), (frame_work, 10), (window_work, 1)] {
+        memory.write(work + lyt::WORK_LAYER, &layer.to_le_bytes());
+    }
+    for work in [page_work, frame_work] {
+        memory.write(work + lyt::WORK_LISTED, &[1]);
+    }
+    let (tab, yes, pokemon) = (page + 0x1000, window + 0x2000, frame + 0x1000);
+    placed(&fake, tab, page, None, -100.0, 80.0, 120.0, 20.0);
+    placed(&fake, tab + 0x200, tab, Some(textbox), -90.0, 78.0, 100.0, 20.0);
+    placed(&fake, tab + 0x400, tab, Some(bounding), -100.0, 80.0, 120.0, 20.0);
+    placed(&fake, pokemon, frame, None, -100.0, -103.0, 30.0, 30.0);
+    placed(&fake, pokemon + 0x200, pokemon, Some(textbox), -100.0, -103.0, 30.0, 30.0);
+    placed(&fake, pokemon + 0x400, pokemon, Some(bounding), -100.0, -103.0, 30.0, 30.0);
+    placed(&fake, window + 0x1000, window, Some(picture), 0.0, 0.0, 320.0, 240.0);
+    placed(&fake, yes, window, None, 0.0, -10.0, 280.0, 40.0);
+    placed(&fake, yes + 0x200, yes, Some(textbox), 0.0, -10.0, 90.0, 20.0);
+    placed(&fake, yes + 0x400, yes, Some(bounding), 0.0, -10.0, 280.0, 40.0);
+    fake.track().unwrap();
+    let words: Rc<RefCell<Vec<ScreenText>>> = Rc::new(RefCell::new(vec![
+        text_in(tab + 0x200, "Friends", page),
+        text_in(pokemon + 0x200, "POKÉMON", frame),
+        text_in(yes + 0x200, "Yes", window),
+    ]));
+    let mut targets = TouchTargets::new(
+        fake.layouts.clone(),
+        {
+            let words = words.clone();
+            Rc::new(move || words.borrow().clone())
+        },
+        Rc::new(|_box| Ok(String::new())),
+        Rc::new(|_pane| Ok(None)),
+        Rc::new(|_root| None),
+        Rc::new(|_line: &str| {}),
+        Options::default(),
+    );
+    let names = |targets: &mut TouchTargets| -> Vec<String> {
+        targets
+            .targets()
+            .unwrap()
+            .into_iter()
+            .map(|t| t.name)
+            .collect()
+    };
+    assert_eq!(names(&mut targets), ["Yes", "POKÉMON"]);
+    // A window built after it covers it too: the Shout-Out's Yes and No over the menu.
+    let (later_work, later) = fake.screen_with(0x08500000, false, false);
+    memory.write(later_work + lyt::WORK_LAYER, &1u16.to_le_bytes());
+    placed(&fake, later + 0x1000, later, Some(picture), 0.0, 0.0, 320.0, 240.0);
+    placed(&fake, later + 0x2000, later, None, 0.0, 50.0, 280.0, 40.0);
+    placed(&fake, later + 0x2200, later + 0x2000, Some(textbox), 0.0, 50.0, 90.0, 20.0);
+    placed(&fake, later + 0x2400, later + 0x2000, Some(bounding), 0.0, 50.0, 280.0, 40.0);
+    fake.track().unwrap();
+    words
+        .borrow_mut()
+        .push(text_in(later + 0x2200, "No", later));
+    fake.layouts.refresh();
+    assert_eq!(names(&mut targets), ["No", "POKÉMON"]);
+    fake.visible(later + 0x1000, false);
+    fake.visible(window + 0x1000, false);
+    fake.layouts.refresh();
+    assert_eq!(names(&mut targets), ["Friends", "No", "Yes", "POKÉMON"]);
+}

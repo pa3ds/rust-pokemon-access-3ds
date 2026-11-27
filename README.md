@@ -73,7 +73,7 @@ the Game Boy games. Nothing here is taken from its code.
 - **The map**: exits, interactables (signs and the like), people, items, berry spots, obstacles
   and more, each with its direction and distance, and the way to any of them on foot.
 - **The touch screen**: the buttons on the bottom screen where the game needs a touch, which
-  touch mode can tap for you: the PokéNav's and PlayNav's apps, the AreaNav's places,
+  touch mode can tap for you: the PokéNav's and PlayNav's apps, the PSS, the AreaNav's places,
   Pokémon-Amie and Super Training.
 - **Pokémon-Amie** ([its own page](manual/amie.md)): the arrow keys move a stylus over your
   Pokémon, saying the part it is on, and touch mode pets that part; beckoning, high fives and
