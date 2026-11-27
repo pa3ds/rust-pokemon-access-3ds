@@ -902,6 +902,7 @@ fn test_a_ball_on_the_ground_a_signpost_and_a_thing_built_twice_are_each_said_on
     ];
     for (actor, name, (x, z)) in added {
         bedroom.memory.u32(actor, &[bedroom.vtables[name]]);
+        bedroom.memory.u32(actor + field::ARMED, &[1]);
         floats(
             &bedroom.memory,
             actor + field::ACTOR_X,
@@ -1180,6 +1181,7 @@ fn test_a_hidden_item_is_not_listed_though_the_field_builds_it_an_actor() {
     let hidden = 0x3037B068;
     for (actor, (x, z)) in [(BALL, (48.5, 62.5)), (hidden, (44.5, 62.5))] {
         bedroom.memory.u32(actor, &[bedroom.vtables[field::ITEM]]);
+        bedroom.memory.u32(actor + field::ARMED, &[1]);
         floats(
             &bedroom.memory,
             actor + field::ACTOR_X,
@@ -1217,7 +1219,7 @@ fn test_only_a_step_the_field_has_armed_is_listed_and_p_steps_round_it() {
     let (armed, idle) = (0x30372F00, 0x3037B068);
     for (actor, (x, z), on) in [(armed, (47.5, 60.5), 1), (idle, (44.5, 62.5), 0)] {
         bedroom.memory.u32(actor, &[bedroom.vtables[field::STEP]]);
-        bedroom.memory.u32(actor + field::STEP_ARMED, &[on]);
+        bedroom.memory.u32(actor + field::ARMED, &[on]);
         floats(
             &bedroom.memory,
             actor + field::ACTOR_X,
@@ -1676,13 +1678,15 @@ fn test_a_thing_is_the_same_thing_from_either_zone_of_its_area() {
 
 /// The field keeps only the zone's actors the player is in: stepping over the line between
 /// Route 1's two zones, the thing P was leading to was "gone" (sun_6.ctm, 2026-09-26). An exit
-/// stays; a ball is gone once its zone's balls are there without it.
+/// stays; a ball is gone once its zone's balls are there without it, or once its actor is
+/// unarmed: picked up on Route 1, a Potion's actor stayed, its +0x10 0 (2026-11-26).
 #[test]
 fn test_things_of_the_area_s_other_zones_are_kept_until_their_own_zone_has_them_gone() {
     let bedroom = Bedroom::new();
     let second = 0x3037B200;
     for (actor, (x, z)) in [(BALL, (48.5, 62.5)), (second, (46.5, 63.5))] {
         bedroom.memory.u32(actor, &[bedroom.vtables[field::ITEM]]);
+        bedroom.memory.u32(actor + field::ARMED, &[1]);
         floats(
             &bedroom.memory,
             actor + field::ACTOR_X,
@@ -1743,6 +1747,10 @@ fn test_things_of_the_area_s_other_zones_are_kept_until_their_own_zone_has_them_
     ));
     assert_eq!(listed("items"), [(46, 63)]);
     assert_eq!(listed("exits"), [(52, 60)]);
+    // Picked up, a ball keeps its actor, unarmed.
+    bedroom.memory.u32(second + field::ARMED, &[0]);
+    update(&emu, &bedroom.memory);
+    assert!(listed("items").is_empty());
 }
 
 /// Route 1's two zones are one ground with a line between them the player cannot see, and

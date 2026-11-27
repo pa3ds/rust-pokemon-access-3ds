@@ -170,6 +170,9 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
 - **Hidden items**, listed with `hidden_items = "all"`: whether one leaves the list once you
   have found it has not been tried, nor where you stand to pick one up; `P` says "here" anywhere
   within the patch of ground the game gives it.
+- **Someone who walks off in a scene can stay listed** where they stopped until you leave the
+  area: Professor Kukui, after his catching lesson on Route 1, walks off as the screen fades and
+  is still listed a few steps away. Item balls you pick up leave the list at once.
 - **A board can run its two lines together** where its second line has no quotation marks:
   "Hau'oli Police Station Keep our roads safe!".
 

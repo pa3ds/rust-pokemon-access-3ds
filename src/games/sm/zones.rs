@@ -118,7 +118,7 @@ pub const THING_KIND: i64 = 0x34;
 pub const THING_SHAPE: i64 = 0x38;
 pub const STEP_WORK: i64 = 0x24;
 /// A step's work and the value it is armed at, read as gen6's triggers' are and not checked: the
-/// field's own actor says which are armed (`field.STEP_ARMED`).
+/// field's own actor says which are armed (`field.ARMED`).
 pub const STEP_VALUE: i64 = 0x28;
 pub const TRAINER_MODEL: i64 = 0x30;
 pub const TRAINER_FLAG: i64 = 0x34;

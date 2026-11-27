@@ -94,9 +94,12 @@ pub const PC: &str = "PC";
 /// An item's actor where nothing lies, listed as gen 6 lists what the Dowsing Machine finds.
 pub const HIDDEN_ITEM: &str = "hidden item";
 pub const STEP: &str = "N5Field18FieldPosEventActorE";
-pub const STEP_ARMED: i64 = 0x10;
-/// The actors listed. An item actor is built for each ball still on the ground: seven on Route 1's
-/// second zone in sun_4.ctm, each at its record's place to the bit.
+/// 1 while a step's scene is armed, and while an item's ball is still on the ground: picking one
+/// up set it 0 and left the actor where it was until the zone was next loaded, listed (a Potion
+/// on Route 1, 2026-11-26, sun-field.md).
+pub const ARMED: i64 = 0x10;
+/// The actors listed. An item actor is built for each ball in the zone's records: seven on Route
+/// 1's second zone in sun_4.ctm, each at its record's place to the bit, those picked up unarmed.
 pub const ACTORS: [&str; 4] = [THING, WARP, ITEM, STEP];
 pub const PROP: &str = "11StaticActor";
 pub const BOX: &str = "8BoxShape";
@@ -275,6 +278,8 @@ struct Tracked {
 struct Kept {
     items: IndexMap<Key, Interactable>,
     area: Option<i64>,
+    /// The balls the last listing found picked up, by key (`ARMED`). A set only tested.
+    taken: HashSet<Key>,
 }
 
 /// The player's zone and cell, and the people, things and exits around them.
@@ -727,8 +732,12 @@ impl SunFieldReader {
             .map(|item| (item.category.clone(), item.home))
             .collect();
         let keys: HashSet<Key> = live.iter().map(|item| item.key()).collect();
-        kept.items.retain(|key, item| {
-            keys.contains(key) || !loaded.contains(&(item.category.clone(), item.home))
+        // A ball picked up keeps its actor, unarmed: kept from before, it would stay listed where
+        // it was the last of its zone's balls.
+        let Kept { items, taken, .. } = &mut *kept;
+        items.retain(|key, item| {
+            !taken.contains(key)
+                && (keys.contains(key) || !loaded.contains(&(item.category.clone(), item.home)))
         });
         for item in &live {
             kept.items.insert(item.key(), item.clone());
@@ -1009,6 +1018,7 @@ impl SunFieldReader {
     /// one thing: Iki Town has five of its things twice over, one for each of two scripts.
     fn placed(&self, area: i64, zone: i64) -> Result<Vec<Interactable>> {
         let mut said: HashSet<(String, (i64, i64))> = HashSet::new();
+        self.kept.borrow_mut().taken = HashSet::new();
         let starts: Vec<i64> = self.tracked.borrow().actors.keys().copied().collect();
         self.fetch(&starts, ACTOR_HEAD)?;
         let mut actors: Vec<(i64, String)> = self
@@ -1027,9 +1037,10 @@ impl SunFieldReader {
             let Some(head) = self.read(actor, ACTOR_HEAD)? else {
                 continue;
             };
-            if name == STEP && u32(&head, STEP_ARMED)? != 1 {
+            if name == STEP && u32(&head, ARMED)? != 1 {
                 continue;
             }
+            let taken = name == ITEM && u32(&head, ARMED)? != 1;
             let (x, z) = (f32(&head, ACTOR_X)?, f32(&head, ACTOR_Z)?);
             if !(x.is_finite() && z.is_finite()) || said.contains(&(name.clone(), cell(x, z)?)) {
                 continue;
@@ -1053,8 +1064,12 @@ impl SunFieldReader {
             if self.zones.is_some() && record.is_none() {
                 continue;
             }
-            if let Some(item) = made(&name, x, z, record.as_ref(), zone, self.hidden)? {
-                out.push(item);
+            match made(&name, x, z, record.as_ref(), zone, self.hidden)? {
+                Some(item) if taken => {
+                    self.kept.borrow_mut().taken.insert(item.key());
+                }
+                Some(item) => out.push(item),
+                None => {}
             }
         }
         Ok(out)
