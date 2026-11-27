@@ -539,7 +539,7 @@ fn regions_files() -> pokedex::Files {
 }
 
 /// X's regions: the process's `Graphics`, its view of the screen up now the regions', the
-/// rows it has built and the region under the cursor (spike A on x_pokedex). Python's `built`
+/// rows it has built and the region under the cursor (spike 315 on x_pokedex). Python's `built`
 /// defaults to 3.
 fn regions(region: i64, built: i64) -> (Rc<FakeMemory>, pokedex::XyRegions) {
     let memory = FakeMemory::new();
@@ -684,7 +684,7 @@ fn opening(running: Rc<RefCell<String>>) -> pokedex::OrasOpening {
 }
 
 /// The choice's cursor came as the app's whole sweep came due, and its first choice was said
-/// after the sweep (spike B): the opening waits from the app's start, through the choice's words
+/// after the sweep (spike 316): the opening waits from the app's start, through the choice's words
 /// coming, until a cursor is on screen, and not again until the Pokédex starts again.
 #[test]
 fn test_the_sweep_waits_for_omega_ruby_s_choice_s_cursor() {

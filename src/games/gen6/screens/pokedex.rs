@@ -34,11 +34,11 @@
 //! X's Pokédex opens on its regions, Central, Coastal and Mountain, each a row with its count, and
 //! no cursor of theirs is drawn as one: only a pane of the layout moves. The region under the
 //! cursor is the view's, `app::zukan::top::View` +0x18, a row from the top, through the process's
-//! `Graphics` and its view of the screen up now (spike A on x_pokedex: seven of seven against the
+//! `Graphics` and its view of the screen up now (spike 315 on x_pokedex: seven of seven against the
 //! screenshots). It is read every tick, and said in its row's words, "CENTRAL KALOS POKÉDEX 14",
 //! once the view has built as many rows as the screen shows (`XyRegions`): as the screen comes up
 //! its words are there a poll or more before any row is lit. They come 3.1 s after the app starts,
-//! once the Pokédex's case has opened on the screen, long after the app's whole sweep (spike B).
+//! once the Pokédex's case has opened on the screen, long after the app's whole sweep (spike 316).
 //!
 //! Omega Ruby's Pokédex opens on the Hoenn and National Pokédex, its cursor coming on screen just
 //! as the app's whole sweep comes due: the sweep waits for it (`OrasOpening`).
@@ -78,7 +78,7 @@ pub const REGISTRATION: &str = "description_lower.bclyt";
 pub const CAPTIONS: [(&str, &str); 2] = [(REGISTRATION, "3s"), (REGISTRATION, "3w")];
 /// Omega Ruby's choice of the Hoenn and National Pokédex, each with its counts, as its Pokédex
 /// opens: its words come 1.1 to 1.2 s after the app starts, and its cursor a quarter to a third of
-/// a second after them, just as the app's whole sweep comes due (`OrasOpening`, spike B).
+/// a second after them, just as the app's whole sweep comes due (`OrasOpening`, spike 316).
 pub const CHOICE: &str = "start_lower.bclyt";
 /// X's choice of the Central, Coastal and Mountain Pokédex, each with its count, as its Pokédex
 /// opens: buttons, whose words are said a row at a time as the cursor comes onto them
@@ -587,7 +587,7 @@ impl XyRegions {
 ///
 /// The app's own sweep comes due 1.5 s after it starts, and the choice's cursor came on screen
 /// 1.45 to 1.5 s after: the screen poll waited the sweep out, 0.5 to 0.6 s live and 1.1 s on the
-/// tapes, and the first choice was said that late (spike B, or_pokedex and or_menus). The wait
+/// tapes, and the first choice was said that late (spike 316, or_pokedex and or_menus). The wait
 /// starts as the app does, before the choice's words come, and ends with a cursor on screen or
 /// words of another layout, the registration's after a catch, whose sweep is as it was.
 pub struct OrasOpening {
