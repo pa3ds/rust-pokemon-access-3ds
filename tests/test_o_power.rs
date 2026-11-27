@@ -6,7 +6,6 @@ use std::rc::Rc;
 use indexmap::IndexMap;
 
 use super::fake_memory::FakeMemory;
-use crate::core::discovery::Found;
 use crate::games::common::layout_file::LayoutFile;
 use crate::games::common::screen::ScreenText;
 use crate::games::gen6::subscreen::o_power::{ACTIVE, CLASS, ENERGY, LIST, OPower};
@@ -63,10 +62,7 @@ fn reader(memory: &Rc<FakeMemory>, shown: Vec<i64>) -> OPower {
         }),
         false,
     );
-    o_power.track(&Found {
-        heap: IndexMap::from([(RECORD, CLASS.to_string())]),
-        ..Found::default()
-    });
+    o_power.track(&IndexMap::from([(RECORD, CLASS.to_string())]), false);
     o_power
 }
 
@@ -136,10 +132,7 @@ fn test_r_says_each_page_of_the_active_panel_as_it_turns() {
             Rc::new(move || now.get())
         },
     );
-    o_power.track(&Found {
-        heap: IndexMap::from([(RECORD, CLASS.to_string())]),
-        ..Found::default()
-    });
+    o_power.track(&IndexMap::from([(RECORD, CLASS.to_string())]), false);
     o_power.poll();
     *showing.borrow_mut() = battle;
     now.set(106.4);

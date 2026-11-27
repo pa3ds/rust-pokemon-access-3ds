@@ -21,7 +21,8 @@
 //! a page of each every six seconds by itself, its rows written again into the same TextBoxes
 //! (or_pss_o_power_2): each page is kept as it shows (`poll`). R says the energy and then each page
 //! while O-Power's list or the panel is up, the energy first, a page not showing as it last showed,
-//! its times counted down by the seconds since.
+//! its times counted down by the seconds since. It is one of the subscreens' readers:
+//! `Subscreens.turns` asks whether its screens are up, and `Subscreens.sides` what R says there.
 //!
 //! Bound by:
 //! - ADR-0013: the Active panel's turns are left unsaid, and R says each of its pages.
@@ -32,7 +33,6 @@ use std::rc::Rc;
 use indexmap::IndexMap;
 
 use crate::core::binary::u32;
-use crate::core::discovery::Found;
 use crate::core::memory::Memory;
 use crate::core::words::own;
 use crate::games::common::screen::{ScreenText, distinct, in_rows, join};
@@ -79,6 +79,9 @@ pub struct OPower {
 }
 
 impl OPower {
+    /// What the heap is swept for: the record.
+    pub const CLASSES: [&'static str; 1] = [CLASS];
+
     /// `OPower(memory, on_screen, file_of, shown, pictures, pauses)`; Python's `pauses` defaults
     /// to False and its `clock` to `time.monotonic`.
     pub fn new(
@@ -124,9 +127,14 @@ impl OPower {
         }
     }
 
-    /// Keep the record a sweep found, while a sweep finds one.
-    pub fn track(&mut self, found: &Found) {
-        let records = found.of(&[CLASS]);
+    /// Keep the record a sweep found, by class, while a sweep finds one: a sweep of the whole
+    /// heap or, with `adding`, of the blocks just allocated, alike.
+    pub fn track(&mut self, found: &IndexMap<i64, String>, _adding: bool) {
+        let records: Vec<i64> = found
+            .iter()
+            .filter(|(_, name)| *name == CLASS)
+            .map(|(&at, _)| at)
+            .collect();
         if !records.is_empty() {
             self.records = records;
         }

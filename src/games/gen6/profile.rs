@@ -104,7 +104,7 @@ use crate::games::gen6::screens::{
     boxes, buttons, partners, partyicons, pokedex, registered, rows, secret_base, townmap,
 };
 use crate::games::gen6::subscreen::head_it::Cue;
-use crate::games::gen6::subscreen::{self, Subscreens, o_power};
+use crate::games::gen6::subscreen::{self, Subscreens};
 use crate::games::gen6::{frames, gflheap, mystatus};
 use crate::py::{self, Error, Kind, Log, PySet, Result};
 
@@ -124,7 +124,7 @@ use crate::py::{self, Error, Kind, Log, PySet, Result};
 /// Not TextBoxes or cursor windows: walking each layout's tree finds every one that can be placed on
 /// screen (spike 62). And the linear heap is not swept: the battle builds its layouts there, and its
 /// message window leads to their pool (spike 64).
-pub const HEAP_CLASSES: [&str; 27] = [
+pub const HEAP_CLASSES: [&str; 26] = [
     msgwin::CLASSES[0],
     msgwin::CLASSES[1],
     talk::CLASSES[0],
@@ -151,7 +151,6 @@ pub const HEAP_CLASSES: [&str; 27] = [
     buttons::BAR_CLASS,
     buttons::MENU_CLASS,
     mystatus::CLASS,
-    o_power::CLASS,
 ];
 
 /// Without a message window class there is nothing to read: not this game, or not this version.
@@ -313,8 +312,6 @@ pub struct Gen6Profile {
     /// `HEAP_CLASSES`: the log names the classes a module brings in that order, the AreaNav's
     /// views and then its touch bar.
     pub classes: Vec<String>,
-    /// The O-Power list's energy and the powers running, which R says on their screens.
-    pub o_power: Rc<RefCell<o_power::OPower>>,
     /// The subscreen the game alone has, and the apps it opens: ORAS's PokéNav Plus, whose
     /// AreaNav's Pokémon Distribution and DexNav draw each Pokémon's icon, which no file names,
     /// and whose AreaNav keeps the layouts of a screen it has left as they were.
@@ -666,54 +663,6 @@ impl Gen6Profile {
             })
         };
 
-        let shown_roots: o_power::Shown = {
-            let layouts = layouts.clone();
-            Rc::new(move || {
-                let mut shown: Vec<i64> = Vec::new();
-                for root in layouts.roots() {
-                    if layouts
-                        .placement(root)?
-                        .is_some_and(|placement| placement.shown)
-                    {
-                        shown.push(root);
-                    }
-                }
-                Ok(shown)
-            })
-        };
-
-        let drawn_images: o_power::Pictures = {
-            let (layouts, image_of) = (layouts.clone(), image_of.clone());
-            Rc::new(move |root: i64| {
-                let mut images: Vec<String> = Vec::new();
-                for (pane, kind) in layouts.tree(root) {
-                    if kind == lyt::PICTURE_CLASS
-                        && layouts
-                            .placement(pane)?
-                            .is_some_and(|placement| placement.shown)
-                        && let Some(image) = image_of(pane)?
-                        && !image.is_empty()
-                    {
-                        images.push(image);
-                    }
-                }
-                Ok(images)
-            })
-        };
-
-        // The O-Power list's energy and the powers running, which R says on their screens.
-        let o_power = Rc::new(RefCell::new(o_power::OPower::new(
-            memory.clone(),
-            {
-                let screen = screen.clone();
-                Rc::new(move || screen.borrow().on_screen())
-            },
-            file_of.clone(),
-            shown_roots,
-            drawn_images,
-            ui.pauses,
-        )));
-
         // The game's button managers say whose buttons take taps (spike 189).
         let buttons = Rc::new(RefCell::new(buttons::Buttons::with_menu(
             memory.clone(),
@@ -739,11 +688,11 @@ impl Gen6Profile {
         });
         let pauses = ui.pauses;
         let sides: Sides = {
-            let (standings, announcements, apps, o_power) = (
+            let (standings, announcements, apps, subscreens) = (
                 standings.clone(),
                 announcements.clone(),
                 apps.clone(),
-                o_power.clone(),
+                subscreens_made.clone(),
             );
             Rc::new(move |player: bool| {
                 let standing = match &standings {
@@ -760,9 +709,11 @@ impl Gen6Profile {
                 if said.is_none() && apps.borrow().running.as_deref() == Some(BATTLE) {
                     return Ok(Some(own("key-battle-not-shown", &[])));
                 }
-                // On O-Power's screens, the energy and the powers running (spike 313).
-                if said.is_none() && player {
-                    return o_power.borrow_mut().said();
+                // On the subscreens', what R says there: O-Power's energy and the powers running.
+                if said.is_none()
+                    && let Some(subscreens) = subscreens.get()
+                {
+                    return subscreens.sides(player);
                 }
                 Ok(said)
             })
@@ -1444,7 +1395,6 @@ impl Gen6Profile {
             field,
             memories,
             classes: classes.into_iter().collect(),
-            o_power,
             own_subscreen,
             subscreens,
             contexts,
@@ -1526,7 +1476,6 @@ impl Gen6Profile {
         self.apps.borrow_mut().track(found.of(&[MANAGER_CLASS]))?;
         // A talk object's class is a DLL's while a talk runs, so every one found is kept.
         self.speaker.track(found.of(&talk::CLASSES));
-        self.o_power.borrow_mut().track(found);
         if let Some(own_subscreen) = &self.own_subscreen {
             own_subscreen.track(&found.heap, adding)?;
         }
@@ -2119,12 +2068,8 @@ impl Gen6Profile {
         let said = self.sources.borrow().said(cursors, texts, &heard);
         let cursors = said.cursors;
         // O-Power's Active panel turns between its field and battle powers by itself, as the
-        // PSS's profile turns its counts (or_pss_o_power_2); it is the field's, not an app's.
-        let o_power =
-            self.apps.borrow().running.as_deref() == Some(FIELD) && self.o_power.borrow_mut().up();
-        if o_power {
-            self.o_power.borrow_mut().poll();
-        }
+        // PSS's profile turns its counts (or_pss_o_power_2): the subscreens say where.
+        let turns = self.subscreens.turns();
         // A layout built again where it was is the one that was there, and a menu stays a menu:
         // the battle's move list, forgotten while it was gone, was read out whole the moment it
         // showed.
@@ -2136,7 +2081,6 @@ impl Gen6Profile {
             ..screen.clone()
         };
         let subject = || self.sources.borrow().subject();
-        let turns = self.subscreens.in_pss() || o_power;
         self.screen_announcer.borrow_mut().say(
             &poll,
             &cursors,

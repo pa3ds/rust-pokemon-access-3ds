@@ -1,16 +1,18 @@
 //! The subscreens answer for their readers as one, each reader in its own apps alone.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 use indexmap::IndexMap;
 
 use super::fake_layouts::FakeLayouts;
-use super::fake_memory::{CODE, FakeClasses};
+use super::fake_memory::{CODE, FakeClasses, FakeMemory};
 use super::test_amie::{PAGE, WALKER, page, species};
 use crate::core::config::Tables;
 use crate::core::rtti::ClassNames;
 use crate::games::common::field::keys::{BERRIES, BERRY_PICKER};
+use crate::games::common::layout_file::LayoutFile;
+use crate::games::common::screen::ScreenText;
 use crate::games::common::touch::{ImageOf, Target};
 use crate::games::gen6::apps::{FIELD, RunningApp};
 use crate::games::gen6::profile;
@@ -18,6 +20,7 @@ use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::subscreen::berry_picker::{self, Touching};
 use crate::games::gen6::subscreen::{self, Subscreens};
 use crate::games::gen6::screens::boxes;
+use crate::games::gen6::subscreen::o_power::{self, OPower};
 use crate::games::gen6::subscreen::{amie, head_it, pss, puzzle, super_training};
 use crate::games::oras;
 use crate::py::Result;
@@ -167,6 +170,64 @@ fn test_amies_games_are_timed_and_another_app_starts_tile_puzzles_picture_afresh
     found.puzzle.borrow().shown.set(0x1234);
     found.started();
     assert_eq!(found.puzzle.borrow().shown.get(), 0);
+}
+
+/// ADR-0013: O-Power's list and Active panel, up on the field, turn rows by themselves, the
+/// page showing kept for R, as the PSS's own apps turn theirs; R says O-Power's line, where a
+/// battle's sides and a contest's have none, and Shift and R, the other side, nothing of it.
+/// Its record is swept for first of the subscreens' classes, as the log has always named it.
+#[test]
+fn test_o_powers_screens_turn_rows_and_r_says_its_energy_there() {
+    let apps = running(FIELD);
+    let mut found = subscreens(apps.clone());
+    assert_eq!(found.classes[0], o_power::CLASS);
+    // Python's fake O-Power: its list up or not, and each `poll` kept, seen here as the words on
+    // screen asked once by `up` and once more by `poll`.
+    const LIST: i64 = 0x15DF062C;
+    const RECORD: i64 = 0x08C7FD3C;
+    let up = Rc::new(Cell::new(false));
+    let asked = Rc::new(Cell::new(0));
+    let memory = FakeMemory::new();
+    memory.u32(RECORD + o_power::ENERGY, &[8]);
+    let mut fake = OPower::new(
+        memory,
+        {
+            let (up, asked) = (up.clone(), asked.clone());
+            Rc::new(move || {
+                asked.set(asked.get() + 1);
+                let listed = ScreenText {
+                    root: LIST,
+                    ..ScreenText::new(1, "Hatching Power", false)
+                };
+                if up.get() { vec![listed] } else { Vec::new() }
+            })
+        },
+        Rc::new(|root: i64| {
+            (root == LIST).then(|| {
+                Rc::new(LayoutFile {
+                    name: o_power::LIST.to_string(),
+                    ..LayoutFile::new(Vec::new(), IndexMap::new(), IndexMap::new())
+                })
+            })
+        }),
+        Rc::new(|| Ok(vec![LIST])),
+        Rc::new(|_root: i64| Ok(Vec::new())),
+        false,
+    );
+    fake.track(&IndexMap::from([(RECORD, o_power::CLASS.to_string())]), false);
+    found.o_power = Rc::new(RefCell::new(fake));
+    assert!(!found.turns() && asked.get() == 1);
+    up.set(true);
+    assert!(found.turns() && asked.get() == 3);
+    apps.borrow_mut().running = Some(amie::AMIE.to_string());
+    assert!(!found.turns());
+    apps.borrow_mut().running = Some(pss_profile());
+    assert!(found.turns() && asked.get() == 3);
+    assert_eq!(
+        found.sides(true).unwrap().as_deref(),
+        Some("energy 8 of 10")
+    );
+    assert_eq!(found.sides(false).unwrap(), None);
 }
 
 /// Touch mode that is never touched: Python's `cast(TouchMode, None)`.

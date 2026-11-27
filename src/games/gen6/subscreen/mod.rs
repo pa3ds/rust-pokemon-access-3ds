@@ -44,8 +44,10 @@
 //! Amie's games.
 //! The PSS has no reader of its own: its screens are the field's bottom screen and touch mode's, but
 //! for its own apps, its profile and its icon choice, and the friend list's registering after a
-//! trade, apps of their own that need a touch (`pss`); and O-Power's energy and the powers running,
-//! which R says on their screens (`o_power`).
+//! trade, apps of their own that need a touch (`pss`). Its O-Power's energy and powers running are
+//! one of these readers (`o_power`), which R says on O-Power's screens (`Subscreens.sides`), after
+//! a battle's sides and a contest's; and O-Power's screens, the field's, turn rows by themselves,
+//! as the PSS's own apps do (`Subscreens.turns`).
 //!
 //! What touch mode does in the subscreens' apps is theirs too: which need a touch (`TOUCHED`,
 //! `Subscreens.offered`), where Shift alone drags (`DRAGS`), and where a drag is made only on
@@ -58,8 +60,9 @@
 //! - ADR-0009: touch mode offers targets in the subscreens' apps that need a touch, Shift alone
 //!   drags in Pokémon-Amie's and holds a charge in Super Training's rounds, and Berry Picker's drag
 //!   is made on letting go.
-//! - ADR-0013: a clock of Amie's games is said at its marks (`timed`), and in the PSS's own apps a
-//!   button's words are touch mode's (`in_pss`).
+//! - ADR-0013: a clock of Amie's games is said at its marks (`timed`), in the PSS's own apps a
+//!   button's words are touch mode's (`in_pss`), a row they or O-Power's screens turn back and
+//!   forth by themselves is said once each way (`turns`), and R says O-Power's pages (`sides`).
 //!
 //! Python asks each reader by the same name, duck-typed; here each answer is a trait, implemented
 //! for the `RefCell` a reader is shared in, and the tuples are lists of them.
@@ -83,10 +86,10 @@ use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
 use crate::core::speech::Category;
 use crate::games::common::layout::Layouts;
-use crate::games::common::pokemon;
+use crate::games::common::{lyt, pokemon};
 use crate::games::common::screen::ScreenText;
 use crate::games::common::touch::{FileOf, ImageOf, OnScreen, Target};
-use crate::games::gen6::apps::RunningApp;
+use crate::games::gen6::apps::{FIELD, RunningApp};
 use crate::games::gen6::game::Game;
 use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::rom::cries::Crier;
@@ -95,6 +98,7 @@ use amie::{AmiePage, Goods, Moods, Puffs, StylusKeys};
 use amie_switch::SwitchScreen;
 use berry_picker::{BerryKeys, BerryPicker, Process, Touching};
 use head_it::{Cue, Frames, HeadIt, HeadItKeys};
+use o_power::OPower;
 use pss::FRIEND_ENTRY;
 use puzzle::TilePuzzle;
 use super_training::{
@@ -297,6 +301,16 @@ impl Keyed for TrainingKeys {
     }
 }
 
+impl Tracked for RefCell<OPower> {
+    fn classes(&self) -> &'static [&'static str] {
+        &OPower::CLASSES
+    }
+    fn track(&self, found: &IndexMap<i64, String>, adding: bool) -> Result<()> {
+        self.borrow_mut().track(found, adding);
+        Ok(())
+    }
+}
+
 impl Described for RefCell<TilePuzzle> {
     fn describe(&self, running: Option<&str>) -> Result<Vec<(String, String, Option<Category>)>> {
         self.borrow().describe(running)
@@ -491,6 +505,7 @@ pub struct Subscreens {
     apps: Rc<RefCell<RunningApp>>,
     image_of: ImageOf,
     pub(crate) puzzle: Rc<RefCell<TilePuzzle>>,
+    pub(crate) o_power: Rc<RefCell<OPower>>,
     berry_picker: Rc<RefCell<BerryPicker>>,
     /// What the heap is swept for, each reader's `classes`.
     pub classes: Vec<&'static str>,
@@ -556,6 +571,7 @@ impl Subscreens {
         // The settings file's tables, each reader taking its own (`config.Tables`).
         let settings = &tables.amie;
         let image_of_kept = image_of.clone();
+        let (memory_kept, layouts_kept) = (memory.clone(), layouts.clone());
         let running: Rc<dyn Fn() -> Option<String>> = {
             let apps = apps.clone();
             Rc::new(move || apps.borrow().running.clone())
@@ -714,8 +730,8 @@ impl Subscreens {
             frames,
             Rc::new(py::time::sleep),
             process,
-            file_of,
-            on_screen,
+            file_of.clone(),
+            on_screen.clone(),
         )));
         // And its own keys, a Pokémon's, which tap it, and the score's.
         let head_keys = Rc::new(HeadItKeys::new(head_it.clone(), wrong.clone()));
@@ -748,7 +764,57 @@ impl Subscreens {
             image_of,
             wrong,
         ));
+
+        // O-Power's energy and the powers running, which R says on its screens (spike 313): the
+        // PSS's list on the bottom screen, with its gauge's pictures, and the Active panel on the
+        // top.
+        let shown_roots: o_power::Shown = {
+            let layouts = layouts_kept.clone();
+            Rc::new(move || {
+                let mut shown: Vec<i64> = Vec::new();
+                for root in layouts.roots() {
+                    if layouts
+                        .placement(root)?
+                        .is_some_and(|placement| placement.shown)
+                    {
+                        shown.push(root);
+                    }
+                }
+                Ok(shown)
+            })
+        };
+
+        let drawn_images: o_power::Pictures = {
+            let (layouts, image_of) = (layouts_kept, image_of_kept.clone());
+            Rc::new(move |root: i64| {
+                let mut images: Vec<String> = Vec::new();
+                for (pane, kind) in layouts.tree(root) {
+                    if kind == lyt::PICTURE_CLASS
+                        && layouts
+                            .placement(pane)?
+                            .is_some_and(|placement| placement.shown)
+                        && let Some(image) = image_of(pane)?
+                        && !image.is_empty()
+                    {
+                        images.push(image);
+                    }
+                }
+                Ok(images)
+            })
+        };
+
+        let o_power = Rc::new(RefCell::new(OPower::new(
+            memory_kept,
+            on_screen,
+            file_of,
+            shown_roots,
+            drawn_images,
+            tables.ui.pauses,
+        )));
+        // O-Power first: the log names the classes swept for in the order asked, its record's
+        // straight after the profile's own (`gen6.profile.HEAP_CLASSES`).
         let tracked: Vec<Rc<dyn Tracked>> = vec![
+            o_power.clone(),
             page.clone(),
             puffs.clone(),
             goods.clone(),
@@ -806,6 +872,7 @@ impl Subscreens {
             rewording: vec![switch, head_it.clone(), medals, gains],
             head_it,
             puzzle,
+            o_power,
             berry_picker,
         }
     }
@@ -965,6 +1032,31 @@ impl Subscreens {
     /// bottom screen, where a button's words are touch mode's (ADR-0013).
     pub fn in_pss(&self) -> bool {
         pss::running(self.running().as_deref())
+    }
+
+    /// Whether the screen turns rows back and forth by itself (`ScreenAnnouncer.say`'s
+    /// `turns`): one of the PSS's own apps, whose profile turns its counts of people met, or
+    /// O-Power's list or Active panel up on the field, the panel turning between its field
+    /// powers and its battle powers, the page showing kept there for R (`OPower.poll`). Asked
+    /// once a screen poll, outside the screen's phase, which would fetch O-Power's pages every
+    /// poll after.
+    pub fn turns(&self) -> bool {
+        if self.running().as_deref() == Some(FIELD) && self.o_power.borrow_mut().up() {
+            self.o_power.borrow_mut().poll();
+            return true;
+        }
+        self.in_pss()
+    }
+
+    /// What R says on these screens where no battle or contest has a side to say: O-Power's
+    /// energy and the powers running, on its screens (spike 313); None elsewhere, and for
+    /// Shift and R, the other side.
+    pub fn sides(&self, player: bool) -> Result<Option<String>> {
+        if player {
+            self.o_power.borrow_mut().said()
+        } else {
+            Ok(None)
+        }
     }
 
     /// Whether one of Amie's games runs, each timing the player, whose clock is said only at
