@@ -242,7 +242,7 @@ pub struct Game {
     pub zone_record: i64,
     /// The save's flags saying which version's story it plays: the flag of the version whose
     /// rooms are the higher zone of each pair of twins, then the other's. Of two warps on one cell
-    /// into two places, the one into the room of the story played is listed (`reader._exits`). None
+    /// into two places, the one into the room of the story played is listed (`records.exits`). None
     /// in a game whose versions share every room.
     pub version_flags: Option<(i64, i64)>,
     /// By app, the chains from its process to the objects it keeps, found from the moment it

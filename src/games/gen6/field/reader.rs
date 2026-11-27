@@ -53,25 +53,26 @@ use crate::games::common::field::things::{
 use crate::games::gen6::anchors::follow;
 use crate::games::gen6::field::conveyors::{GymFloor, Switches};
 use crate::games::gen6::field::features::{Feature, Sighting, Tracked, Watched};
-use crate::games::gen6::field::hidden_items::{HIDDEN_ITEM, HiddenItems, Only};
+use crate::games::gen6::field::hidden_items::{HiddenItems, Only};
 use crate::games::gen6::field::landform::{
     Conveyors, Found as Worked, Here, Holes, Landform, Matrix, Rides, TurningFloor, as_form,
-    beside, dropped, holes_found, identity, runs, spread, touching,
+    beside, dropped, holes_found, identity, runs, touching,
 };
 use crate::games::gen6::field::rail::{self, Rails, keep};
+use crate::games::gen6::field::records::{
+    PROP, Placed, Records, STAIRS, exits, joined, never, off_the_rails, warp_cells,
+};
 use crate::games::gen6::field::terrain::{FarCells, FarFloors, FarHeights, FarMatrices, Terrain};
 use crate::games::gen6::field::voice::{Said, Speaking, Voice};
 use crate::games::gen6::field::works::Works;
 use crate::games::gen6::field::zonedata::{
     Bytes, FURNITURE, FURNITURE_SCRIPT, LZ11, NPC, NPC_INDEX, NPC_SCRIPT, NPC_SPRITE, NPC_X, NPC_Y,
-    NPC_Z, TRIGGER_HEIGHT, TRIGGER_SCRIPT, TRIGGER_VALUE, TRIGGER_WIDTH, TRIGGER_WORK, TRIGGER_X,
-    TRIGGER_Y, TRIGGER_Z, WARP, WARP_DOOR, WARP_KIND, WARP_OUT, WARP_STAIRS, WARP_STREET, WARP_TO,
-    WARP_Y, ZoneData, arrives, on_rail, read_furniture, read_records, read_triggers, read_zone,
-    trigger_placed, warp_box, zone_files,
+    NPC_Z, TRIGGER_HEIGHT, TRIGGER_SCRIPT, TRIGGER_WIDTH, TRIGGER_X, TRIGGER_Y, TRIGGER_Z, WARP,
+    WARP_OUT, ZoneData, read_furniture, read_records, read_triggers, read_zone, zone_files,
 };
 use crate::games::gen6::field::zonetable::{INFO_SIZE, ZoneTable};
 use crate::games::gen6::field::{fieldmap, mapblock, mmodel};
-use crate::games::gen6::game::{FurnitureKind, Game};
+use crate::games::gen6::game::Game;
 use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::rom::maps::{ChunkSource, StreetSource};
 use crate::py::{self, PySet, Result};
@@ -91,24 +92,6 @@ pub const MAP_HOPS: [i64; 3] = [0x1C, 0x60, 0x88];
 /// field map, the same in ORAS and X (spike 282).
 pub const MAP_IN: i64 = 0x18;
 
-/// How far over or under the ground it is walked from a warp walked through may stand and still be
-/// an opening and not stairs. Over every room-to-room warp of this kind in ORAS the rise is 0 for
-/// 104 of them and 1 either way for one (Seafloor Cavern's, Victory Road's entrance room), 4 either
-/// way for six (Rustboro's two-storey houses, Lilycove Museum), 8 to 10 either way for 68 (Devon
-/// Corporation, Littleroot's houses, the hideouts), -18 for two and 135 for three (old Mauville's
-/// zone 0xf); none is 2 or 3 (2026-10-06).
-pub const WARP_RISE: f64 = 2.0;
-/// A warp walked through's low byte -> the way it is walked into (`WARP_STAIRS`). Every one of
-/// ORAS's 362 off the rails is a wall; 361 have open floor beside them on the side this says they
-/// are walked in from, and on no other side but Ever Grande City's way into Victory Road's lower
-/// floor, whose ground behind stands 45 over it (spike 213).
-pub const WALKED_INTO: [&str; 4] = [
-    pathfind::SOUTH,
-    pathfind::NORTH,
-    pathfind::EAST,
-    pathfind::WEST,
-];
-
 /// The PC's cell kind, seen booted in poke_center_pc.ctm (spike 83).
 pub const PC_TILE: i64 = 0xD5;
 
@@ -125,9 +108,6 @@ pub fn use_tiles(kind: i64) -> bool {
     kind == PC_TILE || (0xD7..0xE0).contains(&kind)
 }
 
-/// What a thing the player reads by facing it is, where nothing says more.
-pub const PROP: &str = "object";
-
 /// Sweeps a zone listed with no chunk asks for before leaving the rest to the schedule.
 pub const ASKS: i64 = 4;
 pub const TABLE_ASKS: i64 = 10;
@@ -142,12 +122,6 @@ pub const TABLE_EVERY: f64 = 2.0;
 /// names one, and its move model's sprite is the invisible blocker it stands elsewhere (spike
 /// 146).
 pub const BARRIER: &str = "barrier";
-/// The key the records of every elevator's door share (`FieldReader._furniture_key`): never said.
-pub const ELEVATOR: &str = "elevator";
-
-/// What a stair between two floors of one chunk is called, a warp between floors being stairs
-/// too: the game names neither (spike 167).
-pub const STAIRS: &str = "stairs";
 
 /// What a street's end on ground walked on the grid is called, as Magenta Plaza is at the end of
 /// its alleys: the game's street marks name few of them (spike 251).
@@ -212,11 +186,7 @@ pub struct FieldReader {
     me: Weak<FieldReader>,
     memory: Rc<dyn Memory>,
     /// The zone table, which names every place and tells a path from stairs.
-    pub zones: ZoneTable,
-    /// Warp kind -> what it is, where the kind says more than a door or stairs (`Game.warps`).
-    warp_words: IndexMap<i64, String>,
-    /// The warp kinds that are only where a teleporter pad puts the player (`Game.landings`).
-    landings: HashSet<i64>,
+    pub zones: Rc<ZoneTable>,
     /// What the game has of its own to list: ORAS's berry spots, ash piles and Secret Base
     /// spots.
     features: Vec<Rc<dyn Feature>>,
@@ -228,17 +198,12 @@ pub struct FieldReader {
     zone_record: i64,
     /// The sprites of the game's invisible blockers (`Game.blockers`).
     blockers: HashSet<i64>,
-    /// The scripts of the furniture records of elevators' doors (`Game.elevators`).
-    elevators: HashSet<i64>,
     /// The sprites the player is drawn as (`Game.player_looks`).
     player_looks: HashSet<i64>,
     /// Zones whose floors' stairs are listed (`Game.stairs`).
     stairs: HashSet<i64>,
     /// Zones listed a room at a time (`Game.rooms`).
     rooms: HashSet<i64>,
-    /// (zone, a furniture record's script) -> what it is, where it is no sign (`Game.furniture`):
-    /// a Secret Base's PC and flag.
-    furniture_kinds: IndexMap<(i64, i64), FurnitureKind>,
     /// The game's landforms, gen 6's and its own (`Game.landforms`).
     landforms: Vec<Arc<dyn Landform>>,
     /// What each landform worked out, by the map it was worked out on (`_found`).
@@ -292,7 +257,7 @@ pub struct FieldReader {
     /// (`Game.pickups`).
     pickups: HashSet<i64>,
     /// The matrix out of the ROM, which never touches RAM.
-    pub terrain: Terrain,
+    pub terrain: Rc<Terrain>,
     /// Zone -> its triggers' boxes, (x, z, width, height) in the table's order, once read
     /// (`trigger_at`).
     trigger_boxes: RefCell<HashMap<i64, Vec<(i64, i64, i64, i64)>>>,
@@ -304,9 +269,6 @@ pub struct FieldReader {
     pub rails: Rails,
     /// (zone, a trigger's script) of the listed triggers P walks over (`Game.crossed`).
     crossed: HashSet<(i64, i64)>,
-    /// Zones walked about in as outdoors that are not their own parent, out of the ROM
-    /// (`plates.outdoors`): a warp off a street into one of them is not a door.
-    outdoors: HashSet<i64>,
     parts: IndexMap<i64, Vec<i64>>,
     /// Each zone of a place in parts, with every zone of its place, and its zone data out of
     /// the ROM, its things listed from the other parts where its place is listed whole, `whole`
@@ -327,11 +289,8 @@ pub struct FieldReader {
     /// What each kind of use tile is: the game's own word where it has one, the PC's out of
     /// the ROM (`archives.PC_LINES`), ahead of the shipped table's.
     words: IndexMap<i64, String>,
-    /// What furniture is by the game's shared script it runs: a vending machine.
-    furniture_words: IndexMap<i64, String>,
-    /// (zone, a furniture record's script) -> the shared script it runs
-    /// (`plates.shared_furniture`).
-    shared: IndexMap<(i64, i64), i64>,
+    /// What the zone's warps, furniture and triggers are to the list.
+    records: Records,
     models: RefCell<Vec<i64>>,
     player: Slot<Option<i64>>,
     /// Whether the player's model was on a rail at the last poll.
@@ -406,7 +365,8 @@ impl FieldReader {
             text.streets.clone().map(|streets: Rc<dyn StreetSource>| {
                 Rc::new(move |chunks: &[i64]| streets.network(chunks)) as rail::Streets
             });
-        let terrain = Terrain::new(
+        let zones = Rc::new(ZoneTable::new(memory.clone(), text.zone_table.clone()));
+        let terrain = Rc::new(Terrain::new(
             chunks
                 .clone()
                 .map(|chunks| Rc::new(move |file: i64| chunks.cells(file)) as FarCells),
@@ -418,13 +378,21 @@ impl FieldReader {
                 .map(|chunks| Rc::new(move |file: i64| chunks.heights(file)) as FarHeights),
             chunks.map(|chunks| Rc::new(move |number: i64| chunks.matrix(number)) as FarMatrices),
             streets.clone(),
-        );
+        ));
         let mut words: IndexMap<i64, String> = tiles.cloned().unwrap_or_default();
         if let Some(pc) = text.pc.clone()
             && !pc.is_empty()
         {
             words.insert(PC_TILE, pc);
         }
+        let records = Records::new(
+            Rc::new(game.clone()),
+            Rc::new(text.clone()),
+            zones.clone(),
+            terrain.clone(),
+            words.clone(),
+            furniture.cloned().unwrap_or_default(),
+        );
         let made: Vec<Rc<dyn Feature>> = game
             .features
             .iter()
@@ -501,18 +469,14 @@ impl FieldReader {
                 }
             },
             gym_floor: text.gym_floor.clone(),
-            zones: ZoneTable::new(memory.clone(), text.zone_table.clone()),
-            warp_words: game.warps.clone(),
-            landings: game.landings.clone(),
+            zones,
             features,
             watched,
             zone_record: game.zone_record,
             blockers: game.blockers.clone(),
-            elevators: game.elevators.clone(),
             player_looks: game.player_looks.clone(),
             stairs: game.stairs.clone(),
             rooms: game.rooms.clone(),
-            furniture_kinds: game.furniture.clone(),
             landforms: game.landforms.clone(),
             found_of: RefCell::new(HashMap::new()),
             watches,
@@ -556,7 +520,6 @@ impl FieldReader {
                 text.rail_teleports.clone(),
             ),
             crossed: game.crossed.clone(),
-            outdoors: text.outdoors.clone(),
             parts: text.parts.clone(),
             part_data: text.part_data.clone(),
             whole: game.whole.clone(),
@@ -566,8 +529,7 @@ impl FieldReader {
             model_starts: game.models,
             form: game.form,
             words,
-            furniture_words: furniture.cloned().unwrap_or_default(),
-            shared: text.shared.clone(),
+            records,
             models: RefCell::new(Vec::new()),
             player: Slot::new(None),
             on_rail: Slot::new(false),
@@ -1019,15 +981,7 @@ impl FieldReader {
         Ok(out)
     }
 
-    /// The zone's triggers `Game.triggers` knows as something to walk to: Mauville Gym's switches,
-    /// and the way between its two rooms, which share no floor (spike 146); Lavaridge Gym's
-    /// trapdoors and geysers (spike 157); Mossdeep Gym's lifts and teleporter (spike 163); the way
-    /// into Seafloor Cavern under Route 128 (spike 164). And where the Extra lists hidden items,
-    /// those a trigger gives, while it is armed: once taken it is not. One placed on a
-    /// street is where the street has it on the grid, as high as its line's start: Coumarine
-    /// Gym's way down, on its top level (spike 250). Each teleporter the ROM says puts the player
-    /// somewhere in the zone, while it is armed, a sign with where it puts them (`arrival`,
-    /// `landing`): Laverre Gym's panels (spike 258).
+    /// The zone's triggers listed (`Records.triggers`), read only in a game that lists any.
     fn listed_triggers(&self, data: &ZoneData, zone: i64) -> Result<Vec<Interactable>> {
         let home = if self.triggers.is_empty()
             && self.hidden_triggers.is_empty()
@@ -1040,93 +994,39 @@ impl FieldReader {
         let Some(home) = home else {
             return Ok(Vec::new());
         };
-        let mut out: Vec<Interactable> = Vec::new();
+        self.records.triggers(
+            &read_triggers(&*self.memory, data)?,
+            home,
+            &self.works,
+            self.hidden_items.is_some(),
+            &|place| self.laid(place),
+        )
+    }
+
+    /// Where a trigger placed on a street is on the grid, where the street has it, and as
+    /// high as its line's start; None where the rails lay it nowhere.
+    fn laid(&self, place: (i64, i64, i64, i64, i64)) -> Result<Option<Placed>> {
         let files = self.terrain.files.borrow().1.clone();
-        for (i, record) in read_triggers(&*self.memory, data)?.iter().enumerate() {
-            let script = u16(record, TRIGGER_SCRIPT)?;
-            let armed = (u16(record, TRIGGER_WORK)?, u16(record, TRIGGER_VALUE)?);
-            if let Some(&lands) = self.teleports.get(&(home, script)) {
-                if self.works.armed(armed.0, armed.1)? {
-                    out.push(Interactable {
-                        size: (u16(record, TRIGGER_WIDTH)?, u16(record, TRIGGER_HEIGHT)?),
-                        code: script,
-                        source: place_source(TRIGGER_SOURCE, i as i64)?,
-                        home: Some(home),
-                        height: Some(s16(record, TRIGGER_Y)? as f64),
-                        arrival: Some((lands.0, lands.2)),
-                        landing: Some(lands.1 as f64),
-                        ..Interactable::new(
-                            "signs",
-                            TELEPORTER,
-                            (u16(record, TRIGGER_X)?, u16(record, TRIGGER_Z)?),
-                        )
-                    });
-                }
-                continue;
+        let shape = self.rails.laid(place, &files)?;
+        let Some(shape) = shape.filter(|shape| !shape.is_empty()) else {
+            return Ok(None);
+        };
+        Ok(Some((
+            rail::spread(shape)?,
+            self.rails.line_height(place.0, &files)?,
+        )))
+    }
+
+    /// Whether the save's works shut the zone's warp in `slot` (`Game.armed_warps`). Both of a
+    /// lift's warps stay listed until a sweep has found the works.
+    fn shut(&self, home: Option<i64>, slot: i64) -> Result<bool> {
+        let armed = home.and_then(|home| self.armed_warps.get(&(home, slot)));
+        Ok(match armed {
+            Some(&(work, value)) => {
+                self.works.event.get().is_some() && !self.works.holds(work, value)?
             }
-            if self.hidden_triggers.contains(&(home, script)) {
-                if self.hidden_items.is_some() && self.works.holds(armed.0, armed.1)? {
-                    out.push(Interactable {
-                        size: (u16(record, TRIGGER_WIDTH)?, u16(record, TRIGGER_HEIGHT)?),
-                        code: script,
-                        source: place_source(TRIGGER_SOURCE, i as i64)?,
-                        home: Some(home),
-                        height: Some(s16(record, TRIGGER_Y)? as f64),
-                        ..Interactable::new(
-                            "items",
-                            HIDDEN_ITEM,
-                            (u16(record, TRIGGER_X)?, u16(record, TRIGGER_Z)?),
-                        )
-                    });
-                }
-                continue;
-            }
-            let Some((category, kind, to)) = self.triggers.get(&(home, script)) else {
-                continue;
-            };
-            let place = trigger_placed(record)?;
-            let (r#box, height) = match place {
-                None => (
-                    (
-                        (u16(record, TRIGGER_X)?, u16(record, TRIGGER_Z)?),
-                        (u16(record, TRIGGER_WIDTH)?, u16(record, TRIGGER_HEIGHT)?),
-                    ),
-                    Some(s16(record, TRIGGER_Y)? as f64),
-                ),
-                Some(place) => {
-                    let shape = self.rails.laid(place, &files)?;
-                    let Some(shape) = shape.filter(|shape| !shape.is_empty()) else {
-                        continue;
-                    };
-                    (
-                        rail::spread(shape)?,
-                        self.rails.line_height(place.0, &files)?,
-                    )
-                }
-            };
-            out.push(Interactable {
-                size: r#box.1,
-                zone: *to,
-                code: script,
-                source: place_source(TRIGGER_SOURCE, i as i64)?,
-                home: Some(home),
-                height,
-                ..Interactable::new(category, kind, r#box.0)
-            });
-        }
-        // Exits of one kind into one zone that touch are one, as warps are (`_exits`): the
-        // Radiant Chamber's lift is four triggers round its platform. In the table's order still.
-        // Python's key is the tuple (kind, zone, height, home); its parts written out here.
-        let mut listed = joined(out, &|item| {
-            (item.category == "exits").then(|| {
-                format!(
-                    "{}|{:?}|{:?}|{:?}",
-                    item.kind, item.zone, item.height, item.home
-                )
-            })
-        });
-        listed.sort_by_key(|item| item.source);
-        Ok(listed)
+            None => false,
+        })
     }
 
     /// `where` with everything worth walking to in its zone listed.
@@ -1181,73 +1081,33 @@ impl FieldReader {
             let mut furniture: Vec<Interactable> = Vec::new();
             // Each of Prism Tower's quiz rooms keeps a record in the walls of its far corner, with
             // nothing beside it to stand on, and listed it as a sign (spike 252).
-            for item in read_furniture(&*self.memory, data)? {
+            for item in self.records.furniture(&*self.memory, data, home)? {
                 if item.cells().iter().all(|cell| locks.contains(cell))
                     || buried(&chunk_at, &item.cells())?
                 {
                     continue;
                 }
-                furniture.push(self.furniture_listed(home, item));
+                furniture.push(item);
             }
-            items.extend(joined(furniture, &|item| Some(self.furniture_key(item))));
-            let mut found: Vec<Interactable> = Vec::new();
-            for (i, record) in warps.iter().enumerate() {
-                let files = self.terrain.files.borrow().1.clone();
-                let shape = self.rails.on_grid(record, &files)?;
-                if (shape.is_none() && on_rail(record)?)
-                    || self.landings.contains(&u16(record, WARP_KIND)?)
-                {
-                    continue;
-                }
-                // Both of a lift's warps stay listed until a sweep has found the works.
-                let armed = home.and_then(|home| self.armed_warps.get(&(home, i as i64)));
-                if let Some(&(work, value)) = armed
-                    && self.works.event.get().is_some()
-                    && !self.works.holds(work, value)?
-                {
-                    continue;
-                }
-                let at = match &shape {
-                    None => None,
-                    Some(shape) => Some(rail::spread(shape.iter().copied())?),
-                };
-                let (warp, out) = (
-                    self.warp(i as i64, record, at, home)?,
-                    arrives(record, home, &warps)?,
-                );
-                if home
-                    .zip(warp.zone)
-                    .is_some_and(|exit| self.trigger_exits.contains(&exit))
-                    && shape.is_none()
-                    && buried(&chunk_at, &warp.cells())?
-                {
-                    // Walled in, where only a script puts the player: the Radiant Chamber's door,
-                    // whose lift is listed in its place (`Game.triggers`). Not every walled-in
-                    // warp: arriving in Sootopolis City, the last place's chunks walled in every
-                    // door for a poll (as_cave_of_origin).
-                    continue;
-                }
-                // A pad into its own zone is a teleporter P walks through, landing as high as the
-                // warp it comes out at (`Ground.teleports`, spike 265).
-                let landing = match out {
-                    Some(out) if warp.kind == TELEPORTER => Some(s16(out, WARP_Y)? as f64),
-                    _ => None,
-                };
-                found.push(Interactable {
-                    home,
-                    arrival: match out {
-                        None => None,
-                        Some(out) => Some(warp_box(out)?.0),
-                    },
-                    landing,
-                    shape: shape.unwrap_or_default(),
-                    ..warp
-                });
-            }
-            items.extend(exits(
-                found,
+            items.extend(joined(furniture, &|item| Some(self.records.key(item))));
+            let files = self.terrain.files.borrow().1.clone();
+            // A warp walled in is where only a script puts the player: the Radiant Chamber's
+            // door, whose lift is listed in its place (`Game.triggers`). Not every walled-in warp:
+            // arriving in Sootopolis City, the last place's chunks walled in every door for a
+            // poll (as_cave_of_origin).
+            items.extend(self.records.warps(
+                &warps,
+                home,
                 &|zone| self.zones.place_index(zone),
                 Some(&|one, other| self.played(one, other)),
+                &|record| self.rails.on_grid(record, &files),
+                &|slot| self.shut(home, slot),
+                &|warp| {
+                    Ok(home
+                        .zip(warp.zone)
+                        .is_some_and(|exit| self.trigger_exits.contains(&exit))
+                        && buried(&chunk_at, &warp.cells())?)
+                },
             )?);
         }
         items.extend(self.boulders(people.clone(), r#where.zone, data.as_ref(), home)?);
@@ -1434,62 +1294,8 @@ impl FieldReader {
         Ok(out)
     }
 
-    /// What makes furniture records that touch one thing (`_joined`): their script, which the
-    /// game runs whichever of them the player faces, as round Seafloor Cavern's submarine, four
-    /// records saying "“Submarine Explorer 1” is painted on the hull" and listed as four signs.
-    /// The ROM has 33 such pairs in 12 zones. An elevator's door is two
-    /// records with a shared script each (`Game.elevators`), both of which run the elevator.
-    ///
-    /// Python's key is the script or `ELEVATOR`, an int or a str; here both are text, which no
-    /// script's number spells as `ELEVATOR` does.
-    fn furniture_key(&self, item: &Interactable) -> String {
-        if self.elevators.contains(&item.code) {
-            ELEVATOR.to_string()
-        } else {
-            item.code.to_string()
-        }
-    }
-
-    /// What a furniture record is: a sign, unless the game's table of them says otherwise, or
-    /// the shipped table says what the shared script it runs is: the one its zone's case runs,
-    /// or its own number, which is a shared script's from 2000 up (spike 210). Every vending
-    /// machine is one of five, 0x28f0 to 0x28f4. The PC in a Secret Base is called what the
-    /// game calls a PC, as the Pokémon Center's is: the table gives it the PC's kind of use
-    /// tile. A record the player leaves by is a category, a kind and a zone, and its kind is the
-    /// second.
-    fn furniture_kind(&self, home: Option<i64>, item: &Interactable) -> String {
-        let kind = match home {
-            Some(home) => self.furniture_kinds.get(&(home, item.code)),
-            None => None,
-        };
-        let Some(kind) = kind else {
-            let shared = match home {
-                None => item.code,
-                Some(home) => self
-                    .shared
-                    .get(&(home, item.code))
-                    .copied()
-                    .unwrap_or(item.code),
-            };
-            return self
-                .furniture_words
-                .get(&shared)
-                .cloned()
-                .unwrap_or_else(|| item.kind.clone());
-        };
-        match kind {
-            FurnitureKind::Tile(tile) => self
-                .words
-                .get(tile)
-                .cloned()
-                .unwrap_or_else(|| PROP.to_string()),
-            FurnitureKind::Word(word) => word.clone(),
-            FurnitureKind::Exit(_, kind, _) => kind.clone(),
-        }
-    }
-
-    /// What the furniture record in a cell of `zone` is called (`furniture_kind`), None where
-    /// none stands.
+    /// What the furniture record in a cell of `zone` is called (`Records.kind`), None where none
+    /// stands.
     fn furniture_at(&self, zone: i64, cell: Cell) -> Result<Option<String>> {
         let data = self.current()?;
         let home = match &data {
@@ -1502,30 +1308,10 @@ impl FieldReader {
         };
         for item in items {
             if item.cells().contains(&cell) {
-                return Ok(Some(self.furniture_kind(home, &item)));
+                return Ok(Some(self.records.kind(home, &item)));
             }
         }
         Ok(None)
-    }
-
-    /// A furniture record as the list has it: its kind (`_furniture_kind`), and where the
-    /// table sends the player through it, the category it is listed under and the zone it leads
-    /// to (`Game.furniture`).
-    fn furniture_listed(&self, home: Option<i64>, item: Interactable) -> Interactable {
-        let listed = Interactable {
-            kind: self.furniture_kind(home, &item),
-            home,
-            ..item
-        };
-        let known = home.and_then(|home| self.furniture_kinds.get(&(home, listed.code)));
-        if let Some(FurnitureKind::Exit(category, _, zone)) = known {
-            return Interactable {
-                category: category.clone(),
-                zone: Some(*zone),
-                ..listed
-            };
-        }
-        listed
     }
 
     /// Take what the field's process leads to and no class names, each checked by its shape
@@ -1716,7 +1502,7 @@ impl FieldReader {
                 tables.push((Some(other), furniture.clone(), warps.clone()));
             }
         }
-        let mut found: Vec<Interactable> = Vec::new();
+        let mut warped: Vec<Interactable> = Vec::new();
         for (owner, furniture, warps) in tables {
             for (i, record) in furniture.iter().enumerate() {
                 if let Some(at) = rail::spot(corridor, record)? {
@@ -1731,15 +1517,15 @@ impl FieldReader {
             }
             for (i, record) in warps.iter().enumerate() {
                 if let Some(at) = rail::spot(corridor, record)? {
-                    let warp = self.warp(i as i64, record, Some(at), owner)?;
-                    found.push(Interactable {
+                    let warp = self.records.warp(i as i64, record, Some(at), owner)?;
+                    warped.push(Interactable {
                         home: owner,
                         ..warp
                     });
                 }
             }
         }
-        out.extend(exits(found, &|zone| self.zones.place_index(zone), None)?);
+        out.extend(exits(warped, &|zone| self.zones.place_index(zone), None)?);
         // Off North Boulevard into Magenta Plaza's alley only the way back was listed: the alley
         // ends on the plaza, which is walked on the grid and is on no line (spike 251).
         for (point, cell, ground) in self.rails.ends(corridor)? {
@@ -1803,7 +1589,7 @@ impl FieldReader {
         // `item not in furniture` by equality: what is not furniture by the same test.
         let mut listed: Vec<Interactable> =
             listed.into_iter().filter(|item| !furnished(item)).collect();
-        listed.extend(joined(kept, &|item| Some(self.furniture_key(item))));
+        listed.extend(joined(kept, &|item| Some(self.records.key(item))));
         Ok(listed
             .into_iter()
             .map(|item| Interactable {
@@ -1838,104 +1624,6 @@ impl FieldReader {
             }
         }
         Ok(false)
-    }
-
-    /// A warp as what the player walks through: a door, the mat out, stairs or an opening
-    /// between rooms, or the path between two outdoor matrices, told by the kind and whether the
-    /// zones it joins are outdoors; and what the game's table of kinds says of the rest, as a
-    /// ladder or a teleporter pad (`Game.warps`). The place it arrives in is said by the
-    /// navigator, which has the game's words (`Navigator.destination`).
-    fn warp(
-        &self,
-        index: i64,
-        record: &[u8],
-        at: Option<(Cell, (i64, i64))>,
-        home: Option<i64>,
-    ) -> Result<Interactable> {
-        let (to, kind) = (u16(record, WARP_TO)?, u16(record, WARP_KIND)?);
-        let (cell, size) = match at {
-            None => warp_box(record)?,
-            Some(at) => at,
-        };
-        let what: String = if kind >> 8 == WARP_DOOR >> 8
-            && match home {
-                None => false,
-                Some(home) => self.zones.open_air(home)?,
-            }
-            && self.zones.open_air(to)?
-        {
-            // A door's kind between two of the open air is the way through: one of Lumiose's
-            // streets onto the next (spike 220), Route 7 onto Route 6 (2026-10-19).
-            "path".to_string()
-        } else if kind == WARP_DOOR || (kind >> 8 == WARP_STREET && !self.outdoors.contains(&to)) {
-            "door".to_string()
-        } else if kind == WARP_OUT {
-            "way out".to_string()
-        } else if kind >> 8 == WARP_STAIRS {
-            if self.zones.outdoors(to)? == Some(true) {
-                "path".to_string()
-            } else if at.is_none() {
-                self.stairs_word(record, cell, size)?.to_string()
-            } else {
-                STAIRS.to_string()
-            }
-        } else if let Some(word) = self.warp_words.get(&kind) {
-            word.clone()
-        } else {
-            // The high byte is what it is, the low the way it is walked into (spike 220).
-            match kind >> 8 {
-                high if high == WARP_DOOR >> 8 => "door",
-                high if high == WARP_OUT >> 8 => "way out",
-                _ => "warp",
-            }
-            .to_string()
-        };
-        let way_in = if at.is_none() && kind >> 8 == WARP_STAIRS {
-            WALKED_INTO.get((kind & 0xFF) as usize).copied()
-        } else {
-            None
-        };
-        Ok(Interactable {
-            size,
-            zone: Some(to),
-            code: kind,
-            source: place_source(WARP_SOURCE, index)?,
-            height: match at {
-                None => Some(s16(record, WARP_Y)? as f64),
-                Some(_) => None,
-            },
-            way_in,
-            ..Interactable::new("exits", &what, cell)
-        })
-    }
-
-    /// What a warp walked through is, from how its height stands to the ground it is walked
-    /// from: "stairs up" over `WARP_RISE`, "stairs down" under it, and a "passage" between,
-    /// an opening with no floor between its rooms. The kind's low byte says the way it is walked
-    /// into, so the cell the player stands in is the one on the side opposite. "stairs" where the
-    /// ROM's heights are not read, and for a way of walking the kind does not number.
-    fn stairs_word(&self, record: &[u8], cell: Cell, size: (i64, i64)) -> Result<&'static str> {
-        let way = u16(record, WARP_KIND)? & 0xFF;
-        let (x, z) = cell;
-        let (wide, deep) = size;
-        let behind = [(x, z - 1), (x, z + deep), (x - 1, z), (x + wide, z)];
-        let ground = if way < behind.len() as i64 {
-            self.terrain.height(behind[way as usize])?
-        } else {
-            None
-        };
-        let Some(ground) = ground else {
-            return Ok(STAIRS);
-        };
-        let rise = s16(record, WARP_Y)? as f64 - ground;
-        if rise.abs() <= WARP_RISE {
-            return Ok("passage");
-        }
-        Ok(if rise > 0.0 {
-            "stairs up"
-        } else {
-            "stairs down"
-        })
     }
 
     fn find_player(&self) -> Result<Option<i64>> {
@@ -2037,7 +1725,7 @@ impl FieldReader {
     /// four Pokémon Rangers, the one over the corridor its chunk leaves open (x_gym_4_climbed).
     ///
     /// A model drawn as nothing is called what it stands in for (`stand_ins`), those side by
-    /// side as one (`_joined`): the three in front of Groudon are one "Groudon", the first by its
+    /// side as one (`joined`): the three in front of Groudon are one "Groudon", the first by its
     /// record, and none once Groudon itself is listed. It is left out on a door, which is listed
     /// already (spike 203), and where it is one of a gate's (`Game.gates`), which is nobody
     /// (spike 223).
@@ -2555,35 +2243,16 @@ impl FieldReader {
         let Some(found) = read_zone(&memory, 0)? else {
             return Ok(Vec::new());
         };
-        let mut out: Vec<Interactable> = Vec::new();
-        for item in read_furniture(&memory, &found)? {
-            out.push(self.furniture_listed(Some(zone), item));
-        }
-        let warps = read_records(&memory, &found, WARP)?;
-        let mut found_exits: Vec<Interactable> = Vec::new();
-        for (i, record) in warps.iter().enumerate() {
-            if on_rail(record)? || self.landings.contains(&u16(record, WARP_KIND)?) {
-                continue;
-            }
-            let (warp, back) = (
-                self.warp(i as i64, record, None, Some(zone))?,
-                arrives(record, Some(zone), &warps)?,
-            );
-            let landing = match back {
-                Some(back) if warp.kind == TELEPORTER => Some(s16(back, WARP_Y)? as f64),
-                _ => None,
-            };
-            found_exits.push(Interactable {
-                home: Some(zone),
-                landing,
-                arrival: match back {
-                    None => None,
-                    Some(back) => Some(warp_box(back)?.0),
-                },
-                ..warp
-            });
-        }
-        out.extend(exits(found_exits, &|zone| self.zones.place_of(zone), None)?);
+        let mut out = self.records.furniture(&memory, &found, Some(zone))?;
+        out.extend(self.records.warps(
+            &read_records(&memory, &found, WARP)?,
+            Some(zone),
+            &|zone| self.zones.place_of(zone),
+            None,
+            &off_the_rails,
+            &|_| Ok(false),
+            &never,
+        )?);
         for record in read_records(&memory, &found, NPC)? {
             let here = (zone, u16(&record, NPC_INDEX)?);
             if built.as_ref().is_some_and(|built| !built.contains(&here.1)) {
@@ -3000,23 +2669,6 @@ fn ladders(triggers: &[Vec<u8>]) -> Result<IndexMap<(Cell, Cell), (f64, f64)>> {
     Ok(out)
 }
 
-/// Every cell the warps off the rails cover.
-fn warp_cells(records: &[Vec<u8>]) -> Result<HashSet<Cell>> {
-    let mut out: HashSet<Cell> = HashSet::new();
-    for record in records {
-        if on_rail(record)? {
-            continue;
-        }
-        let ((x0, z0), (wide, deep)) = warp_box(record)?;
-        for x in x0..x0 + 1.max(wide) {
-            for z in z0..z0 + 1.max(deep) {
-                out.insert((x, z));
-            }
-        }
-    }
-    Ok(out)
-}
-
 /// How high a sign stands among the signs of one spot (`_one_a_spot`): a thing drawn there,
 /// then a furniture record, then the cell's own kind.
 fn over(item: &Interactable) -> i64 {
@@ -3105,129 +2757,4 @@ pub(crate) fn rail_teleporters(
         });
     }
     Ok(out)
-}
-
-/// `items` with those of one `key` that touch side to side as one thing over the box round
-/// them, as the first of them listed (`_spread`); a key of None is kept apart. One thing the
-/// game builds of several records: Seafloor Cavern's submarine is four furniture records with
-/// one script, an elevator's door two side by side, and three stand-ins in a row in front of
-/// Groudon (spike 209). An item is never split: a warp across a diagonal street covers cells
-/// touching only at their corners, and grouped by its cells it was listed once a cell, under one
-/// key, and round Prism Tower `L` went back and forth between two exits.
-fn joined(
-    items: Vec<Interactable>,
-    key: &dyn Fn(&Interactable) -> Option<String>,
-) -> Vec<Interactable> {
-    let mut out: Vec<Interactable> = Vec::new();
-    let mut keyed: IndexMap<String, Vec<Interactable>> = IndexMap::new();
-    for item in items {
-        match key(&item) {
-            None => out.push(item),
-            Some(which) => keyed.entry(which).or_default().push(item),
-        }
-    }
-    for alike in keyed.values() {
-        // Each group's cells and its members, by their places in `alike`.
-        let mut groups: Vec<(HashSet<Cell>, Vec<usize>)> = Vec::new();
-        for (index, item) in alike.iter().enumerate() {
-            let cells: HashSet<Cell> = item.cells().into_iter().collect();
-            let mut near = cells.clone();
-            for &cell in &cells {
-                near.extend(beside(cell));
-            }
-            let (touched, rest): (Vec<_>, Vec<_>) = groups
-                .into_iter()
-                .partition(|group| !near.is_disjoint(&group.0));
-            groups = rest;
-            let (mut all, mut members) = (cells, Vec::new());
-            for (cells, those) in touched {
-                all.extend(cells);
-                members.extend(those);
-            }
-            members.push(index);
-            groups.push((all, members));
-        }
-        for (cells, members) in groups {
-            // `min(members, key=alike.index)`: the first item equal to each member.
-            let first = members
-                .iter()
-                .map(|&i| alike.iter().position(|item| *item == alike[i]).unwrap_or(i))
-                .min()
-                .expect("a group has a member");
-            let first = &alike[first];
-            let group: Vec<Cell> = cells.iter().copied().collect();
-            let (cell, size) = spread(&group);
-            // Warps across a diagonal street cover a row of cells, not their box.
-            let shape = if members.iter().any(|&i| !alike[i].shape.is_empty()) {
-                let mut sorted = group.clone();
-                sorted.sort();
-                sorted
-            } else {
-                Vec::new()
-            };
-            out.push(Interactable {
-                cell,
-                size,
-                shape,
-                ..first.clone()
-            });
-        }
-    }
-    out
-}
-
-/// `warps` as the player walks into them: those of one kind into one zone that touch side to
-/// side as one exit (`_joined`), and none whose cells a warp before it of its kind into the same
-/// `place` covers already, which is said alike and walked to alike. Lumiose's streets go on into
-/// the next through three warps a cell apart, "warp to Centrico Plaza here", "1 east" and "1
-/// west", and the Tower of Mastery's stairs up are three side by side twice over, to zones 0xb7
-/// and 0xb9, both the Tower. A game takes one of two warps on one cell into two places by the
-/// story its save plays: Lilycove's way into the hideout is Team Aqua's and Team Magma's on the
-/// same cells, and Omega Ruby's is Magma's, the second (spike 251). `played` says which of the
-/// two zones is the story's, and only its warp is listed; where it says neither, both stay
-/// (`Game.version_flags`, spike 212).
-fn exits(
-    warps: Vec<Interactable>,
-    place: &dyn Fn(i64) -> Result<Option<i64>>,
-    played: Option<&dyn Fn(i64, i64) -> Result<Option<i64>>>,
-) -> Result<Vec<Interactable>> {
-    let mut kept: Vec<Interactable> = Vec::new();
-    for item in warps {
-        let cells: HashSet<Cell> = item.cells().into_iter().collect();
-        // Indices into `kept` rather than the items, so that `kept.index(twin)` is the twin's.
-        let under: Vec<usize> = (0..kept.len())
-            .filter(|&i| {
-                kept[i].kind == item.kind && cells.is_subset(&kept[i].cells().into_iter().collect())
-            })
-            .collect();
-        let mut covered = false;
-        for &i in &under {
-            if place(kept[i].zone.unwrap_or(0))? == place(item.zone.unwrap_or(0))? {
-                covered = true;
-                break;
-            }
-        }
-        if covered {
-            continue;
-        }
-        let twin = under.iter().copied().find(|&i| kept[i].zone.is_some());
-        if let (Some(played), Some(twin)) = (played, twin)
-            && let (Some(twin_zone), Some(zone)) = (kept[twin].zone, item.zone)
-            && zone != 0
-            && let Some(story) = played(twin_zone, zone)?
-        {
-            if story == zone {
-                kept[twin] = item;
-            }
-            continue;
-        }
-        kept.push(item);
-    }
-    // Python's key is the tuple (kind, zone, height, home); its parts written out here.
-    Ok(joined(kept, &|item| {
-        Some(format!(
-            "{}|{:?}|{:?}|{:?}",
-            item.kind, item.zone, item.height, item.home
-        ))
-    }))
 }

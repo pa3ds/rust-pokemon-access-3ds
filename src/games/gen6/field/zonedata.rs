@@ -151,7 +151,7 @@ pub const WARP_STREET: i64 = 0x07;
 /// of one floor, and the open path between two outdoor matrices. The low byte is the way it is
 /// walked into, 0 south, 1 north, 2 east, 3 west (Oldale to Route 102 is 3, back again 2), and says
 /// nothing of up or down: that is the warp's height over the ground it is walked from
-/// (`FieldReader._stairs_word`, 2026-10-06).
+/// (`Records._stairs_word`, 2026-10-06).
 pub const WARP_STAIRS: i64 = 0x05;
 
 /// A zone data file found in the heap, validated.

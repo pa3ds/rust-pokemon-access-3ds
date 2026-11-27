@@ -26,3 +26,5 @@ pub mod zonetable;
 pub mod footsteps;
 
 pub mod places;
+
+pub mod records;
