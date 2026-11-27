@@ -463,11 +463,14 @@ impl TouchTargets {
                 areas.push((layer, x, y, width, height));
                 placed.insert(touch, (x, y, width, height));
                 if let Some(name) = name.filter(|name| !name.is_empty()) {
+                    // Tapped in the middle of what is on screen of it: another player's delete
+                    // in the PSS hangs half off the left edge, and a tap on its middle, x 0, did
+                    // nothing (the PSS's multiplayer).
                     found.push(Target {
                         pane: touch,
                         name,
-                        x,
-                        y,
+                        x: on_screen(x, width, WIDTH)?,
+                        y: on_screen(y, height, HEIGHT)?,
                         row: f32(&pane, shape.y)? - root_y,
                         height,
                         layer,
@@ -1698,6 +1701,21 @@ pub(crate) fn on_another(touch: i64, placed: &IndexMap<i64, (i64, i64, f64, f64)
     placed.iter().any(|(&other, &(ox, oy, w, h))| {
         other != touch && (((x - ox).abs() * 2) as f64) < w && (((y - oy).abs() * 2) as f64) < h
     })
+}
+
+/// The middle of the part of a touch area's span, `middle` and `size` along one side of the
+/// screen, that lies between 0 and `end`.
+fn on_screen(middle: i64, size: f64, end: i64) -> Result<i64> {
+    // Python's max and min: the first unless the second is strictly greater (or less).
+    let low = middle as f64 - size / 2.0;
+    let low = if 0.0 > low { 0.0 } else { low };
+    let high = middle as f64 + size / 2.0;
+    let high = if (end as f64) < high {
+        end as f64
+    } else {
+        high
+    };
+    py::round((low + high) / 2.0)
 }
 
 fn place(layouts: &Layouts, pane: i64) -> Result<(f64, f64)> {

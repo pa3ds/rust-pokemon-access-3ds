@@ -3059,3 +3059,60 @@ fn test_a_box_is_named_by_the_words_beside_it() {
         HashSet::from([bar + 0x600])
     );
 }
+
+/// Another player's delete in the PSS hangs half off the left edge, and a tap on its middle,
+/// x 0, did nothing; one at x 7 asked whether to remove them (the PSS's multiplayer).
+#[test]
+fn test_a_button_half_off_the_screen_is_tapped_on_its_half_on_it() {
+    let memory = FakeMemory::new();
+    let classes = FakeClasses::new(memory.clone());
+    let fake = FakeLayouts::new(&memory, &classes);
+    let (bounding, picture) = (
+        classes.add(lyt::BOUNDING_CLASS),
+        classes.add(lyt::PICTURE_CLASS),
+    );
+    let (_work, root) = fake.screen_with(0x08200000, false, false);
+    let delete = root + 0x1000;
+    placed(&fake, delete, root, None, -160.0, -100.0, 30.0, 40.0);
+    placed(
+        &fake,
+        delete + 0x200,
+        delete,
+        Some(picture),
+        -160.0,
+        -100.0,
+        30.0,
+        40.0,
+    );
+    placed(
+        &fake,
+        delete + 0x400,
+        delete,
+        Some(bounding),
+        -160.0,
+        -100.0,
+        30.0,
+        40.0,
+    );
+    fake.track().unwrap();
+    let pictures: HashMap<i64, String> =
+        HashMap::from([(delete + 0x200, "delete_pss.bclim".to_string())]);
+    let mut targets = TouchTargets::new(
+        fake.layouts.clone(),
+        Rc::new(Vec::new),
+        Rc::new(|_box| Ok(String::new())),
+        Rc::new(move |pane| Ok(pictures.get(&pane).cloned())),
+        Rc::new(|_root| None),
+        Rc::new(|_line: &str| {}),
+        Options::default(),
+    );
+    assert_eq!(
+        targets
+            .targets()
+            .unwrap()
+            .iter()
+            .map(|t| (t.name.as_str(), t.x, t.y))
+            .collect::<Vec<_>>(),
+        [("delete", 8, 220)]
+    );
+}
