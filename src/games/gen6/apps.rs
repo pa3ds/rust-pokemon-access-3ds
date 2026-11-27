@@ -77,6 +77,10 @@ pub struct RunningApp {
     pub running: Option<String>,
     /// Where the process running begins, as last found.
     pub process: Option<i64>,
+    /// The process running's bytes from its start, as read to find it: up to where the
+    /// manager points into it and a little past, 0x154 of the party list's, which holds what it
+    /// was opened with (`partyicons`).
+    pub head: Vec<u8>,
     /// The vtable the process last found begins with.
     vtable: i64,
     /// Whether the process running is of a class that has run before this session.
@@ -101,6 +105,7 @@ impl RunningApp {
             pointer: None,
             running: None,
             process: None,
+            head: Vec::new(),
             vtable: 0,
             back: false,
             ran: HashSet::new(),
@@ -156,10 +161,11 @@ impl RunningApp {
         {
             return Ok(None);
         }
-        let Some((process, vtable)) = self.process(manager, pointer)? else {
+        let Some((process, vtable, head)) = self.process(manager, pointer)? else {
             return Ok(None);
         };
         self.process = Some(process);
+        self.head = head;
         self.vtable = vtable;
         self.pointer = Some(pointer);
         // Read afresh every time: a module's memory is the next module's once it is unloaded, so a
@@ -175,10 +181,10 @@ impl RunningApp {
         Ok(Some(running))
     }
 
-    /// Where the process `pointer` lands in begins, and its vtable: the nearest object at or
-    /// before it that points back at the manager and begins with a pointer into the code, or
-    /// None.
-    fn process(&self, manager: i64, pointer: i64) -> Result<Option<(i64, i64)>> {
+    /// Where the process `pointer` lands in begins, its vtable and its bytes up to the
+    /// pointer's and a little past: the nearest object at or before it that points back at the
+    /// manager and begins with a pointer into the code, or None.
+    fn process(&self, manager: i64, pointer: i64) -> Result<Option<(i64, i64, Vec<u8>)>> {
         if pointer < PROCESS_REACH {
             return Ok(None);
         }
@@ -190,7 +196,11 @@ impl RunningApp {
             let at = PROCESS_REACH - back;
             let vtable = u32(&block, at)?;
             if u32(&block, at + PROCESS_MANAGER)? == manager && low <= vtable && vtable < high {
-                return Ok(Some((pointer - back, vtable)));
+                return Ok(Some((
+                    pointer - back,
+                    vtable,
+                    block[at as usize..].to_vec(),
+                )));
             }
         }
         Ok(None)

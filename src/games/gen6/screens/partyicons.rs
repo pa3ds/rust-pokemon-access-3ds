@@ -28,8 +28,26 @@
 //! BattleBox      +0x04  six records 0xE8 apart
 //! ```
 //!
-//! Only while the Bag or that screen runs: another screen's icons are not the party's in its
-//! order.
+//! Before a link battle the party list's top screen draws the other player's team as icons, a
+//! gender sign and "L50" each, and no name: "zen, L50, , L50, , L50" (the PSS between two
+//! players, spike 319). Its `app::pokelist::SubDrawer` draws them, as the decompile shows (spike
+//! 318, the same in Omega Ruby and X), from what the list was opened with, which the list's
+//! process copies into itself:
+//!
+//! ```text
+//! pokelist::Proc  +0x38  what it was opened with, 0x54 bytes:
+//!                        +0x08, +0x0C, +0x10 a team each, as the party's list
+//! ```
+//!
+//! One team against the player's, the first empty, is the second, drawn in the first six slots; a
+//! multi battle's three are the three in order, six slots each. The process is known as it starts
+//! (`RunningApp.head`), where the sweep that finds the SubDrawer came two seconds after the screen
+//! was said, and its names were said apart from it. A slot is the n-th icon picture in
+//! `pokelist_uppwer.bclyt`: `DllPokeList`'s table of each slot's panes counts up the layout's
+//! panes in their order.
+//!
+//! Only while the Bag, that screen or the party list runs: another screen's icons are not the
+//! party's in its order.
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -39,12 +57,23 @@ use indexmap::IndexMap;
 use crate::core::binary::u32;
 use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
+use crate::games::common::layout::Layouts;
+use crate::games::common::touch::FileOf;
 use crate::games::common::{lyt, pokemon};
 use crate::games::gen6::pokeicon;
-use crate::py::{PySet, Result};
+use crate::py::{self, PySet, Result};
 
 pub const BAG: &str = "N3app3bag4ProcE";
 pub const GROUPS: &str = "N3app19battle_party_select4ProcE";
+pub const LIST: &str = "N3app8pokelist4ProcE";
+/// Where the party list's process keeps what it was opened with.
+pub const OPENED_WITH: i64 = 0x38;
+/// Where that holds the teams its top screen draws, each a list as the party's: with none at the
+/// first, one, at the second, in the first six slots; else all three, six slots each.
+pub const TEAMS: [i64; 3] = [0x08, 0x0C, 0x10];
+pub const TOP: &str = "pokelist_uppwer.bclyt";
+/// The party list's top screen, and the texture its slots' icon pictures are made with.
+pub const ICON: &str = "poke_icon.bclim";
 pub const ICON_CLASS: &str = pokeicon::ICON_CLASS;
 pub const SLOTS: i64 = 6;
 
@@ -124,6 +153,9 @@ pub struct PartyIcons {
     names: Rc<ClassNames>,
     species: Vec<String>,
     running: Rc<dyn Fn() -> Option<String>>,
+    process: Rc<dyn Fn() -> Vec<u8>>,
+    layouts: Option<Rc<Layouts>>,
+    file_of: FileOf,
     /// The party's list, as last found: the Switch screen names its buttons by it.
     pub party: Option<i64>,
     battle_box: Option<i64>,
@@ -131,24 +163,54 @@ pub struct PartyIcons {
     /// Image -> the species it draws, until the next sweep: screen text asks of every
     /// picture at every poll, and naming one reads the party member's record.
     named: RefCell<IndexMap<i64, Option<String>>>,
+    /// A team and a slot in it -> its member's species, until the next sweep, as `_named`.
+    members: RefCell<IndexMap<(i64, i64), Option<String>>>,
 }
 
 impl PartyIcons {
+    /// `PartyIcons(memory, names, species, running)`: no process, layouts or files, so no
+    /// party list's team.
     pub fn new(
         memory: Rc<dyn Memory>,
         names: Rc<ClassNames>,
         species: Vec<String>,
         running: Rc<dyn Fn() -> Option<String>>,
     ) -> Self {
+        PartyIcons::with_list(
+            memory,
+            names,
+            species,
+            running,
+            Rc::new(Vec::new),
+            None,
+            Rc::new(|_root| None),
+        )
+    }
+
+    /// `process` is the running process's bytes from its start (`RunningApp.head`), and
+    /// `layouts` and `file_of` say which of the party list's top screen's slots a picture is.
+    pub fn with_list(
+        memory: Rc<dyn Memory>,
+        names: Rc<ClassNames>,
+        species: Vec<String>,
+        running: Rc<dyn Fn() -> Option<String>>,
+        process: Rc<dyn Fn() -> Vec<u8>>,
+        layouts: Option<Rc<Layouts>>,
+        file_of: FileOf,
+    ) -> Self {
         PartyIcons {
             memory,
             names,
             species,
             running,
+            process,
+            layouts,
+            file_of,
             party: None,
             battle_box: None,
             icons: PySet::new(),
             named: RefCell::new(IndexMap::new()),
+            members: RefCell::new(IndexMap::new()),
         }
     }
 
@@ -168,6 +230,7 @@ impl PartyIcons {
             PySet::of(icons)
         };
         self.named.borrow_mut().clear();
+        self.members.borrow_mut().clear();
         let mut saved: Vec<i64> = Vec::new();
         for save in saves {
             let kind = self.names.of_object(save)?;
@@ -199,10 +262,14 @@ impl PartyIcons {
 
     /// The species of the party member a picture draws the icon of, or None.
     pub fn name(&self, picture: i64) -> Result<Option<String>> {
-        if (self.running)().as_deref().and_then(first).is_none() || self.species.is_empty() {
+        let running = (self.running)();
+        if self.species.is_empty() {
             return Ok(None);
         }
-        if self.party.is_none() {
+        if running.as_deref() == Some(LIST) {
+            return self.team_drawn(picture);
+        }
+        if running.as_deref().and_then(first).is_none() || self.party.is_none() {
             return Ok(None);
         }
         let memory = &self.memory;
@@ -220,63 +287,137 @@ impl PartyIcons {
 
     /// The species of the party member whose icon is drawn from this image, or None.
     fn species_drawn(&self, image: i64) -> Result<Option<String>> {
-        let memory = &self.memory;
         let Some(party_at) = self.party else {
             return Ok(None);
         };
         for icon in self.icons.iter() {
-            if self.names.of_object(icon)?.as_deref() != Some(ICON_CLASS) {
-                continue;
-            }
-            let replace = u32(&memory.read(icon + pokeicon::REPLACE, 4)?, 0)?;
-            if replace == 0
-                || self.names.of_object(replace)?.as_deref() != Some(pokeicon::REPLACE_CLASS)
-            {
-                continue;
-            }
-            let head = memory.read(replace + pokeicon::TEXTURES, 8)?;
-            let (listed, count) = (u32(&head, 0)?, u32(&head, 4)?);
-            if listed == 0 || !(0 < count && count <= pokeicon::MAX_TEXTURES) {
-                continue;
-            }
-            let table = memory.read(listed, 4 * count)?;
-            let mut slot = None;
-            for i in 0..count {
-                if u32(&memory.read(u32(&table, 4 * i)? + pokeicon::IMAGE, 4)?, 0)? == image {
-                    slot = Some(i);
-                    break;
-                }
-            }
-            let Some(mut slot) = slot else {
+            let Some(slot) = self.slot(icon, image)? else {
                 continue;
             };
             let first = first((self.running)().as_deref().unwrap_or("")).unwrap_or(0);
             if slot < first {
                 return self.boxed(slot);
             }
-            slot -= first;
-            let party = memory.read(party_at, COUNT + 4)?;
-            // The list found in an earlier Bag may be another object's now, counting past six.
-            if !(0 <= slot && slot < std::cmp::min(party[COUNT as usize] as i64, SLOTS)) {
-                return Ok(None);
-            }
-            let found = pokemon::read(
-                &**memory,
-                &self.names,
-                u32(&party, 4 * slot)?,
-                pokemon::SPECIES_MAX,
-            )?;
-            let Some(found) = found else {
-                return Ok(None);
-            };
-            if found.species >= self.species.len() as i64 {
-                return Ok(None);
-            }
-            return Ok(
-                Some(self.species[found.species as usize].clone()).filter(|name| !name.is_empty())
-            );
+            return self.member(party_at, slot - first);
         }
         Ok(None)
+    }
+
+    /// The species of the team member whose icon this picture of the party list's top screen
+    /// draws, or None: another player's team before a link battle, drawn as icons alone. Out of
+    /// a link battle the list was opened with no team, and nothing is read.
+    fn team_drawn(&self, picture: i64) -> Result<Option<String>> {
+        let last = TEAMS[TEAMS.len() - 1];
+        let process = (self.process)();
+        let opened = py::slice(&process, OPENED_WITH, OPENED_WITH + last + 4);
+        if (opened.len() as i64) < last + 4 {
+            return Ok(None);
+        }
+        let mut teams: Vec<i64> = Vec::new();
+        for at in TEAMS {
+            teams.push(u32(opened, at)?);
+        }
+        if teams[0] == 0 {
+            teams = teams[1..2].to_vec();
+        }
+        if !teams.iter().any(|&team| team != 0) {
+            return Ok(None);
+        }
+        let Some(slot) = self.slot_drawn(picture)? else {
+            return Ok(None);
+        };
+        let (team, member) = (py::floordiv(slot, SLOTS), py::modulo(slot, SLOTS));
+        if team >= teams.len() as i64 {
+            return Ok(None);
+        }
+        let key = (teams[team as usize], member);
+        if !self.members.borrow().contains_key(&key) {
+            let found = self.member(key.0, member)?;
+            self.members.borrow_mut().insert(key, found);
+        }
+        Ok(self.members.borrow()[&key].clone())
+    }
+
+    /// Which of the party list's top screen's slots a picture is the icon of, or None.
+    fn slot_drawn(&self, picture: i64) -> Result<Option<i64>> {
+        let Some(layouts) = &self.layouts else {
+            return Ok(None);
+        };
+        let Some(placement) = layouts.placement(picture)? else {
+            return Ok(None);
+        };
+        let file = (self.file_of)(placement.root);
+        let Some(file) = file.filter(|file| file.name == TOP) else {
+            return Ok(None);
+        };
+        let mut icons: Vec<i64> = Vec::new();
+        for (pane, kind) in layouts.tree(placement.root) {
+            if kind == lyt::PICTURE_CLASS
+                && file
+                    .textures
+                    .get(&layouts.pane_name(pane)?)
+                    .is_some_and(|textures| textures.iter().any(|texture| texture == ICON))
+            {
+                icons.push(pane);
+            }
+        }
+        Ok(icons
+            .iter()
+            .position(|&icon| icon == picture)
+            .map(|slot| slot as i64))
+    }
+
+    /// Which of a PokeIcon's textures is this image, or None where it is none of them, or the
+    /// icon no PokeIcon.
+    fn slot(&self, icon: i64, image: i64) -> Result<Option<i64>> {
+        let memory = &self.memory;
+        if icon == 0 || self.names.of_object(icon)?.as_deref() != Some(ICON_CLASS) {
+            return Ok(None);
+        }
+        let replace = u32(&memory.read(icon + pokeicon::REPLACE, 4)?, 0)?;
+        if replace == 0
+            || self.names.of_object(replace)?.as_deref() != Some(pokeicon::REPLACE_CLASS)
+        {
+            return Ok(None);
+        }
+        let head = memory.read(replace + pokeicon::TEXTURES, 8)?;
+        let (listed, count) = (u32(&head, 0)?, u32(&head, 4)?);
+        if listed == 0 || !(0 < count && count <= pokeicon::MAX_TEXTURES) {
+            return Ok(None);
+        }
+        let table = memory.read(listed, 4 * count)?;
+        for i in 0..count {
+            if u32(&memory.read(u32(&table, 4 * i)? + pokeicon::IMAGE, 4)?, 0)? == image {
+                return Ok(Some(i));
+            }
+        }
+        Ok(None)
+    }
+
+    /// The species of a party list's member, or None past its count.
+    fn member(&self, party: i64, slot: i64) -> Result<Option<String>> {
+        if party == 0 {
+            return Ok(None);
+        }
+        let memory = &self.memory;
+        let head = memory.read(party, COUNT + 4)?;
+        // The list found in an earlier Bag may be another object's now, counting past six.
+        if !(0 <= slot && slot < std::cmp::min(head[COUNT as usize] as i64, SLOTS)) {
+            return Ok(None);
+        }
+        let found = pokemon::read(
+            &**memory,
+            &self.names,
+            u32(&head, 4 * slot)?,
+            pokemon::SPECIES_MAX,
+        )?;
+        let Some(found) = found else {
+            return Ok(None);
+        };
+        if found.species >= self.species.len() as i64 {
+            return Ok(None);
+        }
+        Ok(Some(self.species[found.species as usize].clone()).filter(|name| !name.is_empty()))
     }
 
     /// The species of the Battle Box's member in this slot, or None.

@@ -3,9 +3,13 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use indexmap::IndexMap;
+
+use super::fake_layouts::FakeLayouts;
 use super::fake_memory::{CODE, FakeClasses, FakeMemory};
 use super::test_pokemon::{WURMPLE, second_wurmple};
 use crate::core::rtti::ClassNames;
+use crate::games::common::layout_file::LayoutFile;
 use crate::games::common::{lyt, pokemon};
 use crate::games::gen6::pokeicon;
 use crate::games::gen6::screens::partyicons;
@@ -120,6 +124,102 @@ fn test_the_maisons_group_screen_draws_the_party_after_the_battle_box() {
         )
         .unwrap();
     assert_eq!(icons.name(picture).unwrap().as_deref(), Some("Wurmple"));
+}
+
+/// Before a link battle the party list's top screen drew the other player's team as icons,
+/// "zen, L50, , L50" (spike 319), from the teams the list's process was opened with: one team,
+/// the second, in the first six slots, a multi battle's three six slots apiece, a slot the n-th
+/// icon picture of the layout (spike 318's decompile). Out of a link battle there is none.
+#[test]
+fn test_the_party_lists_top_screen_names_the_other_players_team() {
+    let memory = FakeMemory::new();
+    let classes = FakeClasses::new(memory.clone());
+    let param = classes.add(pokemon::PARAM_CLASS);
+    let team = PARTY;
+    for i in 0..6 {
+        let at = PARAMS + 0x1E4 * i;
+        memory.u32(at, &[param, at + pokemon::RECORD_IN_PARAM]);
+        memory.u32(team + 4 * i, &[at]);
+    }
+    memory.write(PARAMS + 0x1E4 + pokemon::RECORD_IN_PARAM, &second_wurmple());
+    memory.u32(team + partyicons::COUNT, &[3]);
+    let fake = FakeLayouts::new(&memory, &classes);
+    let picture = classes.add(lyt::PICTURE_CLASS);
+    let (_work, root) = fake.screen_with(0x08200000, false, false);
+    // Eighteen slots, a pane each holding its icon; and a picture of another texture.
+    let mut icons: Vec<i64> = Vec::new();
+    for slot in 0..18 {
+        let pane = root + 0x1000 * (slot + 1);
+        fake.pane(pane, root);
+        fake.pane_with_vtable(pane + 0x200, pane, Some(picture));
+        let mut name = b"i".to_vec();
+        name.resize(lyt::NAME_SIZE as usize, 0);
+        memory.write(pane + 0x200 + lyt::NAME, &name);
+        icons.push(pane + 0x200);
+    }
+    fake.pane_with_vtable(root + 0x20000, root, Some(picture));
+    fake.track().unwrap();
+    let file = Rc::new(LayoutFile {
+        name: partyicons::TOP.to_string(),
+        ..LayoutFile::new(
+            Vec::new(),
+            IndexMap::from([("i".to_string(), vec![partyicons::ICON.to_string()])]),
+            IndexMap::new(),
+        )
+    });
+    let process = Rc::new(RefCell::new(vec![0u8; 0x154]));
+
+    let opened = |teams: &[i64]| {
+        let mut process = process.borrow_mut();
+        *process = vec![0u8; 0x154];
+        for (&at, &listed) in partyicons::TEAMS.iter().zip(teams) {
+            let start = (partyicons::OPENED_WITH + at) as usize;
+            process[start..start + 4].copy_from_slice(&(listed as u32).to_le_bytes());
+        }
+    };
+
+    let mut species = vec![String::new(); WURMPLE as usize];
+    species.push("Wurmple".to_string());
+    let mut names = partyicons::PartyIcons::with_list(
+        memory.clone(),
+        Rc::new(ClassNames::new(memory.clone(), CODE)),
+        species,
+        Rc::new(|| Some(partyicons::LIST.to_string())),
+        {
+            let process = process.clone();
+            Rc::new(move || process.borrow().clone())
+        },
+        Some(fake.layouts.clone()),
+        Rc::new(move |_root| Some(file.clone())),
+    );
+    // The field's party menu: no team, and nothing read.
+    assert_eq!(names.name(icons[1]).unwrap(), None);
+    opened(&[0, team]);
+    assert_eq!(
+        [icons[1], icons[7], root + 0x20000]
+            .iter()
+            .map(|&p| names.name(p).unwrap())
+            .collect::<Vec<_>>(),
+        [Some("Wurmple".to_string()), None, None]
+    );
+    // Three teams: the second six slots are the second.
+    opened(&[team + 0x100, team, team + 0x200]);
+    names
+        .track(
+            &[],
+            Vec::<i64>::new(),
+            &|_params: &[i64]| Ok(Vec::new()),
+            false,
+            Vec::<i64>::new(),
+        )
+        .unwrap();
+    assert_eq!(
+        [icons[1], icons[7]]
+            .iter()
+            .map(|&p| names.name(p).unwrap())
+            .collect::<Vec<_>>(),
+        [None, Some("Wurmple".to_string())]
+    );
 }
 
 /// At the Maison five more lists of six are kept, and the Battle Box's, counting its two, was

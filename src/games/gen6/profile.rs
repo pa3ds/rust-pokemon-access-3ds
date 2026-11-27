@@ -456,18 +456,6 @@ impl Gen6Profile {
             let memory = memory.clone();
             Rc::new(move |pane: i64| pictures.said(&*memory, pane)) as Pictures
         });
-        // The Bag draws each party member's icon, and says nothing of whose it is. Made here,
-        // before the screen text reader that asks it, where Python makes it later and reaches it
-        // through `self`; making it reads nothing.
-        let party_icons = Rc::new(RefCell::new(PartyIcons::new(
-            memory.clone(),
-            names.clone(),
-            text.species.clone(),
-            {
-                let apps = apps.clone();
-                Rc::new(move || apps.borrow().running.clone())
-            },
-        )));
         // The Battle Maison's partners are portraits over names drawn with no TextBox. Made here,
         // before the screen text reader that asks it, where Python makes it later and reaches it
         // through `self`; making it reads nothing.
@@ -479,6 +467,30 @@ impl Gen6Profile {
         // Made here, before the screen text reader, which names pictures by it: Python's closure
         // reaches `self.files` once it is made, later. Making either reads nothing.
         let files = Rc::new(LayoutFiles::new(memory.clone()));
+        // The Bag draws each party member's icon, and says nothing of whose it is; the party
+        // list's top screen, another player's team before a link battle. Made here, before the
+        // screen text reader that asks it, where Python makes it later and reaches it through
+        // `self`; making it reads nothing. Its `file_of` is made as the one below is.
+        let party_icons = Rc::new(RefCell::new(PartyIcons::with_list(
+            memory.clone(),
+            names.clone(),
+            text.species.clone(),
+            {
+                let apps = apps.clone();
+                Rc::new(move || apps.borrow().running.clone())
+            },
+            {
+                let apps = apps.clone();
+                Rc::new(move || apps.borrow().head.clone())
+            },
+            Some(layouts.clone()),
+            {
+                let (files, layouts) = (files.clone(), layouts.clone());
+                Rc::new(move |root: i64| -> Option<Rc<LayoutFile>> {
+                    files.matching(&layouts.pane_names(root))
+                })
+            },
+        )));
         // What a game's own readers are built from (`gen6.own`).
         let kit = Kit {
             memory: memory.clone(),
