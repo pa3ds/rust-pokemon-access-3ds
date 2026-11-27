@@ -21,7 +21,9 @@ use crate::games::common::field::chunk::{
     ANY_FLOOR, BLOCKED, CHUNK, COUNTER, Chunk, Floor, KIND_SHIFT,
 };
 use crate::games::common::field::grind::GrindRail;
-use crate::games::common::field::ground::{BLOCK, Ground, NO_ZONE, Of, pushes};
+use crate::games::common::field::ground::{
+    BLOCK, CRACKED, Ground, IceRoom, NO_ZONE, Of, WHOLE, pushes,
+};
 use crate::games::common::field::rotating::{Doors, RotatingDoor};
 use crate::games::common::field::things::{
     ASH_SOURCE, BERRY_SOURCE, DECORATION_SOURCE, EDGE_SOURCE, FURNITURE_SOURCE, Field,
@@ -53,7 +55,7 @@ use crate::games::gen6::field::zonetable::{
     INFO_KIND, INFO_MATRIX, INFO_NAME, INFO_PARENT, INFO_SETTING, INFO_SIZE, UNDERWATER,
 };
 use crate::games::gen6::game::{FeatureFactory, FurnitureKind, Game, SecretBaseFactory};
-use crate::games::gen6::rom::archives::GameText;
+use crate::games::gen6::rom::archives::{GameText, no_text};
 use crate::games::gen6::rom::maps::{ChunkSource, StreetSource};
 use crate::games::oras;
 use crate::games::oras::field::berries::BerrySpots;
@@ -4539,6 +4541,190 @@ fn test_a_rotating_door_turns_only_where_its_arms_sweep_open_cells() -> Result<(
         IndexMap::from([(2, "push".to_string())])
     );
     Ok(())
+}
+
+/// `_Turns(DoorTurns)`: Fortree Gym's doors as a test stands them, in any zone.
+struct Turns {
+    standing: Vec<RotatingDoor>,
+}
+
+impl Tracked for Turns {
+    fn classes(&self) -> Vec<&'static str> {
+        vec![doors::CLASS]
+    }
+
+    fn track(&self, _found: &Found) -> Result<()> {
+        Ok(())
+    }
+}
+
+/// `_Doors(RotatingDoors)`: ORAS's rotating doors, read through `Turns`, laid as theirs are
+/// (`doors.stand`).
+#[derive(Debug)]
+struct StandingDoors {
+    standing: Vec<RotatingDoor>,
+}
+
+impl Landform for StandingDoors {
+    fn watch(
+        &self,
+        _memory: Rc<dyn Memory>,
+        _image: &[u8],
+        _text: &GameText,
+    ) -> Option<Rc<dyn Tracked>> {
+        Some(Rc::new(Turns {
+            standing: self.standing.clone(),
+        }))
+    }
+
+    fn laid(&self, _found: &Worked, ground: Ground, here: &Here) -> Result<Ground> {
+        let turns = (here.watch)(self);
+        let standing = match turns.as_deref().and_then(as_watch::<Turns>) {
+            Some(turns) => turns.standing.clone(),
+            None => Vec::new(),
+        };
+        Ok(doors::stand(ground, standing))
+    }
+}
+
+/// Spike 161: round the door the player is at, Fortree Gym's invisible blockers stand in for
+/// its arms, which the doors are walked through by: five were listed as "person 1 west", and P
+/// said "person in the way". The doors' landform lays them on the ground as they stand now,
+/// and the blockers are in nobody's way there; where no door stands, one is in the way.
+#[test]
+fn test_the_blockers_round_rotating_doors_are_in_nobodys_way() -> Result<()> {
+    let door = RotatingDoor {
+        turn: 1,
+        ..RotatingDoor::new((90, 165), doors::patterns()[&1].clone())
+    };
+    for standing in [vec![door], Vec::new()] {
+        let town = Town::of(Game {
+            blockers: HashSet::from(oras::BLOCKERS),
+            landforms: [
+                gen6(),
+                vec![Arc::new(StandingDoors {
+                    standing: standing.clone(),
+                }) as Arc<dyn Landform>],
+            ]
+            .concat(),
+            ..game()
+        });
+        town.model(4, TOWN, 3, oras::STOPPER, (96, 172));
+        let ground = town.reader.ground(&town.r#where()?)?;
+        assert_eq!(ground.doors, standing);
+        assert_eq!(ground.open((96, 172))?, !standing.is_empty());
+    }
+    Ok(())
+}
+
+/// `_Cracks(IceFloors)`: Sootopolis Gym's rooms of thin ice as a test has them, in any zone.
+struct Cracks {
+    now: Vec<IceRoom>,
+}
+
+impl Tracked for Cracks {
+    fn classes(&self) -> Vec<&'static str> {
+        vec![ice::CLASS]
+    }
+
+    fn track(&self, _found: &Found) -> Result<()> {
+        Ok(())
+    }
+}
+
+/// `_Ice(ThinIce)`: ORAS's thin ice, read through `Cracks`, laid as its is (`ice.crack`).
+#[derive(Debug)]
+struct CrackedIce {
+    now: Vec<IceRoom>,
+}
+
+impl Landform for CrackedIce {
+    fn watch(
+        &self,
+        _memory: Rc<dyn Memory>,
+        _image: &[u8],
+        _text: &GameText,
+    ) -> Option<Rc<dyn Tracked>> {
+        Some(Rc::new(Cracks {
+            now: self.now.clone(),
+        }))
+    }
+
+    fn laid(&self, _found: &Worked, ground: Ground, here: &Here) -> Result<Ground> {
+        let floors = (here.watch)(self);
+        let rooms = match floors.as_deref().and_then(as_watch::<Cracks>) {
+            Some(floors) => floors.now.clone(),
+            None => Vec::new(),
+        };
+        Ok(ice::crack(ground, rooms, here.r#where.cell))
+    }
+}
+
+/// Spike 167: a cracked tile of Sootopolis Gym's thin ice drops the player through to the
+/// floor below, so P walks round it; but the one the player has just cracked is where they
+/// stand, and a cleared room's ice is safe. The ice's landform lays the rooms on the ground as
+/// they are now.
+#[test]
+fn test_a_cracked_tile_of_thin_ice_is_in_the_way_but_under_the_player() -> Result<()> {
+    let room = IceRoom::new(
+        (93, 172),
+        (3, 2),
+        0.0,
+        vec![CRACKED, CRACKED, WHOLE, WHOLE, WHOLE, CRACKED],
+        vec![(93, 171)],
+    );
+    let ice_of = |room: IceRoom| Game {
+        landforms: [
+            gen6(),
+            vec![Arc::new(CrackedIce { now: vec![room] }) as Arc<dyn Landform>],
+        ]
+        .concat(),
+        ..game()
+    };
+    let mut town = Town::of(ice_of(room.clone()));
+    let ground = town.reader.ground(&town.r#where()?)?;
+    assert_eq!(ground.ice, [room.clone()]);
+    let mut closed: Vec<(i64, i64)> = Vec::new();
+    for &cell in room.cells().keys() {
+        if !ground.open(cell)? {
+            closed.push(cell);
+        }
+    }
+    assert_eq!(closed, [(93, 172), (95, 173)]);
+    town.reader = field_reader(
+        town.memory.clone(),
+        Given::default(),
+        ice_of(IceRoom {
+            cleared: true,
+            ..room.clone()
+        }),
+    );
+    let ground = town.reader.ground(&town.r#where()?)?;
+    for &cell in room.cells().keys() {
+        assert!(ground.open(cell)?, "{cell:?}");
+    }
+    Ok(())
+}
+
+/// The log names what a sweep looks for in the order the field reader asks: Fortree Gym's
+/// module, then Sootopolis Gym's, after the save's works.
+#[test]
+fn test_orass_gyms_are_swept_for_after_the_saves_works_the_doors_first() {
+    let reader = FieldReader::new(
+        FakeMemory::new(),
+        oras::game(),
+        &no_text(),
+        b"",
+        Rc::new(py::time::monotonic),
+        None,
+        None,
+        HIDDEN_OFF,
+    );
+    let classes = reader.classes();
+    assert_eq!(
+        classes[classes.len() - 3..],
+        [EVENT_CLASS, doors::CLASS, ice::CLASS]
+    );
 }
 
 /// x_elite-fire.ctm: the Elite Four's rooms have a mat out across the steps north of where the

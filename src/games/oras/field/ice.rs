@@ -79,23 +79,30 @@ impl Landform for ThinIce {
             Some(floors) => floors.rooms(here.r#where.zone)?,
             None => Vec::new(),
         };
-        if rooms.is_empty() {
-            return Ok(ground);
-        }
-        let mut cracked: IndexMap<(i64, i64), Option<f64>> = IndexMap::new();
-        for room in &rooms {
-            if !room.cleared {
-                for (cell, state) in room.cells() {
-                    if state == CRACKED {
-                        cracked.insert(cell, Some(room.height));
-                    }
+        Ok(crack(ground, rooms, here.r#where.cell))
+    }
+}
+
+/// `ThinIce.laid` once its watch has said the rooms: `ground` with them, where any are, their
+/// cracked tiles standing but under the `player`. A function of its own, where Python's tests
+/// subclass the landform over a fake watch: theirs lays what it reads through it.
+pub fn crack(ground: Ground, rooms: Vec<IceRoom>, player: (i64, i64)) -> Ground {
+    if rooms.is_empty() {
+        return ground;
+    }
+    let mut cracked: IndexMap<(i64, i64), Option<f64>> = IndexMap::new();
+    for room in &rooms {
+        if !room.cleared {
+            for (cell, state) in room.cells() {
+                if state == CRACKED {
+                    cracked.insert(cell, Some(room.height));
                 }
             }
         }
-        Ok(Ground {
-            ice: rooms,
-            ..ground.stood(&cracked, here.r#where.cell)
-        })
+    }
+    Ground {
+        ice: rooms,
+        ..ground.stood(&cracked, player)
     }
 }
 

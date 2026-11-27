@@ -118,11 +118,18 @@ impl Landform for RotatingDoors {
             Some(turns) => turns.doors(here.r#where.zone)?,
             None => Vec::new(),
         };
-        Ok(if doors.is_empty() {
-            ground
-        } else {
-            Ground { doors, ..ground }
-        })
+        Ok(stand(ground, doors))
+    }
+}
+
+/// `RotatingDoors.laid` once its watch has said the doors: `ground` with them, where any stand.
+/// A function of its own, where Python's tests subclass the landform over a fake watch: theirs
+/// lays what it reads through it.
+pub fn stand(ground: Ground, doors: Vec<RotatingDoor>) -> Ground {
+    if doors.is_empty() {
+        ground
+    } else {
+        Ground { doors, ..ground }
     }
 }
 
