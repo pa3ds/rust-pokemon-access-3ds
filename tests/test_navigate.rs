@@ -1762,7 +1762,7 @@ fn test_a_scene_spot_under_the_player_is_walked_off() {
 
 /// Sun's lottery clerk in Festival Plaza stands in her stall, walled in, and P said "no
 /// path"; the game speaks to her from where the range it gives her reaches over the counter,
-/// and P now leads there and no further (spike Q).
+/// and P now leads there and no further (spike 318).
 #[test]
 fn test_someone_walled_in_is_walked_to_where_their_talk_range_reaches() {
     let stall: Vec<Cell> = (97..104)

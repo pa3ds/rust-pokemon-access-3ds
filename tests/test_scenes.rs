@@ -504,7 +504,7 @@ id = "off-1"
 }
 
 /// Sun's and Moon's intro is theirs, and the Ultra games number their demos otherwise: a list
-/// of titles is those versions' alone (spike P).
+/// of titles is those versions' alone (spike 317).
 #[test]
 fn test_a_scene_of_several_versions_is_said_in_each_and_no_other() -> Result<()> {
     let tmp_path = TmpDir::new();

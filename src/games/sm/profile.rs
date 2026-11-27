@@ -110,7 +110,7 @@ pub type Held = IndexMap<i64, (CursorItem, i64)>;
 ///
 /// The Pokédex's cursor items once each has stood `SETTLE` polls with no newer one: as its list
 /// scrolls under a cursor that stays put, the rows are redrawn a frame or two late, and a press
-/// said "012" and then "????? 012", "?????021" and then "????? 020" (spike P). An item over more
+/// said "012" and then "????? 012", "?????021" and then "????? 020" (spike 317). An item over more
 /// than `WHOLE_LIST` pieces is the list read at once and is dropped.
 pub fn settled(held: &mut Held, items: Vec<CursorItem>) -> Result<Vec<CursorItem>> {
     for item in items {
@@ -394,7 +394,7 @@ impl SunProfile {
                     };
                 }
                 // The summary draws its stats' names as pictures, ParamName_00 to _05, in the
-                // order of the game's own names for them (spike Q).
+                // order of the game's own names for them (spike 318).
                 let name = layouts.name(pane)?;
                 let name = rstrip_nul(&name);
                 let tail = py::slice_from(name, -2);
@@ -631,14 +631,15 @@ impl SunProfile {
             if !rows.is_empty() {
                 // The rows are the shop reader's; the money, the count in the bag and the
                 // description are the screen's, said as they change, as ORAS's are. The cursor
-                // over the list stood over all of it, and none was said (spike Q, Route 1's Mart).
+                // over the list stood over all of it, and none was said (spike 318, Route 1's
+                // Mart).
                 cursors = cursors_off(cursors, |piece| rows.contains(&piece.r#box));
             }
             self.shop_wanted
                 .set(!rows.is_empty() && self.shop.borrow().showing().is_none());
         }
         // An entry's page is built as A opens it, mid-app, and read nothing until the next whole
-        // sweep (Rowlet's, spike P), so a blank Pokédex asks for one.
+        // sweep (Rowlet's, spike 317), so a blank Pokédex asks for one.
         self.blank
             .set(self.app.borrow().as_deref() == Some(POKEDEX) && screen.on_screen.is_empty());
         if self.app.borrow().as_deref() == Some(POKEDEX) {
@@ -819,7 +820,7 @@ fn is_upper(c: char) -> bool {
 
 /// Each word and number Sun draws touching on a row, two letters or more each, moved a glyph
 /// apart so they are said apart: the Pokédex entry read "Height1'00"", "Weight3.3 lbs." and
-/// "001Rowlet" (spike Q). A level mark and its number, one letter, stay one.
+/// "001Rowlet" (spike 318). A level mark and its number, one letter, stay one.
 pub fn words_apart(found: IndexMap<i64, ScreenText>) -> IndexMap<i64, ScreenText> {
     let mut out = found.clone();
     for second in found.values() {
@@ -901,7 +902,7 @@ type StatRow = (ScreenText, String, Vec<ScreenText>);
 
 /// A level-up's stats panel, read whole: six rows, each its own group of a stat's name, its
 /// number and, before the totals, its gain, "+ 3". The panel slides in over the battle's menu
-/// layout and only "HP" was said (Rowlet to Lv. 11, spike Q). Returns what it says, the rows
+/// layout and only "HP" was said (Rowlet to Lv. 11, spike 318). Returns what it says, the rows
 /// top down, "HP 35 + 3, Attack 14 + 1, ...", and its TextBoxes; None where no such panel is.
 pub fn stat_rows(on_screen: &[ScreenText]) -> Option<(String, HashSet<i64>)> {
     let mut groups: IndexMap<(i64, i64), Vec<&ScreenText>> = IndexMap::new();
@@ -970,7 +971,7 @@ pub const NEAR: f64 = 3.5;
 /// The summary's stats round its chart read as one line in the game's order, each name with
 /// its number: "HP 9/24, Attack 13, Defense 10, Sp. Atk 13, Sp. Def 12, Speed 11". The names are
 /// pictures (`STAT_PANE`), two side by side read as one, "Sp. Atk/Attack", each a row above or
-/// below its number, and the numbers were said bare, "9/24 13 13 12 10 11" (Ultra Sun, spike Q).
+/// below its number, and the numbers were said bare, "9/24 13 13 12 10 11" (Ultra Sun, spike 318).
 /// `names` are the game's names for the stats, HP to Speed; `texts` as they are where the chart
 /// is not all there.
 pub fn chart_stats(texts: &[ScreenText], names: &[String]) -> Vec<ScreenText> {
@@ -1078,7 +1079,7 @@ pub fn chart_stats(texts: &[ScreenText], names: &[String]) -> Vec<ScreenText> {
 
 /// Each piece read straight after the one left of it on its row (`ScreenText.follows`): the
 /// PC Box's summary builds its labels first and its values after, and read them so, "Name Type OT
-/// Rowlet rewq HP Attack ... 15/33 13 14" (spike Q).
+/// Rowlet rewq HP Attack ... 15/33 13 14" (spike 318).
 pub fn labelled_rows(texts: &[ScreenText]) -> Vec<ScreenText> {
     let left_of = |piece: &ScreenText| -> Option<&ScreenText> {
         // `max(row, key=left, default=None)`: the first of equals.
@@ -1170,7 +1171,7 @@ pub fn labelled_rows(texts: &[ScreenText]) -> Vec<ScreenText> {
 
 /// The Pokédex's rows of a name and two counts with the counts said as the cursor says them,
 /// caught and seen: the menu as it opened read "Alola Pokédex 1 10 Melemele Pokédex 1 10"
-/// (spike Q), and on its cursor "Alola Pokédex 1 caught 10 seen" (`_counted`).
+/// (spike 318), and on its cursor "Alola Pokédex 1 caught 10 seen" (`_counted`).
 pub fn counted_rows(texts: &[ScreenText]) -> Result<Vec<ScreenText>> {
     let mut rows: IndexMap<(i64, i64), Vec<&ScreenText>> = IndexMap::new();
     for piece in texts {
@@ -1321,7 +1322,7 @@ impl Profile for SunProfile {
         if let Some(late) = late {
             *self.app.borrow_mut() = Some(late.clone());
             (self.log)(&format!("app: the one started is {}", demangle(&late)));
-            // Kevin's battle on Route 1 was named a poll after it started (spike Q).
+            // Kevin's battle on Route 1 was named a poll after it started (spike 318).
             if late == BATTLE
                 && let Some(opponents) = &self.opponents
             {

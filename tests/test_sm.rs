@@ -559,7 +559,7 @@ fn test_nothing_is_said_once_the_choice_is_gone() {
     assert_eq!(choosing.show(langselect::LIST, 1, 0), None);
 }
 
-/// Ultra Sun's `ShopDraw` keeps the item at +0xc4 (spike P); moving says the next one.
+/// Ultra Sun's `ShopDraw` keeps the item at +0xc4 (spike 317); moving says the next one.
 #[test]
 fn test_a_mart_s_list_says_the_item_under_its_cursor_by_its_number() {
     let memory = FakeMemory::new();
@@ -624,7 +624,7 @@ fn test_no_cursor_is_said_over_words_another_reader_says() {
 }
 
 /// Every row's words hang from one pane: taken by the pane, every item read $100, the last
-/// row's (spike Q, Route 1's Mart, Poké Ball $200 and Paralyze Heal $300 on screen).
+/// row's (spike 318, Route 1's Mart, Poké Ball $200 and Paralyze Heal $300 on screen).
 #[test]
 fn test_a_mart_s_item_is_priced_by_the_row_its_price_shares_on_screen() {
     let at = |text: &str, row: f64| -> ScreenText {
@@ -663,7 +663,7 @@ fn drawn(r#box: i64, text: &str, left: f64, row: f64, parent: i64) -> ScreenText
     }
 }
 
-/// Rowlet's Pokédex entry, its rows closer than a glyph (spike Q).
+/// Rowlet's Pokédex entry, its rows closer than a glyph (spike 318).
 #[test]
 fn test_a_word_and_a_number_drawn_touching_are_said_apart_and_a_level_mark_is_not() {
     let (height, value) = (
@@ -696,7 +696,7 @@ fn test_a_word_and_a_number_drawn_touching_are_said_apart_and_a_level_mark_is_no
     );
 }
 
-/// Rowlet to Lv. 11 on Route 1 (spike Q): six rows, a group each, the gains and then the
+/// Rowlet to Lv. 11 on Route 1 (spike 318): six rows, a group each, the gains and then the
 /// totals; while the rows slid in, only "HP" was said.
 #[test]
 fn test_a_level_up_s_stats_are_read_whole_once_they_have_slid_in() {
@@ -773,7 +773,7 @@ fn test_a_level_up_s_stats_are_read_whole_once_they_have_slid_in() {
     assert!(stat_rows(&party).is_none());
 }
 
-/// Ultra Sun's summary of Rowlet (spike Q): the names are pictures, two side by side read as
+/// Ultra Sun's summary of Rowlet (spike 318): the names are pictures, two side by side read as
 /// one, each a row off its number; the numbers were said bare, "9/24 13 13 12 10 11".
 #[test]
 fn test_the_summary_s_stats_round_their_chart_are_read_by_name_in_the_game_s_order() {
@@ -829,7 +829,7 @@ fn test_the_summary_s_stats_round_their_chart_are_read_by_name_in_the_game_s_ord
     assert_eq!(chart_stats(&texts[..5], &names), texts[..5]);
 }
 
-/// The PC Box's summary as Route 1's Center drew it (spike Q): labels built first, values
+/// The PC Box's summary as Route 1's Center drew it (spike 318): labels built first, values
 /// after, two stat columns on one set of rows, HP's 15/33 a group of its own, the moves a group
 /// each beside the values of Nature and Ability.
 #[test]

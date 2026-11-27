@@ -28,7 +28,7 @@
 //!     +0x10 u32 1 while the story's step is the one it starts, 0 while it is not: of Route 1's
 //!           twelve one was 1, at (492, 410), and walking at it started Lillie's scene at the
 //!           Tauros; once it ended that one was 0 and the next, at (447, 432) by the Tauros, 1,
-//!           and walking at that one the Tauros turned the player back (spike P, Ultra Sun,
+//!           and walking at that one the Tauros turned the player back (spike 317, Ultra Sun,
 //!           driven live)
 //! ```
 //!
@@ -113,7 +113,7 @@ pub const CYLINDER: &str = "13CylinderShape";
 /// A map block loaded: +0x04 its x and +0x08 its z in the area's block table, +0x24 the variant
 /// it is in (`walls`). Both of Mahalo Trail's blocks were in variant 2 with the Plank Bridge broken,
 /// and the blocks of a Pokémon Center and of Ultra Sun's zone 3, (5, 6) and (6, 5) to (8, 5), in 0
-/// (spike P).
+/// (spike 317).
 pub const TERRAIN: &str = "N5Field7Terrain12TerrainBlockE";
 pub const TERRAIN_X: i64 = 0x04;
 pub const TERRAIN_Z: i64 = 0x08;
@@ -668,7 +668,7 @@ impl SunFieldReader {
     /// game gives them, a cylinder round them in a group of its own beside the bodies', with the
     /// way to face into it. The lottery clerk's in Festival Plaza reaches over her stall's
     /// counter, and the game spoke to her from (65, 99) facing east, its first cell (66, 99)
-    /// (spike Q). None where no range is known.
+    /// (spike 318). None where no range is known.
     fn talked_from(
         &self,
         x: f64,
@@ -847,7 +847,7 @@ impl SunFieldReader {
             }
             // The quarter held keeps until the camera looks well past its edge, but none is held
             // before a first angle: started on Route 1 with the camera 50 degrees west of north,
-            // P said "9 north" and the stick walked the player into the boulders west (spike P).
+            // P said "9 north" and the stick walked the player into the boulders west (spike 317).
             let held = if self.angled.get() {
                 Some(current)
             } else {
@@ -860,7 +860,7 @@ impl SunFieldReader {
     }
 
     /// The variant each map block loaded is in, by its place in the area's block table: P
-    /// led across the Plank Bridge the story had broken, its blocks read whole (spike P).
+    /// led across the Plank Bridge the story had broken, its blocks read whole (spike 317).
     fn variants(&self) -> Result<IndexMap<Block, i64>> {
         let mut variants: IndexMap<Block, i64> = IndexMap::new();
         let terrains = self.tracked.borrow().terrains.clone();

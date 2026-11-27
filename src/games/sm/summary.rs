@@ -1,5 +1,5 @@
 //! The types a summary's Pokémon has, which it draws as two icons, `Icon_SkillType` both, no word on
-//! them, and gen 6 names by their textures, which Sun's layouts do not give pa3ds (spike Q).
+//! them, and gen 6 names by their textures, which Sun's layouts do not give pa3ds (spike 318).
 //!
 //! The summary's frame keeps a view whose +0x90 is the Pokémon shown (its decompile, Ultra Sun):
 //!

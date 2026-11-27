@@ -22,7 +22,7 @@
 //!
 //! **Variants** are the story's changes to a block. Sun has alternates in two areas, Ultra Sun in
 //! five: Mahalo Trail (Sun's area 9, Ultra Sun's 14 and 15) has three for each of its two blocks,
-//! and the second closes the Plank Bridge the story breaks (spike P). Which variant a block is in
+//! and the second closes the Plank Bridge the story breaks (spike 317). Which variant a block is in
 //! is the field's to say (`field.TERRAIN`), and a block in variant 0, or one with no file for its
 //! variant, is read from its first file.
 //!
@@ -35,7 +35,7 @@
 //! and then the player walks through it as through open ground. Route 1's beside the house, from
 //! (584, 336) to (588, 339) with nobody in it, was walked through from north to south in Sun after
 //! Iki Town's festival, and taken as a wall P said there was no way out of the cell before it
-//! (spike P). So an area keeps each barrier's cells apart (`AreaWalls.barriers`), and the field
+//! (spike 317). So an area keeps each barrier's cells apart (`AreaWalls.barriers`), and the field
 //! closes those of a barrier a person stands in (`field`).
 //!
 //! **Mesh** — `00 05 12 14`, u32 count, then that many triangles of 0x48 bytes: three corners (f32
@@ -61,7 +61,7 @@
 //! runs round by the stairs — one of the two is closed in the chunks P walks: the one whose floor
 //! is further from the player's.
 //!
-//! **Ledges** (spike Q). A ledge is a floor triangle far steeper than a stair (`SLANT`), falling
+//! **Ledges** (spike 318). A ledge is a floor triangle far steeper than a stair (`SLANT`), falling
 //! more than `STEP`, with a wall along its foot facing down: the cell under the face is closed, the
 //! floor above it is a pocket of its own and the floor below another. The player walks off it and
 //! lands a cell past the face, and walking back up stops at its foot: on Route 1 south of the
@@ -476,7 +476,7 @@ impl AreaWalls {
     /// is closed, and the cell above it, the way the face looks up, open on a floor higher than
     /// the cell below it by more than `STEP`. On Route 1 the yard by the Advanced Tips sign is
     /// walled all round, and jumped into east from (440, 336) and out of it south from (449,
-    /// 344) (spike Q). A face that leaves no closed cell between its two floors is not one.
+    /// 344) (spike 318). A face that leaves no closed cell between its two floors is not one.
     fn ledges_of(&self, faces: &[Triangle], cell: f64) -> Result<IndexMap<Cell, (Cell, Cell)>> {
         let mut found: IndexMap<Cell, (Cell, Cell)> = IndexMap::new();
         for face in faces {

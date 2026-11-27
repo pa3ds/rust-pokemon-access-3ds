@@ -513,7 +513,7 @@ fn test_people_things_and_exits_are_listed_where_the_field_placed_them() {
 }
 
 /// Ultra Sun keeps a move model's place and its flag further on, and the area's number after
-/// a pointer (spike P): read through its layout, its bedroom lists as Sun's does.
+/// a pointer (spike 317): read through its layout, its bedroom lists as Sun's does.
 #[test]
 fn test_ultra_sun_s_bedroom_is_read_through_its_own_layout() {
     let sun = Bedroom::new().listed(Some(rom()), None, false, &[]);
@@ -943,7 +943,7 @@ fn test_a_ball_on_the_ground_a_signpost_and_a_thing_built_twice_are_each_said_on
 }
 
 /// Route 1's Pokémon Center's PC is a thing with no script, of kind 8, one in each place with
-/// a Center (spike Q).
+/// a Center (spike 318).
 #[test]
 fn test_a_thing_of_the_pc_s_kind_is_the_pc() {
     let bedroom = Bedroom::new();
@@ -1062,7 +1062,7 @@ fn test_p_finds_the_way_round_the_walls_out_of_the_rom() {
 }
 
 /// A story's barrier holds while someone stands in it, as one across Iki Town's way does,
-/// and is walked through once the story has moved them (spike P).
+/// and is walked through once the story has moved them (spike 317).
 #[test]
 fn test_a_barrier_is_closed_while_a_person_stands_beside_it_and_open_once_they_are_gone() {
     let bedroom = Bedroom::new();
@@ -1100,7 +1100,7 @@ fn test_a_barrier_is_closed_while_a_person_stands_beside_it_and_open_once_they_a
 }
 
 /// Mahalo Trail's two blocks were in variant 2 with the Plank Bridge broken, and P led across
-/// it read whole (spike P): each loaded block's variant goes to the walls.
+/// it read whole (spike 317): each loaded block's variant goes to the walls.
 #[test]
 fn test_the_walls_are_asked_for_with_each_loaded_block_in_its_variant() {
     let bedroom = Bedroom::new();
@@ -1214,7 +1214,7 @@ fn test_a_hidden_item_is_not_listed_though_the_field_builds_it_an_actor() {
     );
 }
 
-/// Of Route 1's twelve steps one was armed, and walking at it started its scene (spike P).
+/// Of Route 1's twelve steps one was armed, and walking at it started its scene (spike 317).
 #[test]
 fn test_only_a_step_the_field_has_armed_is_listed_and_p_steps_round_it() {
     let bedroom = Bedroom::new();
@@ -1502,7 +1502,7 @@ fn test_a_camera_given_no_angle_yet_keeps_the_compass_as_it_was() {
 }
 
 /// Started with the camera 50 degrees west of north, as on Route 1 by its boulders, the
-/// compass is west: held at north until past the edge, P sent the stick into them (spike P).
+/// compass is west: held at north until past the edge, P sent the stick into them (spike 317).
 #[test]
 fn test_the_first_angle_read_takes_the_nearest_quarter() {
     let bedroom = Bedroom::new();

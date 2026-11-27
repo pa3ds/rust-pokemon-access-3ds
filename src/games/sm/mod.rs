@@ -86,7 +86,7 @@ pub const SUN_LAYOUT: VersionLayout = VersionLayout {
     plaza: &[0x119, 0x11A],
     my_status: 0xEA0,
 };
-/// Ultra Sun's, read against Sun's in its ROM and its bedroom (spike P, 2026-11-23): every class
+/// Ultra Sun's, read against Sun's in its ROM and its bedroom (spike 317, 2026-11-23): every class
 /// the readers find has Sun's name, and every field of each is where Sun's is but a move model's,
 /// eight bytes on from +0x2f4 and twelve by its place, and the area loaded's, its number at +0x04
 /// with a pointer before it, and the language choice's, its language and choice four bytes on.

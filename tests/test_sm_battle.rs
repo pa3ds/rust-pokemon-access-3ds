@@ -122,7 +122,7 @@ impl Battle {
 const TRAYS: i64 = 0x30700000;
 
 /// Lass Madison's tray on Route 1 showed `BG_Ball` and `IconBall_00` and "1" was said after
-/// "You are challenged by Lass Madison!", and she had one Pokémon (spike Q). The player's tray
+/// "You are challenged by Lass Madison!", and she had one Pokémon (spike 318). The player's tray
 /// and the background are not counted.
 #[test]
 fn test_a_trainer_s_party_is_the_balls_its_tray_shows_once_they_hold() {

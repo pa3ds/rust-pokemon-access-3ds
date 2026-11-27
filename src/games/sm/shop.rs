@@ -2,7 +2,7 @@
 //!
 //! The list is one layout whose rows the generic cursor reader reads whole, "Poké Ball Potion
 //! Antidote ... $200 $200 ... In Bag: 10", moving through it unsaid. The shop's own object knows
-//! the item chosen (spike P, a Pokémon Center's Mart on Route 1, moved down and up a row at a
+//! the item chosen (spike 317, a Pokémon Center's Mart on Route 1, moved down and up a row at a
 //! time):
 //!
 //! ```text
@@ -13,7 +13,7 @@
 //! ```
 //!
 //! The item is said with the price on its row, "Potion $200", and the money, the count in the bag
-//! and the description are screen text, said as they change, as ORAS's are (`priced`, spike Q):
+//! and the description are screen text, said as they change, as ORAS's are (`priced`, spike 318):
 //! the cursor over the list stood over the whole layout, and none of them was said.
 //!
 //! Sun's keeps the item at the same +0xc4 (Sun's Route 1 Mart, driven live to it through Iki
@@ -46,7 +46,7 @@ pub const PRICE_PANE: &[u8] = b"Text_ItemPrice";
 
 /// Each row's item -> its price, said with it as ORAS says a Mart's row, "Potion $200". Every
 /// row's words hang from one pane, so a price is its name's by the row they share on screen: by
-/// the pane, every item read the last row's $100 (spike Q, Route 1's Mart).
+/// the pane, every item read the last row's $100 (spike 318, Route 1's Mart).
 pub fn priced(names: &[ScreenText], prices: &[ScreenText]) -> IndexMap<String, String> {
     let Some(first) = prices.first() else {
         return IndexMap::new();

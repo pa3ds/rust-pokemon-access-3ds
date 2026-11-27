@@ -68,7 +68,7 @@ pub const BALL_TRAY: i64 = 0x14;
 pub const BALL_SIDE: i64 = 0x1C;
 pub const BALL_HEAD: i64 = 0x20;
 /// The start of the six balls' pictures' names, `IconBall_00` to `IconBall_05`, beside the tray's
-/// own `BG_Ball`, which is always shown (a wild battle on Route 1, spike Q).
+/// own `BG_Ball`, which is always shown (a wild battle on Route 1, spike 318).
 pub const BALL_PANE: &[u8] = b"IconBall";
 /// Screen polls the tray is looked for from the battle's first page, as gen 6's.
 pub const TRAY_POLLS: i64 = 10;
@@ -303,7 +303,7 @@ impl SunBattleReader {
 /// How many Pokémon a trainer has, told once a battle after its first page, as gen 6's
 /// (`gen6.screens.battle.OpponentsParty`): the balls the trainer's tray shows.
 ///
-/// The tray is `btl::BtlvGaugeBall`, one a side (its decompile, spike Q). It sets each of six ball
+/// The tray is `btl::BtlvGaugeBall`, one a side (decompiled, spike 318). It sets each of six ball
 /// pictures visible for a Pokémon, whole, poisoned or fainted, and hides it for none or an Egg:
 ///
 /// ```text

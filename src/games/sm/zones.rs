@@ -76,7 +76,7 @@ pub const ROW_KIND: i64 = 0x3A;
 pub const PLACE_NAMES: i64 = 67;
 /// System text file 24 line 9, "FESTIVAL PLAZA", the X menu's: the place names have no line for
 /// Festival Plaza, whose two zones the zone table gives Route 1's place, line 6, the Center it is
-/// entered from (spike P; Sun's 0x119 and 0x11a, Ultra Sun's 0x13e and 0x13f,
+/// entered from (spike 317; Sun's 0x119 and 0x11a, Ultra Sun's 0x13e and 0x13f,
 /// `VersionLayout.plaza`).
 pub const PLAZA: (i64, i64) = (24, 9);
 /// A zone's kind (`ROW_KIND`): a room, a cave or trail or ruin, and a route or town or sea.
@@ -86,7 +86,7 @@ pub const ENCLOSED: i64 = 2;
 /// A zone's kind (`ROW_KIND`): a room, a cave or trail or ruin, and a route or town or sea.
 pub const OUTDOORS: i64 = 3;
 /// The kind in its row's u16: the Ultra games set 0x08 on 155 of their 380 zones, the player's
-/// bedroom's among them, and keep Sun's kinds below it (spike P).
+/// bedroom's among them, and keep Sun's kinds below it (spike 317).
 pub const KIND_BITS: i64 = 0x07;
 
 pub const EVENTS: &str = "a/0/8/2";
@@ -152,7 +152,7 @@ pub const WARP_OUT: i64 = 9;
 
 /// The kind of a Pokémon Center's PC (script 0): one in each of Sun's 17 places with a Center,
 /// two in Aether Paradise, and nowhere else, 19 in Sun and 21 in Ultra Sun; facing Route 1's and
-/// pressing A opened the Box (spike Q).
+/// pressing A opened the Box (spike 318).
 pub const PC: i64 = 0x08;
 /// The kinds of the things that are signs (script 0). Route 1 has three of 0x12, three of 0x15
 /// and one of 0x0e, and story text file 21, the game's signs, has seven for Route 1: "Route 1",

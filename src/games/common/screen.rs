@@ -1027,8 +1027,8 @@ fn separators(
 
 /// These pieces, with each lone `LEVEL_GLYPH` just left of a number in its own group, on its
 /// row, read as `words`. Ultra Sun hangs the number from the glyph's own TextBox instead, drawn
-/// where the glyph is (spike P), and Sun's PC Box from a group of its own, drawn just right of
-/// it, "l9" (spike Q).
+/// where the glyph is (spike 317), and Sun's PC Box from a group of its own, drawn just right of
+/// it, "l9" (spike 318).
 fn level_marks(found: &IndexMap<i64, ScreenText>, words: &str) -> IndexMap<i64, ScreenText> {
     let mut out = found.clone();
     for (&r#box, piece) in found {

@@ -1,5 +1,5 @@
 //! Sun's Pokédex list: an entry said only once it has settled, as its rows are redrawn late as
-//! the list scrolls (spike P).
+//! the list scrolls (spike 317).
 
 use std::rc::Rc;
 

@@ -295,7 +295,7 @@ pub struct Interactable {
     /// For someone the game says can be talked to from a range of its own, each cell beside the
     /// range and the way to face from it, into the range: where a way ends when none to the cells
     /// round them does. Sun's lottery clerk in Festival Plaza is walled in by her stall, and is
-    /// talked to across its counter from where her range reaches over it (spike Q). Empty for
+    /// talked to across its counter from where her range reaches over it (spike 318). Empty for
     /// anything else, and in any game that does not say.
     pub talked_from: Vec<(Cell, &'static str)>,
     /// Whether it is on streets the player's reach only through a teleporter, said "past a

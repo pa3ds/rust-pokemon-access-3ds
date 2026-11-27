@@ -529,7 +529,7 @@ fn test_the_party_screens_level_glyph_is_said_as_the_games_words_for_a_level() {
 
 /// Ultra Sun hangs the level's digits from the glyph's own TextBox, drawn a unit left of it:
 /// read as Sun's, Rowlet's slot was "Rowlet l5 14/22", its maximum in fullwidth digits
-/// (spike P).
+/// (spike 317).
 #[test]
 fn test_ultra_sun_s_level_hangs_from_the_glyph_and_is_said_all_the_same() {
     let title = Title::new();
@@ -559,7 +559,7 @@ fn test_ultra_sun_s_level_hangs_from_the_glyph_and_is_said_all_the_same() {
 }
 
 /// The PC Box's summary hangs the glyph and the level from two groups side by side: "Rowlet
-/// l9" (spike Q).
+/// l9" (spike 318).
 #[test]
 fn test_the_pc_box_s_level_in_a_group_of_its_own_is_said_all_the_same() {
     let title = Title::new();

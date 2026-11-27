@@ -40,7 +40,7 @@ pub const PANEL: i64 = 0x30;
 pub const BOX_SLOTS: i64 = 30;
 pub const COLUMNS: i64 = 6;
 /// The frame's u8 state: 3 browsing, 7 a Pokémon's menu open, 9 carrying one, 0x2f for the few
-/// polls a box turns (Sun's Route 1 Center, spike Q).
+/// polls a box turns (Sun's Route 1 Center, spike 318).
 pub const STATE: i64 = 0x04;
 pub const CARRYING: u8 = 9;
 pub const TURNING: u8 = 0x2F;

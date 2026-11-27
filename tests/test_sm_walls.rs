@@ -345,7 +345,7 @@ fn test_a_wall_on_the_line_between_two_cells_closes_the_one_behind_it() {
 }
 
 /// Route 1's barrier beside the house was walked through once the story had moved on, and
-/// taken as a wall P said there was no way out of the cell before it (spike P).
+/// taken as a wall P said there was no way out of the cell before it (spike 317).
 #[test]
 fn test_a_barrier_leaves_its_cells_open_and_is_kept_apart_as_a_box() {
     let size = SIZE as f64;
@@ -604,7 +604,7 @@ fn test_a_cliff_with_no_wall_is_walked_round_from_either_side() {
 
 /// A yard 100 above the ground from x 200 to 600 and z 200 to 500, walled west, north and
 /// east, and on its south a ledge: a face falling to the ground by z 517, with a wall along its
-/// foot facing south, as Route 1's yard by the Advanced Tips sign has (spike Q).
+/// foot facing south, as Route 1's yard by the Advanced Tips sign has (spike 318).
 fn yard() -> Vec<u8> {
     let face = (0.0, 0.17, 0.99);
     let size = SIZE as f64;
@@ -772,7 +772,7 @@ fn test_only_the_areas_asked_for_last_are_kept() {
 }
 
 /// Mahalo Trail's blocks each have three variants, the second the Plank Bridge broken (spike
-/// P): a block the field says is in one is read from its file, and in 0 from its first.
+/// 317): a block the field says is in one is read from its file, and in 0 from its first.
 #[test]
 fn test_a_block_in_a_variant_is_read_from_that_variant_s_file() {
     let size = SIZE as f64;
