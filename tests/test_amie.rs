@@ -24,7 +24,7 @@ use crate::games::gen6::g2d::UTIL_CLASS;
 use crate::games::gen6::pokeicon;
 use crate::games::gen6::screens::partyicons::COUNT;
 use crate::games::gen6::subscreen::berry_picker::{Name, Touching};
-use crate::games::gen6::subscreen::{amie, amie_switch};
+use crate::games::gen6::subscreen::{amie, amie_decorate, amie_stylus, amie_switch};
 use crate::games::xy;
 use crate::py::{self, Result, time};
 
@@ -53,7 +53,7 @@ impl Memory for Paged {
     fn read(&self, address: i64, size: i64) -> Result<Vec<u8>> {
         let mut data = self.0.read(address, size)?;
         if address == BUFFER + amie::PICTURE {
-            data.rotate_left((amie::COLUMN / 2) as usize);
+            data.rotate_left((amie_stylus::COLUMN / 2) as usize);
         }
         Ok(data)
     }
@@ -266,17 +266,17 @@ const BUFFER: i64 = 0x14100000;
 
 /// A picture of the Pokémon's parts: a grey a rectangle, (left, top, right, bottom), the later
 /// over the earlier.
-fn picture(parts: &[(u8, (i64, i64, i64, i64))]) -> amie::Picture {
-    let mut raw = vec![0u8; (320 * amie::COLUMN) as usize];
+fn picture(parts: &[(u8, (i64, i64, i64, i64))]) -> amie_stylus::Picture {
+    let mut raw = vec![0u8; (320 * amie_stylus::COLUMN) as usize];
     for &(grey, (left, top, right, bottom)) in parts {
         for x in left..right {
             for y in top..bottom {
-                let at = (x * amie::COLUMN + (239 - y) * 4) as usize;
+                let at = (x * amie_stylus::COLUMN + (239 - y) * 4) as usize;
                 raw[at..at + 4].copy_from_slice(&[0xFF, grey, grey, grey]);
             }
         }
     }
-    amie::Picture::new(raw)
+    amie_stylus::Picture::new(raw)
 }
 
 /// `picture` in the current buffer.
@@ -286,8 +286,8 @@ fn drawn(memory: &FakeMemory, parts: &[(u8, (i64, i64, i64, i64))]) {
 
 /// A stylus whose still picture is `picture`'s, taken as the Pokémon idles: nothing read, and
 /// the time handed to it.
-fn still(parts: &[(u8, (i64, i64, i64, i64))]) -> amie::Stylus {
-    let (mut stylus, shown) = (amie::Stylus::new(), Rc::new(picture(parts)));
+fn still(parts: &[(u8, (i64, i64, i64, i64))]) -> amie_stylus::Stylus {
+    let (mut stylus, shown) = (amie_stylus::Stylus::new(), Rc::new(picture(parts)));
     stylus
         .settle(0.0, || Ok(Some(0)), || Ok(Some(shown.clone())))
         .unwrap();
@@ -433,7 +433,7 @@ fn test_a_rub_goes_across_the_part_the_stylus_is_on_the_way_it_is_longer() {
     assert_eq!(rub(20, 90), ((24, 90), (24, 90)));
     // Where the picture cannot be read, before Azahar 2126.2, it rubs where it is all the same.
     assert_eq!(
-        amie::Stylus::new().rub(|| Ok(None)).unwrap(),
+        amie_stylus::Stylus::new().rub(|| Ok(None)).unwrap(),
         ((154, 120), (166, 120))
     );
     assert_eq!(
@@ -524,7 +524,7 @@ fn test_a_picture_not_yet_drawn_is_no_part() {
     let mut k = keyed(&[]);
     k.memory.write(
         BUFFER + amie::PICTURE,
-        &vec![0xFF; (320 * amie::COLUMN) as usize],
+        &vec![0xFF; (320 * amie_stylus::COLUMN) as usize],
     );
     k.now.set(k.now.get() + 1.0);
     k.poll(amie::AMIE);
@@ -713,7 +713,7 @@ fn test_a_speck_of_a_part_is_left_out_of_the_still_picture() {
     );
     for y in [85, 86, 87] {
         k.memory.write(
-            BUFFER + amie::PICTURE + 160 * amie::COLUMN + (239 - y) * 4,
+            BUFFER + amie::PICTURE + 160 * amie_stylus::COLUMN + (239 - y) * 4,
             &[0xFF, 8, 8, 8],
         );
     }
@@ -944,7 +944,7 @@ fn test_while_its_hand_is_raised_a_jump_goes_to_the_hand_whichever_way() {
     k.found.borrow_mut().stylus.place((40, 100), None);
     assert_eq!(k.press("stylus jump right"), "head");
     k.found.borrow_mut().stylus.place((40, 100), None);
-    mood(&k.memory, Some(amie::HAND_RAISED));
+    mood(&k.memory, Some(amie_stylus::HAND_RAISED));
     drawn(&k.memory, &[(9, BODY), (8, HEAD), (10, (180, 60, 200, 80))]); // it rose
     k.now.set(k.now.get() + 1.0);
     k.found.borrow_mut().poll(Some(amie::AMIE));
@@ -966,7 +966,7 @@ fn test_while_its_hand_is_raised_a_jump_goes_to_the_hand_whichever_way() {
 fn test_a_hand_the_still_picture_does_not_show_is_jumped_to_all_the_same() {
     let mut k = keyed(&[(9, BODY), (8, HEAD)]);
     k.found.borrow_mut().stylus.place((40, 100), None);
-    mood(&k.memory, Some(amie::HAND_RAISED));
+    mood(&k.memory, Some(amie_stylus::HAND_RAISED));
     drawn(&k.memory, &[(9, BODY), (8, HEAD), (10, (180, 60, 200, 80))]);
     k.now.set(k.now.get() + 1.0);
     k.found.borrow_mut().poll(Some(amie::AMIE));
@@ -1024,7 +1024,7 @@ fn test_a_press_off_the_pokemon_goes_to_the_side_of_the_screen_clear_of_it() {
     let parts = [(9, BODY), (8, HEAD)];
     let (mut stylus, now) = (still(&parts), Rc::new(picture(&parts)));
     stylus.place((98, 100), None); // off it, by the still picture
-    let rub = |stylus: &amie::Stylus, live: &Rc<amie::Picture>| {
+    let rub = |stylus: &amie_stylus::Stylus, live: &Rc<amie_stylus::Picture>| {
         stylus.rub(|| Ok(Some(live.clone()))).unwrap()
     };
     assert_eq!(rub(&stylus, &now), ((24, 100), (24, 100)));
@@ -1042,7 +1042,7 @@ fn test_the_arrows_keep_the_stylus_within_a_step_of_the_pokemon() {
     stylus.place((100, 60), None); // the head's top left corner
     assert!(stylus.step(-1, 0) && !stylus.step(-1, 0) && stylus.at == (94, 60));
     assert!(stylus.step(0, -1) && !stylus.step(0, -1) && stylus.at == (94, 54));
-    let mut unread = amie::Stylus::new(); // no picture yet: the screen's edges alone
+    let mut unread = amie_stylus::Stylus::new(); // no picture yet: the screen's edges alone
     unread.place((3, 3), None);
     assert!(unread.step(-1, -1) && unread.at == (0, 0) && !unread.step(-1, 0));
 }
@@ -1086,7 +1086,7 @@ fn test_the_still_picture_takes_in_more_of_the_pokemon_at_first_and_then_stays()
     k.poll(amie::AMIE);
     assert_eq!(k.part().as_deref(), Some("right eye"));
     mood(&k.memory, Some(0));
-    k.now.set(k.now.get() + amie::RICHER + 1.0);
+    k.now.set(k.now.get() + amie_stylus::RICHER + 1.0);
     k.poll(amie::AMIE);
     assert_eq!(k.part().as_deref(), Some("right eye")); // settled
     mood(&k.memory, Some(7));
@@ -1117,7 +1117,8 @@ fn test_a_beckon_takes_the_still_picture_again_once_the_pokemon_has_come_close()
         k.found.borrow().stylus.outline(),
         Some((150, 100, 169, 119))
     ); // not stopped yet
-    k.now.set(k.now.get() + amie::BECKON_SECONDS + amie::SETTLE);
+    k.now
+        .set(k.now.get() + amie::BECKON_SECONDS + amie_stylus::SETTLE);
     k.poll(amie::AMIE);
     assert_eq!(k.found.borrow().stylus.outline(), Some((100, 60, 219, 179)));
     let x = k.found.borrow().stylus.at.0;
@@ -1159,7 +1160,8 @@ fn test_a_pokemon_too_big_for_the_bottom_screen_is_offered_to_bring_down_and_sen
     after();
     drawn(&k.memory, &[(9, (0, 0, 320, 240)), (8, (60, 20, 260, 120))]);
     assert!(k.poll(amie::AMIE).is_empty());
-    k.now.set(k.now.get() + amie::VIEW_SECONDS + amie::SETTLE);
+    k.now
+        .set(k.now.get() + amie::VIEW_SECONDS + amie_stylus::SETTLE);
     let said: Vec<String> = k
         .poll(amie::AMIE)
         .into_iter()
@@ -1284,7 +1286,7 @@ fn test_what_a_pet_or_a_high_five_shows_is_said_as_the_numbers_move() {
     // a puff, whose dance `Moods._moving` says, and no hearts
     assert!(said(66, 165, Some(0)).is_empty());
     assert!(said(66, 175, Some(0)).is_empty()); // Enjoyment rising by itself, no hand up
-    said(66, 175, Some(amie::HAND_RAISED));
+    said(66, 175, Some(amie_stylus::HAND_RAISED));
     assert_eq!(said(66, 185, Some(0)), ["High five!"]);
     k.now.set(k.now.get() + amie::HIGH_FIVE_SECONDS);
     assert!(said(66, 195, Some(0)).is_empty());
@@ -1724,7 +1726,7 @@ fn test_a_puff_is_named_by_the_texture_of_the_replace_system_holding_every_kind(
         memory.u32(picture + lyt::PICTURE_MATERIAL, &[picture + 0x400]);
         memory.u32(picture + 0x400 + lyt::MATERIAL_TEXTURE, &[image]);
     }
-    let mut puffs = amie::Puffs::new(
+    let mut puffs = amie_decorate::Puffs::new(
         memory.clone(),
         Rc::new(ClassNames::new(memory.clone(), CODE)),
         kinds,
@@ -1752,25 +1754,31 @@ fn test_an_interior_item_is_named_by_its_slot_on_the_page_shown() {
     let (g2d, between, block, system, picture) =
         (0x08C10030, 0x08C08000, 0x08C00030, 0x08C20000, 0x08C30000);
     memory.u32(g2d, &[classes.add(UTIL_CLASS)]);
-    memory.u32(g2d - 0x30 + amie::PREVIOUS, &[between]);
-    memory.u32(between + amie::PREVIOUS, &[block - 0x30]);
+    memory.u32(g2d - 0x30 + amie_decorate::PREVIOUS, &[between]);
+    memory.u32(between + amie_decorate::PREVIOUS, &[block - 0x30]);
     let (puffs, replace) = (0x08C40000, classes.add(pokeicon::REPLACE_CLASS));
     memory.u32(puffs, &[replace]);
-    memory.u32(block + amie::G2D, &[g2d]);
-    memory.u32(block + amie::PUFFS, &[puffs]);
-    memory.write(block + amie::LISTS, &[24]);
-    memory.write(block + amie::LISTS + amie::PAGE_LISTS[1], &[146]);
+    memory.u32(block + amie_decorate::G2D, &[g2d]);
+    memory.u32(block + amie_decorate::PUFFS, &[puffs]);
+    memory.write(block + amie_decorate::LISTS, &[24]);
+    memory.write(
+        block + amie_decorate::LISTS + amie_decorate::PAGE_LISTS[1],
+        &[146],
+    );
     memory.u32(system, &[replace]);
-    memory.u32(system + pokeicon::TEXTURES, &[system + 0x100, amie::SLOTS]);
+    memory.u32(
+        system + pokeicon::TEXTURES,
+        &[system + 0x100, amie_decorate::SLOTS],
+    );
     memory.u32(system + 0x100, &[system + 0x200]);
     memory.u32(system + 0x200 + pokeicon::IMAGE, &[0x20900000]);
     memory.u32(picture + lyt::PICTURE_MATERIAL, &[picture + 0x400]);
     memory.u32(picture + 0x400 + lyt::MATERIAL_TEXTURE, &[0x20900000]);
-    let mut text: Vec<String> = vec!["Wallpaper".to_string(); amie::ITEMS_FROM as usize];
-    text.extend(vec!["Cushion".to_string(); amie::ITEMS as usize]);
-    text[(amie::ITEMS_FROM + 24) as usize] = "Leaf Cushion".to_string();
-    text[(amie::ITEMS_FROM + 146) as usize] = "Pink Star Cloud".to_string();
-    let mut goods = amie::Goods::new(
+    let mut text: Vec<String> = vec!["Wallpaper".to_string(); amie_decorate::ITEMS_FROM as usize];
+    text.extend(vec!["Cushion".to_string(); amie_decorate::ITEMS as usize]);
+    text[(amie_decorate::ITEMS_FROM + 24) as usize] = "Leaf Cushion".to_string();
+    text[(amie_decorate::ITEMS_FROM + 146) as usize] = "Pink Star Cloud".to_string();
+    let mut goods = amie_decorate::Goods::new(
         memory.clone(),
         Rc::new(ClassNames::new(memory.clone(), CODE)),
         text,
@@ -1792,7 +1800,7 @@ fn test_an_interior_item_is_named_by_its_slot_on_the_page_shown() {
             .as_deref(),
         Some("Leaf Cushion")
     );
-    memory.write(block + amie::PAGE, &[1]);
+    memory.write(block + amie_decorate::PAGE, &[1]);
     assert_eq!(
         goods
             .touched(picture, Some(amie::ARRANGE))

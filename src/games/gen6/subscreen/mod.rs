@@ -72,6 +72,8 @@
 //! for the `RefCell` a reader is shared in, and the tuples are lists of them.
 
 pub mod amie;
+pub mod amie_decorate;
+pub mod amie_stylus;
 pub mod amie_switch;
 pub mod berry_picker;
 pub mod head_it;
@@ -101,7 +103,8 @@ use crate::games::gen6::feedback::{
 use crate::games::gen6::game::Game;
 use crate::games::gen6::rom::archives::GameText;
 use crate::py::{self, Result};
-use amie::{AmiePage, Goods, Moods, Puffs, StylusKeys};
+use amie::{AmiePage, Moods, StylusKeys};
+use amie_decorate::{Goods, Puffs};
 use amie_switch::SwitchScreen;
 use berry_picker::{BerryKeys, BerryPicker, Process, Touching};
 use head_it::{Cue, Frames, HeadIt, HeadItKeys};

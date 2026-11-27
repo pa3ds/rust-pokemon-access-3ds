@@ -171,7 +171,7 @@ pub struct Target {
     pub held: bool,
     /// Told once a slide along `path` has begun, for a target that moves what the screen shows:
     /// Amie's beckon and its Pokémon brought between the screens, whose still picture is taken anew
-    /// (`amie.Stylus.look_again`).
+    /// (`amie_stylus.Stylus.look_again`).
     pub after: After,
 }
 
@@ -1562,12 +1562,15 @@ impl TouchTargets {
                         .map(|boxes| boxes.iter().copied().collect())
                         .unwrap_or_default();
                     for r#box in learnt {
-                        self.worded.insert((file.name.clone(), self.layouts.pane_name(r#box)?));
+                        self.worded
+                            .insert((file.name.clone(), self.layouts.pane_name(r#box)?));
                     }
                 }
                 for (&pane, kind) in &tree {
                     if kind == lyt::TEXTBOX_CLASS
-                        && self.worded.contains(&(file.name.clone(), self.layouts.pane_name(pane)?))
+                        && self
+                            .worded
+                            .contains(&(file.name.clone(), self.layouts.pane_name(pane)?))
                     {
                         found.insert(pane);
                     }
