@@ -24,7 +24,9 @@ use crate::games::common::screen_order::{in_rows, join};
 use crate::games::common::session::Profile;
 use crate::games::sm::heaps::{self, Blocks, Heaps};
 use crate::games::sm::langselect::{self, LangSelectReader, Shown};
-use crate::games::sm::profile::{SunProfile, counted_rows, labelled_rows, words_apart};
+use crate::games::sm::profile::{
+    SunProfile, counted_rows, labelled_rows, stat_rows, words_apart,
+};
 use crate::games::sm::shop::{self, ShopReader};
 use crate::games::sm::text::SunText;
 use crate::games::sm::{SUN_LAYOUT, ULTRA_LAYOUT, VersionLayout, apps, field, msgwin, talk};
@@ -664,6 +666,83 @@ fn test_a_word_and_a_number_drawn_touching_are_said_apart_and_a_level_mark_is_no
         joined,
         ["Height 1'00\"", "Weight 3.3 lbs.", "001 Rowlet", "L5"]
     );
+}
+
+/// Rowlet to Lv. 11 on Route 1 (spike Q): six rows, a group each, the gains and then the
+/// totals; while the rows slid in, only "HP" was said.
+#[test]
+fn test_a_level_up_s_stats_are_read_whole_once_they_have_slid_in() {
+    let names = ["HP", "Attack", "Defense", "Sp. Atk", "Sp. Def", "Speed"];
+    let at = |r#box: i64, text: &str, left: f64, right: f64, row: f64, parent: i64| {
+        ScreenText {
+            left,
+            right,
+            row,
+            glyph: 12.0,
+            root: 0x303394E8,
+            parent,
+            ..ScreenText::new(r#box, text, false)
+        }
+    };
+    let panel = |values: &[&str], gains: &[&str], lefts: &[f64]| -> Vec<ScreenText> {
+        let mut out: Vec<ScreenText> = Vec::new();
+        for (i, ((name, value), &left)) in names.iter().zip(values).zip(lefts).enumerate() {
+            let i = i as i64;
+            let (row, parent) = (67.0 - 21.0 * i as f64, 0x303950CC + 0x2250 * i);
+            out.push(at(10 * i + 1, name, left, left + 30.0, row, parent));
+            out.push(at(10 * i + 2, value, left + 70.0, left + 85.0, row, parent));
+            if !gains.is_empty() {
+                out.push(at(
+                    10 * i + 3,
+                    gains[i as usize],
+                    left + 68.0,
+                    left + 85.0,
+                    row,
+                    parent,
+                ));
+            }
+        }
+        out
+    };
+
+    let mut gained = panel(
+        &["35", "14", "16", "17", "16", "16"],
+        &["+ 3", "+ 1", "+ 1", "+ 1", "+ 1", "+ 1"],
+        &[89.0; 6],
+    );
+    // The party slot's name and level share the panel's layout.
+    gained.push(at(90, "Rowlet", -197.0, -160.0, -85.0, 0x303475D8));
+    gained.push(at(91, "10", -93.0, -80.0, -86.0, 0x303475D8));
+    let found = stat_rows(&gained).expect("the panel");
+    assert_eq!(
+        found.0,
+        "HP 35 + 3, Attack 14 + 1, Defense 16 + 1, Sp. Atk 17 + 1, Sp. Def 16 + 1, Speed 16 + 1"
+    );
+    let totals = stat_rows(&panel(
+        &["38", "15", "17", "18", "17", "17"],
+        &[],
+        &[92.0; 6],
+    ))
+    .expect("the totals");
+    assert_eq!(
+        totals.0,
+        "HP 38, Attack 15, Defense 17, Sp. Atk 18, Sp. Def 17, Speed 17"
+    );
+    assert!(
+        stat_rows(&panel(
+            &["35"; 6],
+            &[],
+            &[60.0, 50.0, 116.0, 148.0, 55.0, 83.0]
+        ))
+        .is_none()
+    );
+    // A party's slots, a name and a level each, in two columns, are no stats.
+    let party = panel(
+        &["10", "8", "7", "9", "6", "5"],
+        &[],
+        &[89.0, 200.0, 89.0, 200.0, 89.0, 200.0],
+    );
+    assert!(stat_rows(&party).is_none());
 }
 
 /// The PC Box's summary as Route 1's Center drew it (spike Q): labels built first, values

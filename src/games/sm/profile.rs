@@ -219,6 +219,9 @@ pub struct SunProfile {
     /// A Mart's list is on screen with its shop object not found yet.
     shop_wanted: Cell<bool>,
     shop_asked: Cell<bool>,
+    stats_seen: RefCell<Option<String>>,
+    /// A level-up's stats panel as the last poll read it, and as it was last said.
+    stats_said: RefCell<Option<String>>,
     /// A Mart's list's prices by the item on their row, as the last screen poll read them.
     prices: RefCell<IndexMap<String, String>>,
     /// The TextBoxes of a Mart's list's rows, its names and prices: the shop reader's.
@@ -464,6 +467,8 @@ impl SunProfile {
             held: RefCell::new(IndexMap::new()),
             shop_wanted: Cell::new(false),
             shop_asked: Cell::new(false),
+            stats_seen: RefCell::new(None),
+            stats_said: RefCell::new(None),
             prices: RefCell::new(IndexMap::new()),
             shop_rows: RefCell::new(HashSet::new()),
             blank: Cell::new(false),
@@ -575,6 +580,35 @@ impl SunProfile {
                 .cloned()
                 .collect();
             let app = self.app.borrow().clone();
+            let stats = if app.as_deref() == Some(BATTLE) {
+                stat_rows(&screen.on_screen)
+            } else {
+                None
+            };
+            let mut texts = texts;
+            if app.as_deref() == Some(BATTLE) {
+                // A row with a gain is the panel's while it slides in, before it reads whole:
+                // "HP" was said alone a poll ahead of it.
+                let gaining: HashSet<i64> = screen
+                    .on_screen
+                    .iter()
+                    .filter(|p| gain(&p.text))
+                    .map(|p| p.parent)
+                    .collect();
+                texts.retain(|text| !gaining.contains(&text.parent));
+            }
+            if let Some((said, boxes)) = stats {
+                texts.retain(|text| !boxes.contains(&text.r#box));
+                // Said once it has held a poll: the rows slide in one after another.
+                if self.stats_seen.borrow().as_deref() == Some(said.as_str())
+                    && self.stats_said.borrow().as_deref() != Some(said.as_str())
+                {
+                    *self.stats_said.borrow_mut() = Some(said.clone());
+                    (self.log)(&format!("screen shown: {said}"));
+                    self.speech.say(&said, Category::Screen);
+                }
+                *self.stats_seen.borrow_mut() = Some(said);
+            }
             let texts = if app.as_deref() == Some(POKEDEX) {
                 counted_rows(&texts)?
             } else if app.as_deref() == Some(BOX_APP) {
@@ -733,6 +767,79 @@ pub fn words_apart(found: IndexMap<i64, ScreenText>) -> IndexMap<i64, ScreenText
         );
     }
     out
+}
+
+/// The rows of a level-up's stats panel, a stat each.
+pub const STAT_ROWS: usize = 6;
+
+/// `p.text.startswith("+") and p.text[1:].strip().isdigit()`: a stat's gain, "+ 3".
+fn gain(text: &str) -> bool {
+    text.starts_with('+') && py::isdigit(py::strip(&text[1..]))
+}
+
+/// One row of a stats panel: its stat's name, what it says, and its pieces.
+type StatRow = (ScreenText, String, Vec<ScreenText>);
+
+/// A level-up's stats panel, read whole: six rows, each its own group of a stat's name, its
+/// number and, before the totals, its gain, "+ 3". The panel slides in over the battle's menu
+/// layout and only "HP" was said (Rowlet to Lv. 11, spike Q). Returns what it says, the rows
+/// top down, "HP 35 + 3, Attack 14 + 1, ...", and its TextBoxes; None where no such panel is.
+pub fn stat_rows(on_screen: &[ScreenText]) -> Option<(String, HashSet<i64>)> {
+    let mut groups: IndexMap<(i64, i64), Vec<&ScreenText>> = IndexMap::new();
+    for piece in on_screen {
+        groups
+            .entry((piece.root, piece.parent))
+            .or_default()
+            .push(piece);
+    }
+    let mut by_root: IndexMap<i64, Vec<StatRow>> = IndexMap::new();
+    for (&(root, _parent), pieces) in &groups {
+        let words: Vec<&ScreenText> = pieces
+            .iter()
+            .copied()
+            .filter(|p| !p.text.chars().any(py::is_digit))
+            .collect();
+        let numbers: Vec<&ScreenText> = pieces
+            .iter()
+            .copied()
+            .filter(|p| py::isdigit(&p.text))
+            .collect();
+        let gains: Vec<&ScreenText> = pieces.iter().copied().filter(|p| gain(&p.text)).collect();
+        if words.len() != 1
+            || numbers.len() != 1
+            || gains.len() > 1
+            || pieces.len() != 2 + gains.len()
+        {
+            continue;
+        }
+        let mut said: Vec<&str> = vec![&words[0].text, &numbers[0].text];
+        said.extend(gains.iter().map(|p| p.text.as_str()));
+        by_root.entry(root).or_default().push((
+            words[0].clone(),
+            said.join(" "),
+            pieces.iter().map(|&p| p.clone()).collect(),
+        ));
+    }
+    for rows in by_root.values() {
+        // Six names in one column: the panel shares its layout with the party slot's name and
+        // level, "Rowlet 10", and a party's slots stand in two columns.
+        for (name, _said, _pieces) in rows {
+            let mut column: Vec<&StatRow> = rows
+                .iter()
+                .filter(|row| name.glyph > 0.0 && (row.0.left - name.left).abs() < name.glyph)
+                .collect();
+            if column.len() == STAT_ROWS {
+                py::sort_by_lt(&mut column, |a, b| -a.0.row < -b.0.row);
+                let said: Vec<&str> = column.iter().map(|row| row.1.as_str()).collect();
+                let boxes: HashSet<i64> = column
+                    .iter()
+                    .flat_map(|row| row.2.iter().map(|p| p.r#box))
+                    .collect();
+                return Some((said.join(", "), boxes));
+            }
+        }
+    }
+    None
 }
 
 /// Each piece read straight after the one left of it on its row (`ScreenText.follows`): the
