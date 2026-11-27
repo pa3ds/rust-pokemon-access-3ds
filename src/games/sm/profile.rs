@@ -20,6 +20,7 @@ use std::rc::Rc;
 
 use indexmap::IndexMap;
 
+use crate::core::binary::f32;
 use crate::core::config::{HIDDEN_OFF, Navigation, PARTY_BEEPS, PARTY_OFF, Ui};
 use crate::core::discovery::Found;
 use crate::core::heaps::ReadEach;
@@ -56,7 +57,7 @@ use crate::games::sm::shop::{self, ShopReader};
 use crate::games::sm::talk::{self, Speakers};
 use crate::games::sm::text::SunText;
 use crate::games::sm::zones::SunZones;
-use crate::games::sm::{SUN_LAYOUT, VersionLayout, lyt, msgwin};
+use crate::games::sm::{SUN_LAYOUT, VersionLayout, lyt, msgwin, summary};
 use crate::py::{self, Log, Result};
 
 /// Message windows, the talk windows and utils that name their speakers, the language choice,
@@ -82,6 +83,7 @@ pub fn heap_classes() -> Vec<&'static str> {
         apps::MANAGER_CLASS,
         battle::GAUGE_CLASS,
         battle::BALL_CLASS,
+        summary::FRAME,
     ]);
     classes
 }
@@ -186,6 +188,7 @@ pub struct Options {
     /// `[pa3ds.extras] hidden_items`; None is `HIDDEN_OFF`.
     pub hidden_items: Option<String>,
     pub tones: Option<Rc<Tones>>,
+    pub types: Option<summary::Types>,
 }
 
 /// Sun's readers, and what each sweep and poll does with them.
@@ -208,6 +211,7 @@ pub struct SunProfile {
     pub dialogue: RefCell<DialogueReader>,
     /// The game's names for the stats, HP to Speed, where its text is read.
     stat_names: Vec<String>,
+    pub summary_types: Rc<summary::SummaryTypes>,
     pub screen: RefCell<ScreenTextReader>,
     pub cursors: RefCell<CursorReader>,
     pub screen_announcer: RefCell<ScreenAnnouncer>,
@@ -318,6 +322,7 @@ impl SunProfile {
             layout,
             hidden_items,
             tones,
+            types,
         } = options;
         // The layout readers follow pointers down each layout's tree to its words, and read only
         // inside the blocks the last walk found, as the field's do (ADR-0035).
@@ -341,16 +346,51 @@ impl SunProfile {
                 .filter(|name| !name.is_empty())
                 .collect(),
         };
+        let summary_types = Rc::new(summary::SummaryTypes::new(
+            panes.clone(),
+            names.clone(),
+            types,
+            match &text {
+                None => IndexMap::new(),
+                Some(text) => (0..summary::TYPE_COUNT)
+                    .filter_map(|number| {
+                        text.line(summary::TYPE_NAMES, number)
+                            .filter(|word| !word.is_empty())
+                            .map(|word| (number, word))
+                    })
+                    .collect(),
+            },
+        ));
         let picture: Pictures = {
             let (layouts, text) = (layouts.clone(), text.clone());
+            let summary_types = summary_types.clone();
             Rc::new(move |pane| {
+                let name = layouts.name(pane)?;
+                if rstrip_nul(&name) == summary::ICON {
+                    // Two icons of one name, the first type on the left.
+                    let mut same: Vec<(f64, i64)> = Vec::new();
+                    if let Some(r#where) = layouts.placement(pane)? {
+                        for other in layouts.tree(r#where.root).into_keys() {
+                            if layouts.name(other)? == name {
+                                same.push((f32(&layouts.pane(other)?, layouts.shape.x)?, other));
+                            }
+                        }
+                    }
+                    // `sorted` of (x, pane): as Python compares tuples.
+                    let same = py::sorted_by_lt(same, |a, b| {
+                        if a.0 != b.0 { a.0 < b.0 } else { a.1 < b.1 }
+                    });
+                    let index = same.iter().position(|&(_x, other)| other == pane);
+                    return match index {
+                        None => Ok(None),
+                        Some(index) => summary_types.word(index),
+                    };
+                }
                 // The summary draws its stats' names as pictures, ParamName_00 to _05, in the
                 // order of the game's own names for them (spike Q).
-                let mut name = layouts.name(pane)?;
-                while name.last() == Some(&0) {
-                    name.pop();
-                }
-                let tail = py::slice_from(&name, -2);
+                let name = layouts.name(pane)?;
+                let name = rstrip_nul(&name);
+                let tail = py::slice_from(name, -2);
                 let Some(text) = &text else {
                     return Ok(None);
                 };
@@ -496,6 +536,7 @@ impl SunProfile {
             layouts,
             dialogue: RefCell::new(dialogue),
             stat_names,
+            summary_types,
             screen: RefCell::new(screen),
             cursors: RefCell::new(cursors),
             screen_announcer: RefCell::new(screen_announcer),
@@ -753,6 +794,12 @@ fn leads_to(zones: Option<&SunZones>, here: i64, there: i64) -> Result<Option<St
         return Ok(None);
     }
     Ok(theirs)
+}
+
+/// `name.rstrip(b"\0")`.
+fn rstrip_nul(name: &[u8]) -> &[u8] {
+    let end = name.iter().rposition(|&byte| byte != 0).map_or(0, |at| at + 1);
+    &name[..end]
 }
 
 /// `c.islower()` for one character: its Lowercase property, as Python's is. Not in `py`.
@@ -1084,6 +1131,10 @@ pub fn labelled_rows(texts: &[ScreenText]) -> Vec<ScreenText> {
         match before {
             Some(before)
                 if (worded(piece) && worded(before) && before.parent == piece.parent)
+                    // A picture of words, the summary's types, beside a label of another group.
+                    || (piece.picture
+                        && worded(before)
+                        && (before.picture || left_of(before).is_none()))
                     || (!worded(piece)
                         && (before.parent == piece.parent
                             || piece.left - before.right < NEAR * piece.glyph)) =>
@@ -1210,6 +1261,8 @@ impl Profile for SunProfile {
                 .borrow_mut()
                 .track(found.of(&[battle::BALL_CLASS]), adding)?;
         }
+        self.summary_types
+            .track(found.of(&[summary::FRAME]), adding);
         self.apps
             .borrow_mut()
             .track(found.of(&[apps::MANAGER_CLASS]))?;

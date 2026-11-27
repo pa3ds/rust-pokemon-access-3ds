@@ -25,7 +25,7 @@ use crate::games::sm::profile::{Options, REQUIRED, STAT_NAMES, SunProfile, heap_
 use crate::games::sm::text::SunText;
 use crate::games::sm::walls::SunWalls;
 use crate::games::sm::zones::SunZones;
-use crate::games::sm::{SunMoon, apps, field, heaps, langselect, lyt, savedata, shop};
+use crate::games::sm::{SunMoon, apps, field, heaps, langselect, lyt, savedata, shop, summary};
 use crate::py::{PySet, Result};
 
 /// The RomFS file where the executable names what it exports (`pa3ds.core.cro`).
@@ -87,6 +87,7 @@ pub fn start(
                         lyt::LEVEL_WORDS.0,
                         shop::ITEM_NAMES,
                         STAT_NAMES.0,
+                        summary::TYPE_NAMES,
                     ],
                 )
             },
@@ -194,6 +195,10 @@ pub fn start(
     } else {
         Vec::new()
     };
+    let types = setup.words(
+        |image, _language| summary::Types::load(image),
+        "a summary's types go unsaid",
+    )?;
     let profile: Rc<dyn Profile> = Rc::new(SunProfile::with(
         exact.clone(),
         names,
@@ -219,6 +224,7 @@ pub fn start(
             layout: Some(game.layout),
             hidden_items: Some(setup.tables.extras.hidden_items.clone()),
             tones: setup.tones.clone(),
+            types,
         },
     ));
 

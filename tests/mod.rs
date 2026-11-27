@@ -101,6 +101,7 @@ mod test_sm_gametext;
 mod test_sm_pokedex;
 mod test_sm_savedata;
 mod test_sm_screen;
+mod test_sm_summary;
 mod test_sm_walls;
 mod test_sm_zones;
 mod test_snapshot;

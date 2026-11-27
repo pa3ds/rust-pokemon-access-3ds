@@ -104,6 +104,7 @@ pub const ULTRA_LAYOUT: VersionLayout = VersionLayout {
         (100, 105),
         (105, 110),
         (106, 111),
+        (107, 112),
     ],
     sign_text: 23,
     trainers: "a/1/0/6",
@@ -173,3 +174,5 @@ pub mod shop;
 pub mod r#box;
 
 pub mod savedata;
+
+pub mod summary;
