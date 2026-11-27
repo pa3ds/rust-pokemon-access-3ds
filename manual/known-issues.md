@@ -14,8 +14,10 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
   may be said on its own as the question about connecting to the Internet opens or closes. The
   O-Power list shows six powers at once, and touch mode offers only those six: the 3DS's L and R
   buttons turn its page to the rest.
-- **Battling another player in the PSS**: before the battle, the other player's Pokémon are not
-  named.
+- **Battling another player in the PSS**: before the battle, the other player's Pokémon are
+  said by their gender and level, not their names, and so are both teams on the screen choosing
+  your Battle Box or your party. The battle's "Battle Time" and "Command Time" are not read at
+  all: they are drawn as pictures.
 - **Registering each other as friends** after a trade or battle never finishes in Azahar: both
   games wait for good, and only restarting Azahar gets out. Choose "Do not register".
 - **X, Y, Sun and Moon** are read less completely than Omega Ruby and Alpha Sapphire.
