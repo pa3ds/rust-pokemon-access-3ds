@@ -235,7 +235,7 @@ pub struct Game {
     pub whole: HashSet<i64>,
     /// (zone, record) of a thing the player takes an item at -> the item, whose name out of the
     /// ROM the thing is called by: the game names it only as the item taken, and one model draws
-    /// both of Route 111's fossils (`Profile._game_place`).
+    /// both of Route 111's fossils (`PlaceNames.slot`).
     pub items_at: IndexMap<(i64, i64), i64>,
     /// Where the field's work holds the current zone's record, which leads to its data and the
     /// zone table: ORAS's +0xF4, X's +0xE4 (`FieldReader.anchor`, spike 282).

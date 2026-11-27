@@ -65,6 +65,7 @@ mod test_own_window;
 mod test_partners;
 mod test_partyicons;
 mod test_pathfind;
+mod test_places;
 mod test_plates;
 mod test_pokeblock_kit;
 mod test_pokedex;

@@ -16,8 +16,6 @@
 //!   `HELD_MOST` (`sweep_held`).
 //! - ADR-0041: a replay logs touch mode's targets as they change, so a tape holds them, and a tape
 //!   replay P's ways at each listing (`ways`).
-//! - ADR-0042: a part of a place in parts is said walking into it, every time, and an exit or a leg
-//!   into it says it (`part`, `arrive`, `leads_to`, `place_of`).
 //! - ADR-0044: the screen poll asks the cursor sources through `sources.CursorSources` alone, and
 //!   wires none itself (`poll_menus`, `poll_screen`).
 
@@ -40,7 +38,7 @@ use crate::core::rtti::{ClassNames, demangle};
 use crate::core::speech::{Category, Speech};
 use crate::core::tones::{Tones, beeps, ticking};
 use crate::core::touch::TouchScreen;
-use crate::core::words::{current, own};
+use crate::core::words::own;
 use crate::games::common::announce::{Announcements, Speaker};
 use crate::games::common::clocks::Clocks;
 use crate::games::common::cursors::menu::Blank;
@@ -48,15 +46,10 @@ use crate::games::common::cursors::reader::CursorReader;
 use crate::games::common::cursors::shared::{Rect, Slot};
 use crate::games::common::dialogue::{DialogueReader, ORAS_SHAPES, Shown};
 use crate::games::common::field::ground::Ground;
-use crate::games::common::field::guide::{FieldSource, Place};
+use crate::games::common::field::guide::FieldSource;
 use crate::games::common::field::keys::{Bindings, Contexts, DEFAULT_CONTEXTS};
-use crate::games::common::field::navigate::{
-    DoorSign, LeadsTo, Navigator, Options as NavigatorOptions, Part, Sides, Street,
-};
-use crate::games::common::field::things::{
-    FURNITURE_SOURCE, Field, Interactable, MODEL_SOURCE, WARP_SOURCE, describe, source_kind,
-    source_number,
-};
+use crate::games::common::field::navigate::{Navigator, Options as NavigatorOptions, Sides};
+use crate::games::common::field::things::{Field, Interactable, describe};
 use crate::games::common::layout::{Cached, Layouts};
 use crate::games::common::layout_file::{LayoutFile, LayoutFiles};
 use crate::games::common::pictures::named as named_picture;
@@ -77,6 +70,7 @@ use crate::games::common::{lyt, msgwin, pokemon, strbuf};
 use crate::games::gen6::anchors::Anchors;
 use crate::games::gen6::apps::{BATTLE, DEMOS, FIELD, MANAGER_CLASS, RunningApp, TUTORIAL};
 use crate::games::gen6::field::dowsing::Lights;
+use crate::games::gen6::field::places::PlaceNames;
 use crate::games::gen6::field::features::Sighting;
 use crate::games::gen6::field::footsteps::Footsteps;
 use crate::games::gen6::field::reader::{FieldReader, MOVE_MODEL_CLASS};
@@ -254,13 +248,6 @@ pub struct Gen6Profile {
     /// What P's ways at each listing are read inside, or None where they are not logged
     /// (`app.Settings.ways`).
     ways: Option<Ways>,
-    /// The game's own words out of the player's ROM, or `NO_TEXT` when it could not be read.
-    text: Rc<GameText>,
-    /// The place-name index of the zone the player was last polled in.
-    place: Cell<Option<i64>>,
-    /// The part of a place in parts last said, or None since the player left one
-    /// (ADR-0042).
-    part: RefCell<Option<String>>,
     pub layouts: Rc<Layouts>,
     /// Which screen the game is running, and the moment another starts (spike 99); and what
     /// its process leads to, from that moment (spike 282).
@@ -301,6 +288,8 @@ pub struct Gen6Profile {
     /// one it was made with, as it does there, and what is read through the profile is read
     /// through whichever this holds (`field`, `set_field`).
     field: Rc<RefCell<Rc<FieldReader>>>,
+    /// What the game calls where the player arrives, where an exit leads and a slot on a map.
+    pub places: Rc<PlaceNames>,
     /// What the heap is swept for in this game: the classes of what it alone has,
     /// `HEAP_CLASSES`, the subscreens' classes, and what the field's own readers find their
     /// objects by. Its own come first, before the touch bars, as ORAS's subscreen's did inside
@@ -363,10 +352,6 @@ pub struct Gen6Profile {
     quiet: Cell<f64>,
     /// The language the save says the game is in, as the last whole sweep read it.
     pub save_language: RefCell<Option<String>>,
-    /// Whether the player is a girl, and their name, as the last whole sweep read the save
-    /// (`mystatus.player`): which of Littleroot's houses is theirs. Shared with the closure
-    /// that names a slot (`game_place`), which Python's bound method reads it through.
-    player: Rc<RefCell<Option<(bool, String)>>>,
     pub announcements: Rc<RefCell<Announcements>>,
     pub screen_announcer: RefCell<ScreenAnnouncer>,
     /// The scenes the game shows without words, described where the player asks and the game has
@@ -630,6 +615,11 @@ impl Gen6Profile {
             false,
         )));
         let field = Rc::new(RefCell::new(field));
+        // What the game calls where the player arrives, where an exit leads and a slot on a map.
+        let places = Rc::new(PlaceNames::new(text.clone(), game.items_at.clone(), {
+            let field = field.clone();
+            Rc::new(move || field.borrow().clone())
+        }));
 
         // Touch mode walks the bottom screen's touch areas, and taps one on the player's key
         // (`games.common.touch`, ADR-0009 as amended 2026-10-01).
@@ -1175,11 +1165,26 @@ impl Gen6Profile {
                             .map(|(character, own)| (character, Some(own)))
                     })
                 }),
-                leads_to: Some(leads_to_of(text.clone(), field.clone())),
-                place: Some(place_of(text.clone(), field.clone())),
-                part: Some(part_of(text.clone(), field.clone())),
-                street: Some(street_of(text.clone())),
-                door_sign: Some(door_sign_of(text.clone())),
+                leads_to: Some({
+                    let places = places.clone();
+                    Rc::new(move |here, there| places.leads_to(here, there))
+                }),
+                place: Some({
+                    let places = places.clone();
+                    Rc::new(move |zone| places.place(zone))
+                }),
+                part: Some({
+                    let places = places.clone();
+                    Rc::new(move |item: &Interactable, zone| places.part(item, zone))
+                }),
+                street: Some({
+                    let places = places.clone();
+                    Rc::new(move |zone, slot| Ok(places.street(zone, slot)))
+                }),
+                door_sign: Some({
+                    let places = places.clone();
+                    Rc::new(move |zone, slot| places.door_sign(zone, slot))
+                }),
                 moves: Some(text.moves.clone()),
                 bike: text.bike.clone(),
                 acro: text.acro.clone(),
@@ -1324,16 +1329,9 @@ impl Gen6Profile {
             let text = text.clone();
             Rc::new(move |character| game_word(&text, character))
         };
-        let player: Rc<RefCell<Option<(bool, String)>>> = Rc::new(RefCell::new(None));
         let place: GamePlace = {
-            let text = text.clone();
-            // Python's `self._items_at`: (zone, record) -> the item a thing there is, which names
-            // it (`Game.items_at`). Only `_game_place` reads it, so the closure keeps it.
-            let items_at = game.items_at.clone();
-            let player = player.clone();
-            Rc::new(move |zone, slot| {
-                game_place(&text, &items_at, player.borrow().as_ref(), zone, slot)
-            })
+            let places = places.clone();
+            Rc::new(move |zone, slot| places.slot(zone, slot))
         };
         named.use_game(Some(sprite), Some(place));
         Gen6Profile {
@@ -1341,9 +1339,6 @@ impl Gen6Profile {
             names: names.clone(),
             census: RefCell::new(census.then(String::new)),
             ways,
-            text,
-            place: Cell::new(None),
-            part: RefCell::new(None),
             layouts,
             apps,
             anchors: RefCell::new(Anchors::new(memory.clone(), game.anchors.clone())),
@@ -1362,6 +1357,7 @@ impl Gen6Profile {
             tones: beeping,
             speaker,
             field,
+            places,
             classes: classes.into_iter().collect(),
             own: alone,
             subscreens,
@@ -1391,7 +1387,6 @@ impl Gen6Profile {
             tone,
             quiet: Cell::new(0.0),
             save_language: RefCell::new(None),
-            player,
             announcements,
             screen_announcer: RefCell::new(screen_announcer),
             scenes,
@@ -1417,12 +1412,6 @@ impl Gen6Profile {
     /// `profile.field = field`.
     pub fn set_field(&self, field: Rc<FieldReader>) {
         *self.field.borrow_mut() = field;
-    }
-
-    /// `profile._part_of(item, zone)`, the navigator's `part`, which a test asks.
-    #[cfg(test)]
-    pub(crate) fn part_of(&self, item: &Interactable, zone: i64) -> Result<Option<String>> {
-        part_of(self.text.clone(), self.field.clone())(item, zone)
     }
 
     /// Hand each reader what a sweep found of its classes.
@@ -1470,7 +1459,7 @@ impl Gen6Profile {
         if !found.partial
             && let Some(player) = mystatus::player(found)
         {
-            *self.player.borrow_mut() = Some(player);
+            *self.places.player.borrow_mut() = Some(player);
         }
         // A choice box has no class of its own; the device manager it holds does.
         for manager in found.of(&[DEVICE_MANAGER_CLASS]) {
@@ -2178,7 +2167,11 @@ impl Gen6Profile {
                 self.facing.set(facing);
             }
             self.navigator.borrow_mut().swept(&at)?;
-            self.arrive(at.zone)?;
+            if let Some((name, shown)) = self.places.arrived(at.zone)? {
+                self.screen_announcer
+                    .borrow_mut()
+                    .place(&name, shown.as_deref());
+            }
             // After the place's name, which a scene across Hoenn's towns follows town by town.
             if arrived && let Some(scenes) = &self.scenes {
                 scenes.borrow_mut().arrived(at.zone, &mut self.narrate())?;
@@ -2320,44 +2313,6 @@ impl Gen6Profile {
                 }
                 Ok(())
             })?;
-        }
-        Ok(())
-    }
-
-    /// Say where the player is when the place changes, not the zone: a town and every
-    /// building in it share a place, so walking out of a house arrives nowhere, as the game has
-    /// it (spike 87). The name comes from RAM's index and the ROM's words, ahead of AreaNav's.
-    ///
-    /// A part of a place in parts is said too as the player walks into it, every time, from the
-    /// next part or from another place, "Safari Zone Northwest": the confirmation they have
-    /// moved that the game, its zones all one place, never gives (ADR-0042). Into a house of the
-    /// place and back out into the part it stands in, nothing is said.
-    fn arrive(&self, zone: i64) -> Result<()> {
-        let text = &self.text;
-        if !text.loaded() {
-            return Ok(());
-        }
-        let index = self.field().zones.place_index(zone)?;
-        let Some(index) = index else {
-            return Ok(());
-        };
-        let name = text.place(index);
-        let part = name.as_deref().and_then(|name| part(zone, name));
-        if part.is_some() && part != *self.part.borrow() {
-            self.place.set(Some(index));
-            *self.part.borrow_mut() = part.clone();
-            self.screen_announcer
-                .borrow_mut()
-                .place(part.as_deref().unwrap_or_default(), name.as_deref());
-            return Ok(());
-        }
-        if Some(index) == self.place.get() {
-            return Ok(());
-        }
-        self.place.set(Some(index));
-        *self.part.borrow_mut() = part;
-        if let Some(name) = name {
-            self.screen_announcer.borrow_mut().place(&name, None);
         }
         Ok(())
     }
@@ -2613,150 +2568,6 @@ fn name_for(speaker: &Rc<SpeakerReader>) -> Speaker {
 /// sprite a work object was filled with (spike 89).
 fn game_word(text: &GameText, character: i64) -> Option<String> {
     text.character(character)
-}
-
-/// What the game calls a slot on a map: the building behind a door in from outdoors,
-/// where the ROM's own tables pair the two (spike 86). Only a warp's slot is a door's: a sign
-/// is numbered in a table of its own. A warp into one of X's gates is the gate and the place
-/// beyond it, "Lumiose Gate to Route 4": Lumiose's five gates are all "Lumiose Gate".
-/// A thing the player takes an item at is that item, by its record
-/// (`Game.items_at`): Route 111's Root Fossil and Claw Fossil.
-pub(crate) fn game_place(
-    text: &GameText,
-    items_at: &IndexMap<(i64, i64), i64>,
-    player: Option<&(bool, String)>,
-    zone: i64,
-    slot: i64,
-) -> Option<String> {
-    if source_kind(slot) == MODEL_SOURCE {
-        let item = items_at.get(&(zone, source_number(slot)));
-        let items = &text.items;
-        return match item {
-            Some(&item) if item < items.len() as i64 => {
-                Some(items[item as usize].clone()).filter(|name| !name.is_empty())
-            }
-            _ => None,
-        };
-    }
-    if source_kind(slot) != WARP_SOURCE {
-        return None;
-    }
-    if let Some((gate, beyond)) = text.gate(zone, source_number(slot)) {
-        return Some(own("leads-to", &[("thing", &gate), ("place", &beyond)]));
-    }
-    if let Some((girl, name)) = player
-        && let Some(home) = text.home(zone, source_number(slot), *girl, name)
-    {
-        return Some(home);
-    }
-    text.door(zone, source_number(slot))
-}
-
-/// Whether a slot on a map is a sign that says only the name of a door there
-/// (`plates.door_signs`).
-fn door_sign_of(text: Rc<GameText>) -> DoorSign {
-    Rc::new(move |zone, slot| {
-        source_kind(slot) == FURNITURE_SOURCE
-            && text.door_signs.contains(&(zone, source_number(slot)))
-    })
-}
-
-/// What the game calls the place an exit from `here` into `there` arrives in, or None when
-/// it is the place the player is in already.
-///
-/// A place, not a zone, for the reason `arrive` gives: Littleroot and every house in it are
-/// one place, so the door of a house leads nowhere new and says nothing more, while the gap
-/// at the top of the town leads onto Route 101 and says so. Both
-/// indices are the zone table's in RAM and the words the ROM's, as for arriving.
-///
-/// The other zone of the player's own matrix is said all the same: Route 119 is two zones
-/// the game calls by one name, and the edge between them was the only exit said bare, "edge"
-/// (spike 159). And an exit into a part of a place in parts says the
-/// part, from anywhere: the way out of the Weather Institute, "way out to Northern Route 119"
-/// (ADR-0042).
-fn leads_to_of(text: Rc<GameText>, field: Rc<RefCell<Rc<FieldReader>>>) -> LeadsTo {
-    Rc::new(move |here, there| {
-        if !text.loaded() {
-            return Ok(None);
-        }
-        let field = field.borrow().clone();
-        let (ours, theirs) = (
-            field.zones.place_index(here)?,
-            field.zones.place_index(there)?,
-        );
-        let (Some(ours), Some(theirs)) = (ours, theirs) else {
-            return Ok(None);
-        };
-        let place = text.place(theirs);
-        if let Some(name) = &place
-            && there != here
-            && let Some(part) = part(there, name)
-        {
-            return Ok(Some(part));
-        }
-        if ours == theirs && !field.zones.one_matrix(here, there)? {
-            return Ok(None);
-        }
-        Ok(place)
-    })
-}
-
-/// What the game calls the place `zone` is in, or the part of it where it is a place in
-/// parts, "Southern Route 119" (ADR-0042); None where not known.
-fn place_of(text: Rc<GameText>, field: Rc<RefCell<Rc<FieldReader>>>) -> Place {
-    Rc::new(move |zone| {
-        let field = field.borrow().clone();
-        let index = field.zones.place_index(zone)?;
-        let place = match index {
-            Some(index) if text.loaded() => text.place(index),
-            _ => None,
-        };
-        Ok(place.map(|place| {
-            part(zone, &place)
-                .filter(|part| !part.is_empty())
-                .unwrap_or(place)
-        }))
-    })
-}
-
-/// The part of the player's place in parts `item` stands in, where it is another part than the
-/// player's `zone` and has a name: said after its bearing (ADR-0042). None for an exit into that
-/// part, which says it already, and for anything of the player's own part.
-fn part_of(text: Rc<GameText>, field: Rc<RefCell<Rc<FieldReader>>>) -> Part {
-    Rc::new(move |item: &Interactable, zone: i64| {
-        let field = field.borrow().clone();
-        let there = field.zone_at(item.cell)?;
-        let Some(there) = there else {
-            return Ok(None);
-        };
-        if there == zone
-            || item.zone == Some(there)
-            || !field.parts(zone).contains(&there)
-            || !text.loaded()
-        {
-            return Ok(None);
-        }
-        let index = field.zones.place_of(there)?;
-        let place = index.and_then(|index| text.place(index));
-        Ok(place.and_then(|place| part(there, &place)))
-    })
-}
-
-/// What pa3ds calls `zone` as a part of a place in parts, the game's `place` in it, "Southern
-/// Route 119"; None for a zone that is no part (ADR-0042, the game's `zones.ftl`).
-fn part(zone: i64, place: &str) -> Option<String> {
-    current().get(&format!("part-{zone:#x}"), &[("place", &place)])
-}
-
-/// The street of Lumiose's a warp between two of its zones comes out on, in the game's
-/// own words (spike 107): its zones are all "Lumiose City", so the place says nothing.
-fn street_of(text: Rc<GameText>) -> Street {
-    Rc::new(move |zone, slot| {
-        if source_kind(slot) != WARP_SOURCE {
-            return Ok(None);
-        }
-        Ok(text.street(zone, source_number(slot)))
-    })
 }
 
 /// Touch mode's sound for picking up a drag, with True, and letting go of it, the PC Box's

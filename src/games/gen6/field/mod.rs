@@ -24,3 +24,5 @@ pub mod zonedata;
 pub mod zonetable;
 
 pub mod footsteps;
+
+pub mod places;

@@ -1,5 +1,5 @@
-//! The ORAS profile's use of the game's own words: a place said on arriving, the rival, where
-//! an exit leads, and the PC.
+//! The gen 6 profile: the field's voices, P's ways and touch mode's targets logged, the rival and
+//! where an exit leads named by the game's words, the PC, and what each game sweeps for.
 
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
@@ -8,12 +8,10 @@ use std::sync::Arc;
 use indexmap::IndexMap;
 
 use super::fake_memory::{CODE, FakeClasses, FakeMemory};
-use super::fake_rom::TmpDir;
 use super::fake_speech::Recorder;
-use super::fake_words::words_in;
 use super::test_field::{
-    FILE, Given, HOLDER, HOUSE, PC_TILE, POOCHYENA, ROUTE, ROUTE_BLOCK, TABLE, TOWN, TOWN_BLOCK,
-    TOWN_CHUNK, Town, border, dexnav, field_reader, game,
+    FILE, HOLDER, PC_TILE, POOCHYENA, ROUTE_BLOCK, TOWN, TOWN_BLOCK, TOWN_CHUNK, Town, border,
+    game,
 };
 use crate::core::bcsar::Sound;
 use crate::core::clips::Clips;
@@ -25,16 +23,13 @@ use crate::core::names::Names;
 use crate::core::rtti::ClassNames;
 use crate::core::speech::{Category, Speech};
 use crate::games::common::field::keys::{ENEMY_SIDE, ITEM_NEXT, MODE_TOGGLE, OUR_SIDE, PATHFIND};
-use crate::games::common::field::things::{Interactable, WARP_SOURCE};
 use crate::games::common::session::Ways;
 use crate::games::common::touch::Target;
 use crate::games::gen6::apps::{BATTLE, DEMO, FIELD, MANAGER_CLASS};
 use crate::games::gen6::field::features::Tracked;
 use crate::games::gen6::field::landform::{Here, Landform, gen6};
-use crate::games::gen6::field::mmodel::PLAYER_INDEX;
 use crate::games::gen6::field::voice::{Said, Speaking};
 use crate::games::gen6::field::{dowsing, mapblock};
-use crate::games::gen6::field::zonetable::{INFO_NAME, INFO_SIZE};
 use crate::games::gen6::game::Game;
 use crate::games::gen6::own::{Kit, Own};
 use crate::games::gen6::profile::{CUE_SOUND, Gen6Profile, HELD_MOST, Options, STILL};
@@ -244,138 +239,6 @@ fn test_the_field_voices_say_gen_6s_first_then_the_games() {
     assert_eq!(spoken, said);
 }
 
-/// The game turns the place's name when the place changes, not the zone: walking out of a house
-/// into its own town arrives nowhere (spike 87).
-#[test]
-fn test_the_place_is_said_on_arriving_and_not_on_walking_into_a_building() {
-    let town = Town::new();
-    let (made, backend) = profile(&town, GameText::new(places(), trainers()), None, no_log());
-    made.poll_field().unwrap();
-    assert_eq!(backend.spoken(), ["Littleroot Town"]);
-    town.model(0, HOUSE, PLAYER_INDEX, 0xAC, (5, 5));
-    made.poll_field().unwrap();
-    town.model(0, TOWN, PLAYER_INDEX, 0xAC, (94, 172));
-    made.poll_field().unwrap();
-    assert_eq!(backend.spoken(), ["Littleroot Town"]);
-    town.model(0, TOWN, PLAYER_INDEX, 0xAC, (99, 150));
-    made.poll_field().unwrap();
-    assert_eq!(backend.spoken(), ["Littleroot Town", "Route 101"]);
-}
-
-/// ADR-0042: a part of a place in parts is said as the player walks into it, from another
-/// place or the next part, and not on walking out of a house back into it; and an exit into a
-/// part says the part, the way out of a house of the place too ("way out to
-/// South Side" said nothing of where). Here the town's two zones are given parts of their own.
-#[test]
-fn test_a_part_of_a_place_is_said_walking_into_it_and_by_the_exits_into_it() {
-    let tmp_path = TmpDir::new();
-    words_in(
-        tmp_path.path(),
-        &format!(
-            "part-{TOWN:#x} = Northern {{ $place }}\npart-{ROUTE:#x} = Southern {{ $place }}\n"
-        ),
-        "oras",
-        "en",
-        "zones.ftl",
-    );
-    let town = Town::new();
-    let (made, backend) = profile(&town, GameText::new(places(), trainers()), None, no_log());
-    made.poll_field().unwrap();
-    assert_eq!(backend.spoken(), ["Northern Littleroot Town"]);
-    town.model(0, HOUSE, PLAYER_INDEX, 0xAC, (5, 5));
-    made.poll_field().unwrap();
-    let door = Interactable {
-        zone: Some(TOWN),
-        ..Interactable::new("exits", "door", (5, 6))
-    };
-    assert_eq!(
-        made.navigator
-            .borrow()
-            .destination(&door, HOUSE)
-            .unwrap()
-            .as_deref(),
-        Some("Northern Littleroot Town")
-    );
-    town.model(0, TOWN, PLAYER_INDEX, 0xAC, (94, 172));
-    made.poll_field().unwrap();
-    assert_eq!(backend.spoken(), ["Northern Littleroot Town"]);
-    let edge = Interactable {
-        zone: Some(ROUTE),
-        ..Interactable::new("exits", "edge", (95, 159))
-    };
-    assert_eq!(
-        made.navigator
-            .borrow()
-            .destination(&edge, TOWN)
-            .unwrap()
-            .as_deref(),
-        Some("Southern Route 101")
-    );
-    town.model(0, TOWN, PLAYER_INDEX, 0xAC, (99, 150));
-    made.poll_field().unwrap();
-    assert_eq!(
-        backend.spoken(),
-        ["Northern Littleroot Town", "Southern Route 101"]
-    );
-}
-
-/// ADR-0042: a thing standing in another part of the player's place says the part; one in the
-/// player's own part, an exit into that part, and a place of no parts say nothing more.
-#[test]
-fn test_a_thing_of_another_part_is_said_with_its_part() {
-    let tmp_path = TmpDir::new();
-    words_in(
-        tmp_path.path(),
-        &format!(
-            "part-{TOWN:#x} = Northern {{ $place }}\npart-{ROUTE:#x} = Southern {{ $place }}\n"
-        ),
-        "oras",
-        "en",
-        "zones.ftl",
-    );
-    let mut town = Town::new();
-    let both = vec![TOWN, ROUTE];
-    town.reader = field_reader(
-        town.memory.clone(),
-        Given {
-            parts: IndexMap::from([(TOWN, both.clone()), (ROUTE, both.clone())]),
-            ..Given::default()
-        },
-        Game {
-            features: vec![dexnav],
-            ..game()
-        },
-    );
-    town.memory.u16(TABLE + ROUTE * INFO_SIZE + INFO_NAME, 170);
-    let (made, _) = profile(&town, GameText::new(places(), trainers()), None, no_log());
-    made.poll_field().unwrap();
-    let ball = Interactable::new("items", "item ball", (95, 140));
-    assert_eq!(
-        made.part_of(&ball, TOWN).unwrap().as_deref(),
-        Some("Southern Littleroot Town")
-    );
-    let here = Interactable {
-        cell: (95, 170),
-        ..ball.clone()
-    };
-    assert_eq!(made.part_of(&here, TOWN).unwrap(), None);
-    let edge = Interactable {
-        zone: Some(ROUTE),
-        ..Interactable::new("exits", "edge", (99, 159))
-    };
-    assert_eq!(made.part_of(&edge, TOWN).unwrap(), None);
-    town.reader = field_reader(
-        town.memory.clone(),
-        Given::default(),
-        Game {
-            features: vec![dexnav],
-            ..game()
-        },
-    );
-    made.set_field(town.reader.clone());
-    assert_eq!(made.part_of(&ball, TOWN).unwrap(), None);
-}
-
 /// ADR-0041: what P says of each thing listed is logged where a tape replay asks for it, read
 /// inside what it gives; a recording and a player's run log none.
 #[test]
@@ -559,15 +422,6 @@ fn test_a_moving_cursor_holds_the_whole_sweep_off_until_it_is_still_for_three_se
     assert_eq!(held, expected);
 }
 
-/// AreaNav's words still say it, a moment later, as they always have.
-#[test]
-fn test_without_the_rom_no_place_is_said_from_the_field() {
-    let town = Town::new();
-    let (made, backend) = profile(&town, no_text(), None, no_log());
-    made.poll_field().unwrap();
-    assert!(backend.spoken().is_empty());
-}
-
 /// Spike 89: the rival's work object is drawn as SUPPORT_F_RS or SUPPORT_M_RS, and the ROM
 /// names both, in the player's language, ahead of the English that ships; so does a kind of
 /// trainer (spike 90). The work object itself is nobody, since a script can fill it with
@@ -603,47 +457,11 @@ fn test_without_the_rom_the_rival_is_what_shipped() {
     assert_eq!(named.sprite(MAY).as_deref(), Some("May"));
 }
 
-/// The ROM names the building behind warp 0; sign 0 on the same map is not that building
-/// (the wally.ctm replay of 2026-09-23 read Petalburg's signs as its Gym, Mart and Center).
+/// The profile hands the navigator the game's place names (`PlaceNames`), which it says an exit
+/// with and the listing's log names it by: the gap north of Littleroot leads to Route 101, and
+/// the town's doors to no other place.
 #[test]
-#[allow(clippy::identity_op)]
-fn test_the_roms_door_name_is_a_doors_and_never_a_signs() {
-    let town = Town::new();
-    let named = names(&[]);
-    let text = GameText {
-        doors: IndexMap::from([((TOWN, 0), "Pokémon Center".to_string())]),
-        ..GameText::new(places(), trainers())
-    };
-    profile(&town, text, Some(named.clone()), no_log());
-    assert_eq!(
-        named.place(TOWN, WARP_SOURCE | 0).as_deref(),
-        Some("Pokémon Center")
-    );
-    assert_eq!(named.place(TOWN, 0), None);
-}
-
-/// Lumiose's five gates were each "warp to Lumiose Gate".
-#[test]
-#[allow(clippy::identity_op)]
-fn test_a_warp_into_a_gate_is_called_the_gate_and_the_place_beyond_it() {
-    let town = Town::new();
-    let named = names(&[]);
-    let text = GameText {
-        gates: IndexMap::from([((TOWN, 0), (170, 204))]),
-        ..GameText::new(places(), trainers())
-    };
-    profile(&town, text, Some(named.clone()), no_log());
-    assert_eq!(
-        named.place(TOWN, WARP_SOURCE | 0).as_deref(),
-        Some("Littleroot Town to Route 101")
-    );
-}
-
-/// Nothing said the gap north of Littleroot leads to Route 101. The
-/// place is the zone table's index for each side and the ROM's word for it; the house behind the
-/// first door shares the town's place, and the second door's zone has no place at all.
-#[test]
-fn test_an_exit_into_another_place_is_said_with_it_and_a_door_of_the_town_is_not() {
+fn test_the_navigator_and_the_listings_log_say_where_an_exit_leads() {
     let town = Town::new();
     let logged: Rc<RefCell<Vec<String>>> = Rc::new(RefCell::new(Vec::new()));
     let log: Log = {
@@ -662,20 +480,6 @@ fn test_an_exit_into_another_place_is_said_with_it_and_a_door_of_the_town_is_not
     assert!(logged.borrow().iter().any(|line| {
         line.starts_with("field exits: ") && line.contains("edge to zone 0x17 (Route 101) ")
     }));
-}
-
-#[test]
-fn test_without_the_rom_an_exit_is_only_what_it_is() {
-    let town = Town::new();
-    let (made, _) = profile(&town, no_text(), None, no_log());
-    let labels: Vec<String> = town
-        .r#where()
-        .unwrap()
-        .of("exits")
-        .iter()
-        .map(|item| made.navigator.borrow().label(item, TOWN).unwrap())
-        .collect();
-    assert_eq!(labels, ["door", "door", "path"]);
 }
 
 /// The profile hands the field the word the PC's own lines share (`archives.PC_LINES`).
@@ -912,41 +716,4 @@ fn test_head_its_cue_is_the_games_exclamation_once_the_setting_is_on() {
         let head_it = made.subscreens.head_it.clone();
         assert_eq!(head_it.borrow().cue.is_some(), on, "on {on}");
     }
-}
-
-/// One model draws both of Route 111's fossils, and the game names them only as the item
-/// taken: west the Root Fossil, east the Claw Fossil, listed under items (a player's report,
-/// spike 233). Their names are the ROM's, in the player's language.
-#[test]
-fn test_route_111s_fossils_are_called_the_items_they_are_from_the_rom() -> Result<()> {
-    use crate::games::common::field::things::{MODEL_SOURCE, place_source};
-    use crate::games::gen6::profile::game_place;
-
-    let mut items = vec![String::new(); 101];
-    items[99] = "Wurzelfossil".to_string();
-    items[100] = "Klauenfossil".to_string();
-    let text = GameText {
-        items,
-        ..GameText::default()
-    };
-    let mut called = Vec::new();
-    for record in [3, 4, 5] {
-        called.push(game_place(
-            &text,
-            &oras::game().items_at,
-            None,
-            0x23,
-            place_source(MODEL_SOURCE, record)?,
-        ));
-    }
-    assert_eq!(
-        called,
-        [
-            Some("Wurzelfossil".to_string()),
-            Some("Klauenfossil".to_string()),
-            None
-        ]
-    );
-    assert!(oras::game().pickups.contains(&oras::FOSSIL));
-    Ok(())
 }
