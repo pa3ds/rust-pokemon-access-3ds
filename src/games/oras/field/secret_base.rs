@@ -79,13 +79,15 @@ use crate::games::common::field::things::{
     DECORATION_SOURCE, Interactable, SECRET_BASE_SOURCE, TILE_SOURCE, bearing, kind_said,
     place_source,
 };
+use crate::games::common::garc::plain;
+use crate::games::common::text::{Token, tokens};
 use crate::games::gen6::field::features::{Feature, Sweeping, Tracked, ZoneAt};
 use crate::games::gen6::field::landform::{
     Found as Worked, HOLE, Here, Landform, as_watch, cell_number, spread, touching,
 };
 use crate::games::gen6::field::voice::{Said, Speaking};
 use crate::games::gen6::rom::archives::GameText;
-use crate::py::{self, Error, Result};
+use crate::py::{self, Error, Kind, Result};
 
 /// What a spot a Secret Base can be made at is called: the game draws a mark on the wall, the tree
 /// or the bush, and says what it is on facing it, but never names the spot (spike 154). One another
@@ -95,6 +97,15 @@ pub const BASE_SPOT: &str = "secret base spot";
 /// What the player's own Secret Base's spot is called, said with the place it leads into, as an
 /// exit is: "entrance to Secret Base".
 pub const ENTRANCE: &str = "entrance";
+
+/// The game's text's file of the decorations' names, a line a decoration by its number, as the
+/// save numbers them: Small Desk 0, Small Chair 10, the Welcome Mats 0x13 to 0x17, Your Location
+/// 0xad (spike 154).
+pub const DECORATION_NAMES: i64 = 56;
+/// The game's text's file of what a Secret Base is called on entering it: "'s Base" after its
+/// owner's name, "Team 's Base" round its team's, each name a variable (or_secret_base_qr, "Team
+/// Tarin's Base"). Files 52 and 53 hold the two too.
+pub const BASE_NAMES: i64 = 88;
 
 /// `struct.Struct("<HBBiiiHH")`: a spot's number, kind, shape, x, z, height, zone and the last
 /// word.
@@ -371,7 +382,9 @@ impl SecretBases {
             classes: vec![SAVE_CLASS],
             inside: INSIDE,
             memory,
-            names: text.base_names.clone(),
+            // A text archive's file that will not split raises out of Python's constructor; a
+            // feature is made where nothing is returned, so it panics here.
+            names: base_names(text).unwrap_or_else(|error| panic!("{error}")),
             spots: spots(image),
             save: Slot::new(None),
         }
@@ -472,7 +485,8 @@ impl Decorations {
         Decorations::reading(
             Rc::new(ModuleObjects::new(memory)),
             zones().clone(),
-            text.decorations.clone(),
+            // As `SecretBases.new`'s names: a raise in Python, a panic where nothing is returned.
+            decoration_names(text).unwrap_or_else(|error| panic!("{error}")),
         )
     }
 
@@ -863,6 +877,58 @@ impl ModuleObjects {
             u32(&head, 4)?,
         )))
     }
+}
+
+/// What the game calls each decoration, by its number (`DECORATION_NAMES`); none where the
+/// game's text is not read (`GameText.lines`).
+pub fn decoration_names(text: &GameText) -> Result<Vec<String>> {
+    Ok(match text.lines.get("text") {
+        None => Vec::new(),
+        Some(read) => (read.0)(DECORATION_NAMES)?
+            .iter()
+            .map(|line| plain(line))
+            .collect(),
+    })
+}
+
+/// The words before and after the name in what the game calls another player's base, by its
+/// owner's name and then by its team's: ("", "'s Base"), ("Team ", "'s Base") (`BASE_NAMES`);
+/// none where the game's text is not read.
+pub fn base_names(text: &GameText) -> Result<Vec<(String, String)>> {
+    Ok(match text.lines.get("text") {
+        None => Vec::new(),
+        Some(read) => (read.0)(BASE_NAMES)?
+            .iter()
+            .map(|line| around_name(line))
+            .collect(),
+    })
+}
+
+/// A line's words before its first variable and after it, as `plain` reads words: the name
+/// the game puts there is the player's or a team's, which only RAM has.
+fn around_name(line: &[u8]) -> (String, String) {
+    let parts = match tokens(line) {
+        Ok(parts) => parts,
+        Err(error) if error.is(Kind::ValueError) => return (String::new(), String::new()),
+        Err(error) => panic!("{error:?}"),
+    };
+    let at = parts
+        .iter()
+        .position(|part| matches!(part, Token::Control(_)))
+        .unwrap_or(parts.len());
+    let words = |parts: &[Token]| -> String {
+        parts
+            .iter()
+            .filter_map(|part| match part {
+                Token::Text(text) => Some(text.as_str()),
+                Token::Control(_) => None,
+            })
+            .collect()
+    };
+    (
+        words(&parts[..at]),
+        words(py::slice_from(&parts, at as i64 + 1)),
+    )
 }
 
 /// A name the save keeps as UTF-16 to a zero.

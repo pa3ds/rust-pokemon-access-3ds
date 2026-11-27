@@ -57,7 +57,7 @@ use crate::games::gen6::field::zonetable::{
     INFO_KIND, INFO_MATRIX, INFO_NAME, INFO_PARENT, INFO_SETTING, INFO_SIZE, UNDERWATER,
 };
 use crate::games::gen6::game::{FeatureFactory, FurnitureKind, Game};
-use crate::games::gen6::rom::archives::{GameText, no_text};
+use crate::games::gen6::rom::archives::{GameText, TextLines, no_text};
 use crate::games::gen6::rom::maps::{ChunkSource, StreetSource};
 use crate::games::oras;
 use crate::games::oras::field::berries::BerrySpots;
@@ -201,7 +201,6 @@ pub(crate) struct Given {
     pub outdoors: HashSet<i64>,
     pub street_records: rail::Records,
     pub berries: Vec<(i64, (i64, i64))>,
-    pub decorations: Vec<String>,
     pub zone_table: Vec<u8>,
     pub far: Option<FarCells>,
     pub far_heights: Option<FarHeights>,
@@ -235,7 +234,6 @@ pub(crate) fn field_reader(memory: Rc<FakeMemory>, given: Given, game: Game) -> 
         outdoors,
         street_records,
         berries,
-        decorations,
         zone_table,
         far,
         far_heights,
@@ -258,7 +256,6 @@ pub(crate) fn field_reader(memory: Rc<FakeMemory>, given: Given, game: Game) -> 
         outdoors,
         street_records,
         berries,
-        decorations,
         zone_table,
         map_chunks: far.map(|cells| {
             Rc::new(Chunks {
@@ -7473,6 +7470,26 @@ impl Feature for Spots {
     }
 }
 
+/// The game's text with one file, numbered `number`, of these lines as the ROM keeps them.
+pub(crate) fn text_file(number: i64, lines: Vec<Vec<u8>>) -> GameText {
+    let read = move |file: i64| -> Result<Vec<Vec<u8>>> {
+        Ok(if file == number {
+            lines.clone()
+        } else {
+            Vec::new()
+        })
+    };
+    GameText {
+        lines: IndexMap::from([("text".to_string(), TextLines(Rc::new(read)))]),
+        ..GameText::default()
+    }
+}
+
+/// `text.encode("utf-16-le")`.
+fn utf16le(text: &str) -> Vec<u8> {
+    text.encode_utf16().flat_map(u16::to_le_bytes).collect()
+}
+
 /// What stands where in a Secret Base, the town standing for it, by the game's `names` for each
 /// decoration, and the decorating cursor's cell, as `oras.field.secret_base` reads them.
 ///
@@ -7550,10 +7567,14 @@ thread_local! {
 /// between threads and keeps nothing of a test's, so what it reads through waits in a
 /// thread-local for the field reader to ask for its watch.
 fn floor(inside: &Rc<Inside>) -> Arc<dyn Landform> {
+    let text = text_file(
+        secret_base::DECORATION_NAMES,
+        inside.names.iter().map(|name| utf16le(name)).collect(),
+    );
     let decorations = secret_base::Decorations::reading(
         inside.clone(),
         IndexSet::from([TOWN]),
-        inside.names.clone(),
+        secret_base::decoration_names(&text).expect("the file's lines are given"),
     );
     GIVEN_INSIDE.with(|given| *given.borrow_mut() = Some(Rc::new(decorations)));
     Arc::new(BaseFloor)
@@ -8358,14 +8379,20 @@ fn test_another_players_base_is_named_as_the_game_names_it() -> Result<()> {
     for n in 0..60 {
         rows.extend(secret_base::SPOT.pack([n, 0, 0, n, 1, 0, 0x24, 0x218])?);
     }
-    let text = GameText {
-        base_names: vec![
-            (String::new(), "\u{2019}s Base".to_string()),
-            ("Team ".to_string(), "\u{2019}s Base".to_string()),
-        ],
-        ..GameText::default()
-    };
-    let bases = secret_base::SecretBases::new(memory.clone(), &rows, &text);
+    // A variable, the name the game puts there.
+    let name: Vec<u8> = [0x10u16, 2, 0x0100, 0]
+        .into_iter()
+        .flat_map(u16::to_le_bytes)
+        .collect();
+    let file = vec![
+        [name.clone(), utf16le("\u{2019}s Base")].concat(),
+        [utf16le("Team "), name, utf16le("\u{2019}s Base")].concat(),
+    ];
+    let bases = secret_base::SecretBases::new(
+        memory.clone(),
+        &rows,
+        &text_file(secret_base::BASE_NAMES, file),
+    );
     for slot in 0..secret_base::SHARED_COUNT {
         memory.write(
             save + secret_base::SHARED + slot * secret_base::SHARED_SIZE + secret_base::SHARED_SPOT,

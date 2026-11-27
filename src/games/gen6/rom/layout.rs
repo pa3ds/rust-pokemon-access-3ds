@@ -148,12 +148,6 @@ pub struct RomLayout {
     /// row of the list of what each town has keeps the index of its zone's touch area among them
     /// (`map_places`); None in a game whose map is not read.
     pub map_panes: Option<(String, i64, i64)>,
-    /// The text file of a Secret Base's decorations' names, a line a decoration by its number;
-    /// None in a game without Secret Bases.
-    pub decorations: Option<i64>,
-    /// The text file of what the game calls another player's Secret Base: line 0 by its owner's
-    /// name, line 1 by its team's, each with the name a variable; None in a game without them.
-    pub base_names: Option<i64>,
     /// The text file of the Poké Puffs' names, a line a puff by its kind, Sweet Poké Puff first
     /// and Supreme Winter Poké Puff last; None where they are not read.
     pub puffs: Option<i64>,
@@ -244,8 +238,6 @@ impl RomLayout {
             search_labels: Vec::new(),
             caught: HashSet::new(),
             map_panes: None,
-            decorations: None,
-            base_names: None,
             puffs: None,
             goods: None,
             bike: None,

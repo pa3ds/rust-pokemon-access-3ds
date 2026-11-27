@@ -57,7 +57,6 @@ use crate::core::rom::{Rom, lz11};
 use crate::games::common::field::ground::{CUT, ROCK_SMASH, STRENGTH, SURF, WATERFALL};
 use crate::games::common::garc::{garc_files, message_lines, plain, singular};
 use crate::games::common::species_tags::tagged_species;
-use crate::games::common::text::{Token, tokens};
 use crate::games::gen6::field::conveyors::GymFloor;
 use crate::games::gen6::field::rail::Teleport;
 use crate::games::gen6::field::zonedata;
@@ -321,8 +320,6 @@ pub struct GameText {
     /// keeps the one under its cursor -> what the game calls its place (`map_areas`,
     /// `townmap.Places`); none where the town list is not read.
     pub map_areas: IndexMap<i64, String>,
-    /// What the game calls each Secret Base decoration, by its number (`RomLayout.decorations`).
-    pub decorations: Vec<String>,
     /// What the game calls the six stats on Super Training's screens, "HP" to "Speed"
     /// (`RomLayout.training_stats`); none where they are not read.
     pub training_stats: Vec<String>,
@@ -333,10 +330,6 @@ pub struct GameText {
     pub amie_numbers: Vec<String>,
     /// What the game calls each kind of Poké Puff, in order (`RomLayout.puffs`).
     pub puffs: Vec<String>,
-    /// The words before and after the name in what the game calls another player's Secret Base,
-    /// by its owner's name and then by its team's: ("", "'s Base"), ("Team ", "'s Base")
-    /// (`RomLayout.base_names`).
-    pub base_names: Vec<(String, String)>,
     /// What the game calls each of Pokémon-Amie's wallpapers and then each interior item, in the
     /// singular (`RomLayout.goods`).
     pub goods: Vec<String>,
@@ -430,11 +423,9 @@ impl PartialEq for GameText {
             && self.caught == other.caught
             && self.map_places == other.map_places
             && self.map_areas == other.map_areas
-            && self.decorations == other.decorations
             && self.training_stats == other.training_stats
             && self.training_gains == other.training_gains
             && self.amie_numbers == other.amie_numbers
-            && self.base_names == other.base_names
             && self.bike == other.bike
             && self.acro == other.acro
             && self.species == other.species
@@ -478,12 +469,10 @@ impl Default for GameText {
             caught: HashSet::new(),
             map_places: IndexMap::new(),
             map_areas: IndexMap::new(),
-            decorations: Vec::new(),
             training_stats: Vec::new(),
             training_gains: Vec::new(),
             amie_numbers: Vec::new(),
             puffs: Vec::new(),
-            base_names: Vec::new(),
             goods: Vec::new(),
             bike: None,
             acro: None,
@@ -900,19 +889,8 @@ impl GameText {
             amie_numbers: py::slice(&lines_from(layout.amie_numbers)?, 0, 3).to_vec(),
             training_stats: py::slice(&lines_from(layout.training_stats)?, 0, 6).to_vec(),
             training_gains: py::slice(&lines_from(layout.training_gains)?, 0, 2).to_vec(),
-            decorations: match layout.decorations {
-                Some(file) => lines_of_file(&files, file)?,
-                None => Vec::new(),
-            },
             puffs: match layout.puffs {
                 Some(file) => lines_of_file(&files, file)?,
-                None => Vec::new(),
-            },
-            base_names: match layout.base_names {
-                Some(file) => lines_of(files.clone())(file)?
-                    .iter()
-                    .map(|line| around_name(line))
-                    .collect(),
                 None => Vec::new(),
             },
             goods: match layout.goods {
@@ -1454,33 +1432,6 @@ fn lines_of_file_read(
         Err(error) if error.is(Kind::RomError) => Ok(Vec::new()),
         Err(error) => Err(error),
     }
-}
-
-/// A line's words before its first variable and after it, as `plain` reads words: the name
-/// the game puts there is the player's or a team's, which only RAM has.
-fn around_name(line: &[u8]) -> (String, String) {
-    let parts = match tokens(line) {
-        Ok(parts) => parts,
-        Err(error) if error.is(Kind::ValueError) => return (String::new(), String::new()),
-        Err(error) => panic!("{error:?}"),
-    };
-    let at = parts
-        .iter()
-        .position(|part| matches!(part, Token::Control(_)))
-        .unwrap_or(parts.len());
-    let words = |parts: &[Token]| -> String {
-        parts
-            .iter()
-            .filter_map(|part| match part {
-                Token::Text(text) => Some(text.as_str()),
-                Token::Control(_) => None,
-            })
-            .collect()
-    };
-    (
-        words(&parts[..at]),
-        words(py::slice_from(&parts, at as i64 + 1)),
-    )
 }
 
 /// A text archive's file as its lines, each split once when first asked for.
