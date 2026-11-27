@@ -28,7 +28,7 @@ use crate::games::gen6::game::{CursorShapes, Data, FurnitureKind, Game};
 use crate::games::gen6::rom::archives::{BOY, GIRL, GameText};
 use crate::games::gen6::rom::layout::{RomLayout, TownFacilities};
 use crate::games::gen6::screens::{bag, boxes, buttons, pokedex, rows, summary, townmap};
-use crate::games::gen6::subscreen::{amie, berry_picker, super_training};
+use crate::games::gen6::subscreen::{amie, berry_picker, pss_profile, super_training};
 use crate::games::oras::field::ash::{self, AshPiles};
 use crate::games::oras::field::berries::BerrySpots;
 use crate::games::oras::field::doors::RotatingDoors;
@@ -427,6 +427,16 @@ pub fn contest_icons() -> (i64, IndexMap<String, i64>) {
             .collect(),
     )
 }
+/// A PSS profile's History, drawn as icons alone, by the PSS's names for its apps.
+pub fn history_icons() -> (i64, IndexMap<String, i64>) {
+    (
+        70,
+        pss_profile::HISTORY
+            .iter()
+            .map(|&(texture, line)| (texture.to_string(), line))
+            .collect(),
+    )
+}
 /// "Affection", "Fullness" and "Enjoyment", in Pokémon-Amie's text (spike 287).
 pub const AMIE_NUMBERS: (i64, i64) = (111, 14);
 /// PARALYSIS, ASLEEP, FROZEN, BURNED, POISONED, FAINTED, POKÉRUS (spike 147).
@@ -552,7 +562,7 @@ pub fn rom() -> &'static RomLayout {
             )
         })
         .collect(),
-        texture_words: vec![contest_icons()],
+        texture_words: vec![contest_icons(), history_icons()],
         entrances: ENTRANCES.into_iter().collect(),
         caught: CAUGHT_IMAGES
             .iter()

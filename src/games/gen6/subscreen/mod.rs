@@ -237,6 +237,12 @@ impl Rewording for RefCell<HeadIt> {
     }
 }
 
+impl Rewording for RefCell<ProfileValues> {
+    fn reworded(&self, found: IndexMap<i64, ScreenText>) -> Result<IndexMap<i64, ScreenText>> {
+        self.borrow().reworded(found)
+    }
+}
+
 impl Rewording for Medals {
     fn reworded(&self, found: IndexMap<i64, ScreenText>) -> Result<IndexMap<i64, ScreenText>> {
         Medals::reworded(self, found)
@@ -929,11 +935,13 @@ impl Subscreens {
         )));
         // O-Power first: the log names the classes swept for in the order asked, its record's
         // straight after the profile's own (`gen6.profile.HEAP_CLASSES`).
-        let profile = Rc::new(RefCell::new(ProfileValues::new(
+        let profile = Rc::new(RefCell::new(ProfileValues::with_words(
             profile_memory,
             profile_names,
             profile_layouts,
             profile_file_of,
+            text.texture_words.clone(),
+            if tables.ui.pauses { ", " } else { " " }.to_string(),
         )));
         let tracked: Vec<Rc<dyn Tracked>> = vec![
             o_power.clone(),
@@ -1023,7 +1031,7 @@ impl Subscreens {
             ],
             ticked: vec![head_it.clone(), sparring.clone()],
             holding: vec![head_it.clone(), sparring.clone()],
-            rewording: vec![switch, head_it.clone(), medals, gains],
+            rewording: vec![switch, head_it.clone(), medals, gains, profile.clone()],
             head_it,
             puzzle,
             o_power,
@@ -1257,8 +1265,8 @@ impl Subscreens {
     }
 
     /// The words on the screen as they are said, each reader rewording them in turn: the
-    /// Switch screen's labels with their rows, and Head It's numbers without the zeros it pads
-    /// them with.
+    /// Switch screen's labels with their rows, Head It's numbers without the zeros it pads
+    /// them with, and a PSS profile's History with its icons.
     pub fn reworded(
         &self,
         mut found: IndexMap<i64, ScreenText>,

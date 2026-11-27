@@ -506,28 +506,29 @@ impl Gen6Profile {
             })
         };
         // The subscreens name theirs: Pokémon-Amie's games draw a result's count a digit a
-        // picture (`Subscreens.name`). The subscreens are made below, after the screen text reader
-        // whose words they read: Python's closure reaches `self.subscreens` once it is made, and
-        // this one through the cell it is put in then.
+        // picture (`Subscreens.name`). Theirs first, "" included: a PSS profile's History says its
+        // icons whole by the first, and named one at a time by their images the others were
+        // joined as a type's icons are (or_pss_singleplayer). The subscreens are made below,
+        // after the screen text reader whose words they read: Python's closure reaches
+        // `self.subscreens` once it is made, and this one through the cell it is put in then.
         let subscreens_made: Rc<OnceCell<Rc<Subscreens>>> = Rc::new(OnceCell::new());
         let on_screen_named: Pictures = {
             let (named_by_image, party_icons) = (named_by_image.clone(), party_icons.clone());
             let subscreens = subscreens_made.clone();
             let (alone, partners) = (alone.clone(), partners.clone());
             Rc::new(move |pane: i64| {
+                if let Some(subscreens) = subscreens.get()
+                    && let Some(own) = subscreens.name(pane)?
+                {
+                    return Ok(Some(own));
+                }
                 let by_image = match &named_by_image {
                     Some(named) => named(pane)?,
                     None => None,
                 };
-                // Python's `or`: a name of "" or None goes on to the subscreens', then to the
-                // party's icons, then to the game's own, and then to the Maison's partners.
+                // Python's `or`: a name of "" or None goes on to the party's icons, then to the
+                // game's own, and then to the Maison's partners.
                 if let Some(name) = by_image
-                    && !name.is_empty()
-                {
-                    return Ok(Some(name));
-                }
-                if let Some(subscreens) = subscreens.get()
-                    && let Some(name) = subscreens.name(pane)?
                     && !name.is_empty()
                 {
                     return Ok(Some(name));

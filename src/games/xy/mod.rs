@@ -26,7 +26,7 @@ use crate::games::gen6::field::{camera, mapblock, mmodel};
 use crate::games::gen6::game::{CursorShapes, Data, FurnitureKind, Game};
 use crate::games::gen6::rom::layout::{RomLayout, TownFacilities, owned};
 use crate::games::gen6::screens::{bag, boxes, buttons, pokedex, rows, summary, townmap};
-use crate::games::gen6::subscreen::{amie, berry_picker};
+use crate::games::gen6::subscreen::{amie, berry_picker, pss_profile};
 use crate::games::xy::garden::FurfrouChase;
 use crate::games::xy::own::Xy;
 use crate::py::PySet;
@@ -298,6 +298,16 @@ pub const MOVE_CATEGORIES: (i64, i64) = (127, 17);
 /// Ruby's file found in X's text and Y's, in every language alike (2026-11-18); unread until then,
 /// X said no type, category or language tab. X's text has no status conditions' words.
 pub const LANGUAGE_NAMES: (i64, i64) = (85, 6);
+/// A PSS profile's History, as Omega Ruby's (`oras.HISTORY_ICONS`), the PSS's text file 57.
+pub fn history_icons() -> (i64, IndexMap<String, i64>) {
+    (
+        57,
+        pss_profile::HISTORY
+            .iter()
+            .map(|&(texture, line)| (texture.to_string(), line))
+            .collect(),
+    )
+}
 pub fn rom() -> &'static RomLayout {
     static ROM: OnceLock<RomLayout> = OnceLock::new();
     ROM.get_or_init(|| RomLayout {
@@ -358,6 +368,7 @@ pub fn rom() -> &'static RomLayout {
             )
         })
         .collect(),
+        texture_words: vec![history_icons()],
         ..RomLayout::new(
             "X and Y",
             text_archives(),
