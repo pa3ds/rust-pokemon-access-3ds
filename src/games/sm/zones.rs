@@ -57,11 +57,14 @@
 //! Only the words and numbers the game itself holds are read; what they mean on the field is
 //! `field`'s.
 
+use std::collections::HashSet;
+
 use indexmap::IndexMap;
 
 use crate::core::binary::{self, u16, u32};
 use crate::core::rom::{Rom, lz11};
 use crate::games::common::garc::{garc_files, garc_spans};
+use crate::games::sm::layout_of;
 use crate::games::sm::text::SunText;
 use crate::py::{self, Error, Kind, Result};
 
@@ -71,6 +74,11 @@ pub const ROW_PLACE: i64 = 0x1C;
 pub const ROW_KIND: i64 = 0x3A;
 /// System text file 67: "Route 1", "Iki Town", "Hau'oli City".
 pub const PLACE_NAMES: i64 = 67;
+/// System text file 24 line 9, "FESTIVAL PLAZA", the X menu's: the place names have no line for
+/// Festival Plaza, whose two zones the zone table gives Route 1's place, line 6, the Center it is
+/// entered from (spike P; Sun's 0x119 and 0x11a, Ultra Sun's 0x13e and 0x13f,
+/// `VersionLayout.plaza`).
+pub const PLAZA: (i64, i64) = (24, 9);
 /// A zone's kind (`ROW_KIND`): a room, a cave or trail or ruin, and a route or town or sea.
 pub const INDOORS: i64 = 0;
 /// A zone's kind (`ROW_KIND`): a room, a cave or trail or ruin, and a route or town or sea.
@@ -211,6 +219,8 @@ pub struct SunZones {
     pub rows: Vec<u8>,
     pub places: SunText,
     pub areas: IndexMap<i64, Area>,
+    /// The zones named by `PLAZA` (`VersionLayout.plaza`).
+    pub plaza: HashSet<i64>,
 }
 
 impl SunZones {
@@ -228,7 +238,7 @@ impl SunZones {
                 format!("{ZONE_TABLE} is not a zone table"),
             ));
         }
-        let places = SunText::load(rom, language, &[PLACE_NAMES])?;
+        let places = SunText::load(rom, language, &[PLACE_NAMES, PLAZA.0])?;
         // Each area's first file alone, a few KB: the whole archive is 332 MB, and reading it
         // all held 660 MB at every start.
         let (start, spans) = garc_spans(rom, EVENTS)?;
@@ -266,6 +276,7 @@ impl SunZones {
             rows,
             places,
             areas,
+            plaza: layout_of(rom.title_id).plaza.iter().copied().collect(),
         })
     }
 
@@ -280,6 +291,9 @@ impl SunZones {
 
     /// What the game calls where the zone is: "Route 1" for the player's house.
     pub fn place(&self, zone: i64) -> Result<Option<String>> {
+        if self.plaza.contains(&zone) {
+            return Ok(self.places.line(PLAZA.0, PLAZA.1));
+        }
         Ok(match self.place_index(zone)? {
             None => None,
             Some(index) => self.places.line(PLACE_NAMES, index),

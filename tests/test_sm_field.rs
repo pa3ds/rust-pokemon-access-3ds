@@ -231,6 +231,7 @@ fn rom() -> SunZones {
                 ..Area::default()
             },
         )]),
+        plaza: Default::default(),
     }
 }
 
@@ -715,6 +716,7 @@ fn test_an_area_s_warps_and_things_are_read_from_its_event_data() {
         rows: vec![0; (zones::ZONE_ROW * 0x20) as usize],
         places: place_names(),
         areas: IndexMap::from([(AREA, area)]),
+        plaza: Default::default(),
     };
     let door = rom
         .record(AREA, zones::WARPS, 2075.0, 2565.0)
@@ -1669,6 +1671,7 @@ fn test_indoors_only_the_player_s_own_zone_is_listed() {
         rows,
         places: place_names(),
         areas: rom().areas,
+        plaza: Default::default(),
     };
     let found = found_of(
         &bedroom.found.pages,
@@ -1706,6 +1709,7 @@ fn test_walking_between_two_zones_of_one_name_says_it_once() {
             files: IndexMap::from([(zones::PLACE_NAMES, lines)]),
         },
         areas: rom().areas,
+        plaza: Default::default(),
     };
     let emu = FakeEmulator::new(served(&bedroom.memory));
     let memory: Rc<dyn Memory> = Rc::new(RpcMemory::new(connect(&emu)));

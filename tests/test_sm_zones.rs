@@ -1,6 +1,8 @@
 //! Sun's zones out of the ROM: every kind of record of an area's event data, and the zone table's
 //! kind of place, laid out as spike 115 read Route 1 and Iki Town.
 
+use std::collections::HashSet;
+
 use indexmap::IndexMap;
 
 use super::fake_rom::{
@@ -284,6 +286,7 @@ fn route_1() -> SunZones {
             files: IndexMap::new(),
         },
         areas: IndexMap::from([(AREA, area)]),
+        plaza: Default::default(),
     }
 }
 
@@ -337,6 +340,7 @@ fn test_the_flag_the_ultra_games_set_beside_a_zone_s_kind_is_not_its_kind() {
             files: IndexMap::new(),
         },
         areas: IndexMap::new(),
+        plaza: Default::default(),
     };
     assert!(rom.outdoors(1).unwrap());
 }
@@ -410,6 +414,7 @@ fn test_an_area_built_with_its_warps_and_things_alone_has_no_people() {
                 ..Default::default()
             },
         )]),
+        plaza: Default::default(),
     };
     assert_eq!(
         rom.record(AREA, zones::PEOPLE, 22197.0, 15793.0).unwrap(),
@@ -458,6 +463,7 @@ fn test_the_rom_s_areas_are_read_file_by_file_from_their_events() {
         .map(|_| GarcFile::from(Vec::new()))
         .collect();
     names.push(message_file(&[MessageLine::from("Route 1"), MessageLine::from("Iki Town")]).into());
+    names[zones::PLAZA.0 as usize] = message_file(&[MessageLine::from("FESTIVAL PLAZA")]).into();
     let text = garc_with(&names, 0x0600);
     let english = TEXT_ARCHIVES
         .iter()
@@ -511,5 +517,33 @@ fn test_a_step_keeps_the_work_and_value_it_is_armed_by_and_its_shape() {
             east: 24723.0,
             south: 20593.0,
         })
+    );
+}
+
+#[test]
+fn test_festival_plaza_is_named_by_the_x_menu_s_line_not_its_centre_s_place() {
+    let mut rows = vec![0u8; (zones::ZONE_ROW * 0x120) as usize];
+    for zone in [0x41, 0x119] {
+        let at = (zone * zones::ZONE_ROW + zones::ROW_PLACE) as usize;
+        rows[at..at + 2].copy_from_slice(&6u16.to_le_bytes());
+    }
+    let mut places = vec![String::new(); 10];
+    places[6] = "Route 1".to_string();
+    let mut menu = vec![String::new(); 10];
+    menu[zones::PLAZA.1 as usize] = "FESTIVAL PLAZA".to_string();
+    let rom = SunZones {
+        rows,
+        places: SunText {
+            files: IndexMap::from([(zones::PLACE_NAMES, places), (zones::PLAZA.0, menu)]),
+        },
+        areas: IndexMap::new(),
+        plaza: HashSet::from([0x119]),
+    };
+    assert_eq!(
+        (rom.place(0x41).unwrap(), rom.place(0x119).unwrap()),
+        (
+            Some("Route 1".to_string()),
+            Some("FESTIVAL PLAZA".to_string())
+        )
     );
 }

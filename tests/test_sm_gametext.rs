@@ -207,6 +207,7 @@ fn doors_rom() -> SunZones {
                 },
             ),
         ]),
+        plaza: Default::default(),
     }
 }
 
@@ -326,6 +327,7 @@ fn test_a_model_trainers_of_one_class_stand_as_is_that_class_and_each_trainer_th
                 ..Default::default()
             },
         )]),
+        plaza: Default::default(),
     };
     let classes: Vec<String> = ["", "", "Youngster", "Lass"]
         .iter()

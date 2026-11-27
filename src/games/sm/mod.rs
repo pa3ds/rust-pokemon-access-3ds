@@ -43,6 +43,9 @@ pub struct VersionLayout {
     /// Where a Poké Mart list's `ShopDraw` keeps the item under the cursor (`shop`), None where it
     /// is not measured.
     pub shop_item: Option<i64>,
+    /// Festival Plaza's zones, which the zone table gives the place of a Pokémon Center: named by
+    /// the X menu's own line instead (`zones.PLAZA`). A `frozenset` only looked in.
+    pub plaza: &'static [i64],
 }
 
 impl VersionLayout {
@@ -77,6 +80,7 @@ pub const SUN_LAYOUT: VersionLayout = VersionLayout {
     town_map: "a/2/4/1",
     chosen_language: 0x12C,
     shop_item: Some(0xC4),
+    plaza: &[0x119, 0x11A],
 };
 /// Ultra Sun's, read against Sun's in its ROM and its bedroom (spike P, 2026-11-23): every class
 /// the readers find has Sun's name, and every field of each is where Sun's is but a move model's,
@@ -107,6 +111,7 @@ pub const ULTRA_LAYOUT: VersionLayout = VersionLayout {
     town_map: "a/2/4/5",
     chosen_language: 0x130,
     shop_item: Some(0xC4),
+    plaza: &[0x13E, 0x13F],
 };
 
 /// `GAME`: a function, since a `String` and a `HashSet` cannot be built in a constant.
