@@ -2916,6 +2916,7 @@ impl BoxGrid {
                 Rc::new(move || Ok(slot.get())) as Slot
             }),
             None,
+            Rc::new(|| false),
         )
         .into();
         grid.files = files;
@@ -3134,6 +3135,7 @@ fn test_the_battle_boxs_slots_are_said_by_the_name_above_them_and_their_number()
         &[r#box.title.clone()],
         None,
         None,
+        false,
     )
     .unwrap();
     assert!(found.is_some_and(|found| found.1.is_empty()));
@@ -3161,6 +3163,7 @@ fn test_the_battle_boxs_slots_are_none_while_a_box_is_drawn() {
             &[r#box.title.clone()],
             None,
             None,
+            false,
         )
         .unwrap(),
         None
@@ -3233,6 +3236,7 @@ fn test_a_slot_under_a_pokemon_carried_says_who_is_in_it() {
             std::slice::from_ref(&r#box.title),
             Some(&occupant),
             None,
+            false,
         )
         .unwrap()
         .expect("a slot");
@@ -3258,6 +3262,7 @@ fn test_a_slot_under_a_pokemon_carried_says_who_is_in_it() {
         std::slice::from_ref(&r#box.title),
         Some(&occupant),
         None,
+        false,
     )
     .unwrap()
     .expect("a slot");
@@ -3266,6 +3271,42 @@ fn test_a_slot_under_a_pokemon_carried_says_who_is_in_it() {
         ("BOX 1, row 2, column 2", false)
     );
     assert_eq!(asked.borrow().len(), 2);
+}
+
+/// A trade's party and boxes show no summary of the slot under the pointer, and their Pokémon
+/// went unsaid until opened (the PSS's multiplayer): each slot is said with who is in it, an
+/// empty one as ever.
+#[test]
+fn test_a_trades_slot_says_who_is_in_it() {
+    let r#box = BoxGrid::new();
+    let file = r#box
+        .files
+        .matching(&r#box.fake.layouts.pane_names(r#box.root));
+    let occupant: slots::Occupant =
+        Rc::new(|_kind: &str, _title: Option<&str>, _index: i64| Ok(Some("erza".to_string())));
+    for (x, y, said) in [
+        (-100.0, 25.0, "BOX 1, row 2, column 2, erza"),
+        (-130.0, 55.0, "BOX 1, row 1, column 1, empty"),
+    ] {
+        let found = slots::slot(
+            &r#box.fake.layouts,
+            file.as_deref(),
+            r#box.root,
+            x,
+            y,
+            std::slice::from_ref(&r#box.title),
+            Some(&occupant),
+            None,
+            true,
+        )
+        .unwrap();
+        assert!(
+            found
+                .as_ref()
+                .is_some_and(|found| (found.1.as_str(), found.2) == (said, true)),
+            "{found:?}"
+        );
+    }
 }
 
 #[test]

@@ -22,7 +22,9 @@
 //! slot as its details (2026-09-27: where, then the summary, where, then "empty").
 //! While a Pokémon is carried the summary is the carried one's, whatever slot the pointer is on,
 //! so a slot is said alone, with the name of the Pokémon in it where the game's own reader knows
-//! it: "BOX 1, row 1, column 2, erza" (or_organize_boxes).
+//! it: "BOX 1, row 1, column 2, erza" (or_organize_boxes). So is every slot of a screen that shows
+//! no summary of the slot under its pointer (`named`): a trade's party and boxes, whose Pokémon
+//! went unsaid until opened (the PSS's multiplayer).
 
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::rc::Rc;
@@ -75,9 +77,10 @@ fn index_of(items: &[i64], item: i64) -> Result<usize> {
 }
 
 /// The touch area a cursor resting at (x, y) is on, what to say of it, and whether it is said
-/// alone, the summary left unsaid: an empty slot, or any while a Pokémon is carried, said with
-/// who is in it by `occupant`. None where it rests on no slot, as on a lone button's touch area;
-/// no words for a slot behind the Battle Box's, which nothing reaches.
+/// alone, the summary left unsaid: an empty slot, or any while a Pokémon is carried or on a
+/// screen with no summary (`named`), said with who is in it by `occupant`. None where it rests
+/// on no slot, as on a lone button's touch area; no words for a slot behind the Battle Box's,
+/// which nothing reaches.
 ///
 /// Where the game says which slot the cursor is going to, `target`, its touch area (`nth`), that
 /// slot, the cursor at rest on it or still gliding there at (x, y): the Pokémon carried rides
@@ -92,6 +95,7 @@ pub fn slot(
     on_screen: &[ScreenText],
     occupant: Option<&Occupant>,
     target: Option<i64>,
+    named: bool,
 ) -> Result<Option<(i64, String, bool)>> {
     let tree = layouts.tree(root);
     let mut touch: Option<i64> = target;
@@ -213,7 +217,7 @@ pub fn slot(
     if !holds_icon(&icons, place) {
         return Ok(Some((touch, own(EMPTY_SLOT, &[("slot", &r#where)]), true)));
     }
-    if !holds_icon(&icons, (x, y + CARRIED)) {
+    if !named && !holds_icon(&icons, (x, y + CARRIED)) {
         return Ok(Some((touch, r#where, false)));
     }
     // The summary is the carried one's, so the Pokémon in the slot is named from the save.

@@ -315,6 +315,7 @@ impl ListCursors {
                         on_screen,
                         self.panes.occupant.as_ref(),
                         target,
+                        (self.panes.named)(),
                     )?
                 };
                 if found.as_ref().is_none_or(|found| found.1.is_empty()) {

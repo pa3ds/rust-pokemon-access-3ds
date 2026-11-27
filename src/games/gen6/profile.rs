@@ -99,7 +99,7 @@ use crate::games::gen6::screens::sources::{Chase, CursorSources};
 use crate::games::gen6::screens::{
     boxes, buttons, claims, partners, partyicons, pokedex, registered, rows, townmap,
 };
-use crate::games::gen6::subscreen::{self, Subscreens};
+use crate::games::gen6::subscreen::{self, Subscreens, pss};
 use crate::games::gen6::{frames, gflheap, mystatus};
 use crate::py::{self, Error, Kind, Log, PySet, Result};
 
@@ -813,6 +813,11 @@ impl Gen6Profile {
                         },
                     ) as Blank
                 }),
+                // A trade's slots show no summary: each is said with who is in it.
+                {
+                    let apps = apps.clone();
+                    Rc::new(move || apps.borrow().running.as_deref() == Some(pss::TRADE_LIST))
+                },
             )
         };
         let off: touch_targets::Off = {

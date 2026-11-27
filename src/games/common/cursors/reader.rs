@@ -68,6 +68,7 @@ impl CursorReader {
             None,
             None,
             None,
+            Rc::new(|| false),
         )
     }
 
@@ -77,7 +78,9 @@ impl CursorReader {
     /// passport's photos and Omega Ruby's boy and girl, is its own (`pictures`). `occupant`
     /// names who is in a PC Box's slot while a Pokémon is carried (`slots`), and `slot` the
     /// slot its pointer is going to, as the game counts them (`slots.nth`). `blank` says what
-    /// a menu cursor framing nothing is on, where its screen names it (`menu.Blank`).
+    /// a menu cursor framing nothing is on, where its screen names it (`menu.Blank`). `named`
+    /// says whether the screen shows no summary of the slot under its pointer, each slot then
+    /// said with who is in it.
     #[allow(clippy::too_many_arguments)]
     pub fn with_occupant(
         layouts: Rc<Layouts>,
@@ -88,6 +91,7 @@ impl CursorReader {
         occupant: Option<Occupant>,
         slot: Option<Slot>,
         blank: Option<Blank>,
+        named: Rc<dyn Fn() -> bool>,
     ) -> Self {
         let panes = Rc::new(Panes::new(
             layouts,
@@ -96,6 +100,7 @@ impl CursorReader {
             cursor_panes,
             occupant,
             slot,
+            named,
         ));
         let said = Rc::new(Said::default());
         CursorReader {

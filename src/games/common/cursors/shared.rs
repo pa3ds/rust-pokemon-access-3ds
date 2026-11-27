@@ -127,6 +127,9 @@ pub struct Panes {
     pub pictures: Option<Pictures>,
     /// Who is in a PC Box's slot, said while a Pokémon is carried (`slots`), or None.
     pub occupant: Option<Occupant>,
+    /// Whether the screen shows no summary of the slot under its pointer, each slot said
+    /// with who is in it (`slots.slot`'s `named`): a trade's.
+    pub named: Rc<dyn Fn() -> bool>,
     /// The slot the PC Box's pointer is on or gliding to, as the game counts its grid's
     /// (`slots.nth`), or None where the game does not say or is not read.
     pub slot: Option<Slot>,
@@ -149,12 +152,14 @@ impl Panes {
         cursor_panes: bool,
         occupant: Option<Occupant>,
         slot: Option<Slot>,
+        named: Rc<dyn Fn() -> bool>,
     ) -> Self {
         Panes {
             layouts,
             files,
             pictures,
             occupant,
+            named,
             slot,
             cursor_panes,
             picture_words: RefCell::new(IndexMap::new()),
