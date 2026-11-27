@@ -21,7 +21,7 @@ use crate::games::common::scenes;
 use crate::games::common::session::{Profile, Session, Setup};
 use crate::games::sm::gametext::SunGameText;
 use crate::games::sm::heaps::Blocks;
-use crate::games::sm::profile::{Options, REQUIRED, SunProfile, heap_classes};
+use crate::games::sm::profile::{Options, REQUIRED, STAT_NAMES, SunProfile, heap_classes};
 use crate::games::sm::text::SunText;
 use crate::games::sm::walls::SunWalls;
 use crate::games::sm::zones::SunZones;
@@ -82,7 +82,12 @@ pub fn start(
                 SunText::load(
                     image,
                     language,
-                    &[langselect::TEXT_FILE, lyt::LEVEL_WORDS.0, shop::ITEM_NAMES],
+                    &[
+                        langselect::TEXT_FILE,
+                        lyt::LEVEL_WORDS.0,
+                        shop::ITEM_NAMES,
+                        STAT_NAMES.0,
+                    ],
                 )
             },
             "the menus' words are off",

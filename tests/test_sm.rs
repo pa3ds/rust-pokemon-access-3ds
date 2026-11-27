@@ -25,7 +25,7 @@ use crate::games::common::session::Profile;
 use crate::games::sm::heaps::{self, Blocks, Heaps};
 use crate::games::sm::langselect::{self, LangSelectReader, Shown};
 use crate::games::sm::profile::{
-    SunProfile, counted_rows, labelled_rows, stat_rows, words_apart,
+    SunProfile, chart_stats, counted_rows, labelled_rows, stat_rows, words_apart,
 };
 use crate::games::sm::shop::{self, ShopReader};
 use crate::games::sm::text::SunText;
@@ -745,6 +745,62 @@ fn test_a_level_up_s_stats_are_read_whole_once_they_have_slid_in() {
     assert!(stat_rows(&party).is_none());
 }
 
+/// Ultra Sun's summary of Rowlet (spike Q): the names are pictures, two side by side read as
+/// one, each a row off its number; the numbers were said bare, "9/24 13 13 12 10 11".
+#[test]
+fn test_the_summary_s_stats_round_their_chart_are_read_by_name_in_the_game_s_order() {
+    let root = 0x3035EFD4;
+    let names: Vec<String> = ["HP", "Attack", "Defense", "Sp. Atk", "Sp. Def", "Speed"]
+        .iter()
+        .map(|name| name.to_string())
+        .collect();
+    let at = |r#box: i64, text: &str, left: f64, right: f64, row: f64, picture: bool| {
+        ScreenText {
+            left,
+            right,
+            row,
+            glyph: 14.0,
+            root,
+            parent: 0x3035F0A8,
+            picture,
+            ..ScreenText::new(r#box, text, false)
+        }
+    };
+    let texts = vec![
+        at(1, "Exp. Points", -198.0, -116.0, -20.0, false),
+        at(2, "223", -30.0, -8.0, -40.0, false),
+        at(3, "9", 86.0, 93.0, 62.0, false),
+        at(4, "/", 94.0, 102.0, 62.0, false),
+        at(5, "24", 103.0, 118.0, 62.0, false),
+        at(6, "13", 134.0, 149.0, 22.0, false),
+        at(7, "10", 134.0, 149.0, -12.0, false),
+        at(8, "13", 47.0, 62.0, 22.0, false),
+        at(9, "12", 47.0, 62.0, -12.0, false),
+        at(10, "11", 90.0, 106.0, -52.0, false),
+        at(11, "HP", 66.0, 130.0, 82.0, true),
+        at(12, "Sp. Atk/Attack", 30.0, 166.0, 42.0, true),
+        at(13, "Sp. Def/Defense", 30.0, 166.0, -32.0, true),
+        at(14, "Speed", 66.0, 130.0, -72.0, true),
+    ];
+    let read: Vec<String> = labelled_rows(&chart_stats(&texts, &names))
+        .into_iter()
+        .map(|piece| piece.text)
+        .collect();
+    assert!(
+        read.contains(
+            &"HP 9/24, Attack 13, Defense 10, Sp. Atk 13, Sp. Def 12, Speed 11".to_string()
+        )
+    );
+    assert!(
+        join(
+            &in_rows(labelled_rows(&chart_stats(&texts, &names))),
+            false
+        )
+        .starts_with("Exp. Points 223")
+    );
+    assert_eq!(chart_stats(&texts[..5], &names), texts[..5]);
+}
+
 /// The PC Box's summary as Route 1's Center drew it (spike Q): labels built first, values
 /// after, two stat columns on one set of rows, HP's 15/33 a group of its own, the moves a group
 /// each beside the values of Nature and Ability.
@@ -772,7 +828,7 @@ fn test_the_pc_box_summary_reads_each_value_after_its_label() {
         .enumerate()
         .map(|(n, &(text, parent, left, row))| ScreenText {
             left,
-            right: left + 6.0 * text.chars().count() as f64,
+            right: left + 7.5 * text.chars().count() as f64,
             row,
             glyph: 12.0,
             root: 0x30AECA7C,

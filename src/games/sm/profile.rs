@@ -42,7 +42,7 @@ use crate::games::common::field::things::{Field, Interactable, describe};
 use crate::games::common::layout::Layouts;
 use crate::games::common::lyt as common_lyt;
 use crate::games::common::scenes::{Scene, Scenes};
-use crate::games::common::screen::{ScreenText, ScreenTextReader};
+use crate::games::common::screen::{Pictures, ScreenText, ScreenTextReader};
 use crate::games::common::screen_announce::{Heard, ScreenAnnouncer};
 use crate::games::common::session::Profile;
 use crate::games::sm::apps::{self, RunningApp};
@@ -94,6 +94,8 @@ pub const POKEDEX: &str = "N3app5zukan9ZukanProcE";
 pub const BATTLE: &str = "N3btl10BattleProcE";
 /// The PC Box's app, as `apps` names it.
 pub const BOX_APP: &str = "N3App3Box4ProcE";
+/// The summary's app, its labels built before their values as the Box's are.
+pub const SUMMARY_APP: &str = "N3App6Status4ProcE";
 /// Polls a Pokédex cursor's item must stand with no newer one before it is said.
 pub const SETTLE: i64 = 3;
 /// The most pieces one Pokédex item holds: its first menu's, "Alola Pokédex 3 9", three.
@@ -204,6 +206,8 @@ pub struct SunProfile {
     log: Log,
     pub layouts: Rc<Layouts>,
     pub dialogue: RefCell<DialogueReader>,
+    /// The game's names for the stats, HP to Speed, where its text is read.
+    stat_names: Vec<String>,
     pub screen: RefCell<ScreenTextReader>,
     pub cursors: RefCell<CursorReader>,
     pub screen_announcer: RefCell<ScreenAnnouncer>,
@@ -330,6 +334,42 @@ impl SunProfile {
         );
         // Menus and screens are ORAS's readers over Sun's panes: the words each TextBox on screen
         // shows, and the item under each cursor (spike 112).
+        let stat_names: Vec<String> = match &text {
+            None => Vec::new(),
+            Some(text) => (0..STAT_ROWS as i64)
+                .filter_map(|i| text.line(STAT_NAMES.0, STAT_NAMES.1 + i))
+                .filter(|name| !name.is_empty())
+                .collect(),
+        };
+        let picture: Pictures = {
+            let (layouts, text) = (layouts.clone(), text.clone());
+            Rc::new(move |pane| {
+                // The summary draws its stats' names as pictures, ParamName_00 to _05, in the
+                // order of the game's own names for them (spike Q).
+                let mut name = layouts.name(pane)?;
+                while name.last() == Some(&0) {
+                    name.pop();
+                }
+                let tail = py::slice_from(&name, -2);
+                let Some(text) = &text else {
+                    return Ok(None);
+                };
+                if !name.starts_with(STAT_PANE)
+                    || tail.is_empty()
+                    || !tail.iter().all(u8::is_ascii_digit)
+                {
+                    return Ok(None);
+                }
+                let index = tail
+                    .iter()
+                    .fold(0, |number, digit| number * 10 + i64::from(digit - b'0'));
+                Ok(if index < STAT_ROWS as i64 {
+                    text.line(STAT_NAMES.0, STAT_NAMES.1 + index)
+                } else {
+                    None
+                })
+            })
+        };
         let mut screen = ScreenTextReader::with(
             panes.clone(),
             names.clone(),
@@ -337,7 +377,7 @@ impl SunProfile {
             msgwin::CLASSES.iter().map(|c| c.to_string()).collect(),
             text.as_ref()
                 .and_then(|text| text.line(lyt::LEVEL_WORDS.0, lyt::LEVEL_WORDS.1)),
-            None,
+            Some(picture),
             IndexMap::new(),
             HashSet::new(),
         );
@@ -455,6 +495,7 @@ impl SunProfile {
             log,
             layouts,
             dialogue: RefCell::new(dialogue),
+            stat_names,
             screen: RefCell::new(screen),
             cursors: RefCell::new(cursors),
             screen_announcer: RefCell::new(screen_announcer),
@@ -611,7 +652,12 @@ impl SunProfile {
             }
             let texts = if app.as_deref() == Some(POKEDEX) {
                 counted_rows(&texts)?
-            } else if app.as_deref() == Some(BOX_APP) {
+            } else if app.as_deref() == Some(BOX_APP) || app.as_deref() == Some(SUMMARY_APP) {
+                let texts = if app.as_deref() == Some(SUMMARY_APP) && !self.stat_names.is_empty() {
+                    chart_stats(&texts, &self.stat_names)
+                } else {
+                    texts
+                };
                 labelled_rows(&texts)
             } else {
                 texts
@@ -709,6 +755,16 @@ fn leads_to(zones: Option<&SunZones>, here: i64, there: i64) -> Result<Option<St
     Ok(theirs)
 }
 
+/// `c.islower()` for one character: its Lowercase property, as Python's is. Not in `py`.
+fn is_lower(c: char) -> bool {
+    c.is_lowercase()
+}
+
+/// `c.isupper()` for one character: its Uppercase property, as Python's is. Not in `py`.
+fn is_upper(c: char) -> bool {
+    c.is_uppercase()
+}
+
 /// Each word and number Sun draws touching on a row, two letters or more each, moved a glyph
 /// apart so they are said apart: the Pokédex entry read "Height1'00"", "Weight3.3 lbs." and
 /// "001Rowlet" (spike Q). A level mark and its number, one letter, stay one.
@@ -716,6 +772,8 @@ pub fn words_apart(found: IndexMap<i64, ScreenText>) -> IndexMap<i64, ScreenText
     let mut out = found.clone();
     for second in found.values() {
         let glyph = second.glyph;
+        // Stacked at one place too: the summary's move panel draws Power and Accuracy so, and
+        // "PowerAccuracy" was said.
         let before: Vec<&ScreenText> = found
             .values()
             .filter(|piece| {
@@ -727,7 +785,8 @@ pub fn words_apart(found: IndexMap<i64, ScreenText>) -> IndexMap<i64, ScreenText
                 };
                 piece.root == second.root
                     && piece.glyph > 0.0
-                    && piece.left < second.left
+                    && !std::ptr::eq(*piece, second)
+                    && piece.left <= second.left
                     && (piece.row - second.row).abs() < least
             })
             .collect();
@@ -735,8 +794,13 @@ pub fn words_apart(found: IndexMap<i64, ScreenText>) -> IndexMap<i64, ScreenText
             continue;
         }
         // Its own row's first: the entry's rows are closer than a glyph, and Height's value stood
-        // left of Weight's, nearer than Weight.
-        let key = |piece: &ScreenText| ((piece.row - second.row).abs(), -piece.left);
+        // left of Weight's, nearer than Weight; and of those the one ending nearest its start.
+        let key = |piece: &ScreenText| {
+            (
+                (piece.row - second.row).abs(),
+                (second.left - piece.right).abs(),
+            )
+        };
         let mut first = before[0];
         for &piece in &before[1..] {
             let (a, b) = (key(piece), key(first));
@@ -750,10 +814,9 @@ pub fn words_apart(found: IndexMap<i64, ScreenText>) -> IndexMap<i64, ScreenText
         let (last, start) = (a.chars().last(), b.chars().next());
         let mixed = (last.is_some_and(py::is_alpha) && start.is_some_and(py::is_digit))
             || (last.is_some_and(py::is_digit) && start.is_some_and(py::is_alpha));
-        if a.chars().count() < 2
-            || b.chars().count() < 2
-            || second.left - first.right >= glyph
-            || !mixed
+        let mixed = mixed || (last.is_some_and(is_lower) && start.is_some_and(is_upper));
+        let gap = second.left - first.right;
+        if a.chars().count() < 2 || b.chars().count() < 2 || !(-glyph < gap && gap < glyph) || !mixed
         {
             continue;
         }
@@ -771,6 +834,10 @@ pub fn words_apart(found: IndexMap<i64, ScreenText>) -> IndexMap<i64, ScreenText
 
 /// The rows of a level-up's stats panel, a stat each.
 pub const STAT_ROWS: usize = 6;
+/// System text file 12's lines 19 to 24, the stats' names, HP to Speed, in Sun and Ultra Sun.
+pub const STAT_NAMES: (i64, i64) = (12, 19);
+/// The summary's pictures of the stats' names, in that order.
+pub const STAT_PANE: &[u8] = b"ParamName_";
 
 /// `p.text.startswith("+") and p.text[1:].strip().isdigit()`: a stat's gain, "+ 3".
 fn gain(text: &str) -> bool {
@@ -842,6 +909,121 @@ pub fn stat_rows(on_screen: &[ScreenText]) -> Option<(String, HashSet<i64>)> {
     None
 }
 
+/// Glyphs under its label a value may stand: Exp. Points' 223 is 20 units, 1.4, under it.
+pub const VALUE_BELOW: f64 = 2.5;
+/// Glyphs a number may stand right of what it follows: HP's 15 is 3.3 past HP in the Box, and
+/// the summary's Attack, round its chart, 4.6 past the trainer's name.
+pub const NEAR: f64 = 3.5;
+
+/// The summary's stats round its chart read as one line in the game's order, each name with
+/// its number: "HP 9/24, Attack 13, Defense 10, Sp. Atk 13, Sp. Def 12, Speed 11". The names are
+/// pictures (`STAT_PANE`), two side by side read as one, "Sp. Atk/Attack", each a row above or
+/// below its number, and the numbers were said bare, "9/24 13 13 12 10 11" (Ultra Sun, spike Q).
+/// `names` are the game's names for the stats, HP to Speed; `texts` as they are where the chart
+/// is not all there.
+pub fn chart_stats(texts: &[ScreenText], names: &[String]) -> Vec<ScreenText> {
+    // (its name, x, row, the picture)
+    let mut placed: Vec<(String, f64, f64, &ScreenText)> = Vec::new();
+    for piece in texts {
+        if !piece.picture {
+            continue;
+        }
+        let parts: Vec<&str> = piece.text.split('/').collect();
+        if !parts.iter().all(|part| names.iter().any(|name| name == part)) {
+            continue;
+        }
+        let width = (piece.right - piece.left) / parts.len() as f64;
+        for (i, part) in parts.iter().enumerate() {
+            placed.push((
+                part.to_string(),
+                piece.left + width * (i as f64 + 0.5),
+                piece.row,
+                piece,
+            ));
+        }
+    }
+    let mut placed_names: Vec<&String> = placed.iter().map(|p| &p.0).collect();
+    placed_names.sort();
+    let mut wanted: Vec<&String> = names.iter().collect();
+    wanted.sort();
+    if placed_names != wanted {
+        return texts.to_vec();
+    }
+    let root = placed[0].3.root;
+    let texts_here: Vec<&ScreenText> = texts.iter().filter(|piece| piece.root == root).collect();
+    let numbers: Vec<&ScreenText> = texts_here
+        .iter()
+        .copied()
+        .filter(|piece| !piece.picture && py::isdigit(&piece.text))
+        .collect();
+    let mut used: HashSet<i64> = HashSet::new();
+    let mut said: Vec<String> = Vec::new();
+    for name in names {
+        let (_name, x, row, _piece) = placed
+            .iter()
+            .find(|p| &p.0 == name)
+            .expect("every name placed");
+        let free: Vec<&ScreenText> = numbers
+            .iter()
+            .copied()
+            .filter(|n| !used.contains(&n.r#box))
+            .collect();
+        if free.is_empty() {
+            return texts.to_vec();
+        }
+        // `min(free, key=hypot(...))`: the first of equals.
+        let key = |n: &ScreenText| py::hypot((n.left + n.right) / 2.0 - x, n.row - row);
+        let mut head = free[0];
+        for &n in &free[1..] {
+            if key(n) < key(head) {
+                head = n;
+            }
+        }
+        // A number and what is drawn just right of it on its row: HP's "/" and its maximum.
+        let mut value: Vec<&ScreenText> = vec![head];
+        for piece in py::sorted_by_lt(texts_here.clone(), |a, b| a.left < b.left) {
+            let last = value[value.len() - 1];
+            if !std::ptr::eq(piece, last)
+                && !piece.picture
+                && !used.contains(&piece.r#box)
+                && (piece.row - head.row).abs() < head.glyph / 2.0
+                && 0.0 <= piece.left - last.right
+                && piece.left - last.right < head.glyph
+                && !piece.text.chars().any(py::is_alpha)
+            {
+                value.push(piece);
+            }
+        }
+        used.extend(value.iter().map(|p| p.r#box));
+        let joined: String = value.iter().map(|p| p.text.as_str()).collect();
+        said.push(format!("{name} {joined}"));
+    }
+    let pictures: HashSet<i64> = placed.iter().map(|p| p.3.r#box).collect();
+    let first = texts
+        .iter()
+        .find(|piece| pictures.contains(&piece.r#box))
+        .expect("a picture placed");
+    let line = ScreenText {
+        text: said.join(", "),
+        picture: false,
+        ..first.clone()
+    };
+    texts
+        .iter()
+        .filter(|piece| {
+            std::ptr::eq(*piece, first)
+                || (!used.contains(&piece.r#box) && !pictures.contains(&piece.r#box))
+        })
+        .map(|piece| {
+            if std::ptr::eq(piece, first) {
+                line.clone()
+            } else {
+                piece.clone()
+            }
+        })
+        .collect()
+}
+
 /// Each piece read straight after the one left of it on its row (`ScreenText.follows`): the
 /// PC Box's summary builds its labels first and its values after, and read them so, "Name Type OT
 /// Rowlet rewq HP Attack ... 15/33 13 14" (spike Q).
@@ -864,9 +1046,34 @@ pub fn labelled_rows(texts: &[ScreenText]) -> Vec<ScreenText> {
     };
     let worded = |piece: &ScreenText| piece.text.chars().any(py::is_alpha);
 
-    // A value follows its label, a word of its own group, and a number or a "/" whatever is left
-    // of it: HP's 15 and 33 are a group of their own. The moves, a group each, beside Timid and
-    // Overgrow, and Sp. Atk right of Defense's 14, are read where they were built.
+    // A value follows its label, a word of its own group, and a number or a "/" what stands just
+    // left of it: HP's 15 and 33 are a group of their own. The moves, a group each, beside Timid
+    // and Overgrow, Sp. Atk right of Defense's 14, and the summary's stats round their chart, far
+    // right of its labels, are read where they were built.
+    //
+    // The label just over a number with nothing left of it, where that label has nothing
+    // right of it: the summary draws Exp. Points' and To Next Lv.'s on the rows under them.
+    let above = |piece: &ScreenText| -> Option<&ScreenText> {
+        // `min(over, key=..., default=None)`: the first of equals.
+        let mut best: Option<&ScreenText> = None;
+        for other in texts {
+            if other.root == piece.root
+                && worded(other)
+                && other.left < piece.left
+                && left_of(other).is_none()
+                && 0.0 < other.row - piece.row
+                && other.row - piece.row < VALUE_BELOW * piece.glyph
+                && !texts
+                    .iter()
+                    .any(|value| left_of(value).is_some_and(|left| std::ptr::eq(left, other)))
+                && best.is_none_or(|best| other.row - piece.row < best.row - piece.row)
+            {
+                best = Some(other);
+            }
+        }
+        best
+    };
+
     let mut out: Vec<ScreenText> = Vec::new();
     for piece in texts {
         let before = if piece.follows != 0 {
@@ -876,14 +1083,30 @@ pub fn labelled_rows(texts: &[ScreenText]) -> Vec<ScreenText> {
         };
         match before {
             Some(before)
-                if (worded(before) && before.parent == piece.parent) || !worded(piece) =>
+                if (worded(piece) && worded(before) && before.parent == piece.parent)
+                    || (!worded(piece)
+                        && (before.parent == piece.parent
+                            || piece.left - before.right < NEAR * piece.glyph)) =>
             {
                 out.push(ScreenText {
                     follows: before.r#box,
                     ..piece.clone()
                 });
+                continue;
             }
-            _ => out.push(piece.clone()),
+            _ => {}
+        }
+        if before.is_none()
+            && piece.follows == 0
+            && py::isdigit(&piece.text)
+            && let Some(over) = above(piece)
+        {
+            out.push(ScreenText {
+                follows: over.r#box,
+                ..piece.clone()
+            });
+        } else {
+            out.push(piece.clone());
         }
     }
     out
