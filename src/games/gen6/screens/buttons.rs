@@ -248,7 +248,7 @@ impl Buttons {
 
     /// (work, pane name) of every button switched on now. The PSS Settings' Yes and No are
     /// windows holding their words, with no touch area: the manager takes a tap on the window
-    /// (spike P).
+    /// (spike 312).
     pub fn on(&self) -> Result<HashSet<(i64, String)>> {
         Ok(self.switched()?.0)
     }

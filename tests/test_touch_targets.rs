@@ -1979,7 +1979,7 @@ fn test_the_pss_menus_arrow_turns_the_page_by_its_side() {
 }
 
 /// The PSS Settings' Yes and No are windows, `2w` and `34`, each holding its word and no
-/// touch area, and the game takes a tap on the window: touch mode offered neither (spike P). A
+/// touch area, and the game takes a tap on the window: touch mode offered neither (spike 312). A
 /// window that is no button, or holds a touch area of its own, is none.
 #[test]
 fn test_a_window_holding_its_words_that_is_a_button_switched_on_is_a_touch_area() {

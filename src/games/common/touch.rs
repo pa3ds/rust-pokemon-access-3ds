@@ -49,7 +49,7 @@
 //! big as the screen, at the layer of its page under them, which is on the list: a target of a
 //! layout on the list, at that layer or under it, is left out while such a window is up, and so is
 //! one of a window under a window built after it, the Shout-Out's Yes and No over the menu
-//! (`Layouts.order`, spike P). A touch area under a bar its layout draws over it is hidden, the
+//! (`Layouts.order`, spike 312). A touch area under a bar its layout draws over it is hidden, the
 //! O-Power list's last row under its gauge; and a button switched off that the game greys, with an
 //! animation to grey it and a picture faded, is offered with "unavailable" after its name
 //! (`said_unavailable`, `greyed`).
@@ -1571,7 +1571,7 @@ impl TouchTargets {
     /// The windows and pictures of a layout that are buttons switched on (`on`, their names)
     /// holding words and no touch area: the game takes a tap on the pane itself. The PSS
     /// Settings' Yes and No are windows, `2w` and `34`, each holding its word, and were never
-    /// offered (spike P), nor the profile's messages to choose from, pictures, `prof_btn`, each
+    /// offered (spike 312), nor the profile's messages to choose from, pictures, `prof_btn`, each
     /// holding its message (or_pss_singleplayer_2). Holding words: Tile Puzzle's cursor, a
     /// picture its manager lists, was offered by its texture, "cursol".
     ///

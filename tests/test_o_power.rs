@@ -1,4 +1,4 @@
-//! What R says on O-Power's screens: the energy, then the powers running (spike Q).
+//! What R says on O-Power's screens: the energy, then the powers running (spike 313).
 
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
@@ -83,7 +83,7 @@ fn test_r_says_the_energy_then_the_powers_running_on_o_powers_screens() {
 }
 
 /// The digit beside the list's gauge's clock icon is the energy's regen rate, `number_1` with
-/// Azahar counting no steps and `number_4` at 9000 an hour (spike Q again).
+/// Azahar counting no steps and `number_4` at 9000 an hour (spike 313 again).
 #[test]
 fn test_r_says_the_regen_rate_the_list_shows_after_the_energy() {
     let memory = FakeMemory::new();

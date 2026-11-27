@@ -1,4 +1,5 @@
-//! O-Power: the energy the PSS's O-Power list spends, and the powers running, said by R (spike Q).
+//! O-Power: the energy the PSS's O-Power list spends, and the powers running, said by R
+//! (spike 313).
 //!
 //! ```text
 //!     savedata::AssistPowerData   the save's O-Power record, in the heap from before the title screen
@@ -47,7 +48,7 @@ pub const LIST: &str = "assist_power_lower.bclyt";
 pub const ACTIVE: &str = "assist_power_upper.bclyt";
 pub const ENERGY_WORDS: &str = "o-power-energy";
 /// How the texture of the digit beside the list's gauge's clock icon begins, `number_1` to
-/// `number_4`: the energy's regen rate, by the steps counted that day (spike Q again).
+/// `number_4`: the energy's regen rate, by the steps counted that day (spike 313 again).
 pub const REGEN: &str = "number_";
 pub const REGEN_WORDS: &str = "o-power-regen";
 /// Seconds a page of the Active panel is kept for R after it last showed: two of its turns.

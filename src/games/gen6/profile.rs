@@ -780,7 +780,7 @@ impl Gen6Profile {
                 if said.is_none() && apps.borrow().running.as_deref() == Some(BATTLE) {
                     return Ok(Some(own("key-battle-not-shown", &[])));
                 }
-                // On O-Power's screens, the energy and the powers running (spike Q).
+                // On O-Power's screens, the energy and the powers running (spike 313).
                 if said.is_none() && player {
                     return o_power.borrow_mut().said();
                 }

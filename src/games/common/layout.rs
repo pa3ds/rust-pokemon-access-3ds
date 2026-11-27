@@ -447,7 +447,7 @@ impl Layouts {
 
     /// When a layout was last taken in among the others, a later one higher; 0 for one never
     /// seen taken in. The PSS builds a window over its menu, the Shout-Out's Yes and No, at the
-    /// menu's layer and off the field's draw list as the menu is (spike P).
+    /// menu's layer and off the field's draw list as the menu is (spike 312).
     pub fn order(&self, root: i64) -> i64 {
         self.order.borrow().get(&root).copied().unwrap_or(0)
     }
@@ -810,7 +810,7 @@ impl Layouts {
 
     /// Is this layout on the system's list of layouts to draw now (`lyt.WORK_LISTED`)? The
     /// field draws its own through it, and the PSS draws its windows itself, over the PSS's page
-    /// (spike P, or_pss_singleplayer).
+    /// (spike 312, or_pss_singleplayer).
     pub fn listed(&self, root: i64) -> Result<bool> {
         let Some(layout) = self.roots.borrow().get(&root).copied() else {
             return Ok(false);
