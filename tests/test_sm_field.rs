@@ -17,7 +17,7 @@ use crate::core::memory::{self, Cache, ExactCache, Memory, RpcMemory};
 use crate::core::rpc::{MAX_READ, Process, Rpc, UdpRpc};
 use crate::core::rtti::ClassNames;
 use crate::core::speech::Speech;
-use crate::games::common::field::things::{FURNITURE_SOURCE, Field, WARP_SOURCE};
+use crate::games::common::field::things::{FURNITURE_SOURCE, Field, TRIGGER_SOURCE, WARP_SOURCE};
 use crate::games::common::scenes::{Beat, Scene};
 use crate::games::common::session::Profile;
 use crate::games::sm::field::{self, SunFieldReader, Walls};
@@ -286,6 +286,7 @@ impl Bedroom {
             field::THING,
             field::WARP,
             field::ITEM,
+            field::STEP,
             field::PROP,
             field::BOX,
             field::CYLINDER,
@@ -1041,6 +1042,58 @@ fn test_a_hidden_item_is_not_listed_though_the_field_builds_it_an_actor() {
         .unwrap();
     let cells: Vec<(i64, i64)> = at.of("items").iter().map(|item| item.cell).collect();
     assert_eq!(cells, [(48, 62)]);
+}
+
+/// Of Route 1's twelve steps one was armed, and walking at it started its scene (spike P).
+#[test]
+fn test_only_a_step_the_field_has_armed_is_listed_and_p_steps_round_it() {
+    let bedroom = Bedroom::new();
+    let (armed, idle) = (0x30372F00, 0x3037B068);
+    for (actor, (x, z), on) in [(armed, (47.5, 60.5), 1), (idle, (44.5, 62.5), 0)] {
+        bedroom.memory.u32(actor, &[bedroom.vtables[field::STEP]]);
+        bedroom.memory.u32(actor + field::STEP_ARMED, &[on]);
+        floats(
+            &bedroom.memory,
+            actor + field::ACTOR_X,
+            &[x * C, 1.0, z * C],
+        );
+    }
+    let step = Record {
+        number: 0x7738,
+        ..record(
+            47.5 * C,
+            60.5 * C,
+            Some(Shape {
+                west: 47.1 * C,
+                north: 60.1 * C,
+                east: 48.9 * C,
+                south: 60.9 * C,
+            }),
+        )
+    };
+    let unarmed = Record {
+        number: 0x773B,
+        ..record(44.5 * C, 62.5 * C, None)
+    };
+    let mut zones_rom = rom();
+    zones_rom
+        .areas
+        .get_mut(&AREA)
+        .expect("the bedroom's area")
+        .steps = vec![vec![step, unarmed]];
+    let found = with_heap(&bedroom, &[(armed, field::STEP), (idle, field::STEP)]);
+    let at = bedroom
+        .listed(Some(zones_rom), Some(&found), true, &[])
+        .unwrap();
+    let spots: Vec<_> = at
+        .of("signs")
+        .into_iter()
+        .filter(|item| item.kind == "scene spot")
+        .collect();
+    let placed: Vec<((i64, i64), (i64, i64))> =
+        spots.iter().map(|item| (item.cell, item.size)).collect();
+    assert_eq!(placed, [((47, 60), (2, 1))]);
+    assert_eq!(spots[0].place_kind(), Some(TRIGGER_SOURCE));
 }
 
 /// A prop in a collision group at a cell's centre: a box if `values` are a box's twelve

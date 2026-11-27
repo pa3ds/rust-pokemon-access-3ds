@@ -44,6 +44,12 @@ far, "here" once you are there.
 In Laverre Gym, in X and Y, the interactables list each teleporter with where it puts you, and `P`
 leads you through them, saying the way as far as the first and how many more.
 
+In Sun, Moon, Ultra Sun and Ultra Moon, the interactables list each "scene spot": a place the
+game starts a scene when you walk onto it. That is usually where the story goes next, such as
+where Lillie waits for you on Route 1, and `P` leads you there. A scene spot can also be where the
+story turns you back, such as the Tauros on the road to Hau'oli City before the festival. `P`
+walks round every scene spot on the way to anything else.
+
 In the Poké Ball Factory, in X and Y, the interactables list each place you step onto a conveyor
 belt as "conveyor belt", and the switch that turns a belt round as "switch".
 

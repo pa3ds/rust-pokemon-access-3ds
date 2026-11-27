@@ -20,15 +20,24 @@
 //!                  event data, 21 for the player's house (+0x04 in the Ultra games, 29)
 //!         +0x7c u16 the zone the player is in: 0x1d in the living room, 0x1a in the bedroom;
 //!               +0x7e is 1 on Route 1's second zone and 0 elsewhere so far, not known
-//! Field::FieldBgEventActor, FieldMapJumpActor, FieldItemActor  (heap 0x45)
+//! Field::FieldBgEventActor, FieldMapJumpActor, FieldItemActor, FieldPosEventActor  (heap 0x45)
 //!     +0x14 f32 x, +0x18 y, +0x1c z: where the record it was built from places it, the
 //!     record's own floats; +0x20 -> the record, in the area's event data, a block of 8 KB
 //!     that is not read: the ROM has the same file (`zones`)
+//! Field::FieldPosEventActor, one a step of the zone's events (`zones.STEPS`)
+//!     +0x10 u32 1 while the story's step is the one it starts, 0 while it is not: of Route 1's
+//!           twelve one was 1, at (492, 410), and walking at it started Lillie's scene at the
+//!           Tauros; once it ended that one was 0 and the next, at (447, 432) by the Tauros, 1,
+//!           and walking at that one the Tauros turned the player back (spike P, Ultra Sun,
+//!           driven live)
 //! ```
 //!
 //! What each is comes from its record: a warp's type says a door from the mat out or the path into
 //! the next area, a thing's kind a signpost from anything else, and an item actor is a ball still
-//! on the ground, the ones picked up having none.
+//! on the ground, the ones picked up having none. A step armed starts a scene walked onto: where
+//! the story goes next, or a way the story keeps shut, as the Tauros's. Each is listed as a scene
+//! spot, so P can walk to it, and, as a trigger, P steps round it on the way to anything else
+//! (`Ground.of`).
 //!
 //! x is east and z south, as in ORAS: the bedroom's TV is north of the player and the globe on the
 //! desk east of it, as the screenshots have them. Sun has no grid: people and the player stand
@@ -62,7 +71,7 @@ use crate::core::rtti::ClassNames;
 use crate::games::common::field::ground::{Ground, Of};
 use crate::games::common::field::pad::quarter;
 use crate::games::common::field::things::{
-    FURNITURE_SOURCE, Field, Interactable, WARP_SOURCE, place_source,
+    FURNITURE_SOURCE, Field, Interactable, TRIGGER_SOURCE, WARP_SOURCE, place_source,
 };
 use crate::games::sm::camera::{self, turned, turned_box, unturned};
 use crate::games::sm::heaps::{self, Blocks};
@@ -78,9 +87,11 @@ pub const STATE: &str = "N5Field8Fieldmap5StateE";
 pub const THING: &str = "N5Field17FieldBgEventActorE";
 pub const WARP: &str = "N5Field17FieldMapJumpActorE";
 pub const ITEM: &str = "N5Field14FieldItemActorE";
+pub const STEP: &str = "N5Field18FieldPosEventActorE";
+pub const STEP_ARMED: i64 = 0x10;
 /// The actors listed. An item actor is built for each ball still on the ground: seven on Route 1's
 /// second zone in sun_4.ctm, each at its record's place to the bit.
-pub const ACTORS: [&str; 3] = [THING, WARP, ITEM];
+pub const ACTORS: [&str; 4] = [THING, WARP, ITEM, STEP];
 pub const PROP: &str = "11StaticActor";
 pub const BOX: &str = "8BoxShape";
 /// The collision's objects for what stands still on the field: a prop's body, a box or a
@@ -851,6 +862,9 @@ impl SunFieldReader {
             let Some(head) = self.read(actor, ACTOR_HEAD)? else {
                 continue;
             };
+            if name == STEP && u32(&head, STEP_ARMED)? != 1 {
+                continue;
+            }
             let (x, z) = (f32(&head, ACTOR_X)?, f32(&head, ACTOR_Z)?);
             if !(x.is_finite() && z.is_finite()) || said.contains(&(name.clone(), cell(x, z)?)) {
                 continue;
@@ -862,6 +876,7 @@ impl SunFieldReader {
                     let section = match name.as_str() {
                         WARP => sm_zones::WARPS,
                         ITEM => sm_zones::ITEMS,
+                        STEP => sm_zones::STEPS,
                         _ => sm_zones::THINGS,
                     };
                     zones.record(area, section, x, z)?
@@ -990,8 +1005,8 @@ fn tuple_less(a: (f64, i64), b: (f64, i64)) -> bool {
 }
 
 /// What an actor, or a record without one, of the class `name` is, in the world's cells: an
-/// exit, a thing or an item ball, as wide as its record's shape, keyed by its cell. None for a
-/// hidden item.
+/// exit, a thing, an item ball or the story's step, as wide as its record's shape, keyed by its
+/// cell. None for a hidden item.
 fn made(
     name: &str,
     x: f64,
@@ -1035,6 +1050,15 @@ fn made(
             source: place_of(ITEM_SOURCE, x, z)?,
             home: Some(home),
             ..Interactable::new("items", "item ball", first)
+        }));
+    }
+    if name == STEP {
+        return Ok(Some(Interactable {
+            size,
+            code: record.map_or(0, |record| record.number),
+            source: place_of(TRIGGER_SOURCE, x, z)?,
+            home: Some(home),
+            ..Interactable::new("signs", "scene spot", first)
         }));
     }
     Ok(Some(Interactable {

@@ -25,6 +25,9 @@
 //! a part is: a warp's +0x34 does, so a zone with no warp (33 of 295) is in no area here.
 //!
 //! ```text
+//! 0  steps    0x3c, a story's step-on events: +0x24 u32 a work and +0x28 u32 a value (Route 1's
+//!             twelve share work 0x4131 at values 0x11 to 0x19, one a step of the story), +0x38
+//!             u32 its shape; the field arms those of the story's step now (`field`)
 //! 1  people   0x78 a record: +0x24 u32 the flag that hides it, which the new game's script
 //!             sets (spike 291; spike 115 took it for a script), +0x34 u32 the model it is
 //!             drawn as (0x77, 0x04, 0x21 in the bedroom, as RAM has them), +0x38 u32 what it
@@ -82,6 +85,7 @@ pub const EVENTS: &str = "a/0/8/2";
 /// Files an area has in `EVENTS`, its events first.
 pub const AREA_FILES: i64 = 11;
 pub const ED: &[u8] = b"ED";
+pub const STEPS: i64 = 0;
 pub const PEOPLE: i64 = 1;
 pub const WARPS: i64 = 2;
 pub const THINGS: i64 = 3;
@@ -104,6 +108,10 @@ pub const THING_SCRIPT: i64 = 0x24;
 pub const THING_CODE: i64 = 0x30;
 pub const THING_KIND: i64 = 0x34;
 pub const THING_SHAPE: i64 = 0x38;
+pub const STEP_WORK: i64 = 0x24;
+/// A step's work and the value it is armed at, read as gen6's triggers' are and not checked: the
+/// field's own actor says which are armed (`field.STEP_ARMED`).
+pub const STEP_VALUE: i64 = 0x28;
 pub const TRAINER_MODEL: i64 = 0x30;
 pub const TRAINER_FLAG: i64 = 0x34;
 /// A trainer's flag less its number in the trainer table (`a/1/0/5`): every one of the game's 180
@@ -194,6 +202,7 @@ pub struct Area {
     pub people: Vec<Vec<Record>>,
     pub items: Vec<Vec<Record>>,
     pub trainers: Vec<Vec<Record>>,
+    pub steps: Vec<Vec<Record>>,
 }
 
 /// Sun's zones as its ROM has them: their place names, and every area's records.
@@ -288,8 +297,8 @@ impl SunZones {
         Ok(self.zone_kind(zone)? == Some(OUTDOORS))
     }
 
-    /// The record of `section` (`WARPS`, `THINGS`, `PEOPLE`, `ITEMS` or `TRAINERS`) this area
-    /// places at (x, z), or None: a person who has walked is not.
+    /// The record of `section` (`WARPS`, `THINGS`, `PEOPLE`, `ITEMS`, `TRAINERS` or `STEPS`)
+    /// this area places at (x, z), or None: a person who has walked is not.
     pub fn record(&self, area: i64, section: i64, x: f64, z: f64) -> Result<Option<Record>> {
         let lists: &[Vec<Record>] = match self.areas.get(&area) {
             None => &[],
@@ -299,6 +308,7 @@ impl SunZones {
                 PEOPLE => &found.people,
                 ITEMS => &found.items,
                 TRAINERS => &found.trainers,
+                STEPS => &found.steps,
                 _ => return Err(Error::key(section.to_string())),
             },
         };
@@ -353,6 +363,7 @@ pub(crate) fn area(data: &[u8]) -> Result<Area> {
         people: section(PEOPLE, PERSON_RECORD, person)?,
         items: section(ITEMS, ITEM_RECORD, item)?,
         trainers: section(TRAINERS, TRAINER_RECORD, trainer)?,
+        steps: section(STEPS, THING_RECORD, step)?,
     })
 }
 
@@ -494,6 +505,20 @@ fn warp(part: &[u8], at: i64, _zone: Option<i64>) -> Result<Record> {
         zone: Some(u16(part, at + WARP_ZONE)?),
         leads_to: Some(u16(part, at + WARP_TO)?),
         kind: u32(part, at + WARP_TYPE)?,
+        number: u32(part, at + NUMBER)?,
+        ..Default::default()
+    })
+}
+
+fn step(part: &[u8], at: i64, zone: Option<i64>) -> Result<Record> {
+    let (x, z) = place(part, at)?;
+    Ok(Record {
+        x,
+        z,
+        shape: shape(part, u32(part, at + THING_SHAPE)?)?,
+        zone,
+        script: u32(part, at + STEP_WORK)?,
+        code: u32(part, at + STEP_VALUE)?,
         number: u32(part, at + NUMBER)?,
         ..Default::default()
     })

@@ -157,6 +157,12 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
   wrong. A few people, about 15 in the whole game, are still "person".
 - **Some doors are only "door"**: every plain house, which the game never names, and a few
   buildings its map does not place, such as the Trainers' School and the Thrifty Megamart.
+- **A scene spot does not say what it is**: the story's next place and a place the story turns
+  you back from are both "scene spot". A scene the story starts in other ways, by talking to
+  someone or by the time of day, has no spot.
+- **The compass turns with the camera**: where the camera swings as you walk a bend, north turns
+  a quarter at a time, and a way said a few steps before can point the other way. Press `P`
+  again after a turn.
 - **A board can run its two lines together** where its second line has no quotation marks:
   "Hau'oli Police Station Keep our roads safe!".
 

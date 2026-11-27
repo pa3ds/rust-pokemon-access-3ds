@@ -192,6 +192,17 @@ fn route_1() -> SunZones {
         ],
     );
     let to_town = line(18651.75, 14483.25, 18342.25, 14483.25);
+    let step = record(
+        zones::THING_RECORD,
+        0,
+        24623.0,
+        20493.0,
+        0x7738,
+        &[
+            (zones::STEP_WORK, "<I", 0x4131),
+            (zones::STEP_VALUE, "<I", 0x16),
+        ],
+    );
     let data = event_data(&IndexMap::from([
         (
             zones::WARPS,
@@ -225,6 +236,17 @@ fn route_1() -> SunZones {
         (
             zones::PEOPLE,
             vec![part(vec![]), part(vec![(person, None, None)])],
+        ),
+        (
+            zones::STEPS,
+            vec![
+                part(vec![(
+                    step,
+                    Some(r#box(24623.0, 20493.0, 200.0, 200.0)),
+                    Some(zones::THING_SHAPE),
+                )]),
+                part(vec![]),
+            ],
         ),
         (
             zones::THINGS,
@@ -469,4 +491,25 @@ fn test_the_rom_s_areas_are_read_file_by_file_from_their_events() {
         .unwrap();
     assert_eq!((door.zone, door.leads_to), (Some(TOWN), Some(0x25)));
     assert_eq!(loaded.place(TOWN).unwrap(), Some("Iki Town".to_string()));
+}
+
+#[test]
+fn test_a_step_keeps_the_work_and_value_it_is_armed_by_and_its_shape() {
+    let step = route_1()
+        .record(AREA, zones::STEPS, 24623.0, 20493.0)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        (step.script, step.code, step.number, step.zone),
+        (0x4131, 0x16, 0x7738, Some(ROUTE))
+    );
+    assert_eq!(
+        step.shape,
+        Some(Shape {
+            west: 24523.0,
+            north: 20393.0,
+            east: 24723.0,
+            south: 20593.0,
+        })
+    );
 }
