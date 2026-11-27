@@ -27,6 +27,7 @@ use crate::core::memory::{self, Cache, Memory};
 use crate::core::names::Names;
 use crate::core::rtti::{ClassNames, demangle};
 use crate::core::speech::{Category, Speech};
+use crate::core::words::own;
 use crate::games::common::announce::Announcements;
 use crate::games::common::cursors::reader::CursorReader;
 use crate::games::common::cursors::shared::CursorItem;
@@ -54,7 +55,7 @@ use crate::games::sm::talk::{self, Speakers};
 use crate::games::sm::text::SunText;
 use crate::games::sm::zones::SunZones;
 use crate::games::sm::{SUN_LAYOUT, VersionLayout, lyt, msgwin};
-use crate::py::{Log, Result};
+use crate::py::{self, Log, Result};
 
 /// Message windows, the talk windows and utils that name their speakers, the language choice,
 /// and layout works through the DrawInfo each embeds, as in ORAS: every TextBox and cursor on screen
@@ -97,10 +98,10 @@ pub type Held = IndexMap<i64, (CursorItem, i64)>;
 /// scrolls under a cursor that stays put, the rows are redrawn a frame or two late, and a press
 /// said "012" and then "????? 012", "?????021" and then "????? 020" (spike P). An item over more
 /// than `WHOLE_LIST` pieces is the list read at once and is dropped.
-pub fn settled(held: &mut Held, items: Vec<CursorItem>) -> Vec<CursorItem> {
+pub fn settled(held: &mut Held, items: Vec<CursorItem>) -> Result<Vec<CursorItem>> {
     for item in items {
         if item.pieces.len() <= WHOLE_LIST {
-            held.insert(item.cursor, (item, 0));
+            held.insert(item.cursor, (counted(item)?, 0));
         }
     }
     let ready: Vec<CursorItem> = held
@@ -113,7 +114,32 @@ pub fn settled(held: &mut Held, items: Vec<CursorItem>) -> Vec<CursorItem> {
         .filter(|(_cursor, (_item, polls))| *polls < SETTLE)
         .map(|(cursor, (item, polls))| (cursor, (item, polls + 1)))
         .collect();
-    ready
+    Ok(ready)
+}
+
+/// A Pokédex's item with its two counts said as caught and seen: "Alola Pokédex 3 9" has a
+/// Poké Ball before the 3 and a mark before the 9, which no words name.
+fn counted(item: CursorItem) -> Result<CursorItem> {
+    if item.pieces.len() != 3
+        || !item.pieces[1..]
+            .iter()
+            .all(|piece| py::isdigit(&piece.text))
+    {
+        return Ok(item);
+    }
+    let (caught, seen) = (&item.pieces[1], &item.pieces[2]);
+    let pieces = vec![
+        item.pieces[0].clone(),
+        ScreenText {
+            text: own("dex-caught", &[("count", &py::int_base10(&caught.text)?)]),
+            ..caught.clone()
+        },
+        ScreenText {
+            text: own("dex-seen", &[("count", &py::int_base10(&seen.text)?)]),
+            ..seen.clone()
+        },
+    ];
+    Ok(CursorItem { pieces, ..item })
 }
 
 /// The zone last listed and what was in it (people by kind alone, since they walk).
@@ -460,7 +486,7 @@ impl SunProfile {
         }
         if self.app.borrow().as_deref() == Some(POKEDEX) {
             let items = std::mem::take(&mut cursors.items);
-            cursors.items = settled(&mut self.held.borrow_mut(), items);
+            cursors.items = settled(&mut self.held.borrow_mut(), items)?;
         } else if !self.held.borrow().is_empty() {
             self.held.borrow_mut().clear();
         }
