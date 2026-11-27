@@ -2,9 +2,10 @@
 //! (`clips`) and its tones (`tones`), each times its own `[pa3ds.audio]` setting.
 //!
 //! Azahar's volume slider cubed, as Azahar scales its output (`audio_core/dsp_interface.cpp`),
-//! times its slider in Windows' volume mixer (`mixer`). Read on a thread of its own once a second
-//! from the moment it is made, as the game starts, so the first sound is already as loud as the
-//! rest; the slider out of Azahar's `qt-config.ini` whenever that changes.
+//! times its slider in Windows' volume mixer (`mixer`), the slider of the Azahar pa3ds reads
+//! (`window.own`) where two are open. Read on a thread of its own once a second from the moment it
+//! is made, as the game starts, so the first sound is already as loud as the rest; the slider out
+//! of Azahar's `qt-config.ini` whenever that changes.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -12,7 +13,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::SystemTime;
 
-use crate::core::mixer;
+use crate::core::{mixer, window};
 use crate::py;
 
 pub const AZAHAR: &str = "azahar.exe";
@@ -73,7 +74,7 @@ fn watch(qt_config: &PathBuf, azahar: &AtomicU64) {
             }
             Err(_) => slider = 1.0,
         }
-        let mixed = mixer::slider(AZAHAR);
+        let mixed = mixer::slider(AZAHAR, window::own());
         // ponytail: Azahar's mute key and its slider moved without saving are not read.
         let loud = slider.powi(3) * mixed.unwrap_or(1.0);
         azahar.store(loud.to_bits(), Ordering::Relaxed);

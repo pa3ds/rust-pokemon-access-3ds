@@ -7,9 +7,13 @@
 //! their tables do not change. Read on the thread that asks, which COM is started on.
 
 /// The mixer's slider for the first session of the program whose file is `program`
-/// (`azahar.exe`) on any output, 0 while muted; None where it has none or COM fails.
-pub fn slider(program: &str) -> Option<f64> {
-    com::slider(&program.to_lowercase()).ok().flatten()
+/// (`azahar.exe`) on any output, of process `pid` alone where one is given, 0 while muted; None
+/// where it has none or COM fails. With two Azahars open, the first was the other one's, and
+/// pa3ds's sounds played at its 100% beside a game at 8%.
+///
+/// Python's `pid` defaults to 0.
+pub fn slider(program: &str, pid: i64) -> Option<f64> {
+    com::slider(&program.to_lowercase(), pid).ok().flatten()
 }
 
 #[cfg(windows)]
@@ -78,7 +82,7 @@ mod com {
         }
     }
 
-    pub fn slider(program: &str) -> Result<Option<f64>, Failed> {
+    pub fn slider(program: &str, wanted: i64) -> Result<Option<f64>, Failed> {
         // SAFETY: every call below is handed live objects and places to write that outlive it.
         unsafe {
             // Started already on this thread, in another mode, is no failure.
@@ -105,7 +109,7 @@ mod com {
                 unsafe extern "system" fn(Object, *mut u32) -> HRESULT,
             >(devices.0, COUNT)(devices.0, &mut count))?;
             for index in 0..count {
-                let found = on_device(&devices, index, program)?;
+                let found = on_device(&devices, index, program, wanted)?;
                 if found.is_some() {
                     return Ok(found);
                 }
@@ -114,7 +118,12 @@ mod com {
         }
     }
 
-    unsafe fn on_device(devices: &Held, index: u32, program: &str) -> Result<Option<f64>, Failed> {
+    unsafe fn on_device(
+        devices: &Held,
+        index: u32,
+        program: &str,
+        wanted: i64,
+    ) -> Result<Option<f64>, Failed> {
         // SAFETY: as `slider`'s.
         unsafe {
             let mut device = Held(null_mut());
@@ -152,7 +161,7 @@ mod com {
                 sessions.0, &mut count
             ))?;
             for at in 0..count {
-                let found = session(&sessions, at, program)?;
+                let found = session(&sessions, at, program, wanted)?;
                 if found.is_some() {
                     return Ok(found);
                 }
@@ -161,7 +170,12 @@ mod com {
         }
     }
 
-    unsafe fn session(sessions: &Held, at: i32, program: &str) -> Result<Option<f64>, Failed> {
+    unsafe fn session(
+        sessions: &Held,
+        at: i32,
+        program: &str,
+        wanted: i64,
+    ) -> Result<Option<f64>, Failed> {
         // SAFETY: as `slider`'s.
         unsafe {
             let query = |object: Object, iid: &GUID, out: &mut Object| {
@@ -182,7 +196,9 @@ mod com {
             method::<unsafe extern "system" fn(Object, *mut u32) -> HRESULT>(named.0, PROCESS_ID)(
                 named.0, &mut pid,
             );
-            if window::process_name(pid as i64) != program {
+            if (wanted != 0 && i64::from(pid) != wanted)
+                || window::process_name(i64::from(pid)) != program
+            {
                 return Ok(None);
             }
             let mut volume = Held(null_mut());
@@ -203,7 +219,7 @@ mod com {
 mod com {
     pub struct Failed;
 
-    pub fn slider(_program: &str) -> Result<Option<f64>, Failed> {
+    pub fn slider(_program: &str, _wanted: i64) -> Result<Option<f64>, Failed> {
         Err(Failed)
     }
 }
