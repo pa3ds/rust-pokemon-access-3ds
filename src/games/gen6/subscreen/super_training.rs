@@ -417,7 +417,7 @@ impl TrainingPage {
     }
 
     /// The species of the party member whose icon a picture draws, or None.
-    pub fn name(&self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
+    pub fn touched(&self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
         if !PAGE_APPS.contains(&running) || self.pages.is_empty() || self.species.is_empty() {
             return Ok(None);
         }

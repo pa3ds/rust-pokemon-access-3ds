@@ -1547,7 +1547,7 @@ impl AmiePage {
     }
 
     /// The species a picture draws the Amie page's Pokémon as, in the game's words, or None.
-    pub fn name(&self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
+    pub fn touched(&self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
         if !PAGE_APPS.contains(&running) || self.pages.is_empty() || self.species.is_empty() {
             return Ok(None);
         }
@@ -2020,7 +2020,7 @@ impl Puffs {
 
     /// The kind of puff a picture draws in Amie or its decorate screen, or None where it draws
     /// none.
-    pub fn name(&mut self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
+    pub fn touched(&mut self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
         if running != Some(ARRANGE) && running != Some(AMIE) {
             return Ok(None);
         }
@@ -2092,7 +2092,7 @@ impl Goods {
     }
 
     /// The item a picture of the grid draws, or None where it draws none.
-    pub fn name(&mut self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
+    pub fn touched(&mut self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
         if running != Some(ARRANGE) && running != Some(AMIE) {
             return Ok(None);
         }

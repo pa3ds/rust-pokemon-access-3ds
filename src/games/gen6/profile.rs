@@ -21,7 +21,7 @@
 //! - ADR-0044: the screen poll asks the cursor sources through `sources.CursorSources` alone, and
 //!   wires none itself (`poll_menus`, `poll_screen`).
 
-use std::cell::{Cell, RefCell};
+use std::cell::{Cell, OnceCell, RefCell};
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
@@ -562,11 +562,14 @@ impl Gen6Profile {
                 Ok(at.and_then(|at| files.image_at(at)))
             })
         };
-        // Pokémon-Amie's games draw a result's count a digit a picture, `0.bclim` to `9.bclim`, too
-        // large for the index (or_amie_stars): named by their files.
+        // The subscreens name theirs: Pokémon-Amie's games draw a result's count a digit a
+        // picture (`Subscreens.name`). The subscreens are made below, after the screen text reader
+        // whose words they read: Python's closure reaches `self.subscreens` once it is made, and
+        // this one through the cell it is put in then.
+        let subscreens_made: Rc<OnceCell<Rc<Subscreens>>> = Rc::new(OnceCell::new());
         let on_screen_named: Pictures = {
             let (named_by_image, party_icons) = (named_by_image.clone(), party_icons.clone());
-            let image_of = image_of.clone();
+            let subscreens = subscreens_made.clone();
             let (apps, own_subscreen, partners) =
                 (apps.clone(), own_subscreen.clone(), partners.clone());
             Rc::new(move |pane: i64| {
@@ -574,21 +577,21 @@ impl Gen6Profile {
                     Some(named) => named(pane)?,
                     None => None,
                 };
-                // Python's `or`: a name of "" or None goes on to the party's icons, then to the
-                // game's own subscreen's, and then to the Maison's partners.
+                // Python's `or`: a name of "" or None goes on to the subscreens', then to the
+                // party's icons, then to the game's own subscreen's, and then to the Maison's
+                // partners.
                 if let Some(name) = by_image
                     && !name.is_empty()
                 {
                     return Ok(Some(name));
                 }
-                let running = apps.borrow().running.clone();
-                if running
-                    .as_deref()
-                    .is_some_and(|app| amie::GAMES.contains(&app))
-                    && let Some(digit) = amie::digit(image_of(pane)?.as_deref())
+                if let Some(subscreens) = subscreens.get()
+                    && let Some(name) = subscreens.name(pane)?
+                    && !name.is_empty()
                 {
-                    return Ok(Some(digit));
+                    return Ok(Some(name));
                 }
+                let running = apps.borrow().running.clone();
                 if let Some(name) = party_icons.borrow().name(pane)?
                     && !name.is_empty()
                 {
@@ -1079,6 +1082,9 @@ impl Gen6Profile {
                 Rc::new(move |said: &str| round_cue(&mode, CUE_SOUND, said))
             },
         ));
+        subscreens_made
+            .set(subscreens.clone())
+            .unwrap_or_else(|_| unreachable!("the subscreens are made once"));
         screen.borrow_mut().set_reworded({
             let (subscreens, files, layouts) = (subscreens.clone(), files.clone(), layouts.clone());
             Rc::new(move |found| {
@@ -1113,7 +1119,7 @@ impl Gen6Profile {
                 {
                     return Ok(Some(name));
                 }
-                if let Some(name) = subscreens.name(pane)?
+                if let Some(name) = subscreens.touched(pane)?
                     && !name.is_empty()
                 {
                     return Ok(Some(name));

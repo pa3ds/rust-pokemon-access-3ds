@@ -14,7 +14,9 @@
 //!   sweep found of them, by class; an app's own process is not swept for, but handed to the
 //!   readers that read it while their app runs (`process`, the running app's
 //!   `apps.RunningApp.process`);
-//! - `name(picture, running)`, what touch mode calls a picture of its screen's;
+//! - `touched(picture, running)`, what touch mode calls a picture of its screen's, named apart
+//!   from what screen text calls one (`Subscreens.name`), as the three ways of naming a picture
+//!   stay apart (ADR-0006, 2026-10-15);
 //! - `targets(running)`, the targets it offers touch mode at points no pane places, beside the
 //!   touch areas;
 //! - `offer(running)`, the pictures no touch area holds that it offers touch mode as targets, by
@@ -38,6 +40,8 @@
 //!
 //! A new one is built here and put in the tuples of what it answers, in the order it is asked in:
 //! touch mode names a picture by the first reader with a name for it, and offers targets in order.
+//! Screen text names a picture of theirs through `Subscreens.name`: the digits of a result in
+//! Amie's games.
 //! The PSS has no reader of its own: its screens are the field's bottom screen and touch mode's, but
 //! for its own apps, its profile and its icon choice, and the friend list's registering after a
 //! trade, apps of their own that need a touch (`pss`); and O-Power's energy and the powers running,
@@ -128,8 +132,8 @@ pub trait Tracked {
 }
 
 /// A reader naming a picture of its screen's for touch mode.
-pub trait Named {
-    fn name(&self, picture: i64, running: Option<&str>) -> Result<Option<String>>;
+pub trait Touched {
+    fn touched(&self, picture: i64, running: Option<&str>) -> Result<Option<String>>;
 }
 
 /// A reader offering touch mode targets at points no pane places, beside the touch areas.
@@ -318,33 +322,33 @@ tracked!(
     Round
 );
 
-impl Named for RefCell<AmiePage> {
-    fn name(&self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
-        self.borrow().name(picture, running)
+impl Touched for RefCell<AmiePage> {
+    fn touched(&self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
+        self.borrow().touched(picture, running)
     }
 }
 
-impl Named for RefCell<TrainingPage> {
-    fn name(&self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
-        self.borrow().name(picture, running)
+impl Touched for RefCell<TrainingPage> {
+    fn touched(&self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
+        self.borrow().touched(picture, running)
     }
 }
 
-impl Named for RefCell<Puffs> {
-    fn name(&self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
-        self.borrow_mut().name(picture, running)
+impl Touched for RefCell<Puffs> {
+    fn touched(&self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
+        self.borrow_mut().touched(picture, running)
     }
 }
 
-impl Named for RefCell<Goods> {
-    fn name(&self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
-        self.borrow_mut().name(picture, running)
+impl Touched for RefCell<Goods> {
+    fn touched(&self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
+        self.borrow_mut().touched(picture, running)
     }
 }
 
-impl Named for RefCell<TilePuzzle> {
-    fn name(&self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
-        self.borrow().name(picture, running)
+impl Touched for RefCell<TilePuzzle> {
+    fn touched(&self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
+        self.borrow().touched(picture, running)
     }
 }
 
@@ -472,21 +476,22 @@ impl Polled for RefCell<AmiePage> {
     }
 }
 
-impl Named for RefCell<SwitchScreen> {
-    fn name(&self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
-        self.borrow().name(picture, running)
+impl Touched for RefCell<SwitchScreen> {
+    fn touched(&self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
+        self.borrow().touched(picture, running)
     }
 }
 
 /// The subscreens' readers, and what each answers for the app running.
 pub struct Subscreens {
     apps: Rc<RefCell<RunningApp>>,
+    image_of: ImageOf,
     pub puzzle: Rc<RefCell<TilePuzzle>>,
     berry_picker: Rc<RefCell<BerryPicker>>,
     /// What the heap is swept for, each reader's `classes`.
     pub classes: Vec<&'static str>,
     tracked: Vec<Rc<dyn Tracked>>,
-    named: Vec<Rc<dyn Named>>,
+    touching: Vec<Rc<dyn Touched>>,
     offering: Vec<Rc<dyn Offering>>,
     pictured: Vec<Rc<dyn Pictured>>,
     polled: Vec<Rc<dyn Polled>>,
@@ -546,6 +551,7 @@ impl Subscreens {
     ) -> Subscreens {
         // The settings file's tables, each reader taking its own (`config.Tables`).
         let settings = &tables.amie;
+        let image_of_kept = image_of.clone();
         let running: Rc<dyn Fn() -> Option<String>> = {
             let apps = apps.clone();
             Rc::new(move || apps.borrow().running.clone())
@@ -775,9 +781,10 @@ impl Subscreens {
         }
         Subscreens {
             apps,
+            image_of: image_of_kept,
             classes: classes.into_iter().collect(),
             tracked,
-            named: vec![
+            touching: vec![
                 switch.clone(),
                 page.clone(),
                 training,
@@ -812,12 +819,27 @@ impl Subscreens {
         self.apps.borrow().running.clone()
     }
 
-    /// What touch mode calls a picture of these screens', or None.
+    /// What screen text calls a picture of these screens', or None: a digit of a count the
+    /// results of Amie's games draw a picture a digit, `0.bclim` to `9.bclim`, too large for the
+    /// index (or_amie_stars), named by its file.
     pub fn name(&self, picture: i64) -> Result<Option<String>> {
         let running = self.running();
+        if running
+            .as_deref()
+            .is_some_and(|running| amie::GAMES.contains(&running))
+        {
+            Ok(amie::digit((self.image_of)(picture)?.as_deref()))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// What touch mode calls a picture of these screens', or None.
+    pub fn touched(&self, picture: i64) -> Result<Option<String>> {
+        let running = self.running();
         let running = running.as_deref();
-        for reader in &self.named {
-            if let Some(name) = reader.name(picture, running)?
+        for reader in &self.touching {
+            if let Some(name) = reader.touched(picture, running)?
                 && !name.is_empty()
             {
                 return Ok(Some(name));

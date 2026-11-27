@@ -81,7 +81,7 @@ fn board(
 }
 
 fn name(reader: &puzzle::TilePuzzle, picture: i64) -> Option<String> {
-    reader.name(picture, Some(puzzle::APP)).unwrap()
+    reader.touched(picture, Some(puzzle::APP)).unwrap()
 }
 
 #[test]
@@ -99,7 +99,7 @@ fn test_a_tile_says_its_place_and_where_its_piece_belongs() {
     assert_eq!(name(&reader, frames[7]).as_deref(), Some("C2, in place"));
     assert_eq!(
         reader
-            .name(frames[7], Some("N5field12FieldmapProcE"))
+            .touched(frames[7], Some("N5field12FieldmapProcE"))
             .unwrap(),
         None
     );

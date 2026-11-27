@@ -152,7 +152,7 @@ impl SwitchScreen {
     }
 
     /// The party member a picture of the party's buttons stands for, or None.
-    pub fn name(&self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
+    pub fn touched(&self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
         let (true, Some(party)) = (PAGE_APPS.contains(&running), (self.party)()) else {
             return Ok(None);
         };

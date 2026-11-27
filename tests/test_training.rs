@@ -107,13 +107,13 @@ fn test_a_party_slot_is_named_by_the_member_whose_icon_it_draws_however_the_reco
     let found = page(super_training::ICONS);
     assert_eq!(
         (
-            found.name(FIRST, Some(FIELD)).unwrap(),
-            found.name(SECOND, Some(FIELD)).unwrap()
+            found.touched(FIRST, Some(FIELD)).unwrap(),
+            found.touched(SECOND, Some(FIELD)).unwrap()
         ),
         (Some("Breloom".to_string()), Some("Sceptile".to_string()))
     );
     assert_eq!(
-        found.name(FIRST, Some(super_training::SPARRING)).unwrap(),
+        found.touched(FIRST, Some(super_training::SPARRING)).unwrap(),
         None
     );
 }
@@ -123,8 +123,8 @@ fn test_xs_page_is_read_where_x_keeps_its_icons_and_records() {
     let found = page(crate::games::xy::game().training);
     assert_eq!(
         (
-            found.name(FIRST, Some(FIELD)).unwrap(),
-            found.name(SECOND, Some(FIELD)).unwrap()
+            found.touched(FIRST, Some(FIELD)).unwrap(),
+            found.touched(SECOND, Some(FIELD)).unwrap()
         ),
         (Some("Breloom".to_string()), Some("Sceptile".to_string()))
     );
@@ -134,7 +134,7 @@ fn test_xs_page_is_read_where_x_keeps_its_icons_and_records() {
 fn test_a_picture_drawing_another_image_is_not_named() {
     assert_eq!(
         page(super_training::ICONS)
-            .name(OTHER, Some(FIELD))
+            .touched(OTHER, Some(FIELD))
             .unwrap(),
         None
     );

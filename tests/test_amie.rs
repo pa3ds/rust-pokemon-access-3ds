@@ -121,7 +121,7 @@ fn test_the_picture_drawing_the_icons_first_texture_is_named_by_its_species() {
     assert_eq!(
         page(amie::NUMBER)
             .0
-            .name(WALKER, Some(FIELD))
+            .touched(WALKER, Some(FIELD))
             .unwrap()
             .as_deref(),
         Some("Sceptile")
@@ -133,7 +133,7 @@ fn test_xs_page_is_read_where_x_keeps_its_pokemon() {
     assert_eq!(
         page(xy::game().amie)
             .0
-            .name(WALKER, Some(FIELD))
+            .touched(WALKER, Some(FIELD))
             .unwrap()
             .as_deref(),
         Some("Sceptile")
@@ -193,7 +193,7 @@ fn test_xs_menu_buttons_have_a_word_in_every_language_x_is_played_in() {
 
 #[test]
 fn test_a_picture_drawing_another_image_is_not_named() {
-    assert_eq!(page(amie::NUMBER).0.name(OTHER, Some(FIELD)).unwrap(), None);
+    assert_eq!(page(amie::NUMBER).0.touched(OTHER, Some(FIELD)).unwrap(), None);
 }
 
 /// A visitor's Sceptile stood beside Pikachu in the ring, said by a stale name of the party's
@@ -215,11 +215,11 @@ fn test_a_pokemon_visiting_the_page_is_named_by_the_pages_list_of_who_walks_ther
         memory.write(at + amie::WALKER_NUMBER, &number.to_le_bytes());
     }
     assert_eq!(
-        found.name(OTHER, Some(FIELD)).unwrap().as_deref(),
+        found.touched(OTHER, Some(FIELD)).unwrap().as_deref(),
         Some("visiting Sceptile")
     );
     // its own, drawing no icon here
-    assert_eq!(found.name(WALKER_PICTURE, Some(FIELD)).unwrap(), None);
+    assert_eq!(found.touched(WALKER_PICTURE, Some(FIELD)).unwrap(), None);
 }
 
 /// The Pokémon is offered to beckon, a press of 0.4 s, as presses held
@@ -1587,28 +1587,28 @@ fn test_the_switch_screens_buttons_are_named_by_the_party_member_their_place_hol
     let [first, _, third, _, _, _, seventh, second, chosen, under] = PLACES.map(|(pane, _)| pane);
     // with no poll of the screen's words before it
     assert_eq!(
-        screen.name(first, Some(FIELD)).unwrap().as_deref(),
+        screen.touched(first, Some(FIELD)).unwrap().as_deref(),
         Some("Blaze")
     );
     // the page under the screen, whose visitor stood there
-    assert_eq!(screen.name(under, Some(FIELD)).unwrap(), None);
+    assert_eq!(screen.touched(under, Some(FIELD)).unwrap(), None);
     assert_eq!(
-        screen.name(second, Some(FIELD)).unwrap().as_deref(),
+        screen.touched(second, Some(FIELD)).unwrap().as_deref(),
         Some("Pikachu")
     );
-    assert_eq!(screen.name(third, Some(FIELD)).unwrap(), None); // past the party's end
+    assert_eq!(screen.touched(third, Some(FIELD)).unwrap(), None); // past the party's end
     // the chosen Pokémon's own picture, lower down
-    assert_eq!(screen.name(chosen, Some(FIELD)).unwrap(), None);
-    assert_eq!(screen.name(first, Some(amie::AMIE)).unwrap(), None);
+    assert_eq!(screen.touched(chosen, Some(FIELD)).unwrap(), None);
+    assert_eq!(screen.touched(first, Some(amie::AMIE)).unwrap(), None);
     // Sliding in, the first button stood where the fourth rests (or_amie_affection_max).
     placed(&memory, &fake, 128.0);
     assert!(
-        screen.name(first, Some(FIELD)).unwrap().as_deref() == Some("Blaze")
-            && screen.name(second, Some(FIELD)).unwrap().as_deref() == Some("Pikachu")
+        screen.touched(first, Some(FIELD)).unwrap().as_deref() == Some("Blaze")
+            && screen.touched(second, Some(FIELD)).unwrap().as_deref() == Some("Pikachu")
     );
     // A stale list can count past six (`partyicons`), and the party holds six at most.
     memory.write(party + COUNT, &[9]);
-    assert_eq!(screen.name(seventh, Some(FIELD)).unwrap(), None);
+    assert_eq!(screen.touched(seventh, Some(FIELD)).unwrap(), None);
 }
 
 /// The game's words and how many of the five pictures beside them are filled, the heart over
@@ -1727,11 +1727,11 @@ fn test_a_puff_is_named_by_the_texture_of_the_replace_system_holding_every_kind(
     );
     puffs.track(&systems, false).unwrap();
     assert_eq!(
-        puffs.name(citrus, Some(amie::ARRANGE)).unwrap().as_deref(),
+        puffs.touched(citrus, Some(amie::ARRANGE)).unwrap().as_deref(),
         Some("Citrus Poké Puff")
     );
-    assert_eq!(puffs.name(item, Some(amie::ARRANGE)).unwrap(), None);
-    assert_eq!(puffs.name(citrus, Some(FIELD)).unwrap(), None);
+    assert_eq!(puffs.touched(item, Some(amie::ARRANGE)).unwrap(), None);
+    assert_eq!(puffs.touched(citrus, Some(FIELD)).unwrap(), None);
 }
 
 /// The grid's slot i draws texture i of its page's system of fifteen, and the pages' block,
@@ -1779,12 +1779,12 @@ fn test_an_interior_item_is_named_by_its_slot_on_the_page_shown() {
         )
         .unwrap();
     assert_eq!(
-        goods.name(picture, Some(amie::ARRANGE)).unwrap().as_deref(),
+        goods.touched(picture, Some(amie::ARRANGE)).unwrap().as_deref(),
         Some("Leaf Cushion")
     );
     memory.write(block + amie::PAGE, &[1]);
     assert_eq!(
-        goods.name(picture, Some(amie::ARRANGE)).unwrap().as_deref(),
+        goods.touched(picture, Some(amie::ARRANGE)).unwrap().as_deref(),
         Some("Pink Star Cloud")
     );
 }

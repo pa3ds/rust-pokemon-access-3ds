@@ -467,7 +467,7 @@ impl TilePuzzle {
     }
 
     /// A tile's frame picture, said by where its piece belongs; None for any other.
-    pub fn name(&self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
+    pub fn touched(&self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
         if running != Some(APP) || (self.image_of)(picture)?.as_deref() != Some(FRAME) {
             return Ok(None);
         }

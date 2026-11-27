@@ -11,13 +11,13 @@ use super::test_amie::{PAGE, WALKER, page, species};
 use crate::core::config::Tables;
 use crate::core::rtti::ClassNames;
 use crate::games::common::field::keys::{BERRIES, BERRY_PICKER};
-use crate::games::common::touch::Target;
+use crate::games::common::touch::{ImageOf, Target};
 use crate::games::gen6::apps::{FIELD, RunningApp};
 use crate::games::gen6::profile;
 use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::subscreen::berry_picker::{self, Touching};
 use crate::games::gen6::subscreen::{self, Subscreens};
-use crate::games::gen6::subscreen::{amie, super_training};
+use crate::games::gen6::subscreen::{amie, head_it, super_training};
 use crate::games::oras;
 use crate::py::Result;
 
@@ -33,6 +33,11 @@ fn running(app: &str) -> Rc<RefCell<RunningApp>> {
 /// The subscreens over the Amie page of `test_amie`, its Pokémon Sceptile, in whichever app
 /// `apps.running` says runs.
 fn subscreens(apps: Rc<RefCell<RunningApp>>) -> Subscreens {
+    subscreens_drawing(apps, Rc::new(|_| Ok(None)))
+}
+
+/// `subscreens(apps, image_of)`: with what each picture draws.
+fn subscreens_drawing(apps: Rc<RefCell<RunningApp>>, image_of: ImageOf) -> Subscreens {
     let (_, memory) = page(amie::NUMBER);
     let layouts = FakeLayouts::new(
         &memory,
@@ -44,7 +49,7 @@ fn subscreens(apps: Rc<RefCell<RunningApp>>) -> Subscreens {
         memory.clone(),
         Rc::new(ClassNames::new(memory.clone(), CODE)),
         layouts,
-        Rc::new(|_| Ok(None)),
+        image_of,
         IndexMap::new(),
         Rc::new(GameText {
             species: species(),
@@ -79,11 +84,11 @@ fn test_the_amie_pages_pokemon_is_named_on_the_field_and_offered_to_beckon_in_am
     // reader says what it has for the app running and nothing in another.
     let apps = running(FIELD);
     let found = subscreens(apps.clone());
-    assert_eq!(found.name(WALKER).unwrap().as_deref(), Some("Sceptile"));
+    assert_eq!(found.touched(WALKER).unwrap().as_deref(), Some("Sceptile"));
     assert!(found.targets().unwrap().is_empty());
     assert!(found.poll(&mut Untouched).unwrap().is_empty());
     apps.borrow_mut().running = Some(amie::AMIE.to_string());
-    assert_eq!(found.name(WALKER).unwrap(), None);
+    assert_eq!(found.touched(WALKER).unwrap(), None);
     let names: Vec<String> = found
         .targets()
         .unwrap()
@@ -97,6 +102,18 @@ fn test_the_amie_pages_pokemon_is_named_on_the_field_and_offered_to_beckon_in_am
     apps.borrow_mut().running = Some(FIELD.to_string());
     assert_eq!(found.context().unwrap(), None);
     assert_eq!(found.press(BERRIES[0], &mut Untouched).unwrap(), "");
+}
+
+/// Amie's games draw a result's count a digit a picture (or_amie_stars): screen text names
+/// each by its file in the games alone, and touch mode, named apart, has no name for one.
+#[test]
+fn test_screen_text_names_a_digit_of_amies_games_and_touch_mode_names_apart() {
+    let apps = running(head_it::APP);
+    let found = subscreens_drawing(apps.clone(), Rc::new(|_| Ok(Some("7.bclim".to_string()))));
+    assert_eq!(found.name(1).unwrap().as_deref(), Some("7"));
+    assert_eq!(found.touched(1).unwrap(), None);
+    apps.borrow_mut().running = Some(FIELD.to_string());
+    assert_eq!(found.name(1).unwrap(), None);
 }
 
 #[test]
