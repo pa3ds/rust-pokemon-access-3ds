@@ -60,6 +60,15 @@
 //! two cells side by side hold floors of one pocket that do not join — the way down to the route
 //! runs round by the stairs — one of the two is closed in the chunks P walks: the one whose floor
 //! is further from the player's.
+//!
+//! **Ledges** (spike Q). A ledge is a floor triangle far steeper than a stair (`SLANT`), falling
+//! more than `STEP`, with a wall along its foot facing down: the cell under the face is closed, the
+//! floor above it is a pocket of its own and the floor below another. The player walks off it and
+//! lands a cell past the face, and walking back up stops at its foot: on Route 1 south of the
+//! house, from (572, 404) down to (572, 413), and back up only as far as (575, 408). Each ledge's
+//! cell is laid out as ORAS's are, blocked and of the kind jumped its way, and a player's pockets
+//! take in every pocket their ledges drop into. Route 1's yard by the Advanced Tips sign is walled
+//! all round and jumped into from the west and out of to the south.
 
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -69,7 +78,7 @@ use indexmap::IndexMap;
 use crate::core::binary::{self, u16, u32};
 use crate::core::pathfind::Box;
 use crate::core::rom::Rom;
-use crate::games::common::field::chunk::{BLOCKED, CHUNK, Chunk};
+use crate::games::common::field::chunk::{BLOCKED, CHUNK, Chunk, KIND_SHIFT};
 use crate::games::common::garc::garc_spans;
 use crate::games::sm::camera::{turned, turned_box, unturned};
 use crate::games::sm::zones::{AREA_FILES, EVENTS, pack, pack_with, unpacked};
@@ -118,6 +127,21 @@ pub const HEADROOM: i64 = 100;
 /// World units within which a floor found again under a point is the one already found there:
 /// two triangles meet along their shared side.
 pub const SAME: f64 = 1.0;
+/// How far up a floor triangle's normal points, at most, for it to be a ledge's face: stairs, at
+/// 34 to 36 degrees, point 0.8 up; Route 1's ledges 0.24 to 0.5.
+pub const SLANT: f64 = 0.6;
+
+/// The chunks' kind of a ledge jumped down each way (`chunk.LEDGES`), by the step it drops.
+/// `LEDGE_KINDS`, a dict in the Python, whose lookup of any other step raises a KeyError.
+pub fn ledge_kind(step: Cell) -> Result<i64> {
+    match step {
+        (0, -1) => Ok(0x74),
+        (0, 1) => Ok(0x75),
+        (-1, 0) => Ok(0x73),
+        (1, 0) => Ok(0x72),
+        _ => Err(Error::key(format!("({}, {})", step.0, step.1))),
+    }
+}
 /// Areas kept once loaded: the one the player is in and the last few they came from, since a
 /// door is often walked back through.
 pub const KEEP: i64 = 4;
@@ -377,13 +401,16 @@ pub struct AreaWalls {
     /// The cells of each of the story's barriers. Python's are `frozenset`s, only tested and
     /// gathered into another set.
     pub barriers: Vec<HashSet<Cell>>,
+    /// Each closed cell a ledge is jumped over, with the cell it is jumped from and the one it
+    /// lands on, a step either side of it.
+    pub ledges: IndexMap<Cell, (Cell, Cell)>,
 }
 
 impl AreaWalls {
     /// `side` cells to a block's side; `cells` each block's cells, a byte each, a row at a
     /// time from the north-west, 1 where open; `floors` the heights of the open cells' floors,
     /// or None for one floor a cell, every one at the same height; `barriers` the cells of each
-    /// of the story's barriers, which `cells` leaves open.
+    /// of the story's barriers, which `cells` leaves open. No ledges: `with_faces` gives them.
     pub fn new(
         side: i64,
         cells: IndexMap<Block, Vec<u8>>,
@@ -394,6 +421,7 @@ impl AreaWalls {
         let (labels, more, seams) = label(&cells, &floors, side);
         AreaWalls {
             barriers,
+            ledges: IndexMap::new(),
             floors,
             labels,
             more,
@@ -402,6 +430,88 @@ impl AreaWalls {
             side,
             tile_sets: Mutex::new(Lru::new(TILE_SETS)),
         }
+    }
+
+    /// `AreaWalls(side, cells, floors, barriers, faces, cell)`: `faces` the floor's triangles
+    /// steep enough to be a ledge's face, in world units, `cell` of them to a cell (`ledges`).
+    /// Python's `cell` defaults to 1.0.
+    pub fn with_faces(
+        side: i64,
+        cells: IndexMap<Block, Vec<u8>>,
+        floors: Option<Floors>,
+        barriers: Vec<HashSet<Cell>>,
+        faces: &[Triangle],
+        cell: f64,
+    ) -> Result<AreaWalls> {
+        let mut walls = AreaWalls::new(side, cells, floors, barriers);
+        walls.ledges = walls.ledges_of(faces, cell)?;
+        Ok(walls)
+    }
+
+    /// These pockets and every one their ledges drop into, and theirs in turn: a player who
+    /// can walk to a ledge can be below it.
+    fn below(&self, mut pockets: HashSet<i64>) -> HashSet<i64> {
+        let mut grew = !self.ledges.is_empty();
+        while grew {
+            grew = false;
+            for &(before, after) in self.ledges.values() {
+                let into = self.pocket(after, None);
+                if let Some(into) = into
+                    && !pockets.contains(&into)
+                    && self
+                        .levels(before)
+                        .iter()
+                        .any(|(_level, pocket)| pockets.contains(pocket))
+                {
+                    pockets.insert(into);
+                    grew = true;
+                }
+            }
+        }
+        pockets
+    }
+
+    /// The ledges, a closed cell each (`ledges`). A ledge's face is a floor triangle steeper
+    /// than `SLANT` that falls more than `STEP`, with a wall along its foot: the cell it covers
+    /// is closed, and the cell above it, the way the face looks up, open on a floor higher than
+    /// the cell below it by more than `STEP`. On Route 1 the yard by the Advanced Tips sign is
+    /// walled all round, and jumped into east from (440, 336) and out of it south from (449,
+    /// 344) (spike Q). A face that leaves no closed cell between its two floors is not one.
+    fn ledges_of(&self, faces: &[Triangle], cell: f64) -> Result<IndexMap<Cell, (Cell, Cell)>> {
+        let mut found: IndexMap<Cell, (Cell, Cell)> = IndexMap::new();
+        for face in faces {
+            let (nx, _ny, nz) = face.normal;
+            let (dx, dz) = if nx.abs() > nz.abs() {
+                (if nx > 0.0 { 1 } else { -1 }, 0)
+            } else {
+                (0, if nz > 0.0 { 1 } else { -1 })
+            };
+            let corners = flat(face, cell);
+            let xs = [corners[0].0, corners[1].0, corners[2].0];
+            let zs = [corners[0].1, corners[1].1, corners[2].1];
+            for row in py::floor(least_of(&zs) - REACH)?..py::floor(greatest_of(&zs) + REACH)? + 1
+            {
+                for column in
+                    py::floor(least_of(&xs) - REACH)?..py::floor(greatest_of(&xs) + REACH)? + 1
+                {
+                    if found.contains_key(&(column, row)) || self.open((column, row)) != Some(false)
+                    {
+                        continue;
+                    }
+                    if distance((column as f64 + 0.5, row as f64 + 0.5), &corners) >= REACH {
+                        continue;
+                    }
+                    let (before, after) = ((column - dx, row - dz), (column + dx, row + dz));
+                    let (above, below) = (self.floors(before), self.floors(after));
+                    if let (Some(top), Some(bottom)) = (above.last(), below.last())
+                        && top.0 - bottom.1 > STEP
+                    {
+                        found.insert((column, row), (before, after));
+                    }
+                }
+            }
+        }
+        Ok(found)
     }
 
     pub fn blocks(&self) -> HashSet<Block> {
@@ -472,7 +582,7 @@ impl AreaWalls {
                     }
                 }
                 if !found.is_empty() {
-                    return found;
+                    return self.below(found);
                 }
             }
         }
@@ -564,12 +674,27 @@ impl AreaWalls {
         // Which cell of a seam is closed changes with the player's height, which changes on
         // every step up a stair, while a whole area holds a few hundred seams at most: they are
         // laid over the tiles kept rather than kept in them.
-        let mut cut: IndexMap<Block, Vec<i64>> = IndexMap::new();
+        let mut cut: IndexMap<Block, Vec<(i64, i64)>> = IndexMap::new();
         for cell in self.cut(keep.as_ref(), standing, height) {
             let (x, z) = turned(cell, turn);
             cut.entry((py::floordiv(x, side), py::floordiv(z, side)))
                 .or_default()
-                .push(py::modulo(z, side) * side + py::modulo(x, side));
+                .push((py::modulo(z, side) * side + py::modulo(x, side), BLOCKED));
+        }
+        // A ledge is a blocked cell of the kind jumped down its way, as ORAS's are: the way
+        // steps from the cell before it to the cell after in one move (`pathfind`).
+        for (&ledge, &(before, after)) in &self.ledges {
+            if let Some(keep) = &keep
+                && !(self.kept(before, keep) && self.kept(after, keep))
+            {
+                continue;
+            }
+            let (x, z) = turned(ledge, turn);
+            let (ax, az) = turned(after, turn);
+            let word = BLOCKED | ledge_kind((ax - x, az - z))? << KIND_SHIFT;
+            cut.entry((py::floordiv(x, side), py::floordiv(z, side)))
+                .or_default()
+                .push((py::modulo(z, side) * side + py::modulo(x, side), word));
         }
         let mut chunks: Vec<Chunk> = Vec::new();
         for tile in tiles {
@@ -578,8 +703,8 @@ impl AreaWalls {
             };
             if let Some(ats) = cut.get(&tile) {
                 let mut words = chunk.words.clone();
-                for &at in ats {
-                    words[at as usize] |= BLOCKED;
+                for &(at, word) in ats {
+                    words[at as usize] |= word;
                 }
                 chunk = Chunk::new(chunk.origin, words);
             }
@@ -750,6 +875,7 @@ pub fn rasterize(
             raster.add(block);
         }
     }
+    let mut faces: Vec<Triangle> = Vec::new();
     for (floor, walls) in meshes.values() {
         for triangle in floor {
             let [a, b, c] = triangle.corners;
@@ -758,6 +884,10 @@ pub fn rasterize(
                 (b.0 / cell, b.1, b.2 / cell),
                 (c.0 / cell, c.1, c.2 / cell),
             ])?;
+            let ys = [a.1, b.1, c.1];
+            if triangle.normal.1 < SLANT && greatest_of(&ys) - least_of(&ys) > STEP as f64 {
+                faces.push(triangle.clone());
+            }
         }
         for (index, wall) in walls.iter().enumerate() {
             if index == BARRIERS {
@@ -779,7 +909,14 @@ pub fn rasterize(
         }
     }
     let (cells, floors) = raster.cells()?;
-    Ok(AreaWalls::new(raster.side, cells, Some(floors), barriers))
+    AreaWalls::with_faces(
+        raster.side,
+        cells,
+        Some(floors),
+        barriers,
+        if heights { &faces } else { &[] },
+        cell,
+    )
 }
 
 /// The cells of each box a mesh's triangles make: triangles whose bounds touch are one box,

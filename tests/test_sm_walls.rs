@@ -602,6 +602,78 @@ fn test_a_cliff_with_no_wall_is_walked_round_from_either_side() {
     );
 }
 
+/// A yard 100 above the ground from x 200 to 600 and z 200 to 500, walled west, north and
+/// east, and on its south a ledge: a face falling to the ground by z 517, with a wall along its
+/// foot facing south, as Route 1's yard by the Advanced Tips sign has (spike Q).
+fn yard() -> Vec<u8> {
+    let face = (0.0, 0.17, 0.99);
+    let size = SIZE as f64;
+    block(
+        &[
+            floor(0.0, 0.0, size, 200.0),
+            floor(0.0, 517.0, size, size),
+            floor(0.0, 200.0, 200.0, 517.0),
+            floor(600.0, 200.0, size, 517.0),
+            floor_at(200.0, 200.0, 600.0, 500.0, 1, 100.0),
+            vec![
+                (
+                    (200.0, 100.0, 500.0),
+                    (600.0, 100.0, 500.0),
+                    (200.0, 0.0, 517.0),
+                    face,
+                    5,
+                ),
+                (
+                    (600.0, 100.0, 500.0),
+                    (600.0, 0.0, 517.0),
+                    (200.0, 0.0, 517.0),
+                    face,
+                    5,
+                ),
+            ],
+        ]
+        .concat(),
+        &[
+            wall_over((200.0, 200.0), (600.0, 200.0), SOUTH, -200.0, 600.0),
+            wall_over((200.0, 200.0), (200.0, 517.0), EAST, -200.0, 600.0),
+            wall_over((600.0, 200.0), (600.0, 517.0), WEST, -200.0, 600.0),
+            wall_over((200.0, 517.0), (600.0, 517.0), SOUTH, -200.0, 600.0),
+        ]
+        .concat(),
+    )
+}
+
+#[test]
+fn test_a_ledge_is_jumped_down_and_never_up() {
+    let ground = area(&places(vec![((0, 0), yard())]));
+
+    let way_of = |start: (i64, i64), goal: (i64, i64), height: f64| -> Option<Vec<(i64, i64)>> {
+        let land = ground_of(
+            ground
+                .chunks(None, 0, Some(start), 0, Some(height))
+                .unwrap(),
+        );
+        let found = land
+            .find(start, &IndexMap::from([(goal, None)]), "", None, false, None)
+            .unwrap();
+        found.map(|found| pathfind::cells(&found))
+    };
+
+    let (down, up) = (way_of((6, 6), (6, 14), 100.0), way_of((6, 14), (6, 6), 0.0));
+
+    assert_eq!(ground.ledges[&(6, 10)], ((6, 9), (6, 11)));
+    assert!(
+        ground
+            .reachable((6, 6), Some(100.0))
+            .contains(&ground.pocket((6, 14), None).unwrap())
+    );
+    assert!(
+        down.is_some_and(|down| down[down.len() - 1] == (6, 14)),
+        "jumped down"
+    );
+    assert!(up.is_none(), "no way up into the yard");
+}
+
 /// A ROM's two archives by file number, counting what is read.
 struct Archives {
     files: HashMap<String, HashMap<i64, Vec<u8>>>,
