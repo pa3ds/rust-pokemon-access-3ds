@@ -29,6 +29,7 @@ use crate::core::rtti::{ClassNames, demangle};
 use crate::core::speech::{Category, Speech};
 use crate::core::words::own;
 use crate::games::common::announce::Announcements;
+use crate::games::common::battle::{MAX_ASKS, REASK};
 use crate::games::common::cursors::reader::CursorReader;
 use crate::games::common::cursors::shared::CursorItem;
 use crate::games::common::dialogue::DialogueReader;
@@ -206,6 +207,11 @@ pub struct SunProfile {
     /// A Mart's list is on screen with its shop object not found yet.
     shop_wanted: Cell<bool>,
     shop_asked: Cell<bool>,
+    /// The Pokédex is running with nothing on screen read: a page whose layout no sweep has
+    /// found yet.
+    pub(crate) blank: Cell<bool>,
+    /// Polls the Pokédex has been blank, asking a sweep every `REASK` of them.
+    blank_asks: Cell<i64>,
     pub battle: RefCell<SunBattleReader>,
     pub apps: RefCell<RunningApp>,
     pub scenes: Option<RefCell<Scenes>>,
@@ -425,6 +431,8 @@ impl SunProfile {
             held: RefCell::new(IndexMap::new()),
             shop_wanted: Cell::new(false),
             shop_asked: Cell::new(false),
+            blank: Cell::new(false),
+            blank_asks: Cell::new(0),
             battle: RefCell::new(battle),
             apps: RefCell::new(running),
             scenes,
@@ -484,9 +492,20 @@ impl SunProfile {
             self.shop_wanted
                 .set(!rows.is_empty() && self.shop.borrow().showing().is_none());
         }
+        // An entry's page is built as A opens it, mid-app, and read nothing until the next whole
+        // sweep (Rowlet's, spike P), so a blank Pokédex asks for one.
+        self.blank
+            .set(self.app.borrow().as_deref() == Some(POKEDEX) && screen.on_screen.is_empty());
         if self.app.borrow().as_deref() == Some(POKEDEX) {
+            // A cursor over more pieces than an item holds is over the list at once, the rows'
+            // numbers among them, which the row cursor says, or over an entry's page, one number
+            // on it, which it would keep from being said as a screen ("rootpane").
             let items = std::mem::take(&mut cursors.items);
             cursors.items = settled(&mut self.held.borrow_mut(), items)?;
+            cursors.under.retain(|under| {
+                under.len() <= WHOLE_LIST
+                    || under.iter().filter(|p| py::isdigit(&p.text)).count() > 1
+            });
         } else if !self.held.borrow().is_empty() {
             self.held.borrow_mut().clear();
         }
@@ -883,8 +902,20 @@ impl Profile for SunProfile {
     }
 
     /// Whether a reader needs something only a sweep finds: the gauge behind an HP box on
-    /// screen, as in ORAS, or the shop's object behind a Mart's list, asked once a list.
+    /// screen, as in ORAS, the shop's object behind a Mart's list, asked once a list, or the
+    /// layout of a Pokédex page nothing is read on, asked as it goes blank and every `REASK`
+    /// polls after, as the battle's gauges are: Rowlet's page was built after the two sweeps its
+    /// going blank brought.
     fn sweep_wanted(&self) -> Result<bool> {
+        if !self.blank.get() {
+            self.blank_asks.set(0);
+        } else if self.blank_asks.get() < MAX_ASKS * (REASK + 1) {
+            let due = self.blank_asks.get() % (REASK + 1) == 0;
+            self.blank_asks.set(self.blank_asks.get() + 1);
+            if due {
+                return Ok(true);
+            }
+        }
         if self.shop_wanted.get() && !self.shop_asked.get() {
             self.shop_asked.set(true);
             return Ok(true);

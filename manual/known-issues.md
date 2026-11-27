@@ -169,7 +169,7 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
 - **The Pokédex's list** says each entry where the cursor lands, "Rowlet 001", "????? 012", a
   moment after it gets there. Its first menu's choices say their counts, "Alola Pokédex 3
   caught 9 seen", but the menu as it opens reads them bare, "Alola Pokédex 3 9", and an entry's
-  own pages are read as screen text.
+  page is read whole as it opens, its words run together: "Height1'00" Weight3.3 lbs.".
 - **A Poké Mart's buy list** says only the item under the cursor, not its price or how many
   you have, which are on screen beside it.
 - **A board can run its two lines together** where its second line has no quotation marks:
