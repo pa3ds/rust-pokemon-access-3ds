@@ -470,7 +470,9 @@ impl ScreenTextReader {
         let roots: Vec<i64> = PySet::of(found.values().chain(designed.values()).map(|p| p.root))
             .iter()
             .collect();
-        let named = self.named_pictures(&roots)?;
+        // `{p.parent for p in found.values()}`, a set only tested.
+        let holders: HashSet<i64> = found.values().map(|p| p.parent).collect();
+        let named = self.named_pictures(&roots, &holders)?;
         // A picture naming what its group writes says nothing new: the Bag's select bar draws a
         // Pokémon's icon beside its name (movie31).
         let written: HashSet<(i64, i64, String)> = found
@@ -722,8 +724,13 @@ impl ScreenTextReader {
 
     /// Picture -> what the game calls what it draws, as a piece where the picture is, for the
     /// pictures shown in layouts with words on screen: the Pokédex entry's type, drawn as an icon
-    /// beside the word TYPE (spike 147), "Male TYPE Fire".
-    fn named_pictures(&mut self, roots: &[i64]) -> Result<IndexMap<i64, ScreenText>> {
+    /// beside the word TYPE (spike 147), "Male TYPE Fire". `holders` are the panes words hang
+    /// from (`_side_by_side`).
+    fn named_pictures(
+        &mut self,
+        roots: &[i64],
+        holders: &HashSet<i64>,
+    ) -> Result<IndexMap<i64, ScreenText>> {
         let Some(pictures) = &self.pictures else {
             return Ok(IndexMap::new());
         };
@@ -829,7 +836,7 @@ impl ScreenTextReader {
         // Counted under the words they hang from, then grouped as those words are, by the frame
         // round them too: the move-forget screen's category icon, grouped with the stats, read
         // them all as each move's details (or_tm-hm, 2026-10-18).
-        let counted = side_by_side(&counted_stars(&out)?);
+        let counted = side_by_side(&counted_stars(&out)?, holders);
         let mut grouped: IndexMap<i64, ScreenText> = IndexMap::new();
         for (r#box, piece) in counted {
             let parent = self.group_of(piece.parent, false)?;
@@ -1397,7 +1404,17 @@ pub(crate) fn counts_under_their_words(
 ///
 /// The DexNav's red mark is never one of them: it is said by what it marks or not at all
 /// (`_by_their_labels`), and drawn against the third of three stars it was heard "3 stars/!".
-pub(crate) fn side_by_side(pictures: &IndexMap<i64, ScreenText>) -> IndexMap<i64, ScreenText> {
+///
+/// Nor is a picture with words hanging from it, one of `holders`: a thing of its own. The
+/// Colosseum's BATTLE POKÉMON hangs each Pokémon's gender and level from its icon, its six icons
+/// side by side in the button, and read "Fletchinder/Chingling/…, ♂, L: 23, ♀, L: 21" (Y and
+/// Omega Ruby, a link battle).
+///
+/// Python's `holders` defaults to none.
+pub(crate) fn side_by_side(
+    pictures: &IndexMap<i64, ScreenText>,
+    holders: &HashSet<i64>,
+) -> IndexMap<i64, ScreenText> {
     let mut out: IndexMap<i64, ScreenText> = IndexMap::new();
     let mut last: Option<ScreenText> = None;
     // The key is `(not top, root, -row, left)`: a tuple is smaller by its first element that
@@ -1426,6 +1443,8 @@ pub(crate) fn side_by_side(pictures: &IndexMap<i64, ScreenText>) -> IndexMap<i64
             && before.text != SPECIAL
             && piece.text != SPECIAL
             && touching(&before, piece)
+            && !holders.contains(&before.r#box)
+            && !holders.contains(&piece.r#box)
         {
             // A count drawn a digit a picture is one number: Pokémon-Amie's games' results.
             if py::isdigit(&before.text) && py::isdigit(&piece.text) {

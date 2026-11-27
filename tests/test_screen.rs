@@ -977,7 +977,7 @@ fn test_the_dexnav_s_mark_beside_its_stars_is_not_read_as_one_of_them() {
         ..ScreenText::placed(0x9C, pictures::SPECIAL, false, 121.0, 137.0, 25.0, 16.0)
     };
     stars.insert(mark.r#box, mark);
-    let pieces = screen::side_by_side(&screen::counted_stars(&stars).unwrap());
+    let pieces = screen::side_by_side(&screen::counted_stars(&stars).unwrap(), &HashSet::new());
     let mut found: IndexMap<i64, ScreenText> = IndexMap::new();
     found.insert(potential.r#box, potential);
     found.extend(pieces);
@@ -1086,10 +1086,34 @@ fn test_pictures_of_two_groups_side_by_side_are_two() {
         picture: true,
         ..ScreenText::placed(2, "Toughness", false, -5.0, 45.0, 50.0, 20.0)
     };
-    let found = screen::side_by_side(&IndexMap::from([(1, r#move), (2, star)]));
+    let found = screen::side_by_side(&IndexMap::from([(1, r#move), (2, star)]), &HashSet::new());
     let mut texts: Vec<String> = found.into_values().map(|piece| piece.text).collect();
     texts.sort();
     assert_eq!(texts, ["Coolness", "Toughness"]);
+}
+
+/// The Colosseum's BATTLE POKÉMON hangs each Pokémon's gender and level from its icon, the
+/// icons side by side in the button: joined, they read "Fletchinder/Chingling, ♂, L: 23" (Y, a
+/// link battle).
+#[test]
+fn test_pictures_with_words_hanging_from_them_are_not_joined() {
+    let one = ScreenText {
+        parent: 7,
+        picture: true,
+        ..ScreenText::placed(1, "Fletchinder", false, -150.0, -110.0, -5.0, 30.0)
+    };
+    let two = ScreenText {
+        parent: 7,
+        picture: true,
+        ..ScreenText::placed(2, "Chingling", false, -100.0, -60.0, -5.0, 30.0)
+    };
+    let pictures = IndexMap::from([(1, one), (2, two)]);
+    let found = screen::side_by_side(&pictures, &HashSet::from([1, 2]));
+    let texts: Vec<String> = found.into_values().map(|piece| piece.text).collect();
+    assert_eq!(texts, ["Fletchinder", "Chingling"]);
+    let found = screen::side_by_side(&pictures, &HashSet::new());
+    let texts: Vec<String> = found.into_values().map(|piece| piece.text).collect();
+    assert_eq!(texts, ["Fletchinder/Chingling"]);
 }
 
 /// Pokémon-Amie's results draw a count a digit a picture (or_amie_stars, spike 260): "11", not
@@ -1106,7 +1130,7 @@ fn test_digits_drawn_side_by_side_are_one_number() {
         picture: true,
         ..ScreenText::placed(2, "1", false, 0.0, 22.0, 0.0, 44.0)
     };
-    let found = screen::side_by_side(&IndexMap::from([(1, tens), (2, ones)]));
+    let found = screen::side_by_side(&IndexMap::from([(1, tens), (2, ones)]), &HashSet::new());
     let texts: Vec<String> = found.into_values().map(|piece| piece.text).collect();
     assert_eq!(texts, ["11"]);
 }
@@ -1907,6 +1931,69 @@ fn test_two_icons_side_by_side_are_said_with_a_slash_between() {
     assert_eq!(
         game.heard(),
         words(&[("TYPE", false), ("Bug/Water", false)])
+    );
+}
+
+/// The Colosseum's BATTLE POKÉMON hangs each Pokémon's gender and level from its icon, the
+/// icons side by side in its button, and read "BATTLE BOX, Fletchinder/Chingling, ♂, L 23, ♀,
+/// L 21" (Y and Omega Ruby, a link battle): one by one, each name before its own.
+#[test]
+fn test_icons_side_by_side_each_holding_its_words_are_each_said_with_them() {
+    let mut game = Game::new();
+    let picture =
+        FakeClasses::starting(game.memory.clone(), CODE.0 + 0x8000).add(lyt::PICTURE_CLASS);
+    let (_work, group) = game.screen(BOTTOM);
+    let title = game.text_box(BOTTOM + 0x1000, group, "BATTLE BOX");
+    game.place(title, (-30.0, 25.0), 100.0, 12.5);
+    let mut named: HashMap<i64, &str> = HashMap::new();
+    for (i, (name, sign, level)) in [("Fletchinder", "♂", "23"), ("Chingling", "♀", "21")]
+        .into_iter()
+        .enumerate()
+    {
+        let (icon, x) = (
+            BOTTOM + 0x2000 + 0x1000 * i as i64,
+            -130.0 + 50.0 * i as f64,
+        );
+        game.fake.pane_with_vtable(icon, group, Some(picture));
+        write_floats(
+            &game.memory,
+            icon,
+            &[
+                (lyt::X, x),
+                (lyt::Y, -5.0),
+                (lyt::WIDTH, 40.0),
+                (lyt::HEIGHT, 30.0),
+                (lyt::SCALE_X, 1.0),
+                (lyt::SCALE_Y, 1.0),
+            ],
+        );
+        let gender = game.text_box(icon + 0x200, icon, sign);
+        game.place(gender, (x + 25.0, 0.0), 14.0, 10.0);
+        let levelled = game.text_box(icon + 0x400, icon, level);
+        game.place(levelled, (x + 15.0, -25.0), 30.0, 10.0);
+        game.memory.u32(icon + lyt::CHILD_COUNT, &[2]);
+        named.insert(icon, name);
+    }
+    game.memory.u32(BOTTOM + 0x400 + lyt::CHILD_COUNT, &[1]);
+    game.memory.u32(group + lyt::CHILD_COUNT, &[3]);
+    game.reader = reader_with(
+        &game,
+        Rc::new(move |pane| Ok(named.get(&pane).map(|words| words.to_string()))),
+    );
+    game.sweep();
+    game.heard();
+    let heard: Vec<String> = game.heard().into_iter().map(|(text, _)| text).collect();
+    assert_eq!(
+        heard,
+        [
+            "BATTLE BOX",
+            "Fletchinder",
+            "♂",
+            "23",
+            "Chingling",
+            "♀",
+            "21"
+        ]
     );
 }
 
