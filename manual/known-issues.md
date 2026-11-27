@@ -12,9 +12,8 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
   ticked. "Yes" may be said on its own as the question about connecting to the Internet opens or closes. The
   O-Power list shows six powers at once, and touch mode offers only those six: the 3DS's L and R
   buttons turn its page to the rest.
-- **Battling another player in the PSS**: on BATTLE POKÉMON, choosing between your Battle Box
-  and your party, each Pokémon is said only by its gender and level, not its name. The battle's "Battle Time" and "Command Time" are read from the
-  pictures they are drawn as, checked in Alpha Sapphire and Y so far. As the question whether to
+- **Battling another player in the PSS**: the battle's "Battle Time" and "Command Time" are
+  read from the pictures they are drawn as, checked in Alpha Sapphire and Y so far. As the question whether to
   forfeit opens, the cursor can say "poke" for a moment before "Yes".
 - **Registering each other as friends** after a trade or battle never finishes in Azahar: both
   games wait for good, and only restarting Azahar gets out. Choose "Do not register".

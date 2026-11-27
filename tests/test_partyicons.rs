@@ -126,6 +126,30 @@ fn test_the_maisons_group_screen_draws_the_party_after_the_battle_box() {
         )
         .unwrap();
     assert_eq!(icons.name(picture).unwrap().as_deref(), Some("Wurmple"));
+    // The Colosseum's BATTLE POKÉMON draws them so too, where only genders and levels were said
+    // (Y, a link battle; spike 318's decompile).
+    *running.borrow_mut() = partyicons::COLOSSEUM.to_string();
+    icons
+        .track(
+            &[PARAMS],
+            [icon],
+            &|_params: &[i64]| Ok(vec![PARTY]),
+            false,
+            [r#box],
+        )
+        .unwrap();
+    assert_eq!(icons.name(picture).unwrap().as_deref(), Some("Wurmple"));
+    memory.u32(picture + 0x200 + lyt::MATERIAL_TEXTURE, &[0x1007]);
+    icons
+        .track(
+            &[PARAMS],
+            [icon],
+            &|_params: &[i64]| Ok(vec![PARTY]),
+            false,
+            [r#box],
+        )
+        .unwrap();
+    assert_eq!(icons.name(picture).unwrap().as_deref(), Some("Wurmple"));
 }
 
 /// Before a link battle the party list's top screen drew the other player's team as icons,

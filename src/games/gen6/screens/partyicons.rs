@@ -46,8 +46,11 @@
 //! `pokelist_uppwer.bclyt`: `DllPokeList`'s table of each slot's panes counts up the layout's
 //! panes in their order.
 //!
-//! Only while the Bag, that screen or the party list runs: another screen's icons are not the
-//! party's in its order.
+//! The Colosseum, where two players meet for a link battle, draws its BATTLE POKÉMON choice as the
+//! Maison does, and said only each one's gender and level (Y, 2026-11-27).
+//!
+//! Only while the Bag, those two screens or the party list runs: another screen's icons are not
+//! the party's in its order.
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -66,6 +69,10 @@ use crate::py::{self, PySet, Result};
 
 pub const BAG: &str = "N3app3bag4ProcE";
 pub const GROUPS: &str = "N3app19battle_party_select4ProcE";
+/// The Colosseum (`subscreen.pss.COLOSSEUM`), whose BATTLE POKÉMON draws the Battle Box and the
+/// party as the Battle Maison's choice does: one PokeIcon of twelve textures, the Battle Box's six
+/// from the save's and then the party's (spike 318, the same in Omega Ruby and X).
+pub const COLOSSEUM: &str = "N3app9colosseum4ProcE";
 pub const LIST: &str = "N3app8pokelist4ProcE";
 /// Where the party list's process keeps what it was opened with.
 pub const OPENED_WITH: i64 = 0x38;
@@ -81,7 +88,7 @@ pub const ICON_CLASS: &str = pokeicon::ICON_CLASS;
 pub const SLOTS: i64 = 6;
 
 /// App -> the texture holding the party's first member's icon.
-pub const FIRST: [(&str, i64); 2] = [(BAG, 0), (GROUPS, SLOTS)];
+pub const FIRST: [(&str, i64); 3] = [(BAG, 0), (GROUPS, SLOTS), (COLOSSEUM, SLOTS)];
 
 /// `FIRST.get(app)`.
 fn first(app: &str) -> Option<i64> {
