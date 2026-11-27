@@ -56,7 +56,7 @@
 //!   offered names no target. Where touch mode offers none, a button's words are its touch area's
 //!   alone, for the Pokédex to leave them to its cursors.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use indexmap::{IndexMap, IndexSet};
@@ -773,7 +773,7 @@ impl TouchTargets {
                 .any(|p| tree.get(p).map(String::as_str) == Some(lyt::TEXTBOX_CLASS));
             if !names.contains_key(&touch) && !worded {
                 if by_picture.is_none() {
-                    by_picture = Some(self.by_picture(root, tree, textures)?);
+                    by_picture = Some(self.by_picture(root, tree, textures, drawn)?);
                 }
                 let table = by_picture.as_ref().expect("made just above");
                 let mut alike: Option<String> = None;
@@ -1282,15 +1282,21 @@ impl TouchTargets {
     /// (movie18); an image several buttons draw, as the X menu's backing `menu_rgb` is, names none.
     /// The table that came before paired the bar's icons with the layout's groups of words by
     /// count, and the count changed with the X menu open: the bar was said "menu icon1" to "menu
-    /// icon6" from then on.
+    /// icon6" from then on. Nor does an image two buttons without words draw, which tells neither
+    /// apart: another player's Battle, Trade, Trainer PR Video and O-Power in X and Y's PSS each
+    /// sit on `pss_icon_base.bclim`, as does its hidden Game Chat, and all four were said "Game
+    /// Chat" (the PSS's multiplayer).
     fn by_picture(
         &mut self,
         root: i64,
         tree: &IndexMap<i64, String>,
         textures: &IndexMap<String, Vec<String>>,
+        drawn: &IndexMap<i64, Option<String>>,
     ) -> Result<IndexMap<String, String>> {
         // A `set[str]` in Python: only its size and its one member are read.
         let mut named: IndexMap<String, IndexSet<String>> = IndexMap::new();
+        // A `Counter` in Python, only looked up.
+        let mut bare: HashMap<String, i64> = HashMap::new();
         for (&touch, kind) in tree {
             // A touch area hanging straight from the root is the screen's, not a button beside
             // words: Amie's decorate screen's bar under its two tabs named its exit by both tabs'
@@ -1301,24 +1307,40 @@ impl TouchTargets {
             }
             let group = self.group(root, touch, tree)?;
             let said = self.written(&group, tree)?;
-            if said.is_empty() {
+            let drawing: Vec<i64> = group
+                .iter()
+                .copied()
+                .filter(|p| tree.get(p).map(String::as_str) == Some(lyt::PICTURE_CLASS))
+                .collect();
+            if !said.is_empty() {
+                for image in drawn_with(
+                    drawing,
+                    &*self.image_of,
+                    textures,
+                    &|p| self.layouts.pane_name(p),
+                ) {
+                    named.entry(image?).or_default().insert(said.clone());
+                }
                 continue;
             }
+            // Only images already read, `drawn` the shown pictures': reading a hidden one's was
+            // a read no poll had made, and 20 of 137 tapes no longer had their answers.
+            let mut images: HashSet<String> = HashSet::new();
             for image in drawn_with(
-                group
-                    .iter()
-                    .copied()
-                    .filter(|p| tree.get(p).map(String::as_str) == Some(lyt::PICTURE_CLASS)),
-                &*self.image_of,
+                drawing,
+                &|p| Ok(drawn.get(&p).cloned().flatten()),
                 textures,
                 &|p| self.layouts.pane_name(p),
             ) {
-                named.entry(image?).or_default().insert(said.clone());
+                images.insert(image?);
+            }
+            for image in images {
+                *bare.entry(image).or_default() += 1;
             }
         }
         Ok(named
             .into_iter()
-            .filter(|(_, said)| said.len() == 1)
+            .filter(|(image, said)| said.len() == 1 && bare.get(image).copied().unwrap_or(0) < 2)
             .map(|(image, said)| (image, said[0].clone()))
             .collect())
     }

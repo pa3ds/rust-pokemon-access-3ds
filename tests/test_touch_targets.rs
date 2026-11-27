@@ -2892,3 +2892,51 @@ fn test_a_touch_area_is_named_by_the_picture_the_data_has_a_word_for() {
     );
     assert_eq!(names_of(&mut targets), ["return"]);
 }
+
+/// X and Y's PSS sits another player's Battle, Trade, Trainer PR Video and O-Power each on
+/// `pss_icon_base`, as it does its hidden Game Chat, whose words named all four "Game Chat" (the
+/// PSS's multiplayer). Their own words are written under them.
+#[test]
+fn test_a_picture_two_buttons_without_words_draw_names_neither() {
+    let memory = FakeMemory::new();
+    let classes = FakeClasses::new(memory.clone());
+    let fake = FakeLayouts::new(&memory, &classes);
+    let (bounding, picture) = (
+        classes.add(lyt::BOUNDING_CLASS),
+        classes.add(lyt::PICTURE_CLASS),
+    );
+    let textbox = classes.add(lyt::TEXTBOX_CLASS);
+    let (_work, root) = fake.screen_with(0x08200000, false, false);
+    let (battle, trade, chat) = (root + 0x1000, root + 0x2000, root + 0x3000);
+    for (button, x) in [(battle, -55.0), (trade, 55.0)] {
+        placed(&fake, button, root, None, x, 10.0, 100.0, 100.0);
+        placed(&fake, button + 0x200, button, Some(picture), x, 10.0, 50.0, 50.0);
+        placed(&fake, button + 0x400, button, Some(textbox), x, -25.0, 100.0, 30.0);
+        placed(&fake, button + 0x600, button, Some(bounding), x, 10.0, 50.0, 50.0);
+    }
+    placed(&fake, chat, root, None, 0.0, -65.0, 100.0, 100.0);
+    placed(&fake, chat + 0x200, chat, Some(picture), 0.0, -65.0, 50.0, 50.0);
+    placed(&fake, chat + 0x400, chat, Some(textbox), 0.0, -65.0, 50.0, 30.0);
+    placed(&fake, chat + 0x600, chat, Some(bounding), 0.0, -65.0, 50.0, 50.0);
+    fake.visible(chat, false);
+    fake.track().unwrap();
+    let words = vec![
+        text_in(battle + 0x400, "Battle", root),
+        text_in(trade + 0x400, "Trade", root),
+    ];
+    let written: HashMap<i64, String> = HashMap::from([(chat + 0x400, "Game Chat".to_string())]);
+    let base: HashMap<i64, String> = [battle, trade, chat]
+        .into_iter()
+        .map(|pane| (pane + 0x200, "pss_icon_base.bclim".to_string()))
+        .collect();
+    let mut targets = TouchTargets::new(
+        fake.layouts.clone(),
+        Rc::new(move || words.clone()),
+        Rc::new(move |r#box| Ok(written.get(&r#box).cloned().unwrap_or_default())),
+        Rc::new(move |pane| Ok(base.get(&pane).cloned())),
+        Rc::new(|_root| None),
+        Rc::new(|_line: &str| {}),
+        Options::default(),
+    );
+    assert_eq!(names_of(&mut targets), ["Battle", "Trade"]);
+}
