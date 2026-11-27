@@ -3,7 +3,6 @@
 //! tapped. The item is the button whose touch area holds that place, in whatever layout came on that
 //! screen last; where another cursor claims that layout, the pointer says nothing.
 
-use std::collections::HashSet;
 use std::rc::Rc;
 
 use indexmap::{IndexMap, IndexSet};
@@ -57,26 +56,20 @@ impl Pointers {
             .collect();
         for pointer in gone {
             self.pointed.shift_remove(&pointer);
-            self.said.steady.borrow_mut().shift_remove(&pointer);
+            self.said.unsteady(pointer);
             self.said.forget(pointer);
         }
         if pointers.is_empty() {
             return Ok(());
         }
-        let claimed: HashSet<i64> = self
+        let claimed = self
             .said
-            .under
-            .borrow()
-            .iter()
-            .filter(|(cursor, _pieces)| !pointers.contains_key(*cursor))
-            .flat_map(|(_cursor, pieces)| pieces.iter().map(|piece| piece.root))
-            .collect();
+            .claimed_roots(&|cursor| pointers.contains_key(&cursor));
         for (&pointer, &(x, y, top)) in &pointers {
             self.pointed.insert(pointer);
             let found = self.touched(x, y, top)?;
             let Some((root, button)) = found.filter(|found| !claimed.contains(&found.0)) else {
-                self.said.under.borrow_mut().shift_remove(&pointer);
-                self.said.steady.borrow_mut().shift_remove(&pointer);
+                self.said.over_nothing(pointer);
                 continue;
             };
             let mut under: Vec<ScreenText> = Vec::new();

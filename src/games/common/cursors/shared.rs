@@ -408,15 +408,72 @@ impl Panes {
 #[derive(Default)]
 pub struct Said {
     /// Cursor -> the pieces under it at the last poll, for cursors on screen.
-    pub under: RefCell<IndexMap<i64, Vec<ScreenText>>>,
+    under: RefCell<IndexMap<i64, Vec<ScreenText>>>,
     /// Cursor -> the words last reported and where they were, for cursors on screen.
-    pub said: RefCell<IndexMap<i64, Words>>,
+    said: RefCell<IndexMap<i64, Words>>,
     /// Cursor -> the words under it and where, at the last poll, for those said once they
     /// read the same twice.
-    pub steady: RefCell<IndexMap<i64, Words>>,
+    steady: RefCell<IndexMap<i64, Words>>,
 }
 
 impl Said {
+    /// Has the cursor said what it is over, or been restarted, since it came on screen?
+    /// (Python's `cursor in said`.)
+    pub fn contains(&self, cursor: i64) -> bool {
+        self.said.borrow().contains_key(&cursor)
+    }
+
+    /// The words the cursor last said and where they were, or None.
+    pub fn last(&self, cursor: i64) -> Option<Words> {
+        self.said.borrow().get(&cursor).cloned()
+    }
+
+    /// The pieces under the cursor at the last poll; none for a cursor not read.
+    pub fn under(&self, cursor: i64) -> Vec<ScreenText> {
+        self.under.borrow().get(&cursor).cloned().unwrap_or_default()
+    }
+
+    /// The pieces under each cursor on screen (`CursorPoll.under`).
+    pub fn under_each(&self) -> Vec<Vec<ScreenText>> {
+        self.under.borrow().values().cloned().collect()
+    }
+
+    /// The layouts, by their roots, of what every cursor but these is over. A set only tested.
+    pub fn claimed_roots(&self, besides: &dyn Fn(i64) -> bool) -> HashSet<i64> {
+        self.under
+            .borrow()
+            .iter()
+            .filter(|(cursor, _)| !besides(**cursor))
+            .flat_map(|(_, pieces)| pieces.iter().map(|piece| piece.root))
+            .collect()
+    }
+
+    /// Take what the cursor is over without saying it: an item still being laid out.
+    pub fn note(&self, cursor: i64, inside: Vec<ScreenText>) {
+        self.under.borrow_mut().insert(cursor, inside);
+    }
+
+    /// Forget what the cursor said, so that it says what it is over again, as a cursor that
+    /// moved there rather than one that opened.
+    pub fn restart(&self, cursor: i64) {
+        self.said
+            .borrow_mut()
+            .insert(cursor, (Vec::new(), Where::Nothing));
+    }
+
+    /// Forget what the cursor read at the last poll, so that it waits for two polls reading
+    /// the same again (`report_steady`).
+    pub fn unsteady(&self, cursor: i64) {
+        self.steady.borrow_mut().shift_remove(&cursor);
+    }
+
+    /// A cursor still on screen over nothing it may say: what it is over and its steady read
+    /// are forgotten, what it said kept.
+    pub fn over_nothing(&self, cursor: i64) {
+        self.under.borrow_mut().shift_remove(&cursor);
+        self.steady.borrow_mut().shift_remove(&cursor);
+    }
+
     /// Report what the cursor is over, whenever the words or the place they are in changed.
     ///
     /// The place matters as much as the words. A party screen with five empty slots gives every

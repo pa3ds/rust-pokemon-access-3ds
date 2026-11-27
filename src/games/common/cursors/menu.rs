@@ -139,11 +139,8 @@ impl MenuCursors {
                 inside = [blank(&rect, &theirs, &inside), inside].concat();
             }
             let at = place_of(&rect)?;
-            let said = self.said.said.borrow().get(&cursor).cloned();
-            let before: HashSet<i64> = match self.said.under.borrow().get(&cursor) {
-                Some(under) => under.iter().map(|p| p.r#box).collect(),
-                None => HashSet::new(),
-            };
+            let said = self.said.last(cursor);
+            let before: HashSet<i64> = self.said.under(cursor).iter().map(|p| p.r#box).collect();
             let now: HashSet<i64> = inside.iter().map(|p| p.r#box).collect();
             if let Some(said) = said
                 && said.1 == at
@@ -159,7 +156,7 @@ impl MenuCursors {
                 // place, the Bag's next item with its description (or_dexnav_chain_linoone), a
                 // row slid under the cursor, and words only leaving, the AreaNav's leader card
                 // with its town's facilities (or_areanav_by_touch).
-                self.said.under.borrow_mut().insert(cursor, inside);
+                self.said.note(cursor, inside);
             } else {
                 let rows = rows.iter().map(|&(_root, row)| row).min().unwrap_or(0);
                 self.said

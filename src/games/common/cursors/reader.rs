@@ -168,7 +168,7 @@ impl CursorReader {
         self.pointers.poll(on_screen, &mut items)?;
         Ok(CursorPoll {
             items,
-            under: self.said.under.borrow().values().cloned().collect(),
+            under: self.said.under_each(),
             lists: self.lists.lists(),
             moving: self.lists.moving(),
             rows: self.menus.rows.clone(),

@@ -198,10 +198,10 @@ impl ListCursors {
             if missed > 1 {
                 self.listing.shift_remove(&cursor);
                 self.listing_missed.shift_remove(&cursor);
-                self.said.steady.borrow_mut().shift_remove(&cursor);
+                self.said.unsteady(cursor);
                 self.over.remove(&cursor);
                 for group in self.slot_groups.shift_remove(&cursor).unwrap_or_default() {
-                    self.said.steady.borrow_mut().shift_remove(&group);
+                    self.said.unsteady(group);
                     self.said.forget(group);
                 }
                 self.said.forget(cursor);
@@ -336,14 +336,13 @@ impl ListCursors {
                     self.slot_groups.entry(holder).or_default();
                     // The same pointer going on from the party to the box has moved, and brings
                     // the summary of what it moved to, where an item opening brings none.
-                    let mut held = self.said.said.borrow_mut();
-                    if !held.contains_key(&reporter)
-                        && (held.contains_key(&holder)
+                    if !self.said.contains(reporter)
+                        && (self.said.contains(holder)
                             || self.slot_groups[&holder]
                                 .iter()
-                                .any(|group| held.contains_key(group)))
+                                .any(|&group| self.said.contains(group)))
                     {
-                        held.insert(reporter, (Vec::new(), Where::Nothing));
+                        self.said.restart(reporter);
                     }
                     self.slot_groups.entry(holder).or_default().insert(reporter);
                 }
@@ -356,11 +355,10 @@ impl ListCursors {
             }
             others.remove(&reporter);
             for other in others {
-                let mut held = self.said.said.borrow_mut();
-                if held.contains_key(&other) {
-                    held.insert(other, (Vec::new(), Where::Nothing));
+                if self.said.contains(other) {
+                    self.said.restart(other);
                 }
-                self.said.steady.borrow_mut().shift_remove(&other);
+                self.said.unsteady(other);
             }
             // A button's cursor walks a grid of buttons alike, the contest's two columns of moves.
             // A cursor carrying its own words walks no list of its layout: taken for one, the
@@ -411,7 +409,7 @@ impl ListCursors {
                 continue;
             }
             if held {
-                let said = self.said.said.borrow().get(&reporter).map(|said| said.1);
+                let said = self.said.last(reporter).map(|said| said.1);
                 if heading || said == Some(at) {
                     // Words rewritten under a cursor that has not moved: a Secret Base's list
                     // writes the next list's words into its rows a poll before it hides the last
@@ -421,7 +419,7 @@ impl ListCursors {
                     let words: Vec<String> =
                         inside.iter().map(|piece| piece.text.clone()).collect();
                     self.said.report_steady(reporter, inside, items, at, alone);
-                    if heading && self.said.said.borrow().get(&reporter) != Some(&(words, at)) {
+                    if heading && self.said.last(reporter) != Some((words, at)) {
                         // Not said yet: still on its way, so that what the screen changes
                         // meanwhile is held for the slot (`ScreenAnnouncer`).
                         self.moving.insert(holder);
