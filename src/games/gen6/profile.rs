@@ -2271,19 +2271,19 @@ fn own_running(
 /// page, and a page after it is said once the screen behind is up; so is a list or a choice
 /// opening, the player's to answer.
 #[derive(Default)]
-struct AfterForget {
+pub(crate) struct AfterForget {
     /// The pages said since, or None when not back from Move to forget.
     pages: Cell<Option<i64>>,
 }
 
 impl AfterForget {
     /// Is the screen Move to forget was opened from opening again?
-    fn back(&self) -> bool {
+    pub(crate) fn back(&self) -> bool {
         self.pages.get().is_some()
     }
 
     /// Another app has started after `was`.
-    fn started(&self, was: Option<&str>, started: &str) {
+    pub(crate) fn started(&self, was: Option<&str>, started: &str) {
         if was == Some(rows::FORGET) && started != FIELD {
             self.pages.set(Some(0));
         } else if started == FIELD || started == rows::FORGET {
@@ -2292,7 +2292,7 @@ impl AfterForget {
     }
 
     /// The dialogue reader has read these.
-    fn paged(&self, shown: &[Shown]) {
+    pub(crate) fn paged(&self, shown: &[Shown]) {
         if let Some(pages) = self.pages.get() {
             let pages = pages
                 + shown
@@ -2307,7 +2307,7 @@ impl AfterForget {
     }
 
     /// A list or a choice has opened: the answer is the player's, and the screen is up.
-    fn answered(&self) {
+    pub(crate) fn answered(&self) {
         self.pages.set(None);
     }
 }

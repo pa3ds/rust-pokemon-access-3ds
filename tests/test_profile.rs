@@ -21,6 +21,7 @@ use crate::core::memory::{Cache, Memory};
 use crate::core::names::Names;
 use crate::core::rtti::ClassNames;
 use crate::core::speech::{Category, Speech};
+use crate::games::common::dialogue::{PageShown, Shown, TextWritten};
 use crate::games::common::field::keys::{ENEMY_SIDE, ITEM_NEXT, MODE_TOGGLE, OUR_SIDE, PATHFIND};
 use crate::games::common::session::Ways;
 use crate::games::common::touch::Target;
@@ -32,9 +33,10 @@ use crate::games::gen6::field::voice::{Said, Speaking};
 use crate::games::gen6::field::{dowsing, mapblock};
 use crate::games::gen6::game::Game;
 use crate::games::gen6::own::{Kit, Own};
-use crate::games::gen6::profile::{Gen6Profile, HELD_MOST, Options, STILL};
+use crate::games::gen6::profile::{AfterForget, Gen6Profile, HELD_MOST, Options, STILL};
 use crate::games::gen6::rom::archives::{GameText, no_text};
 use crate::games::gen6::screens::summary::SUMMARY;
+use crate::games::gen6::screens::{partyicons, reminder, rows};
 use crate::games::oras::field::hidden::PLAYER_WORK_CLASS;
 use crate::games::oras::own::Oras;
 use crate::games::{gen6::gflheap, oras::field::sky};
@@ -720,5 +722,43 @@ fn test_head_its_cue_is_the_games_exclamation_once_the_setting_is_on() {
         );
         let head_it = made.subscreens.head_it.clone();
         assert_eq!(head_it.borrow().cue.is_some(), on, "on {on}");
+    }
+}
+
+/// Move to forget gives way to the screen it was opened from, whose opening is left unsaid
+/// under the game's question or its news of the move: until the page after that one, or a list
+/// or a choice to answer, or the field (or_move_reminder).
+#[test]
+fn test_back_from_move_to_forget_lasts_until_a_page_after_the_first_or_an_answer() {
+    let after = AfterForget::default();
+    assert!(!after.back());
+    after.started(Some(rows::FORGET), reminder::REMEMBER);
+    assert!(after.back());
+    // Written text is no page; the question is the first.
+    after.paged(&[Shown::Text(TextWritten {
+        window: 1,
+        text: "Altaria".to_string(),
+    })]);
+    after.paged(&[Shown::Page(PageShown::new(
+        2,
+        0,
+        "Give up trying to make Altaria remember a move?",
+    ))]);
+    assert!(after.back());
+    after.paged(&[Shown::Page(PageShown::new(
+        2,
+        1,
+        "Altaria did not learn Dragon Pulse.",
+    ))]);
+    assert!(!after.back());
+    after.started(Some(rows::FORGET), partyicons::BAG);
+    after.started(Some(partyicons::BAG), BATTLE);
+    assert!(after.back());
+    after.answered();
+    assert!(!after.back());
+    for started in [FIELD, rows::FORGET] {
+        after.started(Some(rows::FORGET), reminder::REMEMBER);
+        after.started(Some(reminder::REMEMBER), started);
+        assert!(!after.back(), "{started}");
     }
 }
