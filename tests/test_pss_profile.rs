@@ -6,6 +6,7 @@ use indexmap::IndexMap;
 
 use super::fake_layouts::FakeLayouts;
 use super::fake_memory::{CODE, FakeClasses, FakeMemory};
+use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
 use crate::games::common::layout_file::LayoutFile;
 use crate::games::common::lyt;
@@ -102,18 +103,45 @@ fn test_a_profiles_rows_are_said_in_their_pictures_by_their_order() {
         .map(|&row| (row, pss_profile::ROWS[0].to_string()))
         .collect();
     values.track(&found, false).unwrap();
+    let said = [
+        Some("Nice to meet ya!".to_string()),
+        None,
+        Some("United States".to_string()),
+        Some("District of Columbia".to_string()),
+        None,
+        None,
+        None,
+    ];
     let named: Vec<Option<String>> = pictures.iter().map(|&p| values.name(p).unwrap()).collect();
+    assert_eq!(named, said);
+    // A sweep of the blocks just allocated found three of the rows, and Location 1 took
+    // Location 2's words (Omega Ruby, live): they join those kept.
+    let some: IndexMap<i64, String> = rows
+        .iter()
+        .skip(1)
+        .step_by(2)
+        .map(|&row| (row, pss_profile::ROWS[0].to_string()))
+        .collect();
+    values.track(&some, true).unwrap();
+    let named: Vec<Option<String>> = pictures.iter().map(|&p| values.name(p).unwrap()).collect();
+    assert_eq!(named, said);
+    // Another profile's rows at the same places take the closed one's.
+    let later = ROWS + 0x1000;
+    memory.u32(later, &[message]);
+    memory.write(later + pss_profile::PLACE, &(-55i16).to_le_bytes());
+    memory.write(
+        later + pss_profile::WORDS,
+        &memory.read(rows[3] + pss_profile::WORDS, 4).unwrap(),
+    );
+    values
+        .track(
+            &IndexMap::from([(later, pss_profile::ROWS[0].to_string())]),
+            true,
+        )
+        .unwrap();
     assert_eq!(
-        named,
-        [
-            Some("Nice to meet ya!".to_string()),
-            None,
-            Some("United States".to_string()),
-            Some("District of Columbia".to_string()),
-            None,
-            None,
-            None
-        ]
+        values.name(pictures[2]).unwrap().as_deref(),
+        Some("District of Columbia")
     );
 }
 

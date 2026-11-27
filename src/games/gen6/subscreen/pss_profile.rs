@@ -25,7 +25,7 @@
 
 use std::rc::Rc;
 
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 
 use crate::core::binary::{f32, s16, u32};
 use crate::core::memory::Memory;
@@ -35,7 +35,7 @@ use crate::games::common::layout_file::LayoutFile;
 use crate::games::common::screen::ScreenText;
 use crate::games::common::touch::FileOf;
 use crate::games::common::{lyt, strbuf};
-use crate::py::{Result, sorted_by_lt};
+use crate::py::{self, Result, sorted_by_lt};
 
 pub const MESSAGE: &str = "N3app3pss11pss_profile25PssProfileMessageCategoryE";
 pub const HISTORY_ROW: &str = "N3app3pss11pss_profile25PssProfileHistoryCategoryE";
@@ -116,18 +116,27 @@ impl ProfileValues {
         }
     }
 
-    /// Keep the rows a sweep found, in place of those kept: a profile opening allocates its
-    /// rows at once, and a closed one's may still read as rows where it lay.
+    /// Keep the rows a sweep found, in place of those kept, or with `adding` after them: a
+    /// sweep of the blocks just allocated can find three of a profile's thirteen, and a profile
+    /// whose kept rows were those three said Location 2's words as Location 1's and History's
+    /// icons after Message. A closed profile's rows may still read as rows where they lay, and
+    /// a later one's at the same places take theirs (`_placed`).
     ///
     /// Python's `adding` defaults to False.
-    pub fn track(&mut self, found: &IndexMap<i64, String>, _adding: bool) -> Result<()> {
+    pub fn track(&mut self, found: &IndexMap<i64, String>, adding: bool) -> Result<()> {
         let rows: Vec<i64> = found
             .iter()
             .filter(|(_, name)| ROWS.contains(&name.as_str()))
             .map(|(&at, _)| at)
             .collect();
         if !rows.is_empty() {
-            self.rows = rows;
+            self.rows = if adding {
+                // `list(dict.fromkeys(...))`: each once, where it first came.
+                let kept: IndexSet<i64> = self.rows.iter().chain(&rows).copied().collect();
+                kept.into_iter().collect()
+            } else {
+                rows
+            };
         }
         Ok(())
     }
@@ -280,22 +289,23 @@ impl ProfileValues {
         Ok(frames)
     }
 
-    /// The rows kept, top first by their places down the list.
+    /// The rows kept, top first by their places down the list, the one kept last at each.
     fn placed(&self) -> Result<Vec<i64>> {
-        let mut placed: Vec<(i64, i64)> = Vec::new();
+        let mut placed: IndexMap<i64, i64> = IndexMap::new();
         for &row in &self.rows {
             if self
                 .names
                 .of_object(row)?
                 .is_some_and(|name| ROWS.contains(&name.as_str()))
             {
-                placed.push((s16(&self.memory.read(row, PLACE + 2)?, PLACE)?, row));
+                placed.insert(s16(&self.memory.read(row, PLACE + 2)?, PLACE)?, row);
             }
         }
-        Ok(sorted_by_lt(placed, |a, b| -a.0 < -b.0)
-            .into_iter()
-            .map(|(_place, row)| row)
-            .collect())
+        // `sorted(placed, reverse=True)`: reversed, sorted, and reversed again.
+        let mut places: Vec<i64> = placed.keys().rev().copied().collect();
+        py::sort_by_lt(&mut places, |a, b| a < b);
+        places.reverse();
+        Ok(places.iter().map(|place| placed[place]).collect())
     }
 
     /// The texture of History's icon a pane draws, less `.bclim`, or None for another pane.
