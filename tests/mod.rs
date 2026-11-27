@@ -54,6 +54,7 @@ mod test_mapcursor;
 mod test_mart;
 mod test_memories;
 mod test_memory;
+mod test_models;
 mod test_modules;
 mod test_mystatus;
 mod test_names;
