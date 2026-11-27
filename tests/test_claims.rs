@@ -160,7 +160,7 @@ fn test_a_buttons_words_coming_on_screen_are_left_to_touch_mode_and_kept_quiet()
 }
 
 /// "Game Chat: Disabled" is said; L and R page O-Power's list, and its seven powers were read as
-/// each page came (or_pss_o_power_2).
+/// each page came (or_pss_o_power).
 #[test]
 fn test_one_buttons_words_changing_are_said_but_a_page_of_them_is_turned_unsaid() -> Result<()> {
     let chat = bottom(1, "Disabled", PAGE, 0.0, true);

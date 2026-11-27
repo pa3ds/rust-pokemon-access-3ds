@@ -505,7 +505,7 @@ impl Layouts {
         {
             // The PSS builds each screen's pool where the last one's lay, in a block its heap's
             // watch knew already: O-Power's list, opened from the PSS menu, offered the menu's
-            // buttons until the whole sweep, 16 s (or_pss_o_power_2). Only pages the poll holds
+            // buttons until the whole sweep, 16 s (or_pss_o_power). Only pages the poll holds
             // already, as `revive` reads the gone pool's works there: read afresh, every replay
             // recorded before went its own way where a pool went.
             let pages: IndexMap<i64, Vec<u8>> = self

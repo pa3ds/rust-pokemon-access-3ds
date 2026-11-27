@@ -1796,7 +1796,7 @@ impl Gen6Profile {
         }
         let (cursors, heard) = self.sources.borrow().said(cursors, heard);
         // O-Power's Active panel turns between its field and battle powers by itself, as the
-        // PSS's profile turns its counts (or_pss_o_power_2): the subscreens say where.
+        // PSS's profile turns its counts (or_pss_o_power): the subscreens say where.
         let heard = Heard {
             turns: self.subscreens.turns(),
             ..heard

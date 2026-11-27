@@ -67,7 +67,8 @@ fn reader(memory: &Rc<FakeMemory>, shown: Vec<i64>) -> OPower {
 }
 
 /// Using Hatching, Bargain, Prize Money and Encounter Power took the record's +0x68 10, 8, 6, 2,
-/// 0 (or_pss_o_power); the Active panel on the top screen says each power running.
+/// 0 (the first or_pss_o_power, archived); the Active panel on the top screen says each power
+/// running.
 #[test]
 fn test_r_says_the_energy_then_the_powers_running_on_o_powers_screens() {
     let memory = FakeMemory::new();
@@ -95,7 +96,7 @@ fn test_r_says_the_regen_rate_the_list_shows_after_the_energy() {
 
 /// With field and battle powers running, the Active panel turns between a page of each every
 /// six seconds, its rows written again into the same TextBoxes, and R said the page showing
-/// (or_pss_o_power_2): the other is said as it last showed, its times counted down since, until
+/// (or_pss_o_power): the other is said as it last showed, its times counted down since, until
 /// it has not shown for two turns.
 #[test]
 fn test_r_says_each_page_of_the_active_panel_as_it_turns() {

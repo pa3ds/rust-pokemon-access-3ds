@@ -72,7 +72,7 @@ fn test_reads_in_one_page_in_one_phase_fetch_it_once() {
 }
 
 /// A layout pool gone is looked for again only in pages the poll holds already: read
-/// afresh, every replay recorded before went its own way where a pool went (or_pss_o_power_2).
+/// afresh, every replay recorded before went its own way where a pool went (or_pss_o_power).
 #[test]
 fn test_a_page_the_phase_holds_is_looked_at_with_no_read() {
     let emu = FakeEmulator::new(filled(&[(0x08001000, 1), (0x08001400, 2)]));

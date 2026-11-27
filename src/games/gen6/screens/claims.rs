@@ -47,7 +47,7 @@ use crate::py::Result;
 
 /// Buttons of one layout whose words change in a poll, at least, for a page of them turned rather
 /// than one button's words changed: L and R page O-Power's list, its seven at once
-/// (or_pss_o_power_2), where a button changing its own words alone is still said: "Game Chat:
+/// (or_pss_o_power), where a button changing its own words alone is still said: "Game Chat:
 /// Disabled".
 pub const PAGE_TURNED: i64 = 2;
 
@@ -60,7 +60,7 @@ pub struct ButtonRule {
     pub cursor_keeps: bool,
     /// Two or more of a layout's buttons changing in one poll are a page turned, left unsaid too:
     /// L and R page O-Power's list, and its seven powers were read as they came
-    /// (or_pss_o_power_2).
+    /// (or_pss_o_power).
     pub pages: bool,
     /// The layout files whose buttons' words alone are another's, where any is given: the menus
     /// the Pokédex's cursors walk. None given, every layout's are: the field's bottom screen.

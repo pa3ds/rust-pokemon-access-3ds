@@ -91,7 +91,7 @@ fn test_a_pool_that_stops_being_one_is_no_longer_read() {
 
 /// The PSS builds each screen's pool where the last one's lay, in a block its heap's watch knew
 /// already: O-Power's list, opened from the PSS menu, offered the menu's buttons until the whole
-/// sweep (or_pss_o_power_2). Only in pages the poll has read already, as it reads the gone
+/// sweep (or_pss_o_power). Only in pages the poll has read already, as it reads the gone
 /// pool's works there: read afresh, every replay recorded before went its own way.
 #[test]
 fn test_a_pool_made_where_a_watched_one_went_is_watched() {

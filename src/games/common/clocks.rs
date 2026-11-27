@@ -211,12 +211,12 @@ impl Clocks {
             .collect();
         // And settles with its layout: O-Power's Active panel, back from a power used, came with
         // the times it had left, then jumped them a second or two a poll later and brought one
-        // back alone, "Prize Money Power Lv. 1 02:57", "02:43" (or_pss_o_power). A clock from
-        // then on: a row coming later in that second ticked first two polls on, too soon for a
-        // clock's beat, and said "Encounter Power Lv. 1 02:27" again.
+        // back alone, "Prize Money Power Lv. 1 02:57", "02:43" (the first or_pss_o_power,
+        // archived). A clock from then on: a row coming later in that second ticked first two
+        // polls on, too soon for a clock's beat, and said "Encounter Power Lv. 1 02:27" again.
         // And comes back with a page the screen turns to by itself: the Active panel hides its
         // times with its battle powers and shows them again with its field powers, its rows
-        // turned unsaid and "02:24" said alone (or_pss_o_power_2).
+        // turned unsaid and "02:24" said alone (or_pss_o_power).
         let settled: HashSet<i64> = if timed {
             HashSet::new()
         } else {
@@ -396,7 +396,7 @@ impl Clocks {
     /// Outside such a game, only words that are a clock alone, minutes and seconds, are asked,
     /// and every tick is left unsaid with no sound and no mark: O-Power's Active panel counts
     /// down each power running, "02:58", and read each second of up to four at once
-    /// (or_pss_o_power); R says them (`gen6.subscreen.o_power`).
+    /// (the first or_pss_o_power, archived); R says them (`gen6.subscreen.o_power`).
     ///
     /// Python's `timed` defaults to True.
     fn ticked(&mut self, piece: &ScreenText, timed: bool) -> Result<Option<bool>> {
@@ -412,7 +412,8 @@ impl Clocks {
         }
         let step = (now - then).abs();
         // Words a clock alone are one from their first tick, two seconds on two seconds after: the
-        // Active panel's row came at "02:59" and ticked first to "02:57" (or_pss_o_power).
+        // Active panel's row came at "02:59" and ticked first to "02:57" (the first
+        // or_pss_o_power, archived).
         let gap = self.polls - before.1;
         if !((step == 1 && CLOCK_POLLS.contains(&gap))
             || (self.ticking.contains(&piece.r#box) && 0 < step && step <= 2)

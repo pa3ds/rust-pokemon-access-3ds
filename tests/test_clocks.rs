@@ -339,9 +339,10 @@ fn test_no_number_is_a_clock_outside_a_game_that_times_the_player() {
 }
 
 /// O-Power's Active panel counts down each power running, its time a TextBox of its own, and each
-/// second of up to four was read (or_pss_o_power). Its half minute is no mark either: R says the
-/// times. Back from a power used, it came with the times it had left, then jumped them two
-/// seconds a poll later and brought one back alone: "Prize Money Power Lv. 1 02:57", "02:43".
+/// second of up to four was read (the first or_pss_o_power, archived). Its half minute is no mark
+/// either: R says the times. Back from a power used, it came with the times it had left, then
+/// jumped them two seconds a poll later and brought one back alone: "Prize Money Power Lv. 1
+/// 02:57", "02:43".
 #[test]
 fn test_a_clock_alone_outside_a_game_is_said_only_as_its_layout_comes() {
     let (ticks, tick) = counting();
@@ -384,7 +385,7 @@ fn test_a_clock_alone_outside_a_game_is_said_only_as_its_layout_comes() {
 
 /// A row of O-Power's Active panel coming later in its first second ticked first two polls on,
 /// too soon for a clock's beat, and "Encounter Power Lv. 1 02:27" was said again
-/// (or_pss_o_power). Its clock settles unsaid, and is a clock from then on.
+/// (the first or_pss_o_power, archived). Its clock settles unsaid, and is a clock from then on.
 #[test]
 fn test_a_clock_alone_settled_in_its_layouts_first_second_ticks_at_any_pace() {
     let mut polls = clocks(false);

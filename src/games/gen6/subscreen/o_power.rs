@@ -7,9 +7,10 @@
 //! ```
 //!
 //! Using Hatching, Bargain, Prize Money and Encounter Power took it 10, 8, 6, 2, 0, each as the game
-//! charged the power's cost (or_pss_o_power); Y's record keeps it at the same place. The O-Power
-//! list draws it as ten orbs along its bottom, pictures whose inner part stays shown, as it empties,
-//! for a while after the orb is spent, and named nothing: read from the record, it is the number the
+//! charged the power's cost (the first or_pss_o_power, archived); Y's record keeps it at the same
+//! place. The O-Power list draws it as ten orbs along its bottom, pictures whose inner part stays
+//! shown, as it empties, for a while after the orb is spent, and named nothing: read from the
+//! record, it is the number the
 //! orbs settle on. Beside them a clock icon and a digit, a picture of its own, `number_1` with
 //! Azahar counting no steps and `number_4` at 9000 an hour: the energy's regen rate, which goes up
 //! with the steps counted that day, said after the energy where the list is up.
@@ -19,7 +20,7 @@
 //! "02:58", its time left ticking each second, left unsaid as a clock's tick
 //! (`common.clocks`). With field and battle powers both running, the panel turns between
 //! a page of each every six seconds by itself, its rows written again into the same TextBoxes
-//! (or_pss_o_power_2): each page is kept as it shows (`poll`). R says the energy and then each page
+//! (or_pss_o_power): each page is kept as it shows (`poll`). R says the energy and then each page
 //! while O-Power's list or the panel is up, the energy first, a page not showing as it last showed,
 //! its times counted down by the seconds since. It is one of the subscreens' readers:
 //! `Subscreens.turns` asks whether its screens are up, and `Subscreens.sides` what R says there.
