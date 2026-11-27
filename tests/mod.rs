@@ -94,6 +94,7 @@ mod test_shiny;
 mod test_sky;
 mod test_sm;
 mod test_sm_battle;
+mod test_sm_box;
 mod test_sm_camera;
 mod test_sm_field;
 mod test_sm_gametext;

@@ -43,6 +43,7 @@ use crate::games::common::screen_announce::{Heard, ScreenAnnouncer};
 use crate::games::common::session::Profile;
 use crate::games::sm::apps::{self, RunningApp};
 use crate::games::sm::battle::{self, SunBattleReader};
+use crate::games::sm::r#box::{self, BoxReader};
 use crate::games::sm::field::{self, SunFieldReader, Walls};
 use crate::games::sm::gametext::SunGameText;
 use crate::games::sm::heaps::{Blocks, InBlocks};
@@ -69,8 +70,9 @@ pub fn heap_classes() -> Vec<&'static str> {
         talk::UTIL_CLASS,
         langselect::CLASS,
         shop::CLASS,
-        common_lyt::DRAWINFO_CLASS,
     ]);
+    classes.extend(r#box::CLASSES);
+    classes.push(common_lyt::DRAWINFO_CLASS);
     classes.extend(field::CLASSES);
     classes.extend([apps::MANAGER_CLASS, battle::GAUGE_CLASS]);
     classes
@@ -135,6 +137,7 @@ pub struct SunProfile {
     pub announcements: Rc<RefCell<Announcements>>,
     pub langselect: RefCell<LangSelectReader>,
     pub shop: RefCell<ShopReader>,
+    pub r#box: RefCell<BoxReader>,
     /// A Mart's list is on screen with its shop object not found yet.
     shop_wanted: Cell<bool>,
     shop_asked: Cell<bool>,
@@ -278,6 +281,9 @@ impl SunProfile {
             text.clone(),
             layout.unwrap_or(SUN_LAYOUT).shop_item,
         );
+        // The PC Box's slots are icons with no words; the Box's objects say where the cursor is
+        // and who is there (`box`).
+        let r#box = BoxReader::new(panes.clone(), names.clone());
         // The HP box is the battle reader's to say, from the gauges behind its panels, and a
         // gauge's pointers are followed only inside the blocks the last walk found (spike 124).
         let battle = SunBattleReader::new(panes, names.clone(), layouts.clone());
@@ -349,6 +355,7 @@ impl SunProfile {
             announcements,
             langselect: RefCell::new(langselect),
             shop: RefCell::new(shop),
+            r#box: RefCell::new(r#box),
             shop_wanted: Cell::new(false),
             shop_asked: Cell::new(false),
             battle: RefCell::new(battle),
@@ -543,6 +550,11 @@ impl Profile for SunProfile {
         self.shop
             .borrow_mut()
             .track(found.of(&[shop::CLASS]), adding);
+        let boxed: Vec<i64> = r#box::CLASSES
+            .iter()
+            .flat_map(|&name| found.of(&[name]))
+            .collect();
+        self.r#box.borrow_mut().track(boxed, adding);
         self.battle
             .borrow_mut()
             .track(found.of(&[battle::GAUGE_CLASS]), adding)?;
@@ -648,11 +660,15 @@ impl Profile for SunProfile {
         })
     }
 
-    /// Poll the language choice and a Poké Mart's list. Returns whether it said anything.
+    /// Poll the language choice, a Poké Mart's list and the PC Box. Returns whether it said
+    /// anything.
     fn poll_menus(&self) -> Result<bool> {
         let (shown, item) = self.phase("menus", || {
             let shown = self.langselect.borrow_mut().poll()?;
-            let item = self.shop.borrow_mut().poll()?;
+            let item = match self.shop.borrow_mut().poll()? {
+                Some(item) => Some(item),
+                None => self.r#box.borrow_mut().poll()?,
+            };
             Ok((shown, item))
         })?;
         if let Some(item) = &item {

@@ -159,3 +159,5 @@ pub mod walls;
 pub mod zones;
 
 pub mod shop;
+
+pub mod r#box;

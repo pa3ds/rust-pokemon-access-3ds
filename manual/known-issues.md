@@ -163,8 +163,9 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
 - **The compass turns with the camera**: where the camera swings as you walk a bend, north turns
   a quarter at a time, and a way said a few steps before can point the other way. Press `P`
   again after a turn.
-- **The PC Box** says the box as it opens and turns, but nothing on an empty slot, and over a
-  Pokémon its whole summary on the top screen at once, labels and numbers run together.
+- **The PC Box** says each slot as the cursor comes to it, "row 1, column 6, Slowpoke" or "Party
+  1, Rowlet" or "row 1, column 5, empty", but then the Pokémon's whole summary on the top screen at
+  once, labels and numbers run together. Moving a Pokémon is not said.
 - **A Poké Mart's buy list** says only the item under the cursor, not its price or how many
   you have, which are on screen beside it.
 - **A board can run its two lines together** where its second line has no quotation marks:
