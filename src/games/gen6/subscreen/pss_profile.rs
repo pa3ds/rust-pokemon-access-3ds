@@ -12,25 +12,28 @@
 //! PssProfileMessageCategory  +0x20 -> StrBuf, its words (+0x24 a second of the same)
 //! ```
 //!
-//! The four rows shown each draw their picture in a pane of their own, Message's, History's,
-//! Location 1's and Location 2's, from the top: their places in the layout are not the list's (76,
-//! -5, -124 and -224 against 45, -5, -55 and -105), so a picture is named by its order, the n-th
-//! row's picture down by the n-th row down, of any kind. History's row is a
-//! `PssProfileHistoryCategory` of icons, unread; two totals and a time follow Location 2. Checked
-//! with the list unscrolled.
+//! The list's rows are drawn by five frames, the layout's root's own children, each holding a
+//! picture of the texture: in the layout's order they draw the rows down, Message, History,
+//! Location 1, Location 2 and a total, so a picture is named by its frame's order, the n-th
+//! frame's by the n-th row down, of any kind. Each frame sits at its row's place less the list's
+//! scroll, which the rows' places never take up: scrolled, the frames moved 25, 46 and then 6
+//! units up together and kept their order, while the places stayed (another player's profile in
+//! Y, spike A). Sorting the pictures by height instead put the frames the texture draws in
+//! elsewhere, hidden at 0, among the list's, and named only Message. History's row is a
+//! `PssProfileHistoryCategory` of icons, unread; two totals and a time follow Location 2.
 
 use std::rc::Rc;
 
 use indexmap::IndexMap;
 
-use crate::core::binary::{f32, s16, u32};
+use crate::core::binary::{s16, u32};
 use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
 use crate::games::common::layout::Layouts;
 use crate::games::common::layout_file::LayoutFile;
 use crate::games::common::touch::FileOf;
 use crate::games::common::{lyt, strbuf};
-use crate::py::{Error, PySet, Result, sorted_by_lt};
+use crate::py::{Error, Result, sorted_by_lt};
 
 pub const MESSAGE: &str = "N3app3pss11pss_profile25PssProfileMessageCategoryE";
 /// The profile's rows, of words, of History's icons, of a total and of a survey's answer.
@@ -104,22 +107,19 @@ impl ProfileValues {
         if file.name != FILE || !self.drawn(&file, picture)? {
             return Ok(None);
         }
-        let mut drawn = PySet::new();
-        for p in layouts.tree(root).into_keys() {
-            if self.drawn(&file, p)? {
-                drawn.add(u32(&layouts.pane(p)?, lyt::PARENT)?);
+        let mut frames: Vec<i64> = Vec::new();
+        for frame in layouts.children(root, root) {
+            for pane in layouts.children(root, frame) {
+                if self.drawn(&file, pane)? {
+                    frames.push(frame);
+                    break;
+                }
             }
         }
-        // `sorted(..., key=...)`: each key taken once, in the set's order.
-        let mut keyed: Vec<(f64, i64)> = Vec::new();
-        for frame in drawn.iter() {
-            keyed.push((-self.height(frame, root)?, frame));
-        }
-        let frames: Vec<i64> = sorted_by_lt(keyed, |a, b| a.0 < b.0)
-            .into_iter()
-            .map(|(_key, frame)| frame)
-            .collect();
         let frame = u32(&layouts.pane(picture)?, lyt::PARENT)?;
+        if !frames.contains(&frame) {
+            return Ok(None);
+        }
         let mut placed: Vec<(i64, i64)> = Vec::new();
         for &row in &self.rows {
             if self
@@ -154,16 +154,5 @@ impl ProfileValues {
             .textures
             .get(&self.layouts.pane_name(pane)?)
             .is_some_and(|textures| textures.iter().any(|texture| texture == TEXTURE)))
-    }
-
-    /// A pane's y in its layout, its parents' added up to the root.
-    fn height(&self, mut pane: i64, root: i64) -> Result<f64> {
-        let mut y = 0.0;
-        while pane != 0 && pane != root {
-            let head = self.layouts.pane(pane)?;
-            y += f32(&head, self.layouts.shape.y)?;
-            pane = u32(&head, lyt::PARENT)?;
-        }
-        Ok(y)
     }
 }

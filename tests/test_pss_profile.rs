@@ -14,9 +14,10 @@ use crate::games::gen6::subscreen::pss_profile;
 const ROWS: i64 = 0x08660000;
 
 /// Another player's profile drew "Nice to meet ya!", History's icons, "United States" and
-/// "District of Columbia" a picture a row, its pictures placed at 76, -5, -124 and -224 down its
-/// layout and its rows at 45, -5, -55 and -105 down the list: the n-th picture down is the n-th
-/// row down. History's row of icons names nothing.
+/// "District of Columbia" a picture a row, in five frames under the layout's root, its rows at
+/// 45, -5, -55 and -105 down the list: the n-th frame is the n-th row down, scrolled or not, and
+/// the texture drawn in a frame elsewhere, hidden at 0, is none of the list's. History's row of
+/// icons names nothing (Y, spike A).
 #[test]
 fn test_a_profiles_rows_are_said_in_their_pictures_by_their_order() {
     let memory = FakeMemory::new();
@@ -29,17 +30,31 @@ fn test_a_profiles_rows_are_said_in_their_pictures_by_their_order() {
     );
     let (_work, root) = fake.screen_with(0x08200000, false, false);
     let mut pictures: Vec<i64> = Vec::new();
-    for (n, y) in [76.0f32, -5.0, -124.0, -224.0].into_iter().enumerate() {
-        let n = n as i64;
-        let (frame, drawn) = (root + 0x1000 * (n + 1), root + 0x1000 * (n + 1) + 0x200);
-        fake.pane(frame, root);
-        fake.pane_with_vtable(drawn, frame, Some(picture));
-        memory.write(drawn + lyt::Y, &y.to_le_bytes());
+
+    let drawn = |at: i64, parent: i64| -> i64 {
+        fake.pane_with_vtable(at, parent, Some(picture));
         let mut name = b"v".to_vec();
         name.resize(lyt::NAME_SIZE as usize, 0);
-        memory.write(drawn + lyt::NAME, &name);
-        pictures.push(drawn);
+        memory.write(at + lyt::NAME, &name);
+        at
+    };
+
+    // The list's five frames under the root, scrolled 46 up, the fifth's picture hidden at 0.
+    for (n, y) in [91.0f32, 41.0, -9.0, -59.0, 0.0].into_iter().enumerate() {
+        let frame = root + 0x1000 * (n as i64 + 1);
+        fake.pane(frame, root);
+        memory.write(frame + lyt::Y, &y.to_le_bytes());
+        pictures.push(drawn(frame + 0x200, frame));
     }
+    fake.visible(pictures[pictures.len() - 1], false);
+    // The texture drawn elsewhere: in a frame a pane down, at 0, and in the root itself.
+    let elsewhere = root + 0x8000;
+    fake.pane(elsewhere, root);
+    fake.pane(elsewhere + 0x200, elsewhere);
+    pictures.extend([
+        drawn(elsewhere + 0x400, elsewhere + 0x200),
+        drawn(root + 0x9000, root),
+    ]);
     fake.track().unwrap();
     let mut rows: Vec<i64> = Vec::new();
     for (n, (place, words)) in [
@@ -93,7 +108,10 @@ fn test_a_profiles_rows_are_said_in_their_pictures_by_their_order() {
             Some("Nice to meet ya!".to_string()),
             None,
             Some("United States".to_string()),
-            Some("District of Columbia".to_string())
+            Some("District of Columbia".to_string()),
+            None,
+            None,
+            None
         ]
     );
 }

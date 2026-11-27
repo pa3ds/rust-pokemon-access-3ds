@@ -10,7 +10,7 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
 - **The PSS**: the people shown under Friends, Acquaintances and Passersby are not offered by
   touch mode until you open their list; the PSS Settings do not say which kinds of people are
   ticked. A profile, yours or someone else's, says its message and Locations, but not the
-  icons of its History, and has been checked only with its list as it opens, not scrolled. "Yes"
+  icons of its History. "Yes"
   may be said on its own as the question about connecting to the Internet opens or closes. The
   O-Power list shows six powers at once, and touch mode offers only those six: the 3DS's L and R
   buttons turn its page to the rest.
