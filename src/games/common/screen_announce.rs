@@ -1120,7 +1120,7 @@ impl ScreenAnnouncer {
     /// Outside such a game, only words that are a clock alone, minutes and seconds, are asked,
     /// and every tick is left unsaid with no sound and no mark: O-Power's Active panel counts
     /// down each power running, "02:58", and read each second of up to four at once
-    /// (or_pss_o_power); R says them (`gen6.o_power`).
+    /// (or_pss_o_power); R says them (`gen6.subscreen.o_power`).
     ///
     /// Python's `timed` defaults to True.
     fn ticked(&mut self, piece: &ScreenText, timed: bool) -> Result<Option<bool>> {

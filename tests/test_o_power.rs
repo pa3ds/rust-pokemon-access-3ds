@@ -9,7 +9,7 @@ use super::fake_memory::FakeMemory;
 use crate::core::discovery::Found;
 use crate::games::common::layout_file::LayoutFile;
 use crate::games::common::screen::ScreenText;
-use crate::games::gen6::o_power::{ACTIVE, CLASS, ENERGY, LIST, OPower};
+use crate::games::gen6::subscreen::o_power::{ACTIVE, CLASS, ENERGY, LIST, OPower};
 
 const RECORD: i64 = 0x08C7FD3C;
 const TOP: i64 = 0x15DCBA14;

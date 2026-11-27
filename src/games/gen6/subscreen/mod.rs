@@ -37,8 +37,9 @@
 //! A new one is built here and put in the tuples of what it answers, in the order it is asked in:
 //! touch mode names a picture by the first reader with a name for it, and offers targets in order.
 //! The PSS has no reader of its own: its screens are the field's bottom screen and touch mode's, but
-//! for its own apps (`pss`), its profile and its icon choice, and the friend list's registering
-//! after a trade, apps of their own that need a touch.
+//! for its own apps, its profile and its icon choice, and the friend list's registering after a
+//! trade, apps of their own that need a touch (`pss`); and O-Power's energy and the powers running,
+//! which R says on their screens (`o_power`).
 //!
 //! What touch mode does in the subscreens' apps is theirs too: which need a touch (`TOUCHED`), where
 //! Shift alone drags (`DRAGS`), and where a drag is made only on letting go, at the pace of the
@@ -57,6 +58,8 @@ pub mod amie;
 pub mod amie_switch;
 pub mod berry_picker;
 pub mod head_it;
+pub mod o_power;
+pub mod pss;
 pub mod puzzle;
 pub mod super_training;
 
@@ -81,24 +84,16 @@ use amie::{AmiePage, Goods, Moods, Puffs, StylusKeys};
 use amie_switch::SwitchScreen;
 use berry_picker::{BerryKeys, BerryPicker, Process, Touching};
 use head_it::{Cue, Frames, HeadIt, HeadItKeys};
+use pss::FRIEND_ENTRY;
 use puzzle::TilePuzzle;
 use super_training::{
     Bags, CoreTraining, Gains, Goals, Medals, Round, RoundOptions, TrainingKeys, TrainingPage,
     Waiting,
 };
 
-/// How the PSS's own apps' classes begin, `app::pss::`: its profile, which its menu's Profile
-/// opens, the player's card and message, a tap on the message choosing another
-/// (or_pss_singleplayer); and the icon chosen for the card, which a tap on it opens, where touch mode
-/// had nothing to touch (or_pss_singleplayer_2). Nothing in them is for the game's buttons.
-pub const PSS: &str = "N3app3pss";
-/// After a trade or a battle with someone not a friend, "Tap the player's icon below" to register
-/// them as one, or Do not register: a player online with the PSS had nothing to touch there (a
-/// player's log of 2026-11-12).
-pub const FRIEND_ENTRY: &str = "N6netapp12friend_entry4ProcE";
 /// The subscreens' apps touch mode offers targets in (ADR-0009 as amended 2026-10-29), beside the
-/// field whose bottom screen they are, and beside the PSS's own (`pss`): Pokémon-Amie, its decorate
-/// screen and its games, Super Training's regimen menu and rounds, and the friend list's
+/// field whose bottom screen they are, and beside the PSS's own (`pss.running`): Pokémon-Amie, its
+/// decorate screen and its games, Super Training's regimen menu and rounds, and the friend list's
 /// registering. A `frozenset` in Python, only ever tested for membership.
 pub const TOUCHED: [&str; 8] = [
     amie::SCREENS[0],
@@ -110,11 +105,6 @@ pub const TOUCHED: [&str; 8] = [
     super_training::SPARRING,
     FRIEND_ENTRY,
 ];
-
-/// Is the app one of the PSS's own (`PSS`)?
-pub fn pss(app: Option<&str>) -> bool {
-    app.is_some_and(|app| app.starts_with(PSS))
-}
 /// The apps where Shift alone drags (ADR-0009): Pokémon-Amie's, and Super Training's rounds, where
 /// it is the stylus held on a goal to charge a shot. A `frozenset` in Python, only ever tested for
 /// membership.

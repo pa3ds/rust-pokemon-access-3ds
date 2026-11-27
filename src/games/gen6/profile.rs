@@ -105,8 +105,8 @@ use crate::games::gen6::screens::{
 };
 use crate::games::gen6::subscreen::amie;
 use crate::games::gen6::subscreen::head_it::Cue;
-use crate::games::gen6::subscreen::{self, Subscreens};
-use crate::games::gen6::{frames, gflheap, mystatus, o_power};
+use crate::games::gen6::subscreen::{self, Subscreens, o_power, pss};
+use crate::games::gen6::{frames, gflheap, mystatus};
 use crate::py::{self, Error, Kind, Log, PySet, Result};
 
 /// What the heap is swept for: message windows, list controllers, the device manager a choice box
@@ -176,7 +176,7 @@ pub const HELD_MOST: f64 = 3.0;
 /// bottom screen is the PokéNav Plus and its DexNav, BuzzNav and PlayNav, or X's own, with
 /// Pokémon-Amie's and Super Training's pages; the subscreens' tutorials; the AreaNav; and the
 /// subscreens' own apps (`subscreen.TOUCHED`), Pokémon-Amie's and Super Training's, and the PSS's
-/// (`subscreen.pss`). Every other
+/// (`pss.running`). Every other
 /// screen, the Bag, the PC, a battle, is worked with the game's buttons, which do all its touches
 /// do and faster, and touch mode says there is nothing to touch. A
 /// `frozenset` in Python, only ever tested for membership.
@@ -1194,7 +1194,7 @@ impl Gen6Profile {
                             || running
                                 .as_deref()
                                 .is_some_and(|running| TOUCHED.contains(&running))
-                            || subscreen::pss(running.as_deref())
+                            || pss::running(running.as_deref())
                     })
                 }),
                 said_off: Some({
@@ -2085,7 +2085,7 @@ impl Gen6Profile {
                 .filter(|t| !t.top && !t.changed == shown)
                 .count() as i64
         };
-        if (on_field || subscreen::pss(running.as_deref()))
+        if (on_field || pss::running(running.as_deref()))
             && (bottom(true) > 0 || bottom(false) >= PAGE_TURNED)
         {
             let buttons = self.touch_targets.borrow_mut().button_words()?;
@@ -2167,7 +2167,7 @@ impl Gen6Profile {
             ..screen.clone()
         };
         let subject = || self.sources.borrow().subject();
-        let turns = subscreen::pss(self.apps.borrow().running.as_deref()) || o_power;
+        let turns = pss::running(self.apps.borrow().running.as_deref()) || o_power;
         self.screen_announcer.borrow_mut().say(
             &poll,
             &cursors,
