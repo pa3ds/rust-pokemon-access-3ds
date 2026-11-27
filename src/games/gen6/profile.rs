@@ -22,7 +22,7 @@
 //!   wires none itself (`poll_menus`, `poll_screen`).
 
 use std::cell::{Cell, RefCell};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use indexmap::{IndexMap, IndexSet};
@@ -228,6 +228,11 @@ pub const ANCHOR_EVERY: f64 = 0.2;
 /// within 1.5 s of a zone load or an app starting, the compass turned south and back within 0.8 s
 /// (spike 251).
 pub const ARRIVAL_QUIET: f64 = 1.5;
+/// Buttons of one layout whose words change in a poll, at least, for a page of them turned rather
+/// than one button's words changed: L and R page O-Power's list, its seven at once
+/// (or_pss_o_power_2), where a button changing its own words alone is still said: "Game Chat:
+/// Disabled".
+pub const PAGE_TURNED: i64 = 2;
 
 /// `Gen6Profile.__init__`'s arguments after `memory`, `names`, `speech`, `log` and the keyword
 /// `game`, each as the Python defaults it: set what differs with `..Options::default()`.
@@ -2052,8 +2057,16 @@ impl Gen6Profile {
         let mut quiet: HashSet<i64> = HashSet::new();
         let running = self.apps.borrow().running.clone();
         let on_field = running.as_deref() == Some(FIELD);
+        // `Counter(not t.changed for t in texts if not t.top)`: the bottom screen's words come or
+        // came back (True), and changed (False).
+        let bottom = |shown: bool| -> i64 {
+            texts
+                .iter()
+                .filter(|t| !t.top && !t.changed == shown)
+                .count() as i64
+        };
         if (on_field || subscreen::pss(running.as_deref()))
-            && texts.iter().any(|t| !t.top && !t.changed)
+            && (bottom(true) > 0 || bottom(false) >= PAGE_TURNED)
         {
             let buttons = self.touch_targets.borrow_mut().button_words()?;
             // The PSS's apps have no menu: the profile's Message row, lit as it came back from
@@ -2068,10 +2081,20 @@ impl Gen6Profile {
             } else {
                 HashSet::new()
             };
+            // Unless a layout's buttons change two or more at once: a page turned, touch mode's to
+            // offer. L and R page O-Power's list, and its seven powers were read as they came
+            // (or_pss_o_power_2).
+            let mut changed: HashMap<i64, i64> = HashMap::new();
+            for text in &texts {
+                if !text.top && text.changed && buttons.contains(&text.r#box) {
+                    *changed.entry(text.root).or_default() += 1;
+                }
+            }
             texts.retain(|text| {
                 text.top
-                    || text.changed
                     || !buttons.contains(&text.r#box)
+                    || (text.changed
+                        && changed.get(&text.root).copied().unwrap_or(0) < PAGE_TURNED)
                     || cursored.contains(&text.root)
             });
             quiet = screen
