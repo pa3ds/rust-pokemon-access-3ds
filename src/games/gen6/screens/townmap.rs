@@ -55,7 +55,7 @@ pub const ORAS: Shape = Shape {
     place: 0xEC,
 };
 /// X's: `GraphicWork` at `MainSystem` +0x14, `MapView` at its +0x90, the place 4 bytes on (spike
-/// 309 on x_townmap).
+/// 298 on x_townmap).
 pub const XY: Shape = Shape {
     view: [0x24, 0x14, 0x90],
     place: 0xF0,
