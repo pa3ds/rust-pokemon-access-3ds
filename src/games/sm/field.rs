@@ -98,6 +98,9 @@ pub const STEP: &str = "N5Field18FieldPosEventActorE";
 /// up set it 0 and left the actor where it was until the zone was next loaded, listed (a Potion
 /// on Route 1, 2026-11-26, sun-field.md).
 pub const ARMED: i64 = 0x10;
+/// A pointer an item's actor holds while its zone is loaded, picked up or not: leaving the zone
+/// cleared it with +0x10, and a ball picked up kept it (2026-11-26).
+pub const ITEM_LIVE: i64 = 0x08;
 /// The actors listed. An item actor is built for each ball in the zone's records: seven on Route
 /// 1's second zone in sun_4.ctm, each at its record's place to the bit, those picked up unarmed.
 pub const ACTORS: [&str; 4] = [THING, WARP, ITEM, STEP];
@@ -1061,6 +1064,11 @@ impl SunFieldReader {
                 continue;
             };
             if name == STEP && u32(&head, ARMED)? != 1 {
+                continue;
+            }
+            // A zone left tears its balls down, +0x08 cleared with +0x10: neither listed nor taken,
+            // so the balls kept from it stay (sun_route_1_zone_line).
+            if name == ITEM && u32(&head, ITEM_LIVE)? == 0 {
                 continue;
             }
             let taken = name == ITEM && u32(&head, ARMED)? != 1;

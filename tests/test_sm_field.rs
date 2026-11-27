@@ -903,6 +903,7 @@ fn test_a_ball_on_the_ground_a_signpost_and_a_thing_built_twice_are_each_said_on
     for (actor, name, (x, z)) in added {
         bedroom.memory.u32(actor, &[bedroom.vtables[name]]);
         bedroom.memory.u32(actor + field::ARMED, &[1]);
+        bedroom.memory.u32(actor + field::ITEM_LIVE, &[0x3037B600]);
         floats(
             &bedroom.memory,
             actor + field::ACTOR_X,
@@ -1182,6 +1183,7 @@ fn test_a_hidden_item_is_not_listed_though_the_field_builds_it_an_actor() {
     for (actor, (x, z)) in [(BALL, (48.5, 62.5)), (hidden, (44.5, 62.5))] {
         bedroom.memory.u32(actor, &[bedroom.vtables[field::ITEM]]);
         bedroom.memory.u32(actor + field::ARMED, &[1]);
+        bedroom.memory.u32(actor + field::ITEM_LIVE, &[0x3037B600]);
         floats(
             &bedroom.memory,
             actor + field::ACTOR_X,
@@ -1709,6 +1711,7 @@ fn test_things_of_the_area_s_other_zones_are_kept_until_their_own_zone_has_them_
     for (actor, (x, z)) in [(BALL, (48.5, 62.5)), (second, (46.5, 63.5))] {
         bedroom.memory.u32(actor, &[bedroom.vtables[field::ITEM]]);
         bedroom.memory.u32(actor + field::ARMED, &[1]);
+        bedroom.memory.u32(actor + field::ITEM_LIVE, &[0x3037B600]);
         floats(
             &bedroom.memory,
             actor + field::ACTOR_X,
@@ -1769,8 +1772,13 @@ fn test_things_of_the_area_s_other_zones_are_kept_until_their_own_zone_has_them_
     ));
     assert_eq!(listed("items"), [(46, 63)]);
     assert_eq!(listed("exits"), [(52, 60)]);
-    // Picked up, a ball keeps its actor, unarmed.
+    // Torn down as its zone is left, a ball is kept as last seen.
     bedroom.memory.u32(second + field::ARMED, &[0]);
+    bedroom.memory.u32(second + field::ITEM_LIVE, &[0]);
+    update(&emu, &bedroom.memory);
+    assert_eq!(listed("items"), [(46, 63)]);
+    // Picked up, a ball keeps its actor, unarmed.
+    bedroom.memory.u32(second + field::ITEM_LIVE, &[0x3037B600]);
     update(&emu, &bedroom.memory);
     assert!(listed("items").is_empty());
 }
