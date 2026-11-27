@@ -15,6 +15,11 @@
 //! it without a break. A sound file a slide, played one after another, left a gap between each
 //! two, heard as beeps rather than a slide.
 //!
+//! **A tone that marks a moment is a triangle wave** (`triangle`): a clock's tick, the way up walks
+//! turning and a trainer's count of Pokémon as beeps. A sine sounds softer than it is, being a pure
+//! tone, and those were hard to hear; a triangle is brighter without a square's or a sawtooth's
+//! harshness. A cursor's tones, touch mode's and the map's, stay sines.
+//!
 //! pa3ds's own sounds, beside the game's (ADR-0025), and nothing like them is said: a tone is
 //! never the only way something is told, only where it is. One `Voice`, written a fiftieth of a
 //! second at a time to Windows' own waveOut by a thread of its own, so a tone changes without
@@ -49,6 +54,19 @@ pub const BUFFER: i64 = 441;
 /// Buffers queued at once, which is how late a tone can be heard: four fiftieths of a second.
 pub const BUFFERS: i64 = 4;
 
+/// A tone's shape over one cycle, `sine` or `triangle`.
+pub type Wave = fn(f64) -> f64;
+
+/// A cursor's tone: a pure one.
+pub fn sine(phase: f64) -> f64 {
+    phase.sin()
+}
+
+/// A tone marking a moment: brighter than a sine, without a square's harshness.
+pub fn triangle(phase: f64) -> f64 {
+    2.0 / std::f64::consts::PI * phase.sin().asin()
+}
+
 /// `round(RATE * seconds)` of one of the constants above, which is never a NaN.
 fn frames(seconds: f64) -> i64 {
     py::round(RATE as f64 * seconds).expect("a constant is finite")
@@ -68,6 +86,7 @@ pub struct Voice {
     left: i64,
     level: f64,
     phase: f64,
+    wave: Wave,
 }
 
 impl Voice {
@@ -80,6 +99,7 @@ impl Voice {
             left: 0,
             level: 0.0,
             phase: 0.0,
+            wave: sine,
         }
     }
 
@@ -88,12 +108,15 @@ impl Voice {
     }
 
     /// A tone at a place: `across` 0 the left edge to 1 the right, `down` 0 the top to 1 the
-    /// bottom.
-    pub fn play(&mut self, across: f64, down: f64) {
+    /// bottom; `wave` its shape over one cycle.
+    ///
+    /// Python's `wave` defaults to `sine`.
+    pub fn play(&mut self, across: f64, down: f64, wave: Wave) {
         self.from = (across, down);
         self.to = (across, down);
         self.slide = 0;
         self.left = frames(LENGTH);
+        self.wave = wave;
     }
 
     /// A slide to `end`, from where the tone is if it is still sounding, else from `start`.
@@ -103,6 +126,7 @@ impl Voice {
         self.done = 0;
         self.slide = frames(GLIDE);
         self.left = frames(GLIDE + HOLD);
+        self.wave = sine;
     }
 
     /// The next `count` frames, 16-bit stereo, `gain` times `VOLUME` loud.
@@ -129,7 +153,7 @@ impl Voice {
                 2.0 * std::f64::consts::PI,
             );
             // `max(-32767.0, min(32767.0, value))`, a NaN held at the top as Python holds it.
-            let value = 32767.0 * VOLUME * gain * self.level * self.phase.sin();
+            let value = 32767.0 * VOLUME * gain * self.level * (self.wave)(self.phase);
             let value = if value < 32767.0 { value } else { 32767.0 };
             let value = if value > -32767.0 { value } else { -32767.0 };
             out.extend_from_slice(&short(py::round(
@@ -216,12 +240,12 @@ fn locked(voice: &Mutex<Voice>) -> MutexGuard<'_, Voice> {
     voice.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
-/// A game's clock's tick as a tone in the middle, 440 Hz (`Clocks`): the lowest,
-/// an octave under it, was hard to hear even at 1.5.
+/// A game's clock's tick as a tone in the middle, 440 Hz, a triangle (`Clocks`): the
+/// lowest, an octave under it, was hard to hear even at 1.5, and so was a sine.
 pub fn ticking(tones: Option<Rc<Tones>>) -> Option<Rc<dyn Fn()>> {
     let tones = tones?;
     Some(Rc::new(move || {
-        let _ = tones.play(0.5, 0.5);
+        let _ = tones.play(0.5, 0.5, triangle);
     }))
 }
 
@@ -237,7 +261,7 @@ pub fn beeps(tones: &Tones, count: i64) {
         let tones = tones.clone();
         let _ = std::thread::Builder::new().spawn(move || {
             py::time::sleep(index as f64 * BEEP_GAP);
-            let _ = tones.play(0.5, 0.5);
+            let _ = tones.play(0.5, 0.5, triangle);
         });
     }
 }
@@ -267,9 +291,11 @@ impl Tones {
         }
     }
 
-    /// A tone where the cursor is.
-    pub fn play(&self, across: f64, down: f64) -> Result<()> {
-        locked(&self.shared.voice).play(across, down);
+    /// A tone where the cursor is, or a moment's (`triangle`) at a place of its own.
+    ///
+    /// Python's `wave` defaults to `sine`.
+    pub fn play(&self, across: f64, down: f64, wave: Wave) -> Result<()> {
+        locked(&self.shared.voice).play(across, down, wave);
         self.sound()
     }
 

@@ -36,7 +36,7 @@ use crate::core::names::{FURNITURE, GamePlace, GameSprite, Names, TILES};
 use crate::core::pathfind::{COMPASS, walked};
 use crate::core::rtti::{ClassNames, demangle};
 use crate::core::speech::{Category, Speech};
-use crate::core::tones::{Tones, beeps, ticking};
+use crate::core::tones::{Tones, beeps, sine, ticking, triangle};
 use crate::core::touch::TouchScreen;
 use crate::core::words::own;
 use crate::games::common::announce::{Announcements, Speaker};
@@ -322,7 +322,7 @@ pub struct Gen6Profile {
     turn: Cell<i64>,
     /// The quarter of the world up walks the player, as its tone last said (`facing`).
     facing: Cell<Option<i64>>,
-    /// Python's `tones.play`, kept for the facing's tone.
+    /// Python's `partial(tones.play, wave=triangle)`, kept for the facing's tone.
     tone: Option<Rc<Tones>>,
     /// When the facing may next be toned, `ARRIVAL_QUIET` after the player arrives in a
     /// zone or the field last ran under another app.
@@ -987,7 +987,7 @@ impl Gen6Profile {
                 tone: tones.clone().map(|tones| {
                     Rc::new(move |across: f64, down: f64| {
                         // The sound thread not starting, raised to the key's handler in Python.
-                        let _ = tones.play(across, down);
+                        let _ = tones.play(across, down, sine);
                     }) as touch::Tone
                 }),
                 settings: touch_settings.clone(),
@@ -2046,7 +2046,7 @@ impl Gen6Profile {
                     if let Some(tones) = &self.tone {
                         let (across, down) = FACING_TONES[now as usize];
                         // The sound thread not starting, raised to the field's poll in Python.
-                        let _ = tones.play(across, down);
+                        let _ = tones.play(across, down, triangle);
                     }
                 }
                 self.facing.set(facing);

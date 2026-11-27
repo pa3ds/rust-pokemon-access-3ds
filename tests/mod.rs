@@ -111,6 +111,7 @@ mod test_speech;
 mod test_subscreen;
 mod test_summary_pages;
 mod test_textures;
+mod test_tones;
 mod test_touch;
 mod test_touch_targets;
 mod test_townmap;

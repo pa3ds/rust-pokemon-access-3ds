@@ -306,7 +306,7 @@ fn test_a_server_counts_on_past_the_one_before_it() {
 
 fn tone(across: f64, down: f64) -> Vec<u8> {
     let mut voice = tones::Voice::new();
-    voice.play(across, down);
+    voice.play(across, down, tones::sine);
     voice
         .render(
             crate::py::round(tones::RATE as f64 * tones::LENGTH).unwrap(),
@@ -321,7 +321,7 @@ fn tone(across: f64, down: f64) -> Vec<u8> {
 fn test_a_tone_is_as_loud_as_asked_and_never_wraps_round() {
     fn peak(gain: f64) -> i64 {
         let mut voice = tones::Voice::new();
-        voice.play(0.5, 0.5);
+        voice.play(0.5, 0.5, tones::sine);
         let data = voice
             .render(
                 crate::py::round(tones::RATE as f64 * tones::LENGTH).unwrap(),
