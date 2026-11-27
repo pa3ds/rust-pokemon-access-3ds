@@ -11,7 +11,6 @@
 //!   subscreens' own, `Subscreens.offered`), and Shift alone drags only where the subscreens say.
 //! - ADR-0013: a menu's row read every tick polls the screen at once as it changes, and each tick
 //!   after until the cursor's word is said (`poll_menus`, `rows.CHASE`).
-//! - ADR-0025: the game's sounds play in both ears, but for Head It's cue, toward its Pokémon.
 //! - ADR-0034: a whole sweep waits while a cursor moves, until it is still `STILL`, at most
 //!   `HELD_MOST` (`sweep_held`).
 //! - ADR-0041: a replay logs touch mode's targets as they change, so a tape holds them, and a tape
@@ -28,7 +27,7 @@ use indexmap::{IndexMap, IndexSet};
 use crate::app::most_common;
 use crate::core::binary::u32;
 use crate::core::clips::Clips;
-use crate::core::config::{CUE_AS_SOUND, CUE_OFF, DRAG_TOGGLE, PARTY_BEEPS, PARTY_OFF, Tables};
+use crate::core::config::{DRAG_TOGGLE, PARTY_BEEPS, PARTY_OFF, Tables};
 use crate::core::discovery::{Found, HEAP_SPAN, LINEAR_SPAN, within};
 use crate::core::keys::shifted;
 use crate::core::memory::{Cache, Memory, phase};
@@ -63,12 +62,12 @@ use crate::games::common::screen_announce::{Heard, ScreenAnnouncer};
 use crate::games::common::session::{Profile, Ways};
 use crate::games::common::slots::Occupant;
 use crate::games::common::touch::{
-    self, FileOf, HOLDING, Idle, ImageOf, Lists, OnScreen, PictureName, TextOf, TouchMode,
-    TouchTargets,
+    self, FileOf, Idle, ImageOf, Lists, OnScreen, PictureName, TextOf, TouchMode, TouchTargets,
 };
 use crate::games::common::{lyt, msgwin, pokemon, strbuf};
 use crate::games::gen6::anchors::Anchors;
 use crate::games::gen6::apps::{BATTLE, DEMOS, FIELD, MANAGER_CLASS, RunningApp, TUTORIAL};
+use crate::games::gen6::feedback::FeedbackSounds;
 use crate::games::gen6::field::dowsing::Lights;
 use crate::games::gen6::field::features::Sighting;
 use crate::games::gen6::field::footsteps::Footsteps;
@@ -80,7 +79,6 @@ use crate::games::gen6::field::{camera, mapblock, talk};
 use crate::games::gen6::game::Game;
 use crate::games::gen6::own::{Kit, Own, OwnApp};
 use crate::games::gen6::rom::archives::GameText;
-use crate::games::gen6::rom::cries::Crier;
 use crate::games::gen6::rom::textures;
 use crate::games::gen6::rom::textures::Index;
 use crate::games::gen6::screens::battle::{
@@ -99,7 +97,6 @@ use crate::games::gen6::screens::sources::{Chase, CursorSources};
 use crate::games::gen6::screens::{
     boxes, buttons, claims, partners, partyicons, pokedex, registered, rows, townmap,
 };
-use crate::games::gen6::subscreen::head_it::Cue;
 use crate::games::gen6::subscreen::{self, Subscreens};
 use crate::games::gen6::{frames, gflheap, mystatus};
 use crate::py::{self, Error, Kind, Log, PySet, Result};
@@ -168,27 +165,6 @@ pub const HELD_MOST: f64 = 3.0;
 /// do and faster, and touch mode says there is nothing to touch. A
 /// `frozenset` in Python, only ever tested for membership.
 pub const TOUCHED: [&str; 3] = [FIELD, TUTORIAL, townmap::APP];
-pub const PICK_SOUND: &str = "SEQ_SE_CATCH";
-/// The PC Box's sounds for picking up a Pokémon and putting it down, the game's own for moving
-/// something somewhere, played as touch mode picks up a drag and lets go of it in place of
-/// "holding" and "let go on": a tenth and an eighth of a second, the same in
-/// Omega Ruby and X. Amie's touch sounds, `SEQ_SE_KW_TOUCH` and `SEQ_SE_KW_TOUCH2`, until then.
-pub const DROP_SOUND: &str = "SEQ_SE_RELEASE";
-/// The game's own sound for a press that does nothing, played for a key of pa3ds's with nothing to
-/// do in place of saying why: the beep of Omega Ruby's menus, its
-/// `SEQ_SE_SYS_015` too, the same wave 271 samples longer; X's `SEQ_SE_BEEP` is that same wave at
-/// the same volume, where X's `SEQ_SE_SYS_015` is another sound, 0.93 s long.
-pub const WRONG_SOUND: &str = "SEQ_SE_BEEP";
-/// The "!" the field plays over someone's head, played as Head It's cue (in place of a
-/// tone): 0.3 s, the same wave and volume in Omega Ruby and X, where `SEQ_SE_FLD_277` is
-/// that wave too (spike 274).
-pub const CUE_SOUND: &str = "SEQ_SE_FLD_036";
-/// Played as a Balloon Bot fires: 0.23 s, the same wave and volume in Omega
-/// Ruby, Alpha Sapphire and X.
-pub const ALERT_SOUND: &str = "SEQ_SE_KW_ALERT";
-/// Played as a hit lands on Super Training's bag, of which the game gives no sound:
-/// 0.34 s, the same wave and volume in Omega Ruby, Alpha Sapphire and X.
-pub const HIT_SOUND: &str = "SEQ_SE_SP_017";
 /// Where the tone of each quarter up walks sounds, across and down as `Tones.play` has them,
 /// north first and clockwise: north high, south low, east in the right ear and west in the left, as
 /// the Hoenn map's cursor sounds its place (`core.tones`).
@@ -220,10 +196,9 @@ pub struct Options {
     pub tones: Option<Rc<Tones>>,
     pub ticks: Option<Rc<Tones>>,
     pub clips: Option<Rc<Clips>>,
-    pub feedback_sounds: Option<Rc<Clips>>,
+    pub sounds: Option<Rc<FeedbackSounds>>,
     /// None is `{}`.
     pub swims: Option<IndexMap<String, f64>>,
-    pub cry: Option<Crier>,
     pub title: Option<i64>,
     pub census: bool,
     pub ways: Option<Ways>,
@@ -424,9 +399,8 @@ impl Gen6Profile {
             tones,
             ticks,
             clips,
-            feedback_sounds,
+            sounds,
             swims,
-            cry,
             title,
             census,
             ways,
@@ -855,69 +829,9 @@ impl Gen6Profile {
             let buttons = buttons.clone();
             Rc::new(move || buttons.borrow().greyed())
         };
-        // A screen's own keys are heard as the drag's own sounds are and the game's error sound,
-        // or said where they are off; logged either way, as a key's line is.
-        let heard = {
-            let (feedback_sounds, log) = (feedback_sounds.clone(), log.clone());
-            Rc::new(move |sound: &str, said: String| -> String {
-                if let Some(sounds) = &feedback_sounds
-                    && sounds.names().contains(sound)
-                {
-                    log(&format!("key: {said}, heard as {sound}"));
-                    // The sound thread not starting, raised to the key's handler in Python.
-                    let _ = sounds.play(sound);
-                    return String::new();
-                }
-                said
-            })
-        };
-        let played = {
-            let feedback_sounds = feedback_sounds.clone();
-            Rc::new(move |sound: &str| {
-                if let Some(sounds) = &feedback_sounds {
-                    // The sound thread not starting, raised to the poll in Python.
-                    let _ = sounds.play(sound);
-                }
-            })
-        };
-        // A cue of a Super Training round, as `[pa3ds.training]` asks: the game's sound, or the
-        // words where it asks for them or the sound cannot be played; logged either way.
-        let round_cue = {
-            let (feedback_sounds, log, speech) =
-                (feedback_sounds.clone(), log.clone(), speech.clone());
-            Rc::new(move |mode: &str, sound: &str, said: &str| {
-                if mode == CUE_OFF {
-                    return;
-                }
-                if mode == CUE_AS_SOUND
-                    && let Some(sounds) = &feedback_sounds
-                    && sounds.names().contains(sound)
-                {
-                    log(&format!("round: {said}, heard as {sound}"));
-                    // The sound thread not starting, raised to the poll in Python.
-                    let _ = sounds.play(sound);
-                    return;
-                }
-                log(&format!("round: {said}"));
-                speech.say(said, Category::Warning);
-            })
-        };
-        // Head It's cue, in the ear of the Pokémon's side, the middle's in both
-        // (ADR-0025 as amended); logged so a round's log shows each beside the key
-        // pressed for it.
-        let cue: Cue = {
-            let (feedback_sounds, log) = (feedback_sounds.clone(), log.clone());
-            Rc::new(move |column: i64| {
-                log(&format!(
-                    "head it: cue, {}",
-                    ["left", "middle", "right"][column as usize]
-                ));
-                if let Some(sounds) = &feedback_sounds {
-                    // The sound thread not starting, raised to the tick in Python.
-                    let _ = sounds.play_across(CUE_SOUND, column as f64 / 2.0);
-                }
-            })
-        };
+        // The game's own sounds for what a key or a moment has done, or the words in their place.
+        let sounds = sounds
+            .unwrap_or_else(|| Rc::new(FeedbackSounds::new(log.clone(), speech.clone(), None, None)));
         // The input device managers `_frames` reads the game's count of frames through, made here
         // where Python's are made below: Head It's cue is handed `_frames`, as the scenes are.
         let managers = Rc::new(RefCell::new(PySet::new()));
@@ -934,16 +848,7 @@ impl Gen6Profile {
             game,
             apps.clone(),
             &tables,
-            {
-                let heard = heard.clone();
-                Rc::new(move |berry: &str| heard(PICK_SOUND, own(HOLDING, &[("target", &berry)])))
-            },
-            Rc::new(move |why: &str| heard(WRONG_SOUND, why.to_string())),
-            feedback_sounds
-                .as_ref()
-                .is_some_and(|sounds| sounds.names().contains(CUE_SOUND))
-                .then_some(cue),
-            cry,
+            sounds.clone(),
             frames_of(memory.clone(), managers.clone()),
             drawn,
             file_of.clone(),
@@ -951,19 +856,6 @@ impl Gen6Profile {
             {
                 let party_icons = party_icons.clone();
                 Rc::new(move || party_icons.borrow().party)
-            },
-            {
-                let played = played.clone();
-                Rc::new(move || played(HIT_SOUND))
-            },
-            Rc::new(move || played(CUE_SOUND)),
-            {
-                let (round_cue, mode) = (round_cue.clone(), tables.training.shot_cue.clone());
-                Rc::new(move |said: &str| round_cue(&mode, ALERT_SOUND, said))
-            },
-            {
-                let mode = tables.training.block_cue.clone();
-                Rc::new(move |said: &str| round_cue(&mode, CUE_SOUND, said))
             },
         ));
         subscreens_made
@@ -1108,7 +1000,7 @@ impl Gen6Profile {
                     let subscreens = subscreens.clone();
                     Rc::new(move || subscreens.pace())
                 }),
-                sound: dragged(feedback_sounds.clone()),
+                sound: sounds.dragged(),
             },
         );
         // The Hoenn map's cursor says nothing between places: a tone says where it is.
@@ -2570,20 +2462,6 @@ fn name_for(speaker: &Rc<SpeakerReader>) -> Speaker {
 /// sprite a work object was filled with (spike 89).
 fn game_word(text: &GameText, character: i64) -> Option<String> {
     text.character(character)
-}
-
-/// Touch mode's sound for picking up a drag, with True, and letting go of it, the PC Box's
-/// (`PICK_SOUND`); None where either is missing, and the drag is said in words.
-pub fn dragged(sounds: Option<Rc<Clips>>) -> Option<Rc<dyn Fn(bool)>> {
-    let sounds = sounds?;
-    let names = sounds.names();
-    if !(names.contains(PICK_SOUND) && names.contains(DROP_SOUND)) {
-        return None;
-    }
-    Some(Rc::new(move |up: bool| {
-        // The sound thread not starting, raised to the key's handler in Python.
-        let _ = sounds.play(if up { PICK_SOUND } else { DROP_SOUND });
-    }))
 }
 
 /// Is this in the heap or the linear heap, where a work's resource and archive have been?

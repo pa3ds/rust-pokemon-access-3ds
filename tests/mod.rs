@@ -37,6 +37,7 @@ mod test_dialogue;
 mod test_discovery;
 mod test_distribution;
 mod test_dowsing;
+mod test_feedback;
 mod test_field;
 mod test_footsteps;
 mod test_garden;

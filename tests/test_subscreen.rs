@@ -7,14 +7,17 @@ use indexmap::IndexMap;
 
 use super::fake_layouts::FakeLayouts;
 use super::fake_memory::{CODE, FakeClasses, FakeMemory};
+use super::fake_speech::Recorder;
 use super::test_amie::{PAGE, WALKER, page, species};
 use crate::core::config::Tables;
 use crate::core::rtti::ClassNames;
+use crate::core::speech::Speech;
 use crate::games::common::field::keys::{BERRIES, BERRY_PICKER};
 use crate::games::common::layout_file::LayoutFile;
 use crate::games::common::screen::ScreenText;
 use crate::games::common::touch::{ImageOf, Target};
 use crate::games::gen6::apps::{FIELD, RunningApp};
+use crate::games::gen6::feedback::FeedbackSounds;
 use crate::games::gen6::profile;
 use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::screens::boxes;
@@ -67,19 +70,17 @@ fn subscreens_drawing(apps: Rc<RefCell<RunningApp>>, image_of: ImageOf) -> Subsc
         oras::game(),
         apps,
         &Tables::default(),
-        Rc::new(|said: &str| said.to_string()),
-        Rc::new(|said: &str| said.to_string()),
-        None,
-        None,
+        Rc::new(FeedbackSounds::new(
+            Rc::new(|_line: &str| {}),
+            Rc::new(Speech::plain(Recorder::new())),
+            None,
+            None,
+        )),
         Rc::new(|| Ok(None)),
         None,
         Rc::new(|_root: i64| None),
         Rc::new(Vec::new),
         Rc::new(|| None),
-        Rc::new(|| {}),
-        Rc::new(|| {}),
-        Rc::new(|_said: &str| {}),
-        Rc::new(|_said: &str| {}),
     );
     found
         .track(&IndexMap::from([(PAGE, amie::CLASS.to_string())]), false)

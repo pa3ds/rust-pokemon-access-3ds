@@ -57,6 +57,9 @@
 //! words ask (`gen6.screens.claims`): whether one of the PSS's own apps runs, whose buttons' words
 //! are touch mode's (`Subscreens.in_pss`).
 //!
+//! The game's own sounds the readers play, a key's, a cue's, a bag's and a Pokémon's cry, or the
+//! words in their place, are one object they are handed (`gen6.feedback.FeedbackSounds`).
+//!
 //! Bound by:
 //! - ADR-0009: touch mode offers targets in the subscreens' apps that need a touch, Shift alone
 //!   drags in Pokémon-Amie's and holds a charge in Super Training's rounds, and Berry Picker's drag
@@ -86,14 +89,17 @@ use crate::core::config::{CRYING, STYLE_CRY, STYLE_NONE, Tables};
 use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
 use crate::core::speech::Category;
+use crate::core::words::own;
 use crate::games::common::layout::Layouts;
 use crate::games::common::screen::ScreenText;
-use crate::games::common::touch::{FileOf, ImageOf, OnScreen, Target};
+use crate::games::common::touch::{FileOf, HOLDING, ImageOf, OnScreen, Target};
 use crate::games::common::{lyt, pokemon};
 use crate::games::gen6::apps::{FIELD, RunningApp};
+use crate::games::gen6::feedback::{
+    ALERT_SOUND, CUE_SOUND, FeedbackSounds, HIT_SOUND, PICK_SOUND, WRONG_SOUND,
+};
 use crate::games::gen6::game::Game;
 use crate::games::gen6::rom::archives::GameText;
-use crate::games::gen6::rom::cries::Crier;
 use crate::py::{self, Result};
 use amie::{AmiePage, Goods, Moods, Puffs, StylusKeys};
 use amie_switch::SwitchScreen;
@@ -555,23 +561,28 @@ impl Subscreens {
         game: &Game,
         apps: Rc<RefCell<RunningApp>>,
         tables: &Tables,
-        picked: Rc<dyn Fn(&str) -> String>,
-        wrong: Rc<dyn Fn(&str) -> String>,
-        cue: Option<Cue>,
-        cry: Option<Crier>,
+        sounds: Rc<FeedbackSounds>,
         frames: Frames,
         drawn: Option<Rc<dyn Memory>>,
         file_of: FileOf,
         on_screen: OnScreen,
         party: Rc<dyn Fn() -> Option<i64>>,
-        bag_hit: Rc<dyn Fn()>,
-        bag_finished: Rc<dyn Fn()>,
-        shot_fired: Rc<dyn Fn(&str)>,
-        block_now: Rc<dyn Fn(&str)>,
     ) -> Subscreens {
         // The settings file's tables, each reader taking its own (`config.Tables`).
         let settings = &tables.amie;
         let image_of_kept = image_of.clone();
+        // A screen's own keys are heard as the drag's own sounds are and the game's error sound,
+        // or said where they are off; logged either way, as a key's line is.
+        let picked: Rc<dyn Fn(&str) -> String> = {
+            let sounds = sounds.clone();
+            Rc::new(move |berry: &str| {
+                sounds.heard(PICK_SOUND, &own(HOLDING, &[("target", &berry)]))
+            })
+        };
+        let wrong: Rc<dyn Fn(&str) -> String> = {
+            let sounds = sounds.clone();
+            Rc::new(move |why: &str| sounds.heard(WRONG_SOUND, why))
+        };
         let (memory_kept, layouts_kept) = (memory.clone(), layouts.clone());
         let running: Rc<dyn Fn() -> Option<String>> = {
             let apps = apps.clone();
@@ -669,8 +680,14 @@ impl Subscreens {
                 let text = text.clone();
                 Rc::new(move |found: &pokemon::Pokemon| yours(&text, found))
             },
-            bag_hit,
-            bag_finished,
+            {
+                let sounds = sounds.clone();
+                Rc::new(move || sounds.play(HIT_SOUND, 0.5))
+            },
+            {
+                let sounds = sounds.clone();
+                Rc::new(move || sounds.play(CUE_SOUND, 0.5))
+            },
             // When touch mode last tapped is asked of it as the page is polled (`Polled`).
             Rc::new(|| f64::NEG_INFINITY),
         )));
@@ -699,7 +716,7 @@ impl Subscreens {
             settings.berry_first,
             settings.one_at_a_time,
             if CRYING.contains(&berry) {
-                cry.clone()
+                sounds.cry.clone()
             } else {
                 None
             },
@@ -722,10 +739,19 @@ impl Subscreens {
             layouts.clone(),
             image_of.clone(),
             short,
-            if settings.head_it_cue { cue } else { None },
+            if settings.head_it_cue && sounds.has(&[CUE_SOUND]) {
+                let sounds = sounds.clone();
+                Some(Rc::new(move |column: i64| sounds.cue(column)) as Cue)
+            } else {
+                None
+            },
             settings.head_it_lead,
             Rc::new(py::time::monotonic),
-            if CRYING.contains(&head) { cry } else { None },
+            if CRYING.contains(&head) {
+                sounds.cry.clone()
+            } else {
+                None
+            },
             head == STYLE_CRY,
             head != STYLE_NONE,
             frames,
@@ -743,8 +769,14 @@ impl Subscreens {
             image_of.clone(),
             memory,
             RoundOptions {
-                shot_fired: Some(shot_fired),
-                block_now: Some(block_now),
+                shot_fired: Some({
+                    let (sounds, mode) = (sounds.clone(), tables.training.shot_cue.clone());
+                    Rc::new(move |said: &str| sounds.round_cue(&mode, ALERT_SOUND, said))
+                }),
+                block_now: Some({
+                    let (sounds, mode) = (sounds.clone(), tables.training.block_cue.clone());
+                    Rc::new(move |said: &str| sounds.round_cue(&mode, CUE_SOUND, said))
+                }),
                 lead: tables.training.block_lead,
                 ..RoundOptions::default()
             },

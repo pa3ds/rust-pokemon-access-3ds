@@ -27,11 +27,12 @@ use crate::games::common::touch::Target;
 use crate::games::gen6::apps::{BATTLE, DEMO, FIELD, MANAGER_CLASS};
 use crate::games::gen6::field::features::Tracked;
 use crate::games::gen6::field::landform::{Here, Landform, gen6};
+use crate::games::gen6::feedback::{CUE_SOUND, FeedbackSounds, Plays};
 use crate::games::gen6::field::voice::{Said, Speaking};
 use crate::games::gen6::field::{dowsing, mapblock};
 use crate::games::gen6::game::Game;
 use crate::games::gen6::own::{Kit, Own};
-use crate::games::gen6::profile::{CUE_SOUND, Gen6Profile, HELD_MOST, Options, STILL};
+use crate::games::gen6::profile::{Gen6Profile, HELD_MOST, Options, STILL};
 use crate::games::gen6::rom::archives::{GameText, no_text};
 use crate::games::gen6::screens::summary::SUMMARY;
 use crate::games::oras::field::hidden::PLAYER_WORK_CLASS;
@@ -708,7 +709,12 @@ fn test_head_its_cue_is_the_games_exclamation_once_the_setting_is_on() {
                     },
                     ..Tables::default()
                 }),
-                feedback_sounds: Some(sounds.clone()),
+                sounds: Some(Rc::new(FeedbackSounds::new(
+                    no_log(),
+                    Rc::new(Speech::plain(Recorder::new())),
+                    Some(sounds.clone() as Rc<dyn Plays>),
+                    None,
+                ))),
                 ..Options::default()
             },
         );
