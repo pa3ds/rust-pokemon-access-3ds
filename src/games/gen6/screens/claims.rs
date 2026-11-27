@@ -14,9 +14,11 @@
 //! - **A button's words** are left to whoever says them as the player meets the button, on the
 //!   screens whose rule says so (`ButtonRule`, `RULES`): on the field's bottom screen and the PSS's
 //!   own apps, touch mode, which says each as its target (`buttons`); in the Pokédex, its cursors,
-//!   which say each as a menu's item, its registration's captions going with them, X's regions by
-//!   their source (`pokedex.XyRegions`). They are left out as they come on screen and kept out of a screen coming back (`Heard.quiet`); words changing in one button are still
-//!   said, "Game Chat: Disabled", unless a page of them turns. Only as they come: they are still
+//!   which say each as a menu's item, X's regions by their source (`pokedex.XyRegions`): only in
+//!   the layouts they walk, and the registration's Next with its captions, by their panes. The
+//!   Pokédex's other layouts keep their touch areas' words: only what a cursor says goes unsaid,
+//!   and no cursor says those. They are left out as they come on screen and kept out of a screen
+//!   coming back (`Heard.quiet`); words changing in one button are still said, "Game Chat: Disabled", unless a page of them turns. Only as they come: they are still
 //!   heard on the screen, and Amie's Switch screen reads each Pokémon's Fullness and Enjoyment from
 //!   them, as details.
 //!
@@ -30,7 +32,8 @@
 //!   but for words changing in one button, a layout a cursor is over on the field, and a large touch
 //!   area, a window onto the screen; a page turned is left to touch mode too. The Pokédex's are its
 //!   cursors', the registration's "Rotate" and "Zoom" with them, X's regions too (amended
-//!   2026-11-24, X's regions 2026-11-25).
+//!   2026-11-24, X's regions 2026-11-25): only the menu items a cursor says, those of the layouts
+//!   it walks and the registration's Next, by layout file and pane name (2026-11-25).
 
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
@@ -59,8 +62,11 @@ pub struct ButtonRule {
     /// L and R page O-Power's list, and its seven powers were read as they came
     /// (or_pss_o_power_2).
     pub pages: bool,
-    /// (layout file, pane name) of words no button's that are left unsaid with them, as captions
-    /// of the pictures over its buttons.
+    /// The layout files whose buttons' words alone are another's, where any is given: the menus
+    /// the Pokédex's cursors walk. None given, every layout's are: the field's bottom screen.
+    pub walked: &'static [&'static str],
+    /// (layout file, pane name) of words left unsaid as buttons' words are, a button's or not:
+    /// the registration's Next and the captions of the pictures over its arrows.
     pub unsaid: &'static [(&'static str, &'static str)],
 }
 
@@ -82,16 +88,18 @@ pub const RULES: [(&str, ButtonRule); 3] = [
             ..PSS
         },
     ),
-    // The Pokédex's buttons are menu items its cursors say: the choices read
-    // "HOENN POKÉDEX Number caught: 36 Number seen: 181 NATIONAL POKÉDEX…" as it opened, and the
-    // cursor the first again (or_pokedex), and X its list's numbers before its cursor said the
-    // entry (x_pokedex). Its registration's Next, and "Rotate" and "Zoom" over the model's four
-    // arrows, followed the entry (or_groudon_master_ball). X's regions, with their counts, are
-    // said a row at a time by their source (`pokedex.XyRegions`).
+    // The Pokédex's buttons are menu items its cursors say, in the layouts they walk: the
+    // choices read "HOENN POKÉDEX Number caught: 36 Number seen: 181 NATIONAL POKÉDEX…" as it
+    // opened, and the cursor the first again, and "More Habitat" came with every entry
+    // (or_pokedex); X read its list's numbers before its cursor said the entry (x_pokedex). X's
+    // regions, with their counts, are said a row at a time by their source
+    // (`pokedex.XyRegions`). The registration's Next, and "Rotate" and "Zoom" over the model's
+    // four arrows, followed the entry (or_groudon_master_ball), and go by their panes.
     (
         pokedex::ORAS_APP,
         ButtonRule {
             cursor_keeps: true,
+            walked: &[pokedex::CHOICE, pokedex::TOUCH_BAR],
             unsaid: &pokedex::CAPTIONS,
             ..PSS
         },
@@ -100,6 +108,7 @@ pub const RULES: [(&str, ButtonRule); 3] = [
         pokedex::APP,
         ButtonRule {
             cursor_keeps: true,
+            walked: &[pokedex::REGIONS, pokedex::LIST],
             ..PSS
         },
     ),
@@ -112,6 +121,7 @@ pub const RULES: [(&str, ButtonRule); 3] = [
 pub const PSS: ButtonRule = ButtonRule {
     cursor_keeps: false,
     pages: true,
+    walked: &[],
     unsaid: &[],
 };
 
@@ -196,6 +206,18 @@ impl Claims {
             && (bottom(true) > 0 || bottom(false) >= PAGE_TURNED)
         {
             let mut buttons = (self.buttons)()?;
+            if !rule.walked.is_empty() {
+                buttons = screen
+                    .on_screen
+                    .iter()
+                    .filter(|piece| {
+                        buttons.contains(&piece.r#box)
+                            && (self.named)(piece)
+                                .is_some_and(|(file, _pane)| rule.walked.contains(&file.as_str()))
+                    })
+                    .map(|piece| piece.r#box)
+                    .collect();
+            }
             if !rule.unsaid.is_empty() {
                 for piece in &screen.on_screen {
                     if !piece.top

@@ -310,29 +310,59 @@ fn test_the_pokedexs_buttons_words_are_left_to_its_cursors() -> Result<()> {
     let hoenn = shown(1, "HOENN POKÉDEX", MENU);
     let national = bottom(2, "NATIONAL POKÉDEX", MENU, 100.0, false);
     let choices_up = [hoenn.clone(), national.clone()];
-    for app in [pokedex::ORAS_APP, pokedex::APP] {
-        let rule = claims::rule(Some(app), &|| false);
-        assert!(rule.is_some_and(|rule| rule.cursor_keeps), "{app}");
-        let choices = field(&Buttons::new(&[1, 2]), rule);
-        assert!(
-            choices
-                .poll(&poll(&choices_up), &polled(&[]), &no_labels())?
-                .texts
-                .is_empty(),
-            "{app}"
-        );
-        assert_eq!(
-            choices
-                .poll(
-                    &poll(&choices_up),
-                    &polled(std::slice::from_ref(&hoenn)),
-                    &no_labels()
-                )?
-                .texts,
-            choices_up,
-            "{app}"
-        );
-    }
+    let rule = claims::rule(Some(pokedex::ORAS_APP), &|| false);
+    assert!(rule.is_some_and(|rule| rule.cursor_keeps));
+    let pane = |name: &str| (pokedex::CHOICE.to_string(), name.to_string());
+    let choices = field_named(
+        &Buttons::new(&[1, 2]),
+        rule,
+        HashMap::from([(1, pane("6")), (2, pane("l"))]),
+    );
+    assert!(
+        choices
+            .poll(&poll(&choices_up), &polled(&[]), &no_labels())?
+            .texts
+            .is_empty()
+    );
+    assert_eq!(
+        choices
+            .poll(
+                &poll(&choices_up),
+                &polled(std::slice::from_ref(&hoenn)),
+                &no_labels()
+            )?
+            .texts,
+        choices_up
+    );
+    Ok(())
+}
+
+/// ADR-0013, amended 2026-11-25: only as long as the item under the cursor is said. More and
+/// Habitat, on the bar its cursor walks, are left to it (or_pokedex); a touch area's words in a
+/// layout no rule names are said as they come, the More list's rows (its list's labels, left
+/// out anyway), and so are words whose layout's file is not known.
+#[test]
+fn test_the_pokedex_leaves_only_the_layouts_its_cursors_walk() -> Result<()> {
+    let (more, habitat) = (
+        shown(1, "More", MENU),
+        bottom(2, "Habitat", MENU, 100.0, false),
+    );
+    let row = shown(3, "APPEARANCE/CRY", PAGE);
+    let unnamed = shown(4, "Search/Sort", TOP);
+    let rule = claims::rule(Some(pokedex::ORAS_APP), &|| false);
+    let pane = |file: &str, name: &str| (file.to_string(), name.to_string());
+    let named = HashMap::from([
+        (1, pane(pokedex::TOUCH_BAR, "69")),
+        (2, pane(pokedex::TOUCH_BAR, "6r")),
+        (3, pane("menu_app.bclyt", "6")),
+    ]);
+    let heard = field_named(&Buttons::new(&[1, 2, 3, 4]), rule, named).poll(
+        &poll(&[more, habitat, row.clone(), unnamed.clone()]),
+        &polled(&[]),
+        &no_labels(),
+    )?;
+    assert_eq!(heard.texts, [row, unnamed]);
+    assert_eq!(heard.quiet, HashSet::from([1, 2]));
     Ok(())
 }
 
@@ -350,7 +380,7 @@ fn test_xs_regions_are_left_to_their_source() -> Result<()> {
     let named = HashMap::from([
         (1, pane(pokedex::REGIONS, "f")),
         (2, pane(pokedex::REGIONS, "r")),
-        (3, pane("list_lower.bclyt", "a")),
+        (3, pane(pokedex::LIST, "n")),
     ]);
     let heard = field_named(&Buttons::new(&[1, 2, 3]), rule, named).poll(
         &poll(&[central, coastal, number]),
@@ -364,7 +394,8 @@ fn test_xs_regions_are_left_to_their_source() -> Result<()> {
 
 /// The registration said "Rotate Zoom Next" after each entry (or_groudon_master_ball): Next is
 /// a button, and "Rotate" and "Zoom" hang from pictures over the model's four arrows, touch areas
-/// with no words of their own. The entry beside them is still said.
+/// with no words of their own. They go by their panes: the entry beside them is still said, a
+/// touch area's words or not.
 #[test]
 fn test_the_registrations_captions_over_its_arrows_go_with_its_buttons_words() -> Result<()> {
     let (rotate, zoom) = (
@@ -377,8 +408,13 @@ fn test_the_registrations_captions_over_its_arrows_go_with_its_buttons_words() -
     );
     let rule = claims::rule(Some(pokedex::ORAS_APP), &|| false);
     let pane = |name: &str| (pokedex::REGISTRATION.to_string(), name.to_string());
-    let named = HashMap::from([(1, pane("3s")), (2, pane("3w")), (3, pane("2v"))]);
-    let heard = field_named(&Buttons::new(&[3]), rule, named).poll(
+    let named = HashMap::from([
+        (1, pane("3s")),
+        (2, pane("3w")),
+        (3, pane("2v")),
+        (4, pane("1a")),
+    ]);
+    let heard = field_named(&Buttons::new(&[3, 4]), rule, named).poll(
         &poll(&[rotate, zoom, after, entry.clone()]),
         &polled(&[]),
         &no_labels(),

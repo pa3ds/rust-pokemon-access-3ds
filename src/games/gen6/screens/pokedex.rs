@@ -43,7 +43,15 @@
 //! Omega Ruby's Pokédex opens on the Hoenn and National Pokédex, its cursor coming on screen just
 //! as the app's whole sweep comes due: the sweep waits for it (`OrasOpening`).
 //!
+//! Screen text leaves the Pokédex's menu items to its cursors (`claims.RULES`): the buttons' words
+//! of the layouts they walk, Omega Ruby's choice and the bar under an entry, More and Habitat
+//! (`CHOICE`, `TOUCH_BAR`), and X's regions and list (`REGIONS`, `LIST`), and the registration's
+//! Next with its captions, by their panes (`CAPTIONS`). Any other layout's words are said as they
+//! come, a touch area's or not: an entry's words are no menu's items, which a cursor would say.
+//!
 //! Bound by:
+//! - ADR-0013: of the buttons' words, those of the layouts a cursor walks and the registration's
+//!   Next and captions are left to the cursors, by layout file and pane name (amended 2026-11-25).
 //! - ADR-0034: the heap's whole sweep waits for Omega Ruby's choice's cursor as the Pokédex opens.
 //! - ADR-0043: the list's entry once its index holds, a jump where it lands; X's regions by the
 //!   row under the cursor, as they open and as it moves; search's fields with their labels, the
@@ -72,18 +80,30 @@ pub const ORAS_APP: &str = "N3app11sango_zukan9ZukanProcE";
 /// The registration's bottom screen: the entry, the model of the Pokémon caught, and the buttons
 /// under it, four arrows turning and zooming the model and Next (or_groudon_master_ball).
 pub const REGISTRATION: &str = "description_lower.bclyt";
-/// The registration's "Rotate" and "Zoom", each hanging from a picture over two of the model's
-/// arrows, touch areas with no words of their own: no button's words, but said as they came with
-/// Next's as "Rotate Zoom Next" (`claims.RULES`).
-pub const CAPTIONS: [(&str, &str); 2] = [(REGISTRATION, "3s"), (REGISTRATION, "3w")];
+/// The registration's Next, a button, and "Rotate" and "Zoom", each hanging from a picture over
+/// two of the model's arrows, touch areas with no words of their own: said as they came after the
+/// entry, "Rotate Zoom Next", and left unsaid by their panes, so that nothing else of the
+/// registration's layout goes with them (`claims.RULES`).
+pub const CAPTIONS: [(&str, &str); 3] = [
+    (REGISTRATION, "3s"),
+    (REGISTRATION, "3w"),
+    (REGISTRATION, "2v"),
+];
 /// Omega Ruby's choice of the Hoenn and National Pokédex, each with its counts, as its Pokédex
 /// opens: its words come 1.1 to 1.2 s after the app starts, and its cursor a quarter to a third of
 /// a second after them, just as the app's whole sweep comes due (`OrasOpening`, spike 316).
 pub const CHOICE: &str = "start_lower.bclyt";
+/// The bar under Omega Ruby's list and entry, a layout many screens share: More and Habitat on an
+/// entry, walked by its cursor, which said "More Habitat" with every entry as screen text
+/// (or_pokedex).
+pub const TOUCH_BAR: &str = "touch_bar_lower.bclyt";
 /// X's choice of the Central, Coastal and Mountain Pokédex, each with its count, as its Pokédex
 /// opens: buttons, whose words are said a row at a time as the cursor comes onto them
 /// (`XyRegions`).
 pub const REGIONS: &str = "top_lower.bclyt";
+/// X's list, a row of numbered icons, a button each: "001 002 … 025" came as it opened, before
+/// its cursor said the entry (x_pokedex).
+pub const LIST: &str = "zukan_lower.bclyt";
 /// X's Pokédex's process -> `app::zukan::Graphics`.
 pub const GRAPHICS: i64 = 0x40;
 pub const GRAPHICS_CLASS: &str = "N3app5zukan8GraphicsE";
