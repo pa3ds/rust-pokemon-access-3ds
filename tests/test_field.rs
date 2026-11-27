@@ -41,6 +41,7 @@ use crate::games::gen6::field::landform::{
     ArrowTiles, Belts, Found as Worked, Here, Landform, Rides, as_watch, gen6,
 };
 use crate::games::gen6::field::mmodel::PROP_MODEL;
+use crate::games::gen6::field::models::walled_in;
 use crate::games::gen6::field::reader::PC_TILE as PC_KIND;
 use crate::games::gen6::field::reader::{
     ASKS, FieldReader, MOVE_MODEL_CLASS, TABLE_ASKS, TABLE_EVERY,
@@ -7722,8 +7723,6 @@ fn test_a_model_walled_in_on_every_side_is_not_on_the_map() -> Result<()> {
 /// west edges is wall.
 #[test]
 fn test_a_model_in_the_maps_corner_walled_in_against_its_edge_is_not_on_the_map() -> Result<()> {
-    use crate::games::gen6::field::reader::walled_in;
-
     let walls: HashSet<(i64, i64)> = (0..2).flat_map(|x| (0..2).map(move |z| (x, z))).collect();
     let words: Vec<i64> = (0..CHUNK * CHUNK)
         .map(|i| {

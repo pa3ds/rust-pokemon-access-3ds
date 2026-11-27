@@ -98,7 +98,7 @@ pub fn patterns() -> &'static IndexMap<i64, IndexMap<&'static str, i64>> {
 /// Fortree Gym's doors on the ground as they stand now (`Ground.doors`), walked through by
 /// turning them; read through the Gym's module (`DoorTurns`) whenever the ground is, since they
 /// turn as the player walks. Not listed; round them the invisible blockers stand in for their
-/// arms, and are in nobody's way (`gen6.field.reader.Role`).
+/// arms, and are in nobody's way (`gen6.field.models.Role`).
 #[derive(Debug)]
 pub struct RotatingDoors;
 

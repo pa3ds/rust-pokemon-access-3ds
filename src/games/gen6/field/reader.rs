@@ -34,19 +34,19 @@ use std::sync::Arc;
 
 use indexmap::{IndexMap, IndexSet};
 
-use crate::core::binary::{f32, s16, u16, u32};
+use crate::core::binary::{s16, u16, u32};
 use crate::core::config::{HIDDEN_ALL, HIDDEN_UNDERWATER};
 use crate::core::discovery::{Found, HEAP_SPAN, within};
 use crate::core::memory::Memory;
 use crate::core::pathfind::{self, Cell};
-use crate::games::common::field::chunk::{CHUNK, COUNTER, Chunk};
+use crate::games::common::field::chunk::{CHUNK, Chunk};
 use crate::games::common::field::ground::{
     self as common, BLOCK, Far, Grid, Ground, GroundHeight, NO_ZONE, Of, STRENGTH, StepWords, Word,
     pushes, walkable,
 };
 use crate::games::common::field::ride::riding;
 use crate::games::common::field::things::{
-    EDGE_SOURCE, FURNITURE_SOURCE, Field, Interactable, OBSTACLES, OPENING_SOURCE, POKEMON,
+    EDGE_SOURCE, FURNITURE_SOURCE, Field, Interactable, OPENING_SOURCE,
     STAIRS_SOURCE, TELEPORT_SOURCE, TELEPORTER, TILE_SOURCE, TRIGGER_SOURCE, WARP_SOURCE,
     place_source,
 };
@@ -58,6 +58,7 @@ use crate::games::gen6::field::landform::{
     Conveyors, Found as Worked, Here, Holes, Landform, Matrix, Rides, TurningFloor, as_form,
     beside, dropped, holes_found, identity, runs, touching,
 };
+use crate::games::gen6::field::models::Models;
 use crate::games::gen6::field::rail::{self, Rails, keep};
 use crate::games::gen6::field::records::{
     PROP, Placed, Records, STAIRS, exits, joined, never, off_the_rails, warp_cells,
@@ -66,7 +67,7 @@ use crate::games::gen6::field::terrain::{FarCells, FarFloors, FarHeights, FarMat
 use crate::games::gen6::field::voice::{Said, Speaking, Voice};
 use crate::games::gen6::field::works::Works;
 use crate::games::gen6::field::zonedata::{
-    Bytes, FURNITURE, FURNITURE_SCRIPT, LZ11, NPC, NPC_INDEX, NPC_SCRIPT, NPC_SPRITE, NPC_X, NPC_Y,
+    Bytes, FURNITURE, FURNITURE_SCRIPT, LZ11, NPC, NPC_INDEX, NPC_SCRIPT, NPC_SPRITE, NPC_X,
     NPC_Z, TRIGGER_HEIGHT, TRIGGER_SCRIPT, TRIGGER_WIDTH, TRIGGER_X, TRIGGER_Y, TRIGGER_Z, WARP,
     WARP_OUT, ZoneData, read_furniture, read_records, read_triggers, read_zone, zone_files,
 };
@@ -118,11 +119,6 @@ pub const TABLE_ASKS: i64 = 10;
 /// (omega_ruby_ledges_3.ctm, 2026-09-28).
 pub const TABLE_EVERY: f64 = 2.0;
 
-/// What a beam between two posts is called, which a switch swings a quarter turn: the game never
-/// names one, and its move model's sprite is the invisible blocker it stands elsewhere (spike
-/// 146).
-pub const BARRIER: &str = "barrier";
-
 /// What a street's end on ground walked on the grid is called, as Magenta Plaza is at the end of
 /// its alleys: the game's street marks name few of them (spike 251).
 pub const OPEN_GROUND: &str = "open ground";
@@ -130,37 +126,6 @@ pub const OPEN_GROUND: &str = "open ground";
 /// plaza or a square have between 5 and all 25 of the cells this far round open, and the rest none
 /// (spike 251).
 pub const OPENING_REACH: i64 = 2;
-
-/// What a move model is to the field, which says whether it is listed and whether it stands in
-/// the way (`FieldReader._role`).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Role {
-    /// The player drawn as another model, as the Magma Suit is put on in the Cave of Origin,
-    /// listed there as "person, here" (spike 203): neither listed nor in the way.
-    Look,
-    /// A beam a switch swings, in its zone (`Game.barriers`, spike 146): listed under obstacles,
-    /// and in the way as anything listed is.
-    Barrier,
-    /// The game's invisible blocker (`Game.blockers`): never listed, and in the way. Sootopolis
-    /// Gym's nine, rows of three across the corridors up from its rooms, were listed as nameless
-    /// people (spike 167). Round a zone's rotating doors they stand in for the doors' arms, which
-    /// the doors are walked through by, and are not in the way: five were listed as "person 1
-    /// west" round Fortree Gym's third door, and P said "person in the way" (spike 161).
-    Blocker,
-    /// A work object no script has filled (`mmodel.drawn_as` gives its own id): drawn as
-    /// nothing, neither listed nor in the way. The Contest Spectacular Halls' lobbies stand ten,
-    /// `0x7b` to `0x84` in two rows beside the carpet, listed as "person" until 2026-10-23; none
-    /// was drawn, and the player walked onto one (or_contest_hall_phantom_people; findings, the
-    /// map, 2026-10-23). One whose looks are still loading reads the same, and is left out until
-    /// they have.
-    Empty,
-    /// A model drawn as nothing (`mmodel.NONDRAW`): in the way, as on each of Sootopolis City's
-    /// locked doors, and in its own zone listed as what it stands in for (`_stand_ins`, spike
-    /// 203).
-    Nothing,
-    /// Anything else: listed as what it is drawn as (`_model_item`).
-    Drawn,
-}
 
 /// The two-word holder of the zone data buffers, current first.
 struct Holder {
@@ -171,9 +136,6 @@ struct Holder {
 /// What the landforms were worked out on (`_found`): the zone, the matrix's chunk files, the
 /// chunks loaded where the ROM's are not read, and the field map's grid.
 type FoundKey = (i64, Rc<Vec<i64>>, Vec<(i64, i64)>, Option<Grid>);
-/// `_stand_ins`: what each model drawn as nothing stands in for by its record's index, the
-/// cells of the zone's warps, and the records' indices of its gates.
-type StandIns = (IndexMap<i64, i64>, HashSet<Cell>, HashSet<i64>);
 
 /// `_twins`: each NPC record of a place in parts an earlier part keeps too -> that part's.
 type Twins = HashMap<(i64, i64), (i64, i64)>;
@@ -196,10 +158,6 @@ pub struct FieldReader {
     watched: Vec<Rc<dyn Watched>>,
     /// Where the field's work holds the current zone's record (`anchor`).
     zone_record: i64,
-    /// The sprites of the game's invisible blockers (`Game.blockers`).
-    blockers: HashSet<i64>,
-    /// The sprites the player is drawn as (`Game.player_looks`).
-    player_looks: HashSet<i64>,
     /// Zones whose floors' stairs are listed (`Game.stairs`).
     stairs: HashSet<i64>,
     /// Zones listed a room at a time (`Game.rooms`).
@@ -223,9 +181,6 @@ pub struct FieldReader {
     /// (zone, a trigger's script) -> (x, how high, z) of where the teleporter it is puts the
     /// player (`plates.teleports`).
     teleports: IndexMap<(i64, i64), (i64, i64, i64)>,
-    /// Whether a row of models drawn as nothing with a script of its own is a gate
-    /// (`Game.gates`).
-    gates: bool,
     /// The save's works and flags, which arm triggers and say which hidden items are found.
     works: Rc<Works>,
     /// (zone, a warp's slot) -> the work and value it is taken at (`Game.armed_warps`).
@@ -238,8 +193,6 @@ pub struct FieldReader {
     gym_floor: Option<GymFloor>,
     /// The hidden items still to be found, where the Extra lists them (spike 249).
     hidden_items: Option<HiddenItems>,
-    /// (zone, sprite) of the move models that are a barrier's beam (`Game.barriers`).
-    barriers: HashSet<(i64, i64)>,
     /// (zone, a trigger's script) -> the category and kind it is listed as, and for an exit into
     /// another place, the zone it leads to (`Game.triggers`).
     triggers: IndexMap<(i64, i64), (String, String, Option<i64>)>,
@@ -249,13 +202,8 @@ pub struct FieldReader {
     hidden_triggers: HashSet<(i64, i64)>,
     /// Sprite -> the move that clears the thing drawn as it (`Game.clears`).
     clears: IndexMap<i64, i64>,
-    /// The sprites of the spots a wild Pokémon leaps out of (`Game.ambushes`).
-    ambushes: HashSet<i64>,
     /// The sprites of the spots a wild Pokémon waits at unseen (`Game.lurkers`).
     lurkers: HashSet<i64>,
-    /// The sprites of the things other than item balls the player finds an item at
-    /// (`Game.pickups`).
-    pickups: HashSet<i64>,
     /// The matrix out of the ROM, which never touches RAM.
     pub terrain: Rc<Terrain>,
     /// Zone -> its triggers' boxes, (x, z, width, height) in the table's order, once read
@@ -280,10 +228,6 @@ pub struct FieldReader {
     /// the game built models for there, when last seen: another part's records are listed only
     /// where it built them (`part_records`).
     built: RefCell<HashMap<i64, HashSet<i64>>>,
-    /// Where the game keeps the sprite a move model is drawn with (`mmodel.drawn_as`).
-    drawn: i64,
-    /// Where the game's things' and Pokémon's models start (`Game.models`).
-    model_starts: Option<(Option<i64>, i64)>,
     /// Where the player's model says what they move as (`Game.form`).
     form: Option<i64>,
     /// What each kind of use tile is: the game's own word where it has one, the PC's out of
@@ -291,7 +235,8 @@ pub struct FieldReader {
     words: IndexMap<i64, String>,
     /// What the zone's warps, furniture and triggers are to the list.
     records: Records,
-    models: RefCell<Vec<i64>>,
+    /// Who stands on the map, the pool of move models a sweep found among them.
+    models: Models,
     player: Slot<Option<i64>>,
     /// Whether the player's model was on a rail at the last poll.
     on_rail: Slot<bool>,
@@ -385,8 +330,10 @@ impl FieldReader {
         {
             words.insert(PC_TILE, pc);
         }
+        // One `Game` for the records and the models, which Python's share by reference.
+        let shared = Rc::new(game.clone());
         let records = Records::new(
-            Rc::new(game.clone()),
+            shared.clone(),
             Rc::new(text.clone()),
             zones.clone(),
             terrain.clone(),
@@ -446,9 +393,19 @@ impl FieldReader {
                 only,
             ))
         };
+        let rides = game.landforms.iter().find_map(as_form::<Rides>).cloned();
         Rc::new_cyclic(|me| FieldReader {
             me: me.clone(),
             hidden_items: hidden_items(me),
+            // `self._current`, through the reader being made.
+            models: Models::new(memory.clone(), shared, works.clone(), rides.clone(), {
+                let me = me.clone();
+                Rc::new(move || {
+                    me.upgrade()
+                        .expect("a reader is made in an Rc, which its holders keep")
+                        .current()
+                })
+            }),
             works,
             armed_warps: game.armed_warps.clone(),
             version_flags: game.version_flags,
@@ -473,8 +430,6 @@ impl FieldReader {
             features,
             watched,
             zone_record: game.zone_record,
-            blockers: game.blockers.clone(),
-            player_looks: game.player_looks.clone(),
             stairs: game.stairs.clone(),
             rooms: game.rooms.clone(),
             landforms: game.landforms.clone(),
@@ -492,11 +447,9 @@ impl FieldReader {
                     }) as Voice
                 })
                 .collect(),
-            rides: game.landforms.iter().find_map(as_form::<Rides>).cloned(),
+            rides,
             natives: text.natives.clone(),
             teleports: text.teleports.clone(),
-            gates: game.gates,
-            barriers: game.barriers.clone(),
             triggers: game.triggers.clone(),
             trigger_exits: game
                 .triggers
@@ -505,9 +458,7 @@ impl FieldReader {
                 .collect(),
             hidden_triggers: game.hidden_triggers.clone(),
             clears: game.clears.clone(),
-            ambushes: game.ambushes.clone(),
             lurkers: game.lurkers.clone(),
-            pickups: game.pickups.clone(),
             terrain,
             trigger_boxes: RefCell::new(HashMap::new()),
             height: Slot::new(None),
@@ -525,12 +476,9 @@ impl FieldReader {
             whole: game.whole.clone(),
             twins_of: RefCell::new(HashMap::new()),
             built: RefCell::new(HashMap::new()),
-            drawn: game.drawn,
-            model_starts: game.models,
             form: game.form,
             words,
             records,
-            models: RefCell::new(Vec::new()),
             player: Slot::new(None),
             on_rail: Slot::new(false),
             fixed: Slot::new(false),
@@ -586,7 +534,7 @@ impl FieldReader {
         let mut models = found.of(&[MOVE_MODEL_CLASS]);
         if !models.is_empty() {
             models.sort();
-            *self.models.borrow_mut() = models;
+            *self.models.pool.borrow_mut() = models;
         }
         let mut files: IndexMap<i64, ZoneData> = IndexMap::new();
         for data in zone_files(&found.pages, &*self.memory)? {
@@ -797,7 +745,7 @@ impl FieldReader {
     /// each cell (`mapblock.flat`, spike 156).
     ///
     /// The invisible blockers stand in the way once the landforms are laid, but round rotating
-    /// doors, whose arms they stand in for (`Role.BLOCKER`).
+    /// doors, whose arms they stand in for (`models.Role.BLOCKER`).
     pub fn ground(&self, r#where: &Field) -> Result<Ground> {
         if r#where.on_rail {
             let corridor = self
@@ -824,7 +772,7 @@ impl FieldReader {
         } else {
             lanes.keys().copied().collect()
         };
-        let (nothing, blockers) = self.unseen()?;
+        let (nothing, blockers) = self.models.unseen()?;
         let loaded = || self.chunks_loaded();
         let level = self.height.get();
         let stacked = level.is_some() && self.terrain.stacked(&loaded)?;
@@ -1537,14 +1485,14 @@ impl FieldReader {
                 });
             }
         }
-        for other in self.others() {
+        for other in self.models.others() {
             let (model, head) = other?;
             if !mmodel::on_rail(&head)? {
                 continue;
             }
             let (line, a, x) = mmodel::rail(&head)?;
             if let Some(cell) = corridor.at(line, a, x)? {
-                out.push(self.model_item(model, &head, cell, (1, 1), None)?);
+                out.push(self.models.item(model, &head, cell, (1, 1), None)?);
             }
         }
         Ok(out)
@@ -1633,7 +1581,7 @@ impl FieldReader {
             return Ok(Some(player));
         }
         let mut found = None;
-        let models = self.models.borrow().clone();
+        let models = self.models.pool.borrow().clone();
         for model in models {
             if self.is_player(model)? {
                 found = Some(model);
@@ -1675,125 +1623,16 @@ impl FieldReader {
         Ok(data)
     }
 
-    /// Every model in use but the player's, with its head, in the pool's order; none the
-    /// game has hidden (`mmodel.hidden`), which is neither listed nor in the way. The Secret
-    /// Base Guild hides four round Aarune filled with the pals of the player's own Secret Base,
-    /// and they were listed until 2026-11-12, one on the player's own cell
-    /// (or_secret_base_guild_bug).
-    ///
-    /// Python's generator reads each head as its loop comes to it; so does this iterator, so the
-    /// reads a loop makes of each model come between the heads, as there.
-    fn others(&self) -> impl Iterator<Item = Result<(i64, Vec<u8>)>> + '_ {
-        let models = self.models.borrow().clone();
-        models.into_iter().filter_map(move |model| {
-            let other = || -> Result<Option<(i64, Vec<u8>)>> {
-                let head = self.memory.read(model, mmodel::HEAD)?;
-                Ok((mmodel::in_use(&head)?
-                    && mmodel::index_of(&head)? != mmodel::PLAYER_INDEX
-                    && !mmodel::hidden(&head)?)
-                .then_some((model, head)))
-            };
-            other().transpose()
-        })
-    }
-
-    /// What a model drawn as `code` is to the field (`Role`), by the game's tables of looks,
-    /// barriers and blockers.
-    fn role(&self, head: &[u8], code: i64) -> Result<Role> {
-        Ok(if self.player_looks.contains(&code) {
-            Role::Look
-        } else if self.barriers.contains(&(mmodel::zone_of(head)?, code)) {
-            Role::Barrier
-        } else if self.blockers.contains(&code) {
-            Role::Blocker
-        } else if mmodel::WORK_OBJECTS.contains(&code) {
-            Role::Empty
-        } else if code == mmodel::NONDRAW {
-            Role::Nothing
-        } else {
-            Role::Drawn
-        })
-    }
-
-    /// Every model listed (`_role`): an item ball or a thing by its model code, a person
-    /// otherwise. The moving truck has a person's kind of code and no script, and trainers have
-    /// no script either, so it passes for a person until model codes have names. A big boulder
-    /// in a hole is no parked model, however walled in: Seafloor Cavern's room 0x69 has walls
-    /// north and west of its north-west hole, and the boulder pushed into it was left out, its
-    /// hole still listed and a wall (movie37). A model on a street that is a floor of its own is
-    /// on floor, though its chunk walls the cell: in Coumarine Gym the entrance listed one of the
-    /// four Pokémon Rangers, the one over the corridor its chunk leaves open (x_gym_4_climbed).
-    ///
-    /// A model drawn as nothing is called what it stands in for (`stand_ins`), those side by
-    /// side as one (`joined`): the three in front of Groudon are one "Groudon", the first by its
-    /// record, and none once Groudon itself is listed. It is left out on a door, which is listed
-    /// already (spike 203), and where it is one of a gate's (`Game.gates`), which is nobody
-    /// (spike 223).
+    /// Every model listed in `zone` (`Models.people`), walled in by the chunks loaded with
+    /// the streets that are floors of their own: Coumarine Gym's chunks wall every cell but its
+    /// entrance's, and three of its four trainers stand on platforms over them.
     fn people(&self, zone: i64) -> Result<Vec<Interactable>> {
-        let mut out: Vec<Interactable> = Vec::new();
-        // The stand-ins called what another record draws.
-        let mut standing_in: Vec<Interactable> = Vec::new();
-        // With the streets that are floors of their own: Coumarine Gym's chunks wall every cell
-        // but its entrance's, and three of its four trainers stand on platforms over them.
         let mut chunks: Vec<Rc<Chunk>> = Vec::new();
         for chunk in self.chunks_loaded()? {
             let chunk = self.terrain.with_streets(&chunk)?;
             chunks.push(self.terrain.flattened(&chunk, None, false)?);
         }
-        let holes = self.holes(zone)?;
-        let mut stand_ins: Option<StandIns> = None;
-        let none = HashSet::new();
-        let rides = match &self.rides {
-            None => &none,
-            Some(rides) => &rides.ground,
-        };
-        for other in self.others() {
-            let (model, head) = other?;
-            let Some(cell) = mmodel::cell(&head)? else {
-                continue;
-            };
-            if !holes.contains(&cell) && walled_in(&chunks, cell, rides)? {
-                continue;
-            }
-            let code =
-                mmodel::drawn_as(&*self.memory, model, &head, self.drawn, self.model_starts)?;
-            let role = self.role(&head, code)?;
-            if role == Role::Look || role == Role::Blocker || role == Role::Empty {
-                continue;
-            }
-            let mut stood_in = None;
-            if role == Role::Nothing && mmodel::zone_of(&head)? == zone {
-                if stand_ins.is_none() {
-                    stand_ins = Some(self.stand_ins()?);
-                }
-                let (by_index, doors, gates) = stand_ins.as_ref().expect("just read");
-                stood_in = by_index.get(&mmodel::index_of(&head)?).copied();
-                if stood_in.is_none()
-                    && (doors.contains(&cell) || gates.contains(&mmodel::index_of(&head)?))
-                {
-                    continue;
-                }
-            }
-            let (cell, size) = mmodel::footprint(&head, cell)?;
-            // `stood_in or code`: a stand-in's sprite is never NONDRAW, 0, so never falsy.
-            let called = match stood_in {
-                Some(sprite) if sprite != 0 => sprite,
-                _ => code,
-            };
-            let item = self.model_item(model, &head, cell, size, Some(called))?;
-            match stood_in {
-                None => out.push(item),
-                Some(_) => standing_in.push(item),
-            }
-        }
-        let listed: HashSet<i64> = out.iter().map(|item| item.code).collect();
-        standing_in.sort_by_key(|item| item.record.unwrap_or((0, 0)));
-        for item in joined(standing_in, &|item| Some(item.code.to_string())) {
-            if !listed.contains(&item.code) {
-                out.push(item);
-            }
-        }
-        Ok(out)
+        self.models.people(zone, &chunks, &self.holes(zone)?)
     }
 
     /// Which of two twin zones the save's story plays (`Game.version_flags`): the higher
@@ -1812,145 +1651,6 @@ impl FieldReader {
         } else {
             None
         })
-    }
-
-    /// What the zone's models drawn as nothing stand in for, by their records' indices: the
-    /// sprite of another record with the same script, as the three in a row in front of Groudon
-    /// deep in the Cave of Origin have its script, where Groudon itself stands in the magma; the
-    /// cells of the zone's warps, where Sootopolis City's ten stand, one on each locked door
-    /// (spike 203); and, in a game with `gates`, the records' indices of the gates, models drawn
-    /// as nothing that share a script with one another and with no drawn record: the five behind
-    /// Viola in Santalune Gym, shut until the game opens the tent after her battle (spike 223).
-    /// The cells of its furniture are among the warps': each of X's boutiques stands one on its
-    /// fitting room, listed already, and it was listed beside it as "person 1 north"
-    /// (x_cyllage_boutique_fitting_room).
-    fn stand_ins(&self) -> Result<StandIns> {
-        let Some(data) = self.current()? else {
-            return Ok((IndexMap::new(), HashSet::new(), HashSet::new()));
-        };
-        let records = read_records(&*self.memory, &data, NPC)?;
-        let mut unseen: HashSet<i64> = self.blockers.clone();
-        unseen.insert(mmodel::NONDRAW);
-        let mut drawn: IndexMap<i64, i64> = IndexMap::new();
-        for record in &records {
-            if !unseen.contains(&u16(record, NPC_SPRITE)?) && u16(record, NPC_SCRIPT)? != 0 {
-                drawn.insert(u16(record, NPC_SCRIPT)?, u16(record, NPC_SPRITE)?);
-            }
-        }
-        let mut stand_ins: IndexMap<i64, i64> = IndexMap::new();
-        for record in &records {
-            if u16(record, NPC_SPRITE)? == mmodel::NONDRAW
-                && let Some(sprite) = drawn.get(&u16(record, NPC_SCRIPT)?)
-            {
-                stand_ins.insert(u16(record, NPC_INDEX)?, *sprite);
-            }
-        }
-        let mut shared: HashMap<i64, i64> = HashMap::new();
-        for record in &records {
-            if u16(record, NPC_SPRITE)? == mmodel::NONDRAW {
-                *shared.entry(u16(record, NPC_SCRIPT)?).or_default() += 1;
-            }
-        }
-        let mut gates: HashSet<i64> = HashSet::new();
-        for record in &records {
-            if !self.gates || u16(record, NPC_SPRITE)? != mmodel::NONDRAW {
-                continue;
-            }
-            let script = u16(record, NPC_SCRIPT)?;
-            if script != 0 && !drawn.contains_key(&script) && shared[&script] > 1 {
-                gates.insert(u16(record, NPC_INDEX)?);
-            }
-        }
-        let mut doors = warp_cells(&read_records(&*self.memory, &data, WARP)?)?;
-        for item in read_furniture(&*self.memory, &data)? {
-            doors.extend(item.cells());
-        }
-        Ok((stand_ins, doors, gates))
-    }
-
-    /// The cells of the models never listed as themselves, with how high: those drawn as
-    /// nothing, in the way, and the invisible blockers, in the way but round rotating doors
-    /// (`_role`, `ground`).
-    #[allow(clippy::type_complexity)]
-    fn unseen(&self) -> Result<(IndexMap<Cell, Option<f64>>, IndexMap<Cell, Option<f64>>)> {
-        let mut nothing: IndexMap<Cell, Option<f64>> = IndexMap::new();
-        let mut blockers: IndexMap<Cell, Option<f64>> = IndexMap::new();
-        for other in self.others() {
-            let (model, head) = other?;
-            let code =
-                mmodel::drawn_as(&*self.memory, model, &head, self.drawn, self.model_starts)?;
-            let cells = match self.role(&head, code)? {
-                Role::Nothing => &mut nothing,
-                Role::Blocker => &mut blockers,
-                _ => continue,
-            };
-            if let Some(cell) = mmodel::cell(&head)? {
-                cells.insert(cell, mmodel::height(&head)?);
-            }
-        }
-        Ok((nothing, blockers))
-    }
-
-    /// A model as what it is, standing in `size` cells from `cell`: an item ball or a thing by its
-    /// model code, a person otherwise; `code` is the sprite it is called by, where that is not the
-    /// one it is drawn with.
-    ///
-    /// Told apart by the record it was built from (`Interactable.key`): walking into the next
-    /// zone fills the slots of the zone left with the new zone's people, and the way to a
-    /// Youngster on Route 102 became a way to Norman in Petalburg City, in the same slot (spike
-    /// 131).
-    fn model_item(
-        &self,
-        model: i64,
-        head: &[u8],
-        cell: Cell,
-        size: (i64, i64),
-        code: Option<i64>,
-    ) -> Result<Interactable> {
-        let code = match code {
-            Some(code) => code,
-            None => mmodel::drawn_as(&*self.memory, model, head, self.drawn, self.model_starts)?,
-        };
-        let source = u32(head, mmodel::ZONE)? << 32 | model;
-        let (category, kind) = self.kind_of(code, mmodel::zone_of(head)?);
-        Ok(Interactable {
-            size,
-            code,
-            source,
-            move_model: true,
-            height: mmodel::height(head)?,
-            record: Some((mmodel::zone_of(head)?, mmodel::index_of(head)?)),
-            ..Interactable::new(category, kind, cell)
-        })
-    }
-
-    /// The category and kind of a model drawn as `code`, built from a record of `zone`: an
-    /// item ball or a thing by its code, a person otherwise.
-    fn kind_of(&self, code: i64, zone: i64) -> (&'static str, &'static str) {
-        if mmodel::ITEM_BALLS.contains(&code) {
-            return ("items", "item ball");
-        }
-        if self.pickups.contains(&code) {
-            return ("items", PROP);
-        }
-        if self.ambushes.contains(&code) || self.lurkers.contains(&code) {
-            return (POKEMON, PROP);
-        }
-        if self.clears.contains_key(&code)
-            || self
-                .rides
-                .as_ref()
-                .is_some_and(|rides| rides.smashes.contains(&code))
-        {
-            return (OBSTACLES, PROP);
-        }
-        if code >= mmodel::PROP_MODEL {
-            return ("signs", PROP);
-        }
-        if self.barriers.contains(&(zone, code)) {
-            return (OBSTACLES, BARRIER);
-        }
-        ("people", "person")
     }
 
     /// The grid, and each chunk's file where the ROM's chunks are read, as the matrix has them now:
@@ -2260,7 +1960,7 @@ impl FieldReader {
             }
             let one = twins.get(&here).copied().unwrap_or(here);
             if !live.contains(&one)
-                && let Some(item) = self.record_item(zone, &record)?
+                && let Some(item) = self.models.record(zone, &record)?
             {
                 live.insert(one);
                 out.push(Interactable {
@@ -2309,41 +2009,6 @@ impl FieldReader {
             .borrow_mut()
             .insert(parts.to_vec(), out.clone());
         Ok(out)
-    }
-
-    /// An NPC record of another part as the list has the model built from it, which the game
-    /// has not built: by its sprite (`kind_of`), where its record starts it, told by its record
-    /// as the model is (`Interactable.key`). None for what is never listed (`role`'s looks,
-    /// blockers, work objects and models drawn as nothing), and for an item ball or a thing to
-    /// pick up whose flag says it is gone, or while the save's flags are not found: its record's
-    /// script number names the flag the game sets as it is picked up (spike 269).
-    fn record_item(&self, zone: i64, record: &[u8]) -> Result<Option<Interactable>> {
-        let code = u16(record, NPC_SPRITE)?;
-        if self.player_looks.contains(&code)
-            || self.blockers.contains(&code)
-            || mmodel::WORK_OBJECTS.contains(&code)
-            || code == mmodel::NONDRAW
-        {
-            return Ok(None);
-        }
-        let (category, kind) = self.kind_of(code, zone);
-        if category == "items" && self.works.flag(u16(record, NPC_SCRIPT)?)? != Some(false) {
-            return Ok(None);
-        }
-        let index = u16(record, NPC_INDEX)?;
-        let height = f32(record, NPC_Y)?;
-        Ok(Some(Interactable {
-            code,
-            source: (zone << 16 | index) << 32,
-            move_model: true,
-            height: if height.is_finite() {
-                Some(height)
-            } else {
-                None
-            },
-            record: Some((zone, index)),
-            ..Interactable::new(category, kind, (u16(record, NPC_X)?, u16(record, NPC_Z)?))
-        }))
     }
 
     /// The cells of the zone the player uses by facing them, each run of one kind a thing: a PC is
@@ -2562,41 +2227,6 @@ fn laid(
         }));
     }
     terrain.flattened(chunk, level, true)
-}
-
-/// Whether the cell and every cell round it are walls in the chunks loaded: where the game keeps a
-/// move model it has built and not put on the map. A Secret Base parks the six people of the
-/// player's secret team in the walls of its far corner until each is registered, and they were
-/// listed as six people there with no way to them (spike 154). Ground only a ridden Pokémon
-/// crosses, of a kind of `rides`, is no wall: once its chunk was loaded, Route 9's rocks on the
-/// spikes and the Rhyhorn ridden over them were left out (spike 238). Nor is a counter, which a
-/// clerk behind it is talked to across: Lavaridge's herbalist, the Lilycove Department Store's
-/// receptionists, Devon's fossil scientist and the Secret Base Guild's two shops each stand in
-/// walls but for the counter in front, and went unlisted (a player's report, spike 233). Off
-/// the map's north or west edge is wall too, as `_buried` has it: Shabboneau Castle's caretaker,
-/// whose record stands him at (0, 0) until his scene walks him in, was listed there after it,
-/// with no way to him.
-pub(crate) fn walled_in(chunks: &[Rc<Chunk>], cell: Cell, rides: &HashSet<i64>) -> Result<bool> {
-    let wall = |near: Cell| -> Result<bool> {
-        if near.0 < 0 || near.1 < 0 {
-            return Ok(true);
-        }
-        match chunks.iter().find(|chunk| chunk.holds(near)) {
-            None => Ok(false),
-            Some(chunk) => Ok(!chunk.walkable(near)?
-                && !rides.contains(&chunk.kind(near)?)
-                && chunk.kind(near)? != COUNTER),
-        }
-    };
-    let (x, z) = cell;
-    for dx in [-1, 0, 1] {
-        for dz in [-1, 0, 1] {
-            if !wall((x + dx, z + dz))? {
-                return Ok(false);
-            }
-        }
-    }
-    Ok(true)
 }
 
 /// Whether every cell round `cells`, and they, are walls in their chunks (`chunk_at`) or off

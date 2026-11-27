@@ -28,3 +28,5 @@ pub mod footsteps;
 pub mod places;
 
 pub mod records;
+
+pub mod models;
