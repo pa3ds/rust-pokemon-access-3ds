@@ -16,6 +16,12 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
   to the rest. Your profile's History and Locations are read as screen
   text with nothing after them: the icons of History and the place under each Location are not
   read.
+- **Trading and battling with another player in the PSS**: in a trade, your party and Boxes are
+  said by place, such as "Party 2", and not by the Pokémon in them, until you open one. Before a
+  battle, the other player's Pokémon are not named. Afterwards, the question whether to do
+  something else with them is not read, and touch mode has nothing to touch there.
+- **Registering each other as friends** after a trade or battle never finishes in Azahar: both
+  games wait for good, and only restarting Azahar gets out. Choose "Do not register".
 - **X, Y, Sun and Moon** are read less completely than Omega Ruby and Alpha Sapphire.
 - **Games translated by fans**, such as the Chinese Omega Ruby, are supported where possible,
   but not as fully as the official games, which pa3ds is built and checked on. Where a
