@@ -251,6 +251,9 @@ pub struct SunFieldReader {
     /// The quarters the camera looked from north as the player's place was last read: every
     /// cell said is turned by it (`camera`).
     turn: Cell<i64>,
+    /// Whether a camera's angle has been read: until then no quarter is held, and the first is
+    /// the nearest (`quarter`).
+    angled: Cell<bool>,
     visit: Cell<Option<(i64, i64)>>,
     /// The area the player was last polled in, whose walls have been asked for.
     area: Cell<Option<i64>>,
@@ -306,6 +309,7 @@ impl SunFieldReader {
             bodies: Cell::new(None),
             stood: Cell::new(None),
             turn: Cell::new(0),
+            angled: Cell::new(false),
             visit: Cell::new(None),
             area: Cell::new(None),
         }
@@ -658,7 +662,16 @@ impl SunFieldReader {
             if u32(&head, camera::SET)? == 0 {
                 return Ok(current);
             }
-            return quarter(f32(&head, camera::ANGLE)?, Some(current));
+            // The quarter held keeps until the camera looks well past its edge, but none is held
+            // before a first angle: started on Route 1 with the camera 50 degrees west of north,
+            // P said "9 north" and the stick walked the player into the boulders west (spike P).
+            let held = if self.angled.get() {
+                Some(current)
+            } else {
+                None
+            };
+            self.angled.set(true);
+            return quarter(f32(&head, camera::ANGLE)?, held);
         }
         Ok(0)
     }

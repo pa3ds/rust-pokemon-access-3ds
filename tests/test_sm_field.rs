@@ -1256,6 +1256,33 @@ fn test_a_camera_given_no_angle_yet_keeps_the_compass_as_it_was() {
     assert_eq!(south.cell, camera::turned((50, 60), 2));
 }
 
+/// Started with the camera 50 degrees west of north, as on Route 1 by its boulders, the
+/// compass is west: held at north until past the edge, P sent the stick into them (spike P).
+#[test]
+fn test_the_first_angle_read_takes_the_nearest_quarter() {
+    let bedroom = Bedroom::new();
+    bedroom
+        .memory
+        .u32(TRANSLATOR, &[bedroom.vtables[camera::CLASS]]);
+    floats(&bedroom.memory, TRANSLATOR + camera::ANGLE, &[-2.269]);
+    bedroom.memory.u32(TRANSLATOR + camera::SET, &[1]);
+    let found = with_heap(&bedroom, &[(TRANSLATOR, camera::CLASS)]);
+    let emu = FakeEmulator::new(served(&bedroom.memory));
+    let memory: Rc<dyn Memory> = Rc::new(RpcMemory::new(connect(&emu)));
+    let reader = SunFieldReader::with(
+        memory.clone(),
+        names(&memory),
+        Some(Rc::new(rom())),
+        None,
+        None,
+        None,
+        SUN_LAYOUT,
+    );
+    reader.track(&found);
+    let at = reader.poll().unwrap();
+    assert!(at.is_some_and(|at| at.cell == camera::turned((50, 60), 3)));
+}
+
 /// Route 1's two zones are one area: walking from one to the other dropped the way home as
 /// though through a door (sun_6.ctm, 2026-09-26).
 #[test]
