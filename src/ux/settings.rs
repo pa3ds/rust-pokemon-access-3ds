@@ -58,17 +58,6 @@ pub const PAGES: [(&str, &str); 8] = [
     ("settings-page-training", "pa3ds.training"),
     ("settings-page-extras", "pa3ds.extras"),
 ];
-/// Where `config.Tables` keeps each table.
-pub const ON_CONFIG: [(&str, &str); 8] = [
-    ("pa3ds", "general"),
-    ("pa3ds.ui", "ui"),
-    ("pa3ds.audio", "audio"),
-    ("pa3ds.navigation", "navigation"),
-    ("pa3ds.touch", "touch"),
-    ("pa3ds.amie", "amie"),
-    ("pa3ds.extras", "extras"),
-    ("pa3ds.training", "training"),
-];
 
 pub const CHECK: &str = "check";
 pub const CHOICE: &str = "choice";
@@ -206,7 +195,7 @@ pub fn choices(name: &str) -> Result<Vec<(String, String)>> {
 /// Each setting's value, by its name in the file.
 pub fn values(settings: &Config) -> IndexMap<String, Value> {
     use crate::core::config::Table;
-    let tables: IndexMap<&str, Vec<(&str, Value)>> = ON_CONFIG
+    let tables: IndexMap<&str, Vec<(&str, Value)>> = config::TABLES
         .iter()
         .map(|(table, on)| {
             let held = match *on {

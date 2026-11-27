@@ -481,8 +481,8 @@ impl Table for Extras {
 }
 
 /// The settings file's tables as read, carried whole from the file to the readers, each
-/// taking its own: a new table is a class here and its reader, with nothing between to copy it
-/// through (the deepening round, 2026-10-30).
+/// taking its own: a new table is a class here, its field and its line in `TABLES`, and its
+/// reader, with nothing between to copy it through (the deepening round, 2026-10-30).
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Tables {
     pub general: General,
@@ -546,18 +546,26 @@ pub const CHOICES: [(&str, &[&str]); 7] = [
     ),
 ];
 
-/// The tables of the file, in the order it writes them: each is a settings dataclass, and
-/// `defaults` is what `kind()` holds.
-pub const TABLES: [&str; 8] = [
-    "pa3ds",
-    "pa3ds.ui",
-    "pa3ds.audio",
-    "pa3ds.navigation",
-    "pa3ds.touch",
-    "pa3ds.amie",
-    "pa3ds.training",
-    "pa3ds.extras",
+/// Each table of the file by its name, in the file's order, the settings dialog's pages': where
+/// `Tables` keeps it, and its class. A new table is a line here, its class and its field.
+///
+/// The class is no value a Rust array holds: `defaults` gives what `kind()` holds by the
+/// table's name, and `prepare` reads each into its own type.
+pub const TABLES: [(&str, &str); 8] = [
+    ("pa3ds", "general"),
+    ("pa3ds.ui", "ui"),
+    ("pa3ds.audio", "audio"),
+    ("pa3ds.navigation", "navigation"),
+    ("pa3ds.touch", "touch"),
+    ("pa3ds.amie", "amie"),
+    ("pa3ds.training", "training"),
+    ("pa3ds.extras", "extras"),
 ];
+
+/// Whether `TABLES` has a table of this name: Python's `name in TABLES`.
+fn is_table(name: &str) -> bool {
+    TABLES.iter().any(|(table, _)| *table == name)
+}
 /// Settings that moved, (new table, setting) -> (old table, setting): to `[pa3ds.audio]`
 /// (2026-10-18), `drag_sounds` named `feedback_sounds` and touch mode's own to `[pa3ds.touch]`
 /// (2026-10-29), and `feedback_style` made one a game (2026-11-04). The player's value is carried
@@ -711,7 +719,7 @@ pub fn render() -> Result<String> {
             .to_string(),
         "# back.".to_string(),
     ];
-    for name in TABLES {
+    for (name, _) in TABLES {
         lines.extend(["".to_string(), format!("[{name}]")]);
         for (setting, value, said) in settings(name)? {
             lines.extend(setting_lines(setting, &value, &said));
@@ -765,7 +773,11 @@ pub fn fill(text: &str) -> Result<(String, Vec<String>)> {
     let parsed = toml::parse(text).0;
     let mut text = text.to_string();
     let mut added: Vec<String> = Vec::new();
-    for table in TABLES.into_iter().chain([EMULATOR_SECTION]) {
+    for table in TABLES
+        .into_iter()
+        .map(|(name, _)| name)
+        .chain([EMULATOR_SECTION])
+    {
         let named: Vec<&str> = have
             .get(table)
             .map(|pairs| pairs.iter().map(|(name, _)| name.as_str()).collect())
@@ -799,7 +811,11 @@ pub fn fill(text: &str) -> Result<(String, Vec<String>)> {
 /// (`[pa3ds.ui] tones` was left behind after it moved to `[pa3ds.audio]`, and `[pa3ds.touch]` and
 /// `[pa3ds.amie]` came after `[azahar]`).
 pub fn tidy(text: &str, azahar_lacks: &[String]) -> (String, Vec<String>) {
-    let order: Vec<&str> = TABLES.into_iter().chain([EMULATOR_SECTION]).collect();
+    let order: Vec<&str> = TABLES
+        .into_iter()
+        .map(|(name, _)| name)
+        .chain([EMULATOR_SECTION])
+        .collect();
     let mut kept: Vec<(String, Vec<String>)> = Vec::new();
     let mut removed: Vec<String> = Vec::new();
     for (name, rows) in toml::blocks(text, &[]) {
@@ -807,7 +823,7 @@ pub fn tidy(text: &str, azahar_lacks: &[String]) -> (String, Vec<String>) {
             removed.push(format!("[{name}]"));
             continue;
         }
-        let has: Vec<&str> = if TABLES.contains(&name.as_str()) {
+        let has: Vec<&str> = if is_table(&name) {
             defaults(&name).into_iter().map(|(each, _)| each).collect()
         } else {
             Vec::new()
@@ -865,10 +881,7 @@ fn carried(
     let Some((old_table, old_setting)) = old else {
         return default;
     };
-    let mut found = parsed.clone();
-    for key in old_table.split('.') {
-        found = toml::table(found.get(key));
-    }
+    let found = under(parsed, old_table);
     let value = found.get(old_setting);
     if let Value::Float(_) = default {
         match value {
@@ -884,6 +897,19 @@ fn carried(
         Some(value) if same_kind(value, &default) => value_of(value).unwrap_or(default),
         _ => default,
     }
+}
+
+/// A table of the parsed file by its dotted name, `pa3ds.ui`: None where it has none, here an
+/// empty table, as `toml.table` makes of None.
+fn under(
+    parsed: &IndexMap<String, ::toml::Value>,
+    table: &str,
+) -> IndexMap<String, ::toml::Value> {
+    let mut found = parsed.clone();
+    for key in table.split('.') {
+        found = toml::table(found.get(key));
+    }
+    found
 }
 
 /// What a setting does, as a sentence in comment lines short enough for a terminal.
@@ -1029,7 +1055,7 @@ fn table<T: Table>(
     let fields = defaults.fields();
     let mut kept: Vec<(&str, Value)> = Vec::new();
     for (setting, value) in found {
-        if TABLES.contains(&format!("{name}.{setting}").as_str()) {
+        if is_table(&format!("{name}.{setting}")) {
             continue;
         }
         match fields.iter().find(|(field, _)| *field == setting.as_str()) {
@@ -1052,6 +1078,22 @@ fn table<T: Table>(
         defaults.set(setting, value);
     }
     defaults
+}
+
+/// The table `Tables` keeps as `attribute`, read from the parsed file under its name in
+/// `TABLES` (`table`): one turn of Python's loop over `Tables`' fields.
+fn placed<T: Table>(
+    loaded: &IndexMap<String, ::toml::Value>,
+    attribute: &str,
+    path: &Path,
+    notes: &mut Vec<String>,
+) -> T {
+    let name = TABLES
+        .iter()
+        .find(|(_, on)| *on == attribute)
+        .map(|(name, _)| *name)
+        .expect("every field of `Tables` has its line in `TABLES`");
+    table(&under(loaded, name), name, path, notes)
 }
 
 /// `[pa3ds.ui] language` as the settings file says it, or "": read before anything is said,
@@ -1153,8 +1195,10 @@ pub fn prepare(
         }
     }
 
-    let ours = toml::table(loaded.get("pa3ds"));
-    let mut general: General = table(&ours, "pa3ds", &path, &mut notes);
+    // In `Tables`' order, which the notes have always come in, `[pa3ds.extras]`'s before
+    // `[pa3ds.training]`'s though the file has them the other way round. Python loops over
+    // `Tables`' fields; here each is a type of its own, read in that order (`placed`).
+    let mut general: General = placed(&loaded, "general", &path, &mut notes);
     // `not general.poll_rate > 0` is also true of a NaN, which no comparison orders.
     if general.poll_rate.is_nan() || general.poll_rate <= 0.0 {
         let rate = General::default().poll_rate;
@@ -1165,13 +1209,8 @@ pub fn prepare(
         ));
         general.poll_rate = rate;
     }
-    let ui: Ui = table(&toml::table(ours.get("ui")), "pa3ds.ui", &path, &mut notes);
-    let mut audio: Audio = table(
-        &toml::table(ours.get("audio")),
-        "pa3ds.audio",
-        &path,
-        &mut notes,
-    );
+    let ui: Ui = placed(&loaded, "ui", &path, &mut notes);
+    let mut audio: Audio = placed(&loaded, "audio", &path, &mut notes);
     let volumes = [
         audio.tones,
         audio.footsteps,
@@ -1192,36 +1231,11 @@ pub fn prepare(
             feedback_sounds: or_default(audio.feedback_sounds, default.feedback_sounds),
         };
     }
-    let navigation: Navigation = table(
-        &toml::table(ours.get("navigation")),
-        "pa3ds.navigation",
-        &path,
-        &mut notes,
-    );
-    let touch: Touch = table(
-        &toml::table(ours.get("touch")),
-        "pa3ds.touch",
-        &path,
-        &mut notes,
-    );
-    let amie: Amie = table(
-        &toml::table(ours.get("amie")),
-        "pa3ds.amie",
-        &path,
-        &mut notes,
-    );
-    let extras: Extras = table(
-        &toml::table(ours.get("extras")),
-        "pa3ds.extras",
-        &path,
-        &mut notes,
-    );
-    let training: Training = table(
-        &toml::table(ours.get("training")),
-        "pa3ds.training",
-        &path,
-        &mut notes,
-    );
+    let navigation: Navigation = placed(&loaded, "navigation", &path, &mut notes);
+    let touch: Touch = placed(&loaded, "touch", &path, &mut notes);
+    let amie: Amie = placed(&loaded, "amie", &path, &mut notes);
+    let extras: Extras = placed(&loaded, "extras", &path, &mut notes);
+    let training: Training = placed(&loaded, "training", &path, &mut notes);
 
     let mut wanted: IndexMap<String, Value> = IndexMap::new();
     for (name, value) in toml::table(loaded.get(EMULATOR_SECTION)) {

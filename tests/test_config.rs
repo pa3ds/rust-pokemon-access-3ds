@@ -513,7 +513,7 @@ fn test_the_tables_go_in_pa3ds_s_order_azahar_last() {
         .collect();
     let expected: Vec<String> = [""]
         .into_iter()
-        .chain(config::TABLES)
+        .chain(config::TABLES.map(|(name, _)| name))
         .chain(["azahar"])
         .map(String::from)
         .collect();
@@ -958,7 +958,7 @@ fn test_a_folder_is_not_kept_in_a_file_that_will_not_parse() {
 /// pa3ds's own words (docs/plans/pa3ds-window.md): a message missing is said as its id.
 #[test]
 fn test_every_setting_has_a_name_and_says_what_it_does_in_english() {
-    for table in config::TABLES {
+    for (table, _) in config::TABLES {
         for (name, _) in config::defaults(table) {
             let message = config::message(&format!("{table}.{name}"));
             assert_ne!(own(&message, &[]), message);

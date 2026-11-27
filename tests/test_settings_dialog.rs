@@ -17,7 +17,7 @@ fn test_every_setting_is_one_control_on_its_tables_page() {
     let every = fields();
     let expected: Vec<String> = config::TABLES
         .iter()
-        .flat_map(|table| {
+        .flat_map(|(table, _)| {
             config::defaults(table)
                 .into_iter()
                 .map(move |(each, _)| format!("{table}.{each}"))
@@ -71,7 +71,7 @@ fn test_every_setting_is_one_control_on_its_tables_page() {
 fn test_only_a_setting_that_is_on_or_off_is_a_checkbox() {
     let defaults: HashMap<String, Value> = config::TABLES
         .iter()
-        .flat_map(|table| {
+        .flat_map(|(table, _)| {
             config::defaults(table)
                 .into_iter()
                 .map(move |(each, value)| (format!("{table}.{each}"), value))
