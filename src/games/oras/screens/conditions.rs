@@ -30,8 +30,6 @@ use crate::games::common::layout_file::LayoutFiles;
 use crate::games::common::pokemon;
 use crate::games::common::screen::ScreenText;
 use crate::games::gen6::apps::RunningApp;
-use crate::games::gen6::game::ConditionsReader;
-use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::screens::partyicons::SLOTS;
 use crate::games::gen6::screens::summary;
 use crate::py::{Log, Result};
@@ -108,36 +106,9 @@ impl Conditions {
             said: None,
         }
     }
-
-    /// The reader, with the game's words for the categories and its heading from the ROM,
-    /// as the gen 6 profile builds it once the Extra is on (`Game.conditions`).
-    pub fn of(
-        memory: Rc<dyn Memory>,
-        names: Rc<ClassNames>,
-        layouts: Rc<Layouts>,
-        files: Rc<LayoutFiles>,
-        apps: Rc<RefCell<RunningApp>>,
-        text: &GameText,
-        speech: Rc<Speech>,
-        log: Log,
-        pauses: bool,
-    ) -> Box<dyn ConditionsReader> {
-        Box::new(Conditions::new(
-            memory,
-            names,
-            layouts,
-            files,
-            apps,
-            text.contest_categories.clone(),
-            text.contest_conditions.clone(),
-            speech,
-            log,
-            pauses,
-        ))
-    }
 }
 
-impl ConditionsReader for Conditions {
+impl Conditions {
     /// Say the conditions where a star has come on screen or turned to another Pokémon, once
     /// the words drawn with it have been said: polled after them, they come last, and the
     /// Case's "Blaze" does not cut off Blaze's. `under` is the words under the cursors, which
@@ -145,7 +116,7 @@ impl ConditionsReader for Conditions {
     /// `waiting` whether a cursor's details are still to be said.
     ///
     /// Python's `waiting` defaults to False.
-    fn poll(
+    pub fn poll(
         &mut self,
         under: &[String],
         on_screen: &[ScreenText],

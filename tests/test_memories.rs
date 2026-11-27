@@ -6,7 +6,6 @@ use indexmap::IndexMap;
 use super::fake_memory::FakeMemory;
 use crate::core::discovery::Found;
 use crate::games::common::pokemon;
-use crate::games::gen6::game::MemoriesReader;
 use crate::games::oras::memories;
 use crate::py::Result;
 

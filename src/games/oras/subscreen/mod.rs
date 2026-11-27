@@ -1,6 +1,5 @@
 //! ORAS's own subscreen, the PokéNav Plus: what its AreaNav and DexNav draw that X has none of,
-//! handed to the gen 6 profile through the game's `Game` (`Game.subscreen`,
-//! `gen6.game.OwnSubscreen`) as its contests are.
+//! handed to the gen 6 profile through ORAS's `Own` (`oras.own`) as its contests are.
 //!
 //! The PokéNav Plus is the field's bottom screen in ORAS (`field::subscreen`), and its apps are the
 //! AreaNav, the DexNav, the BuzzNav and the PlayNav. The PlayNav's pages, Pokémon-Amie's and Super
@@ -38,7 +37,6 @@ use crate::core::rtti::ClassNames;
 use crate::games::common::cursors::shared::CursorPoll;
 use crate::games::common::screen::ScreenText;
 use crate::games::gen6::apps::FIELD;
-use crate::games::gen6::game::OwnSubscreen;
 use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::screens::townmap;
 use crate::py::Result;
@@ -89,29 +87,17 @@ impl PokeNav {
         }
     }
 
-    /// `PokeNav` as `Game.subscreen` builds it.
-    pub fn of(
-        memory: Rc<dyn Memory>,
-        names: Rc<ClassNames>,
-        text: &GameText,
-        pauses: bool,
-    ) -> Rc<dyn OwnSubscreen> {
-        Rc::new(PokeNav::new(memory, names, text, pauses))
-    }
-}
-
-impl OwnSubscreen for PokeNav {
     /// What the heap is swept for: the AreaNav's navigator, which says whose icon each
     /// picture of its Pokémon Distribution draws, and its views, which say which of its layouts
     /// it draws.
-    fn classes(&self) -> Vec<&'static str> {
+    pub fn classes(&self) -> Vec<&'static str> {
         let mut classes = vec![distribution::CLASS];
         classes.extend(areanav::VIEWS.iter().map(|(view, _)| *view));
         classes
     }
 
     /// Hand each reader what a sweep found, by class: all of it, or with `adding` the new.
-    fn track(&self, found: &IndexMap<i64, String>, adding: bool) -> Result<()> {
+    pub fn track(&self, found: &IndexMap<i64, String>, adding: bool) -> Result<()> {
         self.distribution.borrow_mut().track(
             found
                 .iter()
@@ -125,7 +111,7 @@ impl OwnSubscreen for PokeNav {
     /// What screen text calls a picture of these screens': the Pokémon Distribution draws the
     /// place's Pokémon as icons whose buttons take no tap, named for its reader to say whole
     /// (or_area_nav, spike 232).
-    fn name(&self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
+    pub fn name(&self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
         if running == Some(townmap::APP) {
             self.distribution.borrow().name(picture)
         } else {
@@ -137,7 +123,7 @@ impl OwnSubscreen for PokeNav {
     /// are the field's and its own app's: elsewhere they are gone, and asking cost a touch walk
     /// 1,400 reads (movie22). On the field its icons are the DexNav's; in the AreaNav, its
     /// Pokémon Distribution's (or_area_nav).
-    fn touched(&self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
+    pub fn touched(&self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
         if running == Some(FIELD) {
             return self.distribution.borrow().said(picture, self.gap);
         }
@@ -150,32 +136,32 @@ impl OwnSubscreen for PokeNav {
     /// Whether touch mode offers a picture though its button is switched off: the DexNav
     /// switches off the icon of a species not caught, which it cannot search for, and the
     /// species is said all the same (ADR-0037).
-    fn said_off(&self, picture: i64, running: Option<&str>) -> Result<bool> {
+    pub fn said_off(&self, picture: i64, running: Option<&str>) -> Result<bool> {
         Ok(running.is_none_or(|running| running == FIELD)
             && self.distribution.borrow().name(picture)?.is_some())
     }
 
     /// Whether the AreaNav draws one of its views over its map now, where a tap reaches the
     /// view's own buttons, not a place (`Views.drawing`).
-    fn drawing(&self) -> Result<bool> {
+    pub fn drawing(&self) -> Result<bool> {
         self.views.borrow().drawing()
     }
 
     /// The works of the layouts of every view the AreaNav is not drawing now
     /// (`Views.put_away`), by `works_of` a layout's root -> its work.
-    fn put_away(&self, works_of: &IndexMap<i64, i64>) -> Result<HashSet<i64>> {
+    pub fn put_away(&self, works_of: &IndexMap<i64, i64>) -> Result<HashSet<i64>> {
         self.views.borrow().put_away(works_of)
     }
 
     /// Whether the AreaNav drew one of its lists over its map at the last `put_away`.
-    fn listing(&self) -> bool {
+    pub fn listing(&self) -> bool {
         self.views.borrow().listing()
     }
 
     /// The cursors, a list over the map read row by row (`ListRows`), each row without the
     /// `area` the map is on: said as the area as the map moves to it, and not again with its
     /// rows.
-    fn cursors(
+    pub fn cursors(
         &self,
         cursors: CursorPoll,
         area: Option<&str>,
@@ -194,7 +180,7 @@ impl OwnSubscreen for PokeNav {
     /// The boxes of the words the lists over the map leave unsaid, with the map on `area`:
     /// Berry Trees' times, said with their berries, and Trainer's Eye's area, said as it
     /// changes, its words above the card no more.
-    fn unsaid(&self, area: Option<&str>, on_screen: &[ScreenText]) -> HashSet<i64> {
+    pub fn unsaid(&self, area: Option<&str>, on_screen: &[ScreenText]) -> HashSet<i64> {
         let drawn = self.views.borrow().list_drawn();
         let mut unsaid = areanav::berry_times(on_screen, drawn);
         if let Some(area) = area
@@ -208,7 +194,7 @@ impl OwnSubscreen for PokeNav {
     /// What these screens say after the screen's words, as (what the log calls it, the
     /// line): the Pokémon Distribution, a line a way, in the AreaNav's own app, where its
     /// navigators are.
-    fn poll(
+    pub fn poll(
         &self,
         on_screen: &[ScreenText],
         running: Option<&str>,
@@ -224,7 +210,7 @@ impl OwnSubscreen for PokeNav {
 
     /// Whether words on screen are these screens' to say, not screen text's: the
     /// Distribution's icons, which left to it ran together as one word.
-    fn owns(&self, piece: &ScreenText) -> bool {
+    pub fn owns(&self, piece: &ScreenText) -> bool {
         self.reader.borrow().owns(piece)
     }
 }

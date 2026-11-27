@@ -22,6 +22,7 @@ pub mod frames;
 pub mod game;
 pub mod gflheap;
 pub mod mystatus;
+pub mod own;
 pub mod pokeicon;
 pub mod profile;
 pub mod rom;

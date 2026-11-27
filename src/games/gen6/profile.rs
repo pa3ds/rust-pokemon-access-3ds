@@ -80,10 +80,8 @@ use crate::games::gen6::field::footsteps::Footsteps;
 use crate::games::gen6::field::reader::{FieldReader, MOVE_MODEL_CLASS};
 use crate::games::gen6::field::speaker::SpeakerReader;
 use crate::games::gen6::field::{camera, mapblock, talk};
-use crate::games::gen6::game::MemoriesReader;
-use crate::games::gen6::game::{
-    ConditionsReader, Game, OpeningReader, OwnApp, OwnSubscreen, StandingsReader,
-};
+use crate::games::gen6::game::Game;
+use crate::games::gen6::own::{Kit, Own, OwnApp};
 use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::rom::cries::Crier;
 use crate::games::gen6::rom::textures;
@@ -304,18 +302,16 @@ pub struct Gen6Profile {
     /// one it was made with, as it does there, and what is read through the profile is read
     /// through whichever this holds (`field`, `set_field`).
     field: Rc<RefCell<Rc<FieldReader>>>,
-    /// The Pokémon its save keeps for its credits, which their descriptions name (spike 222).
-    pub memories: Option<Rc<dyn MemoriesReader>>,
-    /// What the heap is swept for in this game: the classes of the subscreen it alone has,
-    /// `HEAP_CLASSES`, the subscreens' classes, and what the game's own readers find their
-    /// objects by. Its own subscreen's come first, before the touch bars, as they did inside
+    /// What the heap is swept for in this game: the classes of what it alone has,
+    /// `HEAP_CLASSES`, the subscreens' classes, and what the field's own readers find their
+    /// objects by. Its own come first, before the touch bars, as ORAS's subscreen's did inside
     /// `HEAP_CLASSES`: the log names the classes a module brings in that order, the AreaNav's
     /// views and then its touch bar.
     pub classes: Vec<String>,
-    /// The subscreen the game alone has, and the apps it opens: ORAS's PokéNav Plus, whose
-    /// AreaNav's Pokémon Distribution and DexNav draw each Pokémon's icon, which no file names,
-    /// and whose AreaNav keeps the layouts of a screen it has left as they were.
-    pub own_subscreen: Option<Rc<dyn OwnSubscreen>>,
+    /// What the game has alone: ORAS's PokéNav Plus and contests, its credits' Pokémon, which
+    /// their descriptions name (spike 222), and soaring, while which the keys walk what it
+    /// lists, which the field's stale lists know nothing of (spike 166); X's opening.
+    pub own: Rc<dyn Own>,
     /// The subscreens, Pokémon-Amie's and Super Training's and the apps they open, which name
     /// what they draw, offer what no touch area does, and answer keys of their own.
     pub subscreens: Rc<Subscreens>,
@@ -326,7 +322,6 @@ pub struct Gen6Profile {
     pub partners: Rc<RefCell<Partners>>,
     registered: Option<Rc<RefCell<registered::Registered>>>,
     pub occupants: Rc<RefCell<boxes::Occupants>>,
-    pub standings: Option<Rc<RefCell<dyn StandingsReader>>>,
     /// What each screen's own objects say its cursor is on (ADR-0043).
     pub sources: Rc<RefCell<CursorSources>>,
     /// Ticks left to poll the screen at, until a row's move is said (`rows.CHASE`).
@@ -382,10 +377,6 @@ pub struct Gen6Profile {
     pub scenes: Option<RefCell<Scenes>>,
     /// The Pokédex's habitat map draws the Pokémon's places and never names them (spike 152).
     pub habitat: RefCell<HabitatReader>,
-    /// An Extra: the conditions the game draws as a star, said as numbers (ADR-0017).
-    pub conditions: Option<RefCell<Box<dyn ConditionsReader>>>,
-    /// X's opening draws its boy or girl and their looks as models, with no word (spike 216).
-    pub opening: Option<RefCell<Box<dyn OpeningReader>>>,
     /// (work, root) of every layout whose files have been looked for since an app started.
     archived: RefCell<HashSet<(i64, i64)>>,
     /// The zone the player was last polled in.
@@ -411,9 +402,6 @@ pub struct Gen6Profile {
     managers: Rc<RefCell<PySet>>,
     /// The cell the Secret Base's decorating cursor was last said on, and what was there.
     decorating: RefCell<Option<((i64, i64), String)>>,
-    /// The game's own apps, ORAS's soaring: while one runs, the keys walk what it lists, which
-    /// the field's stale lists know nothing of (spike 166).
-    own: Rc<Vec<Rc<dyn OwnApp>>>,
 }
 
 /// `FieldReader` is what a `Navigator` reads the map through in the gen 6 games.
@@ -524,21 +512,32 @@ impl Gen6Profile {
         // before the screen text reader that asks it, where Python makes it later and reaches it
         // through `self`; making it reads nothing.
         let partners = Rc::new(RefCell::new(Partners::new(memory.clone())));
-        // The subscreen the game alone has, and the apps it opens: ORAS's PokéNav Plus, whose
-        // AreaNav's Pokémon Distribution and DexNav draw each Pokémon's icon, which no file
-        // names, and whose AreaNav keeps the layouts of a screen it has left as they were. Made
-        // here, before the screen text reader that asks it, where Python makes it later and
-        // reaches it through `self`; making it reads nothing.
-        let own_subscreen: Option<Rc<dyn OwnSubscreen>> = game
-            .subscreen
-            .map(|make| make(memory.clone(), names.clone(), &text, ui.pauses));
         // The Bag's party draws each member as an icon beside its level, or, for an evolution
         // stone, beside "ABLE!" or "UNABLE!": "Metagross UNABLE!" (movie31). A game's own
-        // subscreen names its pictures for its readers to say whole: ORAS's AreaNav's Pokémon
-        // Distribution, whose icons' buttons take no tap (`OwnSubscreen.name`).
+        // names its pictures for its readers to say whole: ORAS's AreaNav's Pokémon
+        // Distribution, whose icons' buttons take no tap (`Own.named`).
         // Made here, before the screen text reader, which names pictures by it: Python's closure
         // reaches `self.files` once it is made, later. Making either reads nothing.
         let files = Rc::new(LayoutFiles::new(memory.clone()));
+        // What a game's own readers are built from (`gen6.own`).
+        let kit = Kit {
+            memory: memory.clone(),
+            names: names.clone(),
+            layouts: layouts.clone(),
+            files: files.clone(),
+            apps: apps.clone(),
+            text: text.clone(),
+            speech: speech.clone(),
+            log: log.clone(),
+            tables: tables.clone(),
+            phase: cache.clone(),
+        };
+        // What the game has alone: ORAS's PokéNav Plus and contests, its credits' Pokémon,
+        // which their descriptions name (spike 222), and soaring, while which the keys walk what
+        // it lists, which the field's stale lists know nothing of (spike 166); X's opening. Made
+        // here, before the screen text reader that asks it, where Python makes it after; making
+        // it reads nothing. `alone` here, as `own` is pa3ds's own words.
+        let alone = (game.own)(&kit);
         let image_of: ImageOf = {
             let (memory, files) = (memory.clone(), files.clone());
             Rc::new(move |pane: i64| {
@@ -554,16 +553,14 @@ impl Gen6Profile {
         let on_screen_named: Pictures = {
             let (named_by_image, party_icons) = (named_by_image.clone(), party_icons.clone());
             let subscreens = subscreens_made.clone();
-            let (apps, own_subscreen, partners) =
-                (apps.clone(), own_subscreen.clone(), partners.clone());
+            let (alone, partners) = (alone.clone(), partners.clone());
             Rc::new(move |pane: i64| {
                 let by_image = match &named_by_image {
                     Some(named) => named(pane)?,
                     None => None,
                 };
                 // Python's `or`: a name of "" or None goes on to the subscreens', then to the
-                // party's icons, then to the game's own subscreen's, and then to the Maison's
-                // partners.
+                // party's icons, then to the game's own, and then to the Maison's partners.
                 if let Some(name) = by_image
                     && !name.is_empty()
                 {
@@ -575,14 +572,12 @@ impl Gen6Profile {
                 {
                     return Ok(Some(name));
                 }
-                let running = apps.borrow().running.clone();
                 if let Some(name) = party_icons.borrow().name(pane)?
                     && !name.is_empty()
                 {
                     return Ok(Some(name));
                 }
-                if let Some(own_subscreen) = &own_subscreen
-                    && let Some(name) = own_subscreen.name(pane, running.as_deref())?
+                if let Some(name) = alone.named(pane)?
                     && !name.is_empty()
                 {
                     return Ok(Some(name));
@@ -631,8 +626,6 @@ impl Gen6Profile {
             Some(&named.words(FURNITURE)),
             &tables.extras.hidden_items,
         );
-        // The Pokémon its save keeps for its credits, which their descriptions name (spike 222).
-        let memories = game.memories.map(|make| make(memory.clone()));
         let announcements = Rc::new(RefCell::new(Announcements::with(
             speech.clone(),
             log.clone(),
@@ -640,18 +633,6 @@ impl Gen6Profile {
             false,
         )));
         let field = Rc::new(RefCell::new(field));
-        // The game's own apps, ORAS's soaring: while one runs, the keys walk what it lists, which
-        // the field's stale lists know nothing of (spike 166).
-        let mut owned: Vec<Rc<dyn OwnApp>> = Vec::new();
-        for make in &game.apps {
-            // Python raises out of the profile's making, which ends the runtime.
-            match make(memory.clone(), &text, speech.clone(), log.clone()) {
-                Ok(Some(app)) => owned.push(app),
-                Ok(None) => {}
-                Err(error) => panic!("{error}"),
-            }
-        }
-        let owned = Rc::new(owned);
 
         // Touch mode walks the bottom screen's touch areas, and taps one on the player's key
         // (`games.common.touch`, ADR-0009 as amended 2026-10-01).
@@ -668,37 +649,17 @@ impl Gen6Profile {
             memory.clone(),
             game.field_menu,
         )));
-        // ORAS's contests' appeals draw who stands where as portraits, said on the keys that say
-        // a battle's sides.
-        let standings: Option<Rc<RefCell<dyn StandingsReader>>> = game.standings.map(|make| {
-            make(
-                memory.clone(),
-                layouts.clone(),
-                files.clone(),
-                &text,
-                {
-                    let apps = apps.clone();
-                    Rc::new(move || apps.borrow().running.clone())
-                },
-                {
-                    let apps = apps.clone();
-                    Rc::new(move || apps.borrow().process)
-                },
-            )
-        });
         let pauses = ui.pauses;
         let sides: Sides = {
-            let (standings, announcements, apps, subscreens) = (
-                standings.clone(),
+            let (alone, announcements, apps, subscreens) = (
+                alone.clone(),
                 announcements.clone(),
                 apps.clone(),
                 subscreens_made.clone(),
             );
             Rc::new(move |player: bool| {
-                let standing = match &standings {
-                    None => None,
-                    Some(standings) => standings.borrow().said(player, pauses)?,
-                };
+                // ORAS's contests' appeals draw who stands where as portraits, said first.
+                let standing = alone.sides(player)?;
                 // Python's `or`: a standing of "" or None goes on to the battle's sides.
                 let said = match standing {
                     Some(standing) if !standing.is_empty() => Some(standing),
@@ -806,10 +767,8 @@ impl Gen6Profile {
             },
             occupants.clone(),
             box_shown.clone(),
-            own_subscreen.clone(),
+            alone.clone(),
             registered.clone(),
-            standings.clone(),
-            game.screens,
         )));
 
         // Omega Ruby's boy and girl are portraits the game never names, said in pa3ds's words
@@ -1033,26 +992,27 @@ impl Gen6Profile {
                 ))
             })
         });
-        let classes: IndexSet<String> = own_subscreen
-            .iter()
-            .flat_map(|own_subscreen| own_subscreen.classes())
-            .chain(HEAP_CLASSES.iter().copied())
-            .chain(subscreens.classes.iter().copied())
-            .chain(field.borrow().classes())
-            .map(String::from)
-            .chain(memories.iter().flat_map(|memories| memories.classes()))
+        let classes: IndexSet<String> = alone
+            .classes()
+            .into_iter()
+            .chain(
+                HEAP_CLASSES
+                    .iter()
+                    .chain(subscreens.classes.iter())
+                    .copied()
+                    .chain(field.borrow().classes())
+                    .map(String::from),
+            )
             .collect();
         let picture_name: PictureName = {
-            let (apps, own_subscreen, subscreens) =
-                (apps.clone(), own_subscreen.clone(), subscreens.clone());
+            let (apps, alone, subscreens) = (apps.clone(), alone.clone(), subscreens.clone());
             let partners = partners.clone();
             Rc::new(move |pane: i64| {
-                // The subscreen the game alone has names its pictures first: the DexNav's icons on
-                // the field, the Pokémon Distribution's in the AreaNav (`OwnSubscreen.touched`).
+                // The game's own names its pictures first: the DexNav's icons on the field, the
+                // Pokémon Distribution's in the AreaNav (`Own.touched`).
                 // A name of "" or None goes on to the next.
                 let running = apps.borrow().running.clone();
-                if let Some(own_subscreen) = &own_subscreen
-                    && let Some(name) = own_subscreen.touched(pane, running.as_deref())?
+                if let Some(name) = alone.touched(pane)?
                     && !name.is_empty()
                 {
                     return Ok(Some(name));
@@ -1118,30 +1078,17 @@ impl Gen6Profile {
                     })
                 }),
                 said_off: Some({
-                    let (apps, own_subscreen) = (apps.clone(), own_subscreen.clone());
-                    Rc::new(move |pane: i64| {
-                        let running = apps.borrow().running.clone();
-                        match &own_subscreen {
-                            None => Ok(false),
-                            Some(own_subscreen) => {
-                                own_subscreen.said_off(pane, running.as_deref())
-                            }
-                        }
-                    })
+                    let alone = alone.clone();
+                    Rc::new(move |pane: i64| alone.said_off(pane))
                 }),
                 places: Some({
-                    let (apps, own_subscreen) = (apps.clone(), own_subscreen.clone());
+                    let (apps, alone) = (apps.clone(), alone.clone());
                     let map_places = Rc::new(text.map_places.clone());
                     let none = Rc::new(IndexMap::new());
                     Rc::new(move || {
                         let running = apps.borrow().running.clone();
                         Ok(
-                            if running.as_deref() == Some(townmap::APP)
-                                && !match &own_subscreen {
-                                    None => false,
-                                    Some(own_subscreen) => own_subscreen.drawing()?,
-                                }
-                            {
+                            if running.as_deref() == Some(townmap::APP) && !alone.drawing()? {
                                 map_places.clone()
                             } else {
                                 none.clone()
@@ -1215,8 +1162,8 @@ impl Gen6Profile {
             Rc::new(OwnApps {
                 field: field.clone(),
                 running: {
-                    let (apps, owned) = (apps.clone(), owned.clone());
-                    Rc::new(move || own_running(&apps, &owned))
+                    let (apps, alone) = (apps.clone(), alone.clone());
+                    Rc::new(move || own_running(&apps, &alone.apps()))
                 },
                 on_field: {
                     let apps = apps.clone();
@@ -1247,7 +1194,8 @@ impl Gen6Profile {
                 acro: text.acro.clone(),
                 sides: Some(sides),
                 touch: Some(touch),
-                categories: owned
+                categories: alone
+                    .apps()
                     .iter()
                     .flat_map(|app| app.categories())
                     .map(String::from)
@@ -1296,7 +1244,7 @@ impl Gen6Profile {
                 Described::new(
                     line_of(text.clone()),
                     word_of(text.clone()),
-                    Some(recall(named.clone(), memories.clone(), text.clone())),
+                    Some(recall(named.clone(), alone.clone())),
                 )
                 .unwrap_or_else(|error| panic!("{error:?}")),
             );
@@ -1330,25 +1278,6 @@ impl Gen6Profile {
             log.clone(),
             ui.pauses,
         );
-        // An Extra: the conditions the game draws as a star, said as numbers (ADR-0017).
-        let conditions = match game.conditions {
-            Some(make) if tables.extras.conditions && text.loaded() => Some(RefCell::new(make(
-                memory.clone(),
-                names.clone(),
-                layouts.clone(),
-                files.clone(),
-                apps.clone(),
-                &text,
-                speech.clone(),
-                log.clone(),
-                ui.pauses,
-            ))),
-            _ => None,
-        };
-        // X's opening draws its boy or girl and their looks as models, with no word (spike 216).
-        let opening = game
-            .opening
-            .map(|make| RefCell::new(make(memory.clone(), &text.language)));
         // The rival is a work object in RAM and a name in the ROM, and so are some doors' buildings:
         // the game's own word, behind whatever the player has called them and ahead of pa3ds's.
         let sprite: GameSprite = {
@@ -1393,9 +1322,8 @@ impl Gen6Profile {
             tones: beeping,
             speaker,
             field,
-            memories,
             classes: classes.into_iter().collect(),
-            own_subscreen,
+            own: alone,
             subscreens,
             contexts,
             buttons,
@@ -1403,7 +1331,6 @@ impl Gen6Profile {
             partners,
             registered,
             occupants,
-            standings,
             sources,
             chasing: Cell::new(0),
             chasing_details: Cell::new(false),
@@ -1431,8 +1358,6 @@ impl Gen6Profile {
             screen_announcer: RefCell::new(screen_announcer),
             scenes,
             habitat: RefCell::new(habitat),
-            conditions,
-            opening,
             archived: RefCell::new(HashSet::new()),
             zone: Cell::new(None),
             unheard: RefCell::new(HashSet::new()),
@@ -1443,7 +1368,6 @@ impl Gen6Profile {
             holding: Cell::new(None),
             managers,
             decorating: RefCell::new(None),
-            own: owned,
         }
     }
 
@@ -1476,9 +1400,7 @@ impl Gen6Profile {
         self.apps.borrow_mut().track(found.of(&[MANAGER_CLASS]))?;
         // A talk object's class is a DLL's while a talk runs, so every one found is kept.
         self.speaker.track(found.of(&talk::CLASSES));
-        if let Some(own_subscreen) = &self.own_subscreen {
-            own_subscreen.track(&found.heap, adding)?;
-        }
+        self.own.track(found)?;
         self.subscreens.track(&found.heap, adding)?;
         self.partners.borrow_mut().track(&found.heap, adding)?;
         self.occupants.borrow_mut().track(&found.heap);
@@ -1502,9 +1424,6 @@ impl Gen6Profile {
                 .chain(found.of(&[partyicons::BATTLE_BOX])),
         )?;
         self.lists.borrow_mut().track(found.of(&[CONTROLLER_CLASS]));
-        if let Some(memories) = &self.memories {
-            memories.track(found);
-        }
         if !found.partial
             && let Some(language) = mystatus::language(found)
         {
@@ -1654,7 +1573,7 @@ impl Gen6Profile {
                 scenes.borrow_mut().demo(None, &mut self.narrate())?;
             }
         }
-        for app in self.own.iter() {
+        for app in self.own.apps() {
             app.started();
         }
         Ok(true)
@@ -1715,16 +1634,14 @@ impl Gen6Profile {
         let shown = phase(&*self.memory, "dialogue", || {
             self.dialogue.borrow_mut().poll()
         })?;
-        if let Some(standings) = &self.standings {
-            let texts: Vec<&str> = shown
-                .iter()
-                .filter_map(|page| match page {
-                    Shown::Page(page) => Some(page.text.as_str()),
-                    Shown::Text(_) => None,
-                })
-                .collect();
-            standings.borrow_mut().heard(&texts)?;
-        }
+        let texts: Vec<&str> = shown
+            .iter()
+            .filter_map(|page| match page {
+                Shown::Page(page) => Some(page.text.as_str()),
+                Shown::Text(_) => None,
+            })
+            .collect();
+        self.own.heard(&texts)?;
         if let Some(after_forget) = self.after_forget.get() {
             // The question or the news of the move is the first page, and a page after it is
             // said once the screen behind is up (`poll_screen`).
@@ -1828,19 +1745,11 @@ impl Gen6Profile {
         if chosen.iter().any(|focus| focus.opened) {
             self.after_forget.set(None);
         }
-        let process = self.apps.borrow().process;
-        if let Some(opening) = &self.opening
-            && let Some(process) = process
-            && self.apps.borrow().running.as_deref() == Some(opening.borrow().app())
-        {
-            let focus = phase(&*self.memory, "opening", || {
-                opening.borrow_mut().poll(process)
-            })?;
-            if let Some(focus) = focus {
-                self.announcements
-                    .borrow_mut()
-                    .focus(&focus, "opening", false);
-            }
+        // X's opening draws its boy or girl and their looks as models, with no word.
+        if let Some(opening) = self.own.focus()? {
+            self.announcements
+                .borrow_mut()
+                .focus(&opening, "opening", false);
         }
         // A cursor source moved: the screen is polled now, once or each tick until its word is
         // said (`Chase`).
@@ -1884,14 +1793,8 @@ impl Gen6Profile {
     /// `poll_screen(hold, with_choices)`. Named apart from `poll_screen` because the runtime's
     /// `Profile::poll_screen` takes neither.
     pub fn poll_screen_with(&self, hold: bool, with_choices: bool) -> Result<()> {
-        let own_subscreen = &self.own_subscreen;
-        // Whether words on screen are the game's own subscreen's to say: the AreaNav's Pokémon
-        // Distribution's icons.
-        let owned = |piece: &ScreenText| {
-            own_subscreen
-                .as_ref()
-                .is_some_and(|own_subscreen| own_subscreen.owns(piece))
-        };
+        // Words on screen the game's own says: the AreaNav's Pokémon Distribution's icons.
+        let owned = |piece: &ScreenText| self.own.owns(piece);
         let polled = phase(&*self.memory, "screen", || {
             // The field's layouts come back where they were when a menu screen closes, and a
             // layout found before it was built is taken in once it is.
@@ -1928,12 +1831,7 @@ impl Gen6Profile {
                 Some(opponents) => opponents.borrow_mut().poll()?,
             };
             self.habitat.borrow_mut().poll(on_screen)?;
-            let listed = match &self.own_subscreen {
-                None => Vec::new(),
-                Some(own_subscreen) => {
-                    own_subscreen.poll(on_screen, self.apps.borrow().running.as_deref())?
-                }
-            };
+            let listed = self.own.after(on_screen)?;
             self.map_cursor.borrow_mut().poll()?;
             let played = {
                 let mut navigator = self.navigator.borrow_mut();
@@ -2114,20 +2012,17 @@ impl Gen6Profile {
                 (self.log)(&format!("{logged}: {line}"));
             }
         }
-        if let Some(conditions) = &self.conditions {
-            // After the screen's words, and once a cursor's details are said, so they come last.
-            // The words of the summary's page shown alone: its other pages keep the star on screen.
-            let under: Vec<String> = cursors
-                .under
-                .iter()
-                .flatten()
-                .map(|piece| piece.text.clone())
-                .collect();
-            let waiting = self.screen_announcer.borrow().gathering();
-            conditions
-                .borrow_mut()
-                .poll(&under, &poll.on_screen, &screen.settling, waiting)?;
-        }
+        // After the screen's words, and once a cursor's details are said, so they come last:
+        // ORAS's contest conditions.
+        let under: Vec<String> = cursors
+            .under
+            .iter()
+            .flatten()
+            .map(|piece| piece.text.clone())
+            .collect();
+        let waiting = self.screen_announcer.borrow().gathering();
+        self.own
+            .last(&under, &poll.on_screen, &screen.settling, waiting)?;
         if let Some(party) = party {
             (self.log)(&format!("battle party: {party}"));
             if !self.party_beeped {
@@ -2275,7 +2170,7 @@ impl Gen6Profile {
         if let Some(scenes) = &self.scenes {
             scenes.borrow_mut().poll(&mut self.narrate())?;
         }
-        if let Some((app, process)) = own_running(&self.apps, &self.own) {
+        if let Some((app, process)) = own_running(&self.apps, &self.own.apps()) {
             return phase(&*self.memory, app.name(), || app.poll(process));
         }
         let field = self.field();
@@ -2723,27 +2618,12 @@ fn line_of(text: Rc<GameText>) -> Lines {
 /// the player's own save keeps for the credits' moment (spike 222), None where it keeps none;
 /// `yours`, the nickname the player gave that Pokémon, None where they gave none or no longer
 /// have it; `sprite`, what a speaker drawn as it is called.
-fn recall(
-    named: Rc<Names>,
-    memories: Option<Rc<dyn MemoriesReader>>,
-    text: Rc<GameText>,
-) -> Recall {
+fn recall(named: Rc<Names>, own: Rc<dyn Own>) -> Recall {
     Rc::new(move |kind: &str, number: i64| {
         if kind == "sprite" {
             return Ok(named.sprite(number));
         }
-        let Some(memories) = &memories else {
-            return Ok(None);
-        };
-        if kind == "yours" {
-            return memories.nickname(number);
-        }
-        let found = if kind == "memory" {
-            memories.pokemon(number)?
-        } else {
-            None
-        };
-        Ok(found.and_then(|(species, form)| text.pokemon(species, form)))
+        own.recall(kind, number)
     })
 }
 

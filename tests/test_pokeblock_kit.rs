@@ -13,7 +13,6 @@ use crate::games::common::layout::TrackedLayouts;
 use crate::games::common::layout_file::{FileMatching, LayoutFile};
 use crate::games::common::lyt;
 use crate::games::gen6::apps::RunningApp;
-use crate::games::gen6::game::ScreensReader;
 use crate::games::oras::screens::conditions::CASE;
 use crate::games::oras::screens::pokeblock_kit;
 use crate::py::Result;

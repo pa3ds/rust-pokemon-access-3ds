@@ -22,9 +22,9 @@
 //!
 //! ORAS's AreaNav draws views over its map, which X's Town Map has none of: Berry Trees', Trainer's
 //! Eye's and Secret Bases' lists and the Pokémon Distribution. They are ORAS's own
-//! (`oras.subscreen.areanav`), and what its lists make of the cursors and words comes in through
-//! its `Game` (`AreaNav`, `gen6.game.OwnSubscreen`). A view draws the layouts of Game Freak's
-//! layout helper, `app::util::G2DUtil`, as the Move Reminder's pages do (`reminder`):
+//! (`oras.subscreen.areanav`), and what its lists make of the cursors comes in through its `Own`
+//! (`AreaNav`, `OwnLists`, `gen6.own`). A view draws the layouts of Game Freak's layout helper,
+//! `app::util::G2DUtil`, as the Move Reminder's pages do (`reminder`):
 //!
 //! ```text
 //! view     +0x5C  -> app::util::G2DUtil
@@ -39,14 +39,11 @@
 use std::collections::HashSet;
 use std::rc::Rc;
 
-use indexmap::IndexMap;
-
 use crate::core::binary::u32;
 use crate::core::memory::Memory;
 use crate::games::common::cursors::shared::CursorPoll;
 use crate::games::common::screen::ScreenText;
 use crate::games::gen6::anchors::Kept;
-use crate::games::gen6::game::OwnSubscreen;
 use crate::py::Result;
 
 /// The AreaNav as an app of its own, opened from the PokéNav's window or the Bag's Town Map.
@@ -212,19 +209,36 @@ impl Places {
     }
 }
 
+/// What the AreaNav asks of the lists a game draws over its map (`gen6.own.Own`): ORAS's
+/// Berry Trees, Trainer's Eye and Secret Bases; none in X's Town Map.
+pub trait OwnLists {
+    /// Whether it drew a list over the town map at the last `put_away`.
+    fn listing(&self) -> bool {
+        false
+    }
+
+    /// The cursors as the lists it draws over the town map have them, the map on `area`.
+    fn lists(
+        &self,
+        cursors: CursorPoll,
+        _area: Option<&str>,
+        _on_screen: &[ScreenText],
+    ) -> CursorPoll {
+        cursors
+    }
+}
+
 /// What the AreaNav makes of a screen poll: the place under its map's cursor said as a title
-/// (`Places`), and what a game's own lists drawn over the map make of the cursors and words, the
-/// area the map is on given (`OwnSubscreen.cursors`: ORAS's Berry Trees, Trainer's Eye and
-/// Secret Bases). `places` is None in a game whose `MapView` is not measured: the place is then
-/// the screen's alone; `lists` None in a game that draws no view over its map, as X's Town Map
-/// draws none.
+/// (`Places`), and what a game's own lists drawn over the map make of the cursors, the area the
+/// map is on given (`OwnLists`). `places` is None in a game whose `MapView` is not measured: the
+/// place is then the screen's alone.
 pub struct AreaNav {
-    lists: Option<Rc<dyn OwnSubscreen>>,
+    lists: Rc<dyn OwnLists>,
     places: Option<Places>,
 }
 
 impl AreaNav {
-    pub fn new(lists: Option<Rc<dyn OwnSubscreen>>, places: Option<Places>) -> Self {
+    pub fn new(lists: Rc<dyn OwnLists>, places: Option<Places>) -> Self {
         AreaNav { lists, places }
     }
 
@@ -236,41 +250,22 @@ impl AreaNav {
         }
     }
 
-    /// Every screen poll, before the screen is read: the works of the layouts of the views not
-    /// drawn over the map now, by `works_of` a layout's root -> its work.
-    pub fn put_away(&self, works_of: &IndexMap<i64, i64>) -> Result<HashSet<i64>> {
-        match &self.lists {
-            None => Ok(HashSet::new()),
-            Some(lists) => lists.put_away(works_of),
-        }
-    }
-
     /// Every screen poll, before the cursors: the place the cursor has just come onto.
     pub fn title(&mut self) -> Result<Option<String>> {
-        let listing = self.lists.as_ref().is_some_and(|lists| lists.listing());
         match &mut self.places {
             None => Ok(None),
-            Some(places) => places.poll(listing),
+            Some(places) => places.poll(self.lists.listing()),
         }
     }
 
     /// The cursors, a list over the map read row by row, each row without its area.
     pub fn cursors(&mut self, cursors: CursorPoll, on_screen: &[ScreenText]) -> CursorPoll {
-        match &self.lists {
-            None => cursors,
-            Some(lists) => lists.cursors(cursors, self.area().as_deref(), on_screen),
-        }
+        self.lists
+            .lists(cursors, self.area().as_deref(), on_screen)
     }
 
-    /// The boxes of the words the lists over the map leave unsaid.
-    pub fn unsaid(&self, on_screen: &[ScreenText]) -> HashSet<i64> {
-        match &self.lists {
-            None => HashSet::new(),
-            Some(lists) => lists.unsaid(self.area().as_deref(), on_screen),
-        }
-    }
-
-    fn area(&self) -> Option<String> {
+    /// The place the map's cursor is on or last was, as of the last screen poll.
+    pub fn area(&self) -> Option<String> {
         self.places.as_ref().and_then(|places| places.current())
     }
 }

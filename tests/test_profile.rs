@@ -30,11 +30,13 @@ use crate::games::gen6::apps::{BATTLE, DEMO, FIELD, MANAGER_CLASS};
 use crate::games::gen6::field::mapblock;
 use crate::games::gen6::field::mmodel::PLAYER_INDEX;
 use crate::games::gen6::field::zonetable::{INFO_NAME, INFO_SIZE};
-use crate::games::gen6::game::{Game, OwnApp};
+use crate::games::gen6::game::Game;
+use crate::games::gen6::own::{Kit, Own};
 use crate::games::gen6::profile::{CUE_SOUND, Gen6Profile, HELD_MOST, Options, STILL};
 use crate::games::gen6::rom::archives::{GameText, no_text};
 use crate::games::gen6::screens::summary::SUMMARY;
 use crate::games::oras::field::hidden::PLAYER_WORK_CLASS;
+use crate::games::oras::own::Oras;
 use crate::games::{gen6::gflheap, oras::field::sky};
 use crate::games::{oras, xy};
 use crate::py::{Log, PySet, Result};
@@ -90,7 +92,7 @@ impl Cache for Phased {
     }
 }
 
-fn no_log() -> Log {
+pub(crate) fn no_log() -> Log {
     Rc::new(|_: &str| {})
 }
 
@@ -104,7 +106,7 @@ fn profile(
 }
 
 /// `profile(town, text, named, log, game)`: Python's `game` defaults to `oras.GAME`.
-fn profile_of(
+pub(crate) fn profile_of(
     town: &Town,
     text: GameText,
     named: Option<Rc<Names>>,
@@ -705,28 +707,26 @@ fn test_every_gen_6_game_sweeps_for_its_heaps_and_only_oras_for_the_dexnav() {
 fn test_soaring_the_way_the_player_faces_is_said_once_a_turn_stops() {
     let town = Town::new();
 
-    fn soaring(
-        memory: Rc<dyn Memory>,
-        _text: &GameText,
-        speech: Rc<Speech>,
-        log: Log,
-    ) -> Result<Option<Rc<dyn OwnApp>>> {
+    /// Python's `Soaring(Oras)`: ORAS's own, its soaring over Littleroot alone.
+    fn soaring(kit: &Kit) -> Rc<dyn Own> {
+        let mut oras = Oras::new(kit);
         let littleroot = sky::Place::new(
             "Littleroot Town",
             sky::TOWNS,
             0x6,
             vec![(-4000.0, 8000.0, -2000.0, 10000.0)],
         );
-        Ok(Some(Rc::new(sky::Soaring::new(
-            memory,
+        oras.apps = vec![Rc::new(sky::Soaring::new(
+            kit.memory.clone(),
             vec![littleroot],
-            speech,
-            log,
-        ))))
+            kit.speech.clone(),
+            kit.log.clone(),
+        ))];
+        Rc::new(oras)
     }
 
     let game = Game {
-        apps: vec![soaring],
+        own: soaring,
         ..oras::game().clone()
     };
     let (made, backend) = profile_of(

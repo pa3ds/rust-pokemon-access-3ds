@@ -29,7 +29,6 @@ use crate::core::binary::{u16, u32};
 use crate::core::discovery::Found;
 use crate::core::memory::Memory;
 use crate::games::common::pokemon;
-use crate::games::gen6::game::MemoriesReader;
 use crate::py::{self, PySet, Result};
 
 pub const CLASS: &str = "N8savedata16SubEventSaveDataE";
@@ -61,11 +60,6 @@ impl Memories {
             boxes: Cell::new(None),
             params: RefCell::new(PySet::new()),
         }
-    }
-
-    /// `Memories` as `Game.memories` builds it.
-    pub fn of(memory: Rc<dyn Memory>) -> Rc<dyn MemoriesReader> {
-        Rc::new(Memories::new(memory))
     }
 
     /// A moment's key and its species, form and sex, or None where it keeps none.
@@ -115,8 +109,8 @@ impl Memories {
     }
 }
 
-impl MemoriesReader for Memories {
-    fn classes(&self) -> Vec<String> {
+impl Memories {
+    pub fn classes(&self) -> Vec<String> {
         vec![
             CLASS.to_string(),
             BOXES.to_string(),
@@ -126,7 +120,7 @@ impl MemoriesReader for Memories {
 
     /// Keep the save's objects a sweep found, which live all session, so a sweep that found
     /// none changes nothing; and the PokemonParams, which a partial sweep adds to.
-    fn track(&self, found: &Found) {
+    pub fn track(&self, found: &Found) {
         if let Some(&save) = found.of(&[CLASS]).first() {
             self.save.set(Some(save));
         }
@@ -144,7 +138,7 @@ impl MemoriesReader for Memories {
 
     /// The national number and the form of the Pokémon the save keeps for a moment, or None
     /// where it keeps none or the save's object has not been found.
-    fn pokemon(&self, moment: i64) -> Result<Option<(i64, i64)>> {
+    pub fn pokemon(&self, moment: i64) -> Result<Option<(i64, i64)>> {
         Ok(self
             .entry(moment)?
             .map(|(_, packed)| (packed & SPECIES, packed >> FORM_SHIFT & FORM)))
@@ -152,7 +146,7 @@ impl MemoriesReader for Memories {
 
     /// The nickname the player gave the Pokémon of a moment, or None where they gave it
     /// none, no longer have it, or the moment keeps none.
-    fn nickname(&self, moment: i64) -> Result<Option<String>> {
+    pub fn nickname(&self, moment: i64) -> Result<Option<String>> {
         let Some((key, _)) = self.entry(moment)? else {
             return Ok(None);
         };

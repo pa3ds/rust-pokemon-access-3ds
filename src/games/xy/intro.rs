@@ -33,7 +33,6 @@ use crate::core::memory::Memory;
 use crate::core::words::current;
 use crate::games::common::announce::Focus;
 use crate::games::common::pictures::MODEL;
-use crate::games::gen6::game::OpeningReader;
 use crate::py::Result;
 
 pub const APP: &str = "N3app5intro9IntroProcE";
@@ -68,13 +67,9 @@ impl IntroReader {
     }
 }
 
-impl OpeningReader for IntroReader {
-    fn app(&self) -> &'static str {
-        APP
-    }
-
+impl IntroReader {
     /// The choice under the cursor, when it has just opened or moved; else None.
-    fn poll(&mut self, process: i64) -> Result<Option<Focus>> {
+    pub fn poll(&mut self, process: i64) -> Result<Option<Focus>> {
         let head = self.memory.read(process, WORK + 4)?;
         let work = u32(&head, WORK)?;
         let found = if work != 0 {

@@ -12,7 +12,9 @@
 //! The order the sources are asked in is theirs and is kept here: the Bag's pick-up is taken out
 //! before the Mart's jumps, the battle Bag's pockets, a shiny target and the Bag's item see the
 //! cursors; and the title is the Bag's pocket, else the Box's box, else the battle Bag's page,
-//! else the map's place, though no two run at once.
+//! else the map's place, though no two run at once. A game's own sources are its `Own`'s
+//! (`gen6.own`), asked in their places here through `OwnSources`: its rows after gen 6's, its
+//! lines before the screen's words after the Box's mode, and its words unsaid last.
 //!
 //! Bound by:
 //! - ADR-0013: a cursor source says which item is under the cursor and when it moved, the words
@@ -36,11 +38,10 @@ use crate::games::common::layout_file::LayoutFiles;
 use crate::games::common::pokemon::Pokemon;
 use crate::games::common::screen::{ScreenPoll, ScreenText};
 use crate::games::gen6::apps::RunningApp;
-use crate::games::gen6::game::{
-    CursorShapes, OwnSubscreen, ScreensFactory, ScreensReader, StandingsReader,
-};
+use crate::games::gen6::game::CursorShapes;
 use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::screens::registered::Registered;
+use crate::games::gen6::screens::townmap::OwnLists;
 use crate::games::gen6::screens::{
     bag, bag_sort, battle_bag, boxes, counts, mart, partyicons, pokedex, reminder, rows, scrolled,
     shiny, summary, townmap,
@@ -118,6 +119,35 @@ pub struct Said {
     pub rewritten: HashSet<i64>,
 }
 
+/// What the cursor sources ask of a game's own (`gen6.own.Own`), the lists its town map
+/// draws among them: ORAS's contests, its Pokéblock Kit and its AreaNav's views.
+pub trait OwnSources: OwnLists {
+    /// Every tick, after gen 6's rows: how the screen poll is to follow its screens' cursors
+    /// (`CursorSources.moved`). `windows` are the menus' cursors on screen, and `shown` whether
+    /// the last screen poll found a cursor on screen.
+    fn moved(&self, _windows: &[i64], _shown: bool) -> Result<Chase> {
+        Ok(Chase::NONE)
+    }
+
+    /// Every screen poll, before the screen is read: the works of its layouts not drawn now
+    /// (`Layouts.put_away`), by `works` a layout's root -> its work.
+    fn put_away(&self, _works: &IndexMap<i64, i64>) -> Result<HashSet<i64>> {
+        Ok(HashSet::new())
+    }
+
+    /// Every screen poll: what it says before the screen's words, as a menu's, after the PC
+    /// Box's mode and before the Bag's sort, as (what the log calls it, the line).
+    fn before(&self, _on_screen: &[ScreenText]) -> Result<Vec<(String, String)>> {
+        Ok(Vec::new())
+    }
+
+    /// Every screen poll: the boxes of the words on screen it leaves unsaid, the town map on
+    /// `area`.
+    fn unsaid(&self, _area: Option<&str>, _on_screen: &[ScreenText]) -> HashSet<i64> {
+        HashSet::new()
+    }
+}
+
 /// Every screen's cursor source a gen 6 game has, asked in their order.
 ///
 /// The Python's `windows`, the menu cursors on screen, and `targets`, the battle's shiny
@@ -128,7 +158,7 @@ pub struct CursorSources {
     layouts: Rc<Layouts>,
     registered: Option<Rc<RefCell<Registered>>>,
     labels: HashSet<String>,
-    standings: Option<Rc<RefCell<dyn StandingsReader>>>,
+    own: Rc<dyn OwnSources>,
     /// The game's words for the contest categories, the conditions star's labels.
     contest_words: HashSet<String>,
     box_mode: Option<boxes::Mode>,
@@ -147,16 +177,14 @@ pub struct CursorSources {
     xy_list: pokedex::XyList,
     search_rows: scrolled::Scrolled,
     oras_list: pokedex::OrasList,
-    screens: Option<Box<dyn ScreensReader>>,
     summary: summary::Pages,
 }
 
 impl CursorSources {
     /// `menu` is the field menu (`buttons.Buttons.menu`), `choices` the choice boxes', `gauges`
-    /// the battle's HP gauges kept, `occupants` and `box_shown` the PC Box's, `subscreen` the
-    /// game's own subscreen, whose views and lists its town map draws, `registered` the Y
-    /// button's menu's, `standings` a game's contests' and `screens` its apps' that keep two
-    /// screens on screen, where it has them.
+    /// the battle's HP gauges kept, `occupants` and `box_shown` the PC Box's, `own` the game's
+    /// own sources, the lists its town map draws among them, and `registered` the Y button's
+    /// menu's, where it has one.
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         memory: Rc<dyn Memory>,
@@ -172,10 +200,8 @@ impl CursorSources {
         gauges: Rc<dyn Fn() -> Vec<i64>>,
         occupants: Rc<RefCell<boxes::Occupants>>,
         box_shown: boxes::Shown,
-        subscreen: Option<Rc<dyn OwnSubscreen>>,
+        own: Rc<dyn OwnSources>,
         registered: Option<Rc<RefCell<Registered>>>,
-        standings: Option<Rc<RefCell<dyn StandingsReader>>>,
-        screens: Option<ScreensFactory>,
     ) -> Self {
         let running: Rc<dyn Fn() -> Option<String>> = {
             let apps = apps.clone();
@@ -229,9 +255,9 @@ impl CursorSources {
             })
         });
         // The place under the AreaNav's map cursor, said from its MapView before the top screen
-        // names it (spike 309), and the lists a game draws over the map (`OwnSubscreen`).
+        // names it (spike 309), and the lists a game draws over the map (`townmap.OwnLists`).
         let areanav = townmap::AreaNav::new(
-            subscreen,
+            own.clone(),
             shapes.map_view.map(|map_view| {
                 let map_areas = text.map_areas.clone();
                 townmap::Places::new(
@@ -288,8 +314,6 @@ impl CursorSources {
         );
         // Omega Ruby's says its entry from the list's own rows, the tick it is chosen (spike 310).
         let oras_list = pokedex::OrasList::new(memory.clone(), running, process);
-        let screens =
-            screens.map(|make| make(memory.clone(), apps.clone(), layouts.clone(), files.clone()));
         // The summary draws one page and keeps the rest as drawn: those not shown go unheard.
         let summary = summary::Pages::new(
             memory,
@@ -304,7 +328,7 @@ impl CursorSources {
             layouts,
             registered,
             labels: text.search_labels.clone(),
-            standings,
+            own,
             contest_words: text.contest_categories.iter().cloned().collect(),
             box_mode,
             box_titles,
@@ -324,7 +348,6 @@ impl CursorSources {
             // Search and sort's moves along rows reading alike, its dashes after another field's.
             search_rows: scrolled::Scrolled::new(),
             oras_list,
-            screens,
             summary,
         }
     }
@@ -337,14 +360,8 @@ impl CursorSources {
         if self.rows.moved()? || self.oras_list.moved()? {
             chase |= Chase::ROW;
         }
-        // The Pokéblock Kit keeps no index of what its cursor is over, and its cursor's place
-        // is read instead. The block's count is said with its name, which the game writes as
-        // the cursor moves: the screen is polled until both are said (or_pokeblock_kit).
-        if let Some(screens) = &mut self.screens
-            && screens.moved(&windows())?
-        {
-            chase |= Chase::DETAILS;
-        }
+        // A game's own screens' cursors: ORAS's Pokéblock Kit's.
+        chase |= self.own.moved(&windows(), self.cursor_shown.get())?;
         // The Box turned to another box, the AreaNav's map cursor came onto another place: the
         // screen is polled now, once, and the heap's whole sweep waits as it does for a cursor
         // moving: one ran into a turn through the boxes, and BOX 4 and BOX 5 went unsaid
@@ -362,11 +379,8 @@ impl CursorSources {
     /// Every screen poll, before the screen is read: the works of the layouts not drawn now
     /// (`Layouts.put_away`). `works` is each layout's root -> its work.
     pub fn put_away(&mut self, works: &IndexMap<i64, i64>) -> Result<HashSet<i64>> {
-        let mut not_drawn = self.areanav.put_away(works)?;
+        let mut not_drawn = self.own.put_away(works)?;
         not_drawn.extend(self.reminder.put_away()?);
-        if let Some(screens) = &mut self.screens {
-            not_drawn.extend(screens.put_away()?);
-        }
         not_drawn.extend(self.summary.put_away()?);
         Ok(not_drawn)
     }
@@ -385,10 +399,7 @@ impl CursorSources {
         let running = self.apps.borrow().running.clone();
         let (count, counted) = self.counts.poll(on_screen)?;
         let paged = self.battle_bag.poll(on_screen)?;
-        let entrant = match &self.standings {
-            None => None,
-            Some(standings) => standings.borrow_mut().poll(on_screen)?,
-        };
+        let own = self.own.before(on_screen)?;
         let box_mode = match &mut self.box_mode {
             None => None,
             Some(reader) => reader.poll()?,
@@ -444,11 +455,11 @@ impl CursorSources {
         }
         self.cursor_shown.set(!cursors.under.is_empty());
         let mut before: Vec<(String, String)> = Vec::new();
+        if let Some(line) = box_mode {
+            before.push(("box mode".to_string(), line));
+        }
+        before.extend(own);
         for (logged, line) in [
-            ("box mode", box_mode),
-            // A contest's portrait draws no words, and the panel names it a second and a half
-            // after the cursor comes onto it.
-            ("contest entrant", entrant),
             ("bag sort", carried),
             ("registered items", slots),
             ("count", count),
@@ -480,7 +491,7 @@ impl CursorSources {
             &cursors,
             &self.labels,
         ));
-        unsaid.extend(self.areanav.unsaid(on_screen));
+        unsaid.extend(self.own.unsaid(self.areanav.area().as_deref(), on_screen));
         let unseen = self.summary.hidden();
         let labels = match &self.box_titles {
             None => HashSet::new(),

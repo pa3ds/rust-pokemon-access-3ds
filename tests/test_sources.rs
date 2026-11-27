@@ -16,6 +16,7 @@ use crate::games::common::pokemon::Pokemon;
 use crate::games::common::screen::{ScreenPoll, ScreenText};
 use crate::games::gen6::apps::RunningApp;
 use crate::games::gen6::game::CursorShapes;
+use crate::games::gen6::own::Nothing;
 use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::screens::sources::{Chase, CursorSources};
 use crate::games::gen6::screens::{boxes, rows};
@@ -58,9 +59,7 @@ fn sources_of(running: &str, r#box: Rc<Cell<Option<i64>>>) -> CursorSources {
         Rc::new(Vec::new),
         occupants,
         shown,
-        None,
-        None,
-        None,
+        Rc::new(Nothing),
         None,
     )
 }

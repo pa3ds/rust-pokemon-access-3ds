@@ -3,12 +3,12 @@
 //! X and Y are the same engine as ORAS: the same classes, the same message windows and layouts, the
 //! same move models and zone files (spike 100). What differs is a handful of numbers — where the ROM
 //! keeps each kind of file, and one offset in a move model — and what one game has alone, as ORAS's
-//! DexNav; a game package says its own in a `Game`. Everything else is shared.
+//! DexNav; a game package says its own in a `Game`, and builds the readers of what it alone has
+//! beyond the field in its `Own` (`gen6.own`). Everything else is shared.
 //!
 //! Bound by:
 //! - ADR-0006: gen 6 never names a game's own thing; what one game has alone is said in its Game.
 
-use std::cell::RefCell;
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -16,179 +16,21 @@ use std::sync::Arc;
 
 use indexmap::{IndexMap, IndexSet};
 
-use crate::core::discovery::Found;
 use crate::core::memory::Memory;
-use crate::core::rtti::ClassNames;
-use crate::core::speech::Speech;
-use crate::games::common::announce::Focus;
-use crate::games::common::cursors::shared::CursorPoll;
-use crate::games::common::field::things::Field;
-use crate::games::common::layout::Layouts;
-use crate::games::common::layout_file::LayoutFiles;
-use crate::games::common::screen::ScreenText;
 use crate::games::gen6::anchors::Chain;
-use crate::games::gen6::apps::RunningApp;
 use crate::games::gen6::field::camera;
 use crate::games::gen6::field::features::{
     DoorReader, Feature, HiddenReader, IceReader, SecretBaseReader,
 };
 use crate::games::gen6::field::footsteps::{ORAS, Steps};
 use crate::games::gen6::field::landform::{Landform, gen6};
+use crate::games::gen6::own::{self, Kit, Own};
 use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::rom::layout::RomLayout;
 use crate::games::gen6::screens::buttons::MENU;
 use crate::games::gen6::screens::{bag, boxes, rows, summary, townmap};
 use crate::games::gen6::subscreen::amie::{NUMBER, ORAS_PLAYER, PlayerFields};
 use crate::games::gen6::subscreen::super_training::ICONS;
-use crate::py::{Log, Result};
-
-/// An app only one game has, read by that game's own package: ORAS's soaring
-/// (`oras.field.sky`). While it runs, the navigation keys walk what it lists instead of the
-/// field's, and it is polled in the field's place.
-pub trait OwnApp {
-    /// The class its process is (`apps.RunningApp`).
-    fn app(&self) -> &'static str;
-
-    /// What the log and the poll's phase call it.
-    fn name(&self) -> &'static str;
-
-    /// The navigation keys' categories it lists things in, after the field's.
-    fn categories(&self) -> Vec<&'static str>;
-
-    /// Another app has started, this one or any other.
-    fn started(&self);
-
-    /// What the navigation keys walk while it runs, read through its process; None while it
-    /// says nothing.
-    fn listed(&self, process: i64) -> Result<Option<Field>>;
-
-    /// Say what it says of itself, every field poll while it runs.
-    fn poll(&self, process: i64) -> Result<()>;
-}
-
-/// A subscreen only one game has, and the apps it opens, read by that game's own package:
-/// ORAS's PokéNav Plus, its AreaNav's views and the lists drawn over its map, and its navigator's
-/// Pokémon, the AreaNav's Pokémon Distribution and the DexNav's icons (`oras.subscreen`). Each
-/// answers for the app running, and for nothing in any other app.
-pub trait OwnSubscreen {
-    /// What the heap is swept for to find its objects.
-    fn classes(&self) -> Vec<&'static str>;
-
-    /// What a sweep found of them, by class: all of it, or with `adding` the new.
-    fn track(&self, found: &IndexMap<i64, String>, adding: bool) -> Result<()>;
-
-    /// What screen text calls a picture of its screens', or None.
-    fn name(&self, picture: i64, running: Option<&str>) -> Result<Option<String>>;
-
-    /// What touch mode calls a picture of its screens', or None: named apart from screen
-    /// text's, as touch mode names the icons the player walks to (ADR-0006, 2026-10-15).
-    fn touched(&self, picture: i64, running: Option<&str>) -> Result<Option<String>>;
-
-    /// Whether touch mode offers a picture of its screens' though its button is switched
-    /// off.
-    fn said_off(&self, picture: i64, running: Option<&str>) -> Result<bool>;
-
-    /// Whether a view is drawn over the town map now, where a tap reaches the view and not
-    /// a place.
-    fn drawing(&self) -> Result<bool>;
-
-    /// Every screen poll, before the screen is read: the works of the layouts of the views
-    /// not drawn now (`Layouts.put_away`), by `works_of` a layout's root -> its work.
-    fn put_away(&self, works_of: &IndexMap<i64, i64>) -> Result<HashSet<i64>>;
-
-    /// Whether a list was drawn over the town map at the last `put_away`.
-    fn listing(&self) -> bool;
-
-    /// Every screen poll: the cursors as the lists over the town map have them, with the
-    /// map on `area` (`townmap.AreaNav`).
-    fn cursors(
-        &self,
-        cursors: CursorPoll,
-        area: Option<&str>,
-        on_screen: &[ScreenText],
-    ) -> CursorPoll;
-
-    /// Every screen poll: the boxes of the words the lists over the town map leave
-    /// unsaid, with the map on `area`.
-    fn unsaid(&self, area: Option<&str>, on_screen: &[ScreenText]) -> HashSet<i64>;
-
-    /// Every screen poll, with every piece of screen text on screen: what it says after the
-    /// screen's words, as (what the log calls it, the line).
-    fn poll(&self, on_screen: &[ScreenText], running: Option<&str>)
-    -> Result<Vec<(String, String)>>;
-
-    /// Whether words on screen are its own to say, left out of screen text's.
-    fn owns(&self, piece: &ScreenText) -> bool;
-}
-
-/// Who stands where in a competition only one game has, said on the keys that say a battle's
-/// sides: ORAS's contests (`oras.screens.contest`).
-pub trait StandingsReader {
-    /// The dialogue pages just said, which name whose turn it is.
-    fn heard(&mut self, texts: &[&str]) -> Result<()>;
-
-    /// Every screen poll, with every piece of screen text on screen: the entrant the cursor
-    /// has just come onto, to say, or None.
-    fn poll(&mut self, on_screen: &[ScreenText]) -> Result<Option<String>>;
-
-    /// The player's standing, or everyone else's; None out of a competition. Python's `pauses`
-    /// defaults to False.
-    fn said(&self, player: bool, pauses: bool) -> Result<Option<String>>;
-}
-
-/// The choices an opening draws without a layout, said by the game's own package: X's boy or
-/// girl and their three looks, models with no word on them (`xy.intro`).
-pub trait OpeningReader {
-    /// The class of the process the choices are made in (`apps.RunningApp`).
-    fn app(&self) -> &'static str;
-
-    /// The choice under the cursor, read through the process, when it has just opened or
-    /// moved; else None.
-    fn poll(&mut self, process: i64) -> Result<Option<Focus>>;
-}
-
-/// A Pokémon's contest conditions, an Extra, said where only one game draws them: ORAS's
-/// (`oras.screens.conditions`).
-pub trait ConditionsReader {
-    /// Every screen poll, once the screen's words are said: the words under the cursors,
-    /// everything on screen, the layouts still being written, and whether a cursor's details are
-    /// still to be said. Python's `waiting` defaults to False.
-    fn poll(
-        &mut self,
-        under: &[String],
-        on_screen: &[ScreenText],
-        settling: &IndexSet<i64>,
-        waiting: bool,
-    ) -> Result<()>;
-}
-
-/// Which of an app's screens kept on screen it does not draw now, and when its cursors move,
-/// where only one game's app keeps two: ORAS's Pokéblock Kit (`oras.screens.pokeblock_kit`).
-pub trait ScreensReader {
-    /// Every screen poll: the works of the layouts not drawn now (`Layouts.put_away`).
-    fn put_away(&mut self) -> Result<HashSet<i64>>;
-
-    /// Every tick: whether one of these menu cursors on screen has moved since the last, in
-    /// an app with no index of what is under it, where the screen is polled at once.
-    fn moved(&mut self, windows: &[i64]) -> Result<bool>;
-}
-
-/// The Pokémon one game's save keeps for its credits' moments, which scenes name as
-/// `{memory:N}`: ORAS's (`oras.memories`).
-pub trait MemoriesReader {
-    /// What the heap is swept for to find the save's object.
-    fn classes(&self) -> Vec<String>;
-    /// What a sweep found.
-    fn track(&self, found: &Found);
-    /// The species and form the save keeps for a moment, or None where it keeps none.
-    fn pokemon(&self, moment: i64) -> Result<Option<(i64, i64)>>;
-    /// The nickname the player gave the Pokémon of a moment, or None where they gave none
-    /// or no longer have it.
-    fn nickname(&self, moment: i64) -> Result<Option<String>>;
-}
-
-/// `Callable[[Memory], MemoriesReader]`.
-pub type MemoriesFactory = fn(Rc<dyn Memory>) -> Rc<dyn MemoriesReader>;
 
 /// Where one game keeps its screens' cursor sources (ADR-0043), each its screen's own
 /// `Shape`, measured in that game. None where not measured: that screen is then its layout's
@@ -231,48 +73,12 @@ pub type HiddenFactory = fn(Rc<dyn Memory>) -> Rc<dyn HiddenReader>;
 pub type SecretBaseFactory = fn(Rc<dyn Memory>, &[u8], &GameText) -> Rc<dyn SecretBaseReader>;
 /// `Callable[[Memory, GameText], Feature]`.
 pub type FeatureFactory = fn(Rc<dyn Memory>, &GameText) -> Rc<dyn Feature>;
-/// `Callable[[Memory, GameText, Speech, Callable[[str], None]], OwnApp | None]`.
-pub type AppFactory =
-    fn(Rc<dyn Memory>, &GameText, Rc<Speech>, Log) -> Result<Option<Rc<dyn OwnApp>>>;
 /// `Callable[[Memory], DoorReader]`.
 pub type DoorFactory = fn(Rc<dyn Memory>) -> Rc<dyn DoorReader>;
 /// `Callable[[Memory], IceReader]`.
 pub type IceFactory = fn(Rc<dyn Memory>) -> Rc<dyn IceReader>;
-/// `Callable[[Memory, Layouts, LayoutFiles, GameText, Callable[[], str | None]],
-/// StandingsReader]`.
-pub type StandingsFactory = fn(
-    Rc<dyn Memory>,
-    Rc<Layouts>,
-    Rc<LayoutFiles>,
-    &GameText,
-    Rc<dyn Fn() -> Option<String>>,
-    Rc<dyn Fn() -> Option<i64>>,
-) -> Rc<RefCell<dyn StandingsReader>>;
-/// `Callable[[Memory, ClassNames, Layouts, LayoutFiles, RunningApp, GameText, Speech,
-/// Callable[[str], None], bool], ConditionsReader]`.
-pub type ConditionsFactory = fn(
-    Rc<dyn Memory>,
-    Rc<ClassNames>,
-    Rc<Layouts>,
-    Rc<LayoutFiles>,
-    Rc<RefCell<RunningApp>>,
-    &GameText,
-    Rc<Speech>,
-    Log,
-    bool,
-) -> Box<dyn ConditionsReader>;
-/// `Callable[[Memory, RunningApp, Layouts, LayoutFiles], ScreensReader]`.
-pub type ScreensFactory = fn(
-    Rc<dyn Memory>,
-    Rc<RefCell<RunningApp>>,
-    Rc<Layouts>,
-    Rc<LayoutFiles>,
-) -> Box<dyn ScreensReader>;
-/// `Callable[[Memory, ClassNames, GameText, bool], OwnSubscreen]`.
-pub type SubscreenFactory =
-    fn(Rc<dyn Memory>, Rc<ClassNames>, &GameText, bool) -> Rc<dyn OwnSubscreen>;
-/// `Callable[[Memory, str], OpeningReader]`.
-pub type OpeningFactory = fn(Rc<dyn Memory>, &str) -> Box<dyn OpeningReader>;
+/// `Callable[[Kit], Own]`.
+pub type OwnFactory = fn(&Kit) -> Rc<dyn Own>;
 
 /// One game as the gen 6 readers read it.
 ///
@@ -336,6 +142,10 @@ pub struct Game {
     /// is stepped round: Dewford Gym's switches, in the corridor its belts carry the player down,
     /// which light its side passages and turn nothing (spike 132). A belt is walked over too.
     pub crossed: HashSet<(i64, i64)>,
+    /// What it has alone, built once from the profile's kit and asked where gen 6 asks it
+    /// (`gen6.own`): ORAS's PokéNav Plus, contests, Pokéblock Kit, credits' Pokémon, Secret Base PC
+    /// and soaring (`oras.own`), X's opening (`xy.own`); nothing, in a game with none of them.
+    pub own: OwnFactory,
     /// The readers of what else it has on its field to list, each in its own words: ORAS's berry
     /// spots and Route 113's ash piles (`games.oras.field.berries`, `games.oras.field.ash`).
     pub features: Vec<FeatureFactory>,
@@ -385,9 +195,6 @@ pub struct Game {
     /// them where the field's models hold no things (`mmodel.sprite_of`). None where `drawn` holds
     /// the sprite alone.
     pub models: Option<(Option<i64>, i64)>,
-    /// Its own apps' readers, each built from the memory, the ROM's words, and where to say and
-    /// log, or None where what it needs is not read: ORAS's soaring (`oras.field.sky`).
-    pub apps: Vec<AppFactory>,
     /// Warp kind -> what it is, where the kind says more than a door or stairs: ladders, a
     /// teleporter pad, the way into one building alone. A kind not here is "warp".
     pub warps: IndexMap<i64, String>,
@@ -400,27 +207,6 @@ pub struct Game {
     /// moves warps on one cell in and out of the way as a work changes: listed only while the work
     /// holds that value. The Team Flare Secret HQ's lift (spike 266).
     pub armed_warps: IndexMap<(i64, i64), (i64, i64)>,
-    /// The reader of who stands where in its competitions, built from the memory, the layouts
-    /// and their files, the ROM's words, the app running and its process, or None in a game with
-    /// none: ORAS's contests (`oras.screens.contest`).
-    pub standings: Option<StandingsFactory>,
-    /// The reader of a Pokémon's contest conditions, built as the Extra is turned on, or None in
-    /// a game that draws none: ORAS's (`oras.screens.conditions`).
-    pub conditions: Option<ConditionsFactory>,
-    /// The reader of which screen its apps that keep two on screen draw, or None in a game with
-    /// none: ORAS's Pokéblock Kit, the Case or the Berry Blender (`oras.screens.pokeblock_kit`).
-    pub screens: Option<ScreensFactory>,
-    /// The reader of the subscreen it alone has, built from the memory, the ROM's words and
-    /// whether pauses are asked for, or None in a game with none: ORAS's PokéNav Plus
-    /// (`oras.subscreen`).
-    pub subscreen: Option<SubscreenFactory>,
-    /// The reader of the choices its opening draws without a layout, built from the memory and
-    /// the player's language, or None where the opening's choices are layouts, as ORAS's are: X's
-    /// (`xy.intro`).
-    pub opening: Option<OpeningFactory>,
-    /// The reader of the Pokémon its save keeps for its credits, or None in a game whose credits
-    /// have not been looked at: ORAS's (`oras.memories`, spike 222).
-    pub memories: Option<MemoriesFactory>,
     /// Zone -> the native its teleporters' cases hand where they put the player, x, the floor in
     /// squares of height and z (`plates.teleports`): X's Laverre City Gym (spike 258). By zone, since a
     /// native's number is its zone script's own: Coumarine Gym's 56 swings a vine.
@@ -506,6 +292,7 @@ impl Game {
             hidden_items: 0x44C,
             hidden_triggers: HashSet::new(),
             crossed: HashSet::new(),
+            own: own::nothing,
             features: Vec::new(),
             landforms: gen6(),
             doors: None,
@@ -519,16 +306,9 @@ impl Game {
             stairs: HashSet::new(),
             rooms: HashSet::new(),
             models: None,
-            apps: Vec::new(),
             warps: IndexMap::new(),
             landings: HashSet::new(),
             armed_warps: IndexMap::new(),
-            standings: None,
-            conditions: None,
-            screens: None,
-            subscreen: None,
-            opening: None,
-            memories: None,
             teleporting: IndexMap::new(),
             gates: false,
             form: None,

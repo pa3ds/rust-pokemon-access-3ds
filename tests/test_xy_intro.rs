@@ -11,7 +11,6 @@ use super::fake_words::words_in;
 use crate::core::words::{ENGLISH, Words};
 use crate::games::common::announce::Focus;
 use crate::games::common::pictures::MODEL;
-use crate::games::gen6::game::OpeningReader;
 use crate::games::xy;
 use crate::games::xy::intro;
 use crate::games::xy::intro::IntroReader;

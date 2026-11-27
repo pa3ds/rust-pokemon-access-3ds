@@ -70,7 +70,7 @@ use crate::games::common::field::things::{
 };
 use crate::games::common::garc::garc_files;
 use crate::games::gen6::apps::LOADED_CODE;
-use crate::games::gen6::game::OwnApp;
+use crate::games::gen6::own::OwnApp;
 use crate::games::gen6::rom::archives::GameText;
 use crate::py::{self, Error, Kind, Log, Result};
 
@@ -261,6 +261,31 @@ pub struct Flock {
     /// How near a legend's the player flies before the game asks to fly in; 0 for birds, whose
     /// own was never measured.
     pub reach: f64,
+}
+
+/// The sky's places as the ROM's map has them, or none where it is not read.
+pub fn places_of(text: &GameText) -> Result<Vec<Place>> {
+    let Some(packed) = text.files.get(ARCHIVE) else {
+        return Ok(Vec::new());
+    };
+    let known = (|| -> Result<Vec<Place>> {
+        let files = garc_files(packed)?;
+        let Some(first) = files.first() else {
+            return Err(Error::index("list index out of range"));
+        };
+        places(first, &|zone| text.zone_place(zone))
+    })();
+    match known {
+        Ok(known) => Ok(known),
+        Err(error)
+            if error.is(Kind::RomError)
+                || error.is(Kind::IndexError)
+                || error.is(Kind::StructError) =>
+        {
+            Ok(Vec::new())
+        }
+        Err(error) => Err(error),
+    }
 }
 
 /// Every place on the sky's map, merged by what the game calls it, in the table's order; none from
@@ -572,7 +597,7 @@ pub fn facing(heading: f64) -> Result<&'static str> {
     Ok(COMPASS[py::modulo(py::round(clockwise / 45.0)?, COMPASS.len() as i64) as usize])
 }
 
-/// Soaring on Latios, an app of ORAS's own for the gen 6 profile to run (`gen6.game.OwnApp`): the
+/// Soaring on Latios, an app of ORAS's own for the gen 6 profile to run (`gen6.own.OwnApp`): the
 /// sky's places and flocks for the navigation keys, and the way the player faces, said once a turn
 /// stops on another, as the bottom screen's arrow shows it.
 pub struct Soaring {
@@ -603,41 +628,6 @@ impl Soaring {
             heading: Slot::new(None),
             facing: RefCell::new(None),
         }
-    }
-
-    /// Soaring where the ROM's map of places is read, or None: without it, the field's lists are
-    /// walked as they were. The factory `Game.apps` holds.
-    pub fn of(
-        memory: Rc<dyn Memory>,
-        text: &GameText,
-        speech: Rc<Speech>,
-        log: Log,
-    ) -> Result<Option<Rc<dyn OwnApp>>> {
-        let Some(packed) = text.files.get(ARCHIVE) else {
-            return Ok(None);
-        };
-        let known = (|| -> Result<Vec<Place>> {
-            let files = garc_files(packed)?;
-            let Some(first) = files.first() else {
-                return Err(Error::index("list index out of range"));
-            };
-            places(first, &|zone| text.zone_place(zone))
-        })();
-        let known = match known {
-            Ok(known) => known,
-            Err(error)
-                if error.is(Kind::RomError)
-                    || error.is(Kind::IndexError)
-                    || error.is(Kind::StructError) =>
-            {
-                return Ok(None);
-            }
-            Err(error) => return Err(error),
-        };
-        if known.is_empty() {
-            return Ok(None);
-        }
-        Ok(Some(Rc::new(Soaring::new(memory, known, speech, log))))
     }
 }
 

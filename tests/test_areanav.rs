@@ -7,14 +7,16 @@ use std::rc::Rc;
 use indexmap::IndexMap;
 
 use super::fake_memory::{CODE, FakeClasses, FakeMemory};
+use super::test_own::kit;
+use crate::core::discovery::Found;
 use crate::core::rtti::ClassNames;
 use crate::games::common::cursors::shared::{CursorItem, CursorPoll};
 use crate::games::common::screen::ScreenText;
-use crate::games::gen6::game::OwnSubscreen;
-use crate::games::gen6::rom::archives::GameText;
+use crate::games::gen6::own::Own;
+use crate::games::gen6::screens::sources::OwnSources;
 use crate::games::gen6::screens::townmap;
+use crate::games::oras::own::Oras;
 use crate::games::oras::subscreen::areanav::{self, VIEWS};
-use crate::games::oras::subscreen::PokeNav;
 
 const NUTS: &str = "N3app7townmap8NutsViewE";
 const VIEW: i64 = 0x08401BE4;
@@ -365,17 +367,14 @@ fn test_trainer_s_eye_s_place_block_is_the_layout_naming_the_area() {
 #[test]
 fn test_the_areanav_unmeasured_still_leaves_berry_times_to_their_berries() {
     let (memory, _) = berry_list(1);
-    let lists = PokeNav::new(
-        memory.clone(),
-        Rc::new(ClassNames::new(memory.clone(), CODE)),
-        &GameText::new(Vec::new(), Vec::new()),
-        false,
-    );
-    lists
-        .track(&IndexMap::from([(VIEW, NUTS.to_string())]), false)
-        .unwrap();
-    lists.put_away(&IndexMap::new()).unwrap();
-    let mut nav = townmap::AreaNav::new(Some(Rc::new(lists)), None);
+    let own = Rc::new(Oras::new(&kit(memory, None, None)));
+    own.track(&Found {
+        heap: IndexMap::from([(VIEW, NUTS.to_string())]),
+        ..Found::default()
+    })
+    .unwrap();
+    own.put_away(&IndexMap::new()).unwrap();
+    let mut nav = townmap::AreaNav::new(own.clone(), None);
     let time = ScreenText {
         top: true,
         root: 0x1,
@@ -383,5 +382,8 @@ fn test_the_areanav_unmeasured_still_leaves_berry_times_to_their_berries() {
     };
     assert!(!nav.turned().unwrap());
     assert_eq!(nav.title().unwrap(), None);
-    assert_eq!(nav.unsaid(&[time]), HashSet::from([9]));
+    assert_eq!(
+        own.unsaid(nav.area().as_deref(), &[time]),
+        HashSet::from([9])
+    );
 }

@@ -28,7 +28,7 @@ use crate::games::gen6::rom::layout::{RomLayout, TownFacilities, owned};
 use crate::games::gen6::screens::{bag, boxes, buttons, pokedex, rows, summary, townmap};
 use crate::games::gen6::subscreen::{amie, berry_picker};
 use crate::games::xy::garden::FurfrouChase;
-use crate::games::xy::intro::IntroReader;
+use crate::games::xy::own::Xy;
 use crate::py::PySet;
 
 /// X's own words, for what the game does not say itself (ADR-0040): beside its scenes, a folder a
@@ -1054,7 +1054,7 @@ pub fn game() -> &'static Game {
             map_view: Some(townmap::XY),
         },
         camera: camera::X,
-        opening: Some(|memory, _language| Box::new(IntroReader::new(memory))),
+        own: Xy::of,
         zone_record: 0xE4,
         anchors: anchors(),
         ..Game::new("X and Y", [X, Y], DATA, rom().clone(), DRAWN)
@@ -1063,3 +1063,5 @@ pub fn game() -> &'static Game {
 
 pub mod garden;
 pub mod intro;
+
+pub mod own;

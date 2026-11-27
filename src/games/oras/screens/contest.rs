@@ -31,7 +31,7 @@
 //! it is, "Bolt tried to show its appeal with Light Screen!". Each name is kept for its entrant's
 //! block.
 
-use std::cell::{Cell, RefCell};
+use std::cell::Cell;
 use std::rc::Rc;
 
 use indexmap::{IndexMap, IndexSet};
@@ -46,8 +46,6 @@ use crate::games::common::pictures::PLACES;
 use crate::games::common::screen::ScreenText;
 use crate::games::common::{lyt, strbuf};
 use crate::games::gen6::anchors::{Kept, follow};
-use crate::games::gen6::game::StandingsReader;
-use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::screens::rows::{CONTEST_MAIN, CONTEST_UI, PICKED};
 use crate::py::{self, Error, Result};
 
@@ -315,33 +313,12 @@ impl Standings {
             app_before: None,
         }
     }
-
-    /// The standings, with the contest's labels and entrants from the ROM's words, as the
-    /// gen 6 profile builds them (`Game.standings`).
-    pub fn of(
-        memory: Rc<dyn Memory>,
-        layouts: Rc<Layouts>,
-        files: Rc<LayoutFiles>,
-        text: &GameText,
-        running: Rc<dyn Fn() -> Option<String>>,
-        process: Rc<dyn Fn() -> Option<i64>>,
-    ) -> Rc<RefCell<dyn StandingsReader>> {
-        Rc::new(RefCell::new(Standings::new(
-            memory,
-            layouts,
-            files,
-            text.contest_entrant.clone(),
-            running,
-            text.contest_rivals.clone(),
-            process,
-        )))
-    }
 }
 
-impl StandingsReader for Standings {
+impl Standings {
     /// Learn the entrant the panel names for the portrait the cursor is on, and the entrant
     /// of a portrait the cursor has just come onto, to say.
-    fn poll(&mut self, on_screen: &[ScreenText]) -> Result<Option<String>> {
+    pub fn poll(&mut self, on_screen: &[ScreenText]) -> Result<Option<String>> {
         let running = (self.running)();
         if running.as_deref() == Some(APPS[0]) && self.app_before.as_deref() != Some(APPS[0]) {
             // A new contest's entry cards. What the last contest taught is forgotten here, not as
@@ -401,7 +378,7 @@ impl StandingsReader for Standings {
     /// Learn the computer's entrants from the first round's messages: "Bolt tried to show
     /// its appeal" is the entrant whose turn it is, and the first round appeals in place order.
     /// Only entrants whose entry cards were shown are looked for; the panel's names win.
-    fn heard(&mut self, texts: &[&str]) -> Result<()> {
+    pub fn heard(&mut self, texts: &[&str]) -> Result<()> {
         if (self.running)().as_deref() != Some(APPS[1]) {
             return Ok(());
         }
@@ -439,7 +416,7 @@ impl StandingsReader for Standings {
     /// None outside the appeals or where they are not found.
     ///
     /// Python's `pauses` defaults to False.
-    fn said(&self, player: bool, pauses: bool) -> Result<Option<String>> {
+    pub fn said(&self, player: bool, pauses: bool) -> Result<Option<String>> {
         let now = if (self.running)().as_deref() == Some(APPS[1]) {
             self.standing()?
         } else {

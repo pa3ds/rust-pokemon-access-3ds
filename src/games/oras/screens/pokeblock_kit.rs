@@ -49,11 +49,10 @@ use indexmap::IndexMap;
 
 use crate::core::binary::u32;
 use crate::core::memory::Memory;
-use crate::games::common::layout::{Layouts, TrackedLayouts};
-use crate::games::common::layout_file::{FileMatching, LayoutFiles};
+use crate::games::common::layout::TrackedLayouts;
+use crate::games::common::layout_file::FileMatching;
 use crate::games::common::lyt;
 use crate::games::gen6::apps::RunningApp;
-use crate::games::gen6::game::ScreensReader;
 use crate::games::oras::screens::conditions::CASE;
 use crate::py::{self, Error, PySet, Result};
 
@@ -121,16 +120,6 @@ impl Kit {
         }
     }
 
-    /// `Kit(memory, apps, layouts, files)`, as the gen 6 profile builds it (`Game.screens`).
-    pub fn of(
-        memory: Rc<dyn Memory>,
-        apps: Rc<RefCell<RunningApp>>,
-        layouts: Rc<Layouts>,
-        files: Rc<LayoutFiles>,
-    ) -> Box<dyn ScreensReader> {
-        Box::new(Kit::new(memory, apps, layouts, files))
-    }
-
     fn pool(&mut self, work: i64) -> Result<i64> {
         if !self.pools.contains_key(&work) {
             let first = u32(&self.memory.read(work, 4)?, 0)?;
@@ -140,10 +129,10 @@ impl Kit {
     }
 }
 
-impl ScreensReader for Kit {
+impl Kit {
     /// Whether a cursor on screen has moved since the last tick, in the Kit: `windows`, the
     /// menus' cursors on screen at the last screen poll. One small read each, every tick.
-    fn moved(&mut self, windows: &[i64]) -> Result<bool> {
+    pub fn moved(&mut self, windows: &[i64]) -> Result<bool> {
         if self.apps.borrow().running.as_deref() != Some(CASE) {
             self.places = IndexMap::new();
             return Ok(false);
@@ -161,7 +150,7 @@ impl ScreensReader for Kit {
     }
 
     /// The works of the layouts of the screens not shown, or none outside the Kit.
-    fn put_away(&mut self) -> Result<HashSet<i64>> {
+    pub fn put_away(&mut self) -> Result<HashSet<i64>> {
         let (running, process) = {
             let apps = self.apps.borrow();
             (apps.running.clone(), apps.process)

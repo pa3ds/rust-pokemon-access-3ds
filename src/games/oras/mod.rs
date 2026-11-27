@@ -3,7 +3,8 @@
 //! story's people are — and what ORAS alone has: on its field (`field`) the DexNav's hidden
 //! Pokémon, Secret Bases, berry spots, soaring and more, among its screens (`screens`) its
 //! contests, and its subscreen, the PokéNav Plus, its AreaNav's views and Pokémon Distribution and
-//! its DexNav's icons (`subscreen`).
+//! its DexNav's icons (`subscreen`). What gen 6 asks of all but its field, its `Own` answers
+//! (`own`).
 
 use std::collections::HashSet;
 use std::path::PathBuf;
@@ -39,12 +40,8 @@ use crate::games::oras::field::hidden::DexNav;
 use crate::games::oras::field::ice::IceFloors;
 use crate::games::oras::field::secret_base::{self, SecretBases, zones as secret_bases_zones};
 use crate::games::oras::field::sky;
-use crate::games::oras::field::sky::Soaring;
-use crate::games::oras::memories::Memories;
-use crate::games::oras::screens::conditions::Conditions;
-use crate::games::oras::screens::contest::Standings;
-use crate::games::oras::screens::pokeblock_kit::Kit;
-use crate::games::oras::subscreen::{PokeNav, areanav, distribution};
+use crate::games::oras::own::Oras;
+use crate::games::oras::subscreen::{areanav, distribution};
 
 /// ORAS's own words, for what the game does not say itself (ADR-0040): its scenes' timing, and a
 /// folder a language of the names, picture words, scene descriptions and words only ORAS says.
@@ -1077,13 +1074,8 @@ pub fn game() -> &'static Game {
         .concat(),
         player_looks: PLAYER_LOOKS.collect(),
         stairs: HashSet::from([SOOTOPOLIS_GYM]),
-        apps: vec![Soaring::of],
         warps: warps().clone(),
-        standings: Some(Standings::of),
-        conditions: Some(Conditions::of),
-        screens: Some(Kit::of),
-        subscreen: Some(PokeNav::of),
-        memories: Some(Memories::of),
+        own: Oras::of,
         form: Some(mmodel::FORM),
         whole: HashSet::from(SAFARI_ZONE),
         anchors: anchors(),
@@ -1112,5 +1104,7 @@ pub mod field;
 pub mod screens;
 
 pub mod memories;
+
+pub mod own;
 
 pub mod subscreen;
