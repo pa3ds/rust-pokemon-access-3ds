@@ -3,7 +3,7 @@
 use std::collections::{HashMap, HashSet};
 
 use super::fake_emulator::{FakeEmulator, sango};
-use crate::core::rpc::{MAX_READ, QUIET, Rpc, UdpRpc};
+use crate::core::rpc::{DEFAULT_HOST, MAX_READ, PORT_VARIABLE, QUIET, Rpc, UdpRpc};
 use crate::py::{Kind, time};
 
 fn page(base: i64, fill: &[u8]) -> HashMap<i64, Vec<u8>> {
@@ -17,7 +17,17 @@ fn rpc(emu: &FakeEmulator) -> UdpRpc {
 }
 
 fn quick(emu: &FakeEmulator) -> UdpRpc {
-    UdpRpc::new("127.0.0.1", emu.port(), 0.05, 16).unwrap()
+    UdpRpc::new("127.0.0.1", Some(emu.port()), 0.05, 16).unwrap()
+}
+
+#[test]
+fn test_no_port_given_is_the_one_the_environment_names() {
+    let emu = FakeEmulator::new(page(0x08608800, b"rig"));
+    // Python's `monkeypatch.setenv`: set for this test, and taken off after it.
+    unsafe { std::env::set_var(PORT_VARIABLE, emu.port().to_string()) };
+    let rpc = UdpRpc::new(DEFAULT_HOST, None, 0.25, 16);
+    unsafe { std::env::remove_var(PORT_VARIABLE) };
+    assert_eq!(rpc.unwrap().read(0x08608800, 3).unwrap(), b"rig");
 }
 
 #[test]

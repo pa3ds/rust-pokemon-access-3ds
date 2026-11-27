@@ -39,6 +39,11 @@ pub const PROTOCOL_VERSIONS: [u32; 2] = [2, 1];
 pub const MAX_READ: i64 = 1024;
 pub const DEFAULT_HOST: &str = "127.0.0.1";
 pub const DEFAULT_PORT: u16 = 45987;
+/// The environment variable an `Rpc` given no port takes its port from, before `DEFAULT_PORT`.
+/// The replay rig sets it to its own port as it is imported (`spikes/rig.py`), so a spike that boots
+/// the rig reads the rig and never the player's own Azahar beside it. The runtime always names its
+/// port (`--port`), so this never reaches a player.
+pub const PORT_VARIABLE: &str = "PA3DS_RPC_PORT";
 pub const MAX_PROCESSES: i64 = (MAX_READ - 4) / PROCESS_INFO_SIZE as i64;
 /// Windows in a row that may go unanswered before `read_many` gives up on the emulator.
 pub const MAX_STALLS: i64 = 6;
@@ -167,7 +172,22 @@ fn args(first: i64, second: i64) -> Result<[u8; ARGS_SIZE]> {
 }
 
 impl UdpRpc {
-    pub fn new(host: &str, port: u16, timeout: f64, window: usize) -> Result<Self> {
+    /// `Rpc(host, port, timeout, window)`: a `port` of None is the one `PORT_VARIABLE` names, or
+    /// `DEFAULT_PORT`.
+    pub fn new(host: &str, port: Option<u16>, timeout: f64, window: usize) -> Result<Self> {
+        let port = match port {
+            Some(port) => port,
+            None => match std::env::var(PORT_VARIABLE) {
+                Ok(text) => {
+                    // Python's socket raises at the first packet sent to a port past 65535;
+                    // here the client cannot be made with one.
+                    u16::try_from(crate::py::int_base10(&text)?).map_err(|_| {
+                        Error::new(Kind::OverflowError, "sendto(): port must be 0-65535.")
+                    })?
+                }
+                Err(_) => DEFAULT_PORT,
+            },
+        };
         let addr: SocketAddr = format!("{host}:{port}")
             .parse()
             .map_err(|_| Error::value(format!("not an address: {host}:{port}")))?;
@@ -192,7 +212,7 @@ impl UdpRpc {
 
     /// The emulator on this machine, at `port`, with the default timeout and window.
     pub fn connect(port: u16) -> Result<Self> {
-        UdpRpc::new(DEFAULT_HOST, port, 0.25, 16)
+        UdpRpc::new(DEFAULT_HOST, Some(port), 0.25, 16)
     }
 
     // -- packets ----------------------------------------------------------------
