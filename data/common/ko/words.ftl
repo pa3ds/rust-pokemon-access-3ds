@@ -193,6 +193,7 @@ training-left = 남은 시간 { $time }
 training-empty-bag = 빈 샌드백
 training-bag-finished = { $pokemon } 베이스트레이닝 완료
 training-resting = { $pokemon } 휴식 중
+training-stat = { $stat } { $points }
 training-total = 합계
 training-total-points = 합계 { $points }/{ $full }
 training-charged = 충전됨
@@ -234,6 +235,8 @@ amie-mood-disliked = { $pokemon } 싫어함...
 amie-mood-closer = { $pokemon } 무척 기뻐함, 하트가 쏟아져 나옴
 amie-mood-best-friends = { $pokemon } 하트 비 속에서 신나게 날뜀
 amie-meter = { $label } 5 중 { $count }
+o-power-energy = 에너지 10 중 { $count }
+o-power-regen = 회복 속도 { $rate }
 amie-hearts = { $count ->
     [one] 하트 1개
    *[other] 하트 { $count }개

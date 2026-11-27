@@ -75,6 +75,56 @@ as-granite-mural-3 = De près, l'homme a les cheveux bleu pâle et un costume so
 as-granite-mural-4 = Vous êtes au pied des marches, et vous les montez jusqu'à lui.
 granite-steven-leaves-1 = { TRAINER(557) } descend les marches et quitte la salle, et il ne reste que vous devant le mur peint.
 
+## Route 118 and Southern Island
+
+route118-steven-goes-1 = { TRAINER(557) } s'éloigne vers l'est à travers l'herbe.
+route118-steven-goes-2 = Il s'arrête net, comme s'il avait remarqué quelque chose.
+or-route118-latias-comes-1 = { TRAINER(557) } lève les yeux vers le ciel. Un Pokémon rouge et blanc aux larges ailes en flèche traverse les nuages : { POKEMON(380) }.
+or-route118-latias-comes-2 = Il descend en piqué et rase la mer, entre des rochers sombres qui émergent des vagues.
+or-route118-latias-comes-3 = Il plane jusqu'à la plage où { TRAINER(557) } et vous vous tenez.
+or-to-southern-island-1 = { TRAINER(557) } et vous descendez la plage vers { POKEMON(380) }, qui flotte au-dessus de l'eau.
+or-to-southern-island-2 = { TRAINER(557) } et vous volez sur le dos de { POKEMON(380) }, haut dans le ciel.
+or-to-southern-island-3 = Loin en contrebas, la côte défile, bordée de petites îles vertes.
+or-to-southern-island-4 = { POKEMON(380) } poursuit son vol au-dessus de collines vertes et de forêts, devant des montagnes brunes au pied desquelles s'étend une ville.
+or-to-southern-island-5 = Au-delà des terres s'étend la haute mer, et loin au large, une petite île verte.
+or-to-southern-island-6 = { POKEMON(380) } descend en piqué vers l'île.
+or-to-southern-island-7 = { TRAINER(557) } et vous êtes sur un carré de sable dans une clairière herbeuse, entourée de falaises rocheuses et de ruisseaux tumultueux. De grands pins poussent sur une butte au nord.
+or-southern-latios-1 = { POKEMON(381) }, un Pokémon bleu et blanc aux ailes en flèche comme celles d'un avion à réaction, flotte dans les airs à côté de { TRAINER(557) }, devant une paroi rocheuse striée de minces cascades. Vous vous tenez juste derrière lui.
+or-southern-magma-come-1 = Des ruisseaux entourent la clairière, et { POKEMON(381) } flotte près d'un petit pilier de pierre. Deux personnes en uniforme rouge à capuche arrivent de l'autre côté du pilier.
+or-southern-magma-come-2 = Les deux se tiennent face à vous, en bottes rouges et en uniforme à capuche. L'une est une jeune femme aux cheveux lavande, sous une capuche rouge à deux petites cornes, les yeux mi-clos.
+or-southern-magma-go-1 = Elle vous tourne le dos et quitte la clairière.
+or-southern-magma-go-2 = L'homme à la capuche rouge court après elle, et ils disparaissent.
+or-southern-latios-comes-1 = { POKEMON(381) } quitte le pilier de pierre et descend en planant vers vous.
+or-southern-latios-joins-1 = { POKEMON(381) } se met à briller, et une lumière blanche envahit tout.
+or-southern-latios-joins-2 = La lumière s'estompe. { POKEMON(381) } n'est plus dans la clairière, et vous vous tenez avec { TRAINER(557) } près du pilier de pierre.
+southern-bracelet-1 = Vous portez au poignet gauche un large bracelet d'argent pâle. Au milieu de sa face extérieure est sertie une pierre ronde, marbrée de bleu, de vert et de violet, avec un reflet blanc. Vous levez le bras en travers de la poitrine pour le montrer.
+or-southern-back-1 = { TRAINER(557) } et vous repartez vers le sud et quittez la clairière.
+or-southern-back-2 = Dans la première clairière de l'île, { POKEMON(380) } attend au bord de la falaise, et { TRAINER(557) } et vous vous dirigez vers lui.
+or-southern-back-3 = { TRAINER(557) } et vous êtes de retour sur la plage, avec { POKEMON(380) } qui flotte au-dessus de l'eau près des rochers.
+or-route118-latias-goes-1 = { POKEMON(380) } fait demi-tour et s'envole au-dessus de la mer.
+route118-steven-leaves-1 = { TRAINER(557) } s'éloigne vers le nord en remontant la plage, et disparaît.
+as-route118-latios-comes-1 = { TRAINER(557) } lève les yeux vers le ciel. Un Pokémon bleu et blanc aux larges ailes en flèche traverse les nuages : { POKEMON(381) }.
+as-route118-latios-comes-2 = Il descend en piqué et rase la mer, entre des rochers sombres qui émergent des vagues.
+as-route118-latios-comes-3 = Il plane jusqu'à la plage où { TRAINER(557) } et vous vous tenez.
+as-to-southern-island-1 = { TRAINER(557) } et vous descendez la plage vers { POKEMON(381) }, qui flotte au-dessus de l'eau.
+as-to-southern-island-2 = { TRAINER(557) } et vous volez sur le dos de { POKEMON(381) }, haut dans le ciel.
+as-to-southern-island-3 = Loin en contrebas, la côte défile, bordée de petites îles vertes.
+as-to-southern-island-4 = { POKEMON(381) } poursuit son vol au-dessus de collines vertes et de forêts, devant des montagnes brunes au pied desquelles s'étend une ville.
+as-to-southern-island-5 = Au-delà des terres s'étend la haute mer, et loin au large, une petite île verte.
+as-to-southern-island-6 = { POKEMON(381) } descend en piqué vers l'île.
+as-to-southern-island-7 = { TRAINER(557) } et vous êtes sur un carré de sable dans une clairière herbeuse, entourée de falaises rocheuses et de ruisseaux tumultueux. De grands pins poussent sur une butte au nord.
+as-southern-latias-1 = { POKEMON(380) }, un Pokémon rouge et blanc aux ailes en flèche comme celles d'un avion à réaction, flotte dans les airs à côté de { TRAINER(557) }, devant une paroi rocheuse striée de minces cascades. Vous vous tenez juste derrière lui.
+as-southern-aqua-come-1 = Des ruisseaux entourent la clairière, et { POKEMON(380) } flotte près d'un petit pilier de pierre. Deux personnes vêtues de bleu foncé arrivent de l'autre côté du pilier.
+as-southern-aqua-come-2 = Les deux se tiennent face à vous. L'un est un homme immense, torse nu, le visage strié de peinture bleue, avec un bandana noir et un collier doré, le haut de sa combinaison de plongée bleue rabattu jusqu'à la taille. L'autre est plus petit, en bandana noir et en vêtements à rayures bleues.
+as-southern-aqua-go-1 = { TRAINER(683) } fait demi-tour et quitte la clairière à grands pas vers l'est, et l'autre se dépêche de le suivre.
+as-southern-latias-comes-1 = { POKEMON(380) } quitte le pilier de pierre et descend en planant vers vous.
+as-southern-latias-joins-1 = { POKEMON(380) } se met à briller, et une lumière blanche envahit tout.
+as-southern-latias-joins-2 = La lumière s'estompe. { POKEMON(380) } n'est plus dans la clairière, et vous vous tenez avec { TRAINER(557) } près du pilier de pierre.
+as-southern-back-1 = { TRAINER(557) } et vous repartez vers le sud et quittez la clairière.
+as-southern-back-2 = Dans la première clairière de l'île, { POKEMON(381) } attend au bord de la falaise, et { TRAINER(557) } et vous vous dirigez vers lui.
+as-southern-back-3 = { TRAINER(557) } et vous êtes de retour sur la plage, avec { POKEMON(381) } qui flotte au-dessus de l'eau près des rochers.
+as-route118-latios-goes-1 = { POKEMON(381) } fait demi-tour et s'envole au-dessus de la mer.
+
 ## Omega Ruby: Groudon
 
 or-groudon-wakes-1 = { TRAINER(235) } s'avance au bord de la lave, où { POKEMON(383) } est couché, recroquevillé, gris comme la pierre.

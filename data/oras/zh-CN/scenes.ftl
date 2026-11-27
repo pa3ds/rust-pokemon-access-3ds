@@ -87,6 +87,56 @@ as-granite-mural-3 = 近看，这个男人有一头淡蓝色的头发，穿着�
 as-granite-mural-4 = 你站在台阶下，然后走上台阶来到他身旁。
 granite-steven-leaves-1 = { TRAINER(557) }走下台阶，离开了房间，只留下你独自站在那面画墙前。
 
+## Route 118 and Southern Island
+
+route118-steven-goes-1 = { TRAINER(557) }穿过草地，向东走去。
+route118-steven-goes-2 = 他突然停下脚步，似乎注意到了什么。
+or-route118-latias-comes-1 = { TRAINER(557) }抬头望向天空。一只长着向后掠的宽大翅膀、红白相间的宝可梦飞过云间：{ POKEMON(380) }。
+or-route118-latias-comes-2 = 它低低掠过海面，穿行在浪中突出的黑色礁石之间。
+or-route118-latias-comes-3 = 它朝你和{ TRAINER(557) }所站的海滩滑翔而来。
+or-to-southern-island-1 = 你和{ TRAINER(557) }沿着海滩走向悬停在水面上的{ POKEMON(380) }。
+or-to-southern-island-2 = 你和{ TRAINER(557) }骑在{ POKEMON(380) }的背上，飞在高高的天空中。
+or-to-southern-island-3 = 远远的下方，海岸缓缓掠过，近海散落着绿色的小岛。
+or-to-southern-island-4 = { POKEMON(380) }继续飞过绿色的山丘和森林，掠过山脚下有一座城镇的褐色群山。
+or-to-southern-island-5 = 陆地之外是开阔的大海，远处的海中有一座绿色的小岛。
+or-to-southern-island-6 = { POKEMON(380) }朝着小岛俯冲而下。
+or-to-southern-island-7 = 你和{ TRAINER(557) }站在一片草地空地中的一小块沙地上，四周环绕着岩石峭壁和湍急的溪流。北边的一处高地上长着高大的松树。
+or-southern-latios-1 = { POKEMON(381) }是一只蓝白相间的宝可梦，翅膀像喷气式飞机一样向后掠。它悬停在{ TRAINER(557) }身旁，背后是一面挂着细细瀑布的岩壁。你就站在他身后。
+or-southern-magma-come-1 = 溪流环绕着空地，{ POKEMON(381) }飘浮在一根小石柱旁。两个身穿红色连帽制服的人从石柱另一侧走了进来。
+or-southern-magma-come-2 = 两人穿着红色靴子和连帽制服，面朝你站着。其中一人是位年轻女性，红色兜帽上有两只小角，兜帽下是淡紫色的头发，她半闭着眼睛。
+or-southern-magma-go-1 = 她转身背对着你，走出了空地。
+or-southern-magma-go-2 = 戴红色兜帽的男人追着她跑去，两人消失了。
+or-southern-latios-comes-1 = { POKEMON(381) }离开石柱，朝你滑翔而来。
+or-southern-latios-joins-1 = { POKEMON(381) }发出光芒，白光充满了一切。
+or-southern-latios-joins-2 = 光芒渐渐消散。{ POKEMON(381) }已经不在空地上了，你和{ TRAINER(557) }站在石柱旁。
+southern-bracelet-1 = 你的左手腕上戴着一个宽宽的淡银色手环。它外侧的正中央镶着一颗圆形的石头，蓝、绿、紫三色交织成漩涡，闪着一点白光。你把手臂横举到胸前展示它。
+or-southern-back-1 = 你和{ TRAINER(557) }往南走回去，离开了空地。
+or-southern-back-2 = 在岛上的第一片空地，{ POKEMON(380) }在悬崖边等着，你和{ TRAINER(557) }朝它走过去。
+or-southern-back-3 = 你和{ TRAINER(557) }回到了海滩上，{ POKEMON(380) }悬停在礁石旁的水面上。
+or-route118-latias-goes-1 = { POKEMON(380) }转过身，飞越大海远去。
+route118-steven-leaves-1 = { TRAINER(557) }沿着海滩向北走去，消失了。
+as-route118-latios-comes-1 = { TRAINER(557) }抬头望向天空。一只长着向后掠的宽大翅膀、蓝白相间的宝可梦飞过云间：{ POKEMON(381) }。
+as-route118-latios-comes-2 = 它低低掠过海面，穿行在浪中突出的黑色礁石之间。
+as-route118-latios-comes-3 = 它朝你和{ TRAINER(557) }所站的海滩滑翔而来。
+as-to-southern-island-1 = 你和{ TRAINER(557) }沿着海滩走向悬停在水面上的{ POKEMON(381) }。
+as-to-southern-island-2 = 你和{ TRAINER(557) }骑在{ POKEMON(381) }的背上，飞在高高的天空中。
+as-to-southern-island-3 = 远远的下方，海岸缓缓掠过，近海散落着绿色的小岛。
+as-to-southern-island-4 = { POKEMON(381) }继续飞过绿色的山丘和森林，掠过山脚下有一座城镇的褐色群山。
+as-to-southern-island-5 = 陆地之外是开阔的大海，远处的海中有一座绿色的小岛。
+as-to-southern-island-6 = { POKEMON(381) }朝着小岛俯冲而下。
+as-to-southern-island-7 = 你和{ TRAINER(557) }站在一片草地空地中的一小块沙地上，四周环绕着岩石峭壁和湍急的溪流。北边的一处高地上长着高大的松树。
+as-southern-latias-1 = { POKEMON(380) }是一只红白相间的宝可梦，翅膀像喷气式飞机一样向后掠。它悬停在{ TRAINER(557) }身旁，背后是一面挂着细细瀑布的岩壁。你就站在他身后。
+as-southern-aqua-come-1 = 溪流环绕着空地，{ POKEMON(380) }飘浮在一根小石柱旁。两个身穿深蓝色衣服的人从石柱另一侧走了进来。
+as-southern-aqua-come-2 = 两人面朝你站着。其中一人是个赤裸上身的魁梧大汉，脸上抹着蓝色的油彩，戴着黑色头巾和金色项圈，蓝色潜水服的上半截褪到了腰间。另一人个子较小，戴着黑色头巾，穿着蓝色条纹的衣服。
+as-southern-aqua-go-1 = { TRAINER(683) }转身大步向东走出空地，另一人急忙跟在他后面。
+as-southern-latias-comes-1 = { POKEMON(380) }离开石柱，朝你滑翔而来。
+as-southern-latias-joins-1 = { POKEMON(380) }发出光芒，白光充满了一切。
+as-southern-latias-joins-2 = 光芒渐渐消散。{ POKEMON(380) }已经不在空地上了，你和{ TRAINER(557) }站在石柱旁。
+as-southern-back-1 = 你和{ TRAINER(557) }往南走回去，离开了空地。
+as-southern-back-2 = 在岛上的第一片空地，{ POKEMON(381) }在悬崖边等着，你和{ TRAINER(557) }朝它走过去。
+as-southern-back-3 = 你和{ TRAINER(557) }回到了海滩上，{ POKEMON(381) }悬停在礁石旁的水面上。
+as-route118-latios-goes-1 = { POKEMON(381) }转过身，飞越大海远去。
+
 ## Omega Ruby: Groudon
 
 or-groudon-wakes-1 = { TRAINER(235) }走到熔岩边缘，{ POKEMON(383) }蜷缩在那里，像石头一样灰。

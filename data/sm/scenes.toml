@@ -17,6 +17,7 @@
 # movie1_opening.ctm (2026-10-13).
 [[scene]]
 demo = 6
+title = [0x0004000000164800, 0x0004000000175E00]
 
 [[scene.beat]]
 id = "chase-1"
@@ -65,3 +66,203 @@ id = "chase-11"
 [[scene.beat]]
 at = 6
 id = "chase-12"
+
+# Ultra Sun's chase after Kukui's call, demo 2 (Sun's is 6), described from screenshots of spike 317's
+# movie at 2 s apart (2026-11-23): another chase than Sun's, two figures in grey armour after the
+# girl, and its own logo. The game says "Three months later..." itself 51 s in, and the field takes
+# over at 73 s, Route 1's zone 0x1 in Ultra Sun. Ultra Moon is not read, so it is not listed.
+[[scene]]
+demo = 2
+title = [0x00040000001B5000]
+
+[[scene.beat]]
+id = "us-chase-1"
+
+[[scene.beat]]
+at = 2
+id = "us-chase-2"
+
+[[scene.beat]]
+at = 9
+id = "us-chase-3"
+
+[[scene.beat]]
+at = 15
+id = "us-chase-4"
+
+[[scene.beat]]
+at = 19
+id = "us-chase-5"
+
+[[scene.beat]]
+at = 25
+id = "us-chase-6"
+
+[[scene.beat]]
+at = 29
+id = "us-chase-7"
+
+[[scene.beat]]
+at = 35
+id = "us-chase-8"
+
+[[scene.beat]]
+at = 39
+id = "us-chase-9"
+
+[[scene.beat]]
+at = 55
+id = "us-chase-10"
+
+[[scene.beat]]
+zone = 0x1
+at = 1
+id = "us-chase-11"
+
+[[scene.beat]]
+at = 6
+id = "us-chase-12"
+
+# Mahalo Trail's bridge, described from screenshots of sun_tapu-scene.ctm 1.5 s apart (2026-11-25).
+# The field plays its own demos, numbered apart from the app's: 7 the Spearow, 26 s, and 8 the
+# rescue, 43 s, both unskippable. The field comes back on zone 0xe after each, the first with a
+# walk to the girl that plays without the player, so the demo's last beats are said over it; what
+# the field shows between the talk's lines after follows the line before it.
+[[scene]]
+demo = 7
+app = "Field::Demo::FieldDemoProc"
+title = [0x0004000000164800, 0x0004000000175E00]
+
+[[scene.beat]]
+at = 1
+id = "bridge-1"
+
+[[scene.beat]]
+at = 3
+id = "bridge-2"
+
+[[scene.beat]]
+at = 6
+id = "bridge-3"
+
+[[scene.beat]]
+at = 9
+id = "bridge-4"
+
+[[scene.beat]]
+at = 12
+id = "bridge-5"
+
+[[scene.beat]]
+at = 15
+id = "bridge-6"
+
+[[scene.beat]]
+at = 18
+id = "bridge-7"
+
+[[scene.beat]]
+at = 28
+id = "bridge-8"
+
+[[scene.beat]]
+at = 35
+id = "bridge-9"
+
+# "Save Nebby!": the camera turns to the bridge.
+[[scene]]
+after = "story:35:15"
+zone = 0xe
+title = [0x0004000000164800, 0x0004000000175E00]
+
+[[scene.beat]]
+at = 1
+id = "bridge-10"
+
+[[scene]]
+demo = 8
+app = "Field::Demo::FieldDemoProc"
+title = [0x0004000000164800, 0x0004000000175E00]
+
+[[scene.beat]]
+at = 1
+id = "rescue-1"
+
+[[scene.beat]]
+at = 4
+id = "rescue-2"
+
+[[scene.beat]]
+at = 7
+id = "rescue-3"
+
+[[scene.beat]]
+at = 11
+id = "rescue-4"
+
+[[scene.beat]]
+at = 13
+id = "rescue-5"
+
+[[scene.beat]]
+at = 16
+id = "rescue-6"
+
+[[scene.beat]]
+at = 19
+id = "rescue-7"
+
+[[scene.beat]]
+at = 21
+id = "rescue-8"
+
+[[scene.beat]]
+at = 24
+id = "rescue-9"
+
+[[scene.beat]]
+at = 27
+id = "rescue-10"
+
+[[scene.beat]]
+at = 30
+id = "rescue-11"
+
+[[scene.beat]]
+at = 36
+id = "rescue-12"
+
+[[scene.beat]]
+at = 44
+id = "rescue-13"
+
+# "What... What is that?"
+[[scene]]
+after = "story:38:5"
+zone = 0xe
+title = [0x0004000000164800, 0x0004000000175E00]
+
+[[scene.beat]]
+id = "rescue-14"
+
+# "Please, forgive me..." and its second page.
+[[scene]]
+after = "story:38:8"
+zone = 0xe
+title = [0x0004000000164800, 0x0004000000175E00]
+
+[[scene.beat]]
+id = "rescue-15"
+
+# "Pew..." after "Come on. Into the bag, Nebby."; the walk off came 10 s after it.
+[[scene]]
+after = "story:38:14"
+zone = 0xe
+title = [0x0004000000164800, 0x0004000000175E00]
+
+[[scene.beat]]
+id = "rescue-16"
+
+[[scene.beat]]
+at = 10
+id = "rescue-17"

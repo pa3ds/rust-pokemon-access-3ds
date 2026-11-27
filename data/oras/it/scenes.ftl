@@ -75,6 +75,56 @@ as-granite-mural-3 = Da vicino, l'uomo ha i capelli azzurro chiaro e un abito sc
 as-granite-mural-4 = Sei ai piedi dei gradini, e li sali fino al suo fianco.
 granite-steven-leaves-1 = { TRAINER(557) } scende i gradini ed esce dalla stanza, e tu resti davanti alla parete dipinta, senza nessun altro.
 
+## Route 118 and Southern Island
+
+route118-steven-goes-1 = { TRAINER(557) } si allontana verso est attraverso l'erba.
+route118-steven-goes-2 = Si ferma di colpo, come se avesse notato qualcosa.
+or-route118-latias-comes-1 = { TRAINER(557) } alza lo sguardo al cielo. Un Pokémon rosso e bianco con ampie ali spiegate all'indietro vola tra le nuvole: { POKEMON(380) }.
+or-route118-latias-comes-2 = Scende in picchiata sul mare, tra scogli scuri che spuntano dalle onde.
+or-route118-latias-comes-3 = Plana verso la spiaggia dove siete tu e { TRAINER(557) }.
+or-to-southern-island-1 = Tu e { TRAINER(557) } scendete lungo la spiaggia verso { POKEMON(380) }, sospeso sull'acqua.
+or-to-southern-island-2 = Tu e { TRAINER(557) } volate in groppa a { POKEMON(380) }, alti nel cielo.
+or-to-southern-island-3 = Molto più in basso scorre la costa, con piccole isole verdi al largo.
+or-to-southern-island-4 = { POKEMON(380) } vola oltre colline verdi e foreste, oltre montagne brune con una città ai loro piedi.
+or-to-southern-island-5 = Oltre la terra si apre il mare aperto, e lontano, in mezzo a esso, una piccola isola verde.
+or-to-southern-island-6 = { POKEMON(380) } scende in picchiata verso l'isola.
+or-to-southern-island-7 = Tu e { TRAINER(557) } siete su un tratto di sabbia in una radura erbosa, circondata da scogliere rocciose e torrenti impetuosi. Alti pini crescono su un'altura a nord.
+or-southern-latios-1 = { POKEMON(381) }, un Pokémon blu e bianco con le ali spiegate all'indietro come quelle di un jet, è sospeso in aria accanto a { TRAINER(557) }, davanti a una parete di roccia solcata da sottili cascate. Tu sei appena dietro di lui.
+or-southern-magma-come-1 = Dei torrenti circondano la radura, e { POKEMON(381) } fluttua accanto a un piccolo pilastro di pietra. Due persone in uniformi rosse con cappuccio arrivano dal lato opposto.
+or-southern-magma-come-2 = I due sono di fronte a te, con stivali rossi e uniformi con cappuccio. Una è una giovane donna con i capelli color lavanda sotto un cappuccio rosso con due piccole corna, gli occhi socchiusi.
+or-southern-magma-go-1 = Ti volta le spalle ed esce dalla radura.
+or-southern-magma-go-2 = L'uomo con il cappuccio rosso le corre dietro, e se ne vanno.
+or-southern-latios-comes-1 = { POKEMON(381) } lascia il pilastro di pietra e plana verso di te.
+or-southern-latios-joins-1 = { POKEMON(381) } si illumina, e una luce bianca riempie ogni cosa.
+or-southern-latios-joins-2 = La luce svanisce. { POKEMON(381) } non è più nella radura, e tu sei con { TRAINER(557) } accanto al pilastro di pietra.
+southern-bracelet-1 = Al polso sinistro porti un'ampia fascia color argento chiaro. Al centro della sua faccia esterna è incastonata una pietra tonda, screziata di blu, verde e viola, con un riflesso bianco. Sollevi il braccio davanti al petto per mostrarla.
+or-southern-back-1 = Tu e { TRAINER(557) } tornate verso sud, fuori dalla radura.
+or-southern-back-2 = Nella prima radura dell'isola, { POKEMON(380) } aspetta sul bordo della scogliera, e tu e { TRAINER(557) } lo raggiungete.
+or-southern-back-3 = Tu e { TRAINER(557) } siete di nuovo sulla spiaggia, con { POKEMON(380) } sospeso sull'acqua accanto agli scogli.
+or-route118-latias-goes-1 = { POKEMON(380) } si volta e vola via sul mare.
+route118-steven-leaves-1 = { TRAINER(557) } risale la spiaggia verso nord e scompare.
+as-route118-latios-comes-1 = { TRAINER(557) } alza lo sguardo al cielo. Un Pokémon blu e bianco con ampie ali spiegate all'indietro vola tra le nuvole: { POKEMON(381) }.
+as-route118-latios-comes-2 = Scende in picchiata sul mare, tra scogli scuri che spuntano dalle onde.
+as-route118-latios-comes-3 = Plana verso la spiaggia dove siete tu e { TRAINER(557) }.
+as-to-southern-island-1 = Tu e { TRAINER(557) } scendete lungo la spiaggia verso { POKEMON(381) }, sospeso sull'acqua.
+as-to-southern-island-2 = Tu e { TRAINER(557) } volate in groppa a { POKEMON(381) }, alti nel cielo.
+as-to-southern-island-3 = Molto più in basso scorre la costa, con piccole isole verdi al largo.
+as-to-southern-island-4 = { POKEMON(381) } vola oltre colline verdi e foreste, oltre montagne brune con una città ai loro piedi.
+as-to-southern-island-5 = Oltre la terra si apre il mare aperto, e lontano, in mezzo a esso, una piccola isola verde.
+as-to-southern-island-6 = { POKEMON(381) } scende in picchiata verso l'isola.
+as-to-southern-island-7 = Tu e { TRAINER(557) } siete su un tratto di sabbia in una radura erbosa, circondata da scogliere rocciose e torrenti impetuosi. Alti pini crescono su un'altura a nord.
+as-southern-latias-1 = { POKEMON(380) }, un Pokémon rosso e bianco con le ali spiegate all'indietro come quelle di un jet, è sospeso in aria accanto a { TRAINER(557) }, davanti a una parete di roccia solcata da sottili cascate. Tu sei appena dietro di lui.
+as-southern-aqua-come-1 = Dei torrenti circondano la radura, e { POKEMON(380) } fluttua accanto a un piccolo pilastro di pietra. Due persone vestite di blu scuro arrivano dal lato opposto.
+as-southern-aqua-come-2 = I due sono di fronte a te. Uno è un uomo enorme a torso nudo, con strisce di pittura blu sul viso, una bandana nera e un collare d'oro, la parte superiore della muta blu abbassata fino alla vita. L'altro è più piccolo, con una bandana nera e abiti a righe blu.
+as-southern-aqua-go-1 = { TRAINER(683) } si volta ed esce a grandi passi dalla radura verso est, e l'altro gli corre dietro.
+as-southern-latias-comes-1 = { POKEMON(380) } lascia il pilastro di pietra e plana verso di te.
+as-southern-latias-joins-1 = { POKEMON(380) } si illumina, e una luce bianca riempie ogni cosa.
+as-southern-latias-joins-2 = La luce svanisce. { POKEMON(380) } non è più nella radura, e tu sei con { TRAINER(557) } accanto al pilastro di pietra.
+as-southern-back-1 = Tu e { TRAINER(557) } tornate verso sud, fuori dalla radura.
+as-southern-back-2 = Nella prima radura dell'isola, { POKEMON(381) } aspetta sul bordo della scogliera, e tu e { TRAINER(557) } lo raggiungete.
+as-southern-back-3 = Tu e { TRAINER(557) } siete di nuovo sulla spiaggia, con { POKEMON(381) } sospeso sull'acqua accanto agli scogli.
+as-route118-latios-goes-1 = { POKEMON(381) } si volta e vola via sul mare.
+
 ## Omega Ruby: Groudon
 
 or-groudon-wakes-1 = { TRAINER(235) } cammina fino al bordo della lava, dove { POKEMON(383) } giace raggomitolato, grigio come la pietra.

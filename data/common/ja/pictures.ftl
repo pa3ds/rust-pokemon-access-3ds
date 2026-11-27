@@ -40,6 +40,10 @@ texture-complete3 = プラチナの王冠
 texture-menu_bg_button = スタート
 texture-msg_win_c = 閉じる
 texture-list_button = サンドバッグ
+texture-pss_menu_icon = PSSメニュー
+texture-wifi_change_icon = インターネット通信
+texture-return_pss = もどる
+texture-delete_pss = けす
 texture-stage_icon = スタート
 texture-waza_pos = { "" }
 texture-nameinput2_lower-icon_delete = シフト
@@ -78,6 +82,7 @@ dexnav-higher-level = レベルが高い
 dexnav-egg-move = タマゴわざ
 dexnav-hidden-ability = 隠れ特性
 dexnav-caught = 捕まえた
+button-unavailable = 使用できません
 dexnav-stars = { $count ->
    *[other] 星{ $count }つ
 }
@@ -88,8 +93,25 @@ stars-and-a-half = { $count ->
 contest-hearts = { $count ->
    *[other] ハート{ $count }つ
 }
+history-times = { $what } { $count ->
+   *[other] { $count }回
+}
 texture-shot_icon00 = 黒いシュート
 texture-shot_icon01 = 緑のシュート
 texture-shot_icon02 = 青いシュート
 texture-shot_icon03 = オレンジのシュート
 texture-shot_icon04 = 黄色いシュート
+texture-search_icon06 = 体のない
+texture-search_icon10 = 脚のある
+texture-search_icon14 = ヒレのある
+texture-search_icon12 = 虫のような
+texture-search_icon03 = 四つ足の
+texture-search_icon11 = 翼の多い
+texture-search_icon13 = 体の多い
+texture-search_icon08 = 触手のある
+texture-search_icon04 = 手足のない
+texture-search_icon09 = しっぽのある二足歩行
+texture-search_icon05 = しっぽのない二足歩行
+texture-search_icon07 = 翼のある
+texture-search_icon02 = ヘビのような
+texture-search_icon01 = 腕のある

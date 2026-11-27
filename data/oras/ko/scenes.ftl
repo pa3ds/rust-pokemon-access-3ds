@@ -76,6 +76,56 @@ as-granite-mural-3 = 가까이에서 보면, 남자는 옅은 파란 머리에 �
 as-granite-mural-4 = 당신은 계단 아래에 서 있다가, 계단을 올라 남자 옆으로 간다.
 granite-steven-leaves-1 = 계단을 내려가 방을 나가는 { TRAINER(557) }. 그림이 그려진 벽 앞에 당신 혼자 남는다.
 
+## Route 118 and Southern Island
+
+route118-steven-goes-1 = 풀밭을 가로질러 동쪽으로 걸어가는 { TRAINER(557) }.
+route118-steven-goes-2 = 무언가를 알아챈 듯 우뚝 멈춰 선다.
+or-route118-latias-comes-1 = 하늘을 올려다보는 { TRAINER(557) }. 뒤로 젖혀진 넓은 날개를 가진 빨강과 하양의 포켓몬이 구름을 가로질러 날아간다. 바로 { POKEMON(380) }.
+or-route118-latias-comes-2 = 파도 위로 솟은 검은 바위들 사이로, 바다 위를 낮게 휙 날아간다.
+or-route118-latias-comes-3 = 당신이 { TRAINER(557) }하고 함께 서 있는 해변 쪽으로 미끄러지듯 날아온다.
+or-to-southern-island-1 = 당신은 { TRAINER(557) }하고 함께 해변을 따라, 물 위에 떠 있는 { POKEMON(380) }에게 걸어간다.
+or-to-southern-island-2 = 당신은 { TRAINER(557) }하고 함께 { POKEMON(380) }의 등에 타고 하늘 높이 날아간다.
+or-to-southern-island-3 = 저 아래로 해안이 스쳐 지나가고, 앞바다에는 작은 초록 섬들이 떠 있다.
+or-to-southern-island-4 = 초록 언덕과 숲 위를 지나, 기슭에 마을이 있는 갈색 산들을 지나 계속 날아가는 { POKEMON(380) }.
+or-to-southern-island-5 = 육지 너머로 탁 트인 바다가 펼쳐지고, 저 멀리 그 한가운데에 작은 초록 섬이 하나 있다.
+or-to-southern-island-6 = 섬을 향해 휙 내려가는 { POKEMON(380) }.
+or-to-southern-island-7 = 바위 절벽과 세차게 흐르는 개울에 둘러싸인 풀밭 공터, 모래땅 위에 당신은 { TRAINER(557) }하고 함께 서 있다. 북쪽 언덕에는 키 큰 소나무들이 자라 있다.
+or-southern-latios-1 = 가느다란 폭포 줄기가 흐르는 바위벽 앞, { TRAINER(557) }의 곁에 떠 있는 { POKEMON(381) }. 제트기처럼 뒤로 젖혀진 날개를 가진 파랑과 하양의 포켓몬이다. 당신은 { TRAINER(557) }의 바로 뒤에 서 있다.
+or-southern-magma-come-1 = 개울이 둘러싼 공터, 작은 돌기둥 옆에 떠 있는 { POKEMON(381) }. 빨간 후드 유니폼을 입은 두 사람이 그 건너편에서 걸어 들어온다.
+or-southern-magma-come-2 = 빨간 부츠에 후드 유니폼 차림의 두 사람이 당신을 마주하고 선다. 한 명은 작은 뿔 두 개가 달린 빨간 후드 아래로 라벤더색 머리가 보이는 젊은 여자로, 눈을 반쯤 감고 있다.
+or-southern-magma-go-1 = 여자는 당신에게 등을 돌리고 공터를 걸어 나간다.
+or-southern-magma-go-2 = 빨간 후드의 남자가 그 뒤를 쫓아 달려가고, 두 사람은 사라진다.
+or-southern-latios-comes-1 = 돌기둥 곁을 떠나 당신 쪽으로 미끄러지듯 내려오는 { POKEMON(381) }.
+or-southern-latios-joins-1 = { POKEMON(381) }의 몸이 빛나고, 하얀 빛이 모든 것을 채운다.
+or-southern-latios-joins-2 = 빛이 잦아든다. 공터에 { POKEMON(381) }의 모습은 더 이상 없고, 당신은 돌기둥 옆에 { TRAINER(557) }하고 함께 서 있다.
+southern-bracelet-1 = 당신의 왼쪽 손목에 옅은 은빛의 넓은 팔찌가 채워져 있다. 바깥면 한가운데에는 파랑, 초록, 보라가 소용돌이치는 둥근 돌이 박혀 있고, 하얗게 반짝인다. 당신은 그 팔을 가슴 앞으로 들어 올려 보여 준다.
+or-southern-back-1 = 당신은 { TRAINER(557) }하고 함께 남쪽으로 되돌아가 공터를 나간다.
+or-southern-back-2 = 섬의 첫 번째 공터, 절벽 가장자리에서 기다리고 있는 { POKEMON(380) }. 당신은 { TRAINER(557) }하고 함께 그쪽으로 걸어간다.
+or-southern-back-3 = 당신은 { TRAINER(557) }하고 함께 해변으로 돌아와 있고, 바위 옆 물 위에는 { POKEMON(380) }의 모습이 떠 있다.
+or-route118-latias-goes-1 = 몸을 돌려 바다 너머로 날아가는 { POKEMON(380) }.
+route118-steven-leaves-1 = 해변을 따라 북쪽으로 걸어가, 이윽고 사라지는 { TRAINER(557) }.
+as-route118-latios-comes-1 = 하늘을 올려다보는 { TRAINER(557) }. 뒤로 젖혀진 넓은 날개를 가진 파랑과 하양의 포켓몬이 구름을 가로질러 날아간다. 바로 { POKEMON(381) }.
+as-route118-latios-comes-2 = 파도 위로 솟은 검은 바위들 사이로, 바다 위를 낮게 휙 날아간다.
+as-route118-latios-comes-3 = 당신이 { TRAINER(557) }하고 함께 서 있는 해변 쪽으로 미끄러지듯 날아온다.
+as-to-southern-island-1 = 당신은 { TRAINER(557) }하고 함께 해변을 따라, 물 위에 떠 있는 { POKEMON(381) }에게 걸어간다.
+as-to-southern-island-2 = 당신은 { TRAINER(557) }하고 함께 { POKEMON(381) }의 등에 타고 하늘 높이 날아간다.
+as-to-southern-island-3 = 저 아래로 해안이 스쳐 지나가고, 앞바다에는 작은 초록 섬들이 떠 있다.
+as-to-southern-island-4 = 초록 언덕과 숲 위를 지나, 기슭에 마을이 있는 갈색 산들을 지나 계속 날아가는 { POKEMON(381) }.
+as-to-southern-island-5 = 육지 너머로 탁 트인 바다가 펼쳐지고, 저 멀리 그 한가운데에 작은 초록 섬이 하나 있다.
+as-to-southern-island-6 = 섬을 향해 휙 내려가는 { POKEMON(381) }.
+as-to-southern-island-7 = 바위 절벽과 세차게 흐르는 개울에 둘러싸인 풀밭 공터, 모래땅 위에 당신은 { TRAINER(557) }하고 함께 서 있다. 북쪽 언덕에는 키 큰 소나무들이 자라 있다.
+as-southern-latias-1 = 가느다란 폭포 줄기가 흐르는 바위벽 앞, { TRAINER(557) }의 곁에 떠 있는 { POKEMON(380) }. 제트기처럼 뒤로 젖혀진 날개를 가진 빨강과 하양의 포켓몬이다. 당신은 { TRAINER(557) }의 바로 뒤에 서 있다.
+as-southern-aqua-come-1 = 개울이 둘러싼 공터, 작은 돌기둥 옆에 떠 있는 { POKEMON(380) }. 짙은 파란 옷을 입은 두 사람이 그 건너편에서 걸어 들어온다.
+as-southern-aqua-come-2 = 두 사람이 당신을 마주하고 선다. 한 명은 웃통을 드러낸 거구의 남자로, 얼굴에 파란 페인트 줄이 그어져 있고, 검은 두건에 금빛 목장식을 했으며, 파란 잠수복 윗부분을 허리까지 내려 입었다. 다른 한 명은 더 작고, 검은 두건에 파란 줄무늬 옷차림이다.
+as-southern-aqua-go-1 = 몸을 돌려 성큼성큼 동쪽으로 공터를 나가는 { TRAINER(683) }. 다른 한 명이 서둘러 그 뒤를 따른다.
+as-southern-latias-comes-1 = 돌기둥 곁을 떠나 당신 쪽으로 미끄러지듯 내려오는 { POKEMON(380) }.
+as-southern-latias-joins-1 = { POKEMON(380) }의 몸이 빛나고, 하얀 빛이 모든 것을 채운다.
+as-southern-latias-joins-2 = 빛이 잦아든다. 공터에 { POKEMON(380) }의 모습은 더 이상 없고, 당신은 돌기둥 옆에 { TRAINER(557) }하고 함께 서 있다.
+as-southern-back-1 = 당신은 { TRAINER(557) }하고 함께 남쪽으로 되돌아가 공터를 나간다.
+as-southern-back-2 = 섬의 첫 번째 공터, 절벽 가장자리에서 기다리고 있는 { POKEMON(381) }. 당신은 { TRAINER(557) }하고 함께 그쪽으로 걸어간다.
+as-southern-back-3 = 당신은 { TRAINER(557) }하고 함께 해변으로 돌아와 있고, 바위 옆 물 위에는 { POKEMON(381) }의 모습이 떠 있다.
+as-route118-latios-goes-1 = 몸을 돌려 바다 너머로 날아가는 { POKEMON(381) }.
+
 ## Omega Ruby: Groudon
 
 or-groudon-wakes-1 = 용암 가장자리로 걸어가는 { TRAINER(235) }. 그곳에 돌처럼 회색이 된 { POKEMON(383) }의 웅크린 모습이 있다.

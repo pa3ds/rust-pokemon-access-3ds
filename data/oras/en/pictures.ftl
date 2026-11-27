@@ -15,3 +15,7 @@ texture-intro_famale = Girl, fair skin with rosy cheeks, light-brown shoulder-le
 texture-presented_by = Presented by
 texture-gf_logo = Game Freak
 texture-push_start = Press Start
+
+# The PokéNav Plus's wireless icon in the top right corner, drawn while the game is not connected;
+# a tap on it asks to connect to the Internet (a player's log of a trade online).
+texture-wifi_icon_off = Internet connection, off

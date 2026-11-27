@@ -389,6 +389,12 @@ amie-mood-best-friends = { $pokemon } goes wild with joy in a shower of hearts
 # One of Amie's three numbers, the game's own word for it and how many of its five icons are
 # filled, on the Switch screen and on the key that says them in Amie itself.
 amie-meter = { $label } { $count } of 5
+# The O-Power list's energy, as R says it on O-Power's screens: "energy 8 of 10". The game
+# draws it as ten orbs and names it "Required Energy" only in a power's cost.
+o-power-energy = energy { $count } of 10
+# The O-Power list's regen rate, the digit beside its gauge's clock icon, which goes up with the
+# steps counted that day: "regen rate 4". The game names it nowhere.
+o-power-regen = regen rate { $rate }
 # The kinds of part the stylus says as it comes onto one. The game names none: Amie paints each
 # kind a grey of its own, the same on every Pokémon, and reacts to each in its own way, a burn on
 # a flame, a shock on sparks. Off is off the Pokémon, and says which.
@@ -451,6 +457,13 @@ head-it-no-pokemon = no Pokémon { $number }
 # Head It's score key, where the game's error sound is off, while no score is on the
 # screen: before a round starts and after it ends.
 head-it-no-score = no score
+# A trade's keys, while no Pokémon is offered on that side yet: "no offer".
+pss-no-offer = no offer
+# The team choice's key before a battle with another player, while their team is not shown.
+pss-no-team = no team shown
+# The clock key, C, while the screen shows no clock: in a battle, one with no time limit, or
+# Command Time once the player has chosen.
+no-timer = no timer
 # Head It's three Pokémon left to right, its keys' order, said as each round's opening starts:
 # "Metagross, Pikachu and Windsong".
 head-it-lineup = { $first }, { $second } and { $third }
@@ -675,6 +688,9 @@ kind-elevator = elevator
 kind-sign = sign
 kind-flag = flag
 kind-object = object
+# A spot in Sun and Moon that starts a scene when walked onto: where the story goes next, or
+# where it turns the player back.
+kind-scene-spot = scene spot
 kind-person = person
 kind-item-ball = item ball
 # What the Dowsing Machine finds, listed under the hidden items setting.

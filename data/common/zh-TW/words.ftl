@@ -192,6 +192,7 @@ training-left = 剩餘{ $time }
 training-empty-bag = 空沙袋
 training-bag-finished = { $pokemon } 完成了基礎訓練
 training-resting = { $pokemon } 正在休息
+training-stat = { $stat } { $points }
 training-total = 總計
 training-total-points = 總計 { $points }/{ $full }
 training-charged = 蓄力完成
@@ -233,6 +234,8 @@ amie-mood-disliked = { $pokemon }不喜歡這樣……
 amie-mood-closer = { $pokemon }欣喜若狂，愛心湧了出來
 amie-mood-best-friends = { $pokemon }在愛心雨中開心得手舞足蹈
 amie-meter = { $label } { $count }，共5個
+o-power-energy = 能量 { $count }，共10個
+o-power-regen = 恢復速度 { $rate }
 amie-hearts = { $count ->
     [one] 1顆心
    *[other] { $count }顆心

@@ -6,3 +6,4 @@ texture-intro_famale = Mädchen, helle Haut mit rosigen Wangen, hellbraune schul
 texture-presented_by = Presented by
 texture-gf_logo = Game Freak
 texture-push_start = Start drücken
+texture-wifi_icon_off = Internetverbindung, aus

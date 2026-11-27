@@ -70,6 +70,13 @@ texture-msg_win_c = close
 # Super Training's button in the lower right of its PlayNav page, which opens the list of training
 # bags; the game names it only in a sentence (omega_ruby_bottom-screen5).
 texture-list_button = training bags
+# The PSS: the icon in the middle of its top bar, which opens and closes its menu; the one beside
+# it, which asks to connect to the Internet; the return in its windows' lower right corner; and
+# the delete on someone's profile (or_pss_singleplayer, a player's log of a trade online).
+texture-pss_menu_icon = PSS menu
+texture-wifi_change_icon = Internet connection
+texture-return_pss = return
+texture-delete_pss = delete
 # The button that starts a regimen of Super Training once it is cleared, `stage_icon00_rock` and
 # every `stage_icon` after it: before then the game titles each (a session of 2026-10-09).
 texture-stage_icon = start
@@ -141,6 +148,9 @@ dexnav-hidden-ability = hidden ability
 # Said after a Pokémon the DexNav shows in colour, caught, where the rest are its silhouettes:
 # only the caught are said so.
 dexnav-caught = caught
+# Said after a button the game shows greyed, switched off and faded, where a tap does
+# nothing: another player's Battle, Trade and O-Power in the PSS, offline.
+button-unavailable = unavailable
 # Potential's stars as words, three in a row filled or not; and the stars Pokémon-Amie's games rate
 # a result with, out of five.
 dexnav-stars = { $count ->
@@ -156,6 +166,12 @@ stars-and-a-half = { $count ->
 contest-hearts = { $count ->
     [one] { $count } heart
    *[other] { $count } hearts
+}
+# A PSS profile's History: each app its icons show, by the game's word for it, and how
+# many times it is shown, in the order each first stands: "Battle 3 times".
+history-times = { $what } { $count ->
+    [one] once
+   *[other] { $count } times
 }
 
 # The Pokédex's search by shape: a silhouette each of the fourteen shapes a Pokémon's body can be,

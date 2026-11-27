@@ -40,6 +40,10 @@ texture-complete3 = Platinkrone
 texture-menu_bg_button = Start
 texture-msg_win_c = schließen
 texture-list_button = Sandsäcke
+texture-pss_menu_icon = PSS-Menü
+texture-wifi_change_icon = Internetverbindung
+texture-return_pss = zurück
+texture-delete_pss = löschen
 texture-stage_icon = Start
 texture-waza_pos = { "" }
 texture-nameinput2_lower-icon_delete = Umschalttaste
@@ -78,6 +82,7 @@ dexnav-higher-level = höheres Level
 dexnav-egg-move = Ei-Attacke
 dexnav-hidden-ability = versteckte Fähigkeit
 dexnav-caught = gefangen
+button-unavailable = nicht verfügbar
 dexnav-stars = { $count ->
     [one] { $count } Stern
    *[other] { $count } Sterne
@@ -91,8 +96,26 @@ contest-hearts = { $count ->
     [one] { $count } Herz
    *[other] { $count } Herzen
 }
+history-times = { $what } { $count ->
+    [one] einmal
+   *[other] { $count }-mal
+}
 texture-shot_icon00 = schwarzer Schuss
 texture-shot_icon01 = grüner Schuss
 texture-shot_icon02 = blauer Schuss
 texture-shot_icon03 = orangener Schuss
 texture-shot_icon04 = gelber Schuss
+texture-search_icon06 = körperlos
+texture-search_icon10 = mit Beinen
+texture-search_icon14 = mit Flossen
+texture-search_icon12 = insektenartig
+texture-search_icon03 = vierbeinig
+texture-search_icon11 = mehrflügelig
+texture-search_icon13 = mehrkörperig
+texture-search_icon08 = mit Tentakeln
+texture-search_icon04 = gliederlos
+texture-search_icon09 = zweibeinig mit Schwanz
+texture-search_icon05 = zweibeinig ohne Schwanz
+texture-search_icon07 = geflügelt
+texture-search_icon02 = schlangenartig
+texture-search_icon01 = mit Armen

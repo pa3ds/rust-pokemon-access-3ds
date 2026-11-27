@@ -40,6 +40,10 @@ texture-complete3 = couronne de platine
 texture-menu_bg_button = commencer
 texture-msg_win_c = fermer
 texture-list_button = sacs d'entraînement
+texture-pss_menu_icon = menu du PSS
+texture-wifi_change_icon = connexion Internet
+texture-return_pss = retour
+texture-delete_pss = supprimer
 texture-stage_icon = commencer
 texture-waza_pos = { "" }
 texture-nameinput2_lower-icon_delete = majuscules
@@ -78,6 +82,7 @@ dexnav-higher-level = niveau plus élevé
 dexnav-egg-move = capacité Œuf
 dexnav-hidden-ability = talent caché
 dexnav-caught = capturé
+button-unavailable = indisponible
 dexnav-stars = { $count ->
     [one] { $count } étoile
    *[other] { $count } étoiles
@@ -91,8 +96,26 @@ contest-hearts = { $count ->
     [one] { $count } cœur
    *[other] { $count } cœurs
 }
+history-times = { $what } { $count ->
+    [one] une fois
+   *[other] { $count } fois
+}
 texture-shot_icon00 = tir noir
 texture-shot_icon01 = tir vert
 texture-shot_icon02 = tir bleu
 texture-shot_icon03 = tir orange
 texture-shot_icon04 = tir jaune
+texture-search_icon06 = sans corps
+texture-search_icon10 = à pattes
+texture-search_icon14 = à nageoires
+texture-search_icon12 = insectoïde
+texture-search_icon03 = quadrupède
+texture-search_icon11 = à plusieurs ailes
+texture-search_icon13 = à plusieurs corps
+texture-search_icon08 = à tentacules
+texture-search_icon04 = sans membres
+texture-search_icon09 = bipède à queue
+texture-search_icon05 = bipède sans queue
+texture-search_icon07 = ailé
+texture-search_icon02 = serpentiforme
+texture-search_icon01 = à bras

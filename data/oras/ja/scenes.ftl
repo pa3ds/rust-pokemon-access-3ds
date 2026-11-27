@@ -75,6 +75,56 @@ as-granite-mural-3 = 近くで見ると、男は淡い青の髪に暗い色の�
 as-granite-mural-4 = あなたは階段の下に立ち、階段を上って男の横へ行く。
 granite-steven-leaves-1 = { TRAINER(557) }は階段を降りて部屋を出ていき、あなたは絵の描かれた壁の前にひとり残される。
 
+## Route 118 and Southern Island
+
+route118-steven-goes-1 = { TRAINER(557) }は草むらを東へ歩いていく。
+route118-steven-goes-2 = 何かに気づいたように、ふと立ち止まる。
+or-route118-latias-comes-1 = { TRAINER(557) }が空を見上げる。後ろへ反った大きな翼をもつ赤と白のポケモンが、雲の間を飛んでいく：{ POKEMON(380) }。
+or-route118-latias-comes-2 = 波間から突き出た黒い岩の間を、海の上すれすれに舞い降りる。
+or-route118-latias-comes-3 = あなたと{ TRAINER(557) }が立つ浜辺へ、すべるように近づいてくる。
+or-to-southern-island-1 = あなたと{ TRAINER(557) }は浜辺を歩いて、水の上に浮かぶ{ POKEMON(380) }のほうへ向かう。
+or-to-southern-island-2 = あなたと{ TRAINER(557) }は{ POKEMON(380) }の背中に乗って、空高く飛んでいる。
+or-to-southern-island-3 = はるか下を海岸が流れていき、沖には小さな緑の島々が浮かんでいる。
+or-to-southern-island-4 = { POKEMON(380) }は緑の丘と森の上を飛び続け、ふもとに町のある茶色い山々を越えていく。
+or-to-southern-island-5 = 陸の向こうには広い海が広がり、はるか沖に小さな緑の島がひとつある。
+or-to-southern-island-6 = { POKEMON(380) }は島へ向かって舞い降りる。
+or-to-southern-island-7 = あなたと{ TRAINER(557) }は、草の生えた空き地の砂地に立っている。まわりを岩の崖と勢いよく流れる川が囲み、北の高台には背の高い松の木が生えている。
+or-southern-latios-1 = ジェット機のように後ろへ反った翼をもつ青と白のポケモン、{ POKEMON(381) }が、細い滝が幾筋も流れ落ちる岩壁の前で、{ TRAINER(557) }の横に浮かんでいる。あなたはそのすぐ後ろに立っている。
+or-southern-magma-come-1 = 空き地を川が囲み、{ POKEMON(381) }は小さな石の柱のそばに浮かんでいる。その向こう側から、赤いフード付きの制服を着た二人が歩いてくる。
+or-southern-magma-come-2 = 赤いブーツにフード付きの制服姿の二人が、あなたと向かい合って立っている。一人は若い女性で、小さな角が二つついた赤いフードの下にラベンダー色の髪がのぞき、目を半分閉じている。
+or-southern-magma-go-1 = 女性はあなたに背を向け、空き地から歩き去っていく。
+or-southern-magma-go-2 = 赤いフードの男が女性を追って走っていき、二人の姿は消える。
+or-southern-latios-comes-1 = { POKEMON(381) }が石の柱を離れ、あなたのほうへすべるように降りてくる。
+or-southern-latios-joins-1 = { POKEMON(381) }が光り、白い光があたりを満たす。
+or-southern-latios-joins-2 = 光が消える。{ POKEMON(381) }の姿はもう空き地になく、あなたは{ TRAINER(557) }と石の柱のそばに立っている。
+southern-bracelet-1 = あなたの左手首に、淡い銀色の幅広い腕輪がはまっている。その外側の真ん中には、青と緑と紫が渦巻く丸い石がはめこまれ、白くきらめいている。あなたは腕を胸の前に上げて、それを見せる。
+or-southern-back-1 = あなたと{ TRAINER(557) }は南へ戻り、空き地を出ていく。
+or-southern-back-2 = 島の最初の空き地で、{ POKEMON(380) }が崖のふちで待っている。あなたと{ TRAINER(557) }はそのそばへ歩いていく。
+or-southern-back-3 = あなたと{ TRAINER(557) }は浜辺に戻っている。岩のそばの水の上に{ POKEMON(380) }が浮かんでいる。
+or-route118-latias-goes-1 = { POKEMON(380) }は向きを変え、海の上を飛び去っていく。
+route118-steven-leaves-1 = { TRAINER(557) }は浜辺を北へ歩いていき、姿が見えなくなる。
+as-route118-latios-comes-1 = { TRAINER(557) }が空を見上げる。後ろへ反った大きな翼をもつ青と白のポケモンが、雲の間を飛んでいく：{ POKEMON(381) }。
+as-route118-latios-comes-2 = 波間から突き出た黒い岩の間を、海の上すれすれに舞い降りる。
+as-route118-latios-comes-3 = あなたと{ TRAINER(557) }が立つ浜辺へ、すべるように近づいてくる。
+as-to-southern-island-1 = あなたと{ TRAINER(557) }は浜辺を歩いて、水の上に浮かぶ{ POKEMON(381) }のほうへ向かう。
+as-to-southern-island-2 = あなたと{ TRAINER(557) }は{ POKEMON(381) }の背中に乗って、空高く飛んでいる。
+as-to-southern-island-3 = はるか下を海岸が流れていき、沖には小さな緑の島々が浮かんでいる。
+as-to-southern-island-4 = { POKEMON(381) }は緑の丘と森の上を飛び続け、ふもとに町のある茶色い山々を越えていく。
+as-to-southern-island-5 = 陸の向こうには広い海が広がり、はるか沖に小さな緑の島がひとつある。
+as-to-southern-island-6 = { POKEMON(381) }は島へ向かって舞い降りる。
+as-to-southern-island-7 = あなたと{ TRAINER(557) }は、草の生えた空き地の砂地に立っている。まわりを岩の崖と勢いよく流れる川が囲み、北の高台には背の高い松の木が生えている。
+as-southern-latias-1 = ジェット機のように後ろへ反った翼をもつ赤と白のポケモン、{ POKEMON(380) }が、細い滝が幾筋も流れ落ちる岩壁の前で、{ TRAINER(557) }の横に浮かんでいる。あなたはそのすぐ後ろに立っている。
+as-southern-aqua-come-1 = 空き地を川が囲み、{ POKEMON(380) }は小さな石の柱のそばに浮かんでいる。その向こう側から、濃い青の服の二人が歩いてくる。
+as-southern-aqua-come-2 = 二人があなたと向かい合って立っている。一人は上半身裸の大男で、顔に青いペイントの筋を引き、黒いバンダナと金色の首輪をつけ、青いウェットスーツの上半分を腰まで下ろしている。もう一人は小柄で、黒いバンダナに青い縞模様の服を着ている。
+as-southern-aqua-go-1 = { TRAINER(683) }は向きを変えて大股で東へ空き地を出ていき、もう一人があわててその後を追う。
+as-southern-latias-comes-1 = { POKEMON(380) }が石の柱を離れ、あなたのほうへすべるように降りてくる。
+as-southern-latias-joins-1 = { POKEMON(380) }が光り、白い光があたりを満たす。
+as-southern-latias-joins-2 = 光が消える。{ POKEMON(380) }の姿はもう空き地になく、あなたは{ TRAINER(557) }と石の柱のそばに立っている。
+as-southern-back-1 = あなたと{ TRAINER(557) }は南へ戻り、空き地を出ていく。
+as-southern-back-2 = 島の最初の空き地で、{ POKEMON(381) }が崖のふちで待っている。あなたと{ TRAINER(557) }はそのそばへ歩いていく。
+as-southern-back-3 = あなたと{ TRAINER(557) }は浜辺に戻っている。岩のそばの水の上に{ POKEMON(381) }が浮かんでいる。
+as-route118-latios-goes-1 = { POKEMON(381) }は向きを変え、海の上を飛び去っていく。
+
 ## Omega Ruby: Groudon
 
 or-groudon-wakes-1 = { TRAINER(235) }が溶岩のふちへ歩いていく。そこでは{ POKEMON(383) }が石のように灰色になって丸まっている。

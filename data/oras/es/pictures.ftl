@@ -6,3 +6,4 @@ texture-intro_famale = Chica, piel clara con mejillas sonrosadas, pelo castaño 
 texture-presented_by = Presentado por
 texture-gf_logo = Game Freak
 texture-push_start = Pulsa Start
+texture-wifi_icon_off = conexión a Internet, desactivada

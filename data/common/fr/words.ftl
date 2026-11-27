@@ -194,6 +194,7 @@ training-left = encore { $time }
 training-empty-bag = sac vide
 training-bag-finished = { $pokemon } a terminé sa Préparation
 training-resting = { $pokemon } se repose
+training-stat = { $stat } { $points }
 training-total = total
 training-total-points = total { $points } sur { $full }
 training-charged = chargé
@@ -238,6 +239,8 @@ amie-mood-disliked = { $pokemon } n'a pas aimé ça...
 amie-mood-closer = { $pokemon } déborde de joie, et des cœurs jaillissent
 amie-mood-best-friends = { $pokemon } exulte sous une pluie de cœurs
 amie-meter = { $label } { $count } sur 5
+o-power-energy = énergie { $count } sur 10
+o-power-regen = taux de régénération { $rate }
 amie-hearts = { $count ->
     [one] 1 cœur
    *[other] { $count } cœurs

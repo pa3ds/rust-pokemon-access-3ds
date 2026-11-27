@@ -40,6 +40,10 @@ texture-complete3 = 白金王冠
 texture-menu_bg_button = 開始
 texture-msg_win_c = 關閉
 texture-list_button = 沙袋
+texture-pss_menu_icon = PSS選單
+texture-wifi_change_icon = 網際網路連線
+texture-return_pss = 返回
+texture-delete_pss = 刪除
 texture-stage_icon = 開始
 texture-waza_pos = { "" }
 texture-nameinput2_lower-icon_delete = 切換大小寫
@@ -78,6 +82,7 @@ dexnav-higher-level = 等級較高
 dexnav-egg-move = 蛋招式
 dexnav-hidden-ability = 隱藏特性
 dexnav-caught = 已捕獲
+button-unavailable = 無法使用
 dexnav-stars = { $count ->
    *[other] { $count }顆星
 }
@@ -88,8 +93,25 @@ stars-and-a-half = { $count ->
 contest-hearts = { $count ->
    *[other] { $count }顆心
 }
+history-times = { $what } { $count ->
+   *[other] { $count }次
+}
 texture-shot_icon00 = 黑色射門
 texture-shot_icon01 = 綠色射門
 texture-shot_icon02 = 藍色射門
 texture-shot_icon03 = 橙色射門
 texture-shot_icon04 = 黃色射門
+texture-search_icon06 = 無身體
+texture-search_icon10 = 有腳
+texture-search_icon14 = 有鰭
+texture-search_icon12 = 蟲形
+texture-search_icon03 = 四足
+texture-search_icon11 = 多翼
+texture-search_icon13 = 多體
+texture-search_icon08 = 有觸手
+texture-search_icon04 = 無四肢
+texture-search_icon09 = 有尾雙足
+texture-search_icon05 = 無尾雙足
+texture-search_icon07 = 有翅膀
+texture-search_icon02 = 蛇形
+texture-search_icon01 = 有手臂
