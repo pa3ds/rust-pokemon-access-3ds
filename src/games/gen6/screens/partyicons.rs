@@ -58,6 +58,7 @@ use crate::core::binary::u32;
 use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
 use crate::games::common::layout::Layouts;
+use crate::games::common::screen::ScreenText;
 use crate::games::common::touch::FileOf;
 use crate::games::common::{lyt, pokemon};
 use crate::games::gen6::pokeicon;
@@ -74,6 +75,8 @@ pub const TEAMS: [i64; 3] = [0x08, 0x0C, 0x10];
 pub const TOP: &str = "pokelist_uppwer.bclyt";
 /// The party list's top screen, and the texture its slots' icon pictures are made with.
 pub const ICON: &str = "poke_icon.bclim";
+/// The game font's gender signs, ♂ and ♀ (`speech.SYMBOLS`).
+pub const SIGNS: [&str; 2] = ["\u{E08E}", "\u{E08F}"];
 pub const ICON_CLASS: &str = pokeicon::ICON_CLASS;
 pub const SLOTS: i64 = 6;
 
@@ -306,6 +309,37 @@ impl PartyIcons {
             self.named.borrow_mut().insert(image, drawn);
         }
         Ok(self.named.borrow()[&image].clone())
+    }
+
+    /// The words on screen with the party list's top screen's gender signs each straight
+    /// after its slot's species, as a battle says "Talonflame♂ L50": drawn right of the icon
+    /// over the level, it was said after the level, "Talonflame, L50, ♂" (Alpha Sapphire, live).
+    pub fn reworded(&self, found: IndexMap<i64, ScreenText>) -> IndexMap<i64, ScreenText> {
+        if (self.running)().as_deref() != Some(LIST) {
+            return found;
+        }
+        let mut named: IndexMap<i64, i64> = IndexMap::new();
+        for (&r#box, piece) in &found {
+            if piece.picture
+                && !piece.text.is_empty()
+                && (self.file_of)(piece.root).is_some_and(|file| file.name == TOP)
+            {
+                named.insert(piece.parent, r#box);
+            }
+        }
+        found
+            .into_iter()
+            .map(|(r#box, piece)| {
+                if SIGNS.contains(&py::strip(&piece.text))
+                    && let Some(&follows) = named.get(&piece.parent)
+                    && !piece.picture
+                {
+                    (r#box, ScreenText { follows, ..piece })
+                } else {
+                    (r#box, piece)
+                }
+            })
+            .collect()
     }
 
     /// The species of the party member whose icon is drawn from this image, or None.

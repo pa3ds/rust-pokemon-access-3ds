@@ -910,7 +910,12 @@ impl Gen6Profile {
             .unwrap_or_else(|_| unreachable!("the subscreens are made once"));
         screen.borrow_mut().set_reworded({
             let (subscreens, alone) = (subscreens.clone(), alone.clone());
-            Rc::new(move |found| Ok(alone.reworded(subscreens.reworded(found)?)))
+            let party_icons = party_icons.clone();
+            Rc::new(move |found| {
+                Ok(party_icons
+                    .borrow()
+                    .reworded(alone.reworded(subscreens.reworded(found)?)))
+            })
         });
         let classes: IndexSet<String> = alone
             .classes()

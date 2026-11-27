@@ -10,6 +10,8 @@ use super::fake_memory::{CODE, FakeClasses, FakeMemory};
 use super::test_pokemon::{WURMPLE, second_wurmple};
 use crate::core::rtti::ClassNames;
 use crate::games::common::layout_file::LayoutFile;
+use crate::games::common::screen::ScreenText;
+use crate::games::common::screen_order::{in_rows, join};
 use crate::games::common::{lyt, pokemon};
 use crate::games::gen6::pokeicon;
 use crate::games::gen6::screens::partyicons;
@@ -220,6 +222,37 @@ fn test_the_party_lists_top_screen_names_the_other_players_team() {
             .collect::<Vec<_>>(),
         [None, Some("Wurmple".to_string())]
     );
+    // Its gender sign, drawn right of the icon over the level, said after the species, as a
+    // battle says "Wurmple♂ L50", not after the level.
+    let slot = icons[7] - 0x200;
+    let drawn: IndexMap<i64, ScreenText> = [
+        (icons[7], "Wurmple", -5.0, 5.0),
+        (slot + 0x300, "L", -15.0, -15.0),
+        (slot + 0x400, "50", -5.0, -15.0),
+        (slot + 0x500, "\u{E08E}", 22.0, 10.0),
+    ]
+    .into_iter()
+    .map(|(r#box, text, x, y)| {
+        (
+            r#box,
+            ScreenText {
+                left: x,
+                right: x + 10.0,
+                row: y,
+                glyph: 13.0,
+                top: true,
+                root,
+                parent: slot,
+                picture: r#box == icons[7],
+                ..ScreenText::new(r#box, text, false)
+            },
+        )
+    })
+    .collect();
+    let mut worded: Vec<ScreenText> = names.reworded(drawn).into_values().collect();
+    worded.sort_by_key(|p| p.r#box);
+    let in_order = in_rows(worded);
+    assert_eq!(join(&in_order, false), "Wurmple \u{E08E} L50");
 }
 
 /// At the Maison five more lists of six are kept, and the Battle Box's, counting its two, was
