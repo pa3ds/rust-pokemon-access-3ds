@@ -147,10 +147,10 @@ fn test_a_profiles_rows_are_said_in_their_pictures_by_their_order() {
 
 /// History shows each of its icons as a picture of its kind's own, hung from the layout's
 /// root, the layout listing a kind's six together, and places those shown 28 apart in the
-/// record's order: the first says them all, left to right, a repeat again, and they are said
-/// after History's label in its row's frame. Named one at a time, two alike side by side were
-/// one thing drawn twice, the rest were joined with slashes, and all came after both Locations
-/// (or_pss_singleplayer).
+/// record's order: the first says them all counted, each app in the order it first stands, and
+/// they are said after History's label in its row's frame. Named one at a time, two alike side
+/// by side were one thing drawn twice, the rest were joined with slashes, and all came after
+/// both Locations (or_pss_singleplayer); said in a row, they sounded like repeated buttons.
 #[test]
 fn test_history_says_its_icons_in_their_order_after_its_label() {
     let memory = FakeMemory::new();
@@ -238,7 +238,7 @@ fn test_history_says_its_icons_in_their_order_after_its_label() {
         .map(|&row| (row, pss_profile::ROWS[0].to_string()))
         .collect();
     values.track(&found, false).unwrap();
-    let said = "Battle, O-Power, Trade, Trade";
+    let said = "Battle once, O-Power once, Trade 2 times";
     let named: IndexMap<&str, Option<String>> = icons
         .iter()
         .map(|(&name, &pane)| (name, values.name(pane).unwrap()))

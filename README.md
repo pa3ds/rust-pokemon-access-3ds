@@ -81,7 +81,8 @@ the Game Boy games. Nothing here is taken from its code.
   and more, each with its direction and distance, and the way to any of them on foot.
 - **The touch screen**: the buttons on the bottom screen where the game needs a touch, which
   touch mode can tap for you: the PokéNav's and PlayNav's apps, the PSS, the AreaNav's places,
-  Pokémon-Amie and Super Training.
+  Pokémon-Amie and Super Training. A PSS profile's History, a row of icons on the screen, is said
+  as how many times each is shown: "History Battle 3 times, Trade once".
 - **Pokémon-Amie** ([its own page](manual/amie.md)): the arrow keys move a stylus over your
   Pokémon, saying the part it is on, and touch mode pets that part; beckoning, high fives and
   Poké Puffs; your Pokémon's numbers, and what it is doing, each animation in a sentence of its

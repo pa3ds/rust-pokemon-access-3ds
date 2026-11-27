@@ -30,6 +30,7 @@ use indexmap::{IndexMap, IndexSet};
 use crate::core::binary::{f32, s16, u32};
 use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
+use crate::core::words::own;
 use crate::games::common::layout::Layouts;
 use crate::games::common::layout_file::LayoutFile;
 use crate::games::common::screen::ScreenText;
@@ -233,10 +234,13 @@ impl ProfileValues {
         Ok(worded)
     }
 
-    /// History's icons shown, left to right, which is their record's order, for the first;
-    /// "" for the others. Named one at a time, two alike side by side were taken for one thing
-    /// drawn twice and the rest joined as a type's icons are, "Battle/O-Power/Trade
-    /// O-Power/Trade" (or_pss_singleplayer).
+    /// History's icons shown, counted, "Battle 3 times, Trade once", each app in the order
+    /// it first stands, left to right, which is their record's order, for the first; "" for the
+    /// others. Named one at a time, two alike side by side were taken for one thing drawn twice
+    /// and the rest joined as a type's icons are, "Battle/O-Power/Trade O-Power/Trade"
+    /// (or_pss_singleplayer); said whole in a row, "Battle, Trade, Battle, Trade, Battle,
+    /// Battle" sounded like pa3ds repeating button names, where a sighted player sees a row of
+    /// icons (Alpha Sapphire, live).
     fn history_said(&self, file: &LayoutFile, root: i64, picture: i64) -> Result<String> {
         let layouts = &self.layouts;
         let mut icons: Vec<(f64, i64, String)> = Vec::new();
@@ -265,10 +269,16 @@ impl ProfileValues {
         if icons.first().is_none_or(|first| first.1 != picture) {
             return Ok(String::new());
         }
-        Ok(icons
+        // `Counter(...)`: each word counted, in the order it first came.
+        let mut counted: IndexMap<&str, i64> = IndexMap::new();
+        for (_x, _pane, kind) in &icons {
+            if let Some(word) = self.words.get(kind).filter(|word| !word.is_empty()) {
+                *counted.entry(word.as_str()).or_insert(0) += 1;
+            }
+        }
+        Ok(counted
             .iter()
-            .filter_map(|(_x, _pane, kind)| self.words.get(kind).filter(|word| !word.is_empty()))
-            .map(String::as_str)
+            .map(|(word, count)| own("history-times", &[("what", word), ("count", count)]))
             .collect::<Vec<_>>()
             .join(&self.gap))
     }
