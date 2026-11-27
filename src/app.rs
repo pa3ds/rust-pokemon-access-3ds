@@ -24,7 +24,7 @@ use indexmap::IndexMap;
 
 use crate::core::clips::Clips;
 use crate::core::azahar::emulator_config;
-use crate::core::config::{Audio, CRYING, Tables};
+use crate::core::config::{Audio, Tables};
 use crate::core::discovery::{CODE_SPAN, Discovery};
 use crate::core::folders::data_path;
 use crate::core::heaps::Block;
@@ -728,15 +728,7 @@ fn session(
                 _ => None,
             },
             cries: match &loudness {
-                Some(loudness)
-                    if audio.feedback_sounds > 0.0
-                        && [
-                            &settings.tables.amie.berry_picker_style,
-                            &settings.tables.amie.head_it_style,
-                        ]
-                        .iter()
-                        .any(|style| CRYING.contains(&style.as_str())) =>
-                {
+                Some(loudness) if audio.feedback_sounds > 0.0 => {
                     Some(Rc::new(Clips::new(loudness.clone(), audio.feedback_sounds)))
                 }
                 _ => None,

@@ -148,9 +148,9 @@ pub struct Setup {
     /// a key with nothing to do; None as `clips` is, or where `[pa3ds.audio] feedback_sounds` is
     /// 0, and they are said in words.
     pub feedback_sounds: Option<Rc<Clips>>,
-    /// Where the Pokémon's own cries go, an output of their own so the cue does not cut one off
-    /// (`[pa3ds.amie] berry_picker_style`, `head_it_style`); None as `feedback_sounds` is, or where
-    /// neither game plays a cry.
+    /// Where the Pokémon's own cries go, an output of their own so the cue does not cut one off;
+    /// None as `feedback_sounds` is. Which game plays one is the readers' to say, by its style
+    /// (`[pa3ds.amie] berry_picker_style`, `head_it_style`), and a cry is read only as it plays.
     pub cries: Option<Rc<Clips>>,
     /// A screen's own keys, which win over the modes' while it runs (`Profile.context`).
     pub contexts: Contexts,
