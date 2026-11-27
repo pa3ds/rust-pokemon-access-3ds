@@ -163,9 +163,12 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
 ## Ultra Sun and Ultra Moon
 
 - **Checked only in the opening**: the language choice, your house and Route 1 up to your
-  first Pokémon, a wild battle and Hau's: dialogue, choices, the map and pathfinding, the menu,
-  the Options screen, the Bag, the party, the summary and battles. The Pokémon Center, shops
-  and the other menus are read as in Sun and Moon but not yet checked.
+  first Pokémon, a wild battle and Hau's, and Route 1's Pokémon Center: dialogue, choices, the
+  map and pathfinding, the menu, the Options screen, the Bag, the party, the summary, battles,
+  the nurse and the Poké Mart's counter and buy list. The other menus are read as in Sun and
+  Moon but not yet checked.
+- **A Poké Mart's buy list** says only the item under the cursor, not its price or how many
+  you have, which are on screen beside it.
 - **Ultra Moon** has not been tried at all: it is read as Ultra Sun.
 - **Only the opening cutscene is described** with `descriptions` on, in English.
 - Everything listed for Sun and Moon above applies too.

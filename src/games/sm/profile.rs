@@ -47,6 +47,7 @@ use crate::games::sm::field::{self, SunFieldReader, Walls};
 use crate::games::sm::gametext::SunGameText;
 use crate::games::sm::heaps::{Blocks, InBlocks};
 use crate::games::sm::langselect::{self, LangSelectReader};
+use crate::games::sm::shop::{self, ShopReader};
 use crate::games::sm::talk::{self, Speakers};
 use crate::games::sm::text::SunText;
 use crate::games::sm::zones::SunZones;
@@ -67,6 +68,7 @@ pub fn heap_classes() -> Vec<&'static str> {
         talk::CLASS,
         talk::UTIL_CLASS,
         langselect::CLASS,
+        shop::CLASS,
         common_lyt::DRAWINFO_CLASS,
     ]);
     classes.extend(field::CLASSES);
@@ -132,6 +134,10 @@ pub struct SunProfile {
     pub speakers: Rc<Speakers>,
     pub announcements: Rc<RefCell<Announcements>>,
     pub langselect: RefCell<LangSelectReader>,
+    pub shop: RefCell<ShopReader>,
+    /// A Mart's list is on screen with its shop object not found yet.
+    shop_wanted: Cell<bool>,
+    shop_asked: Cell<bool>,
     pub battle: RefCell<SunBattleReader>,
     pub apps: RefCell<RunningApp>,
     pub scenes: Option<RefCell<Scenes>>,
@@ -264,6 +270,14 @@ impl SunProfile {
             text.clone(),
             layout.unwrap_or(SUN_LAYOUT),
         );
+        // A Poké Mart's list is one layout the cursor reader reads whole; the shop's object names
+        // the item under the cursor (`shop`).
+        let shop = ShopReader::new(
+            panes.clone(),
+            names.clone(),
+            text.clone(),
+            layout.unwrap_or(SUN_LAYOUT).shop_item,
+        );
         // The HP box is the battle reader's to say, from the gauges behind its panels, and a
         // gauge's pointers are followed only inside the blocks the last walk found (spike 124).
         let battle = SunBattleReader::new(panes, names.clone(), layouts.clone());
@@ -334,6 +348,9 @@ impl SunProfile {
             speakers,
             announcements,
             langselect: RefCell::new(langselect),
+            shop: RefCell::new(shop),
+            shop_wanted: Cell::new(false),
+            shop_asked: Cell::new(false),
             battle: RefCell::new(battle),
             apps: RefCell::new(running),
             scenes,
@@ -375,7 +392,24 @@ impl SunProfile {
         self.dialogue.borrow_mut().watch(&lines);
         // The HP box is the battle reader's to say, whole and once it holds still.
         let sides = self.battle.borrow_mut().poll(&screen.on_screen)?;
-        let cursors = self.cursors.borrow_mut().poll(&screen.on_screen)?;
+        let mut cursors = self.cursors.borrow_mut().poll(&screen.on_screen)?;
+        if self.shop.borrow().reads() {
+            // A Mart's list: the shop's reader says the item under the cursor, which only a sweep
+            // finds as the list opens; the cursor over the list would read its rows whole.
+            let mut rows: HashSet<i64> = HashSet::new();
+            for piece in &screen.on_screen {
+                if self.layouts.name(piece.r#box)?.starts_with(shop::LIST_PANE) {
+                    rows.insert(piece.r#box);
+                }
+            }
+            if !rows.is_empty() {
+                cursors
+                    .items
+                    .retain(|found| !found.pieces.iter().any(|piece| rows.contains(&piece.r#box)));
+            }
+            self.shop_wanted
+                .set(!rows.is_empty() && self.shop.borrow().showing().is_none());
+        }
         // The language choice's buttons are pictures, which only its own reader can name; the
         // other readers keep up with its screen but leave it to that reader.
         if !self.langselect.borrow().showing() {
@@ -506,6 +540,9 @@ impl Profile for SunProfile {
         self.langselect
             .borrow_mut()
             .track(found.of(&[langselect::CLASS]), adding);
+        self.shop
+            .borrow_mut()
+            .track(found.of(&[shop::CLASS]), adding);
         self.battle
             .borrow_mut()
             .track(found.of(&[battle::GAUGE_CLASS]), adding)?;
@@ -611,11 +648,18 @@ impl Profile for SunProfile {
         })
     }
 
-    /// Poll the language choice. Returns whether it said anything.
+    /// Poll the language choice and a Poké Mart's list. Returns whether it said anything.
     fn poll_menus(&self) -> Result<bool> {
-        let shown = self.phase("menus", || self.langselect.borrow_mut().poll())?;
+        let (shown, item) = self.phase("menus", || {
+            let shown = self.langselect.borrow_mut().poll()?;
+            let item = self.shop.borrow_mut().poll()?;
+            Ok((shown, item))
+        })?;
+        if let Some(item) = &item {
+            self.announcements.borrow_mut().focus(item, "menu", false);
+        }
         let Some(shown) = shown else {
-            return Ok(false);
+            return Ok(item.is_some());
         };
         if let Some(title) = &shown.title {
             (self.log)(&format!("screen shown: {title}"));
@@ -748,8 +792,15 @@ impl Profile for SunProfile {
     }
 
     /// Whether a reader needs something only a sweep finds: the gauge behind an HP box on
-    /// screen, as in ORAS.
+    /// screen, as in ORAS, or the shop's object behind a Mart's list, asked once a list.
     fn sweep_wanted(&self) -> Result<bool> {
+        if self.shop_wanted.get() && !self.shop_asked.get() {
+            self.shop_asked.set(true);
+            return Ok(true);
+        }
+        if !self.shop_wanted.get() {
+            self.shop_asked.set(false);
+        }
         Ok(self.battle.borrow_mut().sweep_wanted())
     }
 

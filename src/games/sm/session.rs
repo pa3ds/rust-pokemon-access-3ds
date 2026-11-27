@@ -24,7 +24,7 @@ use crate::games::sm::profile::{Options, REQUIRED, SunProfile, heap_classes};
 use crate::games::sm::text::SunText;
 use crate::games::sm::walls::SunWalls;
 use crate::games::sm::zones::SunZones;
-use crate::games::sm::{SunMoon, apps, field, heaps, langselect, lyt};
+use crate::games::sm::{SunMoon, apps, field, heaps, langselect, lyt, shop};
 use crate::py::{PySet, Result};
 
 /// Sun, read to the byte, never a page around what is asked for: in Sun the byte after an
@@ -68,7 +68,7 @@ pub fn start(
                 SunText::load(
                     image,
                     language,
-                    &[langselect::TEXT_FILE, lyt::LEVEL_WORDS.0],
+                    &[langselect::TEXT_FILE, lyt::LEVEL_WORDS.0, shop::ITEM_NAMES],
                 )
             },
             "the menus' words are off",

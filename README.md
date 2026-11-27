@@ -34,8 +34,9 @@ the Game Boy games. Nothing here is taken from its code.
   doors, signs, people and items, with pathfinding. Trainers, signs, the things you can check and
   many buildings' doors are called by the game's own words.
 - **Ultra Sun and Ultra Moon**: read as Sun and Moon are, and checked so far in the opening, up
-  to your first Pokémon on Route 1: dialogue with who is speaking, choices, menus, the Bag, the
-  party, a wild battle, and the map's doors, things and people, with pathfinding.
+  to your first Pokémon on Route 1 and its Pokémon Center: dialogue with who is speaking,
+  choices, menus, the Bag, the party, a wild battle, a Poké Mart's buy list, and the map's doors,
+  things and people, with pathfinding.
 
 ## What it says
 

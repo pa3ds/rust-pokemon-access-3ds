@@ -22,6 +22,7 @@ use crate::games::common::session::Profile;
 use crate::games::sm::heaps::{self, Blocks, Heaps};
 use crate::games::sm::langselect::{self, LangSelectReader, Shown};
 use crate::games::sm::profile::SunProfile;
+use crate::games::sm::shop::{self, ShopReader};
 use crate::games::sm::text::SunText;
 use crate::games::sm::{SUN_LAYOUT, ULTRA_LAYOUT, VersionLayout, apps, msgwin, talk};
 use crate::py::Result;
@@ -550,6 +551,43 @@ fn test_nothing_is_said_once_the_choice_is_gone() {
     choosing.show(langselect::LIST, 0, 0);
     choosing.memory.u32(DRAW, &[0]);
     assert_eq!(choosing.show(langselect::LIST, 1, 0), None);
+}
+
+/// Ultra Sun's `ShopDraw` keeps the item at +0xc4 (spike P); moving says the next one.
+#[test]
+fn test_a_mart_s_list_says_the_item_under_its_cursor_by_its_number() {
+    let memory = FakeMemory::new();
+    memory.u32(DRAW, &[FakeClasses::new(memory.clone()).add(shop::CLASS)]);
+    let mut items = vec![String::new(); 4];
+    items.push("Poké Ball".to_string());
+    items.extend(vec![String::new(); 12]);
+    items.extend(["Potion".to_string(), "Antidote".to_string()]);
+    let mut reader = ShopReader::new(
+        memory.clone(),
+        Rc::new(ClassNames::new(memory.clone(), CODE)),
+        Some(Rc::new(SunText {
+            files: IndexMap::from([(shop::ITEM_NAMES, items)]),
+        })),
+        ULTRA_LAYOUT.shop_item,
+    );
+    reader.track([DRAW], false);
+    let item = DRAW + 0xC4;
+    let focus = |label: &str, opened: bool| Focus {
+        source: DRAW,
+        label: label.to_string(),
+        index: 0,
+        count: 0,
+        opened,
+    };
+    memory.write(item, &4u16.to_le_bytes());
+    assert_eq!(reader.poll().unwrap(), Some(focus("Poké Ball", true)));
+    assert_eq!(reader.poll().unwrap(), None);
+    memory.write(item, &18u16.to_le_bytes());
+    assert_eq!(reader.poll().unwrap(), Some(focus("Antidote", false)));
+    assert_eq!(reader.showing().as_deref(), Some("Antidote"));
+    memory.u32(DRAW, &[0]);
+    assert_eq!(reader.poll().unwrap(), None);
+    assert_eq!(reader.showing(), None);
 }
 
 /// A sweep of the blocks just allocated says what is new and nothing of what is gone: taken as
