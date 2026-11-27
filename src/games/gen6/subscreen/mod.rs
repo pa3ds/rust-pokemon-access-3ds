@@ -314,7 +314,7 @@ impl Keyed for HeadItKeys {
 
 impl Keyed for PssKeys {
     fn context(&self, running: Option<&str>) -> Result<Option<&'static str>> {
-        Ok(PssKeys::context(self, running))
+        PssKeys::context(self, running)
     }
 
     fn press(
@@ -992,7 +992,7 @@ impl Subscreens {
                 settings.fidgets,
             ))));
         }
-        let pss_keys = Rc::new(PssKeys::new(
+        let pss_keys = Rc::new(PssKeys::with_process(
             on_screen_kept,
             file_of_kept,
             {
@@ -1000,6 +1000,10 @@ impl Subscreens {
                 Rc::new(move || before.borrow().clone())
             },
             tables.ui.pauses,
+            {
+                let apps = apps.clone();
+                Rc::new(move || apps.borrow().head.clone())
+            },
         ));
         Subscreens {
             apps,

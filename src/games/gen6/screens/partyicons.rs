@@ -137,6 +137,29 @@ pub fn party_of(
     Ok(found.first().copied())
 }
 
+/// The teams the party list's process was opened with, out of its first bytes
+/// (`RunningApp.head`), in the order its top screen draws them, six slots each; none out of a
+/// link battle. Asked only while the party list runs: another process holds anything there.
+pub fn teams(process: &[u8]) -> Result<Vec<i64>> {
+    let last = TEAMS[TEAMS.len() - 1];
+    let opened = py::slice(process, OPENED_WITH, OPENED_WITH + last + 4);
+    if (opened.len() as i64) < last + 4 {
+        return Ok(Vec::new());
+    }
+    let mut listed: Vec<i64> = Vec::new();
+    for at in TEAMS {
+        listed.push(u32(opened, at)?);
+    }
+    if listed[0] == 0 {
+        listed = listed[1..2].to_vec();
+    }
+    Ok(if listed.iter().any(|&team| team != 0) {
+        listed
+    } else {
+        Vec::new()
+    })
+}
+
 /// The encryption constants of the save's party's members, in order.
 pub fn saved_party(memory: &dyn Memory, party: i64) -> Result<Vec<i64>> {
     let count = memory.read(party + RECORDS + SAVED * SLOTS, 1)?[0] as i64;
@@ -307,30 +330,18 @@ impl PartyIcons {
     /// draws, or None: another player's team before a link battle, drawn as icons alone. Out of
     /// a link battle the list was opened with no team, and nothing is read.
     fn team_drawn(&self, picture: i64) -> Result<Option<String>> {
-        let last = TEAMS[TEAMS.len() - 1];
-        let process = (self.process)();
-        let opened = py::slice(&process, OPENED_WITH, OPENED_WITH + last + 4);
-        if (opened.len() as i64) < last + 4 {
-            return Ok(None);
-        }
-        let mut teams: Vec<i64> = Vec::new();
-        for at in TEAMS {
-            teams.push(u32(opened, at)?);
-        }
-        if teams[0] == 0 {
-            teams = teams[1..2].to_vec();
-        }
-        if !teams.iter().any(|&team| team != 0) {
+        let against = teams(&(self.process)())?;
+        if against.is_empty() {
             return Ok(None);
         }
         let Some(slot) = self.slot_drawn(picture)? else {
             return Ok(None);
         };
         let (team, member) = (py::floordiv(slot, SLOTS), py::modulo(slot, SLOTS));
-        if team >= teams.len() as i64 {
+        if team >= against.len() as i64 {
             return Ok(None);
         }
-        let key = (teams[team as usize], member);
+        let key = (against[team as usize], member);
         if !self.members.borrow().contains_key(&key) {
             let found = self.member(key.0, member)?;
             self.members.borrow_mut().insert(key, found);

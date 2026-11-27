@@ -6,11 +6,13 @@
 //!   "Lv.", the level and the held item in five boxes, the player's on the left half and the other
 //!   player's on the right (spike 319: the other player's Treecko at x 70 to 170, and the
 //!   player's five boxes hidden while nothing was offered; the left half unchecked live).
-//! - **The team choice before a battle chosen in the PSS** (the party opened from
-//!   `pss.COLOSSEUM`): Shift and R says the team the other player chose, as its top screen draws
-//!   it, `pokelist_uppwer.bclyt`: their name, then each Pokémon's gender sign and level, but for
-//!   its icon, which nothing names yet (spike 319); its "TIME REMAINING" row is the clock's, said
-//!   at its marks (`Subscreens.timed`), and left out: C says it.
+//! - **The team choice before a battle with another player** (the party list opened with their
+//!   team, from `pss.COLOSSEUM`): Shift and R says the team the other player chose, as its top
+//!   screen draws it, `pokelist_uppwer.bclyt`: their name, then each Pokémon's icon, named by its
+//!   species (`partyicons`), gender sign and level (spike 319); its "TIME REMAINING" row is the
+//!   clock's, said at its marks (`Subscreens.timed`), and left out: C says it. The table is the
+//!   list's whenever it was opened with a team: with pa3ds started on that screen, the Colosseum
+//!   was never seen to run before it, and Shift and R said "no battle".
 //!
 //! A key with nothing drawn to say says so.
 
@@ -24,8 +26,10 @@ use crate::games::common::field::keys::{
 use crate::games::common::screen::ScreenText;
 use crate::games::common::screen_order::{in_rows, join};
 use crate::games::common::touch::{FileOf, OnScreen};
+use crate::games::gen6::screens::partyicons::teams;
 use crate::games::gen6::screens::rows::PARTY;
 use crate::games::gen6::subscreen::pss::{COLOSSEUM, TRADE_LIST};
+use crate::py::Result;
 
 pub const OFFERS: &str = "trade_upper.bclyt";
 /// The layout files of the trade's top screen and the team choice's, by the names the game gave
@@ -38,34 +42,50 @@ pub const NO_TEAM: &str = "pss-no-team";
 pub type Before = Rc<dyn Fn() -> Option<String>>;
 
 /// R and Shift and R on the screens two players meet on: a trade's offers, the other player's
-/// team. `before` is the app that ran before the one running (`Subscreens.started`).
+/// team. `before` is the app that ran before the one running (`Subscreens.started`), and
+/// `process` the running process's first bytes (`RunningApp.head`).
 pub struct PssKeys {
     on_screen: OnScreen,
     file_of: FileOf,
     before: Before,
     pauses: bool,
+    process: Rc<dyn Fn() -> Vec<u8>>,
 }
 
 impl PssKeys {
-    /// Python's `pauses` defaults to False.
+    /// `PssKeys(on_screen, file_of, before, pauses)`: `process` left to its default, no bytes.
     pub fn new(on_screen: OnScreen, file_of: FileOf, before: Before, pauses: bool) -> Self {
+        PssKeys::with_process(on_screen, file_of, before, pauses, Rc::new(Vec::new))
+    }
+
+    pub fn with_process(
+        on_screen: OnScreen,
+        file_of: FileOf,
+        before: Before,
+        pauses: bool,
+        process: Rc<dyn Fn() -> Vec<u8>>,
+    ) -> Self {
         PssKeys {
             on_screen,
             file_of,
             before,
             pauses,
+            process,
         }
     }
 
     /// The keys' table in the keys file while a trade or the team choice runs, else None.
-    pub fn context(&self, running: Option<&str>) -> Option<&'static str> {
+    pub fn context(&self, running: Option<&str>) -> Result<Option<&'static str>> {
         if running == Some(TRADE_LIST) {
-            return Some(PSS_TRADE);
+            return Ok(Some(PSS_TRADE));
         }
-        if running == Some(PARTY) && (self.before)().as_deref() == Some(COLOSSEUM) {
-            return Some(PSS_COLOSSEUM);
+        if running == Some(PARTY)
+            && ((self.before)().as_deref() == Some(COLOSSEUM)
+                || !teams(&(self.process)())?.is_empty())
+        {
+            return Ok(Some(PSS_COLOSSEUM));
         }
-        None
+        Ok(None)
     }
 
     /// Say an offer or the other player's team, as the top screen draws it.
@@ -73,14 +93,14 @@ impl PssKeys {
         if action == YOUR_OFFER || action == THEIR_OFFER {
             let left = action == YOUR_OFFER;
             let offer: Vec<ScreenText> = self
-                .drawn(OFFERS)
+                .drawn(OFFERS, false)
                 .into_iter()
                 .filter(|p| ((p.left + p.right) / 2.0 < 0.0) == left)
                 .collect();
             return or_own(join(&in_rows(offer), self.pauses), NO_OFFER);
         }
         if action == THEIR_TEAM || action == TIME {
-            let drawn = self.drawn(TEAM);
+            let drawn = self.drawn(TEAM, true);
             // The clock's row, "TIME REMAINING: 1:24", is C's, and said at its marks.
             let clocks: Vec<f64> = drawn
                 .iter()
@@ -105,12 +125,17 @@ impl PssKeys {
         String::new()
     }
 
-    /// The words on the top screen in the layout built from the file of this name.
-    fn drawn(&self, name: &str) -> Vec<ScreenText> {
+    /// The words on the top screen in the layout built from the file of this name, and with
+    /// `pictures` the pictures named: the team's icons, by species.
+    ///
+    /// Python's `pictures` defaults to False.
+    fn drawn(&self, name: &str, pictures: bool) -> Vec<ScreenText> {
         (self.on_screen)()
             .into_iter()
             .filter(|p| {
-                p.top && !p.picture && (self.file_of)(p.root).is_some_and(|file| file.name == name)
+                p.top
+                    && (pictures || !p.picture)
+                    && (self.file_of)(p.root).is_some_and(|file| file.name == name)
             })
             .collect()
     }
