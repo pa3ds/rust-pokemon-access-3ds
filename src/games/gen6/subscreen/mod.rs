@@ -99,7 +99,7 @@ use crate::games::common::layout::Layouts;
 use crate::games::common::screen::ScreenText;
 use crate::games::common::touch::{FileOf, HOLDING, ImageOf, OnScreen, Target};
 use crate::games::common::{lyt, pokemon};
-use crate::games::gen6::apps::{FIELD, RunningApp};
+use crate::games::gen6::apps::{FIELD, RunningApp, UNNAMED};
 use crate::games::gen6::feedback::{
     ALERT_SOUND, CUE_SOUND, FeedbackSounds, HIT_SOUND, PICK_SOUND, WRONG_SOUND,
 };
@@ -1150,7 +1150,17 @@ impl Subscreens {
     /// Pokémon; and the one before is what the party was opened from (`timed`).
     pub fn started(&self) {
         self.puzzle.borrow().started();
-        let now = self.now.replace(self.apps.borrow().running.clone());
+        let running = self.apps.borrow().running.clone();
+        // An app no class name is found for is passed over: Alpha Sapphire ran one for 0.2 s
+        // between the Colosseum and its team choice, which then neither ticked nor said the other
+        // player's team (the PSS's multiplayer).
+        if running
+            .as_deref()
+            .is_some_and(|running| running.starts_with(UNNAMED))
+        {
+            return;
+        }
+        let now = self.now.replace(running);
         *self.before.borrow_mut() = now;
     }
 

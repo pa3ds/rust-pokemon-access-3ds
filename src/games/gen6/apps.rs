@@ -54,6 +54,9 @@ pub const PROCESS_REACH: i64 = 0x200;
 /// three).
 pub const ASKS: i64 = 15;
 pub const EVERY: f64 = 2.0;
+/// What the running app is called, before its vtable's address, where no class name is found for
+/// it.
+pub const UNNAMED: &str = "a class with its vtable at";
 /// Where the executable and the code modules the game loads for each app are mapped. An app's class
 /// is in its module, past where the executable ends (`field::FieldmapProc`'s vtable is at
 /// 0x007fa2c4), so the class names the runtime reads from the executable alone do not know it.
@@ -164,7 +167,7 @@ impl RunningApp {
         let name = ClassNames::new(self.memory.clone(), LOADED_CODE).of_vtable(vtable)?;
         let running = match name {
             Some(name) if !name.is_empty() => name,
-            _ => format!("a class with its vtable at {vtable:#010x}"),
+            _ => format!("{UNNAMED} {vtable:#010x}"),
         };
         self.back = self.ran.contains(&running);
         self.ran.insert(running.clone());

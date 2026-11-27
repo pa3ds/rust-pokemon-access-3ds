@@ -16,7 +16,7 @@ use crate::games::common::field::keys::{BERRIES, BERRY_PICKER};
 use crate::games::common::layout_file::LayoutFile;
 use crate::games::common::screen::ScreenText;
 use crate::games::common::touch::{ImageOf, Target};
-use crate::games::gen6::apps::{FIELD, RunningApp};
+use crate::games::gen6::apps::{FIELD, RunningApp, UNNAMED};
 use crate::games::gen6::feedback::FeedbackSounds;
 use crate::games::gen6::profile;
 use crate::games::gen6::rom::archives::GameText;
@@ -183,6 +183,16 @@ fn test_the_team_choice_of_a_battle_in_the_pss_is_timed() {
         found.started();
     }
     assert!(!found.timed());
+    // Alpha Sapphire ran an app no class name is found for between the two, for 0.2 s.
+    for app in [
+        pss::COLOSSEUM.to_string(),
+        format!("{UNNAMED} 0x006f9a28"),
+        PARTY.to_string(),
+    ] {
+        apps.borrow_mut().running = Some(app);
+        found.started();
+    }
+    assert!(found.timed());
 }
 
 /// Amie's games time the player, their clocks said at their marks (ADR-0013); and Tile
