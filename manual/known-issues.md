@@ -97,6 +97,8 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
 
 ## X and Y
 
+- **The Pokédex says nothing as it opens**, where you choose the Central, Coastal or Mountain
+  Pokédex.
 - **The Pokédex's Start and Select** turn to the Central, Coastal and Mountain Pokédexes, and
   which one you turned to is not said: the game draws its name as a picture. The counts change
   with it, "SEEN 82".

@@ -2050,6 +2050,88 @@ fn test_the_words_of_a_touch_area_over_half_the_screen_are_the_screens() {
     );
 }
 
+/// ADR-0013, amended 2026-11-24: the Pokédex's registration said "Rotate Zoom Next" after each
+/// entry (or_groudon_master_ball), and touch mode offers nothing in the Pokédex. Its Next is a
+/// button all the same, and its arrows, touch areas no word names, are named by nothing and
+/// logged by nothing.
+#[test]
+fn test_a_buttons_words_are_known_where_touch_mode_offers_nothing() {
+    let memory = FakeMemory::new();
+    let classes = FakeClasses::new(memory.clone());
+    let fake = FakeLayouts::new(&memory, &classes);
+    let (bounding, textbox) = (
+        classes.add(lyt::BOUNDING_CLASS),
+        classes.add(lyt::TEXTBOX_CLASS),
+    );
+    let window = classes.add(lyt::WINDOW_CLASS);
+    let (_work, root) = fake.screen_with(0x08200000, false, false);
+    let (arrow, next) = (root + 0x1000, root + 0x2000);
+    placed(&fake, arrow, root, None, -140.0, -103.0, 30.0, 30.0);
+    placed(
+        &fake,
+        arrow + 0x200,
+        arrow,
+        Some(bounding),
+        -140.0,
+        -103.0,
+        30.0,
+        30.0,
+    );
+    placed(&fake, next, root, None, 115.0, -103.0, 90.0, 30.0);
+    placed(
+        &fake,
+        next + 0x200,
+        next,
+        Some(window),
+        115.0,
+        -103.0,
+        90.0,
+        30.0,
+    );
+    placed(
+        &fake,
+        next + 0x400,
+        next + 0x200,
+        Some(textbox),
+        120.0,
+        -103.0,
+        70.0,
+        20.0,
+    );
+    placed(
+        &fake,
+        next + 0x600,
+        next,
+        Some(bounding),
+        115.0,
+        -103.0,
+        90.0,
+        30.0,
+    );
+    fake.track().unwrap();
+    let words = vec![text_in(next + 0x400, "Next", root)];
+    let logged: Rc<RefCell<Vec<String>>> = Rc::new(RefCell::new(Vec::new()));
+    let log = logged.clone();
+    let mut targets = TouchTargets::new(
+        fake.layouts.clone(),
+        Rc::new(move || words.clone()),
+        Rc::new(|_box| Ok(String::new())),
+        Rc::new(|_pane| Ok(None)),
+        Rc::new(|_root| None),
+        Rc::new(move |line: &str| log.borrow_mut().push(line.to_string())),
+        Options {
+            offered: Some(Rc::new(|| false)),
+            ..Options::default()
+        },
+    );
+    assert!(targets.targets().unwrap().is_empty());
+    assert_eq!(
+        targets.button_words().unwrap(),
+        HashSet::from([next + 0x400])
+    );
+    assert!(logged.borrow().is_empty());
+}
+
 /// A ▶ beside the menu's right edge on its first page, a ◀ beside its left on its second, said
 /// "arrow" (or_pss_singleplayer).
 #[test]

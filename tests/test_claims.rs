@@ -2,7 +2,7 @@
 //! screen's words themselves, and a button's words to touch mode.
 
 use std::cell::{Cell, RefCell};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use indexmap::IndexMap;
@@ -12,6 +12,7 @@ use crate::games::common::cursors::shared::{CursorItem, CursorPoll};
 use crate::games::common::screen::{ScreenPoll, ScreenText};
 use crate::games::gen6::apps::FIELD;
 use crate::games::gen6::screens::claims::{self, ButtonRule, Claims, Owner, PSS, RULES};
+use crate::games::gen6::screens::pokedex;
 use crate::games::gen6::screens::sources::Polled;
 use crate::py::Result;
 
@@ -109,13 +110,24 @@ fn field_rule() -> ButtonRule {
         .expect("the field's rule")
 }
 
+/// `field(buttons, rule)`, no words' panes named.
 fn field(buttons: &Rc<Buttons>, rule: Option<ButtonRule>) -> Claims {
+    field_named(buttons, rule, HashMap::new())
+}
+
+/// The claims on a screen whose rule is `rule`, its words' panes `named` by their boxes.
+fn field_named(
+    buttons: &Rc<Buttons>,
+    rule: Option<ButtonRule>,
+    named: HashMap<i64, (String, String)>,
+) -> Claims {
     let buttons = buttons.clone();
     Claims::new(
         Vec::new(),
         Rc::new(|_piece: &ScreenText| false),
         Rc::new(move || buttons.call()),
         Rc::new(move || rule),
+        Rc::new(move |piece: &ScreenText| named.get(&piece.r#box).cloned()),
     )
 }
 
@@ -277,6 +289,7 @@ fn test_a_readers_words_are_left_unsaid_but_heard_and_the_games_own_neither() ->
             Rc::new(move || buttons.call())
         },
         Rc::new(|| None),
+        Rc::new(|_piece: &ScreenText| None),
     )
     .poll(
         &poll(&words),
@@ -289,5 +302,65 @@ fn test_a_readers_words_are_left_unsaid_but_heard_and_the_games_own_neither() ->
         heard.labels,
         HashSet::from(["YES".to_string(), "BOX 1".to_string()])
     );
+    Ok(())
+}
+
+/// ADR-0013, amended 2026-11-24: the choices read "HOENN POKÉDEX Number caught: 36 Number
+/// seen: 181 NATIONAL POKÉDEX…" as the Pokédex opened, and its cursor the first again
+/// (or_pokedex). Left to the cursor as the field's are, once it is over them.
+#[test]
+fn test_the_pokedexs_buttons_words_are_left_to_its_cursors() -> Result<()> {
+    let hoenn = shown(1, "HOENN POKÉDEX", MENU);
+    let national = bottom(2, "NATIONAL POKÉDEX", MENU, 100.0, false);
+    let choices_up = [hoenn.clone(), national.clone()];
+    for app in [pokedex::ORAS_APP, pokedex::APP] {
+        let rule = claims::rule(Some(app), &|| false);
+        assert!(rule.is_some_and(|rule| rule.cursor_keeps), "{app}");
+        let choices = field(&Buttons::new(&[1, 2]), rule);
+        assert!(
+            choices
+                .poll(&poll(&choices_up), &polled(&[]), &no_labels())?
+                .texts
+                .is_empty(),
+            "{app}"
+        );
+        assert_eq!(
+            choices
+                .poll(
+                    &poll(&choices_up),
+                    &polled(std::slice::from_ref(&hoenn)),
+                    &no_labels()
+                )?
+                .texts,
+            choices_up,
+            "{app}"
+        );
+    }
+    Ok(())
+}
+
+/// The registration said "Rotate Zoom Next" after each entry (or_groudon_master_ball): Next is
+/// a button, and "Rotate" and "Zoom" hang from pictures over the model's four arrows, touch areas
+/// with no words of their own. The entry beside them is still said.
+#[test]
+fn test_the_registrations_captions_over_its_arrows_go_with_its_buttons_words() -> Result<()> {
+    let (rotate, zoom) = (
+        shown(1, "Rotate", PAGE),
+        bottom(2, "Zoom", PAGE, 60.0, false),
+    );
+    let (after, entry) = (
+        bottom(3, "Next", PAGE, 120.0, false),
+        bottom(4, "Continent Pokémon", PAGE, 0.0, false),
+    );
+    let rule = claims::rule(Some(pokedex::ORAS_APP), &|| false);
+    let pane = |name: &str| (pokedex::REGISTRATION.to_string(), name.to_string());
+    let named = HashMap::from([(1, pane("3s")), (2, pane("3w")), (3, pane("2v"))]);
+    let heard = field_named(&Buttons::new(&[3]), rule, named).poll(
+        &poll(&[rotate, zoom, after, entry.clone()]),
+        &polled(&[]),
+        &no_labels(),
+    )?;
+    assert_eq!(heard.texts, [entry]);
+    assert_eq!(heard.quiet, HashSet::from([1, 2, 3]));
     Ok(())
 }

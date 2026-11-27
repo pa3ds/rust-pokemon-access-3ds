@@ -1309,6 +1309,10 @@ impl Gen6Profile {
                     claims::rule(apps.borrow().running.as_deref(), &|| subscreens.in_pss())
                 })
             },
+            {
+                let (layouts, files) = (layouts.clone(), files.clone());
+                Rc::new(move |piece: &ScreenText| pane_named(&layouts, &files, piece))
+            },
         );
         // The rival is a work object in RAM and a name in the ROM, and so are some doors' buildings:
         // the game's own word, behind whatever the player has called them and ahead of pa3ds's.
@@ -2426,6 +2430,20 @@ impl Gen6Profile {
         }
         Ok(())
     }
+}
+
+/// `Gen6Profile._pane_named`: the file a word's layout was built from and its pane's name there,
+/// or None where the file is not known: by the layout's tree as last walked, reading nothing.
+fn pane_named(layouts: &Layouts, files: &LayoutFiles, piece: &ScreenText) -> Option<(String, String)> {
+    let names = layouts.pane_names(piece.root);
+    let file = files.matching(&names)?;
+    let name = layouts
+        .tree(piece.root)
+        .keys()
+        .zip(&names)
+        .find(|(pane, _)| **pane == piece.r#box)
+        .map_or(String::new(), |(_, name)| name.clone());
+    Some((file.name.clone(), name))
 }
 
 /// `Gen6Profile._field_process`: the field's process while the field runs, None otherwise: what

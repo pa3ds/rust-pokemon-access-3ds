@@ -62,7 +62,8 @@
 //! - ADR-0013: the words naming a target, a button's own or the label under its icon, are known
 //!   (`button_words`), for the field's bottom screen and the PSS's apps to leave them to touch mode,
 //!   and stay known by their layout's file and their pane's name; a button switched off and not
-//!   offered names no target.
+//!   offered names no target. Where touch mode offers none, a button's words are its touch area's
+//!   alone, for the Pokédex to leave them to its cursors.
 
 use std::cell::Cell;
 use std::collections::HashSet;
@@ -1491,12 +1492,28 @@ impl TouchTargets {
     /// by its layout's file and its pane's name: an O-Power's panel grows from nothing as it
     /// opens, its buttons not laid out, and Y said its "Use: Give, Cancel" at every opening but
     /// the first (y_pss_singleplayer); the PSS's profile, built again as it came back from its
-    /// messages, said its rows. Walked as touch mode walks them, whether it offers them or not.
+    /// messages, said its rows.
+    ///
+    /// Walked as touch mode walks them where it offers them. Where it offers none, it names none
+    /// and switches none off, so a button is its touch area's words alone: the Pokédex's
+    /// registration's Next (ADR-0013, amended 2026-11-24), where naming each touch area, as a walk
+    /// would, logs every picture it cannot name and reads what nothing there needs.
     ///
     /// Python's sets of boxes are only tested and joined here, every name read of a box already
     /// read in the walk: `HashSet`.
     pub fn button_words(&mut self) -> Result<HashSet<i64>> {
-        let (_found, named, switched_off) = self.walk()?;
+        let offered = match &self.offered {
+            None => true,
+            Some(offered) => offered(),
+        };
+        let (named, switched_off) = if offered {
+            let (_found, named, switched_off) = self.walk()?;
+            (named, switched_off)
+        } else {
+            self.groups.clear();
+            self.middles.clear();
+            (IndexMap::new(), HashSet::new())
+        };
         let layouts = self.layouts.clone();
         let mut boxes: HashSet<i64> = HashSet::new();
         for root in layouts.roots() {

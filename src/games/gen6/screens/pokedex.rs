@@ -50,8 +50,16 @@ use crate::py::{self, Result};
 
 /// X's and Y's Pokédex.
 pub const APP: &str = "N3app5zukan8MainProcE";
-/// Omega Ruby's and Alpha Sapphire's Pokédex.
+/// Omega Ruby's and Alpha Sapphire's Pokédex, its registration of a Pokémon caught among its
+/// screens.
 pub const ORAS_APP: &str = "N3app11sango_zukan9ZukanProcE";
+/// The registration's bottom screen: the entry, the model of the Pokémon caught, and the buttons
+/// under it, four arrows turning and zooming the model and Next (or_groudon_master_ball).
+pub const REGISTRATION: &str = "description_lower.bclyt";
+/// The registration's "Rotate" and "Zoom", each hanging from a picture over two of the model's
+/// arrows, touch areas with no words of their own: no button's words, but said as they came with
+/// Next's as "Rotate Zoom Next" (`claims.RULES`).
+pub const CAPTIONS: [(&str, &str); 2] = [(REGISTRATION, "3s"), (REGISTRATION, "3w")];
 /// The Pokédex's process -> `app::sango_zukan::ZukanLaunch`, its list.
 pub const LAUNCH: i64 = 0xC8;
 pub const LAUNCH_CLASS: &str = "N3app11sango_zukan11ZukanLaunchE";
