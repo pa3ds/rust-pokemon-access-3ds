@@ -148,10 +148,21 @@ fn block_with(floor_: &[Tri], walls_: &[Tri], barriers: &[Tri]) -> Vec<u8> {
     )
 }
 
-/// An area's block table, a 'TR' pack of one.
+/// `table(width, height, files)`: no alternates.
 fn table(width: i64, height: i64, files: &IndexMap<(i64, i64), i64>) -> Vec<u8> {
+    table_with(width, height, files, &IndexMap::new())
+}
+
+/// An area's block table, a 'TR' pack of one, with its alternates: a block's file in each
+/// variant.
+fn table_with(
+    width: i64,
+    height: i64,
+    files: &IndexMap<(i64, i64), i64>,
+    alternates: &IndexMap<((i64, i64), i64), i64>,
+) -> Vec<u8> {
     let mut body: Vec<u8> = Vec::new();
-    for value in [width, height, SIZE, 0, 0] {
+    for value in [width, height, SIZE, 0, alternates.len() as i64] {
         body.extend((value as u32).to_le_bytes());
     }
     for z in 0..height {
@@ -163,6 +174,12 @@ fn table(width: i64, height: i64, files: &IndexMap<(i64, i64), i64>) -> Vec<u8> 
             body.extend(0u16.to_le_bytes());
             body.extend(0u32.to_le_bytes());
         }
+    }
+    for (&((x, z), number), &file) in alternates {
+        for value in [x, z, number, file] {
+            body.extend((value as u16).to_le_bytes());
+        }
+        body.extend(0xFFFFFFFFu32.to_le_bytes());
     }
     pack(walls::TABLE, &[body])
 }
@@ -679,6 +696,48 @@ fn test_only_the_areas_asked_for_last_are_kept() {
         archives.reads().len(),
         before + 2,
         "2 was dropped for 3, 1 was not"
+    );
+}
+
+/// Mahalo Trail's blocks each have three variants, the second the Plank Bridge broken (spike
+/// P): a block the field says is in one is read from its file, and in 0 from its first.
+#[test]
+fn test_a_block_in_a_variant_is_read_from_that_variant_s_file() {
+    let size = SIZE as f64;
+    let events = HashMap::from([(
+        9 * AREA_FILES + walls::BLOCK_TABLE,
+        table_with(
+            1,
+            1,
+            &IndexMap::from([((0, 0), 7)]),
+            &IndexMap::from([(((0, 0), 2), 8)]),
+        ),
+    )]);
+    let archives = Arc::new(Archives::new(
+        events,
+        HashMap::from([(7, room()), (8, block(&floor(0.0, 0.0, size, size), &[]))]),
+    ));
+    let walls_ = SunWalls::new(reader(&archives), CELL);
+
+    let whole = walls_
+        .area_with(9, Some(&IndexMap::from([((0, 0), 0)])))
+        .unwrap();
+    let broken = walls_
+        .area_with(9, Some(&IndexMap::from([((0, 0), 2)])))
+        .unwrap();
+
+    let (whole, broken) = (whole.expect("walls"), broken.expect("walls"));
+    assert_eq!(
+        (whole.open((2, 12)), broken.open((2, 12))),
+        (Some(false), Some(true))
+    );
+    let maps: Vec<(String, Vec<i64>)> = archives.reads().into_iter().skip(1).step_by(2).collect();
+    assert_eq!(
+        maps,
+        [
+            (walls::MAPS.to_string(), vec![7]),
+            (walls::MAPS.to_string(), vec![8])
+        ]
     );
 }
 

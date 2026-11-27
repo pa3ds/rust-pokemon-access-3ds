@@ -12,13 +12,19 @@
 //!       u32 how many alternates follow the table
 //! +0x14 width x height records of 12 bytes, a row at a time from the north-west:
 //!       +0x00 u16 the block's file in `a/0/8/6`, 0xffff for none; the rest is not read
-//! then the alternates, 12 bytes each: u32 a record, u16 its number, u16 another file
+//! then the **alternates**, 12 bytes each: u16 a block's x and u16 its z, u16 the variant's
+//!       number (1 to 3), u16 the file the block is read from in that variant
 //! ```
 //!
 //! Block (x, z) of the table starts at world x times 4,200 and z times 4,200. The player's bedroom
 //! is block (0, 0) of area 21's table, Route 1 beside the house block (6, 4) of area 0's, and Iki
-//! Town block (4, 3) of area 1's. Which alternate the game loads is not known, so the first file is
-//! read.
+//! Town block (4, 3) of area 1's.
+//!
+//! **Variants** are the story's changes to a block. Sun has alternates in two areas, Ultra Sun in
+//! five: Mahalo Trail (Sun's area 9, Ultra Sun's 14 and 15) has three for each of its two blocks,
+//! and the second closes the Plank Bridge the story breaks (spike P). Which variant a block is in
+//! is the field's to say (`field.TERRAIN`), and a block in variant 0, or one with no file for its
+//! variant, is read from its first file.
 //!
 //! **Map block** — a file of `a/0/8/6`, a 'BG' pack of eight: 0 the block's model (`gfmodel`), 1 to
 //! 5 empty, 6 the floor mesh, 7 a 'BG' pack of four wall meshes. Wall mesh 0 is every wall, fence
@@ -81,6 +87,7 @@ pub const BLOCK_TABLE: i64 = 2;
 pub const TABLE: &[u8] = b"TR";
 pub const TABLE_HEAD: i64 = 0x14;
 pub const TABLE_RECORD: i64 = 12;
+pub const TABLE_ALTERNATES: i64 = 0x10;
 pub const NO_FILE: i64 = 0xFFFF;
 pub const PACK: &[u8] = b"BG";
 pub const FLOOR: i64 = 6;
@@ -134,6 +141,27 @@ pub struct BlockTable {
     pub size: i64,
     /// Each block (x, z) that has one, its file in `MAPS`.
     pub files: IndexMap<Block, i64>,
+    /// A block's file in each variant the table lists for it, by the block and the variant.
+    pub alternates: IndexMap<(Block, i64), i64>,
+}
+
+impl BlockTable {
+    /// Each block's file with the blocks in these variants.
+    pub fn files_in(&self, variants: &IndexMap<Block, i64>) -> IndexMap<Block, i64> {
+        self.files
+            .iter()
+            .map(|(&block, &file)| {
+                let variant = variants.get(&block).copied().unwrap_or(0);
+                (
+                    block,
+                    self.alternates
+                        .get(&(block, variant))
+                        .copied()
+                        .unwrap_or(file),
+                )
+            })
+            .collect()
+    }
 }
 
 /// A map block's floor mesh and its wall meshes.
@@ -216,15 +244,20 @@ pub fn block_table(data: &[u8]) -> Result<BlockTable> {
     let table = entries.remove(0);
     let (width, height, size) = (u32(&table, 0)?, u32(&table, 4)?, u32(&table, 8)?);
     // A product of two u32 and a record's size can pass an i64 where Python's int does not.
+    let after =
+        TABLE_HEAD.saturating_add(width.saturating_mul(height).saturating_mul(TABLE_RECORD));
+    let count = u32(&table, TABLE_ALTERNATES)?;
     if width == 0
         || height == 0
         || size == 0
-        || TABLE_HEAD.saturating_add(width.saturating_mul(height).saturating_mul(TABLE_RECORD))
-            > table.len() as i64
+        || after.saturating_add(count * TABLE_RECORD) > table.len() as i64
     {
         return Err(Error::new(
             Kind::RomError,
-            format!("a block table of {width} by {height} blocks of {size} does not fit"),
+            format!(
+                "a block table of {width} by {height} blocks of {size} and {count} \
+                 alternates does not fit"
+            ),
         ));
     }
     let mut files: IndexMap<Block, i64> = IndexMap::new();
@@ -234,11 +267,24 @@ pub fn block_table(data: &[u8]) -> Result<BlockTable> {
             files.insert((index % width, index / width), file);
         }
     }
+    let mut alternates: IndexMap<(Block, i64), i64> = IndexMap::new();
+    for at in (after..after + count * TABLE_RECORD).step_by(TABLE_RECORD as usize) {
+        let (x, z, number, file) = (
+            u16(&table, at)?,
+            u16(&table, at + 2)?,
+            u16(&table, at + 4)?,
+            u16(&table, at + 6)?,
+        );
+        if file != NO_FILE {
+            alternates.insert(((x, z), number), file);
+        }
+    }
     Ok(BlockTable {
         width,
         height,
         size,
         files,
+        alternates,
     })
 }
 
@@ -813,7 +859,7 @@ struct Shared {
     ///
     /// Held while an area is looked up or read: `prefetch` reads on a thread of its own, and a
     /// P pressed meanwhile waits for it rather than reading the area a second time.
-    area: Mutex<Lru<i64, Option<Arc<AreaWalls>>>>,
+    area: Mutex<Lru<(i64, Variants), Option<Arc<AreaWalls>>>>,
     /// Why an area has no walls, for each that failed to read.
     errors: Mutex<IndexMap<i64, String>>,
 }
@@ -888,29 +934,54 @@ impl SunWalls {
         // A daemon thread: its handle is dropped, not joined. Python prints a traceback to
         // stderr where the thread's call raises; nothing reads this thread's result here.
         std::thread::spawn(move || {
-            let _ = shared.area(area);
+            let _ = shared.area(area, None);
         });
     }
 
-    /// The area's walls, or None where they cannot be read (`errors` says why).
+    /// `area(area)`: every block in its first variant.
     pub fn area(&self, area: i64) -> Result<Option<Arc<AreaWalls>>> {
-        self.shared.area(area)
+        self.area_with(area, None)
+    }
+
+    /// The area's walls with its blocks in these variants, each block not given in its
+    /// first, or None where they cannot be read (`errors` says why).
+    pub fn area_with(
+        &self,
+        area: i64,
+        variants: Option<&IndexMap<Block, i64>>,
+    ) -> Result<Option<Arc<AreaWalls>>> {
+        self.shared.area(area, variants)
     }
 }
 
+/// The blocks in a variant other than 0, sorted: what an area's walls are kept by beside it.
+type Variants = Vec<(Block, i64)>;
+
 impl Shared {
-    fn area(&self, area: i64) -> Result<Option<Arc<AreaWalls>>> {
-        let mut kept = locked(&self.area);
-        if let Some(walls) = kept.get(&area) {
+    fn area(
+        &self,
+        area: i64,
+        variants: Option<&IndexMap<Block, i64>>,
+    ) -> Result<Option<Arc<AreaWalls>>> {
+        let mut kept: Variants = variants
+            .into_iter()
+            .flatten()
+            .filter(|&(_block, &number)| number != 0)
+            .map(|(&block, &number)| (block, number))
+            .collect();
+        kept.sort();
+        let key = (area, kept);
+        let mut held = locked(&self.area);
+        if let Some(walls) = held.get(&key) {
             return Ok(walls.clone());
         }
-        let walls = self.load_or_none(area)?;
-        kept.insert(area, walls.clone());
+        let walls = self.load_or_none(area, &key.1)?;
+        held.insert(key, walls.clone());
         Ok(walls)
     }
 
-    fn load_or_none(&self, area: i64) -> Result<Option<Arc<AreaWalls>>> {
-        match self.load(area) {
+    fn load_or_none(&self, area: i64, variants: &Variants) -> Result<Option<Arc<AreaWalls>>> {
+        match self.load(area, &variants.iter().copied().collect()) {
             Ok(walls) => Ok(Some(Arc::new(walls))),
             Err(error)
                 if error.is(Kind::RomError)
@@ -926,7 +997,7 @@ impl Shared {
         }
     }
 
-    fn load(&self, area: i64) -> Result<AreaWalls> {
+    fn load(&self, area: i64, variants: &IndexMap<Block, i64>) -> Result<AreaWalls> {
         let mut read = (self.read)(EVENTS, &[area * AREA_FILES + BLOCK_TABLE])?;
         if read.len() != 1 {
             return Err(Error::value(if read.is_empty() {
@@ -937,7 +1008,8 @@ impl Shared {
         }
         let packed = read.remove(0);
         let table = block_table(&unpacked(&packed)?)?;
-        let mut files: Vec<i64> = table.files.values().copied().collect();
+        let chosen = table.files_in(variants);
+        let mut files: Vec<i64> = chosen.values().copied().collect();
         files.sort();
         files.dedup();
         let read = (self.read)(MAPS, &files)?;
@@ -952,8 +1024,7 @@ impl Shared {
             )));
         }
         let data: IndexMap<i64, Vec<u8>> = files.into_iter().zip(read).collect();
-        let blocks: IndexMap<Block, Vec<u8>> = table
-            .files
+        let blocks: IndexMap<Block, Vec<u8>> = chosen
             .iter()
             .map(|(&block, file)| (block, data[file].clone()))
             .collect();

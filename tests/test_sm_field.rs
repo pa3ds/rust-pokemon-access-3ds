@@ -25,7 +25,7 @@ use crate::games::sm::gametext::SunGameText;
 use crate::games::sm::heaps::{self, Blocks, Heaps};
 use crate::games::sm::profile::{Options, SunProfile};
 use crate::games::sm::text::SunText;
-use crate::games::sm::walls::AreaWalls;
+use crate::games::sm::walls::{AreaWalls, Block};
 use crate::games::sm::zones::{self, Area, Record, Shape, SunZones};
 use crate::games::sm::{SUN_LAYOUT, ULTRA_LAYOUT, VersionLayout, camera};
 use crate::py::{PySet, Result};
@@ -58,6 +58,7 @@ const BODIES: i64 = 0x3036F064;
 const RANGES: i64 = 0x3036F4D8;
 const TRANSLATOR: i64 = 0x3000A834;
 const BOX: i64 = 0x30373100;
+const TERRAIN: i64 = 0x30004398;
 /// Each object's block, as the sweep reads it: nothing is read outside one.
 const SIZES: &[(i64, i64)] = &[
     (MANAGER, 0x24C),
@@ -83,6 +84,7 @@ const SIZES: &[(i64, i64)] = &[
     (TALK_SHAPE, 0x18),
     (HERE, 0x74),
     (HERE_SHAPE, 0x18),
+    (TERRAIN, 0x80),
 ];
 
 type Span = (i64, i64);
@@ -292,6 +294,7 @@ impl Bedroom {
             field::BOX,
             field::CYLINDER,
             camera::CLASS,
+            field::TERRAIN,
         ]
         .into_iter()
         .map(|name| (name, classes.add(name)))
@@ -942,32 +945,49 @@ fn test_the_field_is_read_through_its_own_block_s_header_where_the_walk_passes_i
 /// The bedroom's area with a wall two cells west of the player, from z 58 to 62.
 struct TestWalls {
     walls: Arc<AreaWalls>,
+    /// The variants the walls were last asked for with.
+    variants: RefCell<Option<IndexMap<Block, i64>>>,
 }
 
 impl TestWalls {
-    fn walls() -> Rc<dyn Walls> {
+    fn new(walls: AreaWalls) -> TestWalls {
+        TestWalls {
+            walls: Arc::new(walls),
+            variants: RefCell::new(None),
+        }
+    }
+
+    /// `_Walls()`.
+    fn bedroom() -> TestWalls {
         let side = 84;
         let mut cells = vec![1u8; side * side];
         for z in 58..63 {
             cells[z * side + 48] = 0;
         }
-        Rc::new(TestWalls {
-            walls: Arc::new(AreaWalls::new(
-                side as i64,
-                IndexMap::from([((0, 0), cells)]),
-                None,
-                Vec::new(),
-            )),
-        })
+        TestWalls::new(AreaWalls::new(
+            side as i64,
+            IndexMap::from([((0, 0), cells)]),
+            None,
+            Vec::new(),
+        ))
+    }
+
+    fn walls() -> Rc<dyn Walls> {
+        Rc::new(TestWalls::bedroom())
     }
 }
 
 impl Walls for TestWalls {
     fn prefetch(&self, area: i64) {
-        let _ = self.area(area);
+        let _ = self.area(area, None);
     }
 
-    fn area(&self, area: i64) -> Result<Option<Arc<AreaWalls>>> {
+    fn area(
+        &self,
+        area: i64,
+        variants: Option<&IndexMap<Block, i64>>,
+    ) -> Result<Option<Arc<AreaWalls>>> {
+        *self.variants.borrow_mut() = variants.cloned();
         Ok((area == AREA).then(|| self.walls.clone()))
     }
 }
@@ -989,14 +1009,12 @@ fn test_a_barrier_is_closed_while_a_person_stands_beside_it_and_open_once_they_a
     let side = 84;
     let beside: HashSet<(i64, i64)> = HashSet::from([(47, 60), (47, 61)]);
     let apart: HashSet<(i64, i64)> = HashSet::from([(52, 70), (53, 70)]);
-    let rooms: Rc<dyn Walls> = Rc::new(TestWalls {
-        walls: Arc::new(AreaWalls::new(
-            side,
-            IndexMap::from([((0, 0), vec![1u8; (side * side) as usize])]),
-            None,
-            vec![beside.clone(), apart.clone()],
-        )),
-    });
+    let rooms: Rc<dyn Walls> = Rc::new(TestWalls::new(AreaWalls::new(
+        side,
+        IndexMap::from([((0, 0), vec![1u8; (side * side) as usize])]),
+        None,
+        vec![beside.clone(), apart.clone()],
+    )));
     let emu = FakeEmulator::new(served(&bedroom.memory));
     let memory: Rc<dyn Memory> = Rc::new(RpcMemory::new(connect(&emu)));
     let reader = SunFieldReader::with(
@@ -1019,6 +1037,37 @@ fn test_a_barrier_is_closed_while_a_person_stands_beside_it_and_open_once_they_a
         "Meowth stands at (46, 60), beside it"
     );
     assert!(!apart.iter().any(|cell| standing.contains(cell)));
+}
+
+/// Mahalo Trail's two blocks were in variant 2 with the Plank Bridge broken, and P led across
+/// it read whole (spike P): each loaded block's variant goes to the walls.
+#[test]
+fn test_the_walls_are_asked_for_with_each_loaded_block_in_its_variant() {
+    let bedroom = Bedroom::new();
+    bedroom
+        .memory
+        .u32(TERRAIN, &[bedroom.vtables[field::TERRAIN], 0, 1]);
+    bedroom.memory.u32(TERRAIN + field::TERRAIN_VARIANT, &[2]);
+    let found = with_heap(&bedroom, &[(TERRAIN, field::TERRAIN)]);
+    let rooms = Rc::new(TestWalls::bedroom());
+    let emu = FakeEmulator::new(served(&bedroom.memory));
+    let memory: Rc<dyn Memory> = Rc::new(RpcMemory::new(connect(&emu)));
+    let reader = SunFieldReader::with(
+        memory.clone(),
+        names(&memory),
+        Some(Rc::new(rom())),
+        None,
+        Some(rooms.clone()),
+        None,
+        bedroom.layout,
+    );
+    reader.track(&found);
+    let r#where = reader.poll().unwrap().expect("the player placed");
+    reader.ground(&r#where).unwrap();
+    assert_eq!(
+        *rooms.variants.borrow(),
+        Some(IndexMap::from([((0, 1), 2)]))
+    );
 }
 
 /// Walking out of the house, every person stood at the world's corner for a listing, as

@@ -75,7 +75,7 @@ use crate::games::common::field::things::{
 };
 use crate::games::sm::camera::{self, turned, turned_box, unturned};
 use crate::games::sm::heaps::{self, Blocks};
-use crate::games::sm::walls::{AreaWalls, SunWalls};
+use crate::games::sm::walls::{AreaWalls, Block, SunWalls};
 use crate::games::sm::zones::{self as sm_zones, Record, SunZones};
 use crate::games::sm::{SUN_LAYOUT, VersionLayout};
 use crate::py::{self, Result};
@@ -98,9 +98,28 @@ pub const BOX: &str = "8BoxShape";
 /// cylinder, round a place. The floor and the walls are the ROM's (`walls`); a flower pot, a
 /// pillar or a tree is one of these, and wider than the record its thing is read by (sun_5.ctm).
 pub const CYLINDER: &str = "13CylinderShape";
+/// A map block loaded: +0x04 its x and +0x08 its z in the area's block table, +0x24 the variant
+/// it is in (`walls`). Both of Mahalo Trail's blocks were in variant 2 with the Plank Bridge broken,
+/// and the blocks of a Pokémon Center and of Ultra Sun's zone 3, (5, 6) and (6, 5) to (8, 5), in 0
+/// (spike P).
+pub const TERRAIN: &str = "N5Field7Terrain12TerrainBlockE";
+pub const TERRAIN_X: i64 = 0x04;
+pub const TERRAIN_Z: i64 = 0x08;
+pub const TERRAIN_VARIANT: i64 = 0x24;
+pub const TERRAIN_HEAD: i64 = 0x28;
 /// What a sweep looks for. The models are reached from their manager, whose list says which is
 /// the player's.
-pub const CLASSES: [&str; 7] = [MANAGER, STATE, THING, WARP, ITEM, PROP, camera::CLASS];
+pub const CLASSES: [&str; 9] = [
+    MANAGER,
+    STATE,
+    THING,
+    WARP,
+    ITEM,
+    STEP,
+    PROP,
+    camera::CLASS,
+    TERRAIN,
+];
 /// The heap the move models, their manager and the area loaded are in, beside the dialogue's: the
 /// spike 112 capture read every small block of every heap every 2 s for 100 s of sun_3.ctm, and
 /// nothing went down.
@@ -189,8 +208,12 @@ pub const CELL: f64 = 50.0;
 pub trait Walls {
     /// Start reading the area's walls, so the first P in it does not wait for them.
     fn prefetch(&self, area: i64);
-    /// The area's walls, or None where they cannot be read.
-    fn area(&self, area: i64) -> Result<Option<Arc<AreaWalls>>>;
+    /// The area's walls with its blocks in these variants, or None where they cannot be read.
+    fn area(
+        &self,
+        area: i64,
+        variants: Option<&IndexMap<Block, i64>>,
+    ) -> Result<Option<Arc<AreaWalls>>>;
 }
 
 impl Walls for SunWalls {
@@ -198,8 +221,12 @@ impl Walls for SunWalls {
         SunWalls::prefetch(self, area)
     }
 
-    fn area(&self, area: i64) -> Result<Option<Arc<AreaWalls>>> {
-        SunWalls::area(self, area)
+    fn area(
+        &self,
+        area: i64,
+        variants: Option<&IndexMap<Block, i64>>,
+    ) -> Result<Option<Arc<AreaWalls>>> {
+        SunWalls::area_with(self, area, variants)
     }
 }
 
@@ -231,6 +258,7 @@ struct Tracked {
     actors: IndexMap<i64, String>,
     props: Vec<i64>,
     cameras: Vec<i64>,
+    terrains: Vec<i64>,
 }
 
 /// The area's things as last seen, by key, in the world's cells (`things`).
@@ -356,12 +384,14 @@ impl SunFieldReader {
             actors,
             props,
             cameras,
+            terrains,
         } = &mut *tracked;
-        let mut known: [(&str, &mut Vec<i64>); 4] = [
+        let mut known: [(&str, &mut Vec<i64>); 5] = [
             (MANAGER, managers),
             (STATE, states),
             (PROP, props),
             (camera::CLASS, cameras),
+            (TERRAIN, terrains),
         ];
         if !found.partial {
             actors.clear();
@@ -416,7 +446,7 @@ impl SunFieldReader {
         let (Some(found), Some(walls)) = (found, &self.walls) else {
             return Ground::of(r#where, Of::default());
         };
-        let Some(walls) = walls.area(found.1)? else {
+        let Some(walls) = walls.area(found.1, Some(&self.variants()?))? else {
             return Ground::of(r#where, Of::default());
         };
         let turn = self.turn.get();
@@ -705,6 +735,26 @@ impl SunFieldReader {
             return quarter(f32(&head, camera::ANGLE)?, held);
         }
         Ok(0)
+    }
+
+    /// The variant each map block loaded is in, by its place in the area's block table: P
+    /// led across the Plank Bridge the story had broken, its blocks read whole (spike P).
+    fn variants(&self) -> Result<IndexMap<Block, i64>> {
+        let mut variants: IndexMap<Block, i64> = IndexMap::new();
+        let terrains = self.tracked.borrow().terrains.clone();
+        for block in terrains {
+            if self.class(block)?.as_deref() != Some(TERRAIN) {
+                continue;
+            }
+            let head = self.read(block, TERRAIN_HEAD)?;
+            if let Some(head) = head {
+                variants.insert(
+                    (u32(&head, TERRAIN_X)?, u32(&head, TERRAIN_Z)?),
+                    u32(&head, TERRAIN_VARIANT)?,
+                );
+            }
+        }
+        Ok(variants)
     }
 
     /// The zone and the area loaded, through the first state that leads to a field.
