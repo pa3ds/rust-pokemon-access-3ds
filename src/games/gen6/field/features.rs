@@ -2,6 +2,8 @@
 //! ash piles, rotating doors and thin ice (`games.oras`), each found by a sweep as its module loads.
 //! The field reader reads them through these, and never imports a game.
 
+use std::rc::Rc;
+
 use indexmap::IndexSet;
 
 use crate::core::discovery::Found;
@@ -29,6 +31,12 @@ pub trait Feature: Tracked {
     /// What it has in `zone` now. `zone_at` is the zone the field map puts a cell in, for a
     /// thing that keeps no zone of its own: the DexNav's find.
     fn listed(&self, zone: i64, zone_at: ZoneAt) -> Result<Vec<Interactable>>;
+
+    /// Itself as `Watched`, where it is one: Python's `isinstance(feature, Watched)`, a
+    /// runtime-checkable protocol.
+    fn watched(self: Rc<Self>) -> Option<Rc<dyn Watched>> {
+        None
+    }
 }
 
 /// What a watched feature shows now (`Watched.watch`).

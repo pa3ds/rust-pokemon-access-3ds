@@ -12,8 +12,8 @@
 //!
 //! **Hidden Pokémon** — the DexNav's find, whose tail shows above the tall grass: not a model in
 //! the pool but a record of its own (spike 80), listed under a category of its own. ORAS alone has
-//! one, and its reader is ORAS's (`oras.field.hidden`), handed to this one by the game
-//! (`HiddenReader`).
+//! one, and its reader is ORAS's (`oras.field.hidden`), handed to this one among the game's
+//! features, one read at every poll (`features.Watched`).
 //!
 //! **Map block** — `field::MapBlock`, one of the four 40 by 40 chunks of the matrix the game keeps
 //! loaded around the player, read in `mapblock` (spike 82). Its cell table says which cells can be
@@ -278,6 +278,10 @@ pub struct FieldReader {
     landings: HashSet<i64>,
     /// What the game has of its own to list: ORAS's berry spots and ash piles.
     features: Vec<Rc<dyn Feature>>,
+    /// Those read at every poll, since they show and go between sweeps (`watch`): ORAS's
+    /// DexNav's find. Listed after the Secret Bases, and in the player's own part of a place in
+    /// parts alone.
+    watched: Vec<Rc<dyn Watched>>,
     /// Where the field's work holds the current zone's record (`anchor`).
     zone_record: i64,
     /// The game's rotating doors, or None in a game without them.
@@ -402,8 +406,6 @@ pub struct FieldReader {
     map: Slot<Option<i64>>,
     /// The field map's grid as last read: a sweep ago, or when the player's model changed.
     grid: RefCell<Option<Grid>>,
-    /// The game's hidden Pokémon, or None in a game without one.
-    hidden: Option<Rc<dyn Watched>>,
     /// The map blocks, once a sweep has found them.
     blocks: RefCell<Vec<i64>>,
     /// Every chunk's cell table read so far, by where its file sat: a block's file is read once,
@@ -486,10 +488,18 @@ impl FieldReader {
         {
             words.insert(PC_TILE, pc);
         }
-        let features: Vec<Rc<dyn Feature>> = game
+        let made: Vec<Rc<dyn Feature>> = game
             .features
             .iter()
             .map(|make| make(memory.clone(), text))
+            .collect();
+        let watched: Vec<Rc<dyn Watched>> = made
+            .iter()
+            .filter_map(|feature| feature.clone().watched())
+            .collect();
+        let features: Vec<Rc<dyn Feature>> = made
+            .into_iter()
+            .filter(|feature| feature.clone().watched().is_none())
             .collect();
         let secret_bases = match game.secret_bases {
             Some(make) if !image.is_empty() => Some(make(memory.clone(), image, text)),
@@ -550,6 +560,7 @@ impl FieldReader {
             warp_words: game.warps.clone(),
             landings: game.landings.clone(),
             features,
+            watched,
             zone_record: game.zone_record,
             doors: game.doors.map(|make| make(memory.clone())),
             blockers: game.blockers.clone(),
@@ -612,7 +623,6 @@ impl FieldReader {
             holder: RefCell::new(None),
             map: Slot::new(None),
             grid: RefCell::new(None),
-            hidden: game.hidden.map(|make| make(memory.clone())),
             blocks: RefCell::new(Vec::new()),
             chunks: RefCell::new(HashMap::new()),
             wanted: Slot::new(None),
@@ -644,8 +654,8 @@ impl FieldReader {
         if let Some(bases) = &self.secret_bases {
             out.push(&**bases);
         }
-        if let Some(hidden) = &self.hidden {
-            out.push(&**hidden);
+        for feature in &self.watched {
+            out.push(&**feature);
         }
         out.push(&*self.works);
         if let Some(doors) = &self.doors {
@@ -1397,8 +1407,8 @@ impl FieldReader {
         if let Some(bases) = &self.secret_bases {
             items.extend(bases.listed(r#where.zone, &zone_at)?);
         }
-        if let Some(hidden) = &self.hidden {
-            items.extend(hidden.listed(r#where.zone, &zone_at)?);
+        for feature in &self.watched {
+            items.extend(feature.listed(r#where.zone, &zone_at)?);
         }
         if let Some(hidden_items) = &self.hidden_items {
             items.extend(hidden_items.listed(r#where.zone, &zone_at)?);
@@ -1861,10 +1871,11 @@ impl FieldReader {
     /// What each watched feature shows in `zone` now (`features.Watched`): read at every
     /// poll, since it shows and goes between sweeps.
     pub fn watch(&self, zone: i64) -> Result<Vec<Sighting>> {
-        Ok(match &self.hidden {
-            None => Vec::new(),
-            Some(hidden) => vec![hidden.watch(zone, &|cell| self.zone_at(cell))?],
-        })
+        let mut seen = Vec::new();
+        for feature in &self.watched {
+            seen.push(feature.watch(zone, &|cell| self.zone_at(cell))?);
+        }
+        Ok(seen)
     }
 
     /// Which of the zone's triggers, by its place in the zone's table, the cell is inside, of
@@ -2674,9 +2685,9 @@ impl FieldReader {
     /// quarters of the Safari Zone away the Mega Stone was nowhere, and the guide said it gone
     /// once the player left the way in the next quarter (or_safari_zone_multizone_pathfinding).
     /// Each other part's furniture, warps and NPC records out of the ROM (`part_records`), its
-    /// landforms, its features, and its edges into other places; and each part one way in, with
-    /// every gap into it from any part of the place, at the nearest of them. A record two parts
-    /// keep is one thing, told by the first part's (`twins`).
+    /// landforms, its features but those watched, and its edges into other places; and each part
+    /// one way in, with every gap into it from any part of the place, at the nearest of them. A
+    /// record two parts keep is one thing, told by the first part's (`twins`).
     ///
     /// Python's `people` is no longer read here.
     fn with_other_parts(

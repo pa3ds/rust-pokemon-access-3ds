@@ -298,6 +298,10 @@ impl Feature for DexNav {
     fn listed(&self, zone: i64, zone_at: ZoneAt) -> Result<Vec<Interactable>> {
         DexNav::listed(self, zone, zone_at)
     }
+
+    fn watched(self: Rc<Self>) -> Option<Rc<dyn Watched>> {
+        Some(self)
+    }
 }
 
 impl Watched for DexNav {

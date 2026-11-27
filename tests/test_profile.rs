@@ -12,7 +12,7 @@ use super::fake_speech::Recorder;
 use super::fake_words::words_in;
 use super::test_field::{
     Given, HOUSE, PC_TILE, POOCHYENA, ROUTE, ROUTE_BLOCK, TABLE, TOWN, TOWN_BLOCK, TOWN_CHUNK,
-    Town, border, dex_nav, field_reader, game,
+    Town, border, dexnav, field_reader, game,
 };
 use crate::core::bcsar::Sound;
 use crate::core::clips::Clips;
@@ -237,7 +237,7 @@ fn test_a_thing_of_another_part_is_said_with_its_part() {
             ..Given::default()
         },
         Game {
-            hidden: Some(dex_nav),
+            features: vec![dexnav],
             ..game()
         },
     );
@@ -263,7 +263,7 @@ fn test_a_thing_of_another_part_is_said_with_its_part() {
         town.memory.clone(),
         Given::default(),
         Game {
-            hidden: Some(dex_nav),
+            features: vec![dexnav],
             ..game()
         },
     );

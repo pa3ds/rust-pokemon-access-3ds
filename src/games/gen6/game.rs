@@ -20,7 +20,7 @@ use crate::core::memory::Memory;
 use crate::games::gen6::anchors::Chain;
 use crate::games::gen6::field::camera;
 use crate::games::gen6::field::features::{
-    DoorReader, Feature, IceReader, SecretBaseReader, Watched,
+    DoorReader, Feature, IceReader, SecretBaseReader,
 };
 use crate::games::gen6::field::footsteps::{ORAS, Steps};
 use crate::games::gen6::field::landform::{Landform, gen6};
@@ -66,10 +66,8 @@ pub enum FurnitureKind {
 /// made as the module loads; a `Game` lives in a `static`, so here it is the function making it.
 pub type Data = fn() -> PathBuf;
 
-/// `Callable[[Memory], Watched]`: a plain `fn`, since a `Game` is built once and kept in a
-/// `static`, where an `Rc<dyn Fn>` cannot be.
-pub type HiddenFactory = fn(Rc<dyn Memory>) -> Rc<dyn Watched>;
-/// `Callable[[Memory, bytes, GameText], SecretBaseReader]`.
+/// `Callable[[Memory, bytes, GameText], SecretBaseReader]`: a plain `fn`, since a `Game` is
+/// built once and kept in a `static`, where an `Rc<dyn Fn>` cannot be.
 pub type SecretBaseFactory = fn(Rc<dyn Memory>, &[u8], &GameText) -> Rc<dyn SecretBaseReader>;
 /// `Callable[[Memory, GameText], Feature]`.
 pub type FeatureFactory = fn(Rc<dyn Memory>, &GameText) -> Rc<dyn Feature>;
@@ -97,9 +95,6 @@ pub struct Game {
     pub rom: RomLayout,
     /// Where a move model keeps the sprite it is drawn with (`mmodel.drawn_as`).
     pub drawn: i64,
-    /// The reader of its hidden Pokémon, for the field to list, or None in a game with none: ORAS's
-    /// DexNav (`games.oras.field.hidden`).
-    pub hidden: Option<HiddenFactory>,
     /// Sprite -> the move that clears the thing drawn as it, which Shift and P's way goes through:
     /// a bush Cut clears, a rock Rock Smash does, a boulder Strength pushes.
     pub clears: IndexMap<i64, i64>,
@@ -147,7 +142,9 @@ pub struct Game {
     /// and soaring (`oras.own`), X's opening (`xy.own`); nothing, in a game with none of them.
     pub own: OwnFactory,
     /// The readers of what else it has on its field to list, each in its own words: ORAS's berry
-    /// spots and Route 113's ash piles (`games.oras.field.berries`, `games.oras.field.ash`).
+    /// spots, Route 113's ash piles and the DexNav's find (`games.oras.field.berries`,
+    /// `games.oras.field.ash`, `games.oras.field.hidden`). One that shows and goes between sweeps
+    /// is read at every poll (`features.Watched`).
     pub features: Vec<FeatureFactory>,
     /// Its kinds of special ground in P's way, each saying what it lists and how it is walked,
     /// worked out once a map (`gen6.field.landform`): gen 6's own, which every game's chunks can
@@ -282,7 +279,6 @@ impl Game {
             data,
             rom,
             drawn,
-            hidden: None,
             clears: IndexMap::new(),
             dowsing: None,
             barriers: HashSet::new(),

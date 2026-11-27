@@ -21,7 +21,7 @@ use crate::games::common::pictures;
 use crate::games::gen6::anchors::Chain;
 use crate::games::gen6::apps::FIELD;
 use crate::games::gen6::field::features::{
-    DoorReader, Feature, IceReader, SecretBaseReader, Watched,
+    DoorReader, Feature, IceReader, SecretBaseReader,
 };
 use crate::games::gen6::field::landform::{Belts, Landform, gen6};
 use crate::games::gen6::field::reader::{FLAG, PC_TILE};
@@ -925,8 +925,8 @@ pub fn furniture() -> &'static IndexMap<(i64, i64), FurnitureKind> {
     })
 }
 
-/// `DexNav`, as the factory `Game.hidden` holds.
-fn dex_nav(memory: Rc<dyn Memory>) -> Rc<dyn Watched> {
+/// `lambda memory, _text: DexNav(memory)`, as a factory `Game.features` holds.
+fn dex_nav(memory: Rc<dyn Memory>, _text: &GameText) -> Rc<dyn Feature> {
     Rc::new(DexNav::new(memory))
 }
 
@@ -1043,7 +1043,6 @@ pub fn anchors() -> IndexMap<String, Vec<Chain>> {
 pub fn game() -> &'static Game {
     static GAME: OnceLock<Game> = OnceLock::new();
     GAME.get_or_init(|| Game {
-        hidden: Some(dex_nav),
         clears: IndexMap::from([
             (BUSH, CUT),
             (CRACKED_BOULDER, ROCK_SMASH),
@@ -1054,7 +1053,7 @@ pub fn game() -> &'static Game {
         triggers: triggers().clone(),
         furniture: furniture().clone(),
         secret_bases: Some(secret_bases),
-        features: vec![BerrySpots::of, ash_piles],
+        features: vec![BerrySpots::of, ash_piles, dex_nav],
         doors: Some(rotating_doors),
         ice: Some(ice_floors),
         blockers: HashSet::from(BLOCKERS),

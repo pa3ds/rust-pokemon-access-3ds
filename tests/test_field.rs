@@ -30,7 +30,7 @@ use crate::games::common::field::things::{
 };
 use crate::games::common::field::traversal::Traversal;
 use crate::games::gen6::field::features::SecretBaseReader;
-use crate::games::gen6::field::features::{Feature, Sighting, Tracked, Watched, ZoneAt};
+use crate::games::gen6::field::features::{Feature, Sighting, Tracked, ZoneAt};
 use crate::games::gen6::field::fieldmap::{
     MAP_BLOCK_SIZE, MAP_CHUNK_FILES, MAP_CHUNKS_TALL, MAP_CHUNKS_WIDE, MAP_GRID, MAP_KIND, MAP_MARK,
 };
@@ -169,8 +169,8 @@ fn given_bases(bases: Rc<dyn SecretBaseReader>) -> SecretBaseFactory {
     }
 }
 
-/// `DexNav`, as the factory `Game.hidden` holds.
-pub(crate) fn dex_nav(memory: Rc<dyn Memory>) -> Rc<dyn Watched> {
+/// ORAS's DexNav, as its `Game.features` builds it.
+pub(crate) fn dexnav(memory: Rc<dyn Memory>, _text: &GameText) -> Rc<dyn Feature> {
     Rc::new(DexNav::new(memory))
 }
 
@@ -215,11 +215,14 @@ pub(crate) struct Given {
     pub part_data: IndexMap<i64, Vec<u8>>,
     /// Python's `whole` keyword, the game's field: None is the places in `parts`.
     pub whole: Option<HashSet<i64>>,
+    /// The executable's image: None is `b"image"`.
+    pub image: Option<Vec<u8>>,
 }
 
 /// A field reader of `game`, the ROM's words, chunks, `shared` and `natives` furniture and
-/// `teleports` given, the shipped table's `tiles` and `furniture_words`, and `[pa3ds.extras]
-/// hidden_items`; the places in `parts` listed whole unless `whole` says otherwise.
+/// `teleports` given, the shipped table's `tiles` and `furniture_words`, `[pa3ds.extras]
+/// hidden_items` and the executable's `image`; the places in `parts` listed whole unless `whole`
+/// says otherwise.
 pub(crate) fn field_reader(memory: Rc<FakeMemory>, given: Given, game: Game) -> Rc<FieldReader> {
     let Given {
         words,
@@ -243,6 +246,7 @@ pub(crate) fn field_reader(memory: Rc<FakeMemory>, given: Given, game: Game) -> 
         parts,
         part_data,
         whole,
+        image,
     } = given;
     let game = Game {
         whole: whole.unwrap_or_else(|| parts.keys().copied().collect()),
@@ -275,7 +279,7 @@ pub(crate) fn field_reader(memory: Rc<FakeMemory>, given: Given, game: Game) -> 
         memory,
         &game,
         &text,
-        b"image",
+        image.as_deref().unwrap_or(b"image"),
         clock.unwrap_or_else(|| Rc::new(py::time::monotonic)),
         tiles.as_ref(),
         furniture_words.as_ref(),
@@ -630,7 +634,12 @@ impl Town {
             memory.clone(),
             Given::default(),
             Game {
-                hidden: chosen.hidden.or(Some(dex_nav)),
+                // `game.setdefault("features", (dexnav,))`.
+                features: if chosen.features.is_empty() {
+                    vec![dexnav]
+                } else {
+                    chosen.features.clone()
+                },
                 ..chosen
             },
         );
@@ -1844,7 +1853,7 @@ fn test_a_place_in_parts_lists_the_other_parts_things_out_of_the_rom() -> Result
             ..Given::default()
         },
         Game {
-            hidden: Some(dex_nav),
+            features: vec![dexnav],
             ..game()
         },
     );
@@ -1932,7 +1941,7 @@ fn test_a_place_in_parts_not_listed_whole_lists_a_part_at_a_time() -> Result<()>
             ..Given::default()
         },
         Game {
-            hidden: Some(dex_nav),
+            features: vec![dexnav],
             ..game()
         },
     );
@@ -1983,7 +1992,7 @@ fn test_another_parts_people_are_those_the_game_built_there_when_last_seen() -> 
             ..Given::default()
         },
         Game {
-            hidden: Some(dex_nav),
+            features: vec![dexnav],
             ..game()
         },
     );
@@ -2045,7 +2054,7 @@ fn test_a_record_two_parts_keep_is_one_thing_told_by_the_first_parts_record() ->
             ..Given::default()
         },
         Game {
-            hidden: Some(dex_nav),
+            features: vec![dexnav],
             ..game()
         },
     );
@@ -4519,7 +4528,7 @@ fn test_a_use_tile_is_listed_by_its_kind_and_a_run_of_one_kind_is_one_thing() ->
             ..Given::default()
         },
         Game {
-            hidden: Some(dex_nav),
+            features: vec![dexnav],
             ..game()
         },
     );
@@ -4579,7 +4588,7 @@ fn test_one_spot_is_one_sign_the_thing_drawn_first_then_its_record_then_the_cell
         town.memory.clone(),
         Given::default(),
         Game {
-            hidden: Some(dex_nav),
+            features: vec![dexnav],
             ..game()
         },
     );
@@ -4639,7 +4648,7 @@ fn test_a_use_tile_is_what_the_shipped_table_says_its_kind_is_and_the_pc_what_th
             ..Given::default()
         },
         Game {
-            hidden: Some(dex_nav),
+            features: vec![dexnav],
             ..game()
         },
     );
@@ -4861,7 +4870,7 @@ fn test_flat_ground_is_listed_under_riding_a_patch_at_a_time() -> Result<()> {
             town.memory.clone(),
             Given::default(),
             Game {
-                hidden: Some(dex_nav),
+                features: vec![dexnav],
                 landforms: [gen6(), vec![Arc::new(route_9(&[])) as Arc<dyn Landform>]].concat(),
                 ..game()
             },
@@ -5222,7 +5231,7 @@ fn test_a_rock_the_rhyhorn_smashes_is_an_obstacle_and_the_ridden_rhyhorn_is_not_
         town.memory.clone(),
         Given::default(),
         Game {
-            hidden: Some(dex_nav),
+            features: vec![dexnav],
             landforms: [
                 gen6(),
                 vec![Arc::new(route_9(&[0x200D])) as Arc<dyn Landform>],
@@ -5757,7 +5766,7 @@ fn test_a_zone_table_nothing_points_at_is_found_by_the_roms_own_bytes() -> Resul
             ..Given::default()
         },
         Game {
-            hidden: Some(dex_nav),
+            features: vec![dexnav],
             ..game()
         },
     );
