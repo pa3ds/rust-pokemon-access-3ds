@@ -414,6 +414,15 @@ pub const KIRAKIRA2: i64 = 0x2042;
 /// the player stopped at (32, 50) under a "!" and a wild battle began, "A wild Onix appeared!"; after
 /// fleeing, up walked them straight through (32, 49) to (32, 37) (spike 239, x_glittering_cave).
 pub const ENEMY3D: i64 = 0x95;
+/// The things drawn that answer nothing, every record of each running shared script 0x7d0, which
+/// shows nothing: `BOSSGLASSES`, `CLOCHE`, `TABLE` and `O_MODEL01` to `03`, 48 in Lumiose, Cyllage,
+/// Laverre and Anistar's buildings, Shabboneau Castle and the Team Flare Secret HQ (spike 219).
+/// `O_MODEL02` and `03` stand on Café Soleil's tables, 18 over the floor, one beside each sitter,
+/// and were listed as an "object" each that A did nothing at. Blockers (`Game.blockers`):
+/// never listed, and in the way, as a model is.
+///
+/// Python's is a frozenset; an array here, collected where a set is wanted.
+pub const PROPS: [i64; 6] = [0x203F, 0x2040, 0x2041, 0x2043, 0x2044, 0x2045];
 
 /// The bit of a cell's word on a strand of Santalune Gym's web (zone 0x38, chunk file 344 of
 /// `a/0/4/1`): the floor is open cells along strands, many running diagonally, two cells touching
@@ -901,7 +910,7 @@ pub fn game() -> &'static Game {
             (CRACKED_WALL, ROCK_SMASH),
         ]),
         dowsing: Some(DOWSING),
-        blockers: HashSet::from([STOPPER]),
+        blockers: [STOPPER].into_iter().chain(PROPS).collect(),
         ambushes: HashSet::from([TOBI_KUSA]),
         lurkers: HashSet::from([ENEMY3D]),
         pickups: HashSet::from([KIRAKIRA2]),

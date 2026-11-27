@@ -3901,6 +3901,32 @@ fn test_the_invisible_blocker_is_nobody_and_stands_in_the_way() -> Result<()> {
     Ok(())
 }
 
+/// Café Soleil: `O_MODEL02` and `O_MODEL03` stand on its tables beside
+/// the people sitting there, and were listed as an object each that A did nothing at.
+#[test]
+fn test_a_prop_that_answers_nothing_is_nobody_and_stands_in_the_way() -> Result<()> {
+    let mut town = Town::new();
+    town.reader = field_reader(
+        town.memory.clone(),
+        Given::default(),
+        Game {
+            blockers: xy::game().blockers.clone(),
+            ..game()
+        },
+    );
+    town.model(1, TOWN, 0, 0x2044, (100, 180));
+    town.model(2, TOWN, 1, 0x2045, (101, 180));
+    let r#where = town.r#where()?;
+    assert!(
+        !r#where
+            .interactables
+            .iter()
+            .any(|item| [(100, 180), (101, 180)].contains(&item.cell))
+    );
+    assert!(!town.reader.ground(&r#where)?.open((100, 180))?);
+    Ok(())
+}
+
 /// Route 6 (x_route-6.ctm, 2026-10-19): `MONSBALL_RARE` and the grass a wild Pokémon leaps
 /// out of were each listed under interactables as an object, which nothing answered. The
 /// grass is called by its sprite, as any thing is.

@@ -305,7 +305,8 @@ pub struct Game {
     pub pickups: HashSet<i64>,
     /// The sprites of its invisible blockers, move models drawn as nothing that stand in the way:
     /// listed as nobody, and solid but where they stand in for a rotating door's arm. Not where a
-    /// sprite is a barrier (`barriers`).
+    /// sprite is a barrier (`barriers`). With them the things drawn that answer nothing, as the
+    /// things on Café Soleil's tables (`xy.PROPS`).
     pub blockers: HashSet<i64>,
     /// The scripts of the furniture records an elevator's door is, one a cell: side by side, they
     /// are one thing.
