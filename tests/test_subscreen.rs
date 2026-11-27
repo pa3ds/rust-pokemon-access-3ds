@@ -145,6 +145,7 @@ fn test_touch_mode_in_the_subscreens_apps_is_as_they_say() {
         super_training::SPARRING,
         pss::FRIEND_ENTRY,
         pss::COLOSSEUM,
+        pss::DIALOG,
         &profile_app,
     ]);
     for app in offered {

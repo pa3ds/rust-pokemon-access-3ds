@@ -16,6 +16,10 @@ pub const FRIEND_ENTRY: &str = "N6netapp12friend_entry4ProcE";
 /// Kalos Rules' notice and its Next. Both players had nothing to touch there and were stuck
 /// (the PSS's multiplayer, two Azahars in one room).
 pub const COLOSSEUM: &str = "N3app9colosseum4ProcE";
+/// After a trade or a battle in the PSS, "Would you like to do something else with" the other
+/// player, Yes or No: only a tap answers Yes, B alone answering No, and both players had nothing to
+/// touch there (the PSS's multiplayer, spike A).
+pub const DIALOG: &str = "N3app6dialog4ProcE";
 
 /// Is the app one of the PSS's own (`PSS`)?
 pub fn running(app: Option<&str>) -> bool {

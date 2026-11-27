@@ -109,7 +109,7 @@ use amie_switch::SwitchScreen;
 use berry_picker::{BerryKeys, BerryPicker, Process, Touching};
 use head_it::{Cue, Frames, HeadIt, HeadItKeys};
 use o_power::OPower;
-use pss::{COLOSSEUM, FRIEND_ENTRY};
+use pss::{COLOSSEUM, DIALOG, FRIEND_ENTRY};
 use puzzle::TilePuzzle;
 use super_training::{
     Bags, CoreTraining, Gains, Goals, Medals, Round, RoundOptions, TrainingKeys, TrainingPage,
@@ -119,9 +119,9 @@ use super_training::{
 /// The subscreens' apps touch mode offers targets in (ADR-0009 as amended 2026-10-29), beside the
 /// field whose bottom screen they are, and beside the PSS's own (`pss.running`): Pokémon-Amie, its
 /// decorate screen and its games, Super Training's regimen menu and rounds, the friend list's
-/// registering, and the Colosseum a battle chosen in the PSS meets in. A `frozenset` in Python,
-/// only ever tested for membership.
-pub const TOUCHED: [&str; 9] = [
+/// registering, the Colosseum a battle chosen in the PSS meets in, and the question after a trade
+/// or battle there. A `frozenset` in Python, only ever tested for membership.
+pub const TOUCHED: [&str; 10] = [
     amie::SCREENS[0],
     amie::SCREENS[1],
     amie::SCREENS[2],
@@ -131,6 +131,7 @@ pub const TOUCHED: [&str; 9] = [
     super_training::SPARRING,
     FRIEND_ENTRY,
     COLOSSEUM,
+    DIALOG,
 ];
 /// The apps where Shift alone drags (ADR-0009): Pokémon-Amie's, and Super Training's rounds, where
 /// it is the stylus held on a goal to charge a shot. A `frozenset` in Python, only ever tested for
