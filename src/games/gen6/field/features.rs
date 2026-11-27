@@ -1,6 +1,7 @@
-//! What one game brings to the gen 6 field of its own: ORAS's DexNav, Secret Bases, berry spots,
-//! ash piles, rotating doors and thin ice (`games.oras`), each found by a sweep as its module loads.
-//! The field reader reads them through these, and never imports a game.
+//! What one game brings to the gen 6 field of its own: ORAS's DexNav, Secret Bases, berry spots
+//! and ash piles (`games.oras`), each found by a sweep as its module loads. The field reader reads
+//! them through these, and never imports a game. What it has of its own on the ground is its
+//! landforms' (`landform`).
 
 use std::any::Any;
 use std::rc::Rc;
@@ -9,15 +10,14 @@ use indexmap::IndexSet;
 
 use crate::core::discovery::Found;
 use crate::core::pathfind::Cell;
-use crate::games::common::field::ground::IceRoom;
-use crate::games::common::field::rotating::RotatingDoor;
 use crate::games::common::field::things::Interactable;
 use crate::py::Result;
 
 /// `Callable[[Cell], int | None]`: the zone the field map puts a cell in.
 pub type ZoneAt<'a> = &'a dyn Fn(Cell) -> Result<Option<i64>>;
 
-/// One of a game's own readers on the field, found by a sweep as its module loads.
+/// One of a game's own readers on the field, found by a sweep as its module loads: a feature,
+/// or a landform's watch (`landform.Landform.watch`).
 ///
 /// `Any`, so a landform can tell its own watch (`landform.as_watch`), as Python's `isinstance`
 /// does.
@@ -65,20 +65,6 @@ pub struct Sighting {
 pub trait Watched: Feature {
     /// What it shows in `zone` now, `zone_at` as `listed` takes it.
     fn watch(&self, zone: i64, zone_at: ZoneAt) -> Result<Sighting>;
-}
-
-/// A game's rotating doors, where it has them: Fortree Gym's (`games.oras.field.doors`). Read
-/// whenever the ground is, since they turn as the player walks.
-pub trait DoorReader: Tracked {
-    /// The doors in `zone` as they stand now, or none.
-    fn doors(&self, zone: i64) -> Result<Vec<RotatingDoor>>;
-}
-
-/// A game's rooms of thin ice, where it has them: Sootopolis Gym's (`oras.field.ice`). Read
-/// whenever the ground is, since they crack as the player walks.
-pub trait IceReader: Tracked {
-    /// The rooms in `zone` as they are now, or none.
-    fn rooms(&self, zone: i64) -> Result<Vec<IceRoom>>;
 }
 
 /// A game's Secret Bases, where it has them: ORAS's (`oras.field.secret_base`), listing every

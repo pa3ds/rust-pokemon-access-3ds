@@ -19,9 +19,7 @@ use indexmap::{IndexMap, IndexSet};
 use crate::core::memory::Memory;
 use crate::games::gen6::anchors::Chain;
 use crate::games::gen6::field::camera;
-use crate::games::gen6::field::features::{
-    DoorReader, Feature, IceReader, SecretBaseReader,
-};
+use crate::games::gen6::field::features::{Feature, SecretBaseReader};
 use crate::games::gen6::field::footsteps::{ORAS, Steps};
 use crate::games::gen6::field::landform::{Landform, gen6};
 use crate::games::gen6::own::{self, Kit, Own};
@@ -71,10 +69,6 @@ pub type Data = fn() -> PathBuf;
 pub type SecretBaseFactory = fn(Rc<dyn Memory>, &[u8], &GameText) -> Rc<dyn SecretBaseReader>;
 /// `Callable[[Memory, GameText], Feature]`.
 pub type FeatureFactory = fn(Rc<dyn Memory>, &GameText) -> Rc<dyn Feature>;
-/// `Callable[[Memory], DoorReader]`.
-pub type DoorFactory = fn(Rc<dyn Memory>) -> Rc<dyn DoorReader>;
-/// `Callable[[Memory], IceReader]`.
-pub type IceFactory = fn(Rc<dyn Memory>) -> Rc<dyn IceReader>;
 /// `Callable[[Kit], Own]`.
 pub type OwnFactory = fn(&Kit) -> Rc<dyn Own>;
 
@@ -149,14 +143,10 @@ pub struct Game {
     /// Its kinds of special ground in P's way, each saying what it lists and how it is walked,
     /// worked out once a map (`gen6.field.landform`): gen 6's own, which every game's chunks can
     /// hold, and its own after them: X's ridden Pokémon, climbing walls, grind rails, vines and
-    /// Poké Ball Factory belts, and Dewford Gym's belts.
+    /// Poké Ball Factory belts, and Dewford Gym's belts, Fortree Gym's rotating doors and
+    /// Sootopolis Gym's thin ice, each of the last two read through a watch of its own as the
+    /// player walks (`games.oras.field.doors`, `games.oras.field.ice`).
     pub landforms: Vec<Arc<dyn Landform>>,
-    /// The reader of its rotating doors, or None in a game with none: ORAS's, in Fortree Gym
-    /// (`games.oras.field.doors`).
-    pub doors: Option<DoorFactory>,
-    /// The reader of its rooms of thin ice, or None in a game with none: ORAS's, in Sootopolis
-    /// Gym (`games.oras.field.ice`).
-    pub ice: Option<IceFactory>,
     /// The sprites of the spots a wild Pokémon leaps out of as the player walks near, listed
     /// under pokémon rather than as a thing to use: X's grass on Routes 6 and 18, `TOBI_KUSA`
     /// (2026-10-19).
@@ -291,8 +281,6 @@ impl Game {
             own: own::nothing,
             features: Vec::new(),
             landforms: gen6(),
-            doors: None,
-            ice: None,
             ambushes: HashSet::new(),
             lurkers: HashSet::new(),
             pickups: HashSet::new(),

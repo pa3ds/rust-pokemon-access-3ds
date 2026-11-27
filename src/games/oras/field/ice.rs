@@ -27,12 +27,16 @@ use std::cell::Cell as Slot;
 use std::collections::HashSet;
 use std::rc::Rc;
 
+use indexmap::IndexMap;
+
 use crate::core::binary::{s32, u32};
 use crate::core::discovery::{Found, HEAP_SPAN, within};
 use crate::core::memory::Memory;
 use crate::games::common::field::chunk::CHUNK;
-use crate::games::common::field::ground::{CRACKED, IceRoom, SOLID, WHOLE};
-use crate::games::gen6::field::features::{IceReader, Tracked};
+use crate::games::common::field::ground::{CRACKED, Ground, IceRoom, SOLID, WHOLE};
+use crate::games::gen6::field::features::Tracked;
+use crate::games::gen6::field::landform::{Found as Worked, Here, Landform, as_watch};
+use crate::games::gen6::rom::archives::GameText;
 use crate::py::Result;
 
 pub const CLASS: &str = "N5field27FieldUniqueSequenceGymWaterE";
@@ -52,8 +56,51 @@ pub const CLEARED: i64 = 0x18;
 pub const EXIT_COUNT: i64 = 3;
 pub const CRACK_BITS: i64 = 3;
 
+/// Sootopolis Gym's rooms of thin ice on the ground as they are now (`Ground.ice`), read
+/// through the Gym's module (`IceFloors`) whenever the ground is, since they crack as the player
+/// walks: a cracked tile drops the player through, so it stands in the way on its own room's
+/// floor, but under the player, who has just cracked it. Not listed.
+#[derive(Debug)]
+pub struct ThinIce;
+
+impl Landform for ThinIce {
+    fn watch(
+        &self,
+        memory: Rc<dyn Memory>,
+        _image: &[u8],
+        _text: &GameText,
+    ) -> Option<Rc<dyn Tracked>> {
+        Some(Rc::new(IceFloors::new(memory)))
+    }
+
+    fn laid(&self, _found: &Worked, ground: Ground, here: &Here) -> Result<Ground> {
+        let floors = (here.watch)(self);
+        let rooms = match floors.as_deref().and_then(as_watch::<IceFloors>) {
+            Some(floors) => floors.rooms(here.r#where.zone)?,
+            None => Vec::new(),
+        };
+        if rooms.is_empty() {
+            return Ok(ground);
+        }
+        let mut cracked: IndexMap<(i64, i64), Option<f64>> = IndexMap::new();
+        for room in &rooms {
+            if !room.cleared {
+                for (cell, state) in room.cells() {
+                    if state == CRACKED {
+                        cracked.insert(cell, Some(room.height));
+                    }
+                }
+            }
+        }
+        Ok(Ground {
+            ice: rooms,
+            ..ground.stood(&cracked, here.r#where.cell)
+        })
+    }
+}
+
 /// Sootopolis Gym's rooms of thin ice, found by a sweep as its module loads, and read whenever
-/// the field's ground is, since they crack as the player walks.
+/// the field's ground is, since they crack as the player walks: `ThinIce`'s watch.
 pub struct IceFloors {
     pub classes: Vec<&'static str>,
     memory: Rc<dyn Memory>,
@@ -181,8 +228,4 @@ impl Tracked for IceFloors {
     }
 }
 
-impl IceReader for IceFloors {
-    fn rooms(&self, zone: i64) -> Result<Vec<IceRoom>> {
-        IceFloors::rooms(self, zone)
-    }
-}
+

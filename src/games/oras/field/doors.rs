@@ -29,8 +29,11 @@ use crate::core::binary::{self, u32};
 use crate::core::discovery::{Found, HEAP_SPAN, within};
 use crate::core::memory::Memory;
 use crate::core::pathfind::{EAST, NORTH, SOUTH, WEST};
+use crate::games::common::field::ground::Ground;
 use crate::games::common::field::rotating::RotatingDoor;
-use crate::games::gen6::field::features::{DoorReader, Tracked};
+use crate::games::gen6::field::features::Tracked;
+use crate::games::gen6::field::landform::{Found as Worked, Here, Landform, as_watch};
+use crate::games::gen6::rom::archives::GameText;
 use crate::py::{self, Error, Result};
 
 pub const CLASS: &str = "N5field28FieldUniqueSequenceGymFlightE";
@@ -92,9 +95,40 @@ pub fn patterns() -> &'static IndexMap<i64, IndexMap<&'static str, i64>> {
     })
 }
 
+/// Fortree Gym's doors on the ground as they stand now (`Ground.doors`), walked through by
+/// turning them; read through the Gym's module (`DoorTurns`) whenever the ground is, since they
+/// turn as the player walks. Not listed; round them the invisible blockers stand in for their
+/// arms, and are in nobody's way (`gen6.field.reader.Role`).
+#[derive(Debug)]
+pub struct RotatingDoors;
+
+impl Landform for RotatingDoors {
+    fn watch(
+        &self,
+        memory: Rc<dyn Memory>,
+        _image: &[u8],
+        _text: &GameText,
+    ) -> Option<Rc<dyn Tracked>> {
+        Some(Rc::new(DoorTurns::new(memory)))
+    }
+
+    fn laid(&self, _found: &Worked, ground: Ground, here: &Here) -> Result<Ground> {
+        let turns = (here.watch)(self);
+        let doors = match turns.as_deref().and_then(as_watch::<DoorTurns>) {
+            Some(turns) => turns.doors(here.r#where.zone)?,
+            None => Vec::new(),
+        };
+        Ok(if doors.is_empty() {
+            ground
+        } else {
+            Ground { doors, ..ground }
+        })
+    }
+}
+
 /// Fortree Gym's doors, found by a sweep as its module loads, and read whenever the field's
-/// ground is, since they turn as the player walks.
-pub struct RotatingDoors {
+/// ground is, since they turn as the player walks: `RotatingDoors`' watch.
+pub struct DoorTurns {
     pub classes: Vec<&'static str>,
     memory: Rc<dyn Memory>,
     sequence: Slot<Option<i64>>,
@@ -103,9 +137,9 @@ pub struct RotatingDoors {
     pivots: RefCell<IndexMap<i64, (i64, i64)>>,
 }
 
-impl RotatingDoors {
+impl DoorTurns {
     pub fn new(memory: Rc<dyn Memory>) -> Self {
-        RotatingDoors {
+        DoorTurns {
             classes: vec![CLASS],
             memory,
             sequence: Slot::new(None),
@@ -204,18 +238,12 @@ impl RotatingDoors {
     }
 }
 
-impl Tracked for RotatingDoors {
+impl Tracked for DoorTurns {
     fn classes(&self) -> Vec<&'static str> {
         self.classes.clone()
     }
 
     fn track(&self, found: &Found) -> Result<()> {
-        RotatingDoors::track(self, found)
-    }
-}
-
-impl DoorReader for RotatingDoors {
-    fn doors(&self, zone: i64) -> Result<Vec<RotatingDoor>> {
-        RotatingDoors::doors(self, zone)
+        DoorTurns::track(self, found)
     }
 }

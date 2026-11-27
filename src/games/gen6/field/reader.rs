@@ -42,7 +42,7 @@ use crate::core::pathfind::{self, Cell};
 use crate::core::words::own;
 use crate::games::common::field::chunk::{BLOCKED, CHUNK, COUNTER, Chunk};
 use crate::games::common::field::ground::{
-    self as common, BLOCK, CRACKED, Far, Grid, Ground, GroundHeight, NO_ZONE, Of, STRENGTH,
+    self as common, BLOCK, Far, Grid, Ground, GroundHeight, NO_ZONE, Of, STRENGTH,
     StepWords, Word, pushes, walkable,
 };
 use crate::games::common::field::ride::riding;
@@ -54,7 +54,7 @@ use crate::games::common::field::things::{
 use crate::games::gen6::anchors::follow;
 use crate::games::gen6::field::conveyors::{GymFloor, Switches};
 use crate::games::gen6::field::features::{
-    DoorReader, Feature, IceReader, SecretBaseReader, Sighting, Tracked, Watched,
+    Feature, SecretBaseReader, Sighting, Tracked, Watched,
 };
 use crate::games::gen6::field::hidden_items::{HIDDEN_ITEM, HiddenItems, Only};
 use crate::games::gen6::field::landform::{
@@ -285,8 +285,6 @@ pub struct FieldReader {
     watched: Vec<Rc<dyn Watched>>,
     /// Where the field's work holds the current zone's record (`anchor`).
     zone_record: i64,
-    /// The game's rotating doors, or None in a game without them.
-    doors: Option<Rc<dyn DoorReader>>,
     /// The sprites of the game's invisible blockers (`Game.blockers`).
     blockers: HashSet<i64>,
     /// The scripts of the furniture records of elevators' doors (`Game.elevators`).
@@ -297,8 +295,6 @@ pub struct FieldReader {
     stairs: HashSet<i64>,
     /// Zones listed a room at a time (`Game.rooms`).
     rooms: HashSet<i64>,
-    /// The game's rooms of thin ice, or None in a game without them.
-    ice: Option<Rc<dyn IceReader>>,
     /// What the game calls each decoration, by its number (`GameText.decorations`).
     decorations: Vec<String>,
     /// (zone, a furniture record's script) -> what it is, where it is no sign (`Game.furniture`):
@@ -566,13 +562,11 @@ impl FieldReader {
             features,
             watched,
             zone_record: game.zone_record,
-            doors: game.doors.map(|make| make(memory.clone())),
             blockers: game.blockers.clone(),
             elevators: game.elevators.clone(),
             player_looks: game.player_looks.clone(),
             stairs: game.stairs.clone(),
             rooms: game.rooms.clone(),
-            ice: game.ice.map(|make| make(memory.clone())),
             decorations: text.decorations.clone(),
             furniture_kinds: game.furniture.clone(),
             landforms: game.landforms.clone(),
@@ -649,8 +643,9 @@ impl FieldReader {
         })
     }
 
-    /// What a sweep looks for for the game's own readers: ORAS's DexNav, Secret Bases, ash piles,
-    /// rotating doors and thin ice.
+    /// What a sweep looks for for the game's own readers and its landforms' watches: ORAS's
+    /// DexNav, Secret Bases, ash piles, rotating doors and thin ice, in the order the log names
+    /// them.
     pub fn classes(&self) -> Vec<&'static str> {
         self.tracked()
             .into_iter()
@@ -670,12 +665,6 @@ impl FieldReader {
             out.push(&**feature);
         }
         out.push(&*self.works);
-        if let Some(doors) = &self.doors {
-            out.push(&**doors);
-        }
-        if let Some(ice) = &self.ice {
-            out.push(&**ice);
-        }
         for watch in self.watches.values() {
             out.push(&**watch);
         }
@@ -900,6 +889,9 @@ impl FieldReader {
     /// floor at a time, each step onto the floor beside it it joins (`Ground.climb`). Where the
     /// player's height is not read, a chunk with a deck is walked on the first floor open in
     /// each cell (`mapblock.flat`, spike 156).
+    ///
+    /// The invisible blockers stand in the way once the landforms are laid, but round rotating
+    /// doors, whose arms they stand in for (`Role.BLOCKER`).
     pub fn ground(&self, r#where: &Field) -> Result<Ground> {
         if r#where.on_rail {
             let corridor = self
@@ -917,21 +909,6 @@ impl FieldReader {
             );
         }
         let bases = &self.secret_bases;
-        let ice = match &self.ice {
-            None => Vec::new(),
-            Some(ice) => ice.rooms(r#where.zone)?,
-        };
-        // A cracked tile drops the player through, on its own room's floor (spike 167).
-        let mut cracked: IndexMap<Cell, Option<f64>> = IndexMap::new();
-        for room in &ice {
-            if !room.cleared {
-                for (cell, state) in room.cells() {
-                    if state == CRACKED {
-                        cracked.insert(cell, Some(room.height));
-                    }
-                }
-            }
-        }
         let files = self.terrain.files.borrow().1.clone();
         let lanes = self
             .rails
@@ -941,6 +918,7 @@ impl FieldReader {
         if !self.terrain.raised()? {
             covered.extend(lanes.keys().copied());
         }
+        let (nothing, blockers) = self.unseen()?;
         let mut solid: IndexMap<Cell, Option<f64>> = IndexMap::new();
         if let Some(bases) = bases
             && bases.zones().contains(&r#where.zone)
@@ -951,8 +929,7 @@ impl FieldReader {
                 }
             }
         }
-        solid.extend(self.unseen(r#where.zone)?);
-        solid.extend(cracked);
+        solid.extend(nothing);
         let loaded = || self.chunks_loaded();
         let level = self.height.get();
         let stacked = level.is_some() && self.terrain.stacked(&loaded)?;
@@ -966,10 +943,6 @@ impl FieldReader {
         }
         let ladders = self.ladders_here()?;
         let cliffs = self.terrain.cliffs(&ladders)?;
-        let doors = match &self.doors {
-            None => Vec::new(),
-            Some(doors) => doors.doors(r#where.zone)?,
-        };
         let trusted = self.zone_at(r#where.cell)?.is_some();
         let me = self
             .me
@@ -1017,7 +990,6 @@ impl FieldReader {
         let mut ground = Ground {
             cliffs,
             ladders,
-            doors,
             mats: r#where
                 .interactables
                 .iter()
@@ -1025,7 +997,6 @@ impl FieldReader {
                 .flat_map(|item| item.cells())
                 .collect(),
             level,
-            ice,
             ground_height,
             lanes,
             raised: self.terrain.raised()?,
@@ -1064,7 +1035,11 @@ impl FieldReader {
         for (form, found) in self.landforms.iter().zip(self.found(r#where.zone)?.iter()) {
             ground = form.laid(found, ground, &here)?;
         }
-        Ok(ground)
+        Ok(if ground.doors.is_empty() {
+            ground.stood(&blockers, r#where.cell)
+        } else {
+            ground
+        })
     }
 
     /// The zone's ladders (`ladders`), none without its zone data.
@@ -2435,30 +2410,27 @@ impl FieldReader {
         Ok((stand_ins, doors, gates))
     }
 
-    /// The cells of the models in the way but never listed as themselves, with how high: the
-    /// invisible blockers, but round a zone's rotating doors, and the models drawn as nothing
-    /// (`_role`).
-    fn unseen(&self, zone: i64) -> Result<IndexMap<Cell, Option<f64>>> {
-        let mut unseen: Vec<Role> = vec![Role::Nothing];
-        let rotating = match &self.doors {
-            Some(doors) => !doors.doors(zone)?.is_empty(),
-            None => false,
-        };
-        if !rotating {
-            unseen.push(Role::Blocker);
-        }
-        let mut out: IndexMap<Cell, Option<f64>> = IndexMap::new();
+    /// The cells of the models never listed as themselves, with how high: those drawn as
+    /// nothing, in the way, and the invisible blockers, in the way but round rotating doors
+    /// (`_role`, `ground`).
+    #[allow(clippy::type_complexity)]
+    fn unseen(&self) -> Result<(IndexMap<Cell, Option<f64>>, IndexMap<Cell, Option<f64>>)> {
+        let mut nothing: IndexMap<Cell, Option<f64>> = IndexMap::new();
+        let mut blockers: IndexMap<Cell, Option<f64>> = IndexMap::new();
         for other in self.others() {
             let (model, head) = other?;
             let code =
                 mmodel::drawn_as(&*self.memory, model, &head, self.drawn, self.model_starts)?;
-            if unseen.contains(&self.role(&head, code)?)
-                && let Some(cell) = mmodel::cell(&head)?
-            {
-                out.insert(cell, mmodel::height(&head)?);
+            let cells = match self.role(&head, code)? {
+                Role::Nothing => &mut nothing,
+                Role::Blocker => &mut blockers,
+                _ => continue,
+            };
+            if let Some(cell) = mmodel::cell(&head)? {
+                cells.insert(cell, mmodel::height(&head)?);
             }
         }
-        Ok(out)
+        Ok((nothing, blockers))
     }
 
     /// A model as what it is, standing in `size` cells from `cell`: an item ball or a thing by its

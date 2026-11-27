@@ -21,7 +21,7 @@ use crate::games::common::pictures;
 use crate::games::gen6::anchors::Chain;
 use crate::games::gen6::apps::FIELD;
 use crate::games::gen6::field::features::{
-    DoorReader, Feature, IceReader, SecretBaseReader,
+    Feature, SecretBaseReader,
 };
 use crate::games::gen6::field::landform::{Belts, Landform, gen6};
 use crate::games::gen6::field::reader::{FLAG, PC_TILE};
@@ -37,7 +37,7 @@ use crate::games::oras::field::ash::{self, AshPiles};
 use crate::games::oras::field::berries::BerrySpots;
 use crate::games::oras::field::doors::RotatingDoors;
 use crate::games::oras::field::hidden::DexNav;
-use crate::games::oras::field::ice::IceFloors;
+use crate::games::oras::field::ice::ThinIce;
 use crate::games::oras::field::secret_base::{self, SecretBases, zones as secret_bases_zones};
 use crate::games::oras::field::sky;
 use crate::games::oras::own::Oras;
@@ -940,16 +940,6 @@ fn ash_piles(memory: Rc<dyn Memory>, _text: &GameText) -> Rc<dyn Feature> {
     Rc::new(AshPiles::new(memory))
 }
 
-/// `RotatingDoors`, as the factory `Game.doors` holds.
-fn rotating_doors(memory: Rc<dyn Memory>) -> Rc<dyn DoorReader> {
-    Rc::new(RotatingDoors::new(memory))
-}
-
-/// `IceFloors`, as the factory `Game.ice` holds.
-fn ice_floors(memory: Rc<dyn Memory>) -> Rc<dyn IceReader> {
-    Rc::new(IceFloors::new(memory))
-}
-
 /// The sprite of the game's invisible blocker, `STOPPER` among the ROM's sprite ids, drawn as
 /// nothing: in Fortree Gym the stand-ins for its doors' arms (spike 161), and in Sootopolis Gym
 /// nine in rows of three across the corridors up from its rooms, at (17, 45), (17, 34) and (17,
@@ -1054,8 +1044,6 @@ pub fn game() -> &'static Game {
         furniture: furniture().clone(),
         secret_bases: Some(secret_bases),
         features: vec![BerrySpots::of, ash_piles, dex_nav],
-        doors: Some(rotating_doors),
-        ice: Some(ice_floors),
         blockers: HashSet::from(BLOCKERS),
         pickups: HashSet::from([KIRAKIRA, FOSSIL]),
         items_at: IndexMap::from(FOSSILS),
@@ -1064,9 +1052,13 @@ pub fn game() -> &'static Game {
         crossed: HashSet::from(DEWFORD_SWITCHES),
         landforms: [
             gen6(),
-            vec![Arc::new(Belts {
-                ways: belts().clone(),
-            }) as Arc<dyn Landform>],
+            vec![
+                Arc::new(Belts {
+                    ways: belts().clone(),
+                }) as Arc<dyn Landform>,
+                Arc::new(RotatingDoors),
+                Arc::new(ThinIce),
+            ],
         ]
         .concat(),
         player_looks: PLAYER_LOOKS.collect(),
