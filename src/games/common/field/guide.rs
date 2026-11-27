@@ -1423,9 +1423,21 @@ impl Guide {
         if r#where.on_rail && ground.corridor.is_none() {
             return Ok(None);
         }
-        let goals = aims(&ground, item, push)?;
+        let mut goals = aims(&ground, item, push)?;
         let mut path = ground.find(r#where.cell, &goals, heading, Some(item), true, None)?;
         let mut short = !reached(&ground, item, &goals, &path)?;
+        if short && !item.talked_from.is_empty() {
+            // Walled in, they are talked to from where the game's own range for it reaches.
+            let talked: IndexMap<Cell, Option<&'static str>> = item
+                .talked_from
+                .iter()
+                .map(|&(cell, way)| (cell, Some(way)))
+                .collect();
+            let over = ground.find(r#where.cell, &talked, heading, Some(item), true, None)?;
+            if reached(&ground, item, &talked, &over)? {
+                (goals, path, short) = (talked, over, false);
+            }
+        }
         let over = if short {
             over_ice(r#where, &ground, &path, heading)?
         } else {

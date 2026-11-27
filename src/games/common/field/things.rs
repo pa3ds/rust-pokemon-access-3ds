@@ -292,6 +292,12 @@ pub struct Interactable {
     /// item, which A finds from the cell before it (spike 145), and water, which Surf is used on
     /// from beside it, where Shift and P surfed onto it (or_water_pathfinding_weirdness).
     pub faced: bool,
+    /// For someone the game says can be talked to from a range of its own, each cell beside the
+    /// range and the way to face from it, into the range: where a way ends when none to the cells
+    /// round them does. Sun's lottery clerk in Festival Plaza is walled in by her stall, and is
+    /// talked to across its counter from where her range reaches over it (spike Q). Empty for
+    /// anything else, and in any game that does not say.
+    pub talked_from: Vec<(Cell, &'static str)>,
     /// Whether it is on streets the player's reach only through a teleporter, said "past a
     /// teleporter" rather than how far it is: Anistar City Gym's parts lie apart in its corridor,
     /// and the cells between them are no distance (`rail.lay_keyed`, spike 264).
@@ -324,6 +330,7 @@ impl Interactable {
             way_in: None,
             shape: Vec::new(),
             faced: false,
+            talked_from: Vec::new(),
             apart: false,
             lands_apart: false,
         }

@@ -1696,6 +1696,45 @@ fn test_p_goes_to_whatever_the_navigation_keys_are_on() {
     );
 }
 
+/// Sun's lottery clerk in Festival Plaza stands in her stall, walled in, and P said "no
+/// path"; the game speaks to her from where the range it gives her reaches over the counter,
+/// and P now leads there and no further (spike Q).
+#[test]
+fn test_someone_walled_in_is_walked_to_where_their_talk_range_reaches() {
+    let stall: Vec<Cell> = (97..104)
+        .flat_map(|x| (176..183).map(move |z| (x, z)))
+        .filter(|&cell| cell != (100, 179))
+        .collect();
+    let clerk = Interactable {
+        source: 0x08D1E9A8,
+        move_model: true,
+        talked_from: vec![
+            ((100, 183), pathfind::NORTH),
+            ((96, 179), pathfind::EAST),
+        ],
+        ..Interactable::new("people", "person", (100, 179))
+    };
+    let field = |clerk: Interactable| Field {
+        interactables: vec![clerk],
+        ..Field::new(0x6, (100, 188))
+    };
+    let mut rig = navigator(Want {
+        blocked: stall.clone(),
+        ..on(field(clerk.clone()))
+    });
+    rig.press(PATHFIND);
+    assert_eq!(said(&rig.backend), ["5 north"]);
+    let mut rig = navigator(Want {
+        blocked: stall,
+        ..on(field(Interactable {
+            talked_from: Vec::new(),
+            ..clerk
+        }))
+    });
+    rig.press(PATHFIND);
+    assert!(said(&rig.backend).last().unwrap().starts_with("no path"));
+}
+
 #[test]
 fn test_alt_p_drops_the_way_and_nothing_more_of_it_is_said() {
     let mut rig = navigator(Want {

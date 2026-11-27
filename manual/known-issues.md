@@ -170,8 +170,6 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
 - **Hidden items**, listed with `hidden_items = "all"`: whether one leaves the list once you
   have found it has not been tried, nor where you stand to pick one up; `P` says "here" anywhere
   within the patch of ground the game gives it.
-- **Someone behind a stall's counter**, such as Festival Plaza's lottery shop, has no path: `P`
-  says "no path". Walk up to the counter in front of them and press A.
 - **A board can run its two lines together** where its second line has no quotation marks:
   "Hau'oli Police Station Keep our roads safe!".
 

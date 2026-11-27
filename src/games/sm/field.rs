@@ -65,6 +65,7 @@ use indexmap::{IndexMap, IndexSet};
 
 use crate::core::binary::{self, f32, u16, u32};
 use crate::core::config::{HIDDEN_ALL, HIDDEN_OFF};
+use crate::core::pathfind;
 use crate::core::discovery::Found;
 use crate::core::heaps::ReadEach;
 use crate::core::memory::Memory;
@@ -232,6 +233,9 @@ impl Walls for SunWalls {
         SunWalls::area_with(self, area, variants)
     }
 }
+
+/// A prop's shape: (group, x, z, its class, its data).
+type Shaped = (i64, f64, f64, String, Vec<u8>);
 
 /// (zone, area, the player's model, where it stands).
 type Where = (i64, i64, i64, (f64, f64));
@@ -551,8 +555,31 @@ impl SunFieldReader {
         standing: (i64, i64),
         drawn: &[(f64, f64)],
     ) -> Result<IndexSet<(i64, i64)>> {
-        // (group, x, z, kind, data)
-        let mut shapes: Vec<(i64, f64, f64, String, Vec<u8>)> = Vec::new();
+        let shapes = self.shapes(drawn)?;
+        let mut closed: IndexSet<(i64, i64)> = IndexSet::new();
+        for (group, x, z, kind, data) in &shapes {
+            if Some(*group) != self.bodies.get() {
+                continue;
+            }
+            let cells = if kind == BOX {
+                box_cells(*x, *z, data)?
+            } else {
+                cylinder_cells(*x, *z, data, CELL / 2.0)?
+            };
+            if let Some(cells) = cells
+                && cells.len() as i64 <= PROP_CELLS
+                && !cells.contains(&standing)
+            {
+                closed.extend(cells);
+            }
+        }
+        Ok(closed)
+    }
+
+    /// Every prop's shape in a group, as (group, x, z, its class, its data), and the bodies'
+    /// group learnt from them where a drawn person stands in one (`prop_cells`).
+    fn shapes(&self, drawn: &[(f64, f64)]) -> Result<Vec<Shaped>> {
+        let mut shapes: Vec<Shaped> = Vec::new();
         let props = self.tracked.borrow().props.clone();
         for prop in props {
             if self.class(prop)?.as_deref() != Some(PROP) {
@@ -604,24 +631,60 @@ impl SunFieldReader {
         if let Some(smallest) = smallest {
             self.bodies.set(Some(smallest.1));
         }
-        let mut closed: IndexSet<(i64, i64)> = IndexSet::new();
-        for (group, x, z, kind, data) in &shapes {
-            if Some(*group) != self.bodies.get() {
-                continue;
-            }
-            let cells = if kind == BOX {
-                box_cells(*x, *z, data)?
-            } else {
-                cylinder_cells(*x, *z, data)?
-            };
-            if let Some(cells) = cells
+        Ok(shapes)
+    }
+
+    /// Where someone standing at (x, z) is talked to from: each cell beside the range the
+    /// game gives them, a cylinder round them in a group of its own beside the bodies', with the
+    /// way to face into it. The lottery clerk's in Festival Plaza reaches over her stall's
+    /// counter, and the game spoke to her from (65, 99) facing east, its first cell (66, 99)
+    /// (spike Q). None where no range is known.
+    fn talked_from(
+        &self,
+        x: f64,
+        z: f64,
+        shapes: &[Shaped],
+    ) -> Result<Vec<((i64, i64), &'static str)>> {
+        let Some(bodies) = self.bodies.get() else {
+            return Ok(Vec::new());
+        };
+        let mut ranges: Vec<IndexSet<(i64, i64)>> = Vec::new();
+        for (group, sx, sz, kind, data) in shapes {
+            if *group != bodies
+                && kind == CYLINDER
+                && (sx - x).abs() < SAME_PLACE
+                && (sz - z).abs() < SAME_PLACE
+                && let Some(cells) = cylinder_cells(*sx, *sz, data, 0.0)?
+                && !cells.is_empty()
                 && cells.len() as i64 <= PROP_CELLS
-                && !cells.contains(&standing)
             {
-                closed.extend(cells);
+                ranges.push(cells);
             }
         }
-        Ok(closed)
+        // `max(ranges, key=len)`: the first of the largest.
+        let Some(largest) = ranges
+            .iter()
+            .fold(None, |best: Option<&IndexSet<(i64, i64)>>, cells| match best {
+                Some(best) if cells.len() <= best.len() => Some(best),
+                _ => Some(cells),
+            })
+        else {
+            return Ok(Vec::new());
+        };
+        let turn = self.turn.get();
+        let talk: HashSet<(i64, i64)> = largest.iter().map(|&cell| turned(cell, turn)).collect();
+        let mut out: Vec<((i64, i64), &'static str)> = Vec::new();
+        for cell in &talk {
+            for (direction, (dx, dz)) in pathfind::STEPS {
+                let beside = (cell.0 - dx, cell.1 - dz);
+                if !talk.contains(&beside) {
+                    out.push((beside, direction));
+                }
+            }
+        }
+        out.sort();
+        out.dedup();
+        Ok(out)
     }
 
     /// `where` with the people, the things read by facing them and the exits of the field
@@ -866,19 +929,24 @@ impl SunFieldReader {
             Some(found) => found.trainers.iter().flatten().collect(),
         };
         let mut out: Vec<Interactable> = Vec::new();
-        for (model, head, (x, z)) in self.drawn(player)? {
+        let drawn = self.drawn(player)?;
+        let places: Vec<(f64, f64)> = drawn.iter().map(|(_model, _head, place)| *place).collect();
+        let shapes = self.shapes(&places)?;
+        for (model, head, (x, z)) in drawn {
             let code = u32(&head, MODEL_CODE)?;
             let record = trainers.iter().find(|record| {
                 record.code == code
                     && record.zone.is_some()
                     && py::hypot(record.x - x, record.z - z) <= TRAINER_REACH
             });
+            let at = turned(cell(x, z)?, self.turn.get());
             out.push(Interactable {
                 code,
                 source: model,
                 move_model: true,
                 record: record.and_then(|record| record.zone.map(|zone| (zone, record.number))),
-                ..Interactable::new("people", "person", turned(cell(x, z)?, self.turn.get()))
+                talked_from: self.talked_from(x, z, &shapes)?,
+                ..Interactable::new("people", "person", at)
             });
         }
         Ok(out)
@@ -1252,14 +1320,19 @@ fn box_cells(x: f64, z: f64, data: &[u8]) -> Result<Option<IndexSet<(i64, i64)>>
     Ok(Some(out))
 }
 
-/// The cells within half a cell of a cylinder shape round (x, z), or None.
-fn cylinder_cells(x: f64, z: f64, data: &[u8]) -> Result<Option<IndexSet<(i64, i64)>>> {
+/// The cells within `margin`, half a cell, of a cylinder shape round (x, z), or None.
+fn cylinder_cells(
+    x: f64,
+    z: f64,
+    data: &[u8],
+    margin: f64,
+) -> Result<Option<IndexSet<(i64, i64)>>> {
     let values = floats(&binary::take::<16>(data, SHAPE_X)?);
     let (ox, _oy, oz, radius) = (values[0], values[1], values[2], values[3]);
     if !(ox.is_finite() && oz.is_finite() && radius.is_finite()) || radius > CELL * 20.0 {
         return Ok(None);
     }
-    let (cx, cz, reach) = (x + ox, z + oz, radius + CELL / 2.0);
+    let (cx, cz, reach) = (x + ox, z + oz, radius + margin);
     let mut out: IndexSet<(i64, i64)> = IndexSet::new();
     let (low, high) = (
         py::floor((cx - reach) / CELL)?,
