@@ -182,7 +182,13 @@ pub fn join(pieces: &[ScreenText], pauses: bool) -> String {
                     && !before.plain
                     && !piece.label
                     && (before.label || labels_value(before, piece));
-                out.push_str(if labelled { ": " } else { ", " });
+                out.push_str(if labelled {
+                    ": "
+                } else if abbreviates(before, piece) {
+                    " "
+                } else {
+                    ", "
+                });
                 out.push_str(&piece.text);
             }
         }
@@ -240,6 +246,31 @@ pub fn labels_value(first: &ScreenText, second: &ScreenText) -> bool {
         && -glyph <= first.row - second.row
         && first.row - second.row <= glyph * VALUE_BELOW
         && second.right >= first.right + glyph * VALUE_BEYOND
+}
+
+/// The most letters of a word cut short before its full stop: "Lv.".
+pub const ABBREVIATION: usize = 3;
+
+/// Is `first` a word cut short and `second` the number it names, after it on its row? A trade
+/// draws the offered Pokémon's "Lv." and its level apart, and under `pauses` it read "Lv., 9"
+/// (the PSS's multiplayer).
+fn abbreviates(first: &ScreenText, second: &ScreenText) -> bool {
+    let glyph = min_of(first.glyph, second.glyph);
+    let word: Vec<char> = first
+        .text
+        .rsplit(' ')
+        .next()
+        .unwrap_or("")
+        .chars()
+        .collect();
+    glyph > 0.0
+        && (first.row - second.row).abs() < glyph
+        && first.left < second.left
+        && word.last() == Some(&'.')
+        && 0 < word.len() - 1
+        && word.len() - 1 <= ABBREVIATION
+        && word[..word.len() - 1].iter().all(|&c| py::is_alpha(c))
+        && second.text.chars().next().is_some_and(py::is_digit)
 }
 
 /// Is `first` a sign and `second` the number it is drawn before on its row? The battle's Bag

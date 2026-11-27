@@ -3273,6 +3273,33 @@ fn test_a_slot_under_a_pokemon_carried_says_who_is_in_it() {
     assert_eq!(asked.borrow().len(), 2);
 }
 
+/// A trade draws the offered Pokémon's "Lv." and its level apart, and under pauses it read
+/// "Lv., 9" (the PSS's multiplayer). A word whole is still paused after.
+#[test]
+fn test_a_word_cut_short_is_said_with_its_number() {
+    fn row(first: &str) -> Vec<ScreenText> {
+        vec![
+            ScreenText {
+                left: 120.0,
+                right: 150.0,
+                row: 120.0,
+                glyph: 13.0,
+                ..ScreenText::new(0x100, first, false)
+            },
+            ScreenText {
+                left: 162.0,
+                right: 170.0,
+                row: 120.0,
+                glyph: 13.0,
+                ..ScreenText::new(0x101, "9", false)
+            },
+        ]
+    }
+
+    assert_eq!(join(&row("Lv."), true), "Lv. 9");
+    assert_ne!(join(&row("Level"), true), "Level 9");
+}
+
 /// A trade's party and boxes show no summary of the slot under the pointer, and their Pokémon
 /// went unsaid until opened (the PSS's multiplayer): each slot is said with who is in it, an
 /// empty one as ever.
