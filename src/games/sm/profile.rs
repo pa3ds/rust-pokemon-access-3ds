@@ -33,7 +33,7 @@ use crate::core::words::own;
 use crate::games::common::announce::{Announcements, Focus};
 use crate::games::common::battle::{MAX_ASKS, REASK};
 use crate::games::common::cursors::reader::CursorReader;
-use crate::games::common::cursors::shared::CursorItem;
+use crate::games::common::cursors::shared::{CursorItem, CursorPoll};
 use crate::games::common::dialogue::DialogueReader;
 use crate::games::common::field::ground::Ground;
 use crate::games::common::field::guide::FieldSource;
@@ -154,6 +154,13 @@ fn counted(item: CursorItem) -> Result<CursorItem> {
         },
     ];
     Ok(CursorItem { pieces, ..item })
+}
+
+/// The cursors' poll less every item and stand over a piece another reader says.
+pub fn cursors_off(mut cursors: CursorPoll, whose: impl Fn(&ScreenText) -> bool) -> CursorPoll {
+    cursors.items.retain(|item| !item.pieces.iter().any(&whose));
+    cursors.under.retain(|under| !under.iter().any(&whose));
+    cursors
 }
 
 /// The zone last listed and what was in it (people by kind alone, since they walk).
@@ -599,7 +606,10 @@ impl SunProfile {
         self.dialogue.borrow_mut().watch(&lines);
         // The HP box is the battle reader's to say, whole and once it holds still.
         let sides = self.battle.borrow_mut().poll(&screen.on_screen)?;
-        let mut cursors = self.cursors.borrow_mut().poll(&screen.on_screen)?;
+        let cursors = self.cursors.borrow_mut().poll(&screen.on_screen)?;
+        // Nor is it a cursor's: a list cursor stood over it as the battle opened, and "Rockruff7"
+        // was said before "A wild Pikipek appeared!", the box not yet on screen (Kukui's tutorial).
+        let mut cursors = cursors_off(cursors, |piece| self.battle.borrow().owns(piece));
         if self.shop.borrow().reads() {
             // A Mart's list: the shop's reader says the item under the cursor, which only a sweep
             // finds as the list opens; the cursor over the list would read its rows whole.
@@ -622,12 +632,7 @@ impl SunProfile {
                 // The rows are the shop reader's; the money, the count in the bag and the
                 // description are the screen's, said as they change, as ORAS's are. The cursor
                 // over the list stood over all of it, and none was said (spike Q, Route 1's Mart).
-                cursors
-                    .items
-                    .retain(|found| !found.pieces.iter().any(|piece| rows.contains(&piece.r#box)));
-                cursors
-                    .under
-                    .retain(|under| !under.iter().any(|piece| rows.contains(&piece.r#box)));
+                cursors = cursors_off(cursors, |piece| rows.contains(&piece.r#box));
             }
             self.shop_wanted
                 .set(!rows.is_empty() && self.shop.borrow().showing().is_none());

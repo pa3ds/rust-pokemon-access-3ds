@@ -18,6 +18,7 @@ use crate::core::rtti::ClassNames;
 use crate::core::speech::Speech;
 use crate::core::words::{self, ENGLISH, Words};
 use crate::games::common::announce::{Focus, SPEAKER_POLLS};
+use crate::games::common::cursors::shared::{CursorItem, CursorPoll};
 use crate::games::common::msgwin as common_msgwin;
 use crate::games::common::screen::ScreenText;
 use crate::games::common::screen_order::{in_rows, join};
@@ -25,7 +26,7 @@ use crate::games::common::session::Profile;
 use crate::games::sm::heaps::{self, Blocks, Heaps};
 use crate::games::sm::langselect::{self, LangSelectReader, Shown};
 use crate::games::sm::profile::{
-    SunProfile, chart_stats, counted_rows, labelled_rows, stat_rows, words_apart,
+    SunProfile, chart_stats, counted_rows, cursors_off, labelled_rows, stat_rows, words_apart,
 };
 use crate::games::sm::shop::{self, ShopReader};
 use crate::games::sm::text::SunText;
@@ -593,6 +594,33 @@ fn test_a_mart_s_list_says_the_item_under_its_cursor_by_its_number() {
     memory.u32(DRAW, &[0]);
     assert_eq!(reader.poll().unwrap(), None);
     assert_eq!(reader.showing(), None);
+}
+
+/// A list cursor stood over the HP box as the battle opened, "Rockruff7" said before "A wild
+/// Pikipek appeared!" (Kukui's tutorial); the box is the battle reader's.
+#[test]
+fn test_no_cursor_is_said_over_words_another_reader_says() {
+    let name = ScreenText {
+        panel: 9,
+        ..ScreenText::new(1, "Rockruff", false)
+    };
+    let level = ScreenText {
+        panel: 9,
+        ..ScreenText::new(2, "7", false)
+    };
+    let fight = ScreenText::new(3, "Fight", false);
+    let polled = CursorPoll {
+        items: vec![
+            CursorItem::new(0x10, vec![name.clone(), level.clone()], true),
+            CursorItem::new(0x20, vec![fight.clone()], true),
+        ],
+        under: vec![vec![name, level], vec![fight.clone()]],
+        ..CursorPoll::default()
+    };
+    let off = cursors_off(polled, |piece| piece.panel == 9);
+    let pieces: Vec<Vec<ScreenText>> = off.items.iter().map(|item| item.pieces.clone()).collect();
+    assert_eq!(pieces, [vec![fight.clone()]]);
+    assert_eq!(off.under, [vec![fight]]);
 }
 
 /// Every row's words hang from one pane: taken by the pane, every item read $100, the last
