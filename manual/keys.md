@@ -105,8 +105,9 @@ The battle's keys work throughout.
 Touch mode walks the buttons on the bottom screen, in reading order. While a panel or a Yes
 and No is up, it leaves out the buttons behind it that a tap no longer reaches. It works where the
 game needs a touch: on the map with the PokéNav Plus and the PSS, in the AreaNav, Pokémon-Amie,
-Super Training, the PSS's profile and its icon choice, and the screen after a trade or battle
-online that asks whether to register someone as a friend. Elsewhere, in the Bag, the PC or a
+Super Training, the PSS's profile and its icon choice, the screen after a trade or battle
+online that asks whether to register someone as a friend, and the Colosseum where you and another
+player get ready for a battle you chose in the PSS. Elsewhere, in the Bag, the PC or a
 battle, the game's own buttons do everything a touch does, and touch mode says "nothing to
 touch". A button the game shows greyed out is said with "unavailable" after it, as another
 player's Battle, Trade and O-Power in the PSS are while you are not connected: tapping it does

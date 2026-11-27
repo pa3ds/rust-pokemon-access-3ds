@@ -11,6 +11,11 @@ pub const PSS: &str = "N3app3pss";
 /// them as one, or Do not register: a player online with the PSS had nothing to touch there (a
 /// player's log of 2026-11-12).
 pub const FRIEND_ENTRY: &str = "N6netapp12friend_entry4ProcE";
+/// Where two players who chose to battle from the PSS meet before it: POKÉMON LIST, BAG,
+/// BATTLE, START! and the quit question, and in Omega Ruby and Alpha Sapphire facing X or Y, the
+/// Kalos Rules' notice and its Next. Both players had nothing to touch there and were stuck
+/// (the PSS's multiplayer, two Azahars in one room).
+pub const COLOSSEUM: &str = "N3app9colosseum4ProcE";
 
 /// Is the app one of the PSS's own (`PSS`)?
 pub fn running(app: Option<&str>) -> bool {

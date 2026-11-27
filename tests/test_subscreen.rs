@@ -141,7 +141,12 @@ fn test_touch_mode_in_the_subscreens_apps_is_as_they_say() {
     let profile_app = pss_profile();
     let mut offered: Vec<&str> = vec![amie::AMIE];
     offered.extend(amie::GAMES);
-    offered.extend([super_training::SPARRING, pss::FRIEND_ENTRY, &profile_app]);
+    offered.extend([
+        super_training::SPARRING,
+        pss::FRIEND_ENTRY,
+        pss::COLOSSEUM,
+        &profile_app,
+    ]);
     for app in offered {
         apps.borrow_mut().running = Some(app.to_string());
         assert!(found.offered(), "{app}");
