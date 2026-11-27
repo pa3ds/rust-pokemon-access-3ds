@@ -7,11 +7,13 @@
 //! games, and Super Training's rounds. Each has a reader or a few of its own, and the profile wired
 //! each one by hand, Berry Picker alone at eleven places (the deepening round, 2026-10-29). Here
 //! they are built from what they share and answered for together. Each reader answers whichever of
-//! these it has, by the same name, for the app running, and nothing in any other app:
+//! these it has, by the same name, for the app running, and nothing in any other app;
+//! `Subscreens` reads which app runs once a call (`apps.RunningApp`) and hands it to each:
 //!
 //! - `classes`, what the heap is swept for to find its objects, and `track(found, adding)`, what a
 //!   sweep found of them, by class; an app's own process is not swept for, but handed to the
-//!   readers that read it (`process`, the running app's `apps.RunningApp.process`);
+//!   readers that read it while their app runs (`process`, the running app's
+//!   `apps.RunningApp.process`);
 //! - `name(picture, running)`, what touch mode calls a picture of its screen's;
 //! - `targets(running)`, the targets it offers touch mode at points no pane places, beside the
 //!   touch areas;
@@ -76,6 +78,7 @@ use crate::games::common::layout::Layouts;
 use crate::games::common::pokemon;
 use crate::games::common::screen::ScreenText;
 use crate::games::common::touch::{FileOf, ImageOf, OnScreen, Target};
+use crate::games::gen6::apps::RunningApp;
 use crate::games::gen6::game::Game;
 use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::rom::cries::Crier;
@@ -477,6 +480,7 @@ impl Named for RefCell<SwitchScreen> {
 
 /// The subscreens' readers, and what each answers for the app running.
 pub struct Subscreens {
+    apps: Rc<RefCell<RunningApp>>,
     pub puzzle: Rc<RefCell<TilePuzzle>>,
     berry_picker: Rc<RefCell<BerryPicker>>,
     /// What the heap is swept for, each reader's `classes`.
@@ -524,6 +528,7 @@ impl Subscreens {
         images: IndexMap<String, String>,
         text: Rc<GameText>,
         game: &Game,
+        apps: Rc<RefCell<RunningApp>>,
         settings: &Amie,
         picked: Rc<dyn Fn(&str) -> String>,
         wrong: Rc<dyn Fn(&str) -> String>,
@@ -532,11 +537,9 @@ impl Subscreens {
         cry: Option<Crier>,
         frames: Frames,
         drawn: Option<Rc<dyn Memory>>,
-        process: Process,
         file_of: FileOf,
         on_screen: OnScreen,
         party: Rc<dyn Fn() -> Option<i64>>,
-        running: Rc<dyn Fn() -> Option<String>>,
         bag_hit: Rc<dyn Fn()>,
         bag_finished: Rc<dyn Fn()>,
         shot_fired: Rc<dyn Fn(&str)>,
@@ -544,6 +547,23 @@ impl Subscreens {
         block_lead: f64,
         exact_stats: bool,
     ) -> Subscreens {
+        let running: Rc<dyn Fn() -> Option<String>> = {
+            let apps = apps.clone();
+            Rc::new(move || apps.borrow().running.clone())
+        };
+        let process: Process = {
+            let apps = apps.clone();
+            // Where `app`'s process begins while it is the app running, else None: one read of
+            // the manager says, from the moment it starts, where a sweep found it seconds on.
+            Rc::new(move |app: &str| {
+                let apps = apps.borrow();
+                if apps.running.as_deref() == Some(app) {
+                    apps.process
+                } else {
+                    None
+                }
+            })
+        };
         let short: berry_picker::Name = {
             let text = text.clone();
             Rc::new(move |found: &pokemon::Pokemon| short(&text, found))
@@ -755,6 +775,7 @@ impl Subscreens {
             ))));
         }
         Subscreens {
+            apps,
             classes: classes.into_iter().collect(),
             tracked,
             named: vec![
@@ -787,8 +808,15 @@ impl Subscreens {
         Ok(())
     }
 
+    /// The app running, as `RunningApp` last found it.
+    fn running(&self) -> Option<String> {
+        self.apps.borrow().running.clone()
+    }
+
     /// What touch mode calls a picture of these screens', or None.
-    pub fn name(&self, picture: i64, running: Option<&str>) -> Result<Option<String>> {
+    pub fn name(&self, picture: i64) -> Result<Option<String>> {
+        let running = self.running();
+        let running = running.as_deref();
         for reader in &self.named {
             if let Some(name) = reader.name(picture, running)?
                 && !name.is_empty()
@@ -800,7 +828,9 @@ impl Subscreens {
     }
 
     /// The targets these screens offer touch mode at points no pane places.
-    pub fn targets(&self, running: Option<&str>) -> Result<Vec<Target>> {
+    pub fn targets(&self) -> Result<Vec<Target>> {
+        let running = self.running();
+        let running = running.as_deref();
         let mut found = Vec::new();
         for reader in &self.offering {
             found.extend(reader.targets(running)?);
@@ -810,7 +840,9 @@ impl Subscreens {
 
     /// The pictures these screens offer touch mode as targets of their own, by pane, with
     /// their names.
-    pub fn offer(&self, running: Option<&str>) -> Result<IndexMap<i64, String>> {
+    pub fn offer(&self) -> Result<IndexMap<i64, String>> {
+        let running = self.running();
+        let running = running.as_deref();
         let mut found: IndexMap<i64, String> = IndexMap::new();
         for reader in &self.pictured {
             found.extend(reader.offer(running)?);
@@ -820,10 +852,9 @@ impl Subscreens {
 
     /// What each screen describes now, as (what the log calls it, the line, its category):
     /// a `Category.SCENE` line the narrator's, and one of None only logged.
-    pub fn describe(
-        &self,
-        running: Option<&str>,
-    ) -> Result<Vec<(String, String, Option<Category>)>> {
+    pub fn describe(&self) -> Result<Vec<(String, String, Option<Category>)>> {
+        let running = self.running();
+        let running = running.as_deref();
         let mut said = Vec::new();
         for reader in &self.described {
             said.extend(reader.describe(running)?);
@@ -832,7 +863,9 @@ impl Subscreens {
     }
 
     /// The table of the keys file of the screen running, where it has keys of its own.
-    pub fn context(&self, running: Option<&str>) -> Result<Option<&'static str>> {
+    pub fn context(&self) -> Result<Option<&'static str>> {
+        let running = self.running();
+        let running = running.as_deref();
         for keys in &self.keyed {
             if let Some(context) = keys.context(running)? {
                 return Ok(Some(context));
@@ -842,12 +875,9 @@ impl Subscreens {
     }
 
     /// Answer one of the screen's own keys, with the line to say.
-    pub fn press(
-        &self,
-        action: &str,
-        running: Option<&str>,
-        touch: &mut dyn Touching,
-    ) -> Result<String> {
+    pub fn press(&self, action: &str, touch: &mut dyn Touching) -> Result<String> {
+        let running = self.running();
+        let running = running.as_deref();
         for keys in &self.keyed {
             if keys.context(running)?.is_some() {
                 return keys.press(action, running, touch);
@@ -860,9 +890,10 @@ impl Subscreens {
     /// of None only logged.
     pub fn poll(
         &self,
-        running: Option<&str>,
         touch: &mut dyn Touching,
     ) -> Result<Vec<(String, String, Option<Category>)>> {
+        let running = self.running();
+        let running = running.as_deref();
         let mut said = Vec::new();
         for reader in &self.polled {
             said.extend(reader.poll(running, touch)?);
@@ -871,12 +902,17 @@ impl Subscreens {
     }
 
     /// Whether a screen follows something every tick now (`tick`).
-    pub fn ticking(&self, running: Option<&str>) -> bool {
-        self.ticked.iter().any(|reader| reader.ticking(running))
+    pub fn ticking(&self) -> bool {
+        let running = self.running();
+        self.ticked
+            .iter()
+            .any(|reader| reader.ticking(running.as_deref()))
     }
 
     /// Follow what each screen follows every tick: Head It's balls, for its cue.
-    pub fn tick(&self, running: Option<&str>) -> Result<()> {
+    pub fn tick(&self) -> Result<()> {
+        let running = self.running();
+        let running = running.as_deref();
         for reader in &self.ticked {
             if reader.ticking(running) {
                 reader.tick()?;
@@ -887,8 +923,8 @@ impl Subscreens {
 
     /// Whether one of Amie's games is mid-play, its numbers the play's and left unsaid
     /// (`screen_announce`): a Tile Puzzle with a piece away from home.
-    pub fn playing(&self, running: Option<&str>) -> Result<bool> {
-        Ok(running == Some(puzzle::APP) && self.puzzle.borrow().playing()?)
+    pub fn playing(&self) -> Result<bool> {
+        Ok(self.running().as_deref() == Some(puzzle::APP) && self.puzzle.borrow().playing()?)
     }
 
     /// Whether words on the screen are a game's score, what comes at every hit or miss, left
@@ -896,8 +932,10 @@ impl Subscreens {
     /// "79-HIT COMBO" and its "MISS!", which at a long Unlimited round's pace, a ball a second,
     /// queued up behind the balls' names, so that the names came later and later (players,
     /// 2026-11-04; spike 273's `--again`). Not its chances left, "Chances:2", nor its clock.
-    pub fn scored(&self, piece: &ScreenText, running: Option<&str>) -> Result<bool> {
-        self.head_it.borrow().scored(piece, running)
+    pub fn scored(&self, piece: &ScreenText) -> Result<bool> {
+        self.head_it
+            .borrow()
+            .scored(piece, self.running().as_deref())
     }
 
     /// The words on the screen as they are said, each reader rewording them in turn: the
@@ -916,15 +954,18 @@ impl Subscreens {
     /// Whether a screen's round holds the heap's whole sweep off: a second of nothing else
     /// read, every 30 s, left a ball of Head It's without its cue and a key pressed for one
     /// tapping late (spike 273, live).
-    pub fn holding(&self, running: Option<&str>) -> bool {
-        self.holding.iter().any(|reader| reader.holding(running))
+    pub fn holding(&self) -> bool {
+        let running = self.running();
+        self.holding
+            .iter()
+            .any(|reader| reader.holding(running.as_deref()))
     }
 
     /// Whether touch mode's drag is made only as it is let go, straight from where it was
     /// picked up to where the keys chose: in Berry Picker, where a berry carried over a Pokémon
     /// wanting another sends it off (spike 260).
-    pub fn delayed(&self, running: Option<&str>) -> bool {
-        running == Some(berry_picker::APP)
+    pub fn delayed(&self) -> bool {
+        self.running().as_deref() == Some(berry_picker::APP)
     }
 
     /// How fast the game runs beside full speed, which a drag made on letting go is timed

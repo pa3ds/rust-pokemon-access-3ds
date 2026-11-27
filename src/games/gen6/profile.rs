@@ -1045,6 +1045,7 @@ impl Gen6Profile {
             images.clone(),
             text.clone(),
             game,
+            apps.clone(),
             &tables.amie,
             {
                 let heard = heard.clone();
@@ -1059,19 +1060,11 @@ impl Gen6Profile {
             cry,
             frames_of(memory.clone(), managers.clone()),
             drawn,
-            {
-                let apps = apps.clone();
-                Rc::new(move |app: &str| process_of(&apps, app))
-            },
             file_of.clone(),
             on_screen.clone(),
             {
                 let party_icons = party_icons.clone();
                 Rc::new(move || party_icons.borrow().party)
-            },
-            {
-                let apps = apps.clone();
-                Rc::new(move || apps.borrow().running.clone())
             },
             {
                 let played = played.clone();
@@ -1123,7 +1116,7 @@ impl Gen6Profile {
                 {
                     return Ok(Some(name));
                 }
-                if let Some(name) = subscreens.name(pane, running.as_deref())?
+                if let Some(name) = subscreens.name(pane)?
                     && !name.is_empty()
                 {
                     return Ok(Some(name));
@@ -1216,12 +1209,12 @@ impl Gen6Profile {
                     })
                 }),
                 gestures: Some({
-                    let (subscreens, apps) = (subscreens.clone(), apps.clone());
-                    Rc::new(move || subscreens.targets(apps.borrow().running.as_deref()))
+                    let subscreens = subscreens.clone();
+                    Rc::new(move || subscreens.targets())
                 }),
                 pictured: Some({
-                    let (subscreens, apps) = (subscreens.clone(), apps.clone());
-                    Rc::new(move || subscreens.offer(apps.borrow().running.as_deref()))
+                    let subscreens = subscreens.clone();
+                    Rc::new(move || subscreens.offer())
                 }),
             },
         )));
@@ -1239,8 +1232,8 @@ impl Gen6Profile {
                 }),
                 settings: touch_settings.clone(),
                 delayed: Some({
-                    let (apps, subscreens) = (apps.clone(), subscreens.clone());
-                    Rc::new(move || subscreens.delayed(apps.borrow().running.as_deref()))
+                    let subscreens = subscreens.clone();
+                    Rc::new(move || subscreens.delayed())
                 }),
                 pace: Some({
                     let subscreens = subscreens.clone();
@@ -1349,14 +1342,12 @@ impl Gen6Profile {
                 })
             }),
             Some({
-                let (apps, subscreens) = (apps.clone(), subscreens.clone());
-                Rc::new(move || subscreens.playing(apps.borrow().running.as_deref()))
+                let subscreens = subscreens.clone();
+                Rc::new(move || subscreens.playing())
             }),
             Some({
-                let (apps, subscreens) = (apps.clone(), subscreens.clone());
-                Rc::new(move |piece: &ScreenText| {
-                    subscreens.scored(piece, apps.borrow().running.as_deref())
-                })
+                let subscreens = subscreens.clone();
+                Rc::new(move |piece: &ScreenText| subscreens.scored(piece))
             }),
             tables.amie.head_it_score,
         );
@@ -1678,9 +1669,7 @@ impl Gen6Profile {
             self.moved.set(Some(now));
             self.moving.set(false);
         }
-        let held = self
-            .subscreens
-            .holding(self.apps.borrow().running.as_deref());
+        let held = self.subscreens.holding();
         if self.moved.get().is_none_or(|moved| now - moved >= STILL) {
             self.holding.set(None);
             return held;
@@ -2012,14 +2001,13 @@ impl Gen6Profile {
                 }
             };
             self.map_cursor.borrow_mut().poll()?;
-            let running = self.apps.borrow().running.clone();
             let played = {
                 let mut navigator = self.navigator.borrow_mut();
                 let touch = navigator
                     .touch
                     .as_mut()
                     .expect("the gen 6 navigator is given touch targets");
-                self.subscreens.poll(running.as_deref(), touch)?
+                self.subscreens.poll(touch)?
             };
             let found = self.cursors.borrow_mut().poll(on_screen)?;
             let polled =
@@ -2190,8 +2178,7 @@ impl Gen6Profile {
         // A description after the screen's words, as it follows what it describes, and what is
         // only logged beside it: Tile Puzzle's picture. Read outside the screen's phase, which
         // would fetch its pages every poll after.
-        let running = self.apps.borrow().running.clone();
-        for (logged, line, category) in self.subscreens.describe(running.as_deref())? {
+        for (logged, line, category) in self.subscreens.describe()? {
             if category == Some(Category::Scene) {
                 self.announcements.borrow_mut().narrate(&line);
             } else if category.is_none() {
@@ -2278,8 +2265,7 @@ impl Gen6Profile {
                     .touch
                     .as_mut()
                     .expect("the gen 6 navigator is given touch targets");
-                let running = self.apps.borrow().running.clone();
-                self.subscreens.press(&action, running.as_deref(), touch)?
+                self.subscreens.press(&action, touch)?
             };
             if !said.is_empty() {
                 (self.log)(&format!("key: {said}"));
@@ -2292,8 +2278,7 @@ impl Gen6Profile {
     /// The table of the keys file of the screen running now, where it has keys of its own:
     /// Berry Picker's (`Subscreens.context`).
     pub fn context(&self) -> Result<Option<&'static str>> {
-        self.subscreens
-            .context(self.apps.borrow().running.as_deref())
+        self.subscreens.context()
     }
 
     /// Play a footstep where the player's foot came down on silent ground, every tick: the
@@ -2333,11 +2318,8 @@ impl Gen6Profile {
                 self.cursors.borrow_mut().sample(&*self.memory)
             })?;
         }
-        let running = self.apps.borrow().running.clone();
-        if self.subscreens.ticking(running.as_deref()) {
-            phase(&*self.memory, "ticked", || {
-                self.subscreens.tick(running.as_deref())
-            })?;
+        if self.subscreens.ticking() {
+            phase(&*self.memory, "ticked", || self.subscreens.tick())?;
         }
         Ok(())
     }
@@ -2702,18 +2684,6 @@ impl Gen6Profile {
             }
         }
         Ok(())
-    }
-}
-
-/// `Gen6Profile._process_of`: where `app`'s process begins while it is the app running, else
-/// None: one read of the manager says, from the moment it starts, where a sweep found it seconds
-/// on.
-fn process_of(apps: &RefCell<RunningApp>, app: &str) -> Option<i64> {
-    let apps = apps.borrow();
-    if apps.running.as_deref() == Some(app) {
-        apps.process
-    } else {
-        None
     }
 }
 
