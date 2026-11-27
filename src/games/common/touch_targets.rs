@@ -1313,12 +1313,9 @@ impl TouchTargets {
                 .filter(|p| tree.get(p).map(String::as_str) == Some(lyt::PICTURE_CLASS))
                 .collect();
             if !said.is_empty() {
-                for image in drawn_with(
-                    drawing,
-                    &*self.image_of,
-                    textures,
-                    &|p| self.layouts.pane_name(p),
-                ) {
+                for image in drawn_with(drawing, &*self.image_of, textures, &|p| {
+                    self.layouts.pane_name(p)
+                }) {
                     named.entry(image?).or_default().insert(said.clone());
                 }
                 continue;

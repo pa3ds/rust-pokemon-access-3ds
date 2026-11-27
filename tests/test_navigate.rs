@@ -1700,11 +1700,12 @@ fn test_p_goes_to_whatever_the_navigation_keys_are_on() {
 /// west into a dead end, "then can't continue"; it now goes north first, up the stair.
 #[test]
 fn test_a_scene_spot_over_the_only_way_is_crossed_and_one_with_a_way_round_is_not() {
-    let mut wall: Vec<Cell> = (80..120)
-        .filter(|&x| x != 90)
-        .map(|x| (x, 175))
-        .collect();
-    wall.extend([80, 119].into_iter().flat_map(|x| (160..200).map(move |z| (x, z))));
+    let mut wall: Vec<Cell> = (80..120).filter(|&x| x != 90).map(|x| (x, 175)).collect();
+    wall.extend(
+        [80, 119]
+            .into_iter()
+            .flat_map(|x| (160..200).map(move |z| (x, z))),
+    );
     wall.extend((80..120).flat_map(|x| [160, 199].into_iter().map(move |z| (x, z))));
     let door = Interactable {
         zone: Some(0xDF),
@@ -1772,10 +1773,7 @@ fn test_someone_walled_in_is_walked_to_where_their_talk_range_reaches() {
     let clerk = Interactable {
         source: 0x08D1E9A8,
         move_model: true,
-        talked_from: vec![
-            ((100, 183), pathfind::NORTH),
-            ((96, 179), pathfind::EAST),
-        ],
+        talked_from: vec![((100, 183), pathfind::NORTH), ((96, 179), pathfind::EAST)],
         ..Interactable::new("people", "person", (100, 179))
     };
     let field = |clerk: Interactable| Field {

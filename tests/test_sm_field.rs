@@ -966,9 +966,7 @@ fn test_a_thing_of_the_pc_s_kind_is_the_pc() {
         ..base
     };
     let actor = 0x3037B068;
-    bedroom
-        .memory
-        .u32(actor, &[bedroom.vtables[field::THING]]);
+    bedroom.memory.u32(actor, &[bedroom.vtables[field::THING]]);
     floats(
         &bedroom.memory,
         actor + field::ACTOR_X,
@@ -1354,7 +1352,10 @@ fn test_someone_whose_shapes_are_in_no_group_has_left_and_is_not_listed() {
         let at = bedroom
             .listed(Some(rom()), Some(found), false, &[])
             .expect("the field up");
-        at.of("people").iter().map(|item| item.kind.clone()).collect()
+        at.of("people")
+            .iter()
+            .map(|item| item.kind.clone())
+            .collect()
     };
 
     assert_eq!(people(&bedroom.found), ["person"]);
@@ -1362,7 +1363,14 @@ fn test_someone_whose_shapes_are_in_no_group_has_left_and_is_not_listed() {
     prop(&bedroom, TALK, TALK_SHAPE, 0, (46.5, 60.5), &[160.0, 150.0]);
     let found = with_heap(&bedroom, &[(BODY, field::PROP), (TALK, field::PROP)]);
     assert!(people(&found).is_empty());
-    prop(&bedroom, BODY, BODY_SHAPE, BODIES, (46.5, 60.5), &[40.0, 150.0]);
+    prop(
+        &bedroom,
+        BODY,
+        BODY_SHAPE,
+        BODIES,
+        (46.5, 60.5),
+        &[40.0, 150.0],
+    );
     assert_eq!(people(&found), ["person"]);
 }
 

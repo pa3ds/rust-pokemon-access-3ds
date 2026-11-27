@@ -654,7 +654,14 @@ fn test_a_ledge_is_jumped_down_and_never_up() {
                 .unwrap(),
         );
         let found = land
-            .find(start, &IndexMap::from([(goal, None)]), "", None, false, None)
+            .find(
+                start,
+                &IndexMap::from([(goal, None)]),
+                "",
+                None,
+                false,
+                None,
+            )
             .unwrap();
         found.map(|found| pathfind::cells(&found))
     };

@@ -164,10 +164,7 @@ impl SummaryTypes {
             return Ok(None);
         }
         // Its record is not its own but the party's, which its +0x04 points at.
-        let record = u32(
-            &self.memory.read(param + pokemon::PARAM_RECORD, 4)?,
-            0,
-        )?;
+        let record = u32(&self.memory.read(param + pokemon::PARAM_RECORD, 4)?, 0)?;
         let plain = if record != 0 {
             pokemon::decrypt(&self.memory.read(record, pokemon::RECORD_SIZE)?)
         } else {

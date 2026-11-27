@@ -489,8 +489,7 @@ impl AreaWalls {
             let corners = flat(face, cell);
             let xs = [corners[0].0, corners[1].0, corners[2].0];
             let zs = [corners[0].1, corners[1].1, corners[2].1];
-            for row in py::floor(least_of(&zs) - REACH)?..py::floor(greatest_of(&zs) + REACH)? + 1
-            {
+            for row in py::floor(least_of(&zs) - REACH)?..py::floor(greatest_of(&zs) + REACH)? + 1 {
                 for column in
                     py::floor(least_of(&xs) - REACH)?..py::floor(greatest_of(&xs) + REACH)? + 1
                 {

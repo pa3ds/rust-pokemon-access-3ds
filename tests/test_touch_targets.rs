@@ -2910,14 +2910,68 @@ fn test_a_picture_two_buttons_without_words_draw_names_neither() {
     let (battle, trade, chat) = (root + 0x1000, root + 0x2000, root + 0x3000);
     for (button, x) in [(battle, -55.0), (trade, 55.0)] {
         placed(&fake, button, root, None, x, 10.0, 100.0, 100.0);
-        placed(&fake, button + 0x200, button, Some(picture), x, 10.0, 50.0, 50.0);
-        placed(&fake, button + 0x400, button, Some(textbox), x, -25.0, 100.0, 30.0);
-        placed(&fake, button + 0x600, button, Some(bounding), x, 10.0, 50.0, 50.0);
+        placed(
+            &fake,
+            button + 0x200,
+            button,
+            Some(picture),
+            x,
+            10.0,
+            50.0,
+            50.0,
+        );
+        placed(
+            &fake,
+            button + 0x400,
+            button,
+            Some(textbox),
+            x,
+            -25.0,
+            100.0,
+            30.0,
+        );
+        placed(
+            &fake,
+            button + 0x600,
+            button,
+            Some(bounding),
+            x,
+            10.0,
+            50.0,
+            50.0,
+        );
     }
     placed(&fake, chat, root, None, 0.0, -65.0, 100.0, 100.0);
-    placed(&fake, chat + 0x200, chat, Some(picture), 0.0, -65.0, 50.0, 50.0);
-    placed(&fake, chat + 0x400, chat, Some(textbox), 0.0, -65.0, 50.0, 30.0);
-    placed(&fake, chat + 0x600, chat, Some(bounding), 0.0, -65.0, 50.0, 50.0);
+    placed(
+        &fake,
+        chat + 0x200,
+        chat,
+        Some(picture),
+        0.0,
+        -65.0,
+        50.0,
+        50.0,
+    );
+    placed(
+        &fake,
+        chat + 0x400,
+        chat,
+        Some(textbox),
+        0.0,
+        -65.0,
+        50.0,
+        30.0,
+    );
+    placed(
+        &fake,
+        chat + 0x600,
+        chat,
+        Some(bounding),
+        0.0,
+        -65.0,
+        50.0,
+        50.0,
+    );
     fake.visible(chat, false);
     fake.track().unwrap();
     let words = vec![

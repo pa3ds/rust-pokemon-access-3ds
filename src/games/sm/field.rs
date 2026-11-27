@@ -65,10 +65,10 @@ use indexmap::{IndexMap, IndexSet};
 
 use crate::core::binary::{self, f32, u16, u32};
 use crate::core::config::{HIDDEN_ALL, HIDDEN_OFF};
-use crate::core::pathfind;
 use crate::core::discovery::Found;
 use crate::core::heaps::ReadEach;
 use crate::core::memory::Memory;
+use crate::core::pathfind;
 use crate::core::rtti::ClassNames;
 use crate::games::common::field::ground::{Ground, Of};
 use crate::games::common::field::pad::quarter;
@@ -692,13 +692,13 @@ impl SunFieldReader {
             }
         }
         // `max(ranges, key=len)`: the first of the largest.
-        let Some(largest) = ranges
-            .iter()
-            .fold(None, |best: Option<&IndexSet<(i64, i64)>>, cells| match best {
+        let Some(largest) = ranges.iter().fold(
+            None,
+            |best: Option<&IndexSet<(i64, i64)>>, cells| match best {
                 Some(best) if cells.len() <= best.len() => Some(best),
                 _ => Some(cells),
-            })
-        else {
+            },
+        ) else {
             return Ok(Vec::new());
         };
         let turn = self.turn.get();
@@ -1142,8 +1142,7 @@ impl SunFieldReader {
                         continue;
                     }
                     said.insert((actor, at));
-                    if let Some(item) =
-                        made(actor, record.x, record.z, Some(record), zone, false)?
+                    if let Some(item) = made(actor, record.x, record.z, Some(record), zone, false)?
                     {
                         out.push(item);
                     }

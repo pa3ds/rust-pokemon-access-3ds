@@ -3332,8 +3332,7 @@ fn test_a_person_behind_a_counter_is_talked_to_across_it() -> Result<()> {
 /// him, so P said "no path" from the cell south of his body, where the game stops the player
 /// and A speaks to him. The way may end there; across a wall it may not.
 #[test]
-fn test_a_person_is_walked_up_to_across_their_body_not_round_to_a_cell_behind_them() -> Result<()>
-{
+fn test_a_person_is_walked_up_to_across_their_body_not_round_to_a_cell_behind_them() -> Result<()> {
     let walls: HashMap<(i64, i64), i64> = HashMap::from([
         ((18, 15), BLOCKED),
         ((20, 15), BLOCKED),
@@ -3373,7 +3372,14 @@ fn test_a_person_is_walked_up_to_across_their_body_not_round_to_a_cell_behind_th
             ((19, 17), Some(pathfind::NORTH))
         ])
     );
-    let way = ground.find((19, 19), &ground.goals(&host)?, "", Some(&host), false, None)?;
+    let way = ground.find(
+        (19, 19),
+        &ground.goals(&host)?,
+        "",
+        Some(&host),
+        false,
+        None,
+    )?;
     let way = way.expect("a way");
     assert_eq!(way[way.len() - 1].cell, (19, 17));
     Ok(())

@@ -701,16 +701,14 @@ fn test_a_word_and_a_number_drawn_touching_are_said_apart_and_a_level_mark_is_no
 #[test]
 fn test_a_level_up_s_stats_are_read_whole_once_they_have_slid_in() {
     let names = ["HP", "Attack", "Defense", "Sp. Atk", "Sp. Def", "Speed"];
-    let at = |r#box: i64, text: &str, left: f64, right: f64, row: f64, parent: i64| {
-        ScreenText {
-            left,
-            right,
-            row,
-            glyph: 12.0,
-            root: 0x303394E8,
-            parent,
-            ..ScreenText::new(r#box, text, false)
-        }
+    let at = |r#box: i64, text: &str, left: f64, right: f64, row: f64, parent: i64| ScreenText {
+        left,
+        right,
+        row,
+        glyph: 12.0,
+        root: 0x303394E8,
+        parent,
+        ..ScreenText::new(r#box, text, false)
     };
     let panel = |values: &[&str], gains: &[&str], lefts: &[f64]| -> Vec<ScreenText> {
         let mut out: Vec<ScreenText> = Vec::new();
@@ -782,17 +780,15 @@ fn test_the_summary_s_stats_round_their_chart_are_read_by_name_in_the_game_s_ord
         .iter()
         .map(|name| name.to_string())
         .collect();
-    let at = |r#box: i64, text: &str, left: f64, right: f64, row: f64, picture: bool| {
-        ScreenText {
-            left,
-            right,
-            row,
-            glyph: 14.0,
-            root,
-            parent: 0x3035F0A8,
-            picture,
-            ..ScreenText::new(r#box, text, false)
-        }
+    let at = |r#box: i64, text: &str, left: f64, right: f64, row: f64, picture: bool| ScreenText {
+        left,
+        right,
+        row,
+        glyph: 14.0,
+        root,
+        parent: 0x3035F0A8,
+        picture,
+        ..ScreenText::new(r#box, text, false)
     };
     let texts = vec![
         at(1, "Exp. Points", -198.0, -116.0, -20.0, false),
@@ -820,11 +816,8 @@ fn test_the_summary_s_stats_round_their_chart_are_read_by_name_in_the_game_s_ord
         )
     );
     assert!(
-        join(
-            &in_rows(labelled_rows(&chart_stats(&texts, &names))),
-            false
-        )
-        .starts_with("Exp. Points 223")
+        join(&in_rows(labelled_rows(&chart_stats(&texts, &names))), false)
+            .starts_with("Exp. Points 223")
     );
     assert_eq!(chart_stats(&texts[..5], &names), texts[..5]);
 }

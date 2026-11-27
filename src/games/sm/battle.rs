@@ -403,10 +403,7 @@ impl SunOpponentsParty {
             for p in self.under(r#where.root, pane) {
                 if kinds.get(&p).map(String::as_str) == Some(PICTURE_CLASS)
                     && self.layouts.name(p)?.starts_with(BALL_PANE)
-                    && self
-                        .layouts
-                        .placement(p)?
-                        .is_some_and(|shown| shown.shown)
+                    && self.layouts.placement(p)?.is_some_and(|shown| shown.shown)
                 {
                     balls += 1;
                 }

@@ -384,9 +384,13 @@ impl SunProfile {
                         }
                     }
                     // `sorted` of (x, pane): as Python compares tuples.
-                    let same = py::sorted_by_lt(same, |a, b| {
-                        if a.0 != b.0 { a.0 < b.0 } else { a.1 < b.1 }
-                    });
+                    let same =
+                        py::sorted_by_lt(
+                            same,
+                            |a, b| {
+                                if a.0 != b.0 { a.0 < b.0 } else { a.1 < b.1 }
+                            },
+                        );
                     let index = same.iter().position(|&(_x, other)| other == pane);
                     return match index {
                         None => Ok(None),
@@ -621,7 +625,11 @@ impl SunProfile {
             }
             let mut prices: Vec<ScreenText> = Vec::new();
             for piece in &screen.on_screen {
-                if self.layouts.name(piece.r#box)?.starts_with(shop::PRICE_PANE) {
+                if self
+                    .layouts
+                    .name(piece.r#box)?
+                    .starts_with(shop::PRICE_PANE)
+                {
                     prices.push(piece.clone());
                 }
             }
@@ -804,7 +812,10 @@ fn leads_to(zones: Option<&SunZones>, here: i64, there: i64) -> Result<Option<St
 
 /// `name.rstrip(b"\0")`.
 fn rstrip_nul(name: &[u8]) -> &[u8] {
-    let end = name.iter().rposition(|&byte| byte != 0).map_or(0, |at| at + 1);
+    let end = name
+        .iter()
+        .rposition(|&byte| byte != 0)
+        .map_or(0, |at| at + 1);
     &name[..end]
 }
 
@@ -869,7 +880,10 @@ pub fn words_apart(found: IndexMap<i64, ScreenText>) -> IndexMap<i64, ScreenText
             || (last.is_some_and(py::is_digit) && start.is_some_and(py::is_alpha));
         let mixed = mixed || (last.is_some_and(is_lower) && start.is_some_and(is_upper));
         let gap = second.left - first.right;
-        if a.chars().count() < 2 || b.chars().count() < 2 || !(-glyph < gap && gap < glyph) || !mixed
+        if a.chars().count() < 2
+            || b.chars().count() < 2
+            || !(-glyph < gap && gap < glyph)
+            || !mixed
         {
             continue;
         }
@@ -982,7 +996,10 @@ pub fn chart_stats(texts: &[ScreenText], names: &[String]) -> Vec<ScreenText> {
             continue;
         }
         let parts: Vec<&str> = piece.text.split('/').collect();
-        if !parts.iter().all(|part| names.iter().any(|name| name == part)) {
+        if !parts
+            .iter()
+            .all(|part| names.iter().any(|name| name == part))
+        {
             continue;
         }
         let width = (piece.right - piece.left) / parts.len() as f64;
@@ -1207,7 +1224,10 @@ pub fn counted_rows(texts: &[ScreenText]) -> Result<Vec<ScreenText>> {
             },
         );
     }
-    Ok(texts.iter().map(|piece| out[&piece.r#box].clone()).collect())
+    Ok(texts
+        .iter()
+        .map(|piece| out[&piece.r#box].clone())
+        .collect())
 }
 
 impl Profile for SunProfile {
