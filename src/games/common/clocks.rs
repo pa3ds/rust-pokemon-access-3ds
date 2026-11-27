@@ -2,10 +2,10 @@
 //! screen turns by itself and a game's score, left unsaid by screen text (`ScreenAnnouncer.say`), by
 //! these rules:
 //!
-//! - **A clock is said at its marks**: while a game that times the player runs,
-//!   Pokémon-Amie's three, a number going one up or down a second after it last changed is its clock
-//!   ticking, said each half minute and, counting down, at 10 and each of the last 5, once while it
-//!   bounces round one. They said "Time Left" every second for a minute. Every tick can sound a
+//! - **A clock is said at its marks**: while a game that times the player runs, Pokémon-Amie's
+//!   three and the team choice before a battle in the PSS, a number going one up or down a second
+//!   after it last changed is its clock ticking, said each half minute and, counting down, at 10
+//!   and each of the last 5, once while it bounces round one. They said "Time Left" every second for a minute. Every tick can sound a
 //!   tone, `[pa3ds.audio] ticks`. While the player plays, a Tile Puzzle with a piece away from
 //!   home, its numbers are the play's, unsaid but for the clock's marks.
 //! - **A clock alone is said as its layout comes**: outside such a game, words that are minutes and

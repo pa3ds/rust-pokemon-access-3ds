@@ -102,6 +102,7 @@ use crate::games::gen6::feedback::{
 };
 use crate::games::gen6::game::Game;
 use crate::games::gen6::rom::archives::GameText;
+use crate::games::gen6::screens::rows::PARTY;
 use crate::py::{self, Result};
 use amie::{AmiePage, Moods, StylusKeys};
 use amie_decorate::{Goods, Puffs};
@@ -516,6 +517,10 @@ impl Touched for RefCell<SwitchScreen> {
 /// The subscreens' readers, and what each answers for the app running.
 pub struct Subscreens {
     apps: Rc<RefCell<RunningApp>>,
+    /// The app running, as of the last `started`.
+    now: RefCell<Option<String>>,
+    /// The app that ran before it.
+    before: RefCell<Option<String>>,
     image_of: ImageOf,
     pub(crate) puzzle: Rc<RefCell<TilePuzzle>>,
     pub(crate) o_power: Rc<RefCell<OPower>>,
@@ -890,6 +895,8 @@ impl Subscreens {
         }
         Subscreens {
             apps,
+            now: RefCell::new(None),
+            before: RefCell::new(None),
             image_of: image_of_kept,
             classes: classes.into_iter().collect(),
             tracked,
@@ -1053,9 +1060,11 @@ impl Subscreens {
     }
 
     /// Another app has started: Tile Puzzle's next picture is new, even one of the same
-    /// Pokémon.
+    /// Pokémon; and the one before is what the party was opened from (`timed`).
     pub fn started(&self) {
         self.puzzle.borrow().started();
+        let now = self.now.replace(self.apps.borrow().running.clone());
+        *self.before.borrow_mut() = now;
     }
 
     /// Whether touch mode offers targets in the app running, as one of the subscreens' apps
@@ -1098,12 +1107,17 @@ impl Subscreens {
         }
     }
 
-    /// Whether one of Amie's games runs, each timing the player, whose clock is said only at
-    /// its marks (`common.clocks`).
+    /// Whether a screen that times the player runs, whose clock is said only at its marks
+    /// (`common.clocks`): one of Amie's games, or the team choice before a battle chosen in the
+    /// PSS, the party opened from the Colosseum, counting down from 1:39, which was said once
+    /// and never ticked (the PSS's multiplayer, spike A).
     pub fn timed(&self) -> bool {
-        self.running()
+        let running = self.running();
+        running
             .as_deref()
             .is_some_and(|running| amie::GAMES.contains(&running))
+            || (running.as_deref() == Some(PARTY)
+                && self.before.borrow().as_deref() == Some(COLOSSEUM))
     }
 
     /// Whether one of Amie's games is mid-play, its numbers the play's and left unsaid

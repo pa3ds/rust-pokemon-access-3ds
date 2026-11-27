@@ -21,6 +21,7 @@ use crate::games::gen6::feedback::FeedbackSounds;
 use crate::games::gen6::profile;
 use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::screens::boxes;
+use crate::games::gen6::screens::rows::PARTY;
 use crate::games::gen6::subscreen::berry_picker::{self, Touching};
 use crate::games::gen6::subscreen::o_power::{self, OPower};
 use crate::games::gen6::subscreen::{self, Subscreens};
@@ -162,6 +163,25 @@ fn test_touch_mode_in_the_subscreens_apps_is_as_they_say() {
     apps.borrow_mut().running = Some(amie::AMIE.to_string());
     assert!(!found.delayed() && !found.in_pss());
     assert_eq!(found.pace(), 1.0);
+}
+
+/// ADR-0013: a clock is said at its marks while a screen that times the player runs. The
+/// party opened from the Colosseum before a battle with another player counts down from 1:39,
+/// and was said once and never ticked (spike A); the party opened from the field is not.
+#[test]
+fn test_the_team_choice_of_a_battle_in_the_pss_is_timed() {
+    let apps = running(pss::COLOSSEUM);
+    let found = subscreens(apps.clone());
+    for app in [pss::COLOSSEUM, PARTY] {
+        apps.borrow_mut().running = Some(app.to_string());
+        found.started();
+    }
+    assert!(found.timed());
+    for app in [FIELD, PARTY] {
+        apps.borrow_mut().running = Some(app.to_string());
+        found.started();
+    }
+    assert!(!found.timed());
 }
 
 /// Amie's games time the player, their clocks said at their marks (ADR-0013); and Tile
