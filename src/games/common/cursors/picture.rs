@@ -16,7 +16,8 @@ use crate::games::common::cursors::shared::{
 use crate::games::common::layout::Layouts;
 use crate::games::common::lyt;
 use crate::games::common::pictures::{EMPTY, MOVE};
-use crate::games::common::screen::{ScreenText, distinct, in_rows};
+use crate::games::common::screen::ScreenText;
+use crate::games::common::screen_order::{distinct, in_rows};
 use crate::py::{self, Error, Result};
 
 /// The battle's cursors: a small picture alone in a layout, placed on a pane of its button.

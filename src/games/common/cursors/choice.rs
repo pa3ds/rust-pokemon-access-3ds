@@ -19,7 +19,8 @@ use crate::games::common::cursors::shared::{CursorItem, Panes, Said, Where, clas
 use crate::games::common::layout::Layouts;
 use crate::games::common::lyt;
 use crate::games::common::pictures::{named, words};
-use crate::games::common::screen::{ScreenText, distinct, in_rows};
+use crate::games::common::screen::ScreenText;
+use crate::games::common::screen_order::{distinct, in_rows};
 use crate::py::{self, Result};
 
 /// (root, the choice it sits on, the other choices).

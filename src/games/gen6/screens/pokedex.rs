@@ -23,7 +23,7 @@
 //! the screen changes meanwhile held for its details (`CursorPoll.chased`); the details are the
 //! rest of the panel. The line is left to the cursor (`CursorPoll.rows`), not taken off the
 //! screen. The counts are still said with each entry: the details' table is told by how far right
-//! the words before it reach (`screen_announce._columns`), and left out, the counts' "1" no longer
+//! the words before it reach (`screen_order.columns`), and left out, the counts' "1" no longer
 //! held HEIGHT's and WEIGHT's values in their labels' column, "Fire Fox Pokémon TYPE HEIGHT WEIGHT
 //! 1'04" 20.7 lbs.".
 //!
@@ -44,7 +44,8 @@ use regex::Regex;
 use crate::core::binary::{s32, u32};
 use crate::core::memory::Memory;
 use crate::games::common::cursors::shared::{CursorItem, CursorPoll, Rect};
-use crate::games::common::screen::{ScreenText, join};
+use crate::games::common::screen::ScreenText;
+use crate::games::common::screen_order::join;
 use crate::games::gen6::anchors::Kept;
 use crate::py::{self, Result};
 

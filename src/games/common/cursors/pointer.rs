@@ -10,7 +10,8 @@ use indexmap::{IndexMap, IndexSet};
 use crate::games::common::cursors::shared::{CursorItem, MARKER_SIZE, Panes, Said, Where, on};
 use crate::games::common::layout::Layouts;
 use crate::games::common::lyt;
-use crate::games::common::screen::{ScreenText, distinct, in_rows};
+use crate::games::common::screen::ScreenText;
+use crate::games::common::screen_order::{distinct, in_rows};
 use crate::py::{PySet, Result};
 
 /// The hand that shows a tap in the battle the player watches.

@@ -7,7 +7,8 @@ use indexmap::IndexMap;
 
 use crate::games::common::layout::TrackedLayouts;
 use crate::games::common::layout_file::{FileMatching, LayoutFile};
-use crate::games::common::screen::{ScreenText, join};
+use crate::games::common::screen::ScreenText;
+use crate::games::common::screen_order::join;
 use crate::games::gen6::screens::counts::Counts;
 use crate::py::{Error, Result};
 

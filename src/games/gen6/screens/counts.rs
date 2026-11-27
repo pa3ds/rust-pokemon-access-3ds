@@ -16,7 +16,8 @@ use indexmap::IndexMap;
 
 use crate::games::common::layout::TrackedLayouts;
 use crate::games::common::layout_file::{FileMatching, FilesOnScreen};
-use crate::games::common::screen::{ScreenText, join};
+use crate::games::common::screen::ScreenText;
+use crate::games::common::screen_order::join;
 use crate::py::Result;
 
 /// The count's group, by its layout's file and the group pane's name: the Mart's own list, `2t` in

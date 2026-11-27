@@ -65,7 +65,8 @@ use crate::core::binary::{f32, u32};
 use crate::core::words::own;
 use crate::games::common::layout::Layouts;
 use crate::games::common::layout_file::LayoutFile;
-use crate::games::common::screen::{ScreenText, distinct, in_rows, join};
+use crate::games::common::screen::ScreenText;
+use crate::games::common::screen_order::{distinct, in_rows, join};
 use crate::games::common::touch::{
     After, FileOf, HEIGHT, ImageOf, OnScreen, Target, TextOf, WIDTH, rows,
 };

@@ -15,13 +15,12 @@
 //! reader owns those, and passes them in to be left out.
 //!
 //! Each piece of a screen is its own TextBox — the party screen draws "L", "5", "19", "/" and
-//! "19" as five — so `join` puts pieces drawn side by side back together, from where the pane
-//! says its words are: its global place, width and scale, its anchor, and the TextBox's glyph
-//! width and text position (spike 33).
+//! "19" as five — so `screen_order.join` puts pieces drawn side by side back together, from where
+//! the pane says its words are: its global place, width and scale, its anchor, and the TextBox's
+//! glyph width and text position (spike 33). The order pieces are read in is `screen_order`'s.
 //!
 //! Bound by:
-//! - ADR-0013: words a screen draws are heard as they come on screen and as they change; no commas
-//!   but under `pauses`.
+//! - ADR-0013: words a screen draws are heard as they come on screen and as they change.
 //! - ADR-0037: stars counted, Potential's and a result's, one drawn as a shadow not earned and
 //!   unsaid.
 
@@ -52,15 +51,13 @@ pub const FRACTION: [f64; 3] = [0.0, 0.5, 1.0];
 /// "Torchic", seven glyphs at 12.5, drew about 44 units wide in spike 31's party screen picture.
 pub const GLYPH_ADVANCE: f64 = 0.5;
 /// Glyphs past its entrant's words a contest's place is taken to stand (`_places_last`): past
-/// `LABEL_GAP`, the gap at which a value arriving alone is said with its label.
+/// `screen_order.LABEL_GAP`, the gap at which a value arriving alone is said with its label.
 pub const PLACE_AFTER: f64 = 2.5;
 /// Units a hidden heart is taken to stand past the words it hangs from, and to be wide and tall:
 /// a contest's hearts are 10 by 10, 10 apart (spike 196).
 pub const GLYPH_SPOT: f64 = 10.0;
 /// A colour's alpha drawn whole (`ScreenText.faded`).
 pub const OPAQUE: i64 = 0xFF;
-/// Units within which two pieces with the same words are one drawn twice.
-pub const SAME_PLACE: f64 = 2.0;
 /// Pieces whose words come closer than this many glyph widths are one piece: "L5" and "19/19" are
 /// 6 to 8 units apart at a glyph width of 16, and "PP 35/35"'s "PP" and "35" about 15 at 12.5. The
 /// Move Reminder's details stand 10 apart at 12.5, its category's icon from "POWER" and the power
@@ -237,220 +234,7 @@ fn max_of(a: f64, b: f64) -> f64 {
     if b > a { b } else { a }
 }
 
-/// The pieces in the order given, with each run of them on one row read left to right.
-///
-/// The order the game built its TextBoxes in keeps a screen's parts together — the summary's two
-/// columns of stats, a party slot's name above its level — and reading the whole screen row by row
-/// interleaved those columns (spike 47). Inside a row that order is not reading order: a move's
-/// "/" is built before both of its PP numbers (spike 33). A run is consecutive pieces less than
-/// half a glyph apart up and down; pieces whose place is unknown end a run and stay where they are.
-pub fn in_rows(pieces: impl IntoIterator<Item = ScreenText>) -> Vec<ScreenText> {
-    let mut ordered: Vec<ScreenText> = Vec::new();
-    let mut run: Vec<ScreenText> = Vec::new();
-    for piece in pieces {
-        if !run.is_empty()
-            && (piece.glyph <= 0.0 || (run[0].row - piece.row).abs() >= piece.glyph / 2.0)
-        {
-            ordered.extend(sorted_across(std::mem::take(&mut run)));
-        }
-        if piece.glyph <= 0.0 {
-            ordered.push(piece);
-        } else {
-            run.push(piece);
-        }
-    }
-    ordered.extend(sorted_across(run));
-    followed(ordered)
-}
-
-/// `ordered` with each piece that `follows` another present moved straight after it.
-fn followed(ordered: Vec<ScreenText>) -> Vec<ScreenText> {
-    // Python's `list.remove` and `list.index` find a piece by identity before equality: `out`
-    // holds each piece by its place in `ordered`, so a piece is found as itself.
-    let mut out: Vec<usize> = (0..ordered.len()).collect();
-    let find = |out: &[usize], i: usize| {
-        out.iter()
-            .position(|&k| k == i || ordered[k] == ordered[i])
-            .expect("in the list")
-    };
-    for (i, piece) in ordered.iter().enumerate() {
-        if piece.follows != 0 {
-            let target = out
-                .iter()
-                .copied()
-                .find(|&k| ordered[k].r#box == piece.follows);
-            if let Some(target) = target {
-                out.remove(find(&out, i));
-                let at = find(&out, target) + 1;
-                out.insert(at, i);
-            }
-        }
-    }
-    out.into_iter().map(|k| ordered[k].clone()).collect()
-}
-
-/// `sorted(run, key=_across)`.
-fn sorted_across(run: Vec<ScreenText>) -> Vec<ScreenText> {
-    // The key is `(not leads, left)`: a tuple is smaller by its first element that differs.
-    sorted_by_lt(run, |a, b| {
-        if a.leads != b.leads {
-            return a.leads && !b.leads;
-        }
-        a.left < b.left
-    })
-}
-
-/// The pieces row by row from the top, each row left to right: a panel of labels and values, as
-/// a move's Category, Power and Accuracy, read as a table. A row is pieces less than half a glyph
-/// apart up and down. Not for a whole screen, whose columns this would interleave (spike 47).
-pub fn by_rows(pieces: impl IntoIterator<Item = ScreenText>) -> Vec<ScreenText> {
-    let placed: Vec<ScreenText> = pieces.into_iter().filter(|p| p.glyph > 0.0).collect();
-    let placed = sorted_by_lt(placed, |a, b| -a.row < -b.row);
-    let mut ordered: Vec<ScreenText> = Vec::new();
-    let mut row: Vec<ScreenText> = Vec::new();
-    for piece in placed {
-        if !row.is_empty() && row[0].row - piece.row >= piece.glyph / 2.0 {
-            ordered.extend(sorted_across(std::mem::take(&mut row)));
-        }
-        row.push(piece);
-    }
-    ordered.extend(sorted_across(row));
-    followed(ordered)
-}
-
-/// The pieces without the same words drawn twice in one place.
-///
-/// The X menu draws each label in two TextBoxes a unit apart (spike 38). The same words somewhere
-/// else are kept: a move's PP reads "40 / 40", and dropping the second "40" lost the PP left.
-pub fn distinct(pieces: impl IntoIterator<Item = ScreenText>) -> Vec<ScreenText> {
-    let mut out: Vec<ScreenText> = Vec::new();
-    for piece in pieces {
-        if !out.iter().any(|other| {
-            other.text == piece.text
-                && (other.left - piece.left).abs() <= SAME_PLACE
-                && (other.row - piece.row).abs() <= SAME_PLACE
-        }) {
-            out.push(piece);
-        }
-    }
-    out
-}
-
-/// The pieces as one line to speak, in their order.
-///
-/// Pieces drawn side by side on one row are joined as drawn ("L5", "19/19"). Others are separated
-/// by a space, or when asked for by a comma, or a colon after a label
-/// (`labels_value`): "OT: Brendan, ID No.: 16285". A label with a colon of its
-/// own is followed by a space: "Badges: 0", not "Badges:, 0". A value is no label of what
-/// follows it: "ITEM: Potion, Sand Attack", "Name: Brendan, ID No.: 16285".
-///
-/// Words the game's text names a label (`ScreenText.label`) are one wherever they are drawn,
-/// touching their value or over it, and a title's or a button's (`ScreenText.plain`) never are:
-/// the DexNav's "Found Pokémon, Search Level: 64, Name: Zigzagoon" was "Found Pokémon: Search
-/// Level, 64, Name, Zigzagoon", and "Search Level5" is "Search Level 5" (spike 195).
-///
-/// Python's `pauses` defaults to False.
-pub fn join(pieces: &[ScreenText], pauses: bool) -> String {
-    let mut out = String::new();
-    let mut valued = false;
-    for (index, piece) in pieces.iter().enumerate() {
-        let before = if index != 0 {
-            Some(&pieces[index - 1])
-        } else {
-            None
-        };
-        let mut labelled = false;
-        match before {
-            None => out = piece.text.clone(),
-            Some(before)
-                if (touching(before, piece) || counted(before, piece)) && !before.label =>
-            {
-                out.push_str(&piece.text)
-            }
-            Some(before) if !pauses || before.text.ends_with(':') => {
-                out.push(' ');
-                out.push_str(&piece.text);
-                labelled = pauses;
-            }
-            Some(before) => {
-                labelled = !valued
-                    && !before.plain
-                    && !piece.label
-                    && (before.label || labels_value(before, piece));
-                out.push_str(if labelled { ": " } else { ", " });
-                out.push_str(&piece.text);
-            }
-        }
-        valued = labelled;
-    }
-    out
-}
-
-/// The most words a label has: "To Next Lv." has three.
-pub const LABEL_WORDS: usize = 3;
-/// Glyph widths past a label's end a value ends at, at least: a table's values are drawn to its
-/// right edge.
-pub const VALUE_BEYOND: f64 = 2.0;
-/// Glyph widths below a label its value may start: the summary draws Exp. Points' number on the
-/// row under it.
-pub const VALUE_BELOW: f64 = 2.5;
-
-/// Is `first` a label and `second` its value, as a table draws them?
-///
-/// The summary names none of its panes for what they hold (spike 148: "0", "4", "1k"), so this is
-/// told by place: a label is a few words with a letter and no digit, and its value starts no
-/// further left, on its row, a little above it or just below, and ends well past it, as a table's
-/// right-aligned column does. A value below its label starts past the label's end, as Exp.
-/// Points' number does: the next row of a list starts under the one above it ("Ember", "Sand
-/// Attack"). A label's words are the screen's own, so words that changed are a value's, and a
-/// picture's words are what it draws, as a type's icon, "Fire", is (movie11, 2026-10-01).
-pub fn labels_value(first: &ScreenText, second: &ScreenText) -> bool {
-    // ponytail: judged by place alone; a screen this gets wrong wants its label panes listed.
-    let glyph = min_of(first.glyph, second.glyph);
-    if glyph <= 0.0
-        || first.changed
-        || first.picture
-        || first.text.ends_with(':')
-        || first.text.chars().any(py::is_digit)
-        || !first.text.chars().any(py::is_alpha)
-    {
-        return false;
-    }
-    let below = first.row - second.row > glyph / 2.0;
-    // A sign is no value: the party slot draws the gender sign at a place of its own, far past a
-    // short name. A dash is one: a status move's Power and Accuracy, "Power, —" (movie32).
-    let valued = second.text.chars().any(|c| {
-        py::is_alnum(c)
-            || unicode_general_category::get_general_category(c)
-                == unicode_general_category::GeneralCategory::DashPunctuation
-    });
-    py::split(&first.text).len() <= LABEL_WORDS
-        && valued
-        && second.left
-            >= (if below {
-                first.right
-            } else {
-                first.left - glyph / 2.0
-            })
-        && -glyph <= first.row - second.row
-        && first.row - second.row <= glyph * VALUE_BELOW
-        && second.right >= first.right + glyph * VALUE_BEYOND
-}
-
-/// Is `first` a sign and `second` the number it is drawn before on its row? The battle's Bag
-/// draws an item's times sign and its count in boxes that touch, but the words are estimated
-/// narrower than their boxes, and under `pauses` it read "Poké Ball, times, 10" (movie3,
-/// spike 196).
-fn counted(first: &ScreenText, second: &ScreenText) -> bool {
-    let glyph = min_of(first.glyph, second.glyph);
-    glyph > 0.0
-        && (first.row - second.row).abs() < glyph
-        && first.left < second.left
-        && !first.text.chars().any(py::is_alnum)
-        && second.text.chars().next().is_some_and(py::is_digit)
-}
-
-fn touching(first: &ScreenText, second: &ScreenText) -> bool {
+pub fn touching(first: &ScreenText, second: &ScreenText) -> bool {
     let glyph = min_of(first.glyph, second.glyph);
     if glyph <= 0.0 || (first.row - second.row).abs() >= glyph {
         return false;
@@ -1506,7 +1290,7 @@ pub(crate) fn by_their_labels(
 /// A contest's place, drawn left of its entrant, read after the entrant's words: "Brendan &
 /// Metagross third place" (spike 196). The results reveal the places one at
 /// a time after the names, so a place stands far enough past its entrant's words to be said
-/// with them as a value is with its label (`LABEL_GAP`).
+/// with them as a value is with its label (`screen_order.LABEL_GAP`).
 pub(crate) fn places_last(found: &IndexMap<i64, ScreenText>) -> IndexMap<i64, ScreenText> {
     let places: HashSet<String> = PLACES.iter().map(|&(_, place)| own(place, &[])).collect();
     let mut out = found.clone();

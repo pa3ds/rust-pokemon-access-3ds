@@ -41,9 +41,8 @@ use crate::games::common::cursors::shared::{
     CursorItem, Panes, Rect, Said, Where, beside, centre, class_of, framed, near, place_of,
 };
 use crate::games::common::layout::Layouts;
-use crate::games::common::screen::{
-    SCREEN_HALF_HEIGHT, SCREEN_HALF_WIDTH, ScreenText, distinct, in_rows,
-};
+use crate::games::common::screen::{SCREEN_HALF_HEIGHT, SCREEN_HALF_WIDTH, ScreenText};
+use crate::games::common::screen_order::{distinct, in_rows};
 use crate::games::common::{lyt, slots};
 use crate::py::{PySet, Result};
 

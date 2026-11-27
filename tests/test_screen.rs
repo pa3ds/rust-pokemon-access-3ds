@@ -11,8 +11,9 @@ use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
 use crate::core::words::own;
 use crate::games::common::screen::{
-    self, Pictures, ScreenPoll, ScreenText, ScreenTextReader, after_the_name, in_rows, join,
+    self, Pictures, ScreenPoll, ScreenText, ScreenTextReader, after_the_name,
 };
+use crate::games::common::screen_order::{in_rows, join};
 use crate::games::common::{lyt, msgwin, pictures};
 
 const LEFT: i64 = 0;

@@ -13,7 +13,8 @@ use crate::core::rtti::ClassNames;
 use crate::core::words::{self, ENGLISH, Words};
 use crate::games::common::cursors::reader::CursorReader;
 use crate::games::common::lyt;
-use crate::games::common::screen::{ScreenText, ScreenTextReader, join};
+use crate::games::common::screen::{ScreenText, ScreenTextReader};
+use crate::games::common::screen_order::join;
 use crate::games::sm::lyt::SHAPE;
 use crate::games::sm::{field, msgwin};
 

@@ -25,7 +25,8 @@ use crate::games::common::cursors::shared::{
 };
 use crate::games::common::layout::Layouts;
 use crate::games::common::lyt;
-use crate::games::common::screen::{ScreenText, distinct, in_rows};
+use crate::games::common::screen::ScreenText;
+use crate::games::common::screen_order::{distinct, in_rows};
 use crate::py::{self, Result};
 
 /// Units a cursor's width or height may differ from the pane it sits on: the Bag's is 157 by 42

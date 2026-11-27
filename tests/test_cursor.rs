@@ -22,7 +22,8 @@ use crate::core::words::{self, ENGLISH, Words};
 use crate::games::common::cursors::reader::CursorReader;
 use crate::games::common::cursors::shared::{CursorItem, CursorPoll, Slot};
 use crate::games::common::layout_file::LayoutFiles;
-use crate::games::common::screen::{Pictures, ScreenText, join};
+use crate::games::common::screen::{Pictures, ScreenText};
+use crate::games::common::screen_order::join;
 use crate::games::common::{lyt, slots};
 use crate::games::sm::lyt::SHAPE as SUN_SHAPE;
 

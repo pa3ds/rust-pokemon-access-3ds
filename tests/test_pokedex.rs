@@ -5,7 +5,8 @@ use std::rc::Rc;
 
 use super::fake_memory::{FakeClasses, FakeMemory};
 use crate::games::common::cursors::shared::{CursorItem, CursorPoll, Rect};
-use crate::games::common::screen::{ScreenText, join};
+use crate::games::common::screen::ScreenText;
+use crate::games::common::screen_order::join;
 use crate::games::gen6::screens::pokedex;
 
 const LIST: i64 = 0x0831EEBC;

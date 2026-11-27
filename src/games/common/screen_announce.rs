@@ -63,8 +63,10 @@ use indexmap::{IndexMap, IndexSet};
 use crate::core::speech::{Category, Speech};
 use crate::games::common::clocks::{Clocked, Clocks};
 use crate::games::common::cursors::shared::CursorPoll;
-use crate::games::common::screen::{
-    ScreenPoll, ScreenText, by_rows, distinct, in_rows, join, labels_value, reading_order,
+use crate::games::common::screen::{ScreenPoll, ScreenText, reading_order};
+use crate::games::common::screen_order::{
+    by_rows, columns, distinct, in_rows, join, labels_value, panels_of, row_count, rows_of,
+    sentence, side_by_side, under_their_labels, with_row_mates,
 };
 use crate::py::{self, Log, Result};
 
@@ -84,20 +86,12 @@ pub const ARRIVAL_MAX_POLLS: i64 = 5;
 /// the Pokédex's registration draws its values 2.2 s after its labels (or_groudon_master_ball).
 pub const LABEL_POLLS: i64 = 15;
 
-/// Glyphs between a label and the value it names: the level up's are five apart, a name's letters
-/// one.
-pub const LABEL_GAP: f64 = 2.0;
-
 /// Polls within which the same words from another layout are the same news: the location sign
 /// came up 0.23 s after AreaNav's words changed.
 pub const REPEAT_POLLS: i64 = 5;
 
 /// The root a place's name said from RAM counts as coming from. No layout's root is 0.
 pub const FIELD_ROOT: i64 = 0;
-
-/// Units within which two words beside each other are drawn on one line, as a table's label and
-/// value are.
-pub const ONE_LINE: f64 = 1.0;
 
 /// Polls within which a place's name on screen is the one the field has just said. AreaNav's words
 /// changed 0.6 to 0.8 s after the zone did and the location sign came 0.23 s after them (spike
@@ -730,7 +724,7 @@ impl ScreenAnnouncer {
             self.held = (IndexSet::new(), IndexSet::new());
         }
         if gathering.is_none() && self.rewrite.is_none() {
-            let changed_rows = self::rows(&changed, on_screen, labels);
+            let changed_rows = rows_of(&changed, on_screen, labels);
             if changed_rows.len() as i64 >= REWRITE_ROWS {
                 said.extend(self.start_rewrite(&changed_rows, subject)?);
             }
@@ -833,7 +827,7 @@ impl ScreenAnnouncer {
             .filter(|p| !arriving.contains(&p.r#box))
             .cloned()
             .collect();
-        for group in self::rows(&changed, &around, labels) {
+        for group in rows_of(&changed, &around, labels) {
             let text = join(&group, self.pauses);
             said.extend(group.iter().map(|p| p.r#box));
             if !self.fresh(&text, group[0].root) {
@@ -921,7 +915,7 @@ impl ScreenAnnouncer {
         }
         let shown = with_row_mates(shown, on_screen, kept, labels);
         let stayed = self.with_what_stayed(&shown, on_screen, said, labels, left);
-        for pieces in panels(&stayed, on_screen) {
+        for pieces in panels_of(&stayed, on_screen) {
             if pieces.is_empty() {
                 continue;
             }
@@ -1457,7 +1451,7 @@ impl ScreenAnnouncer {
             .collect();
         let (lead, first) = &rewrite.lead;
         let mut parts: IndexMap<String, i64> = IndexMap::new();
-        for group in self::panels(&pieces, on_screen) {
+        for group in panels_of(&pieces, on_screen) {
             let text = join(&group, self.pauses);
             // Nor what a cursor has just said: the Bag's, back on Exp. Share as the pocket
             // changed, and the panel's own "Exp. Share" after it (movie30).
@@ -1631,319 +1625,6 @@ fn without(piece: &ScreenText, item: &str) -> ScreenText {
     }
 }
 
-/// Pieces read row by row, each row's first moved to just after the words above it where it
-/// is drawn under them, starting where they end with nothing else of their row over it: the
-/// battle's move panel writes PHYSICAL under CATEGORY, and POWER 80 on CATEGORY's row, "CATEGORY
-/// POWER 80 PHYSICAL" (or_move-learning, 2026-10-18).
-fn under_their_labels(pieces: Vec<ScreenText>) -> Vec<ScreenText> {
-    let mut rows: Vec<Vec<ScreenText>> = Vec::new();
-    for piece in pieces {
-        match rows.last_mut() {
-            Some(row) if side_by_side(&row[0], &piece) => row.push(piece),
-            _ => rows.push(vec![piece]),
-        }
-    }
-    for at in 1..rows.len() {
-        let (before, after) = rows.split_at_mut(at);
-        let (above, row) = (&mut before[at - 1], &mut after[0]);
-        let Some(first) = row.first().cloned() else {
-            continue;
-        };
-        if first.glyph <= 0.0 {
-            continue;
-        }
-        let label = above.iter().rposition(|p| p.right <= first.left + p.glyph);
-        let Some(label) = label else {
-            continue;
-        };
-        if label == above.len() - 1
-            || above
-                .iter()
-                .any(|p| p.left < first.right && p.right > first.left)
-        {
-            continue;
-        }
-        row.remove(0);
-        above.insert(label + 1, first);
-    }
-    rows.into_iter().flatten().collect()
-}
-
-/// A group's placed pieces row by row, as a table, unless it is tables side by side: each
-/// column it built, higher up and to the right of the one before, is read with that one row by
-/// row where every row of it is one of that one's, and otherwise after it, as it was built, as
-/// a screen opening reads it (`_speaking_order`). A move's panel builds its labels and then its
-/// values, "Category Power 40"; the PC Box's summary builds its stats and then its moves, between
-/// their rows, and read row by row they came interleaved, "SP. ATK: 68, MOVES LEARNED, SP. DEF:
-/// 58, Bubble Beam", where opening it read each down (or_organize_boxes).
-fn columns(pieces: &[ScreenText]) -> Vec<ScreenText> {
-    let mut columns: Vec<Vec<ScreenText>> = Vec::new();
-    for piece in pieces.iter().filter(|p| p.glyph > 0.0) {
-        let starts = match columns.last() {
-            None => true,
-            Some(last) => {
-                // Python's `max` over floats: the first unless a later one is strictly greater.
-                let mut right = last[0].right;
-                for p in &last[1..] {
-                    if p.right > right {
-                        right = p.right;
-                    }
-                }
-                piece.row - last[last.len() - 1].row >= piece.glyph / 2.0 && piece.left >= right
-            }
-        };
-        if starts {
-            columns.push(vec![piece.clone()]);
-        } else {
-            columns
-                .last_mut()
-                .expect("a column to add to")
-                .push(piece.clone());
-        }
-    }
-    let mut tables: Vec<Vec<Vec<ScreenText>>> = Vec::new();
-    for column in columns {
-        let beside = tables.last().is_some_and(|table: &Vec<Vec<ScreenText>>| {
-            let before = &table[table.len() - 1];
-            column
-                .iter()
-                .all(|b| before.iter().any(|a| side_by_side(a, b)))
-        });
-        if beside {
-            tables.last_mut().expect("checked above").push(column);
-        } else {
-            tables.push(vec![column]);
-        }
-    }
-    if tables.len() < 2 {
-        return by_rows(pieces.to_vec());
-    }
-    let mut out: Vec<ScreenText> = Vec::new();
-    for table in tables {
-        if table.len() > 1 {
-            out.extend(by_rows(table.into_iter().flatten()));
-        } else {
-            out.extend(in_rows(table.into_iter().next().expect("one column")));
-        }
-    }
-    out
-}
-
-/// Python's `min(a, b)` on floats: `a`, unless `b < a`, so a NaN stays where Python puts it.
-fn min_of(a: f64, b: f64) -> f64 {
-    if b < a { b } else { a }
-}
-
-/// What came on screen, with the label already there beside a value that came alone. `kept` is
-/// what is not to be taken for a label: a cursor's item, and whatever else is coming this poll.
-///
-/// A value can arrive after its label was said: the level up's "SP. DEF" and "SPEED" were said
-/// with the gains, and their totals arrived alone as "12 12" (battles2.ctm replay, 2026-09-17).
-/// Each of its rows is a group of a label and a value set well apart, so a piece arriving in a
-/// group where one other piece shares its row, at least `LABEL_GAP` glyphs away, is said with that
-/// one. Words arriving in a group of their own, as a move's description does, still come alone,
-/// and so does a letter typed into a name beside the letters before it: "R a i d" for the fourth
-/// letter was the name again each time (opening.ctm replay).
-fn with_row_mates(
-    shown: &[ScreenText],
-    on_screen: &[ScreenText],
-    kept: &HashSet<i64>,
-    labels: &HashSet<String>,
-) -> Vec<ScreenText> {
-    let boxes: HashSet<i64> = shown.iter().map(|piece| piece.r#box).collect();
-    // Each mate with its place in `on_screen`: `label not in mates` finds the very object it was
-    // given before it tries `==`, which a NaN in the object never equals.
-    let mut mates: Vec<(usize, &ScreenText)> = Vec::new();
-    for piece in shown {
-        if piece.glyph <= 0.0 {
-            continue;
-        }
-        let beside: Vec<(usize, &ScreenText)> = on_screen
-            .iter()
-            .enumerate()
-            .filter(|(_at, other)| {
-                !boxes.contains(&other.r#box)
-                    && other.root == piece.root
-                    && other.parent == piece.parent
-                    && other.glyph > 0.0
-                    && (other.row - piece.row).abs() < min_of(other.glyph, piece.glyph) / 2.0
-            })
-            .collect();
-        if beside.len() != 1 {
-            continue;
-        }
-        let (at, label) = beside[0];
-        let apart = LABEL_GAP * piece.glyph;
-        if !(label.right <= piece.left - apart || label.left >= piece.right + apart) {
-            continue;
-        }
-        if !kept.contains(&label.r#box)
-            && !labels.contains(&label.text)
-            && !mates.iter().any(|&(was, mate)| was == at || mate == label)
-        {
-            mates.push((at, label));
-        }
-    }
-    if mates.is_empty() {
-        return shown.to_vec();
-    }
-    let all: Vec<ScreenText> = shown
-        .iter()
-        .cloned()
-        .chain(mates.into_iter().map(|(_at, label)| label.clone()))
-        .collect();
-    py::sorted_by_lt(all, |a, b| reading_order(a) < reading_order(b))
-}
-
-/// The pieces a panel at a time, in the order the layouts built them, runs on a row read left to
-/// right: build order put the battle's "35", "35" and "/" side by side and read "PP 3535 /"
-/// (spike 46), and reading rows across a whole layout interleaved the summary's columns (spike
-/// 47).
-///
-/// A panel, not a whole layout. The battle draws both Pokemon's HP boxes in
-/// one layout, and reading the layout whole said "6 22/ 22 2" — Torchic at level 6 with 22/22 HP,
-/// and the wild Pokemon's level 2 on the end as though it were part of the same row. The game
-/// itself keeps the two apart, one pane under the root each, and so does this.
-///
-/// A panel boundary only breaks an utterance where a row boundary does too. Splitting on the panel
-/// alone cut labels off their values: the level up read "ATTACK" and "13" as two things, and a
-/// move's "PP 25/" and "25" likewise, because a screen can draw a label and its number in
-/// different panels while putting them side by side on one row. What the ear wants is the row.
-///
-/// A panel that is one column is read top to bottom (`speaking_order`).
-///
-/// Python's `on_screen` defaults to nothing.
-fn panels(pieces: &[ScreenText], on_screen: &[ScreenText]) -> Vec<Vec<ScreenText>> {
-    let mut layouts: IndexMap<i64, Vec<ScreenText>> = IndexMap::new();
-    for piece in pieces {
-        layouts.entry(piece.root).or_default().push(piece.clone());
-    }
-    let mut out: Vec<Vec<ScreenText>> = Vec::new();
-    for group in layouts.values() {
-        let mut current: Vec<ScreenText> = Vec::new();
-        for piece in distinct(speaking_order(group, on_screen)) {
-            if let Some(last) = current.last()
-                && piece.panel != last.panel
-                && !side_by_side(last, &piece)
-            {
-                out.push(std::mem::take(&mut current));
-            }
-            current.push(piece);
-        }
-        if !current.is_empty() {
-            out.push(current);
-        }
-    }
-    out
-}
-
-/// The pieces of one layout in the order to say them: each panel that is one column top to
-/// bottom, and the rest in the order the layout built them, each run on a row left to right.
-///
-/// The Pokédex's entry is one panel built out of order: the species and gender, then a table of
-/// TYPE, HEIGHT and WEIGHT built as a column of labels and a column of values, then the times
-/// encountered, and the number and name at the top built last. In build order it read "Chick
-/// Pokémon Female TYPE HEIGHT WEIGHT 1'04" 5.5 lbs. Times encountered: 1 004 Torchic"
-/// (pokedex2.ctm). A panel with no words from two groups side by side on
-/// a row is one column, and read down it is "004 Torchic Chick Pokémon Female TYPE HEIGHT 1'04"
-/// WEIGHT 5.5 lbs. Times encountered: 1". A panel whose groups stand side by side, as the
-/// summary's two columns of stats do (spike 47), or whose words sit beside another panel's, as
-/// the level up's labels do beside their values, keeps its build order.
-fn speaking_order(pieces: &[ScreenText], on_screen: &[ScreenText]) -> Vec<ScreenText> {
-    let everything = if on_screen.is_empty() {
-        pieces
-    } else {
-        on_screen
-    };
-    let panels: IndexSet<i64> = pieces.iter().map(|piece| piece.panel).collect();
-    let mut column: HashSet<i64> = HashSet::new();
-    for &panel in &panels {
-        let layout: Vec<&ScreenText> = everything
-            .iter()
-            .filter(|p| p.root == pieces[0].root)
-            .collect();
-        if one_column(&layout, panel) {
-            column.insert(panel);
-        }
-    }
-    if column.is_empty() {
-        return in_rows(pieces.iter().cloned());
-    }
-    let mut ordered: Vec<ScreenText> = Vec::new();
-    for &panel in &panels {
-        let mine: Vec<ScreenText> = pieces
-            .iter()
-            .filter(|piece| piece.panel == panel)
-            .cloned()
-            .collect();
-        if column.contains(&panel) {
-            ordered.extend(by_rows(mine.iter().cloned()));
-            ordered.extend(mine.iter().filter(|piece| piece.glyph <= 0.0).cloned());
-        } else {
-            ordered.extend(in_rows(mine));
-        }
-    }
-    ordered
-}
-
-/// Is this panel one column: no word of it beside a word of another group on its row, in the
-/// whole layout, and no two of its words beside each other without sharing a line? A table's
-/// label and value are drawn on one line, the entry's HEIGHT and its value both at 10; columns
-/// side by side only come near, the summary's Dex No. and HP five units apart. A panel with
-/// fewer than two placed is not: a lone piece is no column, and the summary, which hangs every
-/// piece from its root as a panel of its own, was read piece by piece in build order, "HP / 30
-/// 30", once its "/" was heard (movie7, 2026-09-30).
-fn one_column(layout: &[&ScreenText], panel: i64) -> bool {
-    let mine: Vec<&ScreenText> = layout
-        .iter()
-        .copied()
-        .filter(|piece| piece.panel == panel && piece.glyph > 0.0)
-        .collect();
-    if mine.len() < 2 {
-        return false;
-    }
-    if mine.iter().any(|piece| {
-        layout.iter().any(|other| {
-            other.glyph > 0.0 && other.parent != piece.parent && side_by_side(piece, other)
-        })
-    }) {
-        return false;
-    }
-    // A word no other word of the panel reaches over or under is a column of its own: Head It's
-    // results draw "TOTAL:" and the total right of the score and bonuses, and read down as one
-    // column they came between "SCORE:" and its points (or_amie_head_it_hard).
-    if mine.iter().any(|piece| {
-        !mine.iter().any(|other| {
-            !std::ptr::eq(*other, *piece) && other.left < piece.right && piece.left < other.right
-        })
-    }) {
-        return false;
-    }
-    !mine.iter().any(|piece| {
-        mine.iter()
-            .any(|other| side_by_side(piece, other) && (piece.row - other.row).abs() > ONE_LINE)
-    })
-}
-
-/// On the same row, so one thing to say however the layout groups them?
-/// How many rows the pieces are drawn on.
-fn row_count(pieces: &[ScreenText]) -> usize {
-    let mut rows: Vec<&ScreenText> = Vec::new();
-    for piece in pieces {
-        if piece.glyph > 0.0 && !rows.iter().any(|row| side_by_side(row, piece)) {
-            rows.push(piece);
-        }
-    }
-    rows.len()
-}
-
-fn side_by_side(one: &ScreenText, other: &ScreenText) -> bool {
-    if one.glyph <= 0.0 || other.glyph <= 0.0 {
-        return false;
-    }
-    (one.row - other.row).abs() < min_of(one.glyph, other.glyph) / 2.0
-}
-
 /// Is this a label's value, written after the label on its row? Never the cursor's item,
 /// whatever its words: TM29 Psychic's type is "Psychic", and its details said "TYPE POWER 90"
 /// (or_movie54, #13).
@@ -1957,88 +1638,11 @@ fn valued(piece: &ScreenText, on_screen: &[ScreenText]) -> bool {
     })
 }
 
-/// Each changed piece with what sits beside it in its group on its row, each row once.
-/// The fewest words a sentence has, a question or a message: more than a label's
-/// (`LABEL_WORDS`) or an item's.
-pub const SENTENCE_WORDS: usize = 4;
-/// How a shorter sentence ends, from two words on: the Box's "Bye-bye, Seedot!"
-/// (or_releasing_pokemon). A word alone is a mark, as the Bag's "ABLE!" beside a Pokémon is.
-pub const SENTENCE_ENDS: [&str; 6] = ["!", "?", "\u{ff01}", "\u{ff1f}", "\u{3002}", "\u{2026}"];
-
-/// Is this a sentence rather than a label, a value or an item's name? Four words, or fewer
-/// ending as a sentence does: from two words on with "!" or "?", from three with a full stop,
-/// since two are as often a label shortened, "Dex No.", "ID No.". The Box said nothing of
-/// "Seedot was released." and "Bye-bye, Seedot!", taken for the menu's own words
-/// (or_releasing_pokemon).
-fn sentence(piece: &ScreenText) -> bool {
-    let words = py::split(&piece.text).len();
-    words >= SENTENCE_WORDS
-        || (words >= 2 && SENTENCE_ENDS.iter().any(|end| piece.text.ends_with(end)))
-        || (words >= 3 && piece.text.ends_with('.'))
-}
-
 /// Is this one letter of words being spelled, as a name is typed a letter a TextBox
 /// (`say_what_is_left`)? Never words a cursor said again: the keyboard's cursor says the key a
 /// letter is typed with, and the letter went unsaid, alone and in the name (#12).
 fn letter(piece: &ScreenText) -> bool {
     piece.text.chars().count() == 1
-}
-
-fn rows(
-    changed: &[ScreenText],
-    on_screen: &[ScreenText],
-    labels: &HashSet<String>,
-) -> Vec<Vec<ScreenText>> {
-    let mut rows: Vec<Vec<ScreenText>> = Vec::new();
-    let mut by_layout: IndexMap<i64, Vec<ScreenText>> = IndexMap::new();
-    for piece in changed {
-        by_layout.entry(piece.root).or_default().push(piece.clone());
-    }
-    let ordered: Vec<ScreenText> = by_layout
-        .values()
-        .flat_map(|group| speaking_order(group, on_screen))
-        .collect();
-    for piece in ordered {
-        let mut row = vec![piece.clone()];
-        // A sentence is no value of a row: "Give the Pokéblock to Pikachu?" was said with the
-        // tabs beside it, "Give a Pokéblock" and "Make" (movie33).
-        if piece.glyph > 0.0 && !sentence(&piece) {
-            let beside: Vec<ScreenText> = on_screen
-                .iter()
-                .filter(|other| {
-                    other.root == piece.root
-                        && other.glyph > 0.0
-                        && !labels.contains(&other.text)
-                        && (other.row - piece.row).abs() < min_of(other.glyph, piece.glyph) / 2.0
-                })
-                .cloned()
-                .collect();
-            let group: Vec<ScreenText> = beside
-                .iter()
-                .filter(|other| other.parent == piece.parent)
-                .cloned()
-                .collect();
-            let found = distinct(in_rows(if group.len() > 1 { group } else { beside }));
-            if !found.is_empty() {
-                row = found;
-            }
-        }
-        rows.push(row);
-    }
-    once(rows)
-}
-
-/// The groups, each set of pieces said once however many of its pieces changed.
-fn once(groups: Vec<Vec<ScreenText>>) -> Vec<Vec<ScreenText>> {
-    let mut out: Vec<Vec<ScreenText>> = Vec::new();
-    let mut seen: HashSet<Vec<i64>> = HashSet::new();
-    for group in groups {
-        let key: Vec<i64> = group.iter().map(|p| p.r#box).collect();
-        if seen.insert(key) {
-            out.push(group);
-        }
-    }
-    out
 }
 
 /// Is this a count, a number alone? Not one with a leading zero: X's Pokédex list numbers its

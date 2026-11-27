@@ -13,7 +13,8 @@ use crate::games::common::layout::{Layouts, MAX_DEPTH};
 use crate::games::common::layout_file::{LayoutFile, LayoutFiles};
 use crate::games::common::lyt;
 use crate::games::common::pictures::{EMPTY, words_in};
-use crate::games::common::screen::{Pictures, ScreenText, distinct, in_rows};
+use crate::games::common::screen::{Pictures, ScreenText};
+use crate::games::common::screen_order::{distinct, in_rows};
 use crate::games::common::slots::Occupant;
 use crate::py::{self, Result};
 
