@@ -222,7 +222,7 @@ pub struct TilePuzzle {
     /// Bg object -> the vtable it was found with.
     backgrounds: IndexMap<i64, i64>,
     /// The image of the background last said with its picture, or 0.
-    shown: Cell<i64>,
+    pub(crate) shown: Cell<i64>,
 }
 
 impl TilePuzzle {

@@ -47,15 +47,19 @@
 //! trade, apps of their own that need a touch (`pss`); and O-Power's energy and the powers running,
 //! which R says on their screens (`o_power`).
 //!
-//! What touch mode does in the subscreens' apps is theirs too: which need a touch (`TOUCHED`), where
-//! Shift alone drags (`DRAGS`), and where a drag is made only on letting go, at the pace of the
-//! game's clock (`Subscreens.delayed`, `Subscreens.pace`). The profile reaches Tile Puzzle by name,
-//! whose play the screen announcer's clock waits on.
+//! What touch mode does in the subscreens' apps is theirs too: which need a touch (`TOUCHED`,
+//! `Subscreens.offered`), where Shift alone drags (`DRAGS`), and where a drag is made only on
+//! letting go, at the pace of the game's clock (`Subscreens.delayed`, `Subscreens.pace`). So is
+//! what the screen announcer asks of their apps: whether one of Amie's games times the player
+//! (`Subscreens.timed`) and is mid-play (`Subscreens.playing`); and the profile, whether one of the
+//! PSS's own apps runs, whose buttons' words are touch mode's (`Subscreens.in_pss`).
 //!
 //! Bound by:
 //! - ADR-0009: touch mode offers targets in the subscreens' apps that need a touch, Shift alone
 //!   drags in Pokémon-Amie's and holds a charge in Super Training's rounds, and Berry Picker's drag
 //!   is made on letting go.
+//! - ADR-0013: a clock of Amie's games is said at its marks (`timed`), and in the PSS's own apps a
+//!   button's words are touch mode's (`in_pss`).
 //!
 //! Python asks each reader by the same name, duck-typed; here each answer is a trait, implemented
 //! for the `RefCell` a reader is shared in, and the tuples are lists of them.
@@ -486,7 +490,7 @@ impl Touched for RefCell<SwitchScreen> {
 pub struct Subscreens {
     apps: Rc<RefCell<RunningApp>>,
     image_of: ImageOf,
-    pub puzzle: Rc<RefCell<TilePuzzle>>,
+    pub(crate) puzzle: Rc<RefCell<TilePuzzle>>,
     berry_picker: Rc<RefCell<BerryPicker>>,
     /// What the heap is swept for, each reader's `classes`.
     pub classes: Vec<&'static str>,
@@ -940,6 +944,35 @@ impl Subscreens {
             }
         }
         Ok(())
+    }
+
+    /// Another app has started: Tile Puzzle's next picture is new, even one of the same
+    /// Pokémon.
+    pub fn started(&self) {
+        self.puzzle.borrow().started();
+    }
+
+    /// Whether touch mode offers targets in the app running, as one of the subscreens' apps
+    /// that need a touch (`TOUCHED`) or one of the PSS's own (`in_pss`).
+    pub fn offered(&self) -> bool {
+        self.running()
+            .as_deref()
+            .is_some_and(|running| TOUCHED.contains(&running))
+            || self.in_pss()
+    }
+
+    /// Whether one of the PSS's own apps runs (`pss.running`): its screens are the field's
+    /// bottom screen, where a button's words are touch mode's (ADR-0013).
+    pub fn in_pss(&self) -> bool {
+        pss::running(self.running().as_deref())
+    }
+
+    /// Whether one of Amie's games runs, each timing the player, whose clock is said only at
+    /// its marks (`screen_announce`).
+    pub fn timed(&self) -> bool {
+        self.running()
+            .as_deref()
+            .is_some_and(|running| amie::GAMES.contains(&running))
     }
 
     /// Whether one of Amie's games is mid-play, its numbers the play's and left unsaid

@@ -8,7 +8,7 @@
 //!
 //! Bound by:
 //! - ADR-0009: touch mode offers targets only in the apps that need a touch (`TOUCHED`, and the
-//!   subscreens' among them), and Shift alone drags only where the subscreens say.
+//!   subscreens' own, `Subscreens.offered`), and Shift alone drags only where the subscreens say.
 //! - ADR-0013: a menu's row read every tick polls the screen at once as it changes, and each tick
 //!   after until the cursor's word is said (`poll_menus`, `rows.CHASE`).
 //! - ADR-0025: the game's sounds play in both ears, but for Head It's cue, toward its Pokémon.
@@ -103,9 +103,8 @@ use crate::games::gen6::screens::sources::{Chase, CursorSources};
 use crate::games::gen6::screens::{
     boxes, buttons, partners, partyicons, pokedex, registered, rows, secret_base, townmap,
 };
-use crate::games::gen6::subscreen::amie;
 use crate::games::gen6::subscreen::head_it::Cue;
-use crate::games::gen6::subscreen::{self, Subscreens, o_power, pss};
+use crate::games::gen6::subscreen::{self, Subscreens, o_power};
 use crate::games::gen6::{frames, gflheap, mystatus};
 use crate::py::{self, Error, Kind, Log, PySet, Result};
 
@@ -167,25 +166,13 @@ pub const STILL: f64 = 1.0;
 pub const HELD_MOST: f64 = 3.0;
 /// The apps touch mode offers targets in (ADR-0009 as amended 2026-10-29): the field, whose
 /// bottom screen is the PokéNav Plus and its DexNav, BuzzNav and PlayNav, or X's own, with
-/// Pokémon-Amie's and Super Training's pages; the subscreens' tutorials; the AreaNav; and the
-/// subscreens' own apps (`subscreen.TOUCHED`), Pokémon-Amie's and Super Training's, and the PSS's
-/// (`pss.running`). Every other
+/// Pokémon-Amie's and Super Training's pages; the subscreens' tutorials; the AreaNav; and beside
+/// them the subscreens' own apps, Pokémon-Amie's and Super Training's, and the PSS's, which the
+/// subscreens say (`Subscreens.offered`). Every other
 /// screen, the Bag, the PC, a battle, is worked with the game's buttons, which do all its touches
 /// do and faster, and touch mode says there is nothing to touch. A
 /// `frozenset` in Python, only ever tested for membership.
-pub const TOUCHED: [&str; 11] = [
-    FIELD,
-    TUTORIAL,
-    townmap::APP,
-    subscreen::TOUCHED[0],
-    subscreen::TOUCHED[1],
-    subscreen::TOUCHED[2],
-    subscreen::TOUCHED[3],
-    subscreen::TOUCHED[4],
-    subscreen::TOUCHED[5],
-    subscreen::TOUCHED[6],
-    subscreen::TOUCHED[7],
-];
+pub const TOUCHED: [&str; 3] = [FIELD, TUTORIAL, townmap::APP];
 pub const PICK_SOUND: &str = "SEQ_SE_CATCH";
 /// The PC Box's sounds for picking up a Pokémon and putting it down, the game's own for moving
 /// something somewhere, played as touch mode picks up a drag and lets go of it in place of
@@ -1169,14 +1156,14 @@ impl Gen6Profile {
                 on: Some(on),
                 greyed: Some(greyed),
                 offered: Some({
-                    let apps = apps.clone();
+                    let (apps, subscreens) = (apps.clone(), subscreens.clone());
                     Rc::new(move || {
                         let running = apps.borrow().running.clone();
                         running.is_none()
                             || running
                                 .as_deref()
                                 .is_some_and(|running| TOUCHED.contains(&running))
-                            || pss::running(running.as_deref())
+                            || subscreens.offered()
                     })
                 }),
                 said_off: Some({
@@ -1336,13 +1323,8 @@ impl Gen6Profile {
             ui.pauses,
             ticking(ticks),
             Some({
-                let apps = apps.clone();
-                Rc::new(move || {
-                    apps.borrow()
-                        .running
-                        .as_deref()
-                        .is_some_and(|running| amie::GAMES.contains(&running))
-                })
+                let subscreens = subscreens.clone();
+                Rc::new(move || subscreens.timed())
             }),
             Some({
                 let subscreens = subscreens.clone();
@@ -1706,7 +1688,7 @@ impl Gen6Profile {
         self.archived.borrow_mut().clear();
         // A battle's sides are said again on a key only while it lasts.
         self.announcements.borrow_mut().forget_sides();
-        self.subscreens.puzzle.borrow().started();
+        self.subscreens.started();
         if started == BATTLE {
             self.battle.borrow_mut().begin();
             if let Some(opponents) = &self.opponents {
@@ -2073,7 +2055,7 @@ impl Gen6Profile {
                 .filter(|t| !t.top && !t.changed == shown)
                 .count() as i64
         };
-        if (on_field || pss::running(running.as_deref()))
+        if (on_field || self.subscreens.in_pss())
             && (bottom(true) > 0 || bottom(false) >= PAGE_TURNED)
         {
             let buttons = self.touch_targets.borrow_mut().button_words()?;
@@ -2154,7 +2136,7 @@ impl Gen6Profile {
             ..screen.clone()
         };
         let subject = || self.sources.borrow().subject();
-        let turns = pss::running(self.apps.borrow().running.as_deref()) || o_power;
+        let turns = self.subscreens.in_pss() || o_power;
         self.screen_announcer.borrow_mut().say(
             &poll,
             &cursors,

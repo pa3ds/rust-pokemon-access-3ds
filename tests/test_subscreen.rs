@@ -17,9 +17,15 @@ use crate::games::gen6::profile;
 use crate::games::gen6::rom::archives::GameText;
 use crate::games::gen6::subscreen::berry_picker::{self, Touching};
 use crate::games::gen6::subscreen::{self, Subscreens};
-use crate::games::gen6::subscreen::{amie, head_it, super_training};
+use crate::games::gen6::screens::boxes;
+use crate::games::gen6::subscreen::{amie, head_it, pss, puzzle, super_training};
 use crate::games::oras;
 use crate::py::Result;
+
+/// The PSS's profile, `app::pss::pss_profile::Proc`, one of its own apps.
+fn pss_profile() -> String {
+    format!("{}11pss_profile4ProcE", pss::PSS)
+}
 
 /// `SimpleNamespace(running=app, process=None)`: the app running, which a test changes.
 fn running(app: &str) -> Rc<RefCell<RunningApp>> {
@@ -118,29 +124,49 @@ fn test_screen_text_names_a_digit_of_amies_games_and_touch_mode_names_apart() {
 
 #[test]
 fn test_touch_mode_in_the_subscreens_apps_is_as_they_say() {
-    // ADR-0009: touch mode offers targets in Amie's and Super Training's apps, Shift alone drags
-    // in Amie's and holds a charge in Super Training's rounds, and Berry Picker's drag is made on
-    // letting go, at full speed until its clock is seen to run.
-    for app in [amie::AMIE, amie::GAMES[0], amie::GAMES[1], amie::GAMES[2]]
-        .into_iter()
-        .chain([super_training::SPARRING])
-    {
-        assert!(profile::TOUCHED.contains(&app), "{app}");
-    }
-    assert!(
-        subscreen::TOUCHED
-            .iter()
-            .all(|app| profile::TOUCHED.contains(app))
-    );
+    // ADR-0009: touch mode offers targets in Amie's and Super Training's apps and the PSS's own,
+    // beside the profile's, Shift alone drags in Amie's and holds a charge in Super Training's
+    // rounds, and Berry Picker's drag is made on letting go, at full speed until its clock is seen
+    // to run.
     let mut drags: Vec<&str> = amie::SCREENS.to_vec();
     drags.push(super_training::SPARRING);
     assert_eq!(subscreen::DRAGS.to_vec(), drags);
     let apps = running(berry_picker::APP);
     let found = subscreens(apps.clone());
     assert!(found.delayed());
+    let profile_app = pss_profile();
+    let mut offered: Vec<&str> = vec![amie::AMIE];
+    offered.extend(amie::GAMES);
+    offered.extend([super_training::SPARRING, pss::FRIEND_ENTRY, &profile_app]);
+    for app in offered {
+        apps.borrow_mut().running = Some(app.to_string());
+        assert!(found.offered(), "{app}");
+    }
+    assert!(found.in_pss());
+    let mut others: Vec<Option<&str>> = profile::TOUCHED.iter().map(|app| Some(*app)).collect();
+    others.extend([None, Some(boxes::APP)]);
+    for app in others {
+        apps.borrow_mut().running = app.map(String::from);
+        assert!(!found.offered() && !found.in_pss(), "{app:?}");
+    }
     apps.borrow_mut().running = Some(amie::AMIE.to_string());
-    assert!(!found.delayed());
+    assert!(!found.delayed() && !found.in_pss());
     assert_eq!(found.pace(), 1.0);
+}
+
+/// Amie's games time the player, their clocks said at their marks (ADR-0013); and Tile
+/// Puzzle's picture is new with any app started, even one of the same Pokémon.
+#[test]
+fn test_amies_games_are_timed_and_another_app_starts_tile_puzzles_picture_afresh() {
+    let apps = running(puzzle::APP);
+    let found = subscreens(apps.clone());
+    assert!(found.timed());
+    apps.borrow_mut().running = Some(FIELD.to_string());
+    assert!(!found.timed());
+    // Python's spy on `started`: the background last said with a picture is forgotten.
+    found.puzzle.borrow().shown.set(0x1234);
+    found.started();
+    assert_eq!(found.puzzle.borrow().shown.get(), 0);
 }
 
 /// Touch mode that is never touched: Python's `cast(TouchMode, None)`.
