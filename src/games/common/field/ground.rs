@@ -608,9 +608,10 @@ impl Ground {
     /// of its own or not: three of Rusturf Tunnel's ten rocks
     /// have a sign under them and a script, and are the rocks Rock Smash breaks to join the
     /// tunnel's halves, the only way through it to Verdanturf Town (spike 137). `solid` is
-    /// cells something stands in that is not listed, with how high it stands where known: a
-    /// Secret Base's desks and chairs, which the cell table has as open floor (spike 154), and
-    /// the game's invisible blockers (spike 167). A move model drawn as a sprite in `through`
+    /// cells something stands in that is not listed, with how high it stands where known
+    /// (`stood`): a Secret Base's desks and chairs, which the cell table has as open floor
+    /// (spike 154), and the game's invisible blockers (spike 167). A move model drawn as a
+    /// sprite in `through`
     /// neither stands in its cells nor is stepped round: Glittering Cave's lurking Pokémon,
     /// walked through once its battle is over (spike 239). A listed trigger in `crossed`
     /// is walked over: Dewford Gym's switches, and so is a belt (`landform.Belts`). So is a
@@ -647,24 +648,17 @@ impl Ground {
                 }
             }
         }
-        let models: Vec<&Interactable> = listed
-            .iter()
-            .copied()
-            .filter(|item| item.move_model)
-            .collect();
-        let mut standing: IndexSet<Cell> = solid.keys().copied().collect();
-        for item in &models {
-            standing.extend(item.cells());
-        }
-        standing.shift_remove(&r#where.cell);
         let mut heights: IndexMap<Cell, Vec<Option<f64>>> = IndexMap::new();
-        let from_models = models.iter().map(|item| (item.cells(), item.height));
-        let from_solid = solid.iter().map(|(&cell, &height)| (vec![cell], height));
-        for (cells, height) in from_models.chain(from_solid) {
-            for cell in cells {
-                heights.entry(cell).or_default().push(height);
+        for item in &listed {
+            if item.move_model {
+                for cell in item.cells() {
+                    heights.entry(cell).or_default().push(item.height);
+                }
             }
         }
+        // `frozenset(heights) - {where.cell}`.
+        let mut standing: IndexSet<Cell> = heights.keys().copied().collect();
+        standing.shift_remove(&r#where.cell);
         let mut stepped: IndexSet<Cell> = IndexSet::new();
         for item in &listed {
             let place = item.place_kind();
@@ -708,7 +702,8 @@ impl Ground {
             heights,
             stacked,
             ..Ground::default()
-        };
+        }
+        .stood(&solid, r#where.cell);
         if panels.is_empty() {
             return Ok(ground);
         }
@@ -721,6 +716,26 @@ impl Ground {
         }
         ground.teleports = teleports;
         Ok(ground)
+    }
+
+    /// This ground with something standing in each cell of `solid` that is not listed, with
+    /// how high it stands where known, and nobody in the `player`'s own cell: what `of` does
+    /// with its `solid`, for what is known to stand only as the ground is laid.
+    pub fn stood(&self, solid: &IndexMap<Cell, Option<f64>>, player: Cell) -> Ground {
+        if solid.is_empty() {
+            return self.clone();
+        }
+        let mut heights = self.heights.clone();
+        for (&cell, &height) in solid {
+            heights.entry(cell).or_default().push(height);
+        }
+        let mut standing = self.standing.clone();
+        standing.extend(solid.keys().copied().filter(|&cell| cell != player));
+        Ground {
+            standing,
+            heights,
+            ..self.clone()
+        }
     }
 
     /// This ground under `where`, with the kinds only a player riding crosses, `rides`, and
