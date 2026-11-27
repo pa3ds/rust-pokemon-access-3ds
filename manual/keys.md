@@ -75,12 +75,12 @@ The battle's keys work throughout.
 | `Alt+P` | Stop guiding. |
 | `Ctrl+P` | Leave out of the list everything `Shift+P` finds no way to from where you stand, or put it back. Everything is listed each time pa3ds starts. |
 | `,` and `.` (comma and period) | Previous and next way to the chosen thing, where there is more than one, such as which way to push a big boulder. |
-| `R` | Say your side of the battle again. In a contest, your place. In Pokémon-Amie, your Pokémon's numbers, and in Head It, the score. On Super Training's page, your Pokémon's base stats and the kind of shot it fires, and in a regimen, the score, the time left and how full the energy meter is. On the PSS's O-Power screens, the energy left, on the O-Power list its regen rate, which goes up with the steps your 3DS counted that day, and each O-Power running with its time left. In a trade with another player, the Pokémon you have offered. |
-| `Shift+R` | Say the enemy's side of the battle again. In a contest, everyone else's place. In a trade with another player, the Pokémon they have offered, and choosing your team before a battle with one, the team they chose: each Pokémon's gender and level, not yet its name. |
+| `R` | Say what is yours. Your side of the battle again. In a contest, your place. In Pokémon-Amie, your Pokémon's numbers, and in Head It, the score. On Super Training's page, your Pokémon's base stats and the kind of shot it fires, and in a regimen, the score and how full the energy meter is. On the PSS's O-Power screens, the energy left, on the O-Power list its regen rate, which goes up with the steps your 3DS counted that day, and each O-Power running with its time left. In a trade with another player, the Pokémon you have offered. |
+| `Shift+R` | Say what is the other side's. The enemy's side of the battle again. In a contest, everyone else's place. In a trade with another player, the Pokémon they have offered, and choosing your team before a battle with one, the team they chose: each Pokémon's gender and level, not yet its name. |
 | `Shift+K` | Give the chosen thing a name of your own. |
 | `Shift+J` | Give whoever spoke last a name of your own. |
-| `C` | Say the square you are standing on, as x and z: x grows going east, z going south. In a Super Training regimen, where your Pokémon stands, as below. In a battle, the seconds you have left to choose, the "Command Time" a battle with another player shows, or "no timer". |
-| `Shift+C` | Say the chosen thing's squares the same way. In a battle, the time the battle has left, its "Battle Time", or "no timer". |
+| `C` | Say the square you are standing on, as x and z: x grows going east, z going south. On a screen with a clock, the clock: in Pokémon-Amie's games and a Super Training regimen, the time; choosing your team before a battle with another player, the time left to choose; in a battle, the seconds you have left to choose, the "Command Time" a battle with another player shows. "No timer" where there is none. |
+| `Shift+C` | Say the chosen thing's squares the same way. In a battle, the time the battle has left, its "Battle Time", or "no timer". In a Super Training regimen, where your Pokémon stands, as below. |
 | `Y` | Say again the last thing pa3ds said, whatever said it. |
 
 **List mode** walks the whole list, nearest first.
@@ -176,12 +176,13 @@ points before the clock runs out. Touch mode offers each goal:
   than holding `L` from the start. pa3ds says "blocked" when it stops one. With `feedback_sounds`
   off, these are "shot coming" and "now" in words. Each can be changed under
   [`[pa3ds.training]`](settings.md).
-- `C` says where your Pokémon stands, in steps from where it started, the way the map's list
-  says where a thing is: "7 up 2 left", or "at the start". The Circle Pad moves it, and up takes
-  it nearer the Balloon Bot, to about 8 up at the nearest. Near, your shots land sooner, so the
-  goals have less time to drift away from them, and the Bot's shots reach you sooner too. A shot
-  scores the same from anywhere. `C` works while you hold `Shift` too.
-- `R` says the score, the time left and how full the energy meter is, even while you hold
+- `Shift+C` says where your Pokémon stands, in steps from where it started, the way the map's
+  list says where a thing is: "7 up 2 left", or "at the start". The Circle Pad moves it, and up
+  takes it nearer the Balloon Bot, to about 8 up at the nearest. Near, your shots land sooner, so
+  the goals have less time to drift away from them, and the Bot's shots reach you sooner too. A
+  shot scores the same from anywhere.
+- `C` says the time left.
+- `R` says the score and how full the energy meter is, even while you hold
   `Shift` for a charge. A shot with the meter at
   4 of 5 or more uses over half of it, about two and a half seconds' worth, and scores the
   regimen's full points. Below about 3 of 5 a shot uses none and scores far less (against
@@ -352,8 +353,9 @@ front of its line: a line you delete is put back the next time pa3ds starts.
   alone. Change it to another key, such as `"d" = "drag"`, and that key drags instead and Shift
   no longer does. It works as Shift did, held or pressed as the `drag` setting says, and outside
   Pokémon-Amie says "nothing to drag".
-- `[pa3ds.amie.stylus]`, `[pa3ds.amie.berry_picker]` and `[pa3ds.amie.head_it]` hold the keys
-  of Pokémon-Amie and of its games, taken only while each runs: see
+- `[pa3ds.amie.stylus]`, `[pa3ds.amie.berry_picker]`, `[pa3ds.amie.head_it]` and
+  `[pa3ds.amie.tile_puzzle]` hold the keys of Pokémon-Amie and of its games, taken only while
+  each runs: see
   [Changing Amie's keys](amie.md#changing-amies-keys).
 - `[pa3ds.training.page]` and `[pa3ds.training.round]` hold the keys of Super Training's page and
   of its regimens, taken only while each is up.

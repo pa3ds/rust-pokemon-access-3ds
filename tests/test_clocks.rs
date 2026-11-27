@@ -159,6 +159,27 @@ fn test_a_countdown_is_said_each_half_minute_at_10_and_its_last_5() {
     assert_eq!(ticks.get(), 60);
 }
 
+/// C says the clock where no reader knows its own, Berry Picker's and Tile Puzzle's: the words
+/// found ticking in a timed game, kept once they stop, as the round's end leaves them up. A
+/// clock alone outside one, O-Power's, is R's, and not kept.
+#[test]
+fn test_a_clock_found_ticking_is_kept_for_c_once_it_stops() {
+    let mut polls = clocks(true);
+    assert!(polls.clocks.clocks().is_empty());
+    let countdown: Vec<String> = (0..=3)
+        .rev()
+        .map(|left| format!("Time Left: {left:02}"))
+        .collect();
+    run_clock_5(&mut polls, &countdown);
+    for _ in 0..20 {
+        polls.ask(&[], &[], false);
+    }
+    assert_eq!(polls.clocks.clocks(), [1]);
+    let mut alone = clocks(false);
+    run_clock_5(&mut alone, &words(&["02:58", "02:57", "02:56"]));
+    assert!(alone.clocks.clocks().is_empty());
+}
+
 #[test]
 fn test_a_clock_counting_up_is_said_each_half_minute() {
     let up: Vec<String> = (28..33)

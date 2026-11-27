@@ -5,7 +5,7 @@ use std::rc::Rc;
 use indexmap::IndexMap;
 
 use crate::games::common::field::keys::{
-    DEFAULT_CONTEXTS, PSS_COLOSSEUM, PSS_TRADE, THEIR_OFFER, THEIR_TEAM, YOUR_OFFER,
+    DEFAULT_CONTEXTS, PSS_COLOSSEUM, PSS_TRADE, THEIR_OFFER, THEIR_TEAM, TIME, YOUR_OFFER,
 };
 use crate::games::common::layout_file::LayoutFile;
 use crate::games::common::screen::ScreenText;
@@ -86,10 +86,16 @@ fn test_the_team_choice_says_the_other_players_team_but_its_clock() {
     assert_eq!(team.context(Some(PARTY)), Some(PSS_COLOSSEUM));
     assert!(!team.press(THEIR_TEAM, Some(PARTY)).contains("TIME"));
     assert!(team.press(THEIR_TEAM, Some(PARTY)).starts_with("Brendan"));
+    // C the clock, as on every screen with one.
+    assert_eq!(team.press(TIME, Some(PARTY)), "TIME REMAINING: 1:24");
     assert_eq!(keys(drawn, Some(FIELD)).context(Some(PARTY)), None);
     assert_eq!(
         keys(Vec::new(), Some(pss::COLOSSEUM)).press(THEIR_TEAM, Some(PARTY)),
         "no team shown"
+    );
+    assert_eq!(
+        keys(Vec::new(), Some(pss::COLOSSEUM)).press(TIME, Some(PARTY)),
+        "no timer"
     );
 }
 
@@ -104,6 +110,9 @@ fn test_the_keys_file_gives_each_its_table() {
     );
     assert_eq!(
         DEFAULT_CONTEXTS[PSS_COLOSSEUM],
-        IndexMap::from([("shift+r".to_string(), THEIR_TEAM.to_string())])
+        IndexMap::from([
+            ("shift+r".to_string(), THEIR_TEAM.to_string()),
+            ("c".to_string(), TIME.to_string()),
+        ])
     );
 }

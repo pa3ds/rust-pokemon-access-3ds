@@ -61,7 +61,8 @@ use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
 use crate::core::speech::Category;
 use crate::core::words::own;
-use crate::games::common::field::keys::{HEAD_IT, HEADERS, SCORE_KEY};
+use crate::games::common::clocks::NO_TIMER;
+use crate::games::common::field::keys::{HEAD_IT, HEADERS, SCORE_KEY, TIME};
 use crate::games::common::layout::Layouts;
 use crate::games::common::layout_file::LayoutFile;
 use crate::games::common::pokemon;
@@ -181,7 +182,7 @@ pub const COMBO_PANE: &str = "7";
 pub const HIT: &str = "hit01.bclim";
 pub const MISSED: &str = "missed";
 /// A picture of the layout the round's clock is drawn in, "Time Left: 23", in group `5m`, or
-/// Unlimited's chances, "Chances:" and "2", in group `5j` (`GROUPS`, `LEFT`); and its high score,
+/// Unlimited's chances, "Chances:" and "2", in group `5j` (`GROUPS`); and its high score,
 /// and the results.
 pub const STATUS: &str = "win_heading.bclim";
 /// The zeros the round pads its numbers with, "053" for 53: a screen reader said "zero five
@@ -189,8 +190,11 @@ pub const STATUS: &str = "win_heading.bclim";
 /// Python's `\b0+(?=\d)` ends in a look-ahead, which the `regex` crate lacks: the digit after the
 /// zeros is matched here and written back (`HeadIt::reworded`).
 pub static LEADING_ZEROS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\b0+(\d)").unwrap());
-pub const GROUPS: [&str; 2] = ["5m", "5j"];
-pub const LEFT: &str = "left";
+pub const CLOCK_PART: &str = "clock";
+pub const CHANCES: &str = "chances";
+/// The status layout's groups by what each holds: R says the chances with the score, and C the
+/// clock: R what is the player's, C the clock (`field.keys.DEFAULT_CONTEXTS`).
+pub const GROUPS: [(&str, &str); 2] = [("5m", CLOCK_PART), ("5j", CHANCES)];
 pub const COMING: &str = "head-it-ball";
 pub const NOBODY: &str = "head-it-ball-nobody";
 pub const NOT_UP: &str = "head-it-no-pokemon";
@@ -585,10 +589,9 @@ impl HeadIt {
         Ok(part.is_some_and(|part| [SCORE_PANE, COMBO_PANE, MISSED].contains(&part)))
     }
 
-    /// The round's score, its combo and its clock or chances, "819, 98-HIT COMBO, Time
-    /// Left: 23", or "" where none is on the screen. The combo is the one last shown: the game
-    /// shows it for a second after each hit, and it stands until a "MISS!" (or_amie_head_it_
-    /// normal's tape).
+    /// The round's score, its combo and Unlimited's chances, "819, 98-HIT COMBO", or ""
+    /// where none is on the screen. The combo is the one last shown: the game shows it for a
+    /// second after each hit, and it stands until a "MISS!" (or_amie_head_it_normal's tape).
     pub fn score(&self, running: Option<&str>) -> Result<String> {
         if running != Some(APP) {
             return Ok(String::new());
@@ -601,10 +604,23 @@ impl HeadIt {
         if !self.combo.is_empty() {
             said.push(self.combo.clone());
         }
-        if let Some(left) = shown.get(LEFT) {
-            said.push(join(&in_rows(left.clone()), false));
+        if let Some(chances) = shown.get(CHANCES) {
+            said.push(join(&in_rows(chances.clone()), false));
         }
         Ok(said.join(", "))
+    }
+
+    /// The round's clock, "Time Left: 23", or "" where none is on the screen.
+    pub fn time(&self, running: Option<&str>) -> Result<String> {
+        let shown = if running == Some(APP) {
+            self.shown()?
+        } else {
+            IndexMap::new()
+        };
+        Ok(match shown.get(CLOCK_PART) {
+            Some(clock) => join(&in_rows(clock.clone()), false),
+            None => String::new(),
+        })
     }
 
     /// The words on the screen with the numbers of the round's layouts, its score's and its
@@ -654,7 +670,8 @@ impl HeadIt {
     }
 
     /// What words of a layout built from `file` are of the round: its score `SCORE_PANE`, its
-    /// combo `COMBO_PANE`, a "MISS!" `MISSED`, or its clock or chances `LEFT`; else None.
+    /// combo `COMBO_PANE`, a "MISS!" `MISSED`, or its clock or chances (`GROUPS`); else
+    /// None.
     fn part(&self, piece: &ScreenText, file: Option<&LayoutFile>) -> Result<Option<&'static str>> {
         let Some(file) = file else {
             return Ok(None);
@@ -668,8 +685,12 @@ impl HeadIt {
                 .into_iter()
                 .find(|&pane| pane == name));
         }
-        if draws(file, STATUS) && GROUPS.contains(&self.layouts.pane_name(piece.parent)?.as_str()) {
-            return Ok(Some(LEFT));
+        if draws(file, STATUS) {
+            let name = self.layouts.pane_name(piece.parent)?;
+            return Ok(GROUPS
+                .iter()
+                .find(|&&(group, _part)| group == name)
+                .map(|&(_group, part)| part));
         }
         Ok(None)
     }
@@ -1067,9 +1088,9 @@ fn median(values: &[f64]) -> f64 {
 /// middle and right, which taps it, as touch mode's tap does the Pokémon it has just said. Touch
 /// mode's own keys still tap there as ever.
 ///
-/// And a key that says the round's score, its combo and its clock or chances (`HeadIt.score`),
+/// And a key that says the round's score, its combo and Unlimited's chances (`HeadIt.score`),
 /// which are left unsaid as they come unless the player asks ("the game itself
-/// already plays a sound" for a miss).
+/// already plays a sound" for a miss), and one its clock (`HeadIt.time`).
 ///
 /// `wrong` is what is heard for a key with nothing to do, a Pokémon not up or no ball falling: a
 /// sound, and "", or else the words.
@@ -1092,7 +1113,7 @@ impl HeadItKeys {
         (running == Some(APP)).then_some(HEAD_IT)
     }
 
-    /// Tap the Pokémon of the key, or say the score, with the line to say.
+    /// Tap the Pokémon of the key, or say the score or the clock, with the line to say.
     pub fn press(
         &self,
         action: &str,
@@ -1105,6 +1126,14 @@ impl HeadItKeys {
                 (self.wrong)(&own(NO_SCORE, &[]))
             } else {
                 score
+            });
+        }
+        if action == TIME {
+            let time = self.game.borrow().time(running)?;
+            return Ok(if time.is_empty() {
+                (self.wrong)(&own(NO_TIMER, &[]))
+            } else {
+                time
             });
         }
         let column = HEADERS

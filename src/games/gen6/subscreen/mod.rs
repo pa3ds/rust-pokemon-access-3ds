@@ -117,7 +117,7 @@ use pss::{COLOSSEUM, DIALOG, FRIEND_ENTRY};
 use pss_battle::BattleTimers;
 use pss_keys::PssKeys;
 use pss_profile::ProfileValues;
-use puzzle::TilePuzzle;
+use puzzle::{PuzzleKeys, TilePuzzle};
 use super_training::{
     Bags, CoreTraining, Gains, Goals, Medals, Round, RoundOptions, TrainingKeys, TrainingPage,
     Waiting,
@@ -318,6 +318,21 @@ impl Keyed for PssKeys {
         _touch: &mut dyn Touching,
     ) -> Result<String> {
         Ok(PssKeys::press(self, action, running))
+    }
+}
+
+impl Keyed for PuzzleKeys {
+    fn context(&self, running: Option<&str>) -> Result<Option<&'static str>> {
+        Ok(PuzzleKeys::context(self, running))
+    }
+
+    fn press(
+        &self,
+        action: &str,
+        running: Option<&str>,
+        _touch: &mut dyn Touching,
+    ) -> Result<String> {
+        Ok(PuzzleKeys::press(self, action, running))
     }
 }
 
@@ -627,6 +642,7 @@ impl Subscreens {
         on_screen: OnScreen,
         party: Rc<dyn Fn() -> Option<i64>>,
         tick: Option<Rc<dyn Fn()>>,
+        clock: Rc<dyn Fn() -> String>,
     ) -> Subscreens {
         // The settings file's tables, each reader taking its own (`config.Tables`).
         let settings = &tables.amie;
@@ -788,11 +804,12 @@ impl Subscreens {
         )));
         // Its own keys, a berry's and a Pokémon's, heard as the drag's own sounds are and the
         // game's error sound, or said where they are off.
-        let berry_keys = Rc::new(RefCell::new(BerryKeys::new(
+        let berry_keys = Rc::new(RefCell::new(BerryKeys::with_clock(
             berry_picker.clone(),
             images,
             picked,
             wrong.clone(),
+            clock.clone(),
         )));
         // Its Head It drops balls of yarn at the party's Pokémon, and names neither the Pokémon nor
         // which one each ball falls at; the game's "!" says when to tap, where the player asks.
@@ -998,6 +1015,7 @@ impl Subscreens {
                 training_keys,
                 pss_keys,
                 timers,
+                Rc::new(PuzzleKeys::new(clock)),
             ],
             ticked: vec![head_it.clone(), sparring.clone()],
             holding: vec![head_it.clone(), sparring.clone()],

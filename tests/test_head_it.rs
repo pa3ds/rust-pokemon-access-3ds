@@ -10,7 +10,7 @@ use super::fake_layouts::FakeLayouts;
 use super::fake_memory::{CODE, FakeClasses, FakeMemory};
 use super::test_battle::record_of;
 use crate::core::rtti::ClassNames;
-use crate::games::common::field::keys::{DEFAULT_CONTEXTS, HEAD_IT, HEADERS, SCORE_KEY};
+use crate::games::common::field::keys::{DEFAULT_CONTEXTS, HEAD_IT, HEADERS, SCORE_KEY, TIME};
 use crate::games::common::layout::Layouts;
 use crate::games::common::layout_file::LayoutFile;
 use crate::games::common::screen::ScreenText;
@@ -743,6 +743,7 @@ fn test_a_pokemons_key_taps_it() {
             ("9".to_string(), HEADERS[1].to_string()),
             ("0".to_string(), HEADERS[2].to_string()),
             ("r".to_string(), SCORE_KEY.to_string()),
+            ("c".to_string(), TIME.to_string()),
         ])
     );
     let app = Some(head_it::APP);
@@ -905,24 +906,27 @@ fn test_the_score_its_combo_and_a_miss_are_the_rounds_score_and_a_key_says_them(
         keys.press(SCORE_KEY, app, &mut touched).unwrap(),
         "no score"
     );
+    assert_eq!(keys.press(TIME, app, &mut touched).unwrap(), "no timer");
     *shown.borrow_mut() = vec![high.clone(), clock.clone(), combo, score.clone(), puffs];
     heard(&mut found.borrow_mut(), head_it::APP);
+    // R what is the player's, C the clock.
     assert_eq!(
         keys.press(SCORE_KEY, app, &mut touched).unwrap(),
-        "819, 98-HIT COMBO, Time Left: 23"
+        "819, 98-HIT COMBO"
+    );
+    assert_eq!(
+        keys.press(TIME, app, &mut touched).unwrap(),
+        "Time Left: 23"
     );
     *shown.borrow_mut() = vec![high.clone(), clock.clone(), score.clone()];
     heard(&mut found.borrow_mut(), head_it::APP);
     assert_eq!(
         keys.press(SCORE_KEY, app, &mut touched).unwrap(),
-        "819, 98-HIT COMBO, Time Left: 23"
+        "819, 98-HIT COMBO"
     );
     *shown.borrow_mut() = vec![high, clock, score.clone(), missed];
     heard(&mut found.borrow_mut(), head_it::APP);
-    assert_eq!(
-        keys.press(SCORE_KEY, app, &mut touched).unwrap(),
-        "819, Time Left: 23"
-    );
+    assert_eq!(keys.press(SCORE_KEY, app, &mut touched).unwrap(), "819");
     *shown.borrow_mut() = vec![
         words(
             &memory,

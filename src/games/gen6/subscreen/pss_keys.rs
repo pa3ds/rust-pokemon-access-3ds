@@ -10,16 +10,16 @@
 //!   `pss.COLOSSEUM`): Shift and R says the team the other player chose, as its top screen draws
 //!   it, `pokelist_uppwer.bclyt`: their name, then each Pokémon's gender sign and level, but for
 //!   its icon, which nothing names yet (spike A); its "TIME REMAINING" row is the clock's, said at
-//!   its marks (`Subscreens.timed`), and left out.
+//!   its marks (`Subscreens.timed`), and left out: C says it.
 //!
 //! A key with nothing drawn to say says so.
 
 use std::rc::Rc;
 
 use crate::core::words::own;
-use crate::games::common::clocks::CLOCK;
+use crate::games::common::clocks::{CLOCK, NO_TIMER};
 use crate::games::common::field::keys::{
-    PSS_COLOSSEUM, PSS_TRADE, THEIR_OFFER, THEIR_TEAM, YOUR_OFFER,
+    PSS_COLOSSEUM, PSS_TRADE, THEIR_OFFER, THEIR_TEAM, TIME, YOUR_OFFER,
 };
 use crate::games::common::screen::ScreenText;
 use crate::games::common::screen_order::{in_rows, join};
@@ -79,22 +79,27 @@ impl PssKeys {
                 .collect();
             return or_own(join(&in_rows(offer), self.pauses), NO_OFFER);
         }
-        if action == THEIR_TEAM {
+        if action == THEIR_TEAM || action == TIME {
             let drawn = self.drawn(TEAM);
-            // Less the clock's row: "TIME REMAINING: 1:24", said at its marks.
+            // The clock's row, "TIME REMAINING: 1:24", is C's, and said at its marks.
             let clocks: Vec<f64> = drawn
                 .iter()
                 .filter(|p| CLOCK.is_match(&p.text))
                 .map(|p| p.row)
                 .collect();
-            let team: Vec<ScreenText> = drawn
-                .into_iter()
+            let timed: Vec<ScreenText> = drawn
+                .iter()
                 .filter(|p| {
                     // Python's `max(p.glyph, 1)`: the glyph unless 1 is greater.
                     let least = if 1.0 > p.glyph { 1.0 } else { p.glyph };
-                    !clocks.iter().any(|row| (p.row - row).abs() < least)
+                    clocks.iter().any(|row| (p.row - row).abs() < least)
                 })
+                .cloned()
                 .collect();
+            if action == TIME {
+                return or_own(join(&in_rows(timed), self.pauses), NO_TIMER);
+            }
+            let team: Vec<ScreenText> = drawn.into_iter().filter(|p| !timed.contains(p)).collect();
             return or_own(join(&in_rows(team), self.pauses), NO_TEAM);
         }
         String::new()

@@ -47,9 +47,10 @@ use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
 use crate::core::speech::Category;
 use crate::core::words::own;
+use crate::games::common::clocks::NO_TIMER;
 use crate::games::common::field::keys::BERRIES as BERRY_KEYS;
-use crate::games::common::field::keys::BERRY_PICKER;
 use crate::games::common::field::keys::POKEMON as POKEMON_KEYS;
+use crate::games::common::field::keys::{BERRY_PICKER, TIME};
 use crate::games::common::layout::Layouts;
 use crate::games::common::touch::{HEIGHT, ImageOf, Target, TouchMode, WIDTH};
 use crate::games::common::{pokemon, strbuf};
@@ -689,10 +690,12 @@ impl Touching for TouchMode {
 /// Touch mode's own keys still drag as ever, for a player who wants the challenge.
 ///
 /// `picked` and `wrong` are what is heard as a berry is picked up, and for a key with nothing to
-/// do, a berry the round has not or a Pokémon not up: a sound, and "", or else the words.
+/// do, a berry the round has not or a Pokémon not up: a sound, and "", or else the words. C
+/// says the round's clock, as the clocks found it ticking (`clock`, `Clocks.clocks`).
 ///
 /// Python's holds touch mode, which is built after the subscreens, as it offers their targets; here touch mode, which the navigator owns, is handed to `press`.
 pub struct BerryKeys {
+    clock: Rc<dyn Fn() -> String>,
     picker: Rc<RefCell<BerryPicker>>,
     /// An image -> the game's word for it: a berry's item name, the tree's targets' names.
     words: IndexMap<String, String>,
@@ -703,13 +706,25 @@ pub struct BerryKeys {
 }
 
 impl BerryKeys {
+    /// `BerryKeys(picker, touch, words, picked, wrong)`: `clock` left to its default, "".
     pub fn new(
         picker: Rc<RefCell<BerryPicker>>,
         words: IndexMap<String, String>,
         picked: Rc<dyn Fn(&str) -> String>,
         wrong: Rc<dyn Fn(&str) -> String>,
     ) -> Self {
+        BerryKeys::with_clock(picker, words, picked, wrong, Rc::new(String::new))
+    }
+
+    pub fn with_clock(
+        picker: Rc<RefCell<BerryPicker>>,
+        words: IndexMap<String, String>,
+        picked: Rc<dyn Fn(&str) -> String>,
+        wrong: Rc<dyn Fn(&str) -> String>,
+        clock: Rc<dyn Fn() -> String>,
+    ) -> Self {
         BerryKeys {
+            clock,
             picker,
             words,
             picked,
@@ -731,6 +746,14 @@ impl BerryKeys {
         running: Option<&str>,
         touch: &mut dyn Touching,
     ) -> Result<String> {
+        if action == TIME {
+            let said = (self.clock)();
+            return Ok(if said.is_empty() {
+                (self.wrong)(&own(NO_TIMER, &[]))
+            } else {
+                said
+            });
+        }
         if let Some(number) = BERRY_KEYS.iter().position(|&berry| berry == action) {
             let name = BERRIES
                 .get(number)

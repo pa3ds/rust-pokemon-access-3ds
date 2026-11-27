@@ -13,7 +13,7 @@ use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
 use crate::core::speech::Category;
 use crate::games::common::field::keys::{
-    BASE_STATS, DEFAULT_CONTEXTS, ROUND_PLACE, TRAINING_ROUND,
+    BASE_STATS, DEFAULT_CONTEXTS, ROUND_PLACE, TIME, TRAINING_ROUND,
 };
 use crate::games::common::screen::ScreenText;
 use crate::games::common::touch::{ImageOf, Target};
@@ -648,15 +648,18 @@ fn test_rs_table_follows_the_page_and_a_round() {
 }
 
 #[test]
-fn test_r_says_a_rounds_score_and_clock_as_last_read() {
+fn test_r_says_a_rounds_score_and_c_its_clock_as_last_read() {
     let mut sparring = rounds(Rc::new(Cell::new(0.0))).0;
     assert_eq!(sparring.numbers().unwrap(), "");
+    assert_eq!(sparring.time(), "");
     for _ in 0..2 {
         sparring
             .hear(&[score("34/50"), clock(88)].concat())
             .unwrap();
     }
-    assert_eq!(sparring.numbers().unwrap(), "34 of 50, 1:28 left");
+    assert_eq!(sparring.numbers().unwrap(), "34 of 50");
+    assert_eq!(sparring.time(), "1:28 left");
+    assert_eq!(DEFAULT_CONTEXTS[TRAINING_ROUND]["c"], TIME);
 }
 
 /// The first tutorial's round draws none (as_st_tutorial2).
@@ -1278,7 +1281,7 @@ fn test_c_says_how_far_up_and_across_the_pokemon_stands_from_where_it_started() 
     }
     assert_eq!(said, ["at the start", "7 up 2 left", "3 right", "1 down"]);
     assert_eq!(cueing(None, 0.6).0.place().unwrap(), "");
-    assert_eq!(DEFAULT_CONTEXTS[TRAINING_ROUND]["c"], ROUND_PLACE);
+    assert_eq!(DEFAULT_CONTEXTS[TRAINING_ROUND]["shift+c"], ROUND_PLACE);
 }
 
 fn fly(memory: &FakeMemory, z: f32, frames: i64, state: i64) {

@@ -54,6 +54,8 @@ use crate::core::binary::{f32, u32};
 use crate::core::memory::Memory;
 use crate::core::speech::Category;
 use crate::core::words::{current, own};
+use crate::games::common::clocks::NO_TIMER;
+use crate::games::common::field::keys::TILE_PUZZLE;
 use crate::games::common::layout::Layouts;
 use crate::games::common::touch::ImageOf;
 use crate::games::common::{lyt, pokemon};
@@ -538,4 +540,32 @@ fn int_base36(text: &str) -> Option<i64> {
         previous = Some(c);
     }
     Some(if negative { -value } else { value })
+}
+
+/// Tile Puzzle's own key, `[pa3ds.amie.tile_puzzle]`: C says its clock, as the clocks found
+/// it ticking (`Clocks.clocks`), "Time: 00:42".
+pub struct PuzzleKeys {
+    clock: Rc<dyn Fn() -> String>,
+}
+
+impl PuzzleKeys {
+    pub fn new(clock: Rc<dyn Fn() -> String>) -> Self {
+        PuzzleKeys { clock }
+    }
+
+    /// The keys' table in the keys file while Tile Puzzle runs, else None.
+    pub fn context(&self, running: Option<&str>) -> Option<&'static str> {
+        (running == Some(APP)).then_some(TILE_PUZZLE)
+    }
+
+    /// Say the clock, with the line to say.
+    pub fn press(&self, _action: &str, _running: Option<&str>) -> String {
+        // Its one key, asked only while it runs (`context`).
+        let said = (self.clock)();
+        if said.is_empty() {
+            own(NO_TIMER, &[])
+        } else {
+            said
+        }
+    }
 }

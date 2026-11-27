@@ -29,12 +29,13 @@
 //!   one, a row the PSS turns by itself is said once each way, and Head It's score is left unsaid
 //!   unless the player asks; each from live play: replay the tapes before and after changing one.
 
+use std::cell::RefCell;
 use std::collections::HashSet;
 use std::ops::Range;
 use std::rc::Rc;
 use std::sync::LazyLock;
 
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 use regex::Regex;
 
 use crate::games::common::screen::ScreenText;
@@ -58,6 +59,11 @@ pub const TURN_MAX_POLLS: i64 = 50;
 /// Polls a turn may come early or late on the turn before, at least: a quarter of the turn
 /// before where that is more. The profile's count turned 19 polls, then 16, after the one before.
 pub const TURN_SLACK_POLLS: i64 = 2;
+
+/// Clocks found ticking kept for C (`Clocks.clocks`): a screen draws one or two.
+pub const CLOCKS_KEPT: usize = 4;
+/// What C says where the screen shows no clock.
+pub const NO_TIMER: &str = "no-timer";
 
 static NUMBERS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\d+").expect("a fixed pattern"));
 /// Polls, three seconds, within which a score heard again higher is left unsaid, where the player
@@ -119,6 +125,10 @@ pub struct Clocks {
     set: IndexMap<i64, (String, i64)>,
     /// TextBoxes that have ticked, for as long as they keep being set.
     ticking: HashSet<i64>,
+    /// TextBoxes found ticking as a game's clock, the latest last, kept once it stops: C says
+    /// the clock where no reader knows its own (`clocks`). Shared, for the profile's C to read
+    /// where the screen announcer owns these clocks (`kept`).
+    clocks: Rc<RefCell<IndexSet<i64>>>,
     /// TextBox -> the last two words it came on screen with or changed to, each with its poll,
     /// while a screen may turn its rows by itself (`_turned`).
     writes: IndexMap<i64, Vec<(String, i64)>>,
@@ -158,14 +168,29 @@ impl Clocks {
             marks: IndexMap::new(),
             set: IndexMap::new(),
             ticking: HashSet::new(),
+            clocks: Rc::new(RefCell::new(IndexSet::new())),
             writes: IndexMap::new(),
         }
+    }
+
+    /// These clocks keeping the clocks found ticking in `kept` (`clocks`), which a holder of
+    /// its own reads: the profile's C, made before these clocks, which the screen announcer
+    /// owns. Python's profile keeps the one `Clocks` the announcer is handed.
+    pub fn keeping(mut self, kept: Rc<RefCell<IndexSet<i64>>>) -> Self {
+        self.clocks = kept;
+        self
     }
 
     /// Whether a game that times the player runs: every word coming back then comes alone
     /// (`ScreenAnnouncer._with_what_stayed`).
     pub fn timed(&self) -> bool {
         self.timed.as_ref().is_some_and(|timed| timed())
+    }
+
+    /// The TextBoxes found ticking as a timed game's clock lately, the latest last, whether
+    /// or not they still tick: Berry Picker's "Time Left", Tile Puzzle's "Time".
+    pub fn clocks(&self) -> Vec<i64> {
+        self.clocks.borrow().iter().copied().collect()
     }
 
     /// The boxes of one poll's words left unsaid as ticking, turning, played or scored:
@@ -209,6 +234,18 @@ impl Clocks {
             .filter(|(_, tick)| **tick)
             .map(|(&r#box, _)| r#box)
             .collect();
+        if timed && !steps.is_empty() {
+            let mut kept: Vec<i64> = self
+                .clocks
+                .borrow()
+                .iter()
+                .copied()
+                .filter(|r#box| !steps.contains_key(r#box))
+                .collect();
+            kept.extend(steps.keys().copied());
+            let start = kept.len().saturating_sub(CLOCKS_KEPT);
+            *self.clocks.borrow_mut() = kept[start..].iter().copied().collect();
+        }
         // And settles with its layout: O-Power's Active panel, back from a power used, came with
         // the times it had left, then jumped them a second or two a poll later and brought one
         // back alone, "Prize Money Power Lv. 1 02:57", "02:43" (the first or_pss_o_power,

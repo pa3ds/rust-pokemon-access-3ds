@@ -115,6 +115,7 @@ one said has gone. A Pokémon waits only about two seconds, and a wrong berry se
 | `6` | Durin Berry, on Hard |
 | `7` | Nomel Berry, on Hard |
 | `8`, `9`, `0` | The round's first, second and third Pokémon, each keeping its key all round. |
+| `C` | Say the time left, once the round has started. |
 
 A berry's key picks it up, and a Pokémon's key then gives it to that Pokémon; with no berry
 picked up, a Pokémon's key says what it wants. As each round is about to start, pa3ds says the
@@ -146,7 +147,8 @@ middle at first, and two more come up beside it as the round goes on.
 | `8` | Tap the Pokémon on the left. |
 | `9` | Tap the Pokémon in the middle. |
 | `0` | Tap the Pokémon on the right. |
-| `R` | Say the score, the combo and the time or the misses left: "819, 98-HIT COMBO, Time Left: 23". |
+| `R` | Say the score, the combo and, in Unlimited, the misses left: "819, 98-HIT COMBO". |
+| `C` | Say the time left: "Time Left: 23". |
 
 As each round starts, pa3ds says its three Pokémon in that order, those not up yet too. A key
 where no Pokémon stands, or before the balls start, plays the game's error sound. Outside Head It
@@ -170,9 +172,9 @@ Each tile is said as a spreadsheet names a cell, its column a letter from A and 
 from 1, and then where the piece of the picture on it belongs: "B1, goes to D3", or "in place".
 Tap a tile, then the tile where its piece belongs, to swap them. Its difficulties say the best
 stars earned on each, and while you play its points are said only as a puzzle starts and once it
-is solved. With `descriptions` under `[pa3ds.ui]` on, the picture is described: which of your
-Pokémon stand where, and where it is set. Over the finished picture there is nothing to touch: B
-goes back.
+is solved. `C` says the time, once it has started. With `descriptions` under `[pa3ds.ui]` on, the
+picture is described: which of your Pokémon stand where, and where it is set. Over the finished
+picture there is nothing to touch: B goes back.
 
 ## Changing Amie's keys
 
@@ -182,6 +184,8 @@ and winning there over pa3ds's other keys ([Changing keys](keys.md#changing-keys
 - `[pa3ds.amie.stylus]`: `"stylus up"`, `"stylus down"`, `"stylus left"` and `"stylus right"` on
   the arrows, `"stylus jump up"` to `"stylus jump right"` on Ctrl and the arrows, and `"stylus
   numbers"` on `R`.
-- `[pa3ds.amie.berry_picker]`: `"first berry"` to `"seventh berry"` and `"first pokemon"` to
-  `"third pokemon"`.
-- `[pa3ds.amie.head_it]`: `"left pokemon"`, `"middle pokemon"`, `"right pokemon"` and `"score"`.
+- `[pa3ds.amie.berry_picker]`: `"first berry"` to `"seventh berry"`, `"first pokemon"` to
+  `"third pokemon"`, and `"time"` on `C`.
+- `[pa3ds.amie.head_it]`: `"left pokemon"`, `"middle pokemon"`, `"right pokemon"`, `"score"`
+  and `"time"`.
+- `[pa3ds.amie.tile_puzzle]`: `"time"` on `C`.

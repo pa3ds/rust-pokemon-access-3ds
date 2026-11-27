@@ -5838,7 +5838,9 @@ fn bound(mode: &str, key: &str) -> &'static str {
 fn test_berry_pickers_number_row_is_taken_only_while_it_runs() {
     let digits: HashSet<String> = "1234567890".chars().map(|c| c.to_string()).collect();
     assert!(bound_keys(&DEFAULT_BINDINGS).is_disjoint(&digits));
-    assert_eq!(context_keys(&DEFAULT_CONTEXTS, Some(BERRY_PICKER)), digits);
+    let mut taken = digits.clone();
+    taken.insert("c".to_string());
+    assert_eq!(context_keys(&DEFAULT_CONTEXTS, Some(BERRY_PICKER)), taken);
     assert_eq!(
         "17890"
             .chars()

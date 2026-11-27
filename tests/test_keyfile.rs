@@ -624,6 +624,48 @@ fn test_a_screens_own_keys_have_a_table_of_their_own() {
     assert!(read_text(&fresh.join("keys.toml")).contains("[pa3ds.amie.berry_picker]"));
 }
 
+/// A round of Super Training's place moved from C to Shift and C, C becoming its clock: named
+/// afresh, its old line goes from a keys file written before, and both keys come in as the
+/// defaults have them, neither commented out.
+#[test]
+fn test_an_action_named_afresh_moves_to_its_new_key() {
+    let tmp_path = TmpPath::new();
+    let home = tmp_path.join("home");
+    fs::create_dir(&home).unwrap();
+    fs::write(
+        home.join("keys.toml"),
+        "[pa3ds.training.round]\nr = \"round numbers\"\nc = \"round place\"\n",
+    )
+    .unwrap();
+    let contexts: Bindings = IndexMap::from([(
+        "training.round".to_string(),
+        IndexMap::from([
+            ("r".to_string(), "round numbers".to_string()),
+            ("c".to_string(), "time".to_string()),
+            ("shift+c".to_string(), "round where".to_string()),
+        ]),
+    )]);
+    let keys = keyfile::prepare_with(
+        &bindings(),
+        Some(&home),
+        Some(&written(&tmp_path)),
+        true,
+        false,
+        None,
+        Some(&contexts),
+    )
+    .unwrap();
+    assert_eq!(keys.contexts, contexts);
+    assert!(
+        keys.notes
+            .iter()
+            .any(|note| note.ends_with("[pa3ds.training.round] c")),
+        "{:?}",
+        keys.notes
+    );
+    assert!(!read_text(&home.join("keys.toml")).contains("# c"));
+}
+
 /// Windows repeats a key held down, which would pick a drag up and let it go over and over; a key
 /// bound to drag is taken once and said as it comes up, and other keys repeat as ever.
 #[test]

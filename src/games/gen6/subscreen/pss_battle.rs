@@ -27,7 +27,7 @@ use indexmap::IndexMap;
 use crate::core::binary::{f32, u32};
 use crate::core::speech::Category;
 use crate::core::words::own;
-use crate::games::common::clocks::marked;
+use crate::games::common::clocks::{NO_TIMER, marked};
 use crate::games::common::field::keys::{BATTLE_TIME, COMMAND_TIME, PSS_BATTLE};
 use crate::games::common::layout::Layouts;
 use crate::games::common::lyt;
@@ -52,7 +52,6 @@ pub const DIGITS: [((f64, f64), i64); 10] = [
 ];
 /// How far a corner may sit from its digit's, f32 against the three places written above.
 pub const CLOSE: f64 = 0.01;
-pub const NO_TIMER: &str = "pss-no-timer";
 /// The most seconds one tick goes down: a poll can come late and miss one. More is a new turn.
 pub const TICK: i64 = 2;
 

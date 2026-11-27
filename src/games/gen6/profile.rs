@@ -60,6 +60,7 @@ use crate::games::common::scenes::{
 };
 use crate::games::common::screen::{Pictures, ScreenText, ScreenTextReader};
 use crate::games::common::screen_announce::{Heard, ScreenAnnouncer};
+use crate::games::common::screen_order::{in_rows, join};
 use crate::games::common::session::{Profile, Ways};
 use crate::games::common::slots::Occupant;
 use crate::games::common::touch::{self, FileOf, ImageOf, OnScreen, TextOf, TouchMode};
@@ -839,6 +840,33 @@ impl Gen6Profile {
         // The input device managers `_frames` reads the game's count of frames through, made here
         // where Python's are made below: Head It's cue is handed `_frames`, as the scenes are.
         let managers = Rc::new(RefCell::new(PySet::new()));
+        // The clocks' TextBoxes found ticking, which the screen announcer's clocks keep below and
+        // C reads here, Python's `_clock` reading the one `Clocks` the announcer is handed.
+        let kept_clocks: Rc<RefCell<IndexSet<i64>>> = Rc::new(RefCell::new(IndexSet::new()));
+        // The row of the clock last found ticking that is still on the screen, as C says it:
+        // Berry Picker's "Time Left: 58", or "" with none (`Clocks.clocks`).
+        let clock: Rc<dyn Fn() -> String> = {
+            let (on_screen, kept, pauses) = (on_screen.clone(), kept_clocks.clone(), ui.pauses);
+            Rc::new(move || {
+                let on_screen = on_screen();
+                let clocks: Vec<i64> = kept.borrow().iter().copied().collect();
+                let clock = clocks
+                    .iter()
+                    .rev()
+                    .find_map(|&r#box| on_screen.iter().find(|piece| piece.r#box == r#box))
+                    .cloned();
+                let Some(clock) = clock else {
+                    return String::new();
+                };
+                // Python's `max(clock.glyph, 1)`: the glyph unless 1 is greater.
+                let least = if 1.0 > clock.glyph { 1.0 } else { clock.glyph };
+                let row: Vec<ScreenText> = on_screen
+                    .into_iter()
+                    .filter(|p| p.root == clock.root && (p.row - clock.row).abs() < least)
+                    .collect();
+                join(&in_rows(row), pauses)
+            })
+        };
         // The subscreens, Pokémon-Amie's and Super Training's and the apps they open, which name
         // what they draw, offer what no touch area does, and answer keys of their own, Berry
         // Picker's.
@@ -862,6 +890,7 @@ impl Gen6Profile {
                 Rc::new(move || party_icons.borrow().party)
             },
             ticking(ticks.clone()),
+            clock,
         ));
         subscreens_made
             .set(subscreens.clone())
@@ -1124,23 +1153,26 @@ impl Gen6Profile {
             speech.clone(),
             log.clone(),
             ui.pauses,
-            Some(Box::new(Clocks::with(
-                log.clone(),
-                ticking(ticks),
-                Some({
-                    let subscreens = subscreens.clone();
-                    Rc::new(move || subscreens.timed())
-                }),
-                Some({
-                    let subscreens = subscreens.clone();
-                    Rc::new(move || subscreens.playing())
-                }),
-                Some({
-                    let subscreens = subscreens.clone();
-                    Rc::new(move |piece: &ScreenText| subscreens.scored(piece))
-                }),
-                tables.amie.head_it_score,
-            ))),
+            Some(Box::new(
+                Clocks::with(
+                    log.clone(),
+                    ticking(ticks),
+                    Some({
+                        let subscreens = subscreens.clone();
+                        Rc::new(move || subscreens.timed())
+                    }),
+                    Some({
+                        let subscreens = subscreens.clone();
+                        Rc::new(move || subscreens.playing())
+                    }),
+                    Some({
+                        let subscreens = subscreens.clone();
+                        Rc::new(move |piece: &ScreenText| subscreens.scored(piece))
+                    }),
+                    tables.amie.head_it_score,
+                )
+                .keeping(kept_clocks),
+            )),
         );
         // The scenes the game shows without words, described where the player asks and the game
         // has descriptions in their language (ADR-0038), those of the other version left out.

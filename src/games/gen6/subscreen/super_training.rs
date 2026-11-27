@@ -113,8 +113,9 @@ use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
 use crate::core::speech::Category;
 use crate::core::words::own;
+use crate::games::common::clocks::NO_TIMER;
 use crate::games::common::field::keys::{
-    ROUND_NUMBERS, ROUND_PLACE, TRAINING_PAGE, TRAINING_ROUND,
+    ROUND_NUMBERS, ROUND_PLACE, TIME, TRAINING_PAGE, TRAINING_ROUND,
 };
 use crate::games::common::layout::Layouts;
 use crate::games::common::pictures::words as picture_words;
@@ -1078,6 +1079,15 @@ impl TrainingKeys {
 
     /// The numbers of the screen running, with the line to say.
     pub fn press(&self, action: &str, _running: Option<&str>) -> Result<String> {
+        // `running` only ever asked on the screen its table is for (`context`)
+        if action == TIME {
+            let time = self.round.borrow().time();
+            return Ok(if time.is_empty() {
+                (self.wrong)(&own(NO_TIMER, &[]))
+            } else {
+                time
+            });
+        }
         let said = if action == ROUND_NUMBERS {
             self.round.borrow().numbers()?
         } else if action == ROUND_PLACE {
@@ -1085,7 +1095,6 @@ impl TrainingKeys {
         } else {
             self.numbers()?
         };
-        // `running` only ever asked on the screen its table is for (`context`)
         if said.is_empty() {
             return Ok((self.wrong)(&own(NO_NUMBERS, &[])));
         }
@@ -1838,21 +1847,12 @@ impl Round {
             .collect())
     }
 
-    /// The score, the clock and the energy meter as last read, "34 of 50, 1:28 left, energy 4
-    /// of 5", or "" before they show; the first regimen draws no meter.
+    /// The score and the energy meter as last read, "34 of 50, energy 4 of 5", or "" before
+    /// they show; the first regimen draws no meter.
     pub fn numbers(&self) -> Result<String> {
         let mut said: Vec<String> = Vec::new();
         if let Some(reading) = self.reading {
             said.push(format!("{} of {}", reading.0, reading.1));
-        }
-        if let Some(left) = self.left {
-            said.push(own(
-                "training-left",
-                &[(
-                    "time",
-                    &format!("{}:{:02}", py::floordiv(left, 60), py::modulo(left, 60)),
-                )],
-            ));
         }
         if let Some(energy) = self.energy {
             let fifths = fifths(py::round(energy * 100.0)?, 100)?;
@@ -1862,6 +1862,20 @@ impl Round {
             ));
         }
         Ok(said.join(", "))
+    }
+
+    /// The clock as last read, "1:28 left", or "" before it shows.
+    pub fn time(&self) -> String {
+        match self.left {
+            None => String::new(),
+            Some(left) => own(
+                "training-left",
+                &[(
+                    "time",
+                    &format!("{}:{:02}", py::floordiv(left, 60), py::modulo(left, 60)),
+                )],
+            ),
+        }
     }
 
     fn say_score(&mut self, score: Option<(i64, i64)>) -> Vec<String> {

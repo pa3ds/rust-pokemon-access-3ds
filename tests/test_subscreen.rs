@@ -83,6 +83,7 @@ fn subscreens_drawing(apps: Rc<RefCell<RunningApp>>, image_of: ImageOf) -> Subsc
         Rc::new(Vec::new),
         Rc::new(|| None),
         None,
+        Rc::new(String::new),
     );
     found
         .track(&IndexMap::from([(PAGE, amie::CLASS.to_string())]), false)

@@ -132,19 +132,24 @@ pub const POKEMON: [&str; 3] = ["first pokemon", "second pokemon", "third pokemo
 /// Head It's three Pokémon, a key each, by where each stands all round: tapped, to head the ball
 /// falling at it (`head_it.HeadItKeys`).
 pub const HEADERS: [&str; 3] = ["left pokemon", "middle pokemon", "right pokemon"];
-/// Say Head It's score, its combo and its clock or chances left, which are left unsaid as they
-/// come unless the player asks (`head_it.HeadIt.score`).
+/// Say Head It's score, its combo and Unlimited's chances left, which are left unsaid as they come
+/// unless the player asks (`head_it.HeadIt.score`).
 pub const SCORE_KEY: &str = "score";
+/// Say the clock the screen shows, as it shows it: an Amie game's, a round of Super Training's,
+/// the team choice's before a battle in the PSS. R says what is the player's, Shift and R the other
+/// side's, and C the clock, on every screen that has one.
+pub const TIME: &str = "time";
 /// Says Amie's Pokémon's three numbers, as the Switch screen shows them.
 pub const STYLUS_NUMBERS: &str = "stylus numbers";
 /// Says what Super Training's page draws as a chart and an icon: each stat's points, the total and
 /// the kind of shot (`super_training.TrainingKeys`).
 pub const BASE_STATS: &str = "base stats";
-/// Says a Super Training round's score and clock.
+/// Says a Super Training round's score and energy.
 pub const ROUND_NUMBERS: &str = "round numbers";
 /// Says where a Super Training round's Pokémon stands, in steps up and across from where it
-/// started, as the map's list says a thing's bearing (`super_training.Round`).
-pub const ROUND_PLACE: &str = "round place";
+/// started, as the map's list says a thing's bearing (`super_training.Round`). It was "round place"
+/// on C, and is named afresh on Shift and C, so a keys file's C for it goes and C becomes the clock.
+pub const ROUND_PLACE: &str = "round where";
 pub const YOUR_OFFER: &str = "your offer";
 /// Say a trade's offers, the player's and the other player's, as its top screen writes them
 /// (`pss_keys.PssKeys`).
@@ -173,7 +178,7 @@ pub const STYLUS_JUMPS: [(&str, (i64, i64)); 4] = [
     ("stylus jump right", (1, 0)),
 ];
 
-pub const EXPLAINED: [(&str, &str); 20] = [
+pub const EXPLAINED: [(&str, &str); 21] = [
     (
         ENEMY_SIDE,
         "The enemy's Pokémon are said in the order the battle places them. In a horde of five that \
@@ -213,7 +218,12 @@ pub const EXPLAINED: [(&str, &str); 20] = [
     ),
     (
         SCORE_KEY,
-        "In Head It, says the score, the combo and the time or the chances left.",
+        "In Head It, says the score, the combo and, in Unlimited, the chances left.",
+    ),
+    (
+        TIME,
+        "Says the time the screen's clock shows: an Amie game's, a Super Training round's, or the \
+         time to choose your team before a battle with another player.",
     ),
     (
         BASE_STATS,
@@ -222,7 +232,7 @@ pub const EXPLAINED: [(&str, &str); 20] = [
     ),
     (
         ROUND_NUMBERS,
-        "In a round of Super Training, says the score, the time left and the energy meter.",
+        "In a round of Super Training, says the score and the energy meter.",
     ),
     (
         ROUND_PLACE,
@@ -420,6 +430,8 @@ pub const PSS_COLOSSEUM: &str = "pss.colosseum";
 /// A battle, whose timers a battle with another player shows: `[pa3ds.pss.battle]` in the keys
 /// file.
 pub const PSS_BATTLE: &str = "pss.battle";
+/// Pokémon-Amie's Tile Puzzle while it runs: `[pa3ds.amie.tile_puzzle]` in the keys file.
+pub const TILE_PUZZLE: &str = "amie.tile_puzzle";
 
 /// Context -> key -> action: keys that mean something only while one screen runs, in every mode,
 /// and are taken from the emulator only then, so a key that is a button of Azahar's elsewhere stays
@@ -433,13 +445,15 @@ pub type Contexts = IndexMap<String, IndexMap<String, String>>;
 /// pa3ds's key everywhere else, a battle's side: S and T, offered beside it,
 /// are one player's B and D-pad's up, which the list after a round may want. In Amie itself the
 /// arrows move the stylus over the Pokémon: they are the circle pad as a player may bind it,
-/// and Amie's script reads no stick, only that some button is pressed. R says what a screen draws
-/// and does not say, on down that line: Super Training's chart on its page, and a round's numbers.
-/// C, the map's coordinates elsewhere, says where a round's Pokémon stands. In a trade with another
-/// player R says the player's offer and Shift and R the other player's, and choosing a team before a
-/// battle with one Shift and R says theirs: what the top screen draws there, as R is elsewhere. In
-/// a battle C says Command Time and Shift and C Battle Time, where the battle shows them, a battle
-/// with another player: C's coordinates are the map's, and the battle is not on the map.
+/// and Amie's script reads no stick, only that some button is pressed.
+///
+/// One rule runs through the screens' own keys, which had grown screen by screen: **R says what
+/// is the player's**, their side, their offer, their score and numbers,
+/// Super Training's chart on its page; **Shift and R the other side's**, the enemy's, the other
+/// player's offer and team; and **C the clock**, wherever the screen has one, Shift and C a second:
+/// an Amie game's, a Super Training round's, the team choice's, a link battle's Command Time and
+/// Battle Time. On the map C and Shift and C keep its squares, and in a round, which has a clock,
+/// Shift and C says where its Pokémon stands, the map's other "where".
 pub static DEFAULT_CONTEXTS: LazyLock<Contexts> = LazyLock::new(|| {
     let mut keys: IndexMap<String, String> = BERRIES
         .iter()
@@ -449,6 +463,7 @@ pub static DEFAULT_CONTEXTS: LazyLock<Contexts> = LazyLock::new(|| {
     keys.insert("8".to_string(), POKEMON[0].to_string());
     keys.insert("9".to_string(), POKEMON[1].to_string());
     keys.insert("0".to_string(), POKEMON[2].to_string());
+    keys.insert("c".to_string(), TIME.to_string());
     IndexMap::from([
         (BERRY_PICKER.to_string(), keys),
         (
@@ -458,7 +473,12 @@ pub static DEFAULT_CONTEXTS: LazyLock<Contexts> = LazyLock::new(|| {
                 ("9".to_string(), HEADERS[1].to_string()),
                 ("0".to_string(), HEADERS[2].to_string()),
                 ("r".to_string(), SCORE_KEY.to_string()),
+                ("c".to_string(), TIME.to_string()),
             ]),
+        ),
+        (
+            TILE_PUZZLE.to_string(),
+            IndexMap::from([("c".to_string(), TIME.to_string())]),
         ),
         (
             STYLUS.to_string(),
@@ -482,7 +502,8 @@ pub static DEFAULT_CONTEXTS: LazyLock<Contexts> = LazyLock::new(|| {
             TRAINING_ROUND.to_string(),
             IndexMap::from([
                 ("r".to_string(), ROUND_NUMBERS.to_string()),
-                ("c".to_string(), ROUND_PLACE.to_string()),
+                ("c".to_string(), TIME.to_string()),
+                ("shift+c".to_string(), ROUND_PLACE.to_string()),
             ]),
         ),
         (
@@ -494,7 +515,10 @@ pub static DEFAULT_CONTEXTS: LazyLock<Contexts> = LazyLock::new(|| {
         ),
         (
             PSS_COLOSSEUM.to_string(),
-            IndexMap::from([("shift+r".to_string(), THEIR_TEAM.to_string())]),
+            IndexMap::from([
+                ("shift+r".to_string(), THEIR_TEAM.to_string()),
+                ("c".to_string(), TIME.to_string()),
+            ]),
         ),
         (
             PSS_BATTLE.to_string(),
