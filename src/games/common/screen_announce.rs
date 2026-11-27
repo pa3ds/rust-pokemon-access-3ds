@@ -45,7 +45,7 @@
 //!   layout's first second.
 //! - **A row a screen turns back and forth by itself is said once each way**, where the screen is
 //!   known to: the PSS's profile turns between its counts of people met every 3.4 s (`say`'s
-//!   `turns`).
+//!   `turns`). A row back beside new words in its layout is no turn.
 //! - **A game's score is the player's to ask for** (players, 2026-11-04): Head It's
 //!   score, combo and "MISS!", which come at every ball, faster than they can be said, are left
 //!   unsaid and never taken for a clock, its combo one up a second apart; where the player asks to
@@ -136,7 +136,7 @@ pub const REWRITE_ROWS: i64 = 2;
 pub const CLOCK_POLLS: Range<i64> = 3..9;
 /// Words that are a clock alone, minutes and seconds: O-Power's "02:58". Python's `fullmatch`:
 /// anchored at both ends.
-static CLOCK: LazyLock<Regex> =
+pub static CLOCK: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^(?:\d+:\d\d)$").expect("a fixed pattern"));
 
 /// The most polls between two turns of a row a screen turns by itself: the PSS's profile turns
@@ -749,6 +749,9 @@ impl ScreenAnnouncer {
         // back alone, "Prize Money Power Lv. 1 02:57", "02:43" (or_pss_o_power). A clock from
         // then on: a row coming later in that second ticked first two polls on, too soon for a
         // clock's beat, and said "Encounter Power Lv. 1 02:27" again.
+        // And comes back with a page the screen turns to by itself: the Active panel hides its
+        // times with its battle powers and shows them again with its field powers, its rows
+        // turned unsaid and "02:24" said alone (or_pss_o_power_2).
         let settled: HashSet<i64> = if timed {
             HashSet::new()
         } else {
@@ -762,7 +765,8 @@ impl ScreenAnnouncer {
                         .unwrap_or(self.polls);
                     CLOCK.is_match(&p.text)
                         && !ticks.contains(&p.r#box)
-                        && (1..ARRIVAL_MAX_POLLS).contains(&(self.polls - since))
+                        && ((1..ARRIVAL_MAX_POLLS).contains(&(self.polls - since))
+                            || (turns && !p.changed && !p.with_layout))
                 })
                 .map(|p| p.r#box)
                 .collect()
@@ -779,6 +783,19 @@ impl ScreenAnnouncer {
         ticks.extend(settled.iter().copied());
         self.clocks.extend(settled.iter().copied());
         let turned = self.turned(texts, turns);
+        // A page turned back comes back whole, but for its clocks: O-Power's list brought its
+        // description back with the next power picked, "Required Energy" as before, at the pace
+        // of a turn, and left it unsaid (y_pss_singleplayer).
+        let fresh: HashSet<i64> = texts
+            .iter()
+            .filter(|p| !turned.contains(&p.r#box) && !ticks.contains(&p.r#box))
+            .map(|p| p.root)
+            .collect();
+        let turned: HashSet<i64> = texts
+            .iter()
+            .filter(|p| turned.contains(&p.r#box) && !fresh.contains(&p.root))
+            .map(|p| p.r#box)
+            .collect();
         for p in &heard {
             if turned.contains(&p.r#box) {
                 (self.log)(&format!(

@@ -1,5 +1,6 @@
 //! What R says on O-Power's screens: the energy, then the powers running (spike Q).
 
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 use indexmap::IndexMap;
@@ -69,6 +70,67 @@ fn test_r_says_the_energy_then_the_powers_running_on_o_powers_screens() {
     assert_eq!(
         reader(&memory, vec![TOP, BOTTOM]).said().unwrap().as_deref(),
         Some("energy 8 of 10 Hatching Power Lv. 1 02:58")
+    );
+}
+
+/// With field and battle powers running, the Active panel turns between a page of each every
+/// six seconds, its rows written again into the same TextBoxes, and R said the page showing
+/// (or_pss_o_power_2): the other is said as it last showed, its times counted down since, until
+/// it has not shown for two turns.
+#[test]
+fn test_r_says_each_page_of_the_active_panel_as_it_turns() {
+    let memory = FakeMemory::new();
+    memory.u32(RECORD + ENERGY, &[5]);
+    let field = vec![
+        words(1, "Active", -130.0, 40.0),
+        words(2, "Field Power", -60.0, 40.0),
+        words(3, "Bargain Power", -130.0, 70.0),
+        words(4, "Lv. 1", 20.0, 70.0),
+        words(5, "02:36", 90.0, 70.0),
+    ];
+    let battle = vec![
+        words(1, "Active", -130.0, 40.0),
+        words(2, "Battle Power", -60.0, 40.0),
+        words(3, "Attack Power", -130.0, 70.0),
+        words(4, "Lv. 1", 20.0, 70.0),
+    ];
+    let showing = Rc::new(RefCell::new(field));
+    let now = Rc::new(Cell::new(100.0));
+    let files: IndexMap<i64, Rc<LayoutFile>> = IndexMap::from([(TOP, named(ACTIVE))]);
+    let mut o_power = OPower::with_clock(
+        memory.clone(),
+        {
+            let showing = showing.clone();
+            Rc::new(move || showing.borrow().clone())
+        },
+        Rc::new(move |root| files.get(&root).cloned()),
+        Rc::new(|| Ok(vec![TOP])),
+        false,
+        {
+            let now = now.clone();
+            Rc::new(move || now.get())
+        },
+    );
+    o_power.track(&Found {
+        heap: IndexMap::from([(RECORD, CLASS.to_string())]),
+        ..Found::default()
+    });
+    o_power.poll();
+    *showing.borrow_mut() = battle;
+    now.set(106.4);
+    o_power.poll();
+    now.set(108.9);
+    assert_eq!(
+        o_power.said().unwrap().as_deref(),
+        Some(
+            "energy 5 of 10 Active Field Power Bargain Power Lv. 1 02:28 \
+             Active Battle Power Attack Power Lv. 1"
+        )
+    );
+    now.set(130.0);
+    assert_eq!(
+        o_power.said().unwrap().as_deref(),
+        Some("energy 5 of 10 Active Battle Power Attack Power Lv. 1")
     );
 }
 

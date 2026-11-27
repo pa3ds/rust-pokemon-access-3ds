@@ -2013,6 +2013,54 @@ fn test_a_row_turned_back_and_forth_by_itself_is_said_once_each_way() {
     assert_eq!(turn(true, &[17, 30]), [&once[..], &again[..]].concat());
 }
 
+/// O-Power's list hides its description under Use, Give and Cancel, and the next power
+/// picked brings it back with "Required Energy" as before: at the pace of a turn, that row went
+/// unsaid with the new power said (y_pss_singleplayer). A page turned back comes back whole.
+#[test]
+fn test_a_row_back_beside_new_words_is_no_turn() {
+    let mut screen = Screen::new();
+    let row = Kw { parent: 5, ..PLAIN };
+    let mut rows = vec![
+        piece_kw(1, "Capture Power Lv. 1", -150.0, 40.0, PANEL, row),
+        piece_kw(2, "Required Energy", -150.0, 0.0, PANEL, row),
+    ];
+    let mut said = screen.say(Args {
+        turns: true,
+        ..args(&rows, vec![], &rows)
+    });
+    for words in [["", ""], ["HP Restoring Power Lv. 1", "Required Energy"]] {
+        for _ in 0..16 {
+            said.extend(screen.say(Args {
+                turns: true,
+                on_screen: rows.clone(),
+                ..Args::default()
+            }));
+        }
+        rows = rows
+            .iter()
+            .zip(words)
+            .map(|(row, text)| ScreenText {
+                text: text.to_string(),
+                changed: true,
+                with_layout: false,
+                ..row.clone()
+            })
+            .collect();
+        said.extend(screen.say(Args {
+            turns: true,
+            ..args(&rows, vec![], &rows)
+        }));
+    }
+    for _ in 0..DETAIL_MAX_POLLS {
+        said.extend(screen.say(Args {
+            turns: true,
+            on_screen: rows.clone(),
+            ..Args::default()
+        }));
+    }
+    assert!(said[1..].contains(&"Required Energy".to_string()));
+}
+
 #[test]
 fn test_a_number_changing_by_one_off_a_seconds_beat_is_said() {
     // A score going up by one a poll after it came, or a play time a minute after, is no clock.

@@ -762,7 +762,7 @@ impl Gen6Profile {
                 }
                 // On O-Power's screens, the energy and the powers running (spike Q).
                 if said.is_none() && player {
-                    return o_power.borrow().said();
+                    return o_power.borrow_mut().said();
                 }
                 Ok(said)
             })
@@ -2129,6 +2129,13 @@ impl Gen6Profile {
             .collect();
         let said = self.sources.borrow().said(cursors, texts, &heard);
         let cursors = said.cursors;
+        // O-Power's Active panel turns between its field and battle powers by itself, as the
+        // PSS's profile turns its counts (or_pss_o_power_2); it is the field's, not an app's.
+        let o_power = self.apps.borrow().running.as_deref() == Some(FIELD)
+            && self.o_power.borrow_mut().up();
+        if o_power {
+            self.o_power.borrow_mut().poll();
+        }
         // A layout built again where it was is the one that was there, and a menu stays a menu:
         // the battle's move list, forgotten while it was gone, was read out whole the moment it
         // showed.
@@ -2140,7 +2147,7 @@ impl Gen6Profile {
             ..screen.clone()
         };
         let subject = || self.sources.borrow().subject();
-        let turns = subscreen::pss(self.apps.borrow().running.as_deref());
+        let turns = subscreen::pss(self.apps.borrow().running.as_deref()) || o_power;
         self.screen_announcer.borrow_mut().say(
             &poll,
             &cursors,
