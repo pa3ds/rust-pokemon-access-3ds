@@ -53,7 +53,7 @@ use crate::games::common::field::navigate::{
     DoorSign, LeadsTo, Navigator, Options as NavigatorOptions, Part, Sides, Street,
 };
 use crate::games::common::field::things::{
-    FURNITURE_SOURCE, Field, Interactable, MODEL_SOURCE, WARP_SOURCE, bearing, describe,
+    FURNITURE_SOURCE, Field, Interactable, MODEL_SOURCE, WARP_SOURCE, describe,
     source_kind, source_number,
 };
 use crate::games::common::layout::{Cached, Layouts};
@@ -76,6 +76,7 @@ use crate::games::common::{lyt, msgwin, pokemon, strbuf};
 use crate::games::gen6::anchors::Anchors;
 use crate::games::gen6::apps::{BATTLE, DEMOS, FIELD, MANAGER_CLASS, RunningApp, TUTORIAL};
 use crate::games::gen6::field::dowsing::Lights;
+use crate::games::gen6::field::voice::Voice;
 use crate::games::gen6::field::features::Sighting;
 use crate::games::gen6::field::footsteps::Footsteps;
 use crate::games::gen6::field::reader::{FieldReader, MOVE_MODEL_CLASS};
@@ -339,8 +340,9 @@ pub struct Gen6Profile {
     touch_targets: Rc<RefCell<TouchTargets>>,
     log: Log,
     speech: Rc<Speech>,
-    /// The Dowsing Machine's lights, in a game where they have been measured.
-    pub dowsing: Option<RefCell<Lights>>,
+    /// Gen 6's own field voices: the Dowsing Machine's lights, in a game where they have been
+    /// measured.
+    voices: Vec<Voice>,
     /// The zone last listed and what was in it (people by kind alone, since they walk), to
     /// list again only when something comes or goes.
     listed: RefCell<Option<(i64, Vec<(String, String, Option<(i64, i64)>)>)>>,
@@ -400,8 +402,6 @@ pub struct Gen6Profile {
     /// `Found.holders`, whose result follows its order, so a `PySet`. Shared with the scenes'
     /// clock, which reads the game's frames through them (`frames`).
     managers: Rc<RefCell<PySet>>,
-    /// The cell the Secret Base's decorating cursor was last said on, and what was there.
-    decorating: RefCell<Option<((i64, i64), String)>>,
 }
 
 /// `FieldReader` is what a `Navigator` reads the map through in the gen 6 games.
@@ -1207,9 +1207,19 @@ impl Gen6Profile {
                 ..NavigatorOptions::default()
             },
         );
-        let dowsing = game
-            .dowsing
-            .map(|offset| RefCell::new(Lights::new(memory.clone(), offset)));
+        let voices: Vec<Voice> = match game.dowsing {
+            None => Vec::new(),
+            Some(offset) => {
+                let lights = RefCell::new(Lights::with_process(
+                    memory.clone(),
+                    offset,
+                    field_process(apps.clone()),
+                ));
+                vec![Rc::new(move |r#where: Option<&Field>| {
+                    lights.borrow_mut().heard(r#where)
+                }) as Voice]
+            }
+        };
         let screen_announcer = ScreenAnnouncer::with_clock(
             speech.clone(),
             log.clone(),
@@ -1335,7 +1345,7 @@ impl Gen6Profile {
             touch_targets,
             log,
             speech,
-            dowsing,
+            voices,
             listed: RefCell::new(None),
             relist: Cell::new(false),
             chunks: RefCell::new(Vec::new()),
@@ -1360,7 +1370,6 @@ impl Gen6Profile {
             moved: Cell::new(None),
             holding: Cell::new(None),
             managers,
-            decorating: RefCell::new(None),
         }
     }
 
@@ -2169,8 +2178,17 @@ impl Gen6Profile {
         let field = self.field();
         // `None` is the Python's `return` from inside the `with`.
         let polled = phase(&*self.memory, "field", || -> Result<Option<Field>> {
-            self.poll_dowsing()?;
-            let Some(mut at) = field.poll()? else {
+            let polled = field.poll()?;
+            // The field's voices, in this order: gen 6's own, the Dowsing Machine's lights, then
+            // the game's (`FieldReader.voices`), ORAS's decorating cursor. Each is asked even
+            // while nothing says where the player is, the lights needing two polls alike.
+            for voice in self.voices.iter().chain(field.voices.iter()) {
+                if let Some(said) = voice(polled.as_ref())? {
+                    (self.log)(&format!("field {}", said.logged));
+                    self.speech.say(&said.words, said.category);
+                }
+            }
+            let Some(mut at) = polled else {
                 return Ok(None);
             };
             let arrived = Some(at.zone) != self.zone.get();
@@ -2228,7 +2246,6 @@ impl Gen6Profile {
                         .stepped(at.zone, trigger, &mut self.narrate())?;
                 }
             }
-            self.poll_decorating(&at)?;
             // A watched feature, as ORAS's DexNav's find, shows and goes between sweeps, so it is
             // read every poll: its record logged as it changes, the field listed again as what is
             // up does, and a find the player went looking for guided to as it first shows. The
@@ -2360,43 +2377,6 @@ impl Gen6Profile {
         Ok(())
     }
 
-    /// Say what the Dowsing Machine's lights show as it changes: three small reads a field
-    /// poll, and nothing while no field runs.
-    fn poll_dowsing(&self) -> Result<()> {
-        let (process, running) = {
-            let apps = self.apps.borrow();
-            (apps.process, apps.running.clone())
-        };
-        let (Some(dowsing), Some(process)) = (&self.dowsing, process) else {
-            return Ok(());
-        };
-        if running.as_deref() != Some(FIELD) {
-            return Ok(());
-        }
-        let said = dowsing.borrow_mut().poll(process)?;
-        if let Some(said) = said {
-            (self.log)(&format!("field {said}"));
-            self.speech.say(&said, Category::Screen);
-        }
-        Ok(())
-    }
-
-    /// Say what the Secret Base's decorating cursor is on and where, each time it moves or
-    /// what is there changes: a desk set down under it is said as it lands.
-    fn poll_decorating(&self, r#where: &Field) -> Result<()> {
-        let on = self.field().decorating(r#where)?;
-        if on == *self.decorating.borrow() {
-            return Ok(());
-        }
-        *self.decorating.borrow_mut() = on.clone();
-        if let Some((cell, words)) = on {
-            let said = format!("{words}, {}", bearing(r#where.cell, cell));
-            (self.log)(&format!("field cursor: {said}"));
-            self.speech.say(&said, Category::Menu);
-        }
-        Ok(())
-    }
-
     /// Say where the player is when the place changes, not the zone: a town and every
     /// building in it share a place, so walking out of a house arrives nowhere, as the game has
     /// it (spike 87). The name comes from RAM's index and the ROM's words, ahead of AreaNav's.
@@ -2507,6 +2487,19 @@ impl Gen6Profile {
         }
         Ok(())
     }
+}
+
+/// `Gen6Profile._field_process`: the field's process while the field runs, None otherwise: what
+/// the Dowsing Machine's lights are read through.
+fn field_process(apps: Rc<RefCell<RunningApp>>) -> Rc<dyn Fn() -> Option<i64>> {
+    Rc::new(move || {
+        let apps = apps.borrow();
+        if apps.running.as_deref() == Some(FIELD) {
+            apps.process
+        } else {
+            None
+        }
+    })
 }
 
 /// `Gen6Profile._own_running`: the game's own app running now, and its process, or None.

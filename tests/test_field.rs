@@ -17,6 +17,7 @@ use crate::core::discovery::{ALLOCATION, Found};
 use crate::core::memory::Memory;
 use crate::core::pathfind;
 use crate::core::rtti::ClassNames;
+use crate::core::speech::Category;
 use crate::games::common::field::chunk::{
     ANY_FLOOR, BLOCKED, CHUNK, COUNTER, Chunk, Floor, KIND_SHIFT,
 };
@@ -46,6 +47,7 @@ use crate::games::gen6::field::reader::{
     ASKS, FieldReader, MOVE_MODEL_CLASS, TABLE_ASKS, TABLE_EVERY,
 };
 use crate::games::gen6::field::terrain::NO_CHUNK_FILE;
+use crate::games::gen6::field::voice::Said;
 use crate::games::gen6::field::terrain::{FarCells, FarFloors, FarHeights, FarMatrices, Terrain};
 use crate::games::gen6::field::works::{EVENT_CLASS, FIRST_WORK, FLAGS, WORKS};
 use crate::games::gen6::field::zonedata::{
@@ -7745,23 +7747,35 @@ fn test_the_decorating_cursor_says_what_stands_under_it() -> Result<()> {
         },
     );
     let r#where = town.r#where()?;
-    let mut said: Vec<((i64, i64), Option<((i64, i64), String)>)> = Vec::new();
+    let mut said: Vec<((i64, i64), Option<String>)> = Vec::new();
     for cell in [(97, 172), (96, 171), (95, 170), (93, 172)] {
         bases.at.set(Some(cell));
-        said.push((cell, town.reader.decorating(&r#where)?));
+        said.push((cell, under_cursor(&town, &r#where)?));
     }
     assert_eq!(
         said,
         [
-            ((97, 172), Some(((97, 172), "Small Chair".to_string()))),
-            ((96, 171), Some(((96, 171), "PC".to_string()))),
-            ((95, 170), Some(((95, 170), "wall".to_string()))),
-            ((93, 172), Some(((93, 172), "blank".to_string()))),
+            ((97, 172), Some("Small Chair".to_string())),
+            ((96, 171), Some("PC".to_string())),
+            ((95, 170), Some("wall".to_string())),
+            ((93, 172), Some("blank".to_string())),
         ]
     );
     bases.at.set(None);
-    assert_eq!(town.reader.decorating(&r#where)?, None);
+    assert_eq!(under_cursor(&town, &r#where)?, None);
     Ok(())
+}
+
+/// What the decorating cursor's voice says is under it as it moves, without where it is.
+fn under_cursor(town: &Town, r#where: &Field) -> Result<Option<String>> {
+    let said = (town.reader.voices[0])(Some(r#where))?;
+    Ok(said.map(|said| {
+        // `said.words.rsplit(", ", 1)[0]`.
+        match said.words.rsplit_once(", ") {
+            Some((under, _)) => under.to_string(),
+            None => said.words,
+        }
+    }))
 }
 
 /// A crumbled cliff's cell as the ROM has it: kind 0xfd over the blocked bit.
@@ -7859,11 +7873,8 @@ fn test_the_decorating_cursor_says_crumbled_cliff_over_the_cliff_and_wall_over_a
     let mut said: Vec<((i64, i64), String)> = Vec::new();
     for cell in [(105, 167), (95, 170)] {
         bases.at.set(Some(cell));
-        let found = town
-            .reader
-            .decorating(&r#where)?
-            .expect("the cursor is shown");
-        said.push((cell, found.1));
+        let found = under_cursor(&town, &r#where)?.expect("the cursor is shown");
+        said.push((cell, found));
     }
     assert_eq!(
         said,
@@ -7904,10 +7915,7 @@ fn test_a_bases_hole_is_an_exit_and_named_under_the_cursor_until_a_board_covers_
         .collect();
     assert_eq!(holes, [((100, 172), (1, 2))]);
     bases.at.set(Some((100, 173)));
-    assert_eq!(
-        town.reader.decorating(&r#where)?,
-        Some(((100, 173), "hole".to_string()))
-    );
+    assert_eq!(under_cursor(&town, &r#where)?.as_deref(), Some("hole"));
     let standing: Vec<_> = HOLE_CELLS.iter().map(|&c| (c, vec![10])).collect();
     let covered = Bases::new(&[], None, &standing, &[]);
     town.reader = field_reader(town.memory.clone(), Given::default(), bases_game(covered));
@@ -7963,19 +7971,27 @@ fn test_a_held_item_says_first_whether_it_can_be_placed_under_the_cursor() -> Re
     );
     let r#where = town.r#where()?;
     bases.at.set(Some((105, 167)));
-    let mut said = Vec::new();
-    for fits in [Some(true), Some(false), None] {
+    let mut said: Vec<Option<Said>> = Vec::new();
+    for fits in [Some(true), Some(false), None, None] {
         bases.fits.set(fits);
-        said.push(town.reader.decorating(&r#where)?);
+        said.push((town.reader.voices[0])(Some(&r#where))?);
     }
-    assert_eq!(
-        said,
-        [
-            Some(((105, 167), "placeable, crumbled cliff".to_string())),
-            Some(((105, 167), "not placeable, crumbled cliff".to_string())),
-            Some(((105, 167), "crumbled cliff".to_string())),
-        ]
-    );
+    let mut wanted: Vec<Option<Said>> = [
+        "placeable, crumbled cliff",
+        "not placeable, crumbled cliff",
+        "crumbled cliff",
+    ]
+    .iter()
+    .map(|words| {
+        Some(Said {
+            words: format!("{words}, 11 east 5 north"),
+            category: Category::Menu,
+            logged: format!("cursor: {words}, 11 east 5 north"),
+        })
+    })
+    .collect();
+    wanted.push(None);
+    assert_eq!(said, wanted);
     Ok(())
 }
 

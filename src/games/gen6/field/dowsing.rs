@@ -25,7 +25,10 @@ use std::rc::Rc;
 use crate::core::binary::u32;
 use crate::core::discovery::{HEAP_SPAN, within};
 use crate::core::memory::Memory;
+use crate::core::speech::Category;
 use crate::core::words::own;
+use crate::games::common::field::things::Field;
+use crate::games::gen6::field::voice::Said;
 use crate::py::Result;
 
 /// Where the field's process holds the field's work.
@@ -55,10 +58,12 @@ pub fn level(memory: &dyn Memory, process: i64, offset: i64) -> Result<Option<i6
     Ok(Some(u32(&head, LEVEL)?))
 }
 
-/// What the lights show, said as it changes: the colour, or "nothing" once they go off.
+/// What the lights show, said as it changes: the colour, or "nothing" once they go off. A
+/// field voice (`heard`).
 pub struct Lights {
     memory: Rc<dyn Memory>,
     offset: i64,
+    process: Rc<dyn Fn() -> Option<i64>>,
     /// The level the last poll read.
     read: Option<i64>,
     /// The level last said; off until the lights first come on.
@@ -66,10 +71,21 @@ pub struct Lights {
 }
 
 impl Lights {
+    /// `Lights(memory, offset)`: `process` left to its default, none.
     pub fn new(memory: Rc<dyn Memory>, offset: i64) -> Self {
+        Lights::with_process(memory, offset, Rc::new(|| None))
+    }
+
+    /// `process` is the field's process while the field runs, None otherwise.
+    pub fn with_process(
+        memory: Rc<dyn Memory>,
+        offset: i64,
+        process: Rc<dyn Fn() -> Option<i64>>,
+    ) -> Self {
         Lights {
             memory,
             offset,
+            process,
             read: None,
             said: 0,
         }
@@ -95,5 +111,19 @@ impl Lights {
             "dowsing",
             &[("light", &own(&format!("dowsing-{light}"), &[]))],
         )))
+    }
+
+    /// The lights as a field voice: polled while the field runs, wherever the player is,
+    /// and said as screen text. Three small reads a field poll.
+    pub fn heard(&mut self, _where: Option<&Field>) -> Result<Option<Said>> {
+        let said = match (self.process)() {
+            None => None,
+            Some(process) => self.poll(process)?,
+        };
+        Ok(said.map(|said| Said {
+            words: said.clone(),
+            category: Category::Screen,
+            logged: said,
+        }))
     }
 }

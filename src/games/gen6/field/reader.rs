@@ -39,6 +39,7 @@ use crate::core::config::{HIDDEN_ALL, HIDDEN_UNDERWATER};
 use crate::core::discovery::{Found, HEAP_SPAN, within};
 use crate::core::memory::Memory;
 use crate::core::pathfind::{self, Cell};
+use crate::core::speech::Category;
 use crate::core::words::own;
 use crate::games::common::field::chunk::{BLOCKED, CHUNK, COUNTER, Chunk};
 use crate::games::common::field::ground::{
@@ -49,7 +50,7 @@ use crate::games::common::field::ride::riding;
 use crate::games::common::field::things::{
     DECORATION_SOURCE, EDGE_SOURCE, FURNITURE_SOURCE, Field, Interactable, OBSTACLES,
     OPENING_SOURCE, POKEMON, STAIRS_SOURCE, TELEPORT_SOURCE, TELEPORTER, TILE_SOURCE,
-    TRIGGER_SOURCE, WARP_SOURCE, kind_said, place_source,
+    TRIGGER_SOURCE, WARP_SOURCE, bearing, kind_said, place_source,
 };
 use crate::games::gen6::anchors::follow;
 use crate::games::gen6::field::conveyors::{GymFloor, Switches};
@@ -63,6 +64,7 @@ use crate::games::gen6::field::landform::{
     beside, cell_number, dropped, holes_found, runs, spread,
 };
 use crate::games::gen6::field::rail::{self, Rails, keep};
+use crate::games::gen6::field::voice::{Said, Voice};
 use crate::games::gen6::field::terrain::{FarCells, FarFloors, FarHeights, FarMatrices, Terrain};
 use crate::games::gen6::field::works::Works;
 use crate::games::gen6::field::zonedata::{
@@ -321,6 +323,10 @@ pub struct FieldReader {
     gates: bool,
     /// The game's Secret Bases, or None in a game without them.
     secret_bases: Option<Rc<dyn SecretBaseReader>>,
+    /// The cell the decorating cursor was last said on, and what was there (`decorating`).
+    cursor_at: RefCell<Option<(Cell, String)>>,
+    /// The game's own field voices: ORAS's decorating cursor.
+    pub voices: Vec<Voice>,
     /// The save's works and flags, which arm triggers and say which hidden items are found.
     works: Rc<Works>,
     /// (zone, a warp's slot) -> the work and value it is taken at (`Game.armed_warps`).
@@ -583,7 +589,18 @@ impl FieldReader {
             natives: text.natives.clone(),
             teleports: text.teleports.clone(),
             gates: game.gates,
+            voices: if secret_bases.is_none() {
+                Vec::new()
+            } else {
+                let me = me.clone();
+                vec![Rc::new(move |r#where: Option<&Field>| {
+                    me.upgrade()
+                        .expect("a reader is made in an Rc, which its holders keep")
+                        .decorating(r#where)
+                }) as Voice]
+            },
             secret_bases,
+            cursor_at: RefCell::new(None),
             barriers: game.barriers.clone(),
             triggers: game.triggers.clone(),
             trigger_exits: game
@@ -1050,27 +1067,47 @@ impl FieldReader {
         }
     }
 
-    /// The cell the player's Secret Base's decorating cursor is on and what is there, or None while
-    /// it is not shown: the decorations standing in it, by the game's names for them, or the PC or
-    /// the flag, or a wall, or blank. The game names a decoration on the bottom screen only, says
-    /// "Select location" alike over the floor, the PC and the walls, and nothing at all moving from
-    /// one empty cell to the next (omega_ruby_secret-base2.ctm).
-    pub fn decorating(&self, r#where: &Field) -> Result<Option<(Cell, String)>> {
-        let cursor = match &self.secret_bases {
+    /// What the Secret Base's decorating cursor is on and where, a field voice: said each
+    /// time it moves or what is there changes, so a desk set down under it is said as it lands.
+    /// The decorations standing in its cell, by the game's names for them, or the PC or the flag,
+    /// or a wall, or the crumbled cliff or a hole, or blank. The game names a decoration on the
+    /// bottom screen only, says "Select location" alike over the floor, the PC and the walls,
+    /// and nothing at all moving from one empty cell to the next (omega_ruby_secret-base2.ctm).
+    /// The cursor crossing the cliff said "wall" three times, in the session before
+    /// omega_ruby_secret-base3.ctm. With an item held, `FIT` comes first.
+    fn decorating(&self, r#where: Option<&Field>) -> Result<Option<Said>> {
+        let Some(r#where) = r#where else {
+            return Ok(None);
+        };
+        let bases = &self.secret_bases;
+        let cursor = match bases {
             Some(bases) if bases.zones().contains(&r#where.zone) => bases.cursor()?,
             _ => None,
         };
-        let (Some(bases), Some((cell, fits))) = (&self.secret_bases, cursor) else {
+        let mut on: Option<(Cell, String)> = None;
+        if let (Some(bases), Some((cell, fits))) = (bases, cursor) {
+            let under = kind_said(&self.under_cursor(r#where, bases.as_ref(), cell)?);
+            on = Some((
+                cell,
+                match fits {
+                    None => under,
+                    Some(fits) => format!("{}, {under}", own(fit(fits), &[])),
+                },
+            ));
+        }
+        if on == *self.cursor_at.borrow() {
+            return Ok(None);
+        }
+        *self.cursor_at.borrow_mut() = on.clone();
+        let Some((cell, words)) = on else {
             return Ok(None);
         };
-        let under = kind_said(&self.under_cursor(r#where, bases.as_ref(), cell)?);
-        Ok(Some((
-            cell,
-            match fits {
-                None => under,
-                Some(fits) => format!("{}, {under}", own(fit(fits), &[])),
-            },
-        )))
+        let said = format!("{words}, {}", bearing(r#where.cell, cell));
+        Ok(Some(Said {
+            words: said.clone(),
+            category: Category::Menu,
+            logged: format!("cursor: {said}"),
+        }))
     }
 
     fn under_cursor(
