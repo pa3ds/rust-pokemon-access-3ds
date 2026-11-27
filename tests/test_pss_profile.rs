@@ -11,6 +11,7 @@ use crate::core::rtti::ClassNames;
 use crate::games::common::layout_file::LayoutFile;
 use crate::games::common::lyt;
 use crate::games::common::screen::ScreenText;
+use crate::games::common::screen_order::join;
 use crate::games::gen6::subscreen::pss_profile;
 
 const ROWS: i64 = 0x08660000;
@@ -253,22 +254,62 @@ fn test_history_says_its_icons_in_their_order_after_its_label() {
             ("8s", Some(String::new())),
         ])
     );
-    let (label, location) = (frames[1] + 0x400, frames[0] + 0x400);
+    let (label, message) = (frames[1] + 0x400, frames[0] + 0x400);
     let on = |r#box: i64, text: &str, picture: bool| ScreenText {
         root,
         picture,
         ..ScreenText::new(r#box, text, false)
     };
     let found: IndexMap<i64, ScreenText> = IndexMap::from([
-        (location, on(location, "Message", false)),
-        (label, on(label, "History", false)),
+        (
+            message,
+            ScreenText {
+                parent: frames[0],
+                ..on(message, "Message", false)
+            },
+        ),
+        (
+            label,
+            ScreenText {
+                parent: frames[1],
+                panel: frames[1],
+                ..on(label, "History", false)
+            },
+        ),
         (icons["27"], on(icons["27"], said, true)),
     ]);
+    // Each row's words a label, "Message: Nice to meet ya!" under pauses, and History's icons
+    // its value, in its row.
     assert_eq!(
         values.reworded(found.clone()).unwrap(),
         IndexMap::from([
-            (location, found[&location].clone()),
-            (label, on(label, &format!("History {said}"), false)),
+            (
+                message,
+                ScreenText {
+                    label: true,
+                    ..found[&message].clone()
+                }
+            ),
+            (
+                label,
+                ScreenText {
+                    label: true,
+                    ..found[&label].clone()
+                }
+            ),
+            (
+                icons["27"],
+                ScreenText {
+                    parent: frames[1],
+                    panel: frames[1],
+                    follows: label,
+                    ..found[&icons["27"]].clone()
+                }
+            ),
         ])
     );
+    let worded = values.reworded(found).unwrap();
+    let pair = [worded[&label].clone(), worded[&icons["27"]].clone()];
+    assert_eq!(join(&pair, true), format!("History: {said}"));
+    assert_eq!(join(&pair, false), format!("History {said}"));
 }

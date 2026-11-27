@@ -180,57 +180,80 @@ impl ProfileValues {
         )
     }
 
-    /// The words on the screen with History's icons after its label: they hang from the
-    /// layout's root, its rows' words from a frame a row, and were said after both Locations
-    /// (or_pss_singleplayer).
+    /// The profile's rows as labels and their values, "Location 1: United States" under
+    /// `pauses`: each row's frame holds its label's words and the picture of its value, and the
+    /// labels, no label in the game's text, read "Location 1, United States". History's icons
+    /// are its value, after its label: they hang from the layout's root, not its frame, and were
+    /// said after both Locations (or_pss_singleplayer).
     pub fn reworded(&self, found: IndexMap<i64, ScreenText>) -> Result<IndexMap<i64, ScreenText>> {
-        let mut icons: Option<(i64, ScreenText)> = None;
-        for (&r#box, piece) in &found {
-            if !(piece.picture && !piece.text.is_empty()) {
-                continue;
-            }
-            let Some(file) = (self.file_of)(piece.root).filter(|file| file.name == FILE) else {
-                continue;
-            };
-            if self.history(&file, r#box)?.is_some() {
-                icons = Some((r#box, piece.clone()));
+        let mut profile: Option<(i64, Rc<LayoutFile>)> = None;
+        for p in found.values() {
+            if let Some(file) = (self.file_of)(p.root).filter(|file| file.name == FILE) {
+                profile = Some((p.root, file));
                 break;
             }
         }
-        let Some((r#box, said)) = icons else {
+        let Some((root, file)) = profile else {
             return Ok(found);
         };
-        let file = (self.file_of)(said.root);
+        let frames = self.frames(&file, root)?;
+        let mut worded = found.clone();
+        let mut labels: Vec<Option<i64>> = Vec::new();
+        for frame in frames {
+            let label = self
+                .layouts
+                .children(root, frame)
+                .into_iter()
+                .find(|pane| found.get(pane).is_some_and(|piece| !piece.picture));
+            if let Some(label) = label {
+                worded.insert(
+                    label,
+                    ScreenText {
+                        label: true,
+                        ..found[&label].clone()
+                    },
+                );
+            }
+            labels.push(label);
+        }
+        let mut icons: Option<i64> = None;
+        for (&r#box, piece) in &found {
+            if piece.picture
+                && !piece.text.is_empty()
+                && piece.root == root
+                && self.history(&file, r#box)?.is_some()
+            {
+                icons = Some(r#box);
+                break;
+            }
+        }
         let mut kinds: Vec<Option<String>> = Vec::new();
         for row in self.placed()? {
             kinds.push(self.names.of_object(row)?);
         }
-        let frames = match &file {
-            Some(file) => self.frames(file, said.root)?,
-            None => Vec::new(),
+        let Some(icons) = icons else {
+            return Ok(worded);
         };
         let Some(index) = kinds
             .iter()
             .position(|kind| kind.as_deref() == Some(HISTORY_ROW))
         else {
-            return Ok(found);
+            return Ok(worded);
         };
-        if index >= frames.len() {
-            return Ok(found);
-        }
-        let label = self
-            .layouts
-            .children(said.root, frames[index])
-            .into_iter()
-            .find(|pane| found.get(pane).is_some_and(|piece| !piece.picture));
-        let Some(label) = label else {
-            return Ok(found);
+        let Some(label) = labels.get(index).copied().flatten() else {
+            return Ok(worded);
         };
-        let text = format!("{} {}", found[&label].text, said.text);
-        let mut worded: IndexMap<i64, ScreenText> =
-            found.into_iter().filter(|&(at, _)| at != r#box).collect();
-        let piece = worded[&label].clone();
-        worded.insert(label, ScreenText { text, ..piece });
+        let (held, by) = (&found[&icons], &found[&label]);
+        worded.insert(
+            icons,
+            ScreenText {
+                parent: by.parent,
+                panel: by.panel,
+                frame: by.frame,
+                follows: label,
+                ..held.clone()
+            },
+        );
         Ok(worded)
     }
 
