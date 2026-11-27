@@ -56,6 +56,7 @@ use crate::core::binary::{self, u16, u32};
 use crate::core::rom::{Rom, lz11};
 use crate::games::common::field::ground::{CUT, ROCK_SMASH, STRENGTH, SURF, WATERFALL};
 use crate::games::common::garc::{garc_files, message_lines, plain, singular};
+use crate::games::common::species_tags::tagged_species;
 use crate::games::common::text::{Token, tokens};
 use crate::games::gen6::field::conveyors::GymFloor;
 use crate::games::gen6::field::rail::Teleport;
@@ -65,9 +66,7 @@ use crate::games::gen6::rom::layout::{RomLayout, TownFacilities, zone_table};
 use crate::games::gen6::rom::maps::{
     ChunkSource, MapChunks, StreetSource, Streets, gym_floor, rail_teleports,
 };
-use crate::games::gen6::rom::people::{
-    pokemon_models, tagged_species, trainer_classes, trainer_sprites,
-};
+use crate::games::gen6::rom::people::{pokemon_models, trainer_classes, trainer_sprites};
 use crate::games::gen6::rom::plates;
 use crate::py::{self, Error, Kind, Result};
 

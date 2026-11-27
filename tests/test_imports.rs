@@ -1,6 +1,7 @@
 //! ADR-0006's imports go one way: the core, then `common`, then `gen6` or `sm`, then `oras` or
 //! `xy`, with `catalog` and `app` above them all. Nothing checked it, and Sun's text came to import
-//! gen 6's, a sibling's (the untangling round, step 0).
+//! gen 6's, a sibling's (the untangling round, step 0), until what it imported went to `common`
+//! (step 9).
 //!
 //! The Python reads each module's imports with `ast`; here each Rust file's `crate::` paths are
 //! read, its `use` lines and the paths in its code alike, comments left out. `py` is the port's
@@ -41,13 +42,9 @@ const LAYERS: [(&str, i64); 17] = [
     ("bin", 8),
 ];
 
-/// Imports against the order, each until the step that ends it.
-const KNOWN: [(&str, &str, &str); 4] = [
-    (
-        "pa3ds.games.sm.gametext",
-        "pa3ds.games.gen6.rom.people",
-        "the untangling round's step 9 moves the tagged species and model tags to games.common",
-    ),
+/// Imports against the order the port's alone keeps, each with its reason; the Python's keeps
+/// none.
+const KNOWN: [(&str, &str, &str); 3] = [
     (
         "pa3ds.core.pathfind",
         "pa3ds.games.common.field.climb",

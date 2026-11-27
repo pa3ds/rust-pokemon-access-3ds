@@ -44,3 +44,5 @@ pub mod touch;
 pub mod scenes;
 
 pub mod clocks;
+
+pub mod species_tags;

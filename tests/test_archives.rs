@@ -13,12 +13,13 @@ use crate::core::rom::Rom;
 use crate::games::common::field::chunk::CHUNK;
 use crate::games::common::field::ground::{CUT, SURF};
 use crate::games::common::garc::{garc_files, message_lines};
+use crate::games::common::species_tags::{self, tagged_species};
 use crate::games::gen6::field::zonedata::WARP_DOOR;
 use crate::games::gen6::field::zonetable::{INFO_KIND, INFO_NAME, INFO_PARENT, INFO_SIZE};
 use crate::games::gen6::rom::archives::{self, BERRY_SPOT, GameText, PC_LINES};
 use crate::games::gen6::rom::layout::{RomLayout, TownFacilities};
 use crate::games::gen6::rom::maps::{MapChunks, Streets};
-use crate::games::gen6::rom::people::{self, DOUBLE};
+use crate::games::gen6::rom::people::DOUBLE;
 use crate::games::{gen6::field::mapblock, gen6::field::rail};
 use crate::games::{oras, xy};
 use crate::py::Kind;
@@ -777,17 +778,17 @@ fn test_no_numbers_asked_for_reads_no_species() {
         OMEGA_RUBY,
     );
     assert_eq!(
-        people::tagged_species(&rom, "a/0/0/7").unwrap(),
+        tagged_species(&rom, "a/0/0/7").unwrap(),
         IndexMap::from([(753, 1)])
     );
     #[allow(clippy::reversed_empty_ranges)]
     let numbers = 650..600;
     assert_eq!(
-        people::tagged_species_with(
+        species_tags::tagged_species_with(
             &rom,
             "a/0/0/7",
-            people::MODEL_FILES,
-            people::MODEL_FILES,
+            species_tags::MODEL_FILES,
+            species_tags::MODEL_FILES,
             Some(numbers),
         )
         .unwrap(),

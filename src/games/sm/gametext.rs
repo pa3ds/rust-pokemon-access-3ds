@@ -58,8 +58,8 @@ use crate::games::common::field::things::{
     FURNITURE_SOURCE, MODEL_SOURCE, WARP_SOURCE, source_kind, source_number,
 };
 use crate::games::common::garc::{garc_files, garc_spans, message_lines, plain};
+use crate::games::common::species_tags::{model_tags, tagged_species_with};
 use crate::games::common::text::{Token, tokens};
-use crate::games::gen6::rom::people;
 use crate::games::sm::field::{CELL, place_of};
 use crate::games::sm::script;
 use crate::games::sm::text::TEXT_ARCHIVES;
@@ -87,11 +87,11 @@ pub const TRAINER_CLASS: i64 = 0x00;
 pub const CLASSES: &str = "a/1/0/4";
 pub const CLASS_MODEL: i64 = 0x08;
 /// The field's models, model n file n, a Pokémon's tagged with its national number as gen 6's
-/// are (`gen6.rom.people`): Meowth's `0x77` `pm0052`.
+/// are (`common.species_tags`): Meowth's `0x77` `pm0052`.
 pub const FIELD_MODELS: &str = "a/1/9/6";
 /// System text file 55, the species' names by national number.
 pub const SPECIES: i64 = 55;
-/// The Pokémon's battle models, nine files a model (`people.tagged_species`).
+/// The Pokémon's battle models, nine files a model (`tagged_species`).
 pub const BATTLE_MODELS: &str = "a/0/9/4";
 pub const BATTLE_MODEL_FILES: i64 = 9;
 /// The file of a battle model's nine that carries its tag alone: the first carries others too,
@@ -501,7 +501,7 @@ pub(crate) fn drawn(
 
 /// Model -> the Pokémon it draws, for a model tagged with one.
 fn pokemon(rom: &Rom, species: &[String]) -> Result<IndexMap<i64, String>> {
-    let retagged = people::tagged_species_with(
+    let retagged = tagged_species_with(
         rom,
         BATTLE_MODELS,
         BATTLE_MODEL_FILES,
@@ -511,7 +511,7 @@ fn pokemon(rom: &Rom, species: &[String]) -> Result<IndexMap<i64, String>> {
     let (start, spans) = garc_spans(rom, FIELD_MODELS)?;
     let mut out: IndexMap<i64, String> = IndexMap::new();
     for (model, &span) in spans.iter().enumerate() {
-        let tags = people::model_tags(rom, FIELD_MODELS, start, span)?;
+        let tags = model_tags(rom, FIELD_MODELS, start, span)?;
         if tags.len() != 1 {
             continue;
         }
