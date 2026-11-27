@@ -1,10 +1,13 @@
 //! Dowsing Machine tests, against the field's work and record as omega_ruby_item-finder.ctm read
 //! them (2026-09-29).
 
+use std::cell::Cell;
 use std::rc::Rc;
 
 use super::fake_memory::FakeMemory;
+use crate::core::speech::Category;
 use crate::games::gen6::field::dowsing::{LEVEL, Lights, PARENT, WORK};
+use crate::games::gen6::field::voice::Said;
 
 const PROCESS: i64 = 0x08C65224;
 const FIELD_WORK: i64 = 0x08248DD4;
@@ -73,5 +76,29 @@ fn test_a_record_not_pointing_back_at_the_work_is_not_read() {
     assert_eq!(
         [reader.poll(PROCESS).unwrap(), reader.poll(PROCESS).unwrap()],
         [None, None]
+    );
+}
+
+/// Heard as a field voice, the lights are read only while the field's process is given, and
+/// their line is said as screen text, logged as it is said.
+#[test]
+fn test_the_lights_are_a_field_voice_said_as_screen_text_while_the_field_runs() {
+    let memory = lights(2).0;
+    let running: Rc<Cell<Option<i64>>> = Rc::new(Cell::new(None));
+    let given = running.clone();
+    let mut reader = Lights::with_process(memory, OFFSET, Rc::new(move || given.get()));
+    assert_eq!(
+        [reader.heard(None).unwrap(), reader.heard(None).unwrap()],
+        [None, None]
+    );
+    running.set(Some(PROCESS));
+    assert_eq!(reader.heard(None).unwrap(), None);
+    assert_eq!(
+        reader.heard(None).unwrap(),
+        Some(Said {
+            words: "dowsing green".to_string(),
+            category: Category::Screen,
+            logged: "dowsing green".to_string(),
+        })
     );
 }

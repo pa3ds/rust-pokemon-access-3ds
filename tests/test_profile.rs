@@ -1,8 +1,9 @@
 //! The ORAS profile's use of the game's own words: a place said on arriving, the rival, where
 //! an exit leads, and the PC.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
+use std::sync::Arc;
 
 use indexmap::IndexMap;
 
@@ -11,24 +12,28 @@ use super::fake_rom::TmpDir;
 use super::fake_speech::Recorder;
 use super::fake_words::words_in;
 use super::test_field::{
-    Given, HOUSE, PC_TILE, POOCHYENA, ROUTE, ROUTE_BLOCK, TABLE, TOWN, TOWN_BLOCK, TOWN_CHUNK,
-    Town, border, dexnav, field_reader, game,
+    FILE, Given, HOLDER, HOUSE, PC_TILE, POOCHYENA, ROUTE, ROUTE_BLOCK, TABLE, TOWN, TOWN_BLOCK,
+    TOWN_CHUNK, Town, border, dexnav, field_reader, game,
 };
 use crate::core::bcsar::Sound;
 use crate::core::clips::Clips;
 use crate::core::config::{Amie, Tables};
+use crate::core::discovery::Found;
 use crate::core::loudness::Loudness;
 use crate::core::memory::{Cache, Memory};
 use crate::core::names::Names;
 use crate::core::rtti::ClassNames;
-use crate::core::speech::Speech;
+use crate::core::speech::{Category, Speech};
 use crate::games::common::field::keys::{ENEMY_SIDE, ITEM_NEXT, MODE_TOGGLE, OUR_SIDE, PATHFIND};
 use crate::games::common::field::things::{Interactable, WARP_SOURCE};
 use crate::games::common::session::Ways;
 use crate::games::common::touch::Target;
 use crate::games::gen6::apps::{BATTLE, DEMO, FIELD, MANAGER_CLASS};
-use crate::games::gen6::field::mapblock;
+use crate::games::gen6::field::features::Tracked;
+use crate::games::gen6::field::landform::{Here, Landform, gen6};
 use crate::games::gen6::field::mmodel::PLAYER_INDEX;
+use crate::games::gen6::field::voice::{Said, Speaking};
+use crate::games::gen6::field::{dowsing, mapblock};
 use crate::games::gen6::field::zonetable::{INFO_NAME, INFO_SIZE};
 use crate::games::gen6::game::Game;
 use crate::games::gen6::own::{Kit, Own};
@@ -137,6 +142,106 @@ fn names(shipped: &[(&str, &str)]) -> Rc<Names> {
         .map(|(key, name)| (key.to_string(), name.to_string()))
         .collect();
     Rc::new(Names::new(Some(&shipped), None, None, None, None).unwrap())
+}
+
+/// A landform's watch that speaks, a numbered line each time it is asked: a game's own field
+/// voice, as ORAS's decorating cursor is.
+struct Talker {
+    asked: Cell<i64>,
+}
+
+impl Tracked for Talker {
+    fn classes(&self) -> Vec<&'static str> {
+        Vec::new()
+    }
+
+    fn track(&self, _found: &Found) -> Result<()> {
+        Ok(())
+    }
+
+    fn speaking(self: Rc<Self>) -> Option<Rc<dyn Speaking>> {
+        Some(self)
+    }
+}
+
+impl Speaking for Talker {
+    fn said(&self, _here: &Here) -> Result<Option<Said>> {
+        self.asked.set(self.asked.get() + 1);
+        let words = format!("game {}", self.asked.get());
+        Ok(Some(Said {
+            words: words.clone(),
+            category: Category::Menu,
+            logged: words,
+        }))
+    }
+}
+
+/// A landform read through `Talker`. Python's keeps the talker it is given; a landform here is
+/// shared between threads and keeps none, so it makes one for the one field reader that asks.
+#[derive(Debug)]
+struct Talking;
+
+impl Landform for Talking {
+    fn watch(
+        &self,
+        _memory: Rc<dyn Memory>,
+        _image: &[u8],
+        _text: &GameText,
+    ) -> Option<Rc<dyn Tracked>> {
+        Some(Rc::new(Talker {
+            asked: Cell::new(0),
+        }))
+    }
+}
+
+/// The field's voices are polled in the order the profile writes down: gen 6's own, the
+/// Dowsing Machine's lights, then the game's own, as ORAS's decorating cursor, each logged and
+/// said as it says. The lights are read while nothing says where the player is, as they were
+/// before the field's voices, and say a colour read on that poll and the next; the game's say
+/// nothing then.
+#[test]
+fn test_the_field_voices_say_gen_6s_first_then_the_games() {
+    let (process, work, record) = (0x08C65224, 0x08248DD4, 0x0828B748);
+    let town = Town::of(Game {
+        landforms: [gen6(), vec![Arc::new(Talking) as Arc<dyn Landform>]].concat(),
+        ..game()
+    });
+    town.memory.u32(process + dowsing::WORK, &[work]);
+    town.memory.u32(work + oras::DOWSING, &[record]);
+    town.memory.u32(record + dowsing::PARENT, &[work]);
+    town.memory.u32(record + dowsing::LEVEL, &[2]);
+    let logged: Rc<RefCell<Vec<String>>> = Rc::new(RefCell::new(Vec::new()));
+    let log: Log = {
+        let logged = logged.clone();
+        Rc::new(move |line: &str| logged.borrow_mut().push(line.to_string()))
+    };
+    let (made, backend) = profile(&town, GameText::new(places(), trainers()), None, log);
+    {
+        let mut apps = made.apps.borrow_mut();
+        apps.running = Some(FIELD.to_string());
+        apps.process = Some(process);
+    }
+    made.poll_field().unwrap();
+    made.poll_field().unwrap();
+    town.memory.u32(record + dowsing::LEVEL, &[4]);
+    town.memory.u32(HOLDER, &[0]);
+    made.poll_field().unwrap();
+    town.memory.u32(HOLDER, &[FILE]);
+    made.poll_field().unwrap();
+    let said = ["game 1", "dowsing green", "game 2", "dowsing red", "game 3"];
+    let lines: Vec<String> = logged
+        .borrow()
+        .iter()
+        .filter(|line| line.starts_with("field game") || line.starts_with("field dowsing"))
+        .cloned()
+        .collect();
+    assert_eq!(lines, said.map(|words| format!("field {words}")));
+    let spoken: Vec<String> = backend
+        .spoken()
+        .into_iter()
+        .filter(|words| said.contains(&words.as_str()))
+        .collect();
+    assert_eq!(spoken, said);
 }
 
 /// The game turns the place's name when the place changes, not the zone: walking out of a house
