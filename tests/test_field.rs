@@ -35,7 +35,9 @@ use crate::games::gen6::field::fieldmap::{
     MAP_BLOCK_SIZE, MAP_CHUNK_FILES, MAP_CHUNKS_TALL, MAP_CHUNKS_WIDE, MAP_GRID, MAP_KIND, MAP_MARK,
 };
 use crate::games::gen6::field::hidden_items::{HIDDEN_ITEM, ITEMS_LEAST, MARKED, ROW};
-use crate::games::gen6::field::landform::{ArrowTiles, Belts, Landform, Rides, gen6};
+use crate::games::gen6::field::landform::{
+    ArrowTiles, Belts, Found as Worked, Here, Landform, Rides, as_watch, gen6,
+};
 use crate::games::gen6::field::mmodel::PROP_MODEL;
 use crate::games::gen6::field::reader::PC_TILE as PC_KIND;
 use crate::games::gen6::field::reader::{
@@ -2560,6 +2562,89 @@ fn test_dewford_gyms_switches_and_belts_are_listed_and_walked_over() -> Result<(
     assert_eq!(
         pathfind::spoken(&pathfind::legs(&pathfind::cells(&down), None)?),
         "5 south"
+    );
+    Ok(())
+}
+
+/// A watch a test's landform reads the game through: where a sweep last found its class.
+struct Gate {
+    at: RefCell<Vec<i64>>,
+}
+
+impl Gate {
+    const CLASS: &'static str = "N5field4GateE";
+}
+
+impl Tracked for Gate {
+    fn classes(&self) -> Vec<&'static str> {
+        vec![Gate::CLASS]
+    }
+
+    fn track(&self, found: &Found) -> Result<()> {
+        let at = found.of(&[Gate::CLASS]);
+        if !at.is_empty() {
+            *self.at.borrow_mut() = at;
+        }
+        Ok(())
+    }
+}
+
+/// A gate standing in `cell` once a sweep has found it, read through its watch.
+#[derive(Debug)]
+struct Gated {
+    cell: (i64, i64),
+}
+
+impl Landform for Gated {
+    fn watch(
+        &self,
+        _memory: Rc<dyn Memory>,
+        _image: &[u8],
+        _text: &GameText,
+    ) -> Option<Rc<dyn Tracked>> {
+        Some(Rc::new(Gate {
+            at: RefCell::new(Vec::new()),
+        }))
+    }
+
+    fn laid(&self, _found: &Worked, ground: Ground, here: &Here) -> Result<Ground> {
+        let watch = (here.watch)(self);
+        let Some(gate) = watch.as_deref().and_then(as_watch::<Gate>) else {
+            return Ok(ground);
+        };
+        if gate.at.borrow().is_empty() {
+            return Ok(ground);
+        }
+        Ok(ground.stood(&IndexMap::from([(self.cell, None)]), here.r#where.cell))
+    }
+}
+
+/// A landform is one instance every reader shares, keeping nothing: what it reads of the game
+/// as the player walks, it reads through a watch of its own, which each field reader builds
+/// once, sweeps for after the save's works, and hands back to it as the ground is laid.
+#[test]
+fn test_a_landform_reads_the_game_through_a_watch_the_field_reader_sweeps_for() -> Result<()> {
+    let gated: Arc<dyn Landform> = Arc::new(Gated { cell: (96, 172) });
+    let mut town = Town::new();
+    let gated_game = || Game {
+        landforms: [gen6(), vec![gated.clone()]].concat(),
+        ..game()
+    };
+    let other = field_reader(town.memory.clone(), Given::default(), gated_game());
+    town.reader = field_reader(town.memory.clone(), Given::default(), gated_game());
+    assert_eq!(town.reader.classes().last().copied(), Some(Gate::CLASS));
+    assert!(town.reader.ground(&town.r#where()?)?.open((96, 172))?);
+    town.reader.track(&Found {
+        heap: IndexMap::from([(0x08D40000, Gate::CLASS.to_string())]),
+        ..Found::default()
+    })?;
+    assert!(!town.reader.ground(&town.r#where()?)?.open((96, 172))?);
+    other.track(&town.found())?;
+    let r#where = other.poll()?.expect("the player's field");
+    assert!(
+        other
+            .ground(&other.interactables(&r#where)?)?
+            .open((96, 172))?
     );
     Ok(())
 }

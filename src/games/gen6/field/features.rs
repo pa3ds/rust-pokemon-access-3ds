@@ -2,6 +2,7 @@
 //! ash piles, rotating doors and thin ice (`games.oras`), each found by a sweep as its module loads.
 //! The field reader reads them through these, and never imports a game.
 
+use std::any::Any;
 use std::rc::Rc;
 
 use indexmap::IndexSet;
@@ -17,7 +18,10 @@ use crate::py::Result;
 pub type ZoneAt<'a> = &'a dyn Fn(Cell) -> Result<Option<i64>>;
 
 /// One of a game's own readers on the field, found by a sweep as its module loads.
-pub trait Tracked {
+///
+/// `Any`, so a landform can tell its own watch (`landform.as_watch`), as Python's `isinstance`
+/// does.
+pub trait Tracked: Any {
     /// What a sweep looks for to find it by.
     fn classes(&self) -> Vec<&'static str>;
 

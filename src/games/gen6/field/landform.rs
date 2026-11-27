@@ -2,11 +2,14 @@
 //!
 //! A landform says what it works out once a map from plain data, the ROM's chunks and the zone it
 //! is in (`found`), what of it is listed (`listed`), and what it gives the ground the search walks:
-//! its traversal or its rules (`laid`). Gen 6's own, which every game's chunks can hold, are
-//! `GEN6`; a game's `Game.landforms` starts from them and adds its own, as X's climbing walls. The
-//! field reader works each out once a map and keeps it (`FieldReader._found`); it names one only
-//! where more than the ground reads it: who rides and what they smash, the boulders' holes, and the
-//! belts' switch.
+//! its traversal or its rules (`laid`). One that changes as the player walks, as Fortree Gym's
+//! doors turn, reads it through a **watch** of its own, an object a sweep finds (`watch`): the
+//! field reader builds each once, sweeps for its classes and hands it back (`Here.watch`), as a
+//! landform is one instance shared by every reader and keeps nothing. Gen 6's own, which every
+//! game's chunks can hold, are `GEN6`; a game's `Game.landforms` starts from them and adds its own,
+//! as X's climbing walls. The field reader works each out once a map and keeps it
+//! (`FieldReader._found`); it names one only where more than the ground reads it: who rides and
+//! what they smash, the boulders' holes, and the belts' switch.
 //!
 //! Bound by:
 //! - ADR-0006: a landform names no game's kinds; a game's own data is given to it on its `Game`.
@@ -38,6 +41,7 @@ use crate::games::common::field::things::{
 };
 use crate::games::common::field::vines::{End, Vines, paired};
 use crate::games::gen6::field::conveyors::GymFloor;
+use crate::games::gen6::field::features::Tracked;
 use crate::games::gen6::field::rail::Rails;
 use crate::games::gen6::field::terrain::Terrain;
 use crate::games::gen6::field::zonedata::{
@@ -47,6 +51,7 @@ use crate::games::gen6::field::zonetable::{
     INFO_KIND, INFO_MATRIX, INFO_NAME, INFO_PARENT, INFO_SIZE, NAME_MASK, UNDERWATER, ZONE_LIMIT,
     ZoneTable,
 };
+use crate::games::gen6::rom::archives::GameText;
 use crate::py::{self, Error, Result};
 
 pub const SLOPE: &str = "slope";
@@ -188,6 +193,9 @@ pub struct Here<'a> {
     pub turned: Box<dyn Fn((&'static str, i64), i64) -> Result<Option<Vec<u8>>> + 'a>,
     /// What a Gym's module turns and shuts (`maps.gym_floor`).
     pub gym_floor: Option<&'a GymFloor>,
+    /// The watch a landform built (`Landform.watch`), None for one without.
+    #[allow(clippy::type_complexity)]
+    pub watch: Box<dyn Fn(&dyn Landform) -> Option<Rc<dyn Tracked>> + 'a>,
     pub terrain: &'a Terrain,
     pub zones: &'a ZoneTable,
 }
@@ -198,6 +206,19 @@ pub struct Here<'a> {
 ///
 /// `Send` and `Sync` because a `Game` lives in a `static`.
 pub trait Landform: Any + Debug + Send + Sync {
+    /// What it reads the game through as the player walks, an object of the game's a sweep
+    /// finds, given the executable's `image` and the ROM's `text`; built once by the field
+    /// reader, which sweeps for its classes, and handed back to `listed` and `laid`
+    /// (`Here.watch`). None for none.
+    fn watch(
+        &self,
+        _memory: Rc<dyn Memory>,
+        _image: &[u8],
+        _text: &GameText,
+    ) -> Option<Rc<dyn Tracked>> {
+        None
+    }
+
     /// What it works out of `matrix`, given back to `listed` and `laid`.
     fn found(&self, _matrix: &Matrix) -> Result<Found> {
         Ok(Rc::new(()))
@@ -237,6 +258,17 @@ fn found_as<T: 'static>(found: &Found) -> &T {
 /// The landform as `T`, where it is one: Python's `isinstance`.
 pub fn as_form<T: 'static>(form: &Arc<dyn Landform>) -> Option<&T> {
     (form.as_ref() as &dyn Any).downcast_ref::<T>()
+}
+
+/// A landform's watch as `T`, where it is one: Python's `isinstance`.
+pub fn as_watch<T: 'static>(watch: &dyn Tracked) -> Option<&T> {
+    (watch as &dyn Any).downcast_ref::<T>()
+}
+
+/// A landform by its identity, which keys its watch: Python's `id`, as one holding a mapping
+/// does not hash.
+pub fn identity(form: &dyn Landform) -> usize {
+    form as *const dyn Landform as *const () as usize
 }
 
 /// The cell nearest the player, the first of those as near.

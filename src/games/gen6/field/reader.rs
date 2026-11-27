@@ -59,6 +59,7 @@ use crate::games::gen6::field::features::{
 use crate::games::gen6::field::hidden_items::{HIDDEN_ITEM, HiddenItems, Only};
 use crate::games::gen6::field::landform::{
     Conveyors, Found as Worked, HOLE, Here, Holes, Landform, Matrix, Rides, TurningFloor, as_form,
+    identity,
     beside, cell_number, dropped, holes_found, runs, spread,
 };
 use crate::games::gen6::field::rail::{self, Rails, keep};
@@ -307,6 +308,9 @@ pub struct FieldReader {
     landforms: Vec<Arc<dyn Landform>>,
     /// What each landform worked out, by the map it was worked out on (`_found`).
     found_of: RefCell<HashMap<FoundKey, Rc<Vec<Worked>>>>,
+    /// Each landform's watch, by the landform (`Landform.watch`): by its identity, as one
+    /// holding a mapping does not hash.
+    watches: IndexMap<usize, Rc<dyn Tracked>>,
     /// What the game's ridden Pokémon cross, or None in a game without one: who is in the way
     /// and who is listed asks it too.
     rides: Option<Rides>,
@@ -573,6 +577,14 @@ impl FieldReader {
             furniture_kinds: game.furniture.clone(),
             landforms: game.landforms.clone(),
             found_of: RefCell::new(HashMap::new()),
+            watches: game
+                .landforms
+                .iter()
+                .filter_map(|form| {
+                    form.watch(memory.clone(), image, text)
+                        .map(|watch| (identity(&**form), watch))
+                })
+                .collect(),
             rides: game.landforms.iter().find_map(as_form::<Rides>).cloned(),
             natives: text.natives.clone(),
             teleports: text.teleports.clone(),
@@ -663,6 +675,9 @@ impl FieldReader {
         }
         if let Some(ice) = &self.ice {
             out.push(&**ice);
+        }
+        for watch in self.watches.values() {
+            out.push(&**watch);
         }
         if let Some(switches) = &self.switches {
             out.push(switches);
@@ -3040,6 +3055,7 @@ impl FieldReader {
                 Some(switches) => switches.turned(state, size),
             }),
             gym_floor: self.gym_floor.as_ref(),
+            watch: Box::new(|form| self.watches.get(&identity(form)).cloned()),
             terrain: &self.terrain,
             zones: &self.zones,
         }
