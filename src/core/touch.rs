@@ -50,6 +50,11 @@ use crate::py::{self, Error, Kind, Result, time};
 
 /// Azahar's `udp_input_port` as it ships.
 pub const PORT: i64 = 26760;
+/// The environment variable a `TouchServer` given no port takes its port from, before `PORT`.
+/// The replay rig sets it to the port its fork's touch device asks (`spikes/rig.py`), so a spike's
+/// taps reach the rig and never the player's own Azahar beside it, as `rpc.PORT_VARIABLE` does for
+/// reads. The runtime always names its port (`--touch-port`), so this never reaches a player.
+pub const PORT_VARIABLE: &str = "PA3DS_TOUCH_PORT";
 pub const HOST: &str = "127.0.0.1";
 /// Azahar's `controller_touch_device` for pa3ds's taps: the cemuhook client, calibrated so an x
 /// and a y are the touch screen's own pixels (Azahar multiplies the share by 320 and 240).
@@ -350,11 +355,19 @@ pub struct TouchServer {
 }
 
 impl TouchServer {
-    /// A server on `port` (Python's default is `PORT`), or the `OSError` that says why not.
+    /// A server on `port`, or the `OSError` that says why not. A `port` of None (Python's
+    /// default) is the one `PORT_VARIABLE` names, or `PORT`.
     ///
     /// `os.urandom(4)` is a `RandomState`'s key hashed, which std seeds from the operating
     /// system's random numbers.
-    pub fn new(log: SharedLog, port: i64) -> Result<Self> {
+    pub fn new(log: SharedLog, port: Option<i64>) -> Result<Self> {
+        let port = match port {
+            Some(port) => port,
+            None => match std::env::var(PORT_VARIABLE) {
+                Ok(text) => py::int_base10(&text)?,
+                Err(_) => PORT,
+            },
+        };
         use std::hash::BuildHasher;
         let id = i64::from(std::collections::hash_map::RandomState::new().hash_one(0u8) as u32);
         let Ok(bound) = u16::try_from(port) else {

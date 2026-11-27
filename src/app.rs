@@ -35,7 +35,7 @@ use crate::core::rtti::demangle;
 use crate::core::snapshot::{self, PAGE};
 use crate::core::speech::{Category, Speech};
 use crate::core::tones::Tones;
-use crate::core::touch::{self, SharedLog, TouchServer};
+use crate::core::touch::{SharedLog, TouchServer};
 use crate::core::words::own;
 use crate::games::catalog;
 use crate::games::common::field::keys::{
@@ -111,6 +111,9 @@ pub struct Settings {
     /// Azahar's `qt-config.ini`, where it lists the ROMs it has opened (`config.Config.emulator`).
     /// None is the one in AppData.
     pub emulator: Option<PathBuf>,
+    /// The port touch mode serves its taps on, which Azahar's touch device asks
+    /// (`--touch-port`). None is `TouchServer`'s own.
+    pub touch_port: Option<i64>,
     /// Log touch mode's targets as they change, every screen poll: a replay presses no key of
     /// pa3ds's, so without it nothing touch mode offers is on a tape (ADR-0041). On for replays,
     /// never for a player.
@@ -142,6 +145,7 @@ impl Default for Settings {
             captures: None,
             restarted: false,
             emulator: None,
+            touch_port: None,
             census: false,
             ways: None,
         }
@@ -1122,7 +1126,7 @@ fn touch_server(
         // A line sent once the session has ended and dropped its end has no one to read it.
         let _ = told.send(line.to_string());
     });
-    match TouchServer::new(shared, touch::PORT) {
+    match TouchServer::new(shared, settings.touch_port) {
         Ok(server) => Ok(Some(server)),
         Err(error) if error.is(Kind::OsError) => {
             log(&error.message);

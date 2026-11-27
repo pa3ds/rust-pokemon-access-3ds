@@ -57,10 +57,25 @@ fn test_a_packet_is_one_azahar_takes() {
     assert_eq!(touch::pad_state(8, None).unwrap()[36], 0);
 }
 
+/// The replay rig's taps go to the port its fork asks, never the player's 26760.
+#[test]
+fn test_no_port_given_is_the_one_the_environment_names() {
+    let free = UdpSocket::bind((touch::HOST, 0)).unwrap();
+    let port = i64::from(free.local_addr().unwrap().port());
+    drop(free);
+    // Python's `monkeypatch.setenv`: set for this test, and taken off after it.
+    unsafe { std::env::set_var(touch::PORT_VARIABLE, port.to_string()) };
+    let server = touch::TouchServer::new(Arc::new(|_line: &str| {}), None);
+    unsafe { std::env::remove_var(touch::PORT_VARIABLE) };
+    let server = server.unwrap();
+    assert_eq!(server.port().unwrap(), port);
+    server.close();
+}
+
 /// A tap reaches only a client that has asked for the pad, and ends in a release.
 #[test]
 fn test_a_tap_presses_and_lets_go_for_a_client_that_asked() {
-    let server = touch::TouchServer::new(Arc::new(|_line: &str| {}), 0).unwrap();
+    let server = touch::TouchServer::new(Arc::new(|_line: &str| {}), Some(0)).unwrap();
     let port = server.port().unwrap();
     let client = UdpSocket::bind((touch::HOST, 0)).unwrap();
     client
@@ -97,7 +112,7 @@ fn test_a_tap_presses_and_lets_go_for_a_client_that_asked() {
 /// `HELD` seconds.
 #[test]
 fn test_a_held_press_stays_down_moves_and_lets_go_when_released_or_held_too_long() {
-    let server = touch::TouchServer::new(Arc::new(|_line: &str| {}), 0).unwrap();
+    let server = touch::TouchServer::new(Arc::new(|_line: &str| {}), Some(0)).unwrap();
     let port = server.port().unwrap();
     let client = UdpSocket::bind((touch::HOST, 0)).unwrap();
     client
@@ -149,7 +164,7 @@ fn test_a_held_press_stays_down_moves_and_lets_go_when_released_or_held_too_long
 /// (as_super_training_more_l1_regimens).
 #[test]
 fn test_a_held_press_let_go_while_it_slides_lets_go_where_it_was_sliding_to() {
-    let server = touch::TouchServer::new(Arc::new(|_line: &str| {}), 0).unwrap();
+    let server = touch::TouchServer::new(Arc::new(|_line: &str| {}), Some(0)).unwrap();
     let port = server.port().unwrap();
     let client = UdpSocket::bind((touch::HOST, 0)).unwrap();
     client
@@ -199,7 +214,7 @@ fn test_a_held_press_let_go_while_it_slides_lets_go_where_it_was_sliding_to() {
 /// `LIFT` before it presses.
 #[test]
 fn test_a_press_asked_for_while_one_is_down_lifts_first() {
-    let server = touch::TouchServer::new(Arc::new(|_line: &str| {}), 0).unwrap();
+    let server = touch::TouchServer::new(Arc::new(|_line: &str| {}), Some(0)).unwrap();
     let port = server.port().unwrap();
     let client = UdpSocket::bind((touch::HOST, 0)).unwrap();
     client
@@ -262,7 +277,7 @@ fn test_a_server_counts_on_past_the_one_before_it() {
     ask.extend_from_slice(&[0; 8]);
 
     let counters = |seconds: f64| -> Vec<i64> {
-        let server = touch::TouchServer::new(Arc::new(|_line: &str| {}), 0).unwrap();
+        let server = touch::TouchServer::new(Arc::new(|_line: &str| {}), Some(0)).unwrap();
         let client = UdpSocket::bind((touch::HOST, 0)).unwrap();
         client
             .set_read_timeout(Some(Duration::from_secs(1)))
@@ -380,7 +395,7 @@ fn test_a_rub_goes_back_and_forth_between_its_ends() {
 /// let go is let go by `release`.
 #[test]
 fn test_a_rub_asked_for_while_one_lasts_carries_it_on_never_lifting() {
-    let server = touch::TouchServer::new(Arc::new(|_line: &str| {}), 0).unwrap();
+    let server = touch::TouchServer::new(Arc::new(|_line: &str| {}), Some(0)).unwrap();
     let port = server.port().unwrap();
     let client = UdpSocket::bind((touch::HOST, 0)).unwrap();
     client
@@ -549,7 +564,7 @@ fn test_an_arrow_never_starts_again_a_rub_something_else_ended() {
         ..Target::new(1, "beckon", 160, 120, 0.0, 240.0)
     };
     for ended_by in ["beckon", "shift"] {
-        let server = Rc::new(touch::TouchServer::new(Arc::new(|_line: &str| {}), 0).unwrap());
+        let server = Rc::new(touch::TouchServer::new(Arc::new(|_line: &str| {}), Some(0)).unwrap());
         let client = listened(&server);
         let found = Rc::new(RefCell::new(vec![beckon.clone(), stylus(160)]));
         let given = found.clone();
@@ -583,7 +598,7 @@ fn test_an_arrow_never_starts_again_a_rub_something_else_ended() {
 /// at every press); with none lasting, carrying one on presses nothing.
 #[test]
 fn test_a_rub_that_lasts_is_carried_on_between_new_ends() {
-    let server = touch::TouchServer::new(Arc::new(|_line: &str| {}), 0).unwrap();
+    let server = touch::TouchServer::new(Arc::new(|_line: &str| {}), Some(0)).unwrap();
     let client = listened(&server);
     assert!(!server.rub_on(((10, 10), (30, 10))));
     assert!(!server.rubbing());

@@ -11,6 +11,7 @@ use indexmap::IndexMap;
 
 use crate::app::{self, Settings};
 use crate::core::rpc::{DEFAULT_PORT, Rpc, UdpRpc};
+use crate::core::touch::PORT as TOUCH_PORT;
 use crate::core::speech::{self, Backend, Category, Speech};
 use crate::core::words::{self, ENGLISH, Words, own};
 use crate::core::{config, instance, keyfile, window};
@@ -58,6 +59,7 @@ struct Args {
     silent: bool,
     seconds: Option<f64>,
     rpc_port: u16,
+    touch_port: i64,
     no_keys: bool,
     rom: Option<PathBuf>,
     no_log: bool,
@@ -66,7 +68,8 @@ struct Args {
 
 fn usage() -> String {
     "usage: pa3ds [-h] [--silent] [--seconds SECONDS] [--rpc-port RPC_PORT]\n\
-     \x20            [--no-keys] [--rom PATH] [--no-log | --log-path PATH]"
+     \x20            [--touch-port TOUCH_PORT] [--no-keys] [--rom PATH] [--no-log |\n\
+     \x20            --log-path PATH]"
         .to_string()
 }
 
@@ -80,6 +83,9 @@ fn help() -> Result<String, String> {
          \x20                  stop after this many seconds\n\
          \x20 --rpc-port RPC_PORT\n\
          \x20                  the emulator's RPC port\n\
+         \x20 --touch-port TOUCH_PORT\n\
+         \x20                  the port touch mode serves taps on, which the emulator's touch\n\
+         \x20                  device asks (its udp_input_port)\n\
          \x20 --no-keys        answer no keys and patch no buttons, whatever the settings say\n\
          \x20 --rom PATH       your decrypted ROM, for the game's own names of places and the\n\
          \x20                  rival; by default pa3ds finds it among the ROMs Azahar has opened\n\
@@ -102,6 +108,7 @@ fn help() -> Result<String, String> {
 fn parse(argv: &[String]) -> Result<Args, String> {
     let mut args = Args {
         rpc_port: DEFAULT_PORT,
+        touch_port: TOUCH_PORT,
         ..Args::default()
     };
     let mut at = 0;
@@ -139,6 +146,12 @@ fn parse(argv: &[String]) -> Result<Args, String> {
                     .trim()
                     .parse()
                     .map_err(|_| format!("argument --rpc-port: invalid int value: '{text}'"))?;
+            }
+            "--touch-port" => {
+                let text = take(&mut at)?;
+                args.touch_port = py::int_base10(&text).map_err(|_| {
+                    format!("argument --touch-port: invalid int value: '{text}'")
+                })?;
             }
             "--rom" => args.rom = Some(PathBuf::from(take(&mut at)?)),
             "--log-path" => args.log_path = Some(PathBuf::from(take(&mut at)?)),
@@ -402,6 +415,7 @@ fn run(args: Args, hooks: &Hooks) -> py::Result<()> {
             rom: args.rom,
             restarted: replaced,
             emulator: Some(settings.emulator.clone()),
+            touch_port: Some(args.touch_port),
             ..Settings::default()
         },
         &until,
