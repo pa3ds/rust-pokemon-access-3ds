@@ -793,13 +793,8 @@ pub struct TouchTargets {
     /// Touch area -> what it was last called (rule 4), and the panes its button held then.
     named: IndexMap<i64, (String, HashSet<i64>)>,
     unnamed: HashSet<i64>,
-    /// A layout's root -> the TextBoxes whose words named its buttons at the last walk
-    /// (`button_words`).
-    boxes: IndexMap<i64, HashSet<i64>>,
     /// (layout file, pane name) of every TextBox found a button's words (`button_words`).
     worded: HashSet<(String, String)>,
-    /// The touch areas shown at the last walk and left out as switched off.
-    unoffered: HashSet<i64>,
     /// A layout's root -> the panes of other classes than a touch area's that its manager has
     /// listed as buttons switched on (`_windows`).
     windowed: IndexMap<i64, HashSet<i64>>,
@@ -862,22 +857,29 @@ impl TouchTargets {
             listed: IndexMap::new(),
             named: IndexMap::new(),
             unnamed: HashSet::new(),
-            boxes: IndexMap::new(),
             worded: HashSet::new(),
-            unoffered: HashSet::new(),
             windowed: IndexMap::new(),
             groups: IndexMap::new(),
             middles: IndexMap::new(),
         }
     }
 
-    /// Every touch area drawn on the bottom screen that can be named, in reading order.
+    /// Every touch area drawn on the bottom screen that can be named, in reading order, on a
+    /// screen that needs a touch.
     pub fn targets(&mut self) -> Result<Vec<Target>> {
         if let Some(offered) = &self.offered
             && !offered()
         {
             return Ok(Vec::new());
         }
+        Ok(self.walk()?.0)
+    }
+
+    /// Every touch area drawn on the bottom screen that can be named, in reading order; a
+    /// layout's root -> the TextBoxes whose words named its buttons; and the touch areas shown
+    /// and left out as switched off (`button_words`).
+    #[allow(clippy::type_complexity)]
+    fn walk(&mut self) -> Result<(Vec<Target>, IndexMap<i64, HashSet<i64>>, HashSet<i64>)> {
         let layouts = self.layouts.clone();
         let shape = layouts.shape;
         self.groups.clear();
@@ -913,8 +915,8 @@ impl TouchTargets {
             .into_iter()
             .map(|(work, root)| (root, work))
             .collect();
-        self.boxes = IndexMap::new();
-        self.unoffered = HashSet::new();
+        let mut boxes: IndexMap<i64, HashSet<i64>> = IndexMap::new();
+        let mut unoffered: HashSet<i64> = HashSet::new();
         // Only a layout drawn on the bottom screen now: the field's stay on the list while an app
         // of their own runs, Pokémon-Amie's, which draws all its layouts itself.
         let mut listed: HashSet<i64> = HashSet::new();
@@ -983,7 +985,7 @@ impl TouchTargets {
                     touches.push(area);
                     greyed.insert(area);
                 } else {
-                    self.unoffered.insert(area);
+                    unoffered.insert(area);
                 }
             }
             let names_on: HashSet<String> = on
@@ -1048,7 +1050,7 @@ impl TouchTargets {
                 // came on screen as their buttons were named as they had been, and were said
                 // (or_pss_singleplayer).
                 if self.button(touch)? {
-                    self.boxes.entry(root).or_default().extend(
+                    boxes.entry(root).or_default().extend(
                         group.iter().copied().filter(|p| {
                             tree.get(p).map(String::as_str) == Some(lyt::TEXTBOX_CLASS)
                         }),
@@ -1359,7 +1361,7 @@ impl TouchTargets {
                         let label = self.label(root, touch, &words, &groups)?;
                         if let Some(label) = label {
                             picture = Some(label.text.clone());
-                            self.boxes.entry(root).or_default().insert(label.r#box);
+                            boxes.entry(root).or_default().insert(label.r#box);
                         } else if let Some(texture) = &texture {
                             picture = Some(pictures::words_in(texture, layout_name));
                         }
@@ -1466,11 +1468,15 @@ impl TouchTargets {
             let labels = lists();
             found = answered_first(&self.unlisted(&found, &labels), &labels);
         }
-        Ok(rows(&found)
-            .into_iter()
-            .flatten()
-            .map(|i| found[i].clone())
-            .collect())
+        Ok((
+            rows(&found)
+                .into_iter()
+                .flatten()
+                .map(|i| found[i].clone())
+                .collect(),
+            boxes,
+            unoffered,
+        ))
     }
 
     /// The TextBoxes whose words name a button on the bottom screen now, a button's own words
@@ -1485,12 +1491,12 @@ impl TouchTargets {
     /// by its layout's file and its pane's name: an O-Power's panel grows from nothing as it
     /// opens, its buttons not laid out, and Y said its "Use: Give, Cancel" at every opening but
     /// the first (y_pss_singleplayer); the PSS's profile, built again as it came back from its
-    /// messages, said its rows.
+    /// messages, said its rows. Walked as touch mode walks them, whether it offers them or not.
     ///
     /// Python's sets of boxes are only tested and joined here, every name read of a box already
     /// read in the walk: `HashSet`.
     pub fn button_words(&mut self) -> Result<HashSet<i64>> {
-        self.targets()?;
+        let (_found, named, switched_off) = self.walk()?;
         let layouts = self.layouts.clone();
         let mut boxes: HashSet<i64> = HashSet::new();
         for root in layouts.roots() {
@@ -1501,7 +1507,7 @@ impl TouchTargets {
                 continue;
             }
             let tree = layouts.tree(root);
-            let mut found: HashSet<i64> = self.boxes.get(&root).cloned().unwrap_or_default();
+            let mut found: HashSet<i64> = named.get(&root).cloned().unwrap_or_default();
             let mut unoffered: HashSet<i64> = HashSet::new();
             for (&pane, kind) in &tree {
                 if kind != lyt::BOUNDING_CLASS
@@ -1516,7 +1522,7 @@ impl TouchTargets {
                         words.insert(p);
                     }
                 }
-                if self.unoffered.contains(&pane) {
+                if switched_off.contains(&pane) {
                     unoffered.extend(words);
                 } else {
                     found.extend(words);
@@ -1529,8 +1535,7 @@ impl TouchTargets {
                 // pane in one place, and Y's O-Power list took its panel's every word for a
                 // button's, never to say them.
                 if !layouts.fresh(root) {
-                    let learnt: Vec<i64> = self
-                        .boxes
+                    let learnt: Vec<i64> = named
                         .get(&root)
                         .map(|boxes| boxes.iter().copied().collect())
                         .unwrap_or_default();
