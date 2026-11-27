@@ -276,6 +276,142 @@ fn test_a_fresh_azahar_gets_pa3ds_s_settings_with_their_flags_off() {
     assert_eq!(prepare(&tmp_path.join("home"), &ini, false).said, "");
 }
 
+/// This machine's C-stick in `fake_qt_config.ini`, its keys and its scale left to fill in.
+const C_STICK: &str = "code$0{}$1engine$0keyboard:maptype$0guid+port,code$0{}$1engine$0keyboard:\
+                       maptype$0guid+port,code$0{}$1engine$0keyboard:maptype$0guid+port,code$0{}$1\
+                       engine$0keyboard:maptype$0guid+port,down:code$075$1engine$0keyboard,engine:\
+                       analog_from_button,left:code$074$1engine$0keyboard,modifier:code$068$1engine\
+                       $0keyboard,modifier_scale:{},right:code$076$1engine$0keyboard,up:code$0{}$1\
+                       engine$0keyboard";
+
+/// `C_STICK.format(*filled)`.
+fn c_stick(filled: [&str; 6]) -> String {
+    let mut out = C_STICK.to_string();
+    for each in filled {
+        out = out.replacen("{}", each, 1);
+    }
+    out
+}
+
+/// What a start writes into Azahar's `qt-config.ini`, the settings file's `[azahar]` and then
+/// the keys file's, into a fresh Azahar's settings and this machine's whole `[Controls]`: these
+/// lines and no other, each value with its `\default` flag off, CRLF kept.
+#[test]
+fn test_a_start_writes_into_azahar_s_file_these_lines_alone() {
+    let tmp_path = TmpPath::new();
+    let controls = include_str!("fake_qt_config.ini")
+        .replace("\r\n", "\n")
+        .replace('\r', "\n");
+    let before = emulator_text() + &py::splitlines(&controls).join("\r\n") + "\r\n";
+    let ini = tmp_path.join("qt-config.ini");
+    fs::write(&ini, &before).unwrap();
+    let home = tmp_path.join("home");
+    fs::create_dir(&home).unwrap();
+    fs::write(
+        home.join("keys.toml"),
+        "[azahar]\nstart = \"y\"\n\n[azahar.c_stick]\nup = \"w\"\nmodifier_scale = 0.25\n",
+    )
+    .unwrap();
+    let settings = prepare(&home, &ini, false);
+    let defaults: keyfile::Bindings = [(
+        "list".to_string(),
+        [("k".to_string(), "item read".to_string())]
+            .into_iter()
+            .collect(),
+    )]
+    .into_iter()
+    .collect();
+    let keys = keyfile::prepare(
+        &defaults,
+        Some(&home),
+        Some(&settings.emulator),
+        true,
+        false,
+        None,
+    )
+    .unwrap();
+    let after = read(&ini);
+    assert!(!after.replace("\r\n", "").contains('\n'));
+    let was: Vec<&str> = before.split("\r\n").collect();
+    let now: Vec<&str> = after.split("\r\n").collect();
+    assert_eq!(was.len(), now.len());
+    let changed: Vec<(String, String)> = was
+        .iter()
+        .zip(&now)
+        .filter(|(was, now)| was != now)
+        .map(|(was, now)| (was.to_string(), now.to_string()))
+        .collect();
+    let expected: Vec<(String, String)> = [
+        (
+            "enable_rpc_server\\default=true",
+            "enable_rpc_server\\default=false",
+        ),
+        ("enable_rpc_server=false", "enable_rpc_server=true"),
+        ("log_filter\\default=true", "log_filter\\default=false"),
+        ("log_filter=*:Info", "log_filter=\"*:Info RPC_Server:Error\""),
+        ("graphics_api\\default=true", "graphics_api\\default=false"),
+        ("graphics_api=1", "graphics_api=2"),
+        (
+            "async_shader_compilation\\default=true",
+            "async_shader_compilation\\default=false",
+        ),
+        (
+            "async_shader_compilation=false",
+            "async_shader_compilation=true",
+        ),
+        (
+            "shaders_accurate_mul\\default=true",
+            "shaders_accurate_mul\\default=false",
+        ),
+        ("shaders_accurate_mul=true", "shaders_accurate_mul=false"),
+        ("use_vsync\\default=true", "use_vsync\\default=false"),
+        ("use_vsync=true", "use_vsync=false"),
+        (
+            "profiles\\1\\button_start\\default=true",
+            "profiles\\1\\button_start\\default=false",
+        ),
+        (
+            "profiles\\1\\button_start=\"code:77,engine:keyboard\"",
+            "profiles\\1\\button_start=\"code:89,engine:keyboard\"",
+        ),
+        (
+            &format!(
+                "profiles\\1\\c_stick=\"{}\"",
+                c_stick(["73", "74", "75", "76", "0.500000", "73"])
+            ),
+            &format!(
+                "profiles\\1\\c_stick=\"{}\"",
+                c_stick(["74", "75", "76", "87", "0.250000", "87"])
+            ),
+        ),
+        (
+            "profiles\\1\\use_touchpad\\default=true",
+            "profiles\\1\\use_touchpad\\default=false",
+        ),
+        (
+            "profiles\\1\\use_touchpad=false",
+            "profiles\\1\\use_touchpad=true",
+        ),
+        (
+            "profiles\\1\\controller_touch_device\\default=true",
+            "profiles\\1\\controller_touch_device\\default=false",
+        ),
+        (
+            "profiles\\1\\controller_touch_device=",
+            "profiles\\1\\controller_touch_device=\
+             \"engine:cemuhookudp,max_x:320,max_y:240,min_x:0,min_y:0\"",
+        ),
+    ]
+    .iter()
+    .map(|(was, now)| (was.to_string(), now.to_string()))
+    .collect();
+    assert_eq!(changed, expected);
+    assert_eq!(
+        (settings.said.as_str(), keys.said.as_str()),
+        ("Azahar settings applied", "keys applied to Azahar")
+    );
+}
+
 #[test]
 fn test_azahar_open_is_left_alone() {
     let tmp_path = TmpPath::new();
