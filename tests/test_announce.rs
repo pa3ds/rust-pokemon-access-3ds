@@ -56,7 +56,7 @@ fn piece_kw(r#box: i64, text: &str, x: f64, y: f64, root: i64, kw: Kw) -> Screen
     }
 }
 
-fn piece(r#box: i64, text: &str, x: f64, y: f64, root: i64) -> ScreenText {
+pub(crate) fn piece(r#box: i64, text: &str, x: f64, y: f64, root: i64) -> ScreenText {
     piece_kw(r#box, text, x, y, root, PLAIN)
 }
 
@@ -112,7 +112,7 @@ fn set(items: &[i64]) -> IndexSet<i64> {
 
 /// `say`'s arguments, each Python's default unless a test gives it.
 #[derive(Default)]
-struct Args {
+pub(crate) struct Args {
     texts: Vec<ScreenText>,
     items: Vec<CursorItem>,
     on_screen: Vec<ScreenText>,
@@ -132,7 +132,7 @@ struct Args {
     turns: bool,
 }
 
-fn args(texts: &[ScreenText], items: Vec<CursorItem>, on_screen: &[ScreenText]) -> Args {
+pub(crate) fn args(texts: &[ScreenText], items: Vec<CursorItem>, on_screen: &[ScreenText]) -> Args {
     Args {
         texts: texts.to_vec(),
         items,
@@ -145,13 +145,13 @@ fn labelled(words: &[&str]) -> HashSet<String> {
     words.iter().map(|word| word.to_string()).collect()
 }
 
-struct Screen {
+pub(crate) struct Screen {
     backend: Rc<Recorder>,
     announcer: ScreenAnnouncer,
 }
 
 impl Screen {
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Screen::with(false)
     }
 
@@ -192,7 +192,7 @@ impl Screen {
         Screen { backend, announcer }
     }
 
-    fn say(&mut self, given: Args) -> Vec<String> {
+    pub(crate) fn say(&mut self, given: Args) -> Vec<String> {
         let before = self.backend.spoken().len();
         let under: Vec<Vec<ScreenText>> =
             given.items.iter().map(|item| item.pieces.clone()).collect();
