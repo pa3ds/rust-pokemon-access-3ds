@@ -18,6 +18,7 @@ use crate::core::rtti::ClassNames;
 use crate::core::speech::Speech;
 use crate::games::common::announce::{Focus, SPEAKER_POLLS};
 use crate::games::common::msgwin as common_msgwin;
+use crate::games::common::screen::ScreenText;
 use crate::games::common::session::Profile;
 use crate::games::sm::heaps::{self, Blocks, Heaps};
 use crate::games::sm::langselect::{self, LangSelectReader, Shown};
@@ -588,6 +589,34 @@ fn test_a_mart_s_list_says_the_item_under_its_cursor_by_its_number() {
     memory.u32(DRAW, &[0]);
     assert_eq!(reader.poll().unwrap(), None);
     assert_eq!(reader.showing(), None);
+}
+
+/// Every row's words hang from one pane: taken by the pane, every item read $100, the last
+/// row's (spike Q, Route 1's Mart, Poké Ball $200 and Paralyze Heal $300 on screen).
+#[test]
+fn test_a_mart_s_item_is_priced_by_the_row_its_price_shares_on_screen() {
+    let at = |text: &str, row: f64| -> ScreenText {
+        ScreenText {
+            row,
+            parent: 0x31A1AA14,
+            ..ScreenText::new(0, text, false)
+        }
+    };
+    let names = [
+        at("Poké Ball", 90.0),
+        at("Paralyze Heal", 30.0),
+        at("Awakening", 10.0),
+    ];
+    let prices = [at("$200", 90.5), at("$300", 30.5), at("$100", 10.5)];
+    assert_eq!(
+        shop::priced(&names, &prices),
+        IndexMap::from([
+            ("Poké Ball".to_string(), "$200".to_string()),
+            ("Paralyze Heal".to_string(), "$300".to_string()),
+            ("Awakening".to_string(), "$100".to_string()),
+        ])
+    );
+    assert!(shop::priced(&names, &[]).is_empty());
 }
 
 /// A sweep of the blocks just allocated says what is new and nothing of what is gone: taken as

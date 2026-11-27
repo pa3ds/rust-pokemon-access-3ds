@@ -12,6 +12,10 @@
 //! App::Shop::ShopFrame +0x7c u16 the row, from 0
 //! ```
 //!
+//! The item is said with the price on its row, "Potion $200", and the money, the count in the bag
+//! and the description are screen text, said as they change, as ORAS's are (`priced`, spike Q):
+//! the cursor over the list stood over the whole layout, and none of them was said.
+//!
 //! Sun's keeps the item at the same +0xc4 (Sun's Route 1 Mart, driven live to it through Iki
 //! Town's festival: 4, 17, 18, 22 down the list and 18 back up). The version layout says where
 //! (`sm.VersionLayout`), and a version whose field is not measured is not read.
@@ -21,10 +25,13 @@
 
 use std::rc::Rc;
 
+use indexmap::IndexMap;
+
 use crate::core::binary::u16;
 use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
 use crate::games::common::announce::Focus;
+use crate::games::common::screen::ScreenText;
 use crate::games::sm::text::SunText;
 use crate::py::Result;
 
@@ -34,6 +41,29 @@ pub const ITEM_NAMES: i64 = 36;
 /// The start of the names of the list's rows' TextBoxes, `Text_ItemName_00` on: while they are on
 /// screen the list is up, and `ShopDraw`, which only a sweep finds, is wanted.
 pub const LIST_PANE: &[u8] = b"Text_ItemName";
+/// The start of the names of the rows' prices, each beside its name under the row's own pane.
+pub const PRICE_PANE: &[u8] = b"Text_ItemPrice";
+
+/// Each row's item -> its price, said with it as ORAS says a Mart's row, "Potion $200". Every
+/// row's words hang from one pane, so a price is its name's by the row they share on screen: by
+/// the pane, every item read the last row's $100 (spike Q, Route 1's Mart).
+pub fn priced(names: &[ScreenText], prices: &[ScreenText]) -> IndexMap<String, String> {
+    let Some(first) = prices.first() else {
+        return IndexMap::new();
+    };
+    let mut out: IndexMap<String, String> = IndexMap::new();
+    for name in names {
+        // `min(..., key=...)`: the first of equals, a later one only where strictly nearer.
+        let mut best = first;
+        for price in &prices[1..] {
+            if (price.row - name.row).abs() < (best.row - name.row).abs() {
+                best = price;
+            }
+        }
+        out.insert(name.text.clone(), best.text.clone());
+    }
+    out
+}
 
 /// The item under a Poké Mart list's cursor, said as it changes.
 pub struct ShopReader {

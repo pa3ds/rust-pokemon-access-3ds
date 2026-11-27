@@ -28,7 +28,7 @@ use crate::core::names::Names;
 use crate::core::rtti::{ClassNames, demangle};
 use crate::core::speech::{Category, Speech};
 use crate::core::words::own;
-use crate::games::common::announce::Announcements;
+use crate::games::common::announce::{Announcements, Focus};
 use crate::games::common::battle::{MAX_ASKS, REASK};
 use crate::games::common::cursors::reader::CursorReader;
 use crate::games::common::cursors::shared::CursorItem;
@@ -209,6 +209,10 @@ pub struct SunProfile {
     /// A Mart's list is on screen with its shop object not found yet.
     shop_wanted: Cell<bool>,
     shop_asked: Cell<bool>,
+    /// A Mart's list's prices by the item on their row, as the last screen poll read them.
+    prices: RefCell<IndexMap<String, String>>,
+    /// The TextBoxes of a Mart's list's rows, its names and prices: the shop reader's.
+    shop_rows: RefCell<HashSet<i64>>,
     /// The Pokédex is running with nothing on screen read: a page whose layout no sweep has
     /// found yet.
     pub(crate) blank: Cell<bool>,
@@ -435,6 +439,8 @@ impl SunProfile {
             held: RefCell::new(IndexMap::new()),
             shop_wanted: Cell::new(false),
             shop_asked: Cell::new(false),
+            prices: RefCell::new(IndexMap::new()),
+            shop_rows: RefCell::new(HashSet::new()),
             blank: Cell::new(false),
             blank_asks: Cell::new(0),
             battle: RefCell::new(battle),
@@ -482,16 +488,31 @@ impl SunProfile {
         if self.shop.borrow().reads() {
             // A Mart's list: the shop's reader says the item under the cursor, which only a sweep
             // finds as the list opens; the cursor over the list would read its rows whole.
-            let mut rows: HashSet<i64> = HashSet::new();
+            let mut names: Vec<ScreenText> = Vec::new();
             for piece in &screen.on_screen {
                 if self.layouts.name(piece.r#box)?.starts_with(shop::LIST_PANE) {
-                    rows.insert(piece.r#box);
+                    names.push(piece.clone());
                 }
             }
+            let mut prices: Vec<ScreenText> = Vec::new();
+            for piece in &screen.on_screen {
+                if self.layouts.name(piece.r#box)?.starts_with(shop::PRICE_PANE) {
+                    prices.push(piece.clone());
+                }
+            }
+            *self.prices.borrow_mut() = shop::priced(&names, &prices);
+            let rows: HashSet<i64> = names.iter().chain(&prices).map(|p| p.r#box).collect();
+            *self.shop_rows.borrow_mut() = rows.clone();
             if !rows.is_empty() {
+                // The rows are the shop reader's; the money, the count in the bag and the
+                // description are the screen's, said as they change, as ORAS's are. The cursor
+                // over the list stood over all of it, and none was said (spike Q, Route 1's Mart).
                 cursors
                     .items
                     .retain(|found| !found.pieces.iter().any(|piece| rows.contains(&piece.r#box)));
+                cursors
+                    .under
+                    .retain(|under| !under.iter().any(|piece| rows.contains(&piece.r#box)));
             }
             self.shop_wanted
                 .set(!rows.is_empty() && self.shop.borrow().showing().is_none());
@@ -519,7 +540,10 @@ impl SunProfile {
             let texts: Vec<ScreenText> = screen
                 .texts
                 .iter()
-                .filter(|text| !self.battle.borrow().owns(text))
+                .filter(|text| {
+                    !self.battle.borrow().owns(text)
+                        && !self.shop_rows.borrow().contains(&text.r#box)
+                })
                 .cloned()
                 .collect();
             let texts = self._without_plates(texts)?;
@@ -761,14 +785,25 @@ impl Profile for SunProfile {
     /// Poll the language choice, a Poké Mart's list and the PC Box. Returns whether it said
     /// anything.
     fn poll_menus(&self) -> Result<bool> {
-        let (shown, item) = self.phase("menus", || {
+        let (shown, shop_item, mut item) = self.phase("menus", || {
             let shown = self.langselect.borrow_mut().poll()?;
-            let item = match self.shop.borrow_mut().poll()? {
-                Some(item) => Some(item),
+            let shop_item = self.shop.borrow_mut().poll()?;
+            let item = match &shop_item {
+                Some(item) => Some(item.clone()),
                 None => self.r#box.borrow_mut().poll()?,
             };
-            Ok((shown, item))
+            Ok((shown, shop_item, item))
         })?;
+        if let Some(shop_item) = shop_item {
+            let price = self.prices.borrow().get(&shop_item.label).cloned();
+            if let Some(price) = price.filter(|price| !price.is_empty()) {
+                // As ORAS says a Mart's row, "Potion $200": the price is on the item's row.
+                item = Some(Focus {
+                    label: format!("{} {price}", shop_item.label),
+                    ..shop_item
+                });
+            }
+        }
         if let Some(item) = &item {
             self.announcements.borrow_mut().focus(item, "menu", false);
         }

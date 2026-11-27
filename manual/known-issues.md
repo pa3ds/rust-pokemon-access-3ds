@@ -169,8 +169,6 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
   moment after it gets there. Its first menu's choices say their counts, "Alola Pokédex 3
   caught 9 seen", but the menu as it opens reads them bare, "Alola Pokédex 3 9", and an entry's
   page is read whole as it opens, its words run together: "Height1'00" Weight3.3 lbs.".
-- **A Poké Mart's buy list** says only the item under the cursor, not its price or how many
-  you have, which are on screen beside it.
 - **Hidden items**, listed with `hidden_items = "all"`: whether one leaves the list once you
   have found it has not been tried, nor where you stand to pick one up; `P` says "here" anywhere
   within the patch of ground the game gives it.
