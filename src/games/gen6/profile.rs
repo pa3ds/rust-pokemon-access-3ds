@@ -53,8 +53,8 @@ use crate::games::common::field::navigate::{
     DoorSign, LeadsTo, Navigator, Options as NavigatorOptions, Part, Sides, Street,
 };
 use crate::games::common::field::things::{
-    FURNITURE_SOURCE, Field, Interactable, MODEL_SOURCE, WARP_SOURCE, describe,
-    source_kind, source_number,
+    FURNITURE_SOURCE, Field, Interactable, MODEL_SOURCE, WARP_SOURCE, describe, source_kind,
+    source_number,
 };
 use crate::games::common::layout::{Cached, Layouts};
 use crate::games::common::layout_file::{LayoutFile, LayoutFiles};
@@ -76,11 +76,11 @@ use crate::games::common::{lyt, msgwin, pokemon, strbuf};
 use crate::games::gen6::anchors::Anchors;
 use crate::games::gen6::apps::{BATTLE, DEMOS, FIELD, MANAGER_CLASS, RunningApp, TUTORIAL};
 use crate::games::gen6::field::dowsing::Lights;
-use crate::games::gen6::field::voice::Voice;
 use crate::games::gen6::field::features::Sighting;
 use crate::games::gen6::field::footsteps::Footsteps;
 use crate::games::gen6::field::reader::{FieldReader, MOVE_MODEL_CLASS};
 use crate::games::gen6::field::speaker::SpeakerReader;
+use crate::games::gen6::field::voice::Voice;
 use crate::games::gen6::field::{camera, mapblock, talk};
 use crate::games::gen6::game::Game;
 use crate::games::gen6::own::{Kit, Own, OwnApp};
@@ -1215,9 +1215,10 @@ impl Gen6Profile {
                     offset,
                     field_process(apps.clone()),
                 ));
-                vec![Rc::new(move |r#where: Option<&Field>| {
-                    lights.borrow_mut().heard(r#where)
-                }) as Voice]
+                vec![
+                    Rc::new(move |r#where: Option<&Field>| lights.borrow_mut().heard(r#where))
+                        as Voice,
+                ]
             }
         };
         let screen_announcer = ScreenAnnouncer::with_clock(
@@ -1959,9 +1960,7 @@ impl Gen6Profile {
             .on_screen
             .iter()
             .filter(|piece| {
-                !owned(piece)
-                    && !unsaid.contains(&piece.r#box)
-                    && !unseen.contains(&piece.root)
+                !owned(piece) && !unsaid.contains(&piece.r#box) && !unseen.contains(&piece.root)
             })
             .cloned()
             .collect();

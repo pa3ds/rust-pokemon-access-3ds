@@ -47,8 +47,8 @@ use crate::games::gen6::field::reader::{
     ASKS, FieldReader, MOVE_MODEL_CLASS, TABLE_ASKS, TABLE_EVERY,
 };
 use crate::games::gen6::field::terrain::NO_CHUNK_FILE;
-use crate::games::gen6::field::voice::Said;
 use crate::games::gen6::field::terrain::{FarCells, FarFloors, FarHeights, FarMatrices, Terrain};
+use crate::games::gen6::field::voice::Said;
 use crate::games::gen6::field::works::{EVENT_CLASS, FIRST_WORK, FLAGS, WORKS};
 use crate::games::gen6::field::zonedata::{
     ENTITY_HEADER, FURNITURE, NPC, WARP, WARP_DOOR, npc_trainers, zone_header,
@@ -2172,12 +2172,23 @@ fn test_a_watched_feature_is_listed_after_the_secret_bases_and_before_the_hidden
         .iter()
         .map(|item| item.kind.clone())
         .filter(|kind| {
-            ["berry spot", "secret base spot", HIDDEN_POKEMON, HIDDEN_ITEM].contains(&kind.as_str())
+            [
+                "berry spot",
+                "secret base spot",
+                HIDDEN_POKEMON,
+                HIDDEN_ITEM,
+            ]
+            .contains(&kind.as_str())
         })
         .collect();
     assert_eq!(
         kinds,
-        ["berry spot", "secret base spot", HIDDEN_POKEMON, HIDDEN_ITEM]
+        [
+            "berry spot",
+            "secret base spot",
+            HIDDEN_POKEMON,
+            HIDDEN_ITEM
+        ]
     );
     Ok(())
 }
@@ -4685,7 +4696,7 @@ fn test_a_cracked_tile_of_thin_ice_is_in_the_way_but_under_the_player() -> Resul
     };
     let mut town = Town::of(ice_of(room.clone()));
     let ground = town.reader.ground(&town.r#where()?)?;
-    assert_eq!(ground.ice, [room.clone()]);
+    assert_eq!(ground.ice, std::slice::from_ref(&room));
     let mut closed: Vec<(i64, i64)> = Vec::new();
     for &cell in room.cells().keys() {
         if !ground.open(cell)? {

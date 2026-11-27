@@ -17,10 +17,10 @@ use crate::games::common::touch::{ImageOf, Target};
 use crate::games::gen6::apps::{FIELD, RunningApp};
 use crate::games::gen6::profile;
 use crate::games::gen6::rom::archives::GameText;
-use crate::games::gen6::subscreen::berry_picker::{self, Touching};
-use crate::games::gen6::subscreen::{self, Subscreens};
 use crate::games::gen6::screens::boxes;
+use crate::games::gen6::subscreen::berry_picker::{self, Touching};
 use crate::games::gen6::subscreen::o_power::{self, OPower};
+use crate::games::gen6::subscreen::{self, Subscreens};
 use crate::games::gen6::subscreen::{amie, head_it, pss, puzzle, super_training};
 use crate::games::oras;
 use crate::py::Result;
@@ -214,7 +214,10 @@ fn test_o_powers_screens_turn_rows_and_r_says_its_energy_there() {
         Rc::new(|_root: i64| Ok(Vec::new())),
         false,
     );
-    fake.track(&IndexMap::from([(RECORD, o_power::CLASS.to_string())]), false);
+    fake.track(
+        &IndexMap::from([(RECORD, o_power::CLASS.to_string())]),
+        false,
+    );
     found.o_power = Rc::new(RefCell::new(fake));
     assert!(!found.turns() && asked.get() == 1);
     up.set(true);

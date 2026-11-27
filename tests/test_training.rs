@@ -113,7 +113,9 @@ fn test_a_party_slot_is_named_by_the_member_whose_icon_it_draws_however_the_reco
         (Some("Breloom".to_string()), Some("Sceptile".to_string()))
     );
     assert_eq!(
-        found.touched(FIRST, Some(super_training::SPARRING)).unwrap(),
+        found
+            .touched(FIRST, Some(super_training::SPARRING))
+            .unwrap(),
         None
     );
 }

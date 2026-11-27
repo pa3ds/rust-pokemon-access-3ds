@@ -20,18 +20,14 @@ use crate::games::common::field::ground::{CUT, ROCK_SMASH, STRENGTH};
 use crate::games::common::pictures;
 use crate::games::gen6::anchors::Chain;
 use crate::games::gen6::apps::FIELD;
-use crate::games::gen6::field::features::{
-    Feature, SecretBaseReader,
-};
+use crate::games::gen6::field::features::{Feature, SecretBaseReader};
 use crate::games::gen6::field::landform::{Belts, Landform, gen6};
 use crate::games::gen6::field::reader::{FLAG, PC_TILE};
 use crate::games::gen6::field::{mapblock, mmodel};
 use crate::games::gen6::game::{CursorShapes, Data, FurnitureKind, Game};
 use crate::games::gen6::rom::archives::{BOY, GIRL, GameText};
 use crate::games::gen6::rom::layout::{RomLayout, TownFacilities};
-use crate::games::gen6::screens::{
-    bag, boxes, buttons, pokedex, rows, summary, townmap,
-};
+use crate::games::gen6::screens::{bag, boxes, buttons, pokedex, rows, summary, townmap};
 use crate::games::gen6::subscreen::{amie, berry_picker, super_training};
 use crate::games::oras::field::ash::{self, AshPiles};
 use crate::games::oras::field::berries::BerrySpots;
@@ -420,7 +416,12 @@ pub fn contest_icons() -> (i64, IndexMap<String, i64>) {
     (
         contest::CATEGORY_LINES.0,
         (0..contest::CATEGORIES)
-            .map(|n| (format!("contest_icon_{n:02}"), contest::CATEGORY_LINES.1 + n))
+            .map(|n| {
+                (
+                    format!("contest_icon_{n:02}"),
+                    contest::CATEGORY_LINES.1 + n,
+                )
+            })
             .collect(),
     )
 }

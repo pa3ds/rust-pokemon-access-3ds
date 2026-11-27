@@ -22,10 +22,7 @@ const PIKACHU: [i64; 5] = [116, 70, 70, 70, 70];
 const STARRED: i64 = 0x0822C000;
 const PARAMS: i64 = 0x0822A000;
 /// The summary's conditions page, which draws the star's outline, and its stats page.
-const FILES: [(i64, &str); 2] = [
-    (STARRED, "params_contest.bclyt"),
-    (PARAMS, "params.bclyt"),
-];
+const FILES: [(i64, &str); 2] = [(STARRED, "params_contest.bclyt"), (PARAMS, "params.bclyt")];
 
 struct FakeLayouts;
 

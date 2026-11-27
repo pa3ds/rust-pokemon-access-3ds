@@ -43,8 +43,8 @@ use crate::core::speech::Category;
 use crate::core::words::own;
 use crate::games::common::field::chunk::{BLOCKED, CHUNK, COUNTER, Chunk};
 use crate::games::common::field::ground::{
-    self as common, BLOCK, Far, Grid, Ground, GroundHeight, NO_ZONE, Of, STRENGTH,
-    StepWords, Word, pushes, walkable,
+    self as common, BLOCK, Far, Grid, Ground, GroundHeight, NO_ZONE, Of, STRENGTH, StepWords, Word,
+    pushes, walkable,
 };
 use crate::games::common::field::ride::riding;
 use crate::games::common::field::things::{
@@ -54,18 +54,15 @@ use crate::games::common::field::things::{
 };
 use crate::games::gen6::anchors::follow;
 use crate::games::gen6::field::conveyors::{GymFloor, Switches};
-use crate::games::gen6::field::features::{
-    Feature, SecretBaseReader, Sighting, Tracked, Watched,
-};
+use crate::games::gen6::field::features::{Feature, SecretBaseReader, Sighting, Tracked, Watched};
 use crate::games::gen6::field::hidden_items::{HIDDEN_ITEM, HiddenItems, Only};
 use crate::games::gen6::field::landform::{
     Conveyors, Found as Worked, HOLE, Here, Holes, Landform, Matrix, Rides, TurningFloor, as_form,
-    identity,
-    beside, cell_number, dropped, holes_found, runs, spread,
+    beside, cell_number, dropped, holes_found, identity, runs, spread,
 };
 use crate::games::gen6::field::rail::{self, Rails, keep};
-use crate::games::gen6::field::voice::{Said, Voice};
 use crate::games::gen6::field::terrain::{FarCells, FarFloors, FarHeights, FarMatrices, Terrain};
+use crate::games::gen6::field::voice::{Said, Voice};
 use crate::games::gen6::field::works::Works;
 use crate::games::gen6::field::zonedata::{
     Bytes, FURNITURE, FURNITURE_SCRIPT, LZ11, NPC, NPC_INDEX, NPC_SCRIPT, NPC_SPRITE, NPC_X, NPC_Y,

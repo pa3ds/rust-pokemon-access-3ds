@@ -193,7 +193,10 @@ fn test_xs_menu_buttons_have_a_word_in_every_language_x_is_played_in() {
 
 #[test]
 fn test_a_picture_drawing_another_image_is_not_named() {
-    assert_eq!(page(amie::NUMBER).0.touched(OTHER, Some(FIELD)).unwrap(), None);
+    assert_eq!(
+        page(amie::NUMBER).0.touched(OTHER, Some(FIELD)).unwrap(),
+        None
+    );
 }
 
 /// A visitor's Sceptile stood beside Pikachu in the ring, said by a stale name of the party's
@@ -1727,7 +1730,10 @@ fn test_a_puff_is_named_by_the_texture_of_the_replace_system_holding_every_kind(
     );
     puffs.track(&systems, false).unwrap();
     assert_eq!(
-        puffs.touched(citrus, Some(amie::ARRANGE)).unwrap().as_deref(),
+        puffs
+            .touched(citrus, Some(amie::ARRANGE))
+            .unwrap()
+            .as_deref(),
         Some("Citrus Poké Puff")
     );
     assert_eq!(puffs.touched(item, Some(amie::ARRANGE)).unwrap(), None);
@@ -1779,12 +1785,18 @@ fn test_an_interior_item_is_named_by_its_slot_on_the_page_shown() {
         )
         .unwrap();
     assert_eq!(
-        goods.touched(picture, Some(amie::ARRANGE)).unwrap().as_deref(),
+        goods
+            .touched(picture, Some(amie::ARRANGE))
+            .unwrap()
+            .as_deref(),
         Some("Leaf Cushion")
     );
     memory.write(block + amie::PAGE, &[1]);
     assert_eq!(
-        goods.touched(picture, Some(amie::ARRANGE)).unwrap().as_deref(),
+        goods
+            .touched(picture, Some(amie::ARRANGE))
+            .unwrap()
+            .as_deref(),
         Some("Pink Star Cloud")
     );
 }

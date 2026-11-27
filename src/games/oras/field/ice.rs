@@ -234,5 +234,3 @@ impl Tracked for IceFloors {
         IceFloors::track(self, found)
     }
 }
-
-

@@ -260,8 +260,7 @@ impl AreaNav {
 
     /// The cursors, a list over the map read row by row, each row without its area.
     pub fn cursors(&mut self, cursors: CursorPoll, on_screen: &[ScreenText]) -> CursorPoll {
-        self.lists
-            .lists(cursors, self.area().as_deref(), on_screen)
+        self.lists.lists(cursors, self.area().as_deref(), on_screen)
     }
 
     /// The place the map's cursor is on or last was, as of the last screen poll.

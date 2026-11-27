@@ -130,7 +130,11 @@ fn imports(path: &Path, modules: &HashSet<String>) -> HashSet<String> {
             }
         }
     }
-    paths.extend(pathed.captures_iter(&code).map(|found| found[1].to_string()));
+    paths.extend(
+        pathed
+            .captures_iter(&code)
+            .map(|found| found[1].to_string()),
+    );
     let mut found: HashSet<String> = HashSet::new();
     for path in paths {
         let parts: Vec<&str> = path
