@@ -968,7 +968,7 @@ impl TouchTargets {
                 if kind != lyt::BOUNDING_CLASS || !shown(&layouts, area)? {
                     continue;
                 }
-                let name = self.name(area)?;
+                let name = self.layouts.pane_name(area)?;
                 if !works
                     .get(&root)
                     .is_some_and(|&work| off.contains(&(work, name)))
@@ -977,7 +977,7 @@ impl TouchTargets {
                     touches.push(area);
                     continue;
                 }
-                let name = self.name(area)?;
+                let name = self.layouts.pane_name(area)?;
                 if works
                     .get(&root)
                     .is_some_and(|&work| greyable.contains(&(work, name)))
@@ -1326,7 +1326,7 @@ impl TouchTargets {
                         let t = match image {
                             Some(image) if !image.is_empty() => Some(image),
                             _ => textures
-                                .get(&self.name(p)?)
+                                .get(&self.layouts.pane_name(p)?)
                                 .and_then(|textures| textures.first().cloned()),
                         };
                         if let Some(t) = t.filter(|t| !t.is_empty()) {
@@ -1385,7 +1385,7 @@ impl TouchTargets {
                         self.unnamed.insert(touch);
                         (self.log)(&format!(
                             "touch: {} of layout {root:#x} has no name",
-                            self.name(touch)?
+                            self.layouts.pane_name(touch)?
                         ));
                     }
                     continue;
@@ -1557,12 +1557,12 @@ impl TouchTargets {
                         .map(|boxes| boxes.iter().copied().collect())
                         .unwrap_or_default();
                     for r#box in learnt {
-                        self.worded.insert((file.name.clone(), self.name(r#box)?));
+                        self.worded.insert((file.name.clone(), self.layouts.pane_name(r#box)?));
                     }
                 }
                 for (&pane, kind) in &tree {
                     if kind == lyt::TEXTBOX_CLASS
-                        && self.worded.contains(&(file.name.clone(), self.name(pane)?))
+                        && self.worded.contains(&(file.name.clone(), self.layouts.pane_name(pane)?))
                     {
                         found.insert(pane);
                     }
@@ -1800,7 +1800,7 @@ impl TouchTargets {
         let shape = self.layouts.shape;
         let mut found: Vec<Target> = Vec::new();
         for &touch in touches {
-            let Some(place) = places.get(&self.name(touch)?) else {
+            let Some(place) = places.get(&self.layouts.pane_name(touch)?) else {
                 continue;
             };
             let pane = self.layouts.pane(touch)?;
@@ -1836,7 +1836,7 @@ impl TouchTargets {
         textures: &IndexMap<String, Vec<String>>,
     ) -> Result<Vec<String>> {
         let mut out: Vec<String> = drawn.get(&p).cloned().flatten().into_iter().collect();
-        out.extend(textures.get(&self.name(p)?).cloned().unwrap_or_default());
+        out.extend(textures.get(&self.layouts.pane_name(p)?).cloned().unwrap_or_default());
         out.retain(|image| !image.is_empty());
         Ok(out)
     }
@@ -1872,7 +1872,7 @@ impl TouchTargets {
             for &pane in &group {
                 if tree.get(&pane).map(String::as_str) == Some(lyt::PICTURE_CLASS) {
                     let mut images: Vec<String> = (self.image_of)(pane)?.into_iter().collect();
-                    images.extend(textures.get(&self.name(pane)?).cloned().unwrap_or_default());
+                    images.extend(textures.get(&self.layouts.pane_name(pane)?).cloned().unwrap_or_default());
                     for image in images {
                         if !image.is_empty() {
                             named.entry(image).or_default().insert(said.clone());
@@ -2068,7 +2068,7 @@ impl TouchTargets {
                 continue;
             }
             // Python builds `(work, self._name(pane))` before asking `off`, a None work too.
-            let pane_name = self.name(pane)?;
+            let pane_name = self.layouts.pane_name(pane)?;
             if work.is_some_and(|work| off.contains(&(work, pane_name))) {
                 continue;
             }
@@ -2091,12 +2091,6 @@ impl TouchTargets {
             }
         }
         Ok(found)
-    }
-
-    fn name(&self, pane: i64) -> Result<String> {
-        let raw = self.layouts.name(pane)?;
-        let end = raw.iter().position(|&byte| byte == 0).unwrap_or(raw.len());
-        Ok(py::decode_ascii(&raw[..end]))
     }
 }
 

@@ -46,7 +46,7 @@ use crate::games::common::layout::TrackedLayouts;
 use crate::games::common::layout_file::{FileMatching, FilesOnScreen};
 use crate::games::common::screen::ScreenText;
 use crate::games::gen6::anchors::Kept;
-use crate::py::{self, Error, Result};
+use crate::py::{Error, Result};
 
 pub const VIEW: i64 = 0x04;
 pub const VIEW_CLASS: &str = "N3btl16BattleViewSystemE";
@@ -230,7 +230,7 @@ impl BattleBag {
     fn title(&self, words: &[ScreenText], page: i64) -> Result<Option<String>> {
         let mut named: IndexMap<String, String> = IndexMap::new();
         for piece in words {
-            named.insert(name(&self.layouts.name(piece.r#box)?), piece.text.clone());
+            named.insert(self.layouts.pane_name(piece.r#box)?, piece.text.clone());
         }
         if !TITLE
             .iter()
@@ -272,10 +272,4 @@ enum Listed {
 
 fn within(address: i64) -> bool {
     OBJECTS.0 <= address && address < OBJECTS.1
-}
-
-/// A pane's name: its bytes up to the first zero.
-fn name(raw: &[u8]) -> String {
-    let end = raw.iter().position(|&byte| byte == 0).unwrap_or(raw.len());
-    py::decode_ascii(&raw[..end])
 }

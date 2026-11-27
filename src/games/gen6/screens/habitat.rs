@@ -208,7 +208,7 @@ impl HabitatReader {
         let mut icons: Vec<(i64, String)> = Vec::new();
         for (pane, kind) in self.layouts.tree(root) {
             if kind == lyt::PICTURE_CLASS
-                && let Some(icon) = drawn_with(&file, &self.name(pane)?)
+                && let Some(icon) = drawn_with(&file, &self.layouts.pane_name(pane)?)
             {
                 icons.push((pane, icon));
             }
@@ -249,7 +249,7 @@ impl HabitatReader {
             let tree = self.layouts.tree(root);
             let mut lit: HashSet<String> = HashSet::new();
             for (pane, kind) in &tree {
-                let name = self.name(*pane)?;
+                let name = self.layouts.pane_name(*pane)?;
                 if kind != lyt::BOUNDING_CLASS || !self.places.contains_key(&name) {
                     continue;
                 }
@@ -259,7 +259,7 @@ impl HabitatReader {
                         && let Some(file) = &file
                         && file
                             .textures
-                            .get(&self.name(child)?)
+                            .get(&self.layouts.pane_name(child)?)
                             .is_some_and(|held| held.len() == 1 && held[0] == POINT)
                         && shown.is_some_and(|shown| shown.shown)
                     {
@@ -299,15 +299,6 @@ impl HabitatReader {
             self.kinds.insert(names.clone(), kind);
         }
         self.kinds[&names]
-    }
-
-    fn name(&self, pane: i64) -> Result<String> {
-        let name = self.layouts.name(pane)?;
-        let end = name
-            .iter()
-            .position(|&byte| byte == 0)
-            .unwrap_or(name.len());
-        Ok(py::decode_ascii(&name[..end]))
     }
 }
 

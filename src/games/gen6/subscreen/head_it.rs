@@ -662,12 +662,14 @@ impl HeadIt {
             return Ok(Some(MISSED));
         }
         if draws(file, SCORE_WINDOW) {
-            let name = name(&self.layouts, piece.r#box)?;
+            let name = self.layouts.pane_name(piece.r#box)?;
             return Ok([SCORE_PANE, COMBO_PANE]
                 .into_iter()
                 .find(|&pane| pane == name));
         }
-        if draws(file, STATUS) && GROUPS.contains(&name(&self.layouts, piece.parent)?.as_str()) {
+        if draws(file, STATUS)
+            && GROUPS.contains(&self.layouts.pane_name(piece.parent)?.as_str())
+        {
             return Ok(Some(LEFT));
         }
         Ok(None)
@@ -1035,15 +1037,6 @@ fn draws(file: &LayoutFile, texture: &str) -> bool {
     file.textures
         .values()
         .any(|textures| textures.iter().any(|each| each == texture))
-}
-
-fn name(layouts: &Layouts, pane: i64) -> Result<String> {
-    let name = layouts.name(pane)?;
-    let end = name
-        .iter()
-        .position(|&byte| byte == 0)
-        .unwrap_or(name.len());
-    Ok(py::decode_ascii(&name[..end]))
 }
 
 /// Seconds from a ball's last step until it reaches the height `at`, by its record (`BALL`):

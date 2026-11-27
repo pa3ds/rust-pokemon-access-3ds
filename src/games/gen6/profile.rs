@@ -749,9 +749,7 @@ impl Gen6Profile {
                 Rc::new(move |pane: i64| {
                     let placement = layouts.placement(pane)?;
                     let file = placement.and_then(|placement| file_of(placement.root));
-                    let raw = layouts.name(pane)?;
-                    let end = raw.iter().position(|&byte| byte == 0).unwrap_or(raw.len());
-                    let name = py::decode_ascii(&raw[..end]);
+                    let name = layouts.pane_name(pane)?;
                     let filed: Vec<String> = file
                         .and_then(|file| file.textures.get(&name).cloned())
                         .unwrap_or_default();

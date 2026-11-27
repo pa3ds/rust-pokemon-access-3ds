@@ -172,9 +172,7 @@ fn texture_of(
     drawn: &IndexMap<String, Vec<String>>,
     pane: i64,
 ) -> Result<Option<String>> {
-    let raw = layouts.name(pane)?;
-    let end = raw.iter().position(|&byte| byte == 0).unwrap_or(raw.len());
-    let name = py::decode_ascii(&raw[..end]);
+    let name = layouts.pane_name(pane)?;
     Ok(drawn.get(&name).and_then(|found| found.first().cloned()))
 }
 

@@ -59,8 +59,8 @@ impl TrackedLayouts for FakeLayouts {
         }
     }
 
-    fn name(&self, _pane: i64) -> Result<Vec<u8>> {
-        panic!("_Layouts has no attribute 'name'")
+    fn pane_name(&self, _pane: i64) -> Result<String> {
+        panic!("_Layouts has no attribute 'pane_name'")
     }
 }
 

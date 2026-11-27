@@ -31,10 +31,10 @@ impl TrackedLayouts for FakeLayouts {
         }
     }
 
-    fn name(&self, pane: i64) -> Result<Vec<u8>> {
+    fn pane_name(&self, pane: i64) -> Result<String> {
         match pane {
-            GROUP => Ok(b"2t\0".to_vec()),
-            IN_BAG => Ok(b"2r\0".to_vec()),
+            GROUP => Ok("2t".to_string()),
+            IN_BAG => Ok("2r".to_string()),
             _ => Err(Error::key(pane.to_string())),
         }
     }
@@ -115,10 +115,10 @@ fn test_xs_count_is_its_group_named_30() {
             FakeLayouts.pane_names(root)
         }
 
-        fn name(&self, pane: i64) -> Result<Vec<u8>> {
+        fn pane_name(&self, pane: i64) -> Result<String> {
             match pane {
-                GROUP => Ok(b"30\0".to_vec()),
-                IN_BAG => Ok(b"2w\0".to_vec()),
+                GROUP => Ok("30".to_string()),
+                IN_BAG => Ok("2w".to_string()),
                 _ => Err(Error::key(pane.to_string())),
             }
         }

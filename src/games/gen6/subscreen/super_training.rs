@@ -214,7 +214,7 @@ pub const SHOT_ICON: &str = "shot_icon0";
 /// for one Pokémon. The PlayNav's archive, its five shot icons in it, is loaded
 /// at a new place each time the page comes back, and `LayoutFiles` keeps every texture's name by
 /// its address for good, so another picture drawn where one of them was is named by it.
-pub const SHOT_PANE: &[u8] = b"3v";
+pub const SHOT_PANE: &str = "3v";
 /// That state, from when the Pokémon has finished its bag until it is tapped: the "!" over it.
 pub const FINISHED: i64 = 4;
 /// That state, while the Pokémon rests: said as it is, as a finished bag is.
@@ -1137,12 +1137,7 @@ impl TrainingKeys {
                 image.starts_with(SHOT_ICON)
             })?
         {
-            let name = self.layouts.name(pane)?;
-            let end = name
-                .iter()
-                .position(|&byte| byte == 0)
-                .unwrap_or(name.len());
-            if &name[..end] == SHOT_PANE {
+            if self.layouts.pane_name(pane)? == SHOT_PANE {
                 said.push(picture_words(&image));
             }
         }

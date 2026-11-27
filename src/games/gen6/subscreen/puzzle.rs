@@ -503,20 +503,18 @@ impl TilePuzzle {
 
     /// A touch area's name as a number in base 36, or None for a name that is not one.
     fn number(&self, area: i64) -> Result<Option<i64>> {
-        let raw = self.layouts.name(area)?;
-        let end = raw.iter().position(|&byte| byte == 0).unwrap_or(raw.len());
-        Ok(int_base36(&raw[..end]))
+        Ok(int_base36(&self.layouts.pane_name(area)?))
     }
 }
 
-/// `int(name.decode("ascii"), 36)`, None where either raises: ASCII only, outer whitespace, a
-/// sign, and single underscores between digits. `py` has no base 36. A number past an i64 is
-/// None too, where Python's is a number no touch area's slot is: either way the area has no slot.
-fn int_base36(name: &[u8]) -> Option<i64> {
-    if !name.is_ascii() {
+/// `int(name, 36)`, None where it raises: ASCII only, a byte past it read as U+FFFD, outer
+/// whitespace, a sign, and single underscores between digits. `py` has no base 36. A number past
+/// an i64 is None too, where Python's is a number no touch area's slot is: either way the area has
+/// no slot.
+fn int_base36(text: &str) -> Option<i64> {
+    if !text.is_ascii() {
         return None;
     }
-    let text = std::str::from_utf8(name).ok()?;
     let text = text.trim_matches(|c| matches!(c, ' ' | '\t' | '\n' | '\x0b' | '\x0c' | '\r'));
     let (negative, digits) = match text.strip_prefix('-') {
         Some(rest) => (true, rest),

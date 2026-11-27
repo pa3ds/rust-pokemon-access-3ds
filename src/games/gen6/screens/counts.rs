@@ -17,7 +17,7 @@ use indexmap::IndexMap;
 use crate::games::common::layout::TrackedLayouts;
 use crate::games::common::layout_file::{FileMatching, FilesOnScreen};
 use crate::games::common::screen::{ScreenText, join};
-use crate::py::{self, Result};
+use crate::py::Result;
 
 /// The count's group, by its layout's file and the group pane's name: the Mart's own list, `2t` in
 /// Omega Ruby and `30` in X (spike 302 on x_pokemart), and the Bag's window for how many to sell,
@@ -65,7 +65,7 @@ impl Counts {
         let mut kept: IndexMap<i64, Vec<ScreenText>> = IndexMap::new();
         for (parent, pieces) in groups {
             let file = files[&pieces[0].root].clone();
-            let name = self::name(&self.layouts.name(parent)?);
+            let name = self.layouts.pane_name(parent)?;
             if GROUPS.contains(&(file.as_str(), name.as_str())) {
                 kept.insert(parent, pieces);
             }
@@ -86,10 +86,4 @@ impl Counts {
             groups.values().flatten().map(|piece| piece.r#box).collect(),
         ))
     }
-}
-
-/// A pane's name: its bytes up to the first zero.
-fn name(raw: &[u8]) -> String {
-    let end = raw.iter().position(|&byte| byte == 0).unwrap_or(raw.len());
-    py::decode_ascii(&raw[..end])
 }

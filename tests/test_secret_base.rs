@@ -33,8 +33,8 @@ impl TrackedLayouts for FakeLayouts {
         vec![files(root).to_string()]
     }
 
-    fn name(&self, _pane: i64) -> Result<Vec<u8>> {
-        panic!("SimpleNamespace has no attribute 'name'")
+    fn pane_name(&self, _pane: i64) -> Result<String> {
+        panic!("SimpleNamespace has no attribute 'pane_name'")
     }
 }
 

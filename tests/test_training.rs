@@ -533,7 +533,7 @@ fn keys(
     let (fake, drawn, panes) = drawing(&images);
     fake.memory.write(
         panes[panes.len() - 1] + fake.layouts.shape.name,
-        super_training::SHOT_PANE,
+        super_training::SHOT_PANE.as_bytes(),
     );
     let memory = FakeMemory::new();
     let sparring = Rc::new(RefCell::new(super_training::Round::new(

@@ -270,7 +270,7 @@ pub fn button(
                 {
                     continue;
                 }
-                if let Some(textures) = file.textures.get(&name(layouts, pane)?)
+                if let Some(textures) = file.textures.get(&layouts.pane_name(pane)?)
                     && !textures.is_empty()
                 {
                     return Ok(Some((touch, words(&textures[0]), true)));
@@ -496,7 +496,7 @@ fn mark_of(
         if (px - x).abs() > width / 2.0 || (py - y).abs() > height / 2.0 {
             continue;
         }
-        let Some(textures) = file.textures.get(&name(layouts, pane)?) else {
+        let Some(textures) = file.textures.get(&layouts.pane_name(pane)?) else {
             continue;
         };
         for texture in textures {
@@ -527,7 +527,7 @@ fn icons(layouts: &Layouts, file: &LayoutFile, root: i64) -> Result<Vec<(f64, f6
         if kind != lyt::PICTURE_CLASS {
             continue;
         }
-        let name = name(layouts, pane)?;
+        let name = layouts.pane_name(pane)?;
         if !file
             .textures
             .get(&name)
@@ -568,10 +568,4 @@ fn size(layouts: &Layouts, pane: i64) -> Result<(f64, f64)> {
 
 fn on(a: (f64, f64), b: (f64, f64)) -> bool {
     (a.0 - b.0).abs() <= SAME_SPOT && (a.1 - b.1).abs() <= SAME_SPOT
-}
-
-fn name(layouts: &Layouts, pane: i64) -> Result<String> {
-    let raw = layouts.name(pane)?;
-    let end = raw.iter().position(|&byte| byte == 0).unwrap_or(raw.len());
-    Ok(py::decode_ascii(&raw[..end]))
 }

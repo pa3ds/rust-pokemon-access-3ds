@@ -227,7 +227,7 @@ impl Panes {
 
     /// The first texture a picture pane's layout file gives it, or None.
     pub fn texture(&self, pane: i64, file: &LayoutFile) -> Result<Option<String>> {
-        let name = self.pane_name(pane)?;
+        let name = self.layouts.pane_name(pane)?;
         Ok(file
             .textures
             .get(&name)
@@ -349,7 +349,7 @@ impl Panes {
                     .insert((root, pane), drawn);
                 return Ok(drawn);
             };
-            let name = self.pane_name(pane)?;
+            let name = self.layouts.pane_name(pane)?;
             let textures = match file.textures.get(&name) {
                 Some(textures) if !textures.is_empty() => Some(textures),
                 _ => file
@@ -399,13 +399,6 @@ impl Panes {
     /// `u32(self.layouts.pane(pane), lyt.PARENT)`.
     pub fn parent(&self, pane: i64) -> Result<i64> {
         u32(&self.layouts.pane(pane)?, lyt::PARENT)
-    }
-
-    /// A pane's name as its layout file gives it: the bytes up to the first NUL, decoded as ASCII.
-    pub fn pane_name(&self, pane: i64) -> Result<String> {
-        let raw = self.layouts.name(pane)?;
-        let end = raw.iter().position(|&byte| byte == 0).unwrap_or(raw.len());
-        Ok(py::decode_ascii(&raw[..end]))
     }
 }
 

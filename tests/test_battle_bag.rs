@@ -46,12 +46,12 @@ impl TrackedLayouts for FakeLayouts {
         vec![file.to_string()]
     }
 
-    fn name(&self, address: i64) -> Result<Vec<u8>> {
-        let name = TITLE_PANES
+    fn pane_name(&self, address: i64) -> Result<String> {
+        Ok(TITLE_PANES
             .iter()
             .find(|&&(pane, _)| pane == address)
-            .map_or("?", |&(_, name)| name);
-        Ok([name.as_bytes(), b"\0"].concat())
+            .map_or("?", |&(_, name)| name)
+            .to_string())
     }
 }
 

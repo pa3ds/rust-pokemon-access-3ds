@@ -125,7 +125,7 @@ impl CursorPanes {
                 return Ok(None);
             }
         }
-        let name = self.panes.pane_name(group)?;
+        let name = self.layouts.pane_name(group)?;
         Ok(pane_words(&name))
     }
 

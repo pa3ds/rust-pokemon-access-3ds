@@ -135,7 +135,7 @@ fn byte(head: &[u8], at: i64) -> Result<i64> {
 pub trait TrackedLayouts {
     fn works(&self) -> IndexMap<i64, i64>;
     fn pane_names(&self, root: i64) -> Vec<String>;
-    fn name(&self, pane: i64) -> Result<Vec<u8>>;
+    fn pane_name(&self, pane: i64) -> Result<String>;
 }
 
 impl TrackedLayouts for Layouts {
@@ -147,8 +147,8 @@ impl TrackedLayouts for Layouts {
         Layouts::pane_names(self, root)
     }
 
-    fn name(&self, pane: i64) -> Result<Vec<u8>> {
-        Layouts::name(self, pane)
+    fn pane_name(&self, pane: i64) -> Result<String> {
+        Layouts::pane_name(self, pane)
     }
 }
 
@@ -711,6 +711,11 @@ impl Layouts {
         .to_vec())
     }
 
+    /// A pane's name as its layout file gives it, up to its first NUL: `Btn_Fight`, `3v`.
+    pub fn pane_name(&self, address: i64) -> Result<String> {
+        Ok(named(&self.name(address)?))
+    }
+
     fn head(&self, address: i64, size: i64) -> Result<Vec<u8>> {
         // A read no longer than the object: in Sun the byte after one may be the GPU's (ADR-0035).
         if !self.panes.borrow().contains_key(&(address, size)) {
@@ -913,9 +918,7 @@ impl Layouts {
                 continue;
             }
             contents.insert(pane, name);
-            let label = py::slice_from(&head, self.shape.name);
-            let label = label.split(|&b| b == 0).next().unwrap_or_default();
-            names.push(py::decode_ascii(label));
+            names.push(named(py::slice_from(&head, self.shape.name)));
             let mut children: Vec<i64> = Vec::new();
             let mut node = u32(&head, lyt::CHILD_LIST)?;
             while node != 0 && node != pane + lyt::CHILD_LIST && (children.len() as i64) < MAX_PANES
@@ -985,4 +988,10 @@ impl Layouts {
         let width = f32(&body, lyt::LAYOUT_WIDTH)?;
         Ok(Some((root, width >= lyt::TOP_SCREEN_WIDTH, layout)))
     }
+}
+
+/// A pane's name out of its NUL-padded bytes, up to the first NUL.
+fn named(raw: &[u8]) -> String {
+    let end = raw.iter().position(|&byte| byte == 0).unwrap_or(raw.len());
+    py::decode_ascii(&raw[..end])
 }
