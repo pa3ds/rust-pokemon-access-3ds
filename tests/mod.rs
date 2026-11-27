@@ -42,6 +42,7 @@ mod test_gdb;
 mod test_head_it;
 mod test_heaps;
 mod test_hidden_items;
+mod test_imports;
 mod test_instance;
 mod test_keyfile;
 mod test_layout;
