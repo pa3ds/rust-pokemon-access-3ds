@@ -47,8 +47,8 @@ use indexmap::IndexMap;
 use crate::core::keyfile;
 use crate::core::toml;
 use crate::core::touch;
-use crate::core::{azahar, folders};
 use crate::core::words::own;
+use crate::core::{azahar, folders};
 use crate::py::{self, Result};
 
 pub const FILE_NAME: &str = "config.toml";
@@ -902,10 +902,7 @@ fn carried(
 
 /// A table of the parsed file by its dotted name, `pa3ds.ui`: None where it has none, here an
 /// empty table, as `toml.table` makes of None.
-fn under(
-    parsed: &IndexMap<String, ::toml::Value>,
-    table: &str,
-) -> IndexMap<String, ::toml::Value> {
+fn under(parsed: &IndexMap<String, ::toml::Value>, table: &str) -> IndexMap<String, ::toml::Value> {
     let mut found = parsed.clone();
     for key in table.split('.') {
         found = toml::table(found.get(key));

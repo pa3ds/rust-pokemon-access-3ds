@@ -90,7 +90,10 @@ fn test_a_keys_line_is_heard_as_its_sound_or_said_without_it() {
         None,
         None,
     );
-    assert_eq!(alone.heard(WRONG_SOUND, "nothing to drag"), "nothing to drag");
+    assert_eq!(
+        alone.heard(WRONG_SOUND, "nothing to drag"),
+        "nothing to drag"
+    );
     assert!(!alone.has(&[WRONG_SOUND]));
 }
 

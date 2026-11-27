@@ -430,7 +430,11 @@ impl Said {
 
     /// The pieces under the cursor at the last poll; none for a cursor not read.
     pub fn under(&self, cursor: i64) -> Vec<ScreenText> {
-        self.under.borrow().get(&cursor).cloned().unwrap_or_default()
+        self.under
+            .borrow()
+            .get(&cursor)
+            .cloned()
+            .unwrap_or_default()
     }
 
     /// The pieces under each cursor on screen (`CursorPoll.under`).

@@ -667,9 +667,7 @@ impl HeadIt {
                 .into_iter()
                 .find(|&pane| pane == name));
         }
-        if draws(file, STATUS)
-            && GROUPS.contains(&self.layouts.pane_name(piece.parent)?.as_str())
-        {
+        if draws(file, STATUS) && GROUPS.contains(&self.layouts.pane_name(piece.parent)?.as_str()) {
             return Ok(Some(LEFT));
         }
         Ok(None)

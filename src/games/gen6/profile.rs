@@ -822,8 +822,9 @@ impl Gen6Profile {
             Rc::new(move || buttons.borrow().greyed())
         };
         // The game's own sounds for what a key or a moment has done, or the words in their place.
-        let sounds = sounds
-            .unwrap_or_else(|| Rc::new(FeedbackSounds::new(log.clone(), speech.clone(), None, None)));
+        let sounds = sounds.unwrap_or_else(|| {
+            Rc::new(FeedbackSounds::new(log.clone(), speech.clone(), None, None))
+        });
         // The input device managers `_frames` reads the game's count of frames through, made here
         // where Python's are made below: Head It's cue is handed `_frames`, as the scenes are.
         let managers = Rc::new(RefCell::new(PySet::new()));

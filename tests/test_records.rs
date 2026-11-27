@@ -33,10 +33,7 @@ fn game() -> Game {
             (TOWN, 0x30),
             FurnitureKind::Exit("exits".into(), "ladder".into(), ROUTE),
         )]),
-        triggers: IndexMap::from([(
-            (TOWN, 0x40),
-            ("exits".into(), "lift".into(), Some(ROUTE)),
-        )]),
+        triggers: IndexMap::from([((TOWN, 0x40), ("exits".into(), "lift".into(), Some(ROUTE)))]),
         ..oras::game().clone()
     }
 }
@@ -91,7 +88,15 @@ fn test_another_parts_warps_are_the_zone_loadeds_with_nothing_live_asked() -> Re
     )?;
     let got: Vec<_> = listed
         .iter()
-        .map(|item| (item.kind.as_str(), item.cell, item.size, item.zone, item.home))
+        .map(|item| {
+            (
+                item.kind.as_str(),
+                item.cell,
+                item.size,
+                item.zone,
+                item.home,
+            )
+        })
         .collect();
     assert_eq!(
         got,
@@ -147,14 +152,20 @@ fn test_furniture_is_a_sign_the_shipped_table_or_an_exit_the_game_says() -> Resu
     let memory = zonedata::Bytes(&data);
     let found = read_zone(&memory, 0)?;
     assert!(
-        found.is_some()
-            && read_records(&memory, found.as_ref().unwrap(), FURNITURE)?.len() == 3
+        found.is_some() && read_records(&memory, found.as_ref().unwrap(), FURNITURE)?.len() == 3
     );
     let found = found.unwrap();
     let listed = records(None).furniture(&memory, &found, Some(TOWN))?;
     let got: Vec<_> = listed
         .iter()
-        .map(|item| (item.category.as_str(), item.kind.as_str(), item.zone, item.home))
+        .map(|item| {
+            (
+                item.category.as_str(),
+                item.kind.as_str(),
+                item.zone,
+                item.home,
+            )
+        })
         .collect();
     assert_eq!(
         got,

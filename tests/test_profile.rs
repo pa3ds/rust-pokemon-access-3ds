@@ -26,9 +26,9 @@ use crate::games::common::field::keys::{ENEMY_SIDE, ITEM_NEXT, MODE_TOGGLE, OUR_
 use crate::games::common::session::Ways;
 use crate::games::common::touch::Target;
 use crate::games::gen6::apps::{BATTLE, DEMO, FIELD, MANAGER_CLASS};
+use crate::games::gen6::feedback::{CUE_SOUND, FeedbackSounds, Plays};
 use crate::games::gen6::field::features::Tracked;
 use crate::games::gen6::field::landform::{Here, Landform, gen6};
-use crate::games::gen6::feedback::{CUE_SOUND, FeedbackSounds, Plays};
 use crate::games::gen6::field::voice::{Said, Speaking};
 use crate::games::gen6::field::{dowsing, mapblock};
 use crate::games::gen6::game::Game;

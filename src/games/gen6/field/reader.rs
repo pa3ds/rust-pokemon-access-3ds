@@ -45,17 +45,16 @@ use crate::games::common::field::ground::{
 };
 use crate::games::common::field::ride::riding;
 use crate::games::common::field::things::{
-    EDGE_SOURCE, FURNITURE_SOURCE, Field, Interactable, OPENING_SOURCE,
-    STAIRS_SOURCE, TELEPORT_SOURCE, TELEPORTER, TILE_SOURCE, TRIGGER_SOURCE, WARP_SOURCE,
-    place_source,
+    EDGE_SOURCE, FURNITURE_SOURCE, Field, Interactable, OPENING_SOURCE, STAIRS_SOURCE,
+    TELEPORT_SOURCE, TELEPORTER, TILE_SOURCE, TRIGGER_SOURCE, WARP_SOURCE, place_source,
 };
 use crate::games::gen6::anchors::follow;
 use crate::games::gen6::field::conveyors::Switches;
 use crate::games::gen6::field::features::{Feature, Sighting, Tracked, Watched};
 use crate::games::gen6::field::hidden_items::{HiddenItems, Only};
 use crate::games::gen6::field::landform::{
-    Conveyors, Found as Worked, Here, Holes, Matrix, Rides, TurningFloor, as_form,
-    beside, dropped, holes_found, identity, runs, touching,
+    Conveyors, Found as Worked, Here, Holes, Matrix, Rides, TurningFloor, as_form, beside, dropped,
+    holes_found, identity, runs, touching,
 };
 use crate::games::gen6::field::models::Models;
 use crate::games::gen6::field::rail::{self, Rails, keep};
@@ -66,9 +65,9 @@ use crate::games::gen6::field::terrain::{FarCells, FarFloors, FarHeights, FarMat
 use crate::games::gen6::field::voice::{Said, Speaking, Voice};
 use crate::games::gen6::field::works::Works;
 use crate::games::gen6::field::zonedata::{
-    Bytes, FURNITURE, FURNITURE_SCRIPT, LZ11, NPC, NPC_INDEX, NPC_SCRIPT, NPC_SPRITE, NPC_X,
-    NPC_Z, TRIGGER_HEIGHT, TRIGGER_SCRIPT, TRIGGER_WIDTH, TRIGGER_X, TRIGGER_Y, TRIGGER_Z, WARP,
-    WARP_OUT, ZoneData, read_furniture, read_records, read_triggers, read_zone, zone_files,
+    Bytes, FURNITURE, FURNITURE_SCRIPT, LZ11, NPC, NPC_INDEX, NPC_SCRIPT, NPC_SPRITE, NPC_X, NPC_Z,
+    TRIGGER_HEIGHT, TRIGGER_SCRIPT, TRIGGER_WIDTH, TRIGGER_X, TRIGGER_Y, TRIGGER_Z, WARP, WARP_OUT,
+    ZoneData, read_furniture, read_records, read_triggers, read_zone, zone_files,
 };
 use crate::games::gen6::field::zonetable::{INFO_SIZE, ZoneTable};
 use crate::games::gen6::field::{fieldmap, mapblock, mmodel};
@@ -357,14 +356,20 @@ impl FieldReader {
             me: me.clone(),
             hidden_items: hidden_items(me),
             // `self._current`, through the reader being made.
-            models: Models::new(memory.clone(), shared.clone(), works.clone(), rides.clone(), {
-                let me = me.clone();
-                Rc::new(move || {
-                    me.upgrade()
-                        .expect("a reader is made in an Rc, which its holders keep")
-                        .current()
-                })
-            }),
+            models: Models::new(
+                memory.clone(),
+                shared.clone(),
+                works.clone(),
+                rides.clone(),
+                {
+                    let me = me.clone();
+                    Rc::new(move || {
+                        me.upgrade()
+                            .expect("a reader is made in an Rc, which its holders keep")
+                            .current()
+                    })
+                },
+            ),
             game: shared,
             text: words_of,
             works,
@@ -816,7 +821,12 @@ impl FieldReader {
             )?
         };
         let here = self.here(r#where, None);
-        for (form, found) in self.game.landforms.iter().zip(self.found(r#where.zone)?.iter()) {
+        for (form, found) in self
+            .game
+            .landforms
+            .iter()
+            .zip(self.found(r#where.zone)?.iter())
+        {
             ground = form.laid(found, ground, &here)?;
         }
         Ok(if ground.doors.is_empty() {
@@ -1008,7 +1018,12 @@ impl FieldReader {
         items.extend(self.edges(r#where.zone, !r#where.on_rail, true)?);
         items.extend(self.use_tiles(r#where.zone)?);
         let here = self.here(r#where, Some(people.clone()));
-        for (form, found) in self.game.landforms.iter().zip(self.found(r#where.zone)?.iter()) {
+        for (form, found) in self
+            .game
+            .landforms
+            .iter()
+            .zip(self.found(r#where.zone)?.iter())
+        {
             items.extend(form.listed(found, &here)?);
         }
         items.extend(self.stairs_in(r#where.zone)?);

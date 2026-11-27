@@ -6,9 +6,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use super::test_app::ENVIRONMENT;
 use crate::core::config::{self, General, Navigation, Table, Ui, Value};
-use crate::core::{azahar, keyfile};
 use crate::core::toml as toml_text;
 use crate::core::words::own;
+use crate::core::{azahar, keyfile};
 use crate::py;
 
 /// pytest's `tmp_path`: a folder of this test's own, gone when the test is.
@@ -348,7 +348,10 @@ fn test_a_start_writes_into_azahar_s_file_these_lines_alone() {
         ),
         ("enable_rpc_server=false", "enable_rpc_server=true"),
         ("log_filter\\default=true", "log_filter\\default=false"),
-        ("log_filter=*:Info", "log_filter=\"*:Info RPC_Server:Error\""),
+        (
+            "log_filter=*:Info",
+            "log_filter=\"*:Info RPC_Server:Error\"",
+        ),
         ("graphics_api\\default=true", "graphics_api\\default=false"),
         ("graphics_api=1", "graphics_api=2"),
         (

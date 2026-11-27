@@ -8,11 +8,11 @@ use std::sync::Arc;
 use indexmap::{IndexMap, IndexSet};
 
 use crate::core::config::Navigation;
-use crate::core::{azahar, keyfile};
 use crate::core::keys::{SHIFT_DOWN, SHIFT_UP, key_name};
 use crate::core::names::Names;
 use crate::core::pathfind::{self, Cell, Leg, nearest};
 use crate::core::speech::{Backend, Category, Speech, default_interrupts};
+use crate::core::{azahar, keyfile};
 use crate::games::common::field::chunk::{ANY_FLOOR, BLOCKED, CHUNK, Chunk, Floor, KIND_SHIFT};
 use crate::games::common::field::climb::Walls;
 use crate::games::common::field::grind::GrindRails;

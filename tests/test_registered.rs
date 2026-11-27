@@ -29,7 +29,10 @@ fn drawing(pane: &str, texture: &str) -> Rc<LayoutFile> {
 fn reader(slots: &[u16]) -> registered::Registered {
     let memory = FakeMemory::new();
     for (i, number) in slots.iter().enumerate() {
-        memory.write(BAG + registered::SLOTS + 2 * i as i64, &number.to_le_bytes());
+        memory.write(
+            BAG + registered::SLOTS + 2 * i as i64,
+            &number.to_le_bytes(),
+        );
     }
     let menu = drawing(registered::ICON_PANE, registered::ICON[0]);
     let other = drawing("p", "mode01.bclim");
