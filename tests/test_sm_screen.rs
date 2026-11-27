@@ -558,6 +558,37 @@ fn test_ultra_sun_s_level_hangs_from_the_glyph_and_is_said_all_the_same() {
     );
 }
 
+/// The PC Box's summary hangs the glyph and the level from two groups side by side: "Rowlet
+/// l9" (spike Q).
+#[test]
+fn test_the_pc_box_s_level_in_a_group_of_its_own_is_said_all_the_same() {
+    let title = Title::new();
+    let (slot, level) = (MENU + 0x5000, MENU + 0x6000);
+    title.fake.pane(slot, title.root);
+    title.fake.pane(level, title.root);
+    title.text_box_aligned(slot + 0x200, slot, "l", (-20.0, 103.0), LEFT, LEFT);
+    title.text_box_aligned(level + 0x200, level, "9", (-13.0, 103.0), LEFT, LEFT);
+    title.fake.track().unwrap();
+    let mut screen = ScreenTextReader::with(
+        title.memory.clone(),
+        Rc::new(ClassNames::new(title.memory.clone(), CODE)),
+        title.fake.layouts.clone(),
+        msgwin::CLASSES.iter().map(|c| c.to_string()).collect(),
+        Some("Lv.".to_string()),
+        None,
+        IndexMap::new(),
+        HashSet::new(),
+    );
+    screen.track(title.boxes.borrow().clone());
+    screen.poll(&HashSet::new(), false).unwrap();
+    assert!(
+        screen
+            .on_screen()
+            .into_iter()
+            .any(|piece| piece.text == "Lv.")
+    );
+}
+
 /// The party slot's "/" is the layout file's own, with no tag processor, between the current
 /// HP and the maximum that code writes: read as written words only, it was "Rowlet 22" and the
 /// maximum run together (sun_9.ctm). The designer's placeholders, and a "/" beside no written

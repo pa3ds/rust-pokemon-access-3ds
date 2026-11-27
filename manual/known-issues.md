@@ -162,7 +162,7 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
   again after a turn.
 - **The PC Box** says each slot as the cursor comes to it, "row 1, column 6, Slowpoke" or "Party
   1, Rowlet" or "row 1, column 5, empty", and then the Pokémon's whole summary on the top screen
-  at once, each value after its label, ending with its name and level, the level said "l9". Moving
+  at once, each value after its label, ending with its name and level. Moving
   a Pokémon is not said.
 - **The Pokédex's list** says each entry where the cursor lands, "Rowlet 001", "????? 012", a
   moment after it gets there. An entry's page is read whole as it opens.
