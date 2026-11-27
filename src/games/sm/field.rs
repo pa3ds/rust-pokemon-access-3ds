@@ -173,7 +173,7 @@ pub const ACTOR_HEAD: i64 = 0x20;
 /// The collision's group the prop is in, zero while it is in none: the people's bodies and the
 /// flower pots are one, the ranges they are talked to from another, warps' lines another
 /// (`prop_cells`). The shapes round two people nobody sees were in none, and the player walked
-/// through one of them (sun_5.ctm).
+/// through one of them (sun_5.ctm): someone whose shapes are in none is not listed (`left`).
 pub const PROP_SCENE: i64 = 0x0C;
 pub const PROP_SHAPE: i64 = 0x28;
 pub const PROP_X: i64 = 0x30;
@@ -295,6 +295,8 @@ pub struct SunFieldReader {
     bounds: RefCell<Bounds>,
     tracked: RefCell<Tracked>,
     kept: RefCell<Kept>,
+    /// Where the props in no collision group stand, as `shapes` last read them.
+    loose: RefCell<Vec<(f64, f64)>>,
     /// The collision's group that holds people's and props' bodies, once a drawn person has
     /// shown which it is: the same object from one area to the next (`prop_cells`).
     bodies: Cell<Option<i64>>,
@@ -381,6 +383,7 @@ impl SunFieldReader {
             bounds: RefCell::new(Bounds::default()),
             tracked: RefCell::new(Tracked::default()),
             kept: RefCell::new(Kept::default()),
+            loose: RefCell::new(Vec::new()),
             bodies: Cell::new(None),
             stood: Cell::new(None),
             turn: Cell::new(0),
@@ -587,6 +590,7 @@ impl SunFieldReader {
     /// group learnt from them where a drawn person stands in one (`prop_cells`).
     fn shapes(&self, drawn: &[(f64, f64)]) -> Result<Vec<Shaped>> {
         let mut shapes: Vec<Shaped> = Vec::new();
+        self.loose.borrow_mut().clear();
         let props = self.tracked.borrow().props.clone();
         for prop in props {
             if self.class(prop)?.as_deref() != Some(PROP) {
@@ -597,6 +601,9 @@ impl SunFieldReader {
             };
             let group = u32(&head, PROP_SCENE)?;
             if group == 0 {
+                self.loose
+                    .borrow_mut()
+                    .push((f32(&head, PROP_X)?, f32(&head, PROP_Z)?));
                 continue;
             }
             let shape = u32(&head, PROP_SHAPE)?;
@@ -639,6 +646,19 @@ impl SunFieldReader {
             self.bodies.set(Some(smallest.1));
         }
         Ok(shapes)
+    }
+
+    /// Whether someone drawn at (x, z) has left the field: their shapes, their body and the
+    /// range they are talked to from, are still round them but in no collision group. Kukui
+    /// walks off after his catching lesson as the screen fades; his model stayed drawn where he
+    /// stopped, and the player walked through his cell (sun_10.ctm, 2026-11-26). Someone whose
+    /// shapes no sweep has found yet is still there.
+    fn left(&self, x: f64, z: f64, shapes: &[Shaped]) -> bool {
+        let near = |sx: f64, sz: f64| (sx - x).abs() < SAME_PLACE && (sz - z).abs() < SAME_PLACE;
+        self.loose.borrow().iter().any(|&(sx, sz)| near(sx, sz))
+            && !shapes
+                .iter()
+                .any(|(_group, sx, sz, _kind, _data)| near(*sx, *sz))
     }
 
     /// Where someone standing at (x, z) is talked to from: each cell beside the range the
@@ -944,6 +964,9 @@ impl SunFieldReader {
         let places: Vec<(f64, f64)> = drawn.iter().map(|(_model, _head, place)| *place).collect();
         let shapes = self.shapes(&places)?;
         for (model, head, (x, z)) in drawn {
+            if self.left(x, z, &shapes) {
+                continue;
+            }
             let code = u32(&head, MODEL_CODE)?;
             let record = trainers.iter().find(|record| {
                 record.code == code

@@ -1342,6 +1342,28 @@ fn test_a_path_to_a_thing_ends_where_the_player_can_stand_outside_its_prop() {
     assert_eq!(spoken.last().unwrap(), "1 north");
 }
 
+/// Kukui walks off after his catching lesson as the screen fades, and his model stays drawn
+/// where he stopped, his body and talking range there in no group; the player walked through his
+/// cell (sun_10.ctm, 2026-11-26). Before a sweep has found any shape round them, they stay.
+#[test]
+fn test_someone_whose_shapes_are_in_no_group_has_left_and_is_not_listed() {
+    let bedroom = Bedroom::new();
+    let people = |found: &Found| -> Vec<String> {
+        let at = bedroom
+            .listed(Some(rom()), Some(found), false, &[])
+            .expect("the field up");
+        at.of("people").iter().map(|item| item.kind.clone()).collect()
+    };
+
+    assert_eq!(people(&bedroom.found), ["person"]);
+    prop(&bedroom, BODY, BODY_SHAPE, 0, (46.5, 60.5), &[40.0, 150.0]);
+    prop(&bedroom, TALK, TALK_SHAPE, 0, (46.5, 60.5), &[160.0, 150.0]);
+    let found = with_heap(&bedroom, &[(BODY, field::PROP), (TALK, field::PROP)]);
+    assert!(people(&found).is_empty());
+    prop(&bedroom, BODY, BODY_SHAPE, BODIES, (46.5, 60.5), &[40.0, 150.0]);
+    assert_eq!(people(&found), ["person"]);
+}
+
 /// Taken as solid, every group walled the user in at their own door and sent them round Route
 /// 1 to get home (sun_6.ctm, 2026-09-26): without a body to go by, nothing is closed.
 #[test]
