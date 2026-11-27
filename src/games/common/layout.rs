@@ -298,6 +298,7 @@ impl Layouts {
         for layout in roots.values() {
             self.watch_pool_of(layout.work)?;
         }
+        let mut taken: Vec<i64> = Vec::new();
         for (&root, layout) in &roots {
             let walked = self.walked.borrow().get(&root).copied();
             let stale = self.tracks.get() - walked.unwrap_or(-REWALK_TRACKS) >= REWALK_TRACKS;
@@ -305,10 +306,16 @@ impl Layouts {
             if changed || stale {
                 if changed {
                     self.settling.borrow_mut().insert(root, SETTLE_WALKS);
-                    self.taken(root);
+                    taken.push(root);
                 }
                 self.walk(root)?;
             }
+        }
+        // Taken in by their works' addresses (`order`), read as before: read in that order, the
+        // pages fetched in another, and 121 of 137 tapes no longer had their answers.
+        taken.sort_by_key(|root| roots[root].work);
+        for root in taken {
+            self.taken(root);
         }
         *self.roots.borrow_mut() = roots;
         let roots = self.roots.borrow();
@@ -447,7 +454,13 @@ impl Layouts {
 
     /// When a layout was last taken in among the others, a later one higher; 0 for one never
     /// seen taken in. The PSS builds a window over its menu, the Shout-Out's Yes and No, at the
-    /// menu's layer and off the field's draw list as the menu is (spike 312).
+    /// menu's layer and off the field's draw list as the menu is (spike 312). Layouts taken in at
+    /// one track, as all are when pa3ds starts, go by their works' addresses (`track`): a window
+    /// the PSS built over another has its work further on in its heap, the question over another
+    /// player's window and the bar over the profile's rows. Taken in as a set iterates, the
+    /// window under came last and covered the one over it, whose buttons went unoffered (the
+    /// PSS's multiplayer). A window built into a gap another left can come before the one under
+    /// it: then only being taken in while pa3ds runs puts it over.
     pub fn order(&self, root: i64) -> i64 {
         self.order.borrow().get(&root).copied().unwrap_or(0)
     }

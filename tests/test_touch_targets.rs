@@ -3116,3 +3116,73 @@ fn test_a_button_half_off_the_screen_is_tapped_on_its_half_on_it() {
         [("delete", 8, 220)]
     );
 }
+
+/// A pa3ds started with another player's window up and "Remove Brendan from your
+/// Acquaintances?" over it took both in at one track, as a set iterates, the window last: the
+/// window covered the question, and its buttons were offered in place of the question's Yes (the
+/// PSS's multiplayer). The question, built later, has its work further on in the heap.
+#[test]
+fn test_windows_taken_in_at_once_go_by_their_works() {
+    let memory = FakeMemory::new();
+    let classes = FakeClasses::new(memory.clone());
+    let fake = FakeLayouts::new(&memory, &classes);
+    let (bounding, picture) = (
+        classes.add(lyt::BOUNDING_CLASS),
+        classes.add(lyt::PICTURE_CLASS),
+    );
+    let textbox = classes.add(lyt::TEXTBOX_CLASS);
+    let (page_work, _page) = fake.screen_with(0x08200000, false, false);
+    let (window_work, window) = fake.screen_with(0x08654b40, false, false);
+    let (question_work, question) = fake.screen_with(0x08665338, false, false);
+    for work in [page_work, window_work, question_work] {
+        memory.write(work + lyt::WORK_LAYER, &1u16.to_le_bytes());
+    }
+    memory.write(page_work + lyt::WORK_LISTED, &[1]);
+    let mut words: Vec<ScreenText> = Vec::new();
+    for (root, name) in [(window, "Battle"), (question, "Yes")] {
+        placed(
+            &fake,
+            root + 0x1000,
+            root,
+            Some(picture),
+            0.0,
+            0.0,
+            320.0,
+            240.0,
+        );
+        placed(&fake, root + 0x2000, root, None, 0.0, -10.0, 280.0, 40.0);
+        placed(
+            &fake,
+            root + 0x2200,
+            root + 0x2000,
+            Some(textbox),
+            0.0,
+            -10.0,
+            90.0,
+            20.0,
+        );
+        placed(
+            &fake,
+            root + 0x2400,
+            root + 0x2000,
+            Some(bounding),
+            0.0,
+            -10.0,
+            280.0,
+            40.0,
+        );
+        words.push(text_in(root + 0x2200, name, root));
+    }
+    fake.track().unwrap();
+    let mut targets = TouchTargets::new(
+        fake.layouts.clone(),
+        Rc::new(move || words.clone()),
+        Rc::new(|_box| Ok(String::new())),
+        Rc::new(|_pane| Ok(None)),
+        Rc::new(|_root| None),
+        Rc::new(|_line: &str| {}),
+        Options::default(),
+    );
+    assert!(fake.layouts.order(window) < fake.layouts.order(question));
+    assert_eq!(names_of(&mut targets), ["Yes"]);
+}
