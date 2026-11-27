@@ -13,7 +13,7 @@
 //!           +0x48     a record of 0x14 bytes a species: the national number, a u16, first;
 //!                     +0x0c caught 2 or seen 3 (`STATE`), +0x0d how it is met (`WAY`)
 //!           +0x1D8    how many records there are
-//! PokeIcon  +0x0C     -> app::tool::LytTexReplaceSystem
+//! PokeIcon  +0x0C     -> app::tool::LytTexReplaceSystem   (`gen6.pokeicon`)
 //! LytTexReplaceSystem +0x04 -> its textures, a pointer each; +0x08 how many
 //! app::tool::LytTexData +0x0C   the image's physical address, as a picture's material keeps it
 //! ```
@@ -43,16 +43,11 @@ use crate::core::rtti::ClassNames;
 use crate::core::words::own;
 use crate::games::common::screen::ScreenText;
 use crate::games::common::{lyt, pictures};
+use crate::games::gen6::pokeicon;
 use crate::py::{self, PySet, Result};
 
 pub const CLASS: &str = "N3app4tool9ZukanNaviE";
 pub const ICONS: i64 = 0x44;
-pub const ICON_CLASS: &str = "N6common8resource8PokeIconE";
-pub const REPLACE: i64 = 0x0C;
-pub const REPLACE_CLASS: &str = "N3app4tool19LytTexReplaceSystemE";
-pub const TEXTURES: i64 = 0x04;
-pub const TEXTURE_COUNT: i64 = 0x08;
-pub const IMAGE: i64 = 0x0C;
 pub const RECORDS: i64 = 0x48;
 pub const RECORD: i64 = 0x14;
 pub const STATE: i64 = 0x0C;
@@ -82,7 +77,6 @@ pub const PLACE_SIZE: i64 = 0x40;
 pub const RECORD_COUNT: i64 = 0x1D8;
 /// Records the navigator has room for, from +0x48 to its count.
 pub const MAX_RECORDS: i64 = 20;
-pub const MAX_TEXTURES: i64 = 32;
 
 /// Names a picture the Pokémon Distribution draws a Pokémon's icon with.
 pub struct Distribution {
@@ -271,7 +265,7 @@ impl Distribution {
             let textures = self.textures(navi)?;
             let mut slot = None;
             for (i, texture) in textures.iter().enumerate() {
-                if u32(&memory.read(texture + IMAGE, 4)?, 0)? == image {
+                if u32(&memory.read(texture + pokeicon::IMAGE, 4)?, 0)? == image {
                     slot = Some(i as i64);
                     break;
                 }
@@ -301,22 +295,22 @@ impl Distribution {
             || names
                 .of_vtable(u32(&memory.read(icons, 4)?, 0)?)?
                 .as_deref()
-                != Some(ICON_CLASS)
+                != Some(pokeicon::ICON_CLASS)
         {
             return Ok(Vec::new());
         }
-        let replace = u32(&memory.read(icons + REPLACE, 4)?, 0)?;
+        let replace = u32(&memory.read(icons + pokeicon::REPLACE, 4)?, 0)?;
         if replace == 0
             || names
                 .of_vtable(u32(&memory.read(replace, 4)?, 0)?)?
                 .as_deref()
-                != Some(REPLACE_CLASS)
+                != Some(pokeicon::REPLACE_CLASS)
         {
             return Ok(Vec::new());
         }
-        let head = memory.read(replace + TEXTURES, 8)?;
+        let head = memory.read(replace + pokeicon::TEXTURES, 8)?;
         let (listed, count) = (u32(&head, 0)?, u32(&head, 4)?);
-        if listed == 0 || !(0 < count && count <= MAX_TEXTURES) {
+        if listed == 0 || !(0 < count && count <= pokeicon::MAX_TEXTURES) {
             return Ok(Vec::new());
         }
         let table = memory.read(listed, 4 * count)?;

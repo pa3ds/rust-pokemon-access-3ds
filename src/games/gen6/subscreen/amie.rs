@@ -6,7 +6,7 @@
 //! layout 0x15a024bc has no name" and left it out, so the player could not open Amie at all
 //! (omega_ruby_bottom-screen1). The picture draws texture 0 of a `common::resource::PokeIcon`, the
 //! class the AreaNav's Pokémon Distribution and the Bag draw their icons with
-//! (`screens.distribution`, `screens.partyicons`). The page's object is a class of its module, Game
+//! (`gen6.pokeicon`, `screens.partyicons`). The page's object is a class of its module, Game
 //! Freak's "kawaigari" (Amie), `field::subscreen::kawaigari::FM_Kawaigari`:
 //!
 //! ```text
@@ -93,8 +93,7 @@ use crate::games::common::field::keys::{STYLUS, STYLUS_JUMPS, STYLUS_MOVES, STYL
 use crate::games::common::touch::{After, Target};
 use crate::games::common::{lyt, pokemon, touch};
 use crate::games::gen6::apps::FIELD;
-use crate::games::gen6::gflheap;
-use crate::games::gen6::screens::distribution as d;
+use crate::games::gen6::{gflheap, pokeicon};
 use crate::games::gen6::screens::townmap;
 use crate::games::gen6::subscreen::berry_picker::{Name, Touching};
 use crate::py::{self, Error, Kind, PySet, Result};
@@ -1874,21 +1873,21 @@ impl AmiePage {
     /// class it should be.
     fn first_image(&self, icons: i64) -> Result<Option<i64>> {
         let (memory, names) = (&self.memory, &self.names);
-        if icons == 0 || names.of_object(icons)?.as_deref() != Some(d::ICON_CLASS) {
+        if icons == 0 || names.of_object(icons)?.as_deref() != Some(pokeicon::ICON_CLASS) {
             return Ok(None);
         }
-        let replace = u32(&memory.read(icons + d::REPLACE, 4)?, 0)?;
-        if replace == 0 || names.of_object(replace)?.as_deref() != Some(d::REPLACE_CLASS) {
+        let replace = u32(&memory.read(icons + pokeicon::REPLACE, 4)?, 0)?;
+        if replace == 0 || names.of_object(replace)?.as_deref() != Some(pokeicon::REPLACE_CLASS) {
             return Ok(None);
         }
-        let head = memory.read(replace + d::TEXTURES, 8)?;
+        let head = memory.read(replace + pokeicon::TEXTURES, 8)?;
         let (listed, count) = (u32(&head, 0)?, u32(&head, 4)?);
-        if listed == 0 || !(0 < count && count <= d::MAX_TEXTURES) {
+        if listed == 0 || !(0 < count && count <= pokeicon::MAX_TEXTURES) {
             return Ok(None);
         }
         let texture = u32(&memory.read(listed, 4)?, 0)?;
         Ok(if texture != 0 {
-            Some(u32(&memory.read(texture + d::IMAGE, 4)?, 0)?)
+            Some(u32(&memory.read(texture + pokeicon::IMAGE, 4)?, 0)?)
         } else {
             None
         })
@@ -1925,7 +1924,7 @@ impl Replaced {
             IndexMap::new()
         };
         for (&system, name) in found {
-            if name == d::REPLACE_CLASS {
+            if name == pokeicon::REPLACE_CLASS {
                 systems.insert(system, u32(&self.memory.read(system, 4)?, 0)?);
             }
         }
@@ -1950,8 +1949,8 @@ impl Replaced {
         let now = py::time::monotonic();
         let systems: Vec<(i64, i64)> = self.systems.iter().map(|(&s, &v)| (s, v)).collect();
         for (system, vtable) in systems {
-            let head = memory.read(system, d::TEXTURES + 8)?;
-            let (listed, count_now) = (u32(&head, d::TEXTURES)?, u32(&head, d::TEXTURES + 4)?);
+            let head = memory.read(system, pokeicon::TEXTURES + 8)?;
+            let (listed, count_now) = (u32(&head, pokeicon::TEXTURES)?, u32(&head, pokeicon::TEXTURES + 4)?);
             // A system freed and its memory taken by something else says nothing.
             if u32(&head, 0)? != vtable || count_now != count {
                 continue;
@@ -1969,7 +1968,7 @@ impl Replaced {
                 let table = memory.read(listed, 4 * count)?;
                 let mut images: Vec<i64> = Vec::new();
                 for i in 0..count {
-                    images.push(u32(&memory.read(u32(&table, 4 * i)? + d::IMAGE, 4)?, 0)?);
+                    images.push(u32(&memory.read(u32(&table, 4 * i)? + pokeicon::IMAGE, 4)?, 0)?);
                 }
                 self.images.insert(system, (listed, count, now, images));
             }
@@ -2000,7 +1999,7 @@ pub struct Puffs {
 
 impl Puffs {
     /// What the heap is swept for: the texture systems the puffs are drawn from.
-    pub const CLASSES: [&'static str; 1] = [d::REPLACE_CLASS];
+    pub const CLASSES: [&'static str; 1] = [pokeicon::REPLACE_CLASS];
 
     pub fn new(memory: Rc<dyn Memory>, names: Rc<ClassNames>, puffs: Vec<String>) -> Self {
         Puffs {
@@ -2059,7 +2058,7 @@ pub struct Goods {
 impl Goods {
     /// What the heap is swept for: the texture systems the items are drawn from, and the
     /// layout helpers the pages' block points at.
-    pub const CLASSES: [&'static str; 2] = [d::REPLACE_CLASS, G2D_CLASS];
+    pub const CLASSES: [&'static str; 2] = [pokeicon::REPLACE_CLASS, G2D_CLASS];
 
     pub fn new(memory: Rc<dyn Memory>, names: Rc<ClassNames>, goods: Vec<String>) -> Self {
         Goods {
@@ -2161,7 +2160,7 @@ impl Goods {
                 .names
                 .of_object(u32(&head, PUFFS)?)?
                 .as_deref()
-                == Some(d::REPLACE_CLASS))
+                == Some(pokeicon::REPLACE_CLASS))
     }
 }
 /// Says what Amie's Pokémon is seen doing as it starts and as it stops (`MOODS`,

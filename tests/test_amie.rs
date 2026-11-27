@@ -20,7 +20,7 @@ use crate::games::common::screen::ScreenText;
 use crate::games::common::touch::{ImageOf, Target};
 use crate::games::common::{lyt, pokemon};
 use crate::games::gen6::apps::FIELD;
-use crate::games::gen6::screens::distribution as d;
+use crate::games::gen6::pokeicon;
 use crate::games::gen6::screens::partyicons::COUNT;
 use crate::games::gen6::subscreen::berry_picker::{Name, Touching};
 use crate::games::gen6::subscreen::{amie, amie_switch};
@@ -86,12 +86,12 @@ fn page_aimed(
     memory.u32(PAGE + number, &[254]);
     memory.u32(PAGE + number + amie::HOLDER, &[HOLDER]);
     memory.u32(HOLDER, &[ICON]);
-    memory.u32(ICON, &[classes.add(d::ICON_CLASS)]);
-    memory.u32(ICON + d::REPLACE, &[REPLACE]);
-    memory.u32(REPLACE, &[classes.add(d::REPLACE_CLASS)]);
-    memory.u32(REPLACE + d::TEXTURES, &[TABLE, 1]);
+    memory.u32(ICON, &[classes.add(pokeicon::ICON_CLASS)]);
+    memory.u32(ICON + pokeicon::REPLACE, &[REPLACE]);
+    memory.u32(REPLACE, &[classes.add(pokeicon::REPLACE_CLASS)]);
+    memory.u32(REPLACE + pokeicon::TEXTURES, &[TABLE, 1]);
     memory.u32(TABLE, &[TEXTURE]);
-    memory.u32(TEXTURE + d::IMAGE, &[IMAGE]);
+    memory.u32(TEXTURE + pokeicon::IMAGE, &[IMAGE]);
     for (picture, image) in [(WALKER, IMAGE), (OTHER, IMAGE + 0x1000)] {
         let material = picture + 0x400;
         memory.u32(picture + lyt::PICTURE_MATERIAL, &[material]);
@@ -1701,16 +1701,16 @@ fn test_a_puff_is_named_by_the_texture_of_the_replace_system_holding_every_kind(
         .iter()
         .map(|kind| kind.to_string())
         .collect();
-    let replace = classes.add(d::REPLACE_CLASS);
+    let replace = classes.add(pokeicon::REPLACE_CLASS);
     let mut systems: IndexMap<i64, String> = IndexMap::new();
     for (system, count, base) in [(0x08B00000, 3, 0x20700000), (0x08B10000, 2, 0x20800000)] {
         memory.u32(system, &[replace]);
-        memory.u32(system + d::TEXTURES, &[system + 0x100, count]);
+        memory.u32(system + pokeicon::TEXTURES, &[system + 0x100, count]);
         for i in 0..count {
             memory.u32(system + 0x100 + 4 * i, &[system + 0x200 + 0x40 * i]);
-            memory.u32(system + 0x200 + 0x40 * i + d::IMAGE, &[base + 0x1000 * i]);
+            memory.u32(system + 0x200 + 0x40 * i + pokeicon::IMAGE, &[base + 0x1000 * i]);
         }
-        systems.insert(system, d::REPLACE_CLASS.to_string());
+        systems.insert(system, pokeicon::REPLACE_CLASS.to_string());
     }
     let (citrus, item) = (0x08B20000, 0x08B21000);
     for (picture, image) in [(citrus, 0x20702000), (item, 0x20801000)] {
@@ -1744,16 +1744,16 @@ fn test_an_interior_item_is_named_by_its_slot_on_the_page_shown() {
     memory.u32(g2d, &[classes.add(amie::G2D_CLASS)]);
     memory.u32(g2d - 0x30 + amie::PREVIOUS, &[between]);
     memory.u32(between + amie::PREVIOUS, &[block - 0x30]);
-    let (puffs, replace) = (0x08C40000, classes.add(d::REPLACE_CLASS));
+    let (puffs, replace) = (0x08C40000, classes.add(pokeicon::REPLACE_CLASS));
     memory.u32(puffs, &[replace]);
     memory.u32(block + amie::G2D, &[g2d]);
     memory.u32(block + amie::PUFFS, &[puffs]);
     memory.write(block + amie::LISTS, &[24]);
     memory.write(block + amie::LISTS + amie::PAGE_LISTS[1], &[146]);
     memory.u32(system, &[replace]);
-    memory.u32(system + d::TEXTURES, &[system + 0x100, amie::SLOTS]);
+    memory.u32(system + pokeicon::TEXTURES, &[system + 0x100, amie::SLOTS]);
     memory.u32(system + 0x100, &[system + 0x200]);
-    memory.u32(system + 0x200 + d::IMAGE, &[0x20900000]);
+    memory.u32(system + 0x200 + pokeicon::IMAGE, &[0x20900000]);
     memory.u32(picture + lyt::PICTURE_MATERIAL, &[picture + 0x400]);
     memory.u32(picture + 0x400 + lyt::MATERIAL_TEXTURE, &[0x20900000]);
     let mut text: Vec<String> = vec!["Wallpaper".to_string(); amie::ITEMS_FROM as usize];
@@ -1769,8 +1769,8 @@ fn test_an_interior_item_is_named_by_its_slot_on_the_page_shown() {
         .track(
             &IndexMap::from([
                 (g2d, amie::G2D_CLASS.to_string()),
-                (puffs, d::REPLACE_CLASS.to_string()),
-                (system, d::REPLACE_CLASS.to_string()),
+                (puffs, pokeicon::REPLACE_CLASS.to_string()),
+                (system, pokeicon::REPLACE_CLASS.to_string()),
             ]),
             false,
         )

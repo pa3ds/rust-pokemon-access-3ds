@@ -2,7 +2,7 @@
 //!
 //! The Bag lists the party beside its items, each slot an icon, a level and an HP bar, and no name:
 //! touch mode said "L 14" (movie21). The icons come from a `common::resource::PokeIcon`, as
-//! the AreaNav's Pokémon Distribution's do (`gen6.screens.distribution`): its `LytTexReplaceSystem` holds a
+//! the AreaNav's Pokémon Distribution's do (`gen6.pokeicon`): its `LytTexReplaceSystem` holds a
 //! texture a party member, in the party's order, and each slot's picture draws its member's. The
 //! party is a list of six `pml::pokepara::PokemonParam` pointers and then how many are in it, with
 //! no class of its own:
@@ -40,12 +40,12 @@ use crate::core::binary::u32;
 use crate::core::memory::Memory;
 use crate::core::rtti::ClassNames;
 use crate::games::common::{lyt, pokemon};
-use crate::games::gen6::screens::distribution as d;
+use crate::games::gen6::pokeicon;
 use crate::py::{PySet, Result};
 
 pub const BAG: &str = "N3app3bag4ProcE";
 pub const GROUPS: &str = "N3app19battle_party_select4ProcE";
-pub const ICON_CLASS: &str = d::ICON_CLASS;
+pub const ICON_CLASS: &str = pokeicon::ICON_CLASS;
 pub const SLOTS: i64 = 6;
 
 /// App -> the texture holding the party's first member's icon.
@@ -228,19 +228,19 @@ impl PartyIcons {
             if self.names.of_object(icon)?.as_deref() != Some(ICON_CLASS) {
                 continue;
             }
-            let replace = u32(&memory.read(icon + d::REPLACE, 4)?, 0)?;
-            if replace == 0 || self.names.of_object(replace)?.as_deref() != Some(d::REPLACE_CLASS) {
+            let replace = u32(&memory.read(icon + pokeicon::REPLACE, 4)?, 0)?;
+            if replace == 0 || self.names.of_object(replace)?.as_deref() != Some(pokeicon::REPLACE_CLASS) {
                 continue;
             }
-            let head = memory.read(replace + d::TEXTURES, 8)?;
+            let head = memory.read(replace + pokeicon::TEXTURES, 8)?;
             let (listed, count) = (u32(&head, 0)?, u32(&head, 4)?);
-            if listed == 0 || !(0 < count && count <= d::MAX_TEXTURES) {
+            if listed == 0 || !(0 < count && count <= pokeicon::MAX_TEXTURES) {
                 continue;
             }
             let table = memory.read(listed, 4 * count)?;
             let mut slot = None;
             for i in 0..count {
-                if u32(&memory.read(u32(&table, 4 * i)? + d::IMAGE, 4)?, 0)? == image {
+                if u32(&memory.read(u32(&table, 4 * i)? + pokeicon::IMAGE, 4)?, 0)? == image {
                     slot = Some(i);
                     break;
                 }

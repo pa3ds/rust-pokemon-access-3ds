@@ -7,7 +7,8 @@ use super::fake_memory::{CODE, FakeClasses, FakeMemory};
 use super::test_pokemon::{WURMPLE, second_wurmple};
 use crate::core::rtti::ClassNames;
 use crate::games::common::{lyt, pokemon};
-use crate::games::gen6::screens::{distribution, partyicons};
+use crate::games::gen6::pokeicon;
+use crate::games::gen6::screens::partyicons;
 
 const PARTY: i64 = 0x08CF7200;
 const PARAMS: i64 = 0x08CF723C;
@@ -55,14 +56,14 @@ fn test_the_maisons_group_screen_draws_the_party_after_the_battle_box() {
     memory.write(PARAMS + 0x1E4 + pokemon::RECORD_IN_PARAM, &second_wurmple());
     memory.u32(PARTY + partyicons::COUNT, &[0x206]);
     let (icon, replace, table, picture) = (0x08647000, 0x08647100, 0x08647200, 0x08648000);
-    memory.u32(icon, &[classes.add(distribution::ICON_CLASS)]);
-    memory.u32(icon + distribution::REPLACE, &[replace]);
-    memory.u32(replace, &[classes.add(distribution::REPLACE_CLASS)]);
-    memory.u32(replace + distribution::TEXTURES, &[table, 12]);
+    memory.u32(icon, &[classes.add(pokeicon::ICON_CLASS)]);
+    memory.u32(icon + pokeicon::REPLACE, &[replace]);
+    memory.u32(replace, &[classes.add(pokeicon::REPLACE_CLASS)]);
+    memory.u32(replace + pokeicon::TEXTURES, &[table, 12]);
     for i in 0..12 {
         memory.u32(table + 4 * i, &[0x08649000 + 0x10 * i]);
         memory.u32(
-            0x08649000 + 0x10 * i + distribution::IMAGE,
+            0x08649000 + 0x10 * i + pokeicon::IMAGE,
             &[if i < 6 { 0 } else { 0x1000 + i }],
         );
     }
@@ -107,7 +108,7 @@ fn test_the_maisons_group_screen_draws_the_party_after_the_battle_box() {
     let r#box = 0x08C6E33C;
     memory.u32(r#box, &[classes.add(partyicons::BATTLE_BOX)]);
     memory.write(r#box + partyicons::RECORDS, &second_wurmple());
-    memory.u32(0x08649000 + distribution::IMAGE, &[0x2000]);
+    memory.u32(0x08649000 + pokeicon::IMAGE, &[0x2000]);
     memory.u32(picture + 0x200 + lyt::MATERIAL_TEXTURE, &[0x2000]);
     icons
         .track(
@@ -177,14 +178,14 @@ fn test_a_slot_past_six_is_no_party_member() {
     }
     memory.u32(PARTY + partyicons::COUNT, &[5]);
     let (icon, replace, table, picture) = (0x08647000, 0x08647100, 0x08647200, 0x08648000);
-    memory.u32(icon, &[classes.add(distribution::ICON_CLASS)]);
-    memory.u32(icon + distribution::REPLACE, &[replace]);
-    memory.u32(replace, &[classes.add(distribution::REPLACE_CLASS)]);
-    memory.u32(replace + distribution::TEXTURES, &[table, 21]);
+    memory.u32(icon, &[classes.add(pokeicon::ICON_CLASS)]);
+    memory.u32(icon + pokeicon::REPLACE, &[replace]);
+    memory.u32(replace, &[classes.add(pokeicon::REPLACE_CLASS)]);
+    memory.u32(replace + pokeicon::TEXTURES, &[table, 21]);
     for i in 0..21 {
         memory.u32(table + 4 * i, &[0x08649000 + 0x10 * i]);
         memory.u32(
-            0x08649000 + 0x10 * i + distribution::IMAGE,
+            0x08649000 + 0x10 * i + pokeicon::IMAGE,
             &[if i >= 16 { 0 } else { 0x1000 + i }],
         );
     }

@@ -7,6 +7,7 @@ use super::fake_memory::{CODE, FakeClasses, FakeMemory};
 use crate::core::rtti::ClassNames;
 use crate::games::common::lyt;
 use crate::games::common::screen::ScreenText;
+use crate::games::gen6::pokeicon;
 use crate::games::gen6::screens::distribution as d;
 
 const NAVI: i64 = 0x08200000;
@@ -36,14 +37,14 @@ fn route_101() -> (Rc<FakeMemory>, d::Distribution) {
     let classes = FakeClasses::new(memory.clone());
     memory.u32(NAVI, &[classes.add(d::CLASS)]);
     memory.u32(NAVI + d::ICONS, &[ICONS]);
-    memory.u32(ICONS, &[classes.add(d::ICON_CLASS)]);
-    memory.u32(ICONS + d::REPLACE, &[REPLACE]);
-    memory.u32(REPLACE, &[classes.add(d::REPLACE_CLASS)]);
-    memory.u32(REPLACE + d::TEXTURES, &[LISTED, 21]);
+    memory.u32(ICONS, &[classes.add(pokeicon::ICON_CLASS)]);
+    memory.u32(ICONS + pokeicon::REPLACE, &[REPLACE]);
+    memory.u32(REPLACE, &[classes.add(pokeicon::REPLACE_CLASS)]);
+    memory.u32(REPLACE + pokeicon::TEXTURES, &[LISTED, 21]);
     for slot in 0..21 {
         memory.u32(LISTED + 4 * slot, &[TEXTURES + 0x6C * slot]);
         memory.u32(
-            TEXTURES + 0x6C * slot + d::IMAGE,
+            TEXTURES + 0x6C * slot + pokeicon::IMAGE,
             &[if slot == 20 {
                 GREY
             } else {

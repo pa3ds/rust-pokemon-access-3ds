@@ -4,7 +4,7 @@
 //!
 //! The page shows the party as six pictures, each a 40 by 30 button with a touch area, and the game
 //! names none: touch mode said "mapnews icon 02" and "pmn 1pix org" by the address of the image, or
-//! left them out. They are the icons of a `common::resource::PokeIcon` (`screens.distribution`,
+//! left them out. They are the icons of a `common::resource::PokeIcon` (`gen6.pokeicon`,
 //! `subscreen.amie`), in the party's order. The page's object is a class of its module, Game Freak's
 //! "training" (Super Training), `field::subscreen::training::FM_Training`, which holds the party's
 //! `pml::pokepara::PokemonParam`s a record of 0x20 bytes each:
@@ -122,7 +122,7 @@ use crate::games::common::screen::ScreenText;
 use crate::games::common::touch::{ImageOf, Target};
 use crate::games::common::{lyt, pokemon};
 use crate::games::gen6::apps::FIELD;
-use crate::games::gen6::screens::distribution as d;
+use crate::games::gen6::pokeicon;
 use crate::games::gen6::subscreen::amie::{METER, PAGE_APPS};
 use crate::games::gen6::subscreen::berry_picker::Touching;
 use crate::py::{self, Error, Kind, Result};
@@ -483,7 +483,7 @@ impl TrainingPage {
             if u32(&head, 0)? == vtable
                 && icons != 0
                 && param != 0
-                && self.names.of_object(icons)?.as_deref() == Some(d::ICON_CLASS)
+                && self.names.of_object(icons)?.as_deref() == Some(pokeicon::ICON_CLASS)
             {
                 return Ok(Some(PageNow {
                     state: u32(&head, self.icons + STATE)?,
@@ -519,21 +519,21 @@ impl TrainingPage {
     /// where it draws none or a link of the chain is not the class it should be.
     fn slot(&self, icons: i64, image: i64) -> Result<Option<i64>> {
         let (memory, names) = (&self.memory, &self.names);
-        if icons == 0 || names.of_object(icons)?.as_deref() != Some(d::ICON_CLASS) {
+        if icons == 0 || names.of_object(icons)?.as_deref() != Some(pokeicon::ICON_CLASS) {
             return Ok(None);
         }
-        let replace = u32(&memory.read(icons + d::REPLACE, 4)?, 0)?;
-        if replace == 0 || names.of_object(replace)?.as_deref() != Some(d::REPLACE_CLASS) {
+        let replace = u32(&memory.read(icons + pokeicon::REPLACE, 4)?, 0)?;
+        if replace == 0 || names.of_object(replace)?.as_deref() != Some(pokeicon::REPLACE_CLASS) {
             return Ok(None);
         }
-        let head = memory.read(replace + d::TEXTURES, 8)?;
+        let head = memory.read(replace + pokeicon::TEXTURES, 8)?;
         let (listed, count) = (u32(&head, 0)?, u32(&head, 4)?);
-        if listed == 0 || !(0 < count && count <= d::MAX_TEXTURES) {
+        if listed == 0 || !(0 < count && count <= pokeicon::MAX_TEXTURES) {
             return Ok(None);
         }
         let table = memory.read(listed, 4 * count.min(SLOTS))?;
         for i in 0..(table.len() as i64 / 4) {
-            if u32(&memory.read(u32(&table, 4 * i)? + d::IMAGE, 4)?, 0)? == image {
+            if u32(&memory.read(u32(&table, 4 * i)? + pokeicon::IMAGE, 4)?, 0)? == image {
                 return Ok(Some(i));
             }
         }

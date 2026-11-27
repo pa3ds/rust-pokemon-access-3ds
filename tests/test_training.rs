@@ -19,7 +19,7 @@ use crate::games::common::screen::ScreenText;
 use crate::games::common::touch::{ImageOf, Target};
 use crate::games::common::{lyt, pokemon};
 use crate::games::gen6::apps::FIELD;
-use crate::games::gen6::screens::distribution as d;
+use crate::games::gen6::pokeicon;
 use crate::games::gen6::subscreen::super_training;
 
 const PAGE: i64 = 0x08B00000;
@@ -56,10 +56,10 @@ fn paged(icons: i64) -> (super_training::TrainingPage, Rc<FakeMemory>, FakeClass
     let classes = FakeClasses::new(memory.clone());
     memory.u32(PAGE, &[classes.add(super_training::CLASS)]);
     memory.u32(PAGE + icons, &[ICON]);
-    memory.u32(ICON, &[classes.add(d::ICON_CLASS)]);
-    memory.u32(ICON + d::REPLACE, &[REPLACE]);
-    memory.u32(REPLACE, &[classes.add(d::REPLACE_CLASS)]);
-    memory.u32(REPLACE + d::TEXTURES, &[TABLE, 2]);
+    memory.u32(ICON, &[classes.add(pokeicon::ICON_CLASS)]);
+    memory.u32(ICON + pokeicon::REPLACE, &[REPLACE]);
+    memory.u32(REPLACE, &[classes.add(pokeicon::REPLACE_CLASS)]);
+    memory.u32(REPLACE + pokeicon::TEXTURES, &[TABLE, 2]);
     let param_class = classes.add(pokemon::PARAM_CLASS);
     for (i, species) in [255, 254].into_iter().enumerate() {
         let i = i as i64;
@@ -73,7 +73,7 @@ fn paged(icons: i64) -> (super_training::TrainingPage, Rc<FakeMemory>, FakeClass
         memory.u32(record_at, &[param]);
         memory.u32(record_at + super_training::INDEX, &[i]);
         memory.u32(TABLE + 4 * i, &[TEXTURES + 0x100 * i]);
-        memory.u32(TEXTURES + 0x100 * i + d::IMAGE, &[IMAGE + 0x1000 * i]);
+        memory.u32(TEXTURES + 0x100 * i + pokeicon::IMAGE, &[IMAGE + 0x1000 * i]);
     }
     for (picture, image) in [
         (FIRST, IMAGE),
