@@ -29,6 +29,7 @@ use crate::core::rtti::{ClassNames, demangle};
 use crate::core::speech::{Category, Speech};
 use crate::games::common::announce::Announcements;
 use crate::games::common::cursors::reader::CursorReader;
+use crate::games::common::cursors::shared::CursorItem;
 use crate::games::common::dialogue::DialogueReader;
 use crate::games::common::field::ground::Ground;
 use crate::games::common::field::guide::FieldSource;
@@ -80,6 +81,40 @@ pub fn heap_classes() -> Vec<&'static str> {
 
 /// Without a message window class there is nothing to read: not this game, or not this version.
 pub const REQUIRED: [&str; 2] = msgwin::CLASSES;
+/// The Pokédex's app, whose cursors' items are held till they settle (`SunProfile._settled`).
+pub const POKEDEX: &str = "N3app5zukan9ZukanProcE";
+/// Polls a Pokédex cursor's item must stand with no newer one before it is said.
+pub const SETTLE: i64 = 3;
+/// The most pieces one Pokédex item holds: its first menu's, "Alola Pokédex 3 9", three.
+pub const WHOLE_LIST: usize = 4;
+
+/// A cursor -> its latest item and the polls it has stood.
+pub type Held = IndexMap<i64, (CursorItem, i64)>;
+
+/// `SunProfile._settled`, a function of what it keeps, which its test reaches without a profile.
+///
+/// The Pokédex's cursor items once each has stood `SETTLE` polls with no newer one: as its list
+/// scrolls under a cursor that stays put, the rows are redrawn a frame or two late, and a press
+/// said "012" and then "????? 012", "?????021" and then "????? 020" (spike P). An item over more
+/// than `WHOLE_LIST` pieces is the list read at once and is dropped.
+pub fn settled(held: &mut Held, items: Vec<CursorItem>) -> Vec<CursorItem> {
+    for item in items {
+        if item.pieces.len() <= WHOLE_LIST {
+            held.insert(item.cursor, (item, 0));
+        }
+    }
+    let ready: Vec<CursorItem> = held
+        .values()
+        .filter(|(_item, polls)| *polls >= SETTLE)
+        .map(|(item, _polls)| item.clone())
+        .collect();
+    *held = std::mem::take(held)
+        .into_iter()
+        .filter(|(_cursor, (_item, polls))| *polls < SETTLE)
+        .map(|(cursor, (item, polls))| (cursor, (item, polls + 1)))
+        .collect();
+    ready
+}
 
 /// The zone last listed and what was in it (people by kind alone, since they walk).
 type Listed = (i64, Vec<(String, String, Option<(i64, i64)>)>);
@@ -138,6 +173,10 @@ pub struct SunProfile {
     pub langselect: RefCell<LangSelectReader>,
     pub shop: RefCell<ShopReader>,
     pub r#box: RefCell<BoxReader>,
+    /// The class of the app running, as `poll_app` last learnt it.
+    app: RefCell<Option<String>>,
+    /// The Pokédex's cursors' latest items and the polls each has stood (`settled`).
+    held: RefCell<Held>,
     /// A Mart's list is on screen with its shop object not found yet.
     shop_wanted: Cell<bool>,
     shop_asked: Cell<bool>,
@@ -356,6 +395,8 @@ impl SunProfile {
             langselect: RefCell::new(langselect),
             shop: RefCell::new(shop),
             r#box: RefCell::new(r#box),
+            app: RefCell::new(None),
+            held: RefCell::new(IndexMap::new()),
             shop_wanted: Cell::new(false),
             shop_asked: Cell::new(false),
             battle: RefCell::new(battle),
@@ -416,6 +457,12 @@ impl SunProfile {
             }
             self.shop_wanted
                 .set(!rows.is_empty() && self.shop.borrow().showing().is_none());
+        }
+        if self.app.borrow().as_deref() == Some(POKEDEX) {
+            let items = std::mem::take(&mut cursors.items);
+            cursors.items = settled(&mut self.held.borrow_mut(), items);
+        } else if !self.held.borrow().is_empty() {
+            self.held.borrow_mut().clear();
         }
         // The language choice's buttons are pictures, which only its own reader can name; the
         // other readers keep up with its screen but leave it to that reader.
@@ -609,6 +656,7 @@ impl Profile for SunProfile {
             Ok((started, late, demo))
         })?;
         if let Some(late) = late {
+            *self.app.borrow_mut() = Some(late.clone());
             (self.log)(&format!("app: the one started is {}", demangle(&late)));
         }
         if let Some(demo) = demo {
@@ -620,6 +668,7 @@ impl Profile for SunProfile {
         let Some((pointer, name)) = started else {
             return Ok(false);
         };
+        *self.app.borrow_mut() = name.clone();
         let what = match name {
             None => format!("the manager pointing at {pointer:#010x}"),
             Some(name) => demangle(&name),

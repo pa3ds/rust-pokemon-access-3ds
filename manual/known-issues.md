@@ -166,9 +166,9 @@ What pa3ds gets wrong or leaves out for now. To report one that is not here, see
 - **The PC Box** says each slot as the cursor comes to it, "row 1, column 6, Slowpoke" or "Party
   1, Rowlet" or "row 1, column 5, empty", but then the Pokémon's whole summary on the top screen at
   once, labels and numbers run together. Moving a Pokémon is not said.
-- **The Pokédex's list** says each entry as you move onto it, "Rowlet 001", but where the list
-  scrolls it can first say the row's old or half-drawn words, "012", before the right one. The
-  counts on its first menu, "Alola Pokédex 3 9", are caught and seen, unlabelled.
+- **The Pokédex's list** says each entry where the cursor lands, "Rowlet 001", "????? 012", a
+  moment after it gets there. The counts on its first menu, "Alola Pokédex 3 9", are caught and
+  seen, unlabelled, and an entry's own pages are read as screen text.
 - **A Poké Mart's buy list** says only the item under the cursor, not its price or how many
   you have, which are on screen beside it.
 - **A board can run its two lines together** where its second line has no quotation marks:

@@ -98,6 +98,7 @@ mod test_sm_box;
 mod test_sm_camera;
 mod test_sm_field;
 mod test_sm_gametext;
+mod test_sm_pokedex;
 mod test_sm_screen;
 mod test_sm_walls;
 mod test_sm_zones;
