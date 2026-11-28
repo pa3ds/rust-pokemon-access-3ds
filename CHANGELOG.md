@@ -1,5 +1,74 @@
 # Changelog
 
+## [0.15.0] - 2026-11-28
+
+### Added
+
+- Ultra Sun and Ultra Moon are read as Sun and Moon are. So far they are checked in the opening,
+  up to your first Pokémon on Route 1 and its Pokémon Center: dialogue with who is speaking,
+  choices, menus, the Bag, the party, the summary, a wild battle and Hau's, a Poké Mart's buy
+  list, and the map's doors, things and people, with pathfinding. With `descriptions` on, the
+  opening cutscene is described.
+- In Sun and Moon, pa3ds reads your game's language from your save, as in the other games:
+  `language` no longer needs setting.
+- In Sun and Moon, a Poké Mart's buy list says the item under the cursor with its price, how many
+  you have and its description. The PC Box says each slot as the cursor comes to it, "row 1,
+  column 6, Slowpoke", then the Pokémon's summary. The Pokédex's list says each entry where the
+  cursor lands, an entry's page as it opens, and the counts as caught and seen.
+- In Sun and Moon, a summary says the Pokémon's types and its stats by name, each value after its
+  label, and a level-up's stats are read whole, the gains and then the totals.
+- In Sun and Moon, how many Pokémon a trainer has is said as their battle opens, as
+  `trainer_party` does in the other games.
+- In Sun and Moon, the map lists each "scene spot", a place the game starts a scene when you walk
+  onto it, usually where the story goes next. `P` leads you there and walks round every other
+  scene spot on the way, unless the only way crosses one. `P` also jumps down ledges, a Pokémon
+  Center's PC is listed as "PC", Festival Plaza is named as the X menu names it, and
+  `hidden_items = "all"` lists hidden items.
+- With `descriptions` on, the rescue on Mahalo Trail's bridge is described in Sun.
+- Touch mode works in the PSS: its screens on the map, a profile and its icon choice, the screen
+  asking whether to register someone as a friend, and the question after a trade or battle
+  whether to do something else. A button the game shows greyed out is said with "unavailable"
+  after it.
+- On the PSS's O-Power list, or with its Active panel up, `R` says the energy and its regen rate,
+  "energy 5 of 10, regen rate 4", then each power running with its level and time left, from
+  each page of the panel.
+- A PSS profile says each row's value after its label, "Location 1: United States", and its
+  History as how many times each icon is shown: "History Battle 3 times, Trade once".
+- In a trade with another player, each slot is said with its Pokémon. `R` says the Pokémon you
+  offered, and `Shift+R` the one they offered.
+- Choosing your team before a battle with another player, `Shift+R` says the team they chose and
+  `C` the time left, with a tick each second under `ticks`. The Battle Box and party you choose
+  from are said one by one, each Pokémon's name, gender and level. Touch mode works there too.
+- In a battle with another player, `C` says the Command Time and `Shift+C` the Battle Time, or "no
+  timer". Command Time ticks under `ticks`.
+- In Pokémon-Amie's Berry Picker, Head It and Tile Puzzle, `C` says the time left.
+- In the PC Box, the box's name above the slots and the "change box" button below them are said
+  as the cursor comes to them, even when it only passes them.
+
+### Changed
+
+- `R` says what is yours, `Shift+R` what is the other side's, and `C` the clock on a screen that
+  has one. In a Super Training regimen, `C` now says the time left and `Shift+C` where your
+  Pokémon stands. Head It's `R` no longer says the time: `C` does.
+- On the map, the words on the bottom screen's buttons are no longer read as they appear: touch
+  mode says each button as you come to it. A question, a description or a count is still read.
+- A clock's ticks, a trainer's Pokémon counted as beeps and the turns of a way up are a brighter
+  tone, easier to hear.
+
+### Fixed
+
+- In X and Y, `P` reaches Route 5's TM01 along the grind rail with a bend, and props nobody
+  answers at, as on the tables in Café Soleil, are no longer listed.
+- Someone the game keeps in the map's corner before their scene, as Shabboneau Castle's
+  caretaker, is no longer listed.
+- X's Pokédex says each region with its count as you move onto it, and Omega Ruby's says its
+  first choice as soon as it shows.
+- In Sun and Moon, `P` leads you to people the game talks to you from a step away or across a
+  counter, such as Sophocles in Festival Plaza's doorway and its lottery clerk.
+- In Sun and Moon, a ball you pick up, and someone who walks away during a scene, leave the list.
+- In Sun and Moon, the compass no longer starts at north before it has read the camera, which
+  could send `P`'s first way wrong.
+
 ## [0.14.0] - 2026-11-21
 
 ### Added
